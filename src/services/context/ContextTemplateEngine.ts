@@ -125,11 +125,11 @@ export class ContextTemplateEngine {
       });
     }
 
-    // 5. Current events section (always included if present)
+    // 5. Current project state section (always included if present)
     if (data.recentEvents && data.recentEvents.trim()) {
       sections.push({
         key: 'current-events',
-        title: '### Current Events',
+        title: '### Current Project State',
         content: data.recentEvents,
         conditional: false,
         order: 5

@@ -38,8 +38,8 @@ const DEFAULT_STATEMENTS: Record<string, TemplateStatement> = {
   },
   'current-events-header': {
     key: 'current-events-header',
-    content: '### Current Events',
-    description: 'Header for current events section',
+    content: '### Current Project State',
+    description: 'Header for current project state section',
     editable: true
   },
   'additional-notes-header': {

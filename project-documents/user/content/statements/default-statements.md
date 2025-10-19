@@ -28,10 +28,10 @@ Current development phase and instructions:
 
 Project is configured as a monorepo. Working in package: {{template}}, Slice: {{slice}}
 
-## Current Events Header
+## Current Project State Header
 <!-- key: current-events-header, editable: true -->
 
-### Current Events
+### Current Project State
 
 ## Additional Notes Header
 <!-- key: additional-notes-header, editable: true -->
