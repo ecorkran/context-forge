@@ -3,7 +3,7 @@
  * Provides project CRUD operations with file system persistence via Electron IPC
  */
 
-import { ProjectData, CreateProjectData, UpdateProjectData } from './types/ProjectData';
+import { ProjectData, UpdateProjectData } from './types/ProjectData';
 import { AppState, DEFAULT_APP_STATE } from './types/AppState';
 import { ElectronStorageService } from './ElectronStorageService';
 import { StorageClient } from './StorageClient';
@@ -16,33 +16,6 @@ export class PersistentProjectStore {
   constructor() {
     this.storageService = new ElectronStorageService();
     this.storageClient = new StorageClient();
-  }
-
-  /**
-   * Generates a unique ID for new projects
-   */
-  private generateId(): string {
-    return `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  /**
-   * Creates a default project for new users
-   */
-  private createDefaultProject(): ProjectData {
-    const now = new Date().toISOString();
-    return {
-      id: this.generateId(),
-      name: 'My Project',
-      template: '',
-      slice: '',
-      taskFile: '',
-      instruction: 'implementation',
-      workType: 'continue',
-      isMonorepo: false,
-      customData: {},
-      createdAt: now,
-      updatedAt: now,
-    };
   }
 
   // Project Operations

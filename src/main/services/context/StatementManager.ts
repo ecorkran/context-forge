@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TemplateStatement, StatementConfig, ParsedStatement } from './types/TemplateStatement';
+import { TemplateStatement, ParsedStatement } from './types/TemplateStatement';
 
 /**
  * Default statements for fallback when files are missing
@@ -97,8 +97,7 @@ export class StatementManager {
     
     for (const section of sections) {
       const lines = section.split('\n');
-      const headerLine = lines[0];
-      
+
       // Look for comment metadata
       const commentMatch = lines.find(line => commentPattern.test(line));
       if (commentMatch) {

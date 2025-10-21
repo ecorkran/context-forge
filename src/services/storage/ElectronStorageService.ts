@@ -7,7 +7,6 @@ import { storageClient } from './StorageClient';
  */
 export class ElectronStorageService {
   private readonly mainFile = 'projects.json';
-  private readonly backupFile = 'projects.backup.json';
 
   /**
    * Reads project data from the main file, with fallback to backup

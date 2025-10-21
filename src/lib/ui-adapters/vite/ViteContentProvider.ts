@@ -111,12 +111,12 @@ export class ViteContentProvider implements ContentEngine {
     });
   }
 
-  async renderMarkdown(content: string, options?: any): Promise<string> {
+  async renderMarkdown(_content: string, _options?: any): Promise<string> {
     // Not needed for Vite provider since content is precompiled
     throw new Error('renderMarkdown not supported - content is precompiled');
   }
 
-  validateContent<S extends any>(content: unknown, schema: S): any {
+  validateContent<S extends any>(_content: unknown, _schema: S): any {
     // Content validation will be handled by consuming code
     throw new Error('validateContent not implemented in ViteContentProvider');
   }

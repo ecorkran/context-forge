@@ -174,14 +174,10 @@ const ComboBox = React.forwardRef<HTMLDivElement, ComboBoxProps>(
     const {
       isOpen,
       getToggleButtonProps,
-      getLabelProps,
       getMenuProps,
       getInputProps,
       highlightedIndex,
       getItemProps,
-      selectedItem,
-      selectItem,
-      openMenu,
       closeMenu,
     } = useCombobox({
       items: filteredOptions,

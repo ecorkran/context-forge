@@ -11,7 +11,7 @@ const systemPromptParser = new SystemPromptParser();
  */
 export function setupContextServiceHandlers() {
   // Statement management handlers
-  ipcMain.handle('statements:load', async (event, filename?: string) => {
+  ipcMain.handle('statements:load', async (_event, filename?: string) => {
     try {
       const manager = filename ? new StatementManager(filename) : statementManager;
       await manager.loadStatements();
@@ -22,17 +22,17 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('statements:save', async (event, filename: string, statements: Record<string, TemplateStatement>) => {
+  ipcMain.handle('statements:save', async (_event, filename: string, statements: Record<string, TemplateStatement>) => {
     try {
       const manager = new StatementManager(filename);
       // Load current statements first
       await manager.loadStatements();
-      
+
       // Update statements
       for (const [key, statement] of Object.entries(statements)) {
         manager.updateStatement(key, statement.content);
       }
-      
+
       // Save back to file
       await manager.saveStatements();
     } catch (error) {
@@ -41,7 +41,7 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('statements:get', async (event, filename: string, key: string) => {
+  ipcMain.handle('statements:get', async (_event, filename: string, key: string) => {
     try {
       const manager = new StatementManager(filename);
       await manager.loadStatements();
@@ -52,7 +52,7 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('statements:update', async (event, filename: string, key: string, content: string) => {
+  ipcMain.handle('statements:update', async (_event, filename: string, key: string, content: string) => {
     try {
       const manager = new StatementManager(filename);
       await manager.loadStatements();
@@ -65,7 +65,7 @@ export function setupContextServiceHandlers() {
   });
 
   // System prompt handlers
-  ipcMain.handle('systemPrompts:parse', async (event, filename?: string) => {
+  ipcMain.handle('systemPrompts:parse', async (_event, filename?: string) => {
     try {
       const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
       const prompts = await parser.getAllPrompts();
@@ -76,7 +76,7 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('systemPrompts:getContextInit', async (event, filename?: string, isMonorepo: boolean = false) => {
+  ipcMain.handle('systemPrompts:getContextInit', async (_event, filename?: string, isMonorepo: boolean = false) => {
     try {
       const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
       return await parser.getContextInitializationPrompt(isMonorepo);
@@ -86,7 +86,7 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('systemPrompts:getToolUse', async (event, filename?: string) => {
+  ipcMain.handle('systemPrompts:getToolUse', async (_event, filename?: string) => {
     try {
       const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
       return await parser.getToolUsePrompt();
@@ -96,7 +96,7 @@ export function setupContextServiceHandlers() {
     }
   });
 
-  ipcMain.handle('systemPrompts:getForInstruction', async (event, filename: string, instruction: string) => {
+  ipcMain.handle('systemPrompts:getForInstruction', async (_event, filename: string, instruction: string) => {
     try {
       const parser = new SystemPromptParser(filename);
       return await parser.getPromptForInstruction(instruction);

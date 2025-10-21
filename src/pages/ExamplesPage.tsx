@@ -45,8 +45,8 @@ export default function ExamplesPage() {
     contentProvider
   );
 
-  const { content: technologies, error: technologiesError } = useContentCollection<any>(
-    technologyFilters, 
+  const { content: technologies } = useContentCollection<any>(
+    technologyFilters,
     contentProvider
   );
 

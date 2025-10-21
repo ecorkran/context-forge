@@ -64,14 +64,10 @@ export interface ProcessorConfig {
 export class ContentProcessor {
   private theme: string | { light: string; dark: string };
   private sanitizeSchema: any;
-  private remarkPlugins: any[];
-  private rehypePlugins: any[];
 
-  constructor(private config: ProcessorConfig = {}) {
-    this.theme = config.theme || 'github-dark';
-    this.sanitizeSchema = config.sanitizeSchema || customSanitizeSchema;
-    this.remarkPlugins = config.remarkPlugins || [];
-    this.rehypePlugins = config.rehypePlugins || [];
+  constructor(_config: ProcessorConfig = {}) {
+    this.theme = _config.theme || 'github-dark';
+    this.sanitizeSchema = _config.sanitizeSchema || customSanitizeSchema;
   }
 
   /**

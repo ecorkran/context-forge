@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SystemPrompt } from './types/SystemPrompt';
 
 /**
  * Service for managing prompt file operations
@@ -154,7 +153,7 @@ export class PromptFileManager {
     }
 
     try {
-      const watcher = fs.watchFile(this.filePath, { interval: 1000 }, (curr, prev) => {
+      fs.watchFile(this.filePath, { interval: 1000 }, (curr, prev) => {
         if (curr.mtime !== prev.mtime) {
           callback('change');
         }
