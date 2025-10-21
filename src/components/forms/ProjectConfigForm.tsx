@@ -101,15 +101,18 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
   const generateTaskFileName = (slice: string): string => {
     if (!slice) return '';
 
-    // Extract slice number and name from format like "031-slice.hero-section"
-    const sliceMatch = slice.match(/^(\d+)-slice\.(.+)$/);
-    if (sliceMatch) {
-      const [, sliceNumber, sliceName] = sliceMatch;
-      return `${sliceNumber}-tasks.${sliceName}`;
+    // Extract number prefix and suffix from formats like:
+    // "031-slice.hero-section" -> "031-tasks.hero-section"
+    // "050-arch.something" -> "050-tasks.something"
+    // "200-feature.auth" -> "200-tasks.auth"
+    const match = slice.match(/^(\d+)-[^.]+\.(.+)$/);
+    if (match) {
+      const [, number, suffix] = match;
+      return `${number}-tasks.${suffix}`;
     }
 
-    // Fallback for other slice formats
-    return slice.replace('slice', 'tasks');
+    // Fallback for simple replacement if no number prefix found
+    return slice.replace(/^([^-]+)-/, '$1-tasks-');
   };
 
   // Get current project to check if monorepo features are enabled
@@ -196,15 +199,14 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
     }));
   };
 
-  // Simple handler for slice changes - only auto-update taskFile when it's empty
+  // Handler for slice changes - auto-update taskFile in real-time
   const handleSliceChange = (newSlice: string) => {
     setFormData(prev => {
       const newTaskFile = generateTaskFileName(newSlice);
       return {
         ...prev,
         slice: newSlice,
-        // Only auto-update taskFile if it's currently empty
-        taskFile: prev.taskFile ? prev.taskFile : newTaskFile
+        taskFile: newTaskFile
       };
     });
   };
