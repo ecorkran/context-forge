@@ -200,13 +200,20 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
   };
 
   // Handler for slice changes - auto-update taskFile in real-time
+  // But preserve manual edits: only update if taskFile matches what we would have generated
   const handleSliceChange = (newSlice: string) => {
     setFormData(prev => {
       const newTaskFile = generateTaskFileName(newSlice);
+      const oldExpectedTaskFile = generateTaskFileName(prev.slice);
+
+      // Only auto-update if current taskFile is what we would have generated
+      // This preserves manual edits (like adding -x9) while still providing auto-fill
+      const shouldAutoUpdate = prev.taskFile === oldExpectedTaskFile || !prev.taskFile;
+
       return {
         ...prev,
         slice: newSlice,
-        taskFile: newTaskFile
+        taskFile: shouldAutoUpdate ? newTaskFile : prev.taskFile
       };
     });
   };
