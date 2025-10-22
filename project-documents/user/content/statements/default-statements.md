@@ -6,12 +6,12 @@ lastUpdated: "2025-09-13"
 ## Start Project Statement
 <!-- key: start-project-statement, editable: true -->
 
-We're starting work on a new project. Project information, environment context, instructions, and notes follow:
+Starting work on {{projectName}}. Project information, environment context, instructions, and notes follow:
 
-## Continue Project Statement  
+## Continue Project Statement
 <!-- key: continue-project-statement, editable: true -->
 
-We are continuing work on our project. Project information, environment context, instructions, and notes follow:
+Continuing work on {{projectName}}. Project information, environment context, instructions, and notes follow:
 
 ## Tool Intro Statement
 <!-- key: tool-intro-statement, editable: true -->

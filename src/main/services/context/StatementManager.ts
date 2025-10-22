@@ -8,13 +8,13 @@ import { TemplateStatement, ParsedStatement } from './types/TemplateStatement';
 const DEFAULT_STATEMENTS: Record<string, TemplateStatement> = {
   'start-project-statement': {
     key: 'start-project-statement',
-    content: "We're starting work on a new project. Project information, environment context, instructions, and notes follow:",
+    content: 'Starting work on {{projectName}}. Project information, environment context, instructions, and notes follow:',
     description: 'Opening statement for starting a new project',
     editable: true
   },
   'continue-project-statement': {
     key: 'continue-project-statement',
-    content: 'We are continuing work on our project. Project information, environment context, instructions, and notes follow:',
+    content: 'Continuing work on {{projectName}}. Project information, environment context, instructions, and notes follow:',
     description: 'Opening statement for continuing project work',
     editable: true
   },
