@@ -277,7 +277,7 @@ export const ContextBuilderApp: React.FC = () => {
         instruction: newProject.instruction,
         developmentPhase: formData.developmentPhase || '',  // Inherit from current project
         workType: formData.workType || newProject.workType,  // Inherit from current project
-        projectDate: formData.projectDate || newProject.projectDate,  // Inherit from current project
+        projectDate: new Date().toISOString().split('T')[0],  // Set to today's date (YYYY-MM-DD)
         isMonorepo: newProject.isMonorepo,
         isMonorepoEnabled: newProject.isMonorepoEnabled,
         customData: {
