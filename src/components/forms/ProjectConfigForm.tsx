@@ -268,7 +268,7 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
             type="date"
             value={formData.projectDate || new Date().toISOString().split('T')[0]}
             onChange={(e) => handleInputChange('projectDate', e.target.value)}
-            className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent"
+            className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50"
           />
         </div>
 
