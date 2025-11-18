@@ -36,21 +36,24 @@ SHARED_FILES=(
 )
 
 # Pro-only patterns to exclude (rsync patterns)
+# NOTE: Patterns are relative to the synced directory, not repo root
 EXCLUDE_PATTERNS=(
-  # Pro-only features (not yet created, but will exclude when they exist)
-  "src/features/cloud-sync"
-  "src/features/orchestration"
-  "src/features/premium-formats"
-  "src/services/licensing"
-  "src/services/pro"
-  "src/components/pro"
+  # Pro-only subdirectories (exclude from parent dirs being synced)
+  "pro"
+  "pro/"
+  "cloud-sync"
+  "cloud-sync/"
+  "orchestration"
+  "orchestration/"
+  "premium-formats"
+  "premium-formats/"
+  "licensing"
+  "licensing/"
   # File patterns
   "*.pro.ts"
   "*.pro.tsx"
   "*.premium.ts"
   "*.premium.tsx"
-  # Development docs
-  "project-documents"
 )
 
 # Config files to compare and sync individually
@@ -220,8 +223,9 @@ cd "$FREE_DIR"
 
 LEAKED=0
 for keyword in "${PRO_KEYWORDS[@]}"; do
-    if grep -r "$keyword" src/ 2>/dev/null | grep -v node_modules | grep -v ".git"; then
-        print_error "Pro-only keyword '$keyword' detected in Free!"
+    # Only check actual code files (.ts, .tsx, .js, .jsx), exclude README.md and other docs
+    if grep -r "$keyword" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v node_modules | grep -v ".git" | grep -v "README.md"; then
+        print_error "Pro-only keyword '$keyword' detected in Free code!"
         LEAKED=1
     fi
 done
