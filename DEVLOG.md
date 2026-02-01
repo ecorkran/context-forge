@@ -1,0 +1,45 @@
+# Development Log
+
+A lightweight, append-only record of development activity. Newest entries first.
+
+Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
+
+---
+
+## 2025-01-16
+
+- Resumed project after ~2 month hiatus
+- Evaluated context-forge vs context-forge-pro state with AI assistance
+- Decision: continue in Pro repo, Mac-only packaging initially
+- Added DEVLOG.md for better project continuity
+
+## 2025-11-18 (reconstructed from git)
+
+- Last active development before hiatus
+- Updated window title to 'Context Forge Pro'
+- Initialized ai-project-guide submodule
+- Established Pro/Free sync infrastructure
+
+## 2025-11-17 (reconstructed from git)
+
+- Completed maintenance slice (900-tasks.maintenance.md)
+- Fixed undo/redo in textarea fields (Issue #21)
+- Added development-phase field for context output
+- Task file auto-population from slice names
+
+---
+
+*Entries below this line are reconstructed from git history and task files.*
+
+## 2025-10 (summary)
+
+- MVP feature completion
+- Multi-project support finalized
+- Context generation engine stable
+- Monorepo mode settings added
+
+## 2025-09 (summary)
+
+- Initial maintenance infrastructure
+- Application menu implementation
+- Core slice completion (100-115)
