@@ -445,6 +445,45 @@ Add `development-phase` field to capture the human-readable phase name from the 
   - Template substitution working in both development and production builds
   - **Success:** Application builds and functions correctly with new field
 
+## Task 10: Increase Character Limits for Context Fields
+
+### Overview
+Increase character limits for Project State and Additional Instructions fields from 8K to 32K characters. These fields are used to build initial context, and with modern Claude models supporting 200K-1M token windows, the 8K limit is unnecessarily restrictive. Increasing to 32K allows capturing larger project summaries and detailed instructions while maintaining a practical limit. The UI still sends only what's actually provided (no padding), so there's no token waste.
+
+**Rationale:**
+- Current 8K ≈ 2K tokens - negligible against 200K+ window
+- Accommodates larger project state summaries and additional context
+- Future-proofs for expanding model context windows
+- No downside: only sends actual content, not full field
+
+**Affected Fields:**
+- Project State (recentEvents) - textarea in ProjectConfigForm.tsx:427-444
+- Additional Instructions (additionalNotes) - textarea in ProjectConfigForm.tsx:452-469
+- Monorepo Structure (monorepoNote) - textarea in ProjectConfigForm.tsx:401-418
+
+### 10.1 Update Form Character Limits
+
+- [x] **Update maxLength attributes in ProjectConfigForm**
+  - Changed Project State textarea maxLength from 8000 to 32000
+  - Changed Additional Instructions textarea maxLength from 8000 to 32000
+  - Changed Monorepo Structure textarea maxLength from 8000 to 32000
+  - Updated all character counter displays to show /32000
+  - **Success:** UI textareas allow up to 32K characters with updated counters
+
+### 10.2 Testing and Verification
+
+- [x] **Test character limit enforcement**
+  - Verified input fields accept up to 32K characters
+  - Counter displays correctly with new limit
+  - Fields prevent exceeding 32K character limit via maxLength attribute
+  - **Success:** All fields respect new 32K character limit
+
+- [x] **Build and verify**
+  - Built project with `pnpm build` - no TypeScript compilation errors
+  - Renderer bundle successfully built (1.3MB)
+  - Only expected eval warning from gray-matter dependency
+  - **Success:** Application builds successfully with increased limits
+
 ## Notes
 
 **Priority:** P2 - Non-critical maintenance work
