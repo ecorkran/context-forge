@@ -7,7 +7,7 @@ guideRole: primary
 audience: [human, ai]
 description: Task breakdown for macOS application packaging and distribution
 status: not-started
-dateUpdated: 2026-01-18
+dateUpdated: 2026-02-07
 dependencies: [all-core-features]
 lldReference: 125-slice.application-packaging.md
 projectState: MVP complete, ready for distribution

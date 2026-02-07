@@ -5,7 +5,7 @@ type: slice
 dependencies: [125-application-packaging]
 projectState: deferred
 status: deferred
-lastUpdated: 2026-01-18
+lastUpdated: 2026-02-07
 ---
 
 # Slice Design: Application Packaging (Windows)

@@ -5,7 +5,7 @@ type: slice-tasks
 lldReference: private/slices/050-slice.persistence.md
 dependencies: [foundation, context-templates]
 projectState: complete
-lastUpdated: 2025-01-27
+lastUpdated: 2026-02-07
 ---
 
 # Task Breakdown: Persistence & Multi-Project Foundation
@@ -153,17 +153,19 @@ Phase 1 focuses on automatic persistence without any UI changes. Phase 2 (future
     - Update app state with current timestamp
     - **Success:** App remembers last edited project
 
-- [x] **Task 3.4: Add Loading States**
-  - [x] **3.4.1: Add isLoading state**
+- [x] **Task 3.4: Add Loading States** (DEFERRED)
+  - [ ] **3.4.1: Add isLoading state** (DEFERRED)
     - Track initial load status
     - Show loading indicator during startup
     - Prevent form interaction while loading
+    - **Status:** DEFERRED - marked as simplified, no complex UI states needed
     - **Success:** User sees loading feedback (simplified - no complex UI states)
-  
-  - [x] **3.4.2: Add save indicator**
+
+  - [ ] **3.4.2: Add save indicator** (DEFERRED)
     - Track save status (saving/saved/error)
     - Show subtle indicator (e.g., dot or text)
     - Clear after successful save
+    - **Status:** DEFERRED - marked as simplified, no complex UI states needed
     - **Success:** User knows when data is saved (simplified - no complex UI states)
 
 
