@@ -26,7 +26,7 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     show: false,
-    title: 'Context Forge',
+    title: 'Context Forge Pro',
     webPreferences: {
       preload: fileURLToPath(new URL('../preload/preload.cjs', import.meta.url)),
       contextIsolation: true,
@@ -65,8 +65,8 @@ function createWindow(): void {
     if (!mainWindow) return
     
     const title = projectName 
-      ? `Context Forge - ${projectName}`
-      : 'Context Forge'
+      ? `Context Forge Pro - ${projectName}`
+      : 'Context Forge Pro'
     
     mainWindow.setTitle(title)
   })
