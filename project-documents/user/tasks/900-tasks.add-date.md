@@ -2,7 +2,7 @@
 item: add-date
 project: context-builder
 type: feature-tasks
-lldReference: private/features/900-feature.add-date.md
+lldReference: user/features/754-feature.add-date.md
 dependencies: [foundation, context-templates, persistence]
 projectState: Core features complete, adding date tracking capability
 status: in-progress

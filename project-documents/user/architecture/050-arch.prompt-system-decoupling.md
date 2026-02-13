@@ -113,12 +113,12 @@ Out of scope (future work):
 
 ### Feature/Enhancement Issues
 - [Issue #24](https://github.com/ecorkran/context-forge/issues/24): Dynamic Phase Options - Load PHASE_OPTIONS from system prompts
-  - Reference: `project-documents/user/features/824-issue.dynamic-phase-options.md`
+  - Reference: `project-documents/user/features/752-issue.dynamic-phase-options.md`
   - First concrete step: Extract phase list from prompts instead of hardcoding
 
 ### Active Issues
 - [Issue #25](https://github.com/ecorkran/context-forge/issues/25): Auto-Resolve File Indices for Artifact Creation
-  - Reference: `project-documents/user/features/700-feature.auto-index-resolution.md`
+  - Reference: `project-documents/user/features/750-feature.auto-index-resolution.md`
   - Auto-determine next available index when creating slices, tasks, features
 
 ### Future Issues (To Be Created)

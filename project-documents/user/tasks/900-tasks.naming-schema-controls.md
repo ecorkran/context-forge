@@ -3,7 +3,7 @@ item: naming-schema-controls
 project: context-builder
 type: tasks
 sliceIndex: 900
-featureReference: 900-feature.naming-schema-controls.md
+featureReference: 755-feature.naming-schema-controls.md
 dependencies: []
 projectState: Maintenance phase - all critical bugs fixed, core features working
 status: in-progress
@@ -16,7 +16,7 @@ lastUpdated: 2025-10-08
 
 This task file implements the naming schema controls feature (GitHub Issue #9), adding checkbox controls to allow users to include/exclude file and directory naming conventions in the context initialization prompt.
 
-**Feature Location**: `user/features/900-feature.naming-schema-controls.md`
+**Feature Location**: `user/features/755-feature.naming-schema-controls.md`
 
 **Implementation Pattern**: Follows the established `isMonorepoEnabled` pattern for feature flags controlling content inclusion.
 
@@ -367,7 +367,7 @@ This task file implements the naming schema controls feature (GitHub Issue #9), 
 
 ### Task 8.1: Update Feature Document
 
-- [ ] Open `user/features/900-feature.naming-schema-controls.md`
+- [ ] Open `user/features/755-feature.naming-schema-controls.md`
 - [ ] Update `status` to `completed`
 - [ ] Update `lastUpdated` to completion date
 - [ ] Check all success criteria items
