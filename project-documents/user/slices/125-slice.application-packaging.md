@@ -12,7 +12,7 @@ lastUpdated: 2026-02-07
 
 ## Overview
 
-**User Value:** Users can install and run Context Forge Pro as a native desktop application on macOS without requiring development environment setup.
+**User Value:** Users can install and run Context Forge as a native desktop application on macOS without requiring development environment setup.
 
 **Business Value:** Enables distribution and adoption of Context Forge Pro for macOS users, providing professional installation experience. Linux and Windows support planned as separate slices.
 
