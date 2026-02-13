@@ -3,7 +3,7 @@ layer: project
 docType: architecture
 title: Prompt System Decoupling Architecture
 dateCreated: 2026-02-07
-dateUpdated: 2026-02-07
+dateUpdated: 2026-02-12
 status: active
 priority: P1
 ---
@@ -115,6 +115,11 @@ Out of scope (future work):
 - [Issue #24](https://github.com/ecorkran/context-forge/issues/24): Dynamic Phase Options - Load PHASE_OPTIONS from system prompts
   - Reference: `project-documents/user/features/824-issue.dynamic-phase-options.md`
   - First concrete step: Extract phase list from prompts instead of hardcoding
+
+### Active Issues
+- [Issue #25](https://github.com/ecorkran/context-forge/issues/25): Auto-Resolve File Indices for Artifact Creation
+  - Reference: `project-documents/user/features/700-feature.auto-index-resolution.md`
+  - Auto-determine next available index when creating slices, tasks, features
 
 ### Future Issues (To Be Created)
 - **Configuration Provider Interface**: Abstraction for accessing prompt/configuration data
