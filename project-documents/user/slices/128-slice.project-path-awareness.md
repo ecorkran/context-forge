@@ -196,8 +196,8 @@ The existing `SettingsDialog.tsx` gains a new section **above** the Repository T
 A small visual indicator near the project name or settings icon in the main form header area. This communicates path health at a glance without cluttering the form.
 
 **States:**
-1. **No path set** (neutral): no indicator shown, or a subtle neutral dot — the absence of a path is not an error
-2. **Path valid** (green): small green dot or checkmark
+1. **No path set** (neutral): no indicator shown, or a (subtle neutral dot) — absence of a path is not an error
+2. **Path valid** (green): small green dot
 3. **Path invalid** (red/amber): small indicator that something needs attention
 
 **Behavior:**
