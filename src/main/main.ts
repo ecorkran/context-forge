@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { readFile, writeFile, mkdir, copyFile, rename, unlink } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { setupContextServiceHandlers } from './ipc/contextServices'
+import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
 
 function isAllowedUrl(target: string): boolean {
   try {
@@ -238,8 +239,9 @@ function createWindow(): void {
     }
   })
 
-  // Setup context service IPC handlers
+  // Setup IPC handlers
   setupContextServiceHandlers()
+  setupProjectPathHandlers()
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)

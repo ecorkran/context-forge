@@ -12,7 +12,8 @@ vi.mock('fs', () => ({
 import * as fs from 'fs';
 
 const mockStat = vi.mocked(fs.promises.stat);
-const mockReaddir = vi.mocked(fs.promises.readdir);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockReaddir = vi.mocked(fs.promises.readdir) as any;
 
 /** Helper to create a mock stat result for a directory. */
 function dirStat() {
