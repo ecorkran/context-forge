@@ -6,7 +6,7 @@ project: context-forge
 lld: user/slices/128-slice.project-path-awareness.md
 architecture: user/architecture/050-arch.prompt-system-decoupling.md
 dependencies: []
-status: not started
+status: complete
 projectState: Electron+React+TypeScript app (Vite build). Settings dialog exists with monorepo toggle. IPC follows handle/invoke pattern via contextBridge. No filesystem awareness of project directories. Storage is JSON-based with three-layer abstraction (IPC → StorageClient → Service).
 dateCreated: 20260213
 dateUpdated: 20260213
@@ -357,23 +357,23 @@ dateUpdated: 20260213
 **Objective**: Verify the full slice builds and integrates correctly.
 
 **Steps**:
-- [ ] Run `pnpm build` — fix any TypeScript or build errors
-- [ ] Verify no regressions in existing functionality:
-  - SettingsDialog still opens and monorepo toggle works
-  - Project switching still works
-  - Auto-save still persists changes
-  - Context generation is unchanged
-- [ ] Verify new functionality connects end-to-end:
-  - Settings dialog shows ProjectPathSection
-  - Browse button invokes native folder picker
-  - Selecting a valid project path shows green validation feedback
-  - Selecting an invalid path shows error feedback
-  - Health indicator appears in the main UI after setting a path
-  - Clearing the path hides the health indicator
-- [ ] If tests exist (`pnpm test`), run them and verify no failures
+- [x] Run `pnpm build` — fix any TypeScript or build errors
+- [x] Verify no regressions in existing functionality:
+  - [x] SettingsDialog still opens and monorepo toggle works
+  - [x] Project switching still works
+  - [x] Auto-save still persists changes
+  - [x] Context generation is unchanged
+- [x] Verify new functionality connects end-to-end:
+  - [x] Settings dialog shows ProjectPathSection
+  - [x] Browse button invokes native folder picker
+  - [x] Selecting a valid project path shows green validation feedback
+  - [x] Selecting an invalid path shows error feedback
+  - [x] Health indicator appears in the main UI after setting a path
+  - [x] Clearing the path hides the health indicator
+- [x] If tests exist (`pnpm test`), run them and verify no failures
 
 **Success Criteria**:
-- [ ] Build succeeds with no errors (warnings acceptable)
-- [ ] No regressions in existing features
-- [ ] New path awareness features are functional end-to-end
-- [ ] All existing tests pass (if test suite exists)
+- [x] Build succeeds with no errors (warnings acceptable)
+- [x] No regressions in existing features
+- [x] New path awareness features are functional end-to-end
+- [x] All existing tests pass (if test suite exists)
