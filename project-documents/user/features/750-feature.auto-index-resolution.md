@@ -8,8 +8,8 @@ relatedIssues: [24, 25]
 dependencies: []
 status: backlog
 priority: P2
-dateCreated: 2026-02-12
-dateUpdated: 2026-02-12
+dateCreated: 20260212
+dateUpdated: 20260212
 ---
 
 # Feature: Auto-Resolve File Indices for Artifact Creation

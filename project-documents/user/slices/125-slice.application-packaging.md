@@ -5,7 +5,8 @@ type: slice
 dependencies: [all-core-features]
 projectState: MVP complete, ready for distribution
 status: not-started
-lastUpdated: 2026-02-07
+dateCreated: 20250930
+dateUpdated: 20260207
 ---
 
 # Slice Design: Application Packaging (macOS)

@@ -6,7 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Convert monorepo support from global+per-project to per-project only
 status: not-started
-dateUpdated: 2025-09-25
+dateCreated: 20250925
+dateUpdated: 20250925
 ---
 
 # Feature: Per-Project Monorepo Support

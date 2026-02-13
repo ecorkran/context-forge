@@ -2,8 +2,8 @@
 layer: project
 docType: architecture
 title: Prompt System Decoupling Architecture
-dateCreated: 2026-02-07
-dateUpdated: 2026-02-12
+dateCreated: 20260207
+dateUpdated: 20260212
 status: active
 priority: P1
 ---

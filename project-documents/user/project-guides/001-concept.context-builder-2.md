@@ -6,6 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Project concept for context-builder Electron application
 dependsOn: [guide.ai-project.00-process.md]
+dateCreated: 20250910
+dateUpdated: 20250910
 ---
 
 #### High-Level Project Concept

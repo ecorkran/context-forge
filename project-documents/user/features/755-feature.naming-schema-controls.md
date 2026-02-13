@@ -6,7 +6,8 @@ github: https://github.com/ecorkran/context-builder/issues/9
 dependencies: []
 projectState: Maintenance phase - all critical bugs fixed, core features working
 status: in-progress
-lastUpdated: 2025-10-07
+dateCreated: 20251006
+dateUpdated: 20251007
 ---
 
 # Feature: Naming Schema Controls

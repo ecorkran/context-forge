@@ -6,7 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Maintenance slice for context-builder ongoing issues and improvements
 status: in-progress
-dateUpdated: 2025-09-16
+dateCreated: 20250916
+dateUpdated: 20250916
 ---
 
 # Maintenance Slice: context-builder

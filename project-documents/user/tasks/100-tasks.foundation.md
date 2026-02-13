@@ -4,7 +4,8 @@ project: context-builder
 lld: private/slices/100-slice.foundation.md
 dependencies: [electron-setup, manta-templates-integration]
 projectState: Complete
-lastUpdated: 2025-01-27
+dateCreated: 20250910
+dateUpdated: 20250127
 ---
 
 ## Context Summary

@@ -6,7 +6,8 @@ github: https://github.com/ecorkran/context-builder/issues/8
 dependencies: [foundation, context-templates]
 projectState: Core features complete, adding date tracking capability
 status: not-started
-lastUpdated: 2025-10-04
+dateCreated: 20251005
+dateUpdated: 20251004
 ---
 
 # Feature: Add Date Control to Context-Builder UI

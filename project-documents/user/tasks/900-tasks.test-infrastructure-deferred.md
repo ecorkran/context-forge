@@ -3,8 +3,8 @@ slice: maintenance-test-infrastructure
 project: context-forge-pro
 type: maintenance-tasks
 status: deferred
-dateCreated: 2026-02-07
-dateUpdated: 2026-02-07
+dateCreated: 20260207
+dateUpdated: 20260207
 priority: medium
 description: Deferred test infrastructure and mocking improvements
 ---

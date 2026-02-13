@@ -4,7 +4,8 @@ project: context-builder
 lld: private/slices/045-slice.features.md
 dependencies: [foundation]
 projectState: complete
-lastUpdated: 2026-02-07
+dateCreated: 20250911
+dateUpdated: 20260207
 ---
 
 ## Context Summary

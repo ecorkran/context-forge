@@ -1,3 +1,10 @@
+---
+docType: guide
+layer: project
+description: Original project concept for context-builder
+dateCreated: 20250910
+dateUpdated: 20250910
+---
 
 # Overview
 

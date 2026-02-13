@@ -7,7 +7,8 @@ guideRole: primary
 audience: [human, ai]
 description: Task breakdown for Windows application packaging and distribution
 status: deferred
-dateUpdated: 2026-02-07
+dateCreated: 20260131
+dateUpdated: 20260207
 dependencies: [125-application-packaging]
 lldReference: 127-slice.application-packaging-windows.md
 projectState: deferred

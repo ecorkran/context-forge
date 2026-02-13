@@ -6,7 +6,8 @@ lldReference: user/features/754-feature.add-date.md
 dependencies: [foundation, context-templates, persistence]
 projectState: Core features complete, adding date tracking capability
 status: in-progress
-lastUpdated: 2025-10-04
+dateCreated: 20251004
+dateUpdated: 20251004
 github: https://github.com/ecorkran/context-builder/issues/8
 ---
 

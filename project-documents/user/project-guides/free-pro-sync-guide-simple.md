@@ -1,3 +1,11 @@
+---
+docType: guide
+layer: project
+description: Template for setting up Free/Pro tier synchronization in non-monorepo projects
+dateCreated: 20251118
+dateUpdated: 20251118
+---
+
 # Free/Pro Repository Sync Guide (Simple Project Template)
 
 **Purpose:** Template for setting up Free/Pro tier synchronization in non-monorepo projects

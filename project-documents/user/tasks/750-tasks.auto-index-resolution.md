@@ -6,6 +6,7 @@ project: context-forge
 feature: user/features/750-feature.auto-index-resolution.md
 architecture: user/architecture/050-arch.prompt-system-decoupling.md
 dependencies: []
+status: in_progress
 projectState: Electron+React app with IPC-based file operations. Auto-generation logic exists for task filenames from slice names. No index resolution logic exists yet.
 dateCreated: 20260212
 dateUpdated: 20260212

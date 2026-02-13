@@ -6,6 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Slice planning for context-builder Electron application
 dependsOn: [03-hld.context-builder.md]
+dateCreated: 20250910
+dateUpdated: 20250910
 ---
 
 # Slice Plan: context-builder

@@ -7,7 +7,8 @@ guideRole: primary
 audience: [human, ai]
 description: Task breakdown for Linux application packaging and distribution
 status: deferred
-dateUpdated: 2026-02-07
+dateCreated: 20260131
+dateUpdated: 20260207
 dependencies: [125-application-packaging]
 lldReference: 126-slice.application-packaging-linux.md
 projectState: deferred

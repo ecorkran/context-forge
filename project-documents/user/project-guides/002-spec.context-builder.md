@@ -6,6 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Project specification for context-builder Electron application
 dependsOn: [01-concept.context-builder.md]
+dateCreated: 20250910
+dateUpdated: 20250910
 ---
 
 ## 1. Overview and Purpose

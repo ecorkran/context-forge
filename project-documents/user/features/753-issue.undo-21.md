@@ -4,6 +4,8 @@ docType: feature
 issueNumber: 21
 status: resolved
 priority: high
+dateCreated: 20251022
+dateUpdated: 20251022
 ---
 
 # Feature: Undo/Redo Support in Textarea Fields

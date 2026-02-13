@@ -4,7 +4,8 @@ project: context-builder
 lld: user/features/751-feature.project-monorepo.md
 dependencies: []
 projectState: Monorepo support currently uses dual global+per-project settings causing workflow friction
-lastUpdated: 2025-09-25
+dateCreated: 20250925
+dateUpdated: 20250925
 status: complete
 ---
 

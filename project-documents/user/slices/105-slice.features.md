@@ -6,7 +6,8 @@ github: null
 dependencies: [foundation]
 projectState: Foundation slice complete - ready for feature development
 status: not-started
-lastUpdated: 2025-01-27
+dateCreated: 20250911
+dateUpdated: 20250127
 ---
 
 # Feature Slices Low-Level Design: context-builder

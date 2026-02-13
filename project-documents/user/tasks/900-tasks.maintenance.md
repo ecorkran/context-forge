@@ -6,7 +6,8 @@ guideRole: primary
 audience: [human, ai]
 description: Maintenance tasks for context-builder ongoing issues and improvements
 status: complete
-dateUpdated: 2025-09-18
+dateCreated: 20250916
+dateUpdated: 20250918
 ---
 
 # Maintenance Tasks: context-builder

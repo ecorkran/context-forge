@@ -5,7 +5,8 @@ issueNumber: 24
 status: backlog
 priority: P2
 category: feature/enhancement
-dateCreated: 2026-02-07
+dateCreated: 20260207
+dateUpdated: 20260207
 ---
 
 # Feature: Dynamic Phase Options (Issue #24)

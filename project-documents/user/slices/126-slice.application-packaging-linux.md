@@ -5,7 +5,8 @@ type: slice
 dependencies: [125-application-packaging]
 projectState: deferred
 status: deferred
-lastUpdated: 2026-02-07
+dateCreated: 20260131
+dateUpdated: 20260207
 ---
 
 # Slice Design: Application Packaging (Linux)

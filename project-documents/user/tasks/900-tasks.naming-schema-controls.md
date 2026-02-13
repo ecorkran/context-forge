@@ -7,7 +7,8 @@ featureReference: 755-feature.naming-schema-controls.md
 dependencies: []
 projectState: Maintenance phase - all critical bugs fixed, core features working
 status: in-progress
-lastUpdated: 2025-10-08
+dateCreated: 20251008
+dateUpdated: 20251008
 ---
 
 # Tasks: Naming Schema Controls

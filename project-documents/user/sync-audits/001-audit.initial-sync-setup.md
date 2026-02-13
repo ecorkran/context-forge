@@ -2,8 +2,10 @@
 layer: project
 docType: audit
 auditType: sync
-auditDate: 2025-11-17
+auditDate: 20251117
 auditNumber: 001
+dateCreated: 20251118
+dateUpdated: 20251118
 ---
 
 # Audit 001: Initial Pro/Free Sync Setup
