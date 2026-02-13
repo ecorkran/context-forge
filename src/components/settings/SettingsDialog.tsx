@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal } from '../../lib/ui-core/components/overlays/Modal';
 import { Checkbox } from '../../lib/ui-core/components/form/checkbox';
 import { ProjectData } from '../../services/storage/types/ProjectData';
+import { ProjectPathSection } from './ProjectPathSection';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -19,6 +20,12 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   currentProject,
   onProjectUpdate
 }) => {
+  const handlePathChange = (path: string | undefined) => {
+    if (currentProject) {
+      onProjectUpdate({ projectPath: path });
+    }
+  };
+
   const handleMonorepoModeChange = (checked: boolean) => {
     if (currentProject) {
       onProjectUpdate({ isMonorepoEnabled: checked });
@@ -35,7 +42,13 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       <div className="space-y-6">
         {currentProject ? (
           <>
-            {/* Project Settings Section */}
+            {/* Project Path Section */}
+            <ProjectPathSection
+              projectPath={currentProject.projectPath}
+              onPathChange={handlePathChange}
+            />
+
+            {/* Repository Type Section */}
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-neutral-12 mb-3">
