@@ -3,7 +3,7 @@ layer: project
 docType: architecture
 title: Prompt System Decoupling Architecture
 dateCreated: 20260207
-dateUpdated: 20260212
+dateUpdated: 20260213
 status: active
 priority: P1
 ---
@@ -28,24 +28,30 @@ This architecture addresses the need to decouple Context Forge from its current 
 
 The current implementation has several hardcoded dependencies:
 
-1. **Static UI Configuration**
+1. **No Project Path Awareness**
+   - Context Forge is a closed-world form builder — the user types filenames as plain text
+   - The app has no knowledge of where a project's files live on disk
+   - Cannot read project structure, scan directories, or validate file references
+   - This blocks any feature that needs to interact with the actual project (auto-index, dynamic phases, browsing existing slices)
+
+2. **Static UI Configuration**
    - `PHASE_OPTIONS` hardcoded in `ProjectConfigForm.tsx:38-57` (16 phases)
    - Development phase list manually maintained in code
    - Adding new phases requires code changes + rebuild
 
-2. **Prompt File Dependencies**
+3. **Prompt File Dependencies**
    - All prompts imported from single file: `project-documents/project-guides/prompt.ai-project.system.md`
    - UI must know exact structure of prompt file
    - No support for alternative prompt sources
    - Remote/imported prompts require manual copy into repo
 
-3. **Storage Limitations**
+4. **Storage Limitations**
    - All configuration stored in Markdown files
    - No structured query capabilities
    - Difficult to support versioning or multiple configurations
    - File-based storage doesn't scale well
 
-4. **Expansion Constraints**
+5. **Expansion Constraints**
    - New prompt files = UI code changes
    - Different naming/indexing schemes not supported
    - Difficult to test with alternative configurations
@@ -61,6 +67,7 @@ The current implementation has several hardcoded dependencies:
 
 Support a flexible, configuration-driven system where:
 
+- **Project-Aware**: Context Forge knows where each project lives and can read its structure
 - **Multiple Prompt Sources**: Load from local files, remote URLs, or structured data
 - **Dynamic Configuration**: UI elements generated from configuration, not hardcoded
 - **Alternative Storage**: Eventually support SQLite or other backends without code restructuring
@@ -97,6 +104,7 @@ Support a flexible, configuration-driven system where:
 ## Scope
 
 This architecture addresses:
+- ✅ Project path awareness — per-project filesystem access
 - ✅ Decoupling UI from hardcoded configuration lists
 - ✅ Supporting multiple prompt file sources
 - ✅ Creating abstraction for configuration access
@@ -104,6 +112,7 @@ This architecture addresses:
 - ✅ Planned support for remote/imported prompt sources
 
 Out of scope (future work):
+- Direct repository connections (GitHub, etc.)
 - SQLite implementation (TBD)
 - Alternative naming/indexing schemes (TBD)
 - Remote source authentication (TBD)
@@ -120,6 +129,15 @@ Out of scope (future work):
 - [Issue #25](https://github.com/ecorkran/context-forge/issues/25): Auto-Resolve File Indices for Artifact Creation
   - Reference: `project-documents/user/features/750-feature.auto-index-resolution.md`
   - Auto-determine next available index when creating slices, tasks, features
+- [Issue #26](https://github.com/ecorkran/context-forge/issues/26): Browse Existing Slices/Tasks/Features from Project Directory
+  - Pick existing files via dropdown instead of manual text entry
+  - Depends on: Project Path Awareness (128-slice)
+
+### Foundational Prerequisite
+- **Project Path Awareness**: Per-project filesystem path stored and validated
+  - Reference: `project-documents/user/slices/128-slice.project-path-awareness.md`
+  - Unlocks: Issue #24, Issue #25, Issue #26, future ConfigProvider implementations
+  - Vertical slice: data model, IPC/validation, UI (settings), health indicator
 
 ### Future Issues (To Be Created)
 - **Configuration Provider Interface**: Abstraction for accessing prompt/configuration data
@@ -132,19 +150,21 @@ Out of scope (future work):
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ User Interface Layer                                        │
-│ (ProjectConfigForm, etc.)                                  │
+│ (ProjectConfigForm, ProjectSettings, etc.)                 │
 └──────────────────────────┬──────────────────────────────────┘
                            │
-                    Uses ConfigProvider
-                    (abstracted interface)
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-   ┌────▼──────┐  ┌───────▼────────┐  ┌─────▼──────────┐
-   │ Local MD   │  │ Remote URL     │  │ SQLite/DB      │
-   │ Provider   │  │ Provider       │  │ Provider       │
-   │ (current)  │  │ (future)       │  │ (future)       │
-   └────────────┘  └────────────────┘  └────────────────┘
+              ┌────────────┼────────────────┐
+              │                             │
+     Uses ConfigProvider           Uses ProjectPathService
+     (abstracted interface)        (per-project fs access)
+              │                             │
+  ┌───────────┼───────────┐        ┌───────▼──────────┐
+  │           │           │        │ Path Validation   │
+┌─▼────────┐┌─▼────────┐┌─▼─────┐ │ Health Check      │
+│ Local MD ││Remote URL ││SQLite │ │ Directory Scan    │
+│ Provider ││ Provider  ││  /DB  │ │ Index Resolution  │
+│(current) ││ (future)  ││(fut.) │ └──────────────────┘
+└──────────┘└──────────┘└───────┘
 ```
 
 ## Key Principles
@@ -157,9 +177,39 @@ Out of scope (future work):
 
 ## Implementation Strategy
 
+### Phase 0: Project Path Awareness (foundational)
+Context Forge transitions from a closed-world form builder to a project-aware tool.
+
+**Data Model**:
+- Add `projectPath` field to `ProjectData` (persisted per-project, same storage as slice/taskFile/phase)
+- Optional field — projects without a path continue to work as they do today
+- Path refers to the project root (the directory containing `project-documents/`)
+
+**Backend (main process)**:
+- Path validation service via IPC: confirm path exists, confirm `project-documents/` structure is present
+- Health check: on-demand validation that the stored path is still reachable and structurally valid
+- Directory scanning primitives: list files in `project-documents/user/{subdirectory}/`
+
+**UI**:
+- Project path setting in a per-project settings area (not on the main form — behind a gear icon, expandable panel, or similar)
+- Folder picker using Electron's `dialog.showOpenDialog`
+- Project health indicator: a small visual signal (green/red dot or similar) showing whether the path is valid and reachable
+- Easy recovery when path breaks (moved project, network drive offline): clicking the indicator opens path settings to re-point
+
+**UX Principles**:
+- Zero clutter on the main form — path config is a "set once, forget" setting
+- Existing projects without a path see no change in behavior
+- Health indicator provides confidence without requiring user action when things are working
+- When path is invalid, the indicator makes it obvious and one click leads to the fix
+
+**Consumers** (features that depend on this):
+- Issue #25: Auto-index resolution (scan directories for existing indices)
+- Issue #24: Dynamic phase options (read prompt files from project)
+- Future: browse/pick existing slices, ConfigProvider implementations
+
 ### Phase 1: Abstraction Layer
 - Create `ConfigProvider` interface
-- Implement initial `LocalMDProvider` (wraps current system)
+- Implement initial `LocalMDProvider` (wraps current system, uses project path from Phase 0)
 - Update UI to use provider instead of hardcoded values
 
 ### Phase 2: Dynamic Configuration
@@ -179,6 +229,8 @@ Out of scope (future work):
 
 ## Success Metrics
 
+- [ ] Project path stored per-project, validated, with health indicator (Phase 0)
+- [ ] Features that need filesystem access use project path service (Phase 0)
 - [ ] `PHASE_OPTIONS` loaded dynamically (Issue #24)
 - [ ] UI accepts injected `ConfigProvider` implementation
 - [ ] New prompt sources can be added without UI changes
@@ -197,6 +249,6 @@ Out of scope (future work):
 
 - This is a long-term architectural initiative
 - Implementation happens in phases as features/enhancements are requested
-- First concrete deliverable: Issue #24 (Dynamic Phase Options)
+- First concrete deliverable: Phase 0 (Project Path Awareness) — prerequisite for Issues #24 and #25
 - Architecture will guide future work on #825-827 and beyond
 
