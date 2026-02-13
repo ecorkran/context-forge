@@ -28,6 +28,12 @@ const mockElectronAPI = {
     getContextInit: vi.fn(),
     getToolUse: vi.fn(),
     getForInstruction: vi.fn(),
+  },
+  projectPath: {
+    validate: vi.fn(),
+    healthCheck: vi.fn(),
+    listDirectory: vi.fn(),
+    pickFolder: vi.fn(),
   }
 };
 

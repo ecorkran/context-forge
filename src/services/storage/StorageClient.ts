@@ -35,6 +35,12 @@ declare global {
         getToolUse: (filename?: string) => Promise<any | null>;
         getForInstruction: (filename: string, instruction: string) => Promise<any | null>;
       };
+      projectPath: {
+        validate: (path: string) => Promise<import('../../main/services/project/types').PathValidationResult>;
+        healthCheck: (path: string) => Promise<import('../../main/services/project/types').PathValidationResult>;
+        listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) => Promise<import('../../main/services/project/types').DirectoryListResult>;
+        pickFolder: () => Promise<{ path: string } | null>;
+      };
     };
   }
 }
