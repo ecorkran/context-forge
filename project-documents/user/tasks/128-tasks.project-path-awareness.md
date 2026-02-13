@@ -37,8 +37,8 @@ dateUpdated: 20260213
 **Objective**: Create TypeScript types shared between main process and renderer for path validation and directory listing.
 
 **Steps**:
-- [ ] Create file `src/main/services/project/types.ts`
-- [ ] Define `PathValidationResult` interface:
+- [x] Create file `src/main/services/project/types.ts`
+- [x] Define `PathValidationResult` interface:
   ```typescript
   interface PathValidationResult {
     valid: boolean;
@@ -51,19 +51,19 @@ dateUpdated: 20260213
     };
   }
   ```
-- [ ] Define `DirectoryListResult` interface:
+- [x] Define `DirectoryListResult` interface:
   ```typescript
   interface DirectoryListResult {
     files: string[];   // Filenames only, not full paths
     error?: string;
   }
   ```
-- [ ] Export all types
+- [x] Export all types
 
 **Success Criteria**:
-- [ ] Types file compiles without errors
-- [ ] Both interfaces match the slice design specification exactly
-- [ ] Types are importable from both main-process and renderer code
+- [x] Types file compiles without errors
+- [x] Both interfaces match the slice design specification exactly
+- [x] Types are importable from both main-process and renderer code
 
 ---
 
@@ -75,18 +75,18 @@ dateUpdated: 20260213
 **Objective**: Add the optional `projectPath` field to the data model so it is persisted with each project.
 
 **Steps**:
-- [ ] Open `src/services/storage/types/ProjectData.ts`
-- [ ] Add `projectPath?: string` to the `ProjectData` interface
+- [x] Open `src/services/storage/types/ProjectData.ts`
+- [x] Add `projectPath?: string` to the `ProjectData` interface
   - Place it near the `isMonorepo` / `isMonorepoEnabled` fields (related project-level config)
   - Add a brief comment: `/** Absolute path to project root (contains project-documents/) */`
-- [ ] Add `projectPath` to the `UpdateProjectData` type's pick list so it can be updated via `onProjectUpdate`
-- [ ] Verify no migration is needed: `projectPath` defaults to `undefined` for existing projects (the existing `ElectronProjectStore.migrateProjects()` handles new optional fields by default)
+- [x] Add `projectPath` to the `UpdateProjectData` type's pick list so it can be updated via `onProjectUpdate`
+- [x] Verify no migration is needed: `projectPath` defaults to `undefined` for existing projects (the existing `ElectronProjectStore.migrateProjects()` handles new optional fields by default)
 
 **Success Criteria**:
-- [ ] `ProjectData.projectPath` is accessible in TypeScript without errors
-- [ ] `UpdateProjectData` includes `projectPath` so settings dialog can update it
-- [ ] Existing projects load without errors (field is optional, defaults to `undefined`)
-- [ ] Build passes with no type errors
+- [x] `ProjectData.projectPath` is accessible in TypeScript without errors
+- [x] `UpdateProjectData` includes `projectPath` so settings dialog can update it
+- [x] Existing projects load without errors (field is optional, defaults to `undefined`)
+- [x] Build passes with no type errors
 
 ---
 
@@ -98,14 +98,14 @@ dateUpdated: 20260213
 **Objective**: Create the main-process service that validates project paths, performs health checks, and lists directory contents.
 
 **Steps**:
-- [ ] Create file `src/main/services/project/ProjectPathService.ts`
-- [ ] Import `PathValidationResult` and `DirectoryListResult` from `./types`
-- [ ] Import `fs.promises` (stat, readdir, access) and `path` from Node builtins
-- [ ] Define the expected subdirectory names as a constant:
+- [x] Create file `src/main/services/project/ProjectPathService.ts`
+- [x] Import `PathValidationResult` and `DirectoryListResult` from `./types`
+- [x] Import `fs.promises` (stat, readdir, access) and `path` from Node builtins
+- [x] Define the expected subdirectory names as a constant:
   ```typescript
   const EXPECTED_SUBDIRS = ['slices', 'tasks', 'features', 'architecture'] as const;
   ```
-- [ ] Implement `validate(projectPath: string): Promise<PathValidationResult>`:
+- [x] Implement `validate(projectPath: string): Promise<PathValidationResult>`:
   - Check `projectPath` is a non-empty string
   - Use `fs.promises.stat(projectPath)` to confirm it exists and is a directory
   - Check for `project-documents/` subdirectory within it
@@ -113,24 +113,24 @@ dateUpdated: 20260213
   - Check which of `EXPECTED_SUBDIRS` exist under `project-documents/user/`
   - Return `PathValidationResult` with `valid: true` if at minimum `project-documents/` exists
   - On any `fs` error (ENOENT, EACCES, etc.), return `valid: false` with descriptive error in `errors[]`
-- [ ] Implement `healthCheck(projectPath: string): Promise<PathValidationResult>`:
+- [x] Implement `healthCheck(projectPath: string): Promise<PathValidationResult>`:
   - Delegate to `validate()` — same logic, same return type
   - This is a separate method for semantic clarity and future extensibility
-- [ ] Implement `listDirectory(projectPath: string, subdirectory: string, isMonorepo?: boolean): Promise<DirectoryListResult>`:
+- [x] Implement `listDirectory(projectPath: string, subdirectory: string, isMonorepo?: boolean): Promise<DirectoryListResult>`:
   - Build full path: if `isMonorepo`, use `{projectPath}/project-artifacts/{subdirectory}/`; otherwise use `{projectPath}/project-documents/user/{subdirectory}/`
   - Use `fs.promises.readdir` to list files
   - Filter to files only (exclude subdirectories) using `withFileTypes: true`
   - Return `{ files: [...] }` with filenames only (not full paths)
   - On error, return `{ files: [], error: descriptiveMessage }`
-- [ ] Ensure the class is stateless — no constructor state, all data passed per-call
-- [ ] Sanitize inputs: reject paths containing `..` traversal or null bytes
+- [x] Ensure the class is stateless — no constructor state, all data passed per-call
+- [x] Sanitize inputs: reject paths containing `..` traversal or null bytes
 
 **Success Criteria**:
-- [ ] `validate()` correctly identifies valid project structures
-- [ ] `validate()` returns specific errors for each failure case (not exists, not directory, no project-documents, etc.)
-- [ ] `listDirectory()` returns filenames from the correct path based on monorepo flag
-- [ ] All methods handle filesystem errors gracefully (no unhandled promise rejections)
-- [ ] No hardcoded absolute paths; all paths derived from the `projectPath` argument
+- [x] `validate()` correctly identifies valid project structures
+- [x] `validate()` returns specific errors for each failure case (not exists, not directory, no project-documents, etc.)
+- [x] `listDirectory()` returns filenames from the correct path based on monorepo flag
+- [x] All methods handle filesystem errors gracefully (no unhandled promise rejections)
+- [x] No hardcoded absolute paths; all paths derived from the `projectPath` argument
 
 ---
 
@@ -142,31 +142,31 @@ dateUpdated: 20260213
 **Objective**: Expose ProjectPathService to the renderer via Electron IPC channels, plus a folder-picker channel.
 
 **Steps**:
-- [ ] Create file `src/main/ipc/projectPathService.ts`
-- [ ] Import `ipcMain`, `dialog`, `BrowserWindow` from `electron`
-- [ ] Import `ProjectPathService` from `../services/project/ProjectPathService`
-- [ ] Import types from `../services/project/types`
-- [ ] Create singleton `ProjectPathService` instance at module level
-- [ ] Implement `setupProjectPathHandlers()` function that registers four IPC handlers:
+- [x] Create file `src/main/ipc/projectPathService.ts`
+- [x] Import `ipcMain`, `dialog`, `BrowserWindow` from `electron`
+- [x] Import `ProjectPathService` from `../services/project/ProjectPathService`
+- [x] Import types from `../services/project/types`
+- [x] Create singleton `ProjectPathService` instance at module level
+- [x] Implement `setupProjectPathHandlers()` function that registers four IPC handlers:
   - `project-path:validate` — receives `{ path: string }`, calls `service.validate(path)`, returns `PathValidationResult`
   - `project-path:health-check` — receives `{ path: string }`, calls `service.healthCheck(path)`, returns `PathValidationResult`
   - `project-path:list-directory` — receives `{ path: string, subdirectory: string, isMonorepo?: boolean }`, calls `service.listDirectory(...)`, returns `DirectoryListResult`
   - `project-path:pick-folder` — wraps `dialog.showOpenDialog({ properties: ['openDirectory'] })`, returns `{ path: string }` if user selects a folder, or `null` if canceled
-- [ ] For `pick-folder`, get the focused `BrowserWindow` to use as parent for the dialog (ensures dialog is modal to the app window)
-- [ ] Add input validation on each handler: verify expected fields are present, return structured error if not
-- [ ] Implement `removeProjectPathHandlers()` function that removes all four handlers (following the pattern in `contextServices.ts`)
-- [ ] Export both `setupProjectPathHandlers` and `removeProjectPathHandlers`
+- [x] For `pick-folder`, get the focused `BrowserWindow` to use as parent for the dialog (ensures dialog is modal to the app window)
+- [x] Add input validation on each handler: verify expected fields are present, return structured error if not
+- [x] Implement `removeProjectPathHandlers()` function that removes all four handlers (following the pattern in `contextServices.ts`)
+- [x] Export both `setupProjectPathHandlers` and `removeProjectPathHandlers`
 
 **Steps (registration in main.ts)**:
-- [ ] Open `src/main/main.ts`
-- [ ] Import `setupProjectPathHandlers` from `./ipc/projectPathService`
-- [ ] Call `setupProjectPathHandlers()` in the app initialization section, alongside the existing `setupContextServiceHandlers()` call
+- [x] Open `src/main/main.ts`
+- [x] Import `setupProjectPathHandlers` from `./ipc/projectPathService`
+- [x] Call `setupProjectPathHandlers()` in the app initialization section, alongside the existing `setupContextServiceHandlers()` call
 
 **Success Criteria**:
-- [ ] All four IPC channels are registered when the app starts
-- [ ] `project-path:pick-folder` opens the native OS folder picker dialog
-- [ ] Invalid inputs to any handler return a structured error (not an unhandled exception)
-- [ ] Follows the same conventions as `contextServices.ts` (handle/removeHandler pattern)
+- [x] All four IPC channels are registered when the app starts
+- [x] `project-path:pick-folder` opens the native OS folder picker dialog
+- [x] Invalid inputs to any handler return a structured error (not an unhandled exception)
+- [x] Follows the same conventions as `contextServices.ts` (handle/removeHandler pattern)
 
 ---
 
@@ -178,8 +178,8 @@ dateUpdated: 20260213
 **Objective**: Expose project path IPC calls to the renderer via `window.electronAPI.projectPath`.
 
 **Steps**:
-- [ ] Open `src/preload/preload.ts`
-- [ ] Add `projectPath` namespace to the `contextBridge.exposeInMainWorld` call:
+- [x] Open `src/preload/preload.ts`
+- [x] Add `projectPath` namespace to the `contextBridge.exposeInMainWorld` call:
   ```typescript
   projectPath: {
     validate: (path: string) => ipcRenderer.invoke('project-path:validate', { path }),
@@ -189,14 +189,14 @@ dateUpdated: 20260213
     pickFolder: () => ipcRenderer.invoke('project-path:pick-folder'),
   }
   ```
-- [ ] If a TypeScript declaration file exists for `window.electronAPI` (check for `*.d.ts` or type augmentation), update it to include the `projectPath` namespace with proper return types referencing `PathValidationResult` and `DirectoryListResult`
+- [x] If a TypeScript declaration file exists for `window.electronAPI` (check for `*.d.ts` or type augmentation), update it to include the `projectPath` namespace with proper return types referencing `PathValidationResult` and `DirectoryListResult`
 
 **Success Criteria**:
-- [ ] `window.electronAPI.projectPath.validate(...)` is callable from renderer
-- [ ] `window.electronAPI.projectPath.healthCheck(...)` is callable from renderer
-- [ ] `window.electronAPI.projectPath.listDirectory(...)` is callable from renderer
-- [ ] `window.electronAPI.projectPath.pickFolder()` is callable from renderer
-- [ ] TypeScript types are correctly declared so renderer code gets autocomplete and type checking
+- [x] `window.electronAPI.projectPath.validate(...)` is callable from renderer
+- [x] `window.electronAPI.projectPath.healthCheck(...)` is callable from renderer
+- [x] `window.electronAPI.projectPath.listDirectory(...)` is callable from renderer
+- [x] `window.electronAPI.projectPath.pickFolder()` is callable from renderer
+- [x] TypeScript types are correctly declared so renderer code gets autocomplete and type checking
 
 ---
 
@@ -208,49 +208,49 @@ dateUpdated: 20260213
 **Objective**: Build the settings UI section that lets users browse for a project path, see validation results, and clear the path.
 
 **Steps**:
-- [ ] Create file `src/components/settings/ProjectPathSection.tsx`
-- [ ] Define props interface:
+- [x] Create file `src/components/settings/ProjectPathSection.tsx`
+- [x] Define props interface:
   ```typescript
   interface ProjectPathSectionProps {
     projectPath?: string;
     onPathChange: (path: string | undefined) => void;
   }
   ```
-- [ ] Implement component state:
+- [x] Implement component state:
   - `validationResult: PathValidationResult | null` — result of most recent validation
   - `isValidating: boolean` — loading state during validation
-- [ ] Implement **Browse button** handler:
+- [x] Implement **Browse button** handler:
   - Call `window.electronAPI.projectPath.pickFolder()`
   - If user selects a folder (non-null result), call `window.electronAPI.projectPath.validate(path)`
   - Set `isValidating` during the validation call
   - If valid, call `onPathChange(path)` to update the project
   - Display the validation result regardless of outcome
-- [ ] Implement **Clear button/action**:
+- [x] Implement **Clear button/action**:
   - Call `onPathChange(undefined)` to remove the path
   - Clear the validation result state
-- [ ] Implement **validation feedback display**:
+- [x] Implement **validation feedback display**:
   - **Valid**: green text, e.g., "Path valid — {n} subdirectories found" (listing which ones from `structure.subdirectories`)
   - **Invalid**: red text showing first error from `errors[]`
   - **Empty/no path**: neutral text, "No project path set — some features require a path"
   - **Validating**: show a brief loading state
-- [ ] Render layout:
+- [x] Render layout:
   - Section heading: "Project Path"
   - Read-only text input displaying current `projectPath` (or placeholder "No path selected")
   - "Browse..." button to the right of the input
   - Validation feedback text below the input
   - Clear affordance (small "×" or "Clear" text button) visible when a path is set
-- [ ] Run validation on mount if `projectPath` is already set (so users see current status when opening settings)
-- [ ] Use Tailwind 4 classes consistent with the existing settings dialog styling
-- [ ] Use existing UI components from the project's component library (check for Button, Input components in `src/components/ui-core/`)
+- [x] Run validation on mount if `projectPath` is already set (so users see current status when opening settings)
+- [x] Use Tailwind 4 classes consistent with the existing settings dialog styling
+- [x] Use existing UI components from the project's component library (check for Button, Input components in `src/components/ui-core/`)
 
 **Success Criteria**:
-- [ ] Browse button opens native folder picker
-- [ ] Selected path is validated and feedback is shown immediately
-- [ ] Valid path updates the project via `onPathChange`
-- [ ] Invalid path shows specific error but does not update the project
-- [ ] Clear removes the path and resets feedback
-- [ ] Existing path shows validation status on mount
-- [ ] Component is self-contained and ready to embed in SettingsDialog
+- [x] Browse button opens native folder picker
+- [x] Selected path is validated and feedback is shown immediately
+- [x] Valid path updates the project via `onPathChange`
+- [x] Invalid path shows specific error but does not update the project
+- [x] Clear removes the path and resets feedback
+- [x] Existing path shows validation status on mount
+- [x] Component is self-contained and ready to embed in SettingsDialog
 
 ---
 
@@ -262,20 +262,20 @@ dateUpdated: 20260213
 **Objective**: Add the ProjectPathSection to the existing SettingsDialog above the monorepo toggle.
 
 **Steps**:
-- [ ] Open `src/components/settings/SettingsDialog.tsx`
-- [ ] Import `ProjectPathSection` from `./ProjectPathSection`
-- [ ] Add a handler for path changes:
+- [x] Open `src/components/settings/SettingsDialog.tsx`
+- [x] Import `ProjectPathSection` from `./ProjectPathSection`
+- [x] Add a handler for path changes:
   - `handlePathChange(path: string | undefined)` calls `onProjectUpdate({ projectPath: path })`
-- [ ] Insert `<ProjectPathSection>` in the dialog body **above** the Repository Type section:
+- [x] Insert `<ProjectPathSection>` in the dialog body **above** the Repository Type section:
   - Pass `projectPath={currentProject.projectPath}`
   - Pass `onPathChange={handlePathChange}`
-- [ ] Only render the section when `currentProject` is not null (same guard as existing content)
+- [x] Only render the section when `currentProject` is not null (same guard as existing content)
 
 **Success Criteria**:
-- [ ] ProjectPathSection appears above the monorepo toggle in the settings dialog
-- [ ] Path changes propagate through `onProjectUpdate` to persistence (via existing auto-save)
-- [ ] Dialog layout is visually consistent (no overlap or spacing issues)
-- [ ] Existing monorepo toggle functionality is unaffected
+- [x] ProjectPathSection appears above the monorepo toggle in the settings dialog
+- [x] Path changes propagate through `onProjectUpdate` to persistence (via existing auto-save)
+- [x] Dialog layout is visually consistent (no overlap or spacing issues)
+- [x] Existing monorepo toggle functionality is unaffected
 
 ---
 
@@ -287,38 +287,38 @@ dateUpdated: 20260213
 **Objective**: Build a small visual indicator component that shows project path health at a glance.
 
 **Steps**:
-- [ ] Create file `src/components/settings/HealthIndicator.tsx`
-- [ ] Define props interface:
+- [x] Create file `src/components/settings/HealthIndicator.tsx`
+- [x] Define props interface:
   ```typescript
   interface HealthIndicatorProps {
     projectPath?: string;
     onClick: () => void;  // Opens settings dialog
   }
   ```
-- [ ] Implement component state:
+- [x] Implement component state:
   - `status: 'none' | 'valid' | 'invalid' | 'checking'`
-- [ ] Implement health check logic:
+- [x] Implement health check logic:
   - On mount and when `projectPath` changes: if `projectPath` is set, call `window.electronAPI.projectPath.healthCheck(projectPath)` and update status
   - If `projectPath` is undefined, set status to `'none'`
-- [ ] Render based on status:
+- [x] Render based on status:
   - `'none'`: render nothing (no indicator when no path is set)
   - `'valid'`: small green dot/circle (use Tailwind: `bg-green-500 rounded-full w-2.5 h-2.5`)
   - `'invalid'`: small amber/red dot (use Tailwind: `bg-amber-500` or `bg-red-500`)
   - `'checking'`: subtle pulsing animation (Tailwind `animate-pulse`) on neutral dot
-- [ ] Add `cursor-pointer` and `onClick` handler on the indicator — clicking opens settings
-- [ ] Add a `title` attribute (tooltip) with status description:
+- [x] Add `cursor-pointer` and `onClick` handler on the indicator — clicking opens settings
+- [x] Add a `title` attribute (tooltip) with status description:
   - Valid: "Project path valid"
   - Invalid: "Project path issue — click to fix"
   - Checking: "Checking project path..."
-- [ ] Keep the component minimal — no text, just the dot + tooltip
+- [x] Keep the component minimal — no text, just the dot + tooltip
 
 **Success Criteria**:
-- [ ] Indicator shows correct color for each status
-- [ ] Health check runs on mount when projectPath is present
-- [ ] Health check re-runs when projectPath value changes
-- [ ] Clicking the indicator fires the onClick callback
-- [ ] No indicator is rendered when projectPath is undefined
-- [ ] Component is small and visually unobtrusive
+- [x] Indicator shows correct color for each status
+- [x] Health check runs on mount when projectPath is present
+- [x] Health check re-runs when projectPath value changes
+- [x] Clicking the indicator fires the onClick callback
+- [x] No indicator is rendered when projectPath is undefined
+- [x] Component is small and visually unobtrusive
 
 ---
 
@@ -330,22 +330,22 @@ dateUpdated: 20260213
 **Objective**: Add the health indicator to the main UI and wire up health checks on project switch.
 
 **Steps**:
-- [ ] Open `src/components/ContextBuilderApp.tsx`
-- [ ] Import `HealthIndicator` from `./settings/HealthIndicator`
-- [ ] Place `<HealthIndicator>` near the existing settings gear icon in the Project Configuration header area:
+- [x] Open `src/components/ContextBuilderApp.tsx`
+- [x] Import `HealthIndicator` from `./settings/HealthIndicator`
+- [x] Place `<HealthIndicator>` near the existing settings gear icon in the Project Configuration header area:
   - Pass `projectPath={currentProject?.projectPath}`
   - Pass `onClick` handler that opens the SettingsDialog (reuse existing settings open mechanism)
-- [ ] Ensure the `handleProjectUpdate` function already supports `projectPath` updates — it should, since it passes partial updates through to storage. Verify and fix if needed.
-- [ ] Verify the health indicator updates when:
+- [x] Ensure the `handleProjectUpdate` function already supports `projectPath` updates — it should, since it passes partial updates through to storage. Verify and fix if needed.
+- [x] Verify the health indicator updates when:
   - A different project is selected (projectPath changes via prop)
   - The path is set/changed/cleared in Settings (projectPath changes via auto-save round-trip)
 
 **Success Criteria**:
-- [ ] Health indicator appears next to the gear icon when a project has a path set
-- [ ] Health indicator is hidden when no path is set
-- [ ] Indicator shows correct status after project switch
-- [ ] Clicking the indicator opens the Settings dialog
-- [ ] Setting/changing/clearing a path in Settings updates the indicator
+- [x] Health indicator appears next to the gear icon when a project has a path set
+- [x] Health indicator is hidden when no path is set
+- [x] Indicator shows correct status after project switch
+- [x] Clicking the indicator opens the Settings dialog
+- [x] Setting/changing/clearing a path in Settings updates the indicator
 
 ---
 
