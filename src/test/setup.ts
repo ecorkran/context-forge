@@ -10,6 +10,12 @@ const mockElectronAPI = {
     read: vi.fn(),
     write: vi.fn(),
     backup: vi.fn(),
+  },
+  projectPath: {
+    validate: vi.fn(),
+    healthCheck: vi.fn(),
+    listDirectory: vi.fn(),
+    pickFolder: vi.fn(),
   }
 }
 

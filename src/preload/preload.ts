@@ -20,5 +20,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getContextInit: (filename?: string, isMonorepo?: boolean) => ipcRenderer.invoke('systemPrompts:getContextInit', filename, isMonorepo),
     getToolUse: (filename?: string) => ipcRenderer.invoke('systemPrompts:getToolUse', filename),
     getForInstruction: (filename: string, instruction: string) => ipcRenderer.invoke('systemPrompts:getForInstruction', filename, instruction)
+  },
+  projectPath: {
+    validate: (path: string) => ipcRenderer.invoke('project-path:validate', { path }),
+    healthCheck: (path: string) => ipcRenderer.invoke('project-path:health-check', { path }),
+    listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) =>
+      ipcRenderer.invoke('project-path:list-directory', { path, subdirectory, isMonorepo }),
+    pickFolder: () => ipcRenderer.invoke('project-path:pick-folder'),
   }
 })
