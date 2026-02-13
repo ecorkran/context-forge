@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Settings } from 'lucide-react';
 import { SettingsDialog } from './SettingsDialog';
+import { HealthIndicator } from './HealthIndicator';
 import { ProjectData } from '../../services/storage/types/ProjectData';
 
 interface SettingsButtonProps {
@@ -28,14 +29,14 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
   };
 
   return (
-    <>
+    <div className={`flex items-center gap-1.5 ${className || ''}`}>
+      <HealthIndicator
+        projectPath={currentProject?.projectPath}
+        onClick={handleOpenDialog}
+      />
       <button
         onClick={handleOpenDialog}
-        className={`
-          p-2 text-neutral-10 hover:text-neutral-12 hover:bg-neutral-3
-          rounded-md transition-colors
-          ${className || ''}
-        `.trim()}
+        className="p-2 text-neutral-10 hover:text-neutral-12 hover:bg-neutral-3 rounded-md transition-colors"
         title="Open settings"
         aria-label="Open settings"
       >
@@ -48,6 +49,6 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
         currentProject={currentProject}
         onProjectUpdate={onProjectUpdate}
       />
-    </>
+    </div>
   );
 };
