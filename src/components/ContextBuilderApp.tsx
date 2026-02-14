@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { SplitPaneLayout } from './layout/SplitPaneLayout';
 import { ProjectConfigForm } from './forms/ProjectConfigForm';
 import { ContextOutput } from './display/ContextOutput';
@@ -189,6 +189,40 @@ export const ContextBuilderApp: React.FC = () => {
 
     return () => clearTimeout(timeoutId);
   }, [formData, currentProjectId, persistentStore]);
+
+  // Keep refs to latest values so the flush callback is never stale
+  const formDataRef = useRef(formData);
+  const projectIdRef = useRef(currentProjectId);
+  formDataRef.current = formData;
+  projectIdRef.current = currentProjectId;
+
+  // Flush pending saves when the app is about to quit
+  useEffect(() => {
+    if (!persistentStore) return;
+
+    const cleanup = window.electronAPI?.onFlushSave(() => {
+      const data = formDataRef.current;
+      const id = projectIdRef.current;
+      if (!id) return;
+
+      persistentStore.updateProject(id, {
+        name: data.name,
+        template: data.template,
+        slice: data.slice,
+        taskFile: data.taskFile,
+        instruction: data.instruction,
+        developmentPhase: data.developmentPhase,
+        workType: data.workType,
+        projectDate: data.projectDate,
+        isMonorepo: data.isMonorepo,
+        isMonorepoEnabled: data.isMonorepoEnabled,
+        projectPath: data.projectPath,
+        customData: data.customData,
+      }).catch((err) => console.error('Flush save failed:', err));
+    });
+
+    return cleanup;
+  }, [persistentStore]);
 
   const handleFormChange = useCallback((data: CreateProjectData) => {
     setFormData(data);

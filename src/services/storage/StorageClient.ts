@@ -18,6 +18,7 @@ declare global {
       ping: () => Promise<string>;
       getAppVersion: () => Promise<string>;
       updateWindowTitle: (projectName?: string) => Promise<void>;
+      onFlushSave: (callback: () => void) => () => void;
       storage: {
         read: (filename: string) => Promise<StorageResponse>;
         write: (filename: string, data: string) => Promise<StorageResponse>;

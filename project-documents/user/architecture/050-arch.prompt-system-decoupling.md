@@ -229,7 +229,7 @@ Context Forge transitions from a closed-world form builder to a project-aware to
 
 ## Success Metrics
 
-- [ ] Project path stored per-project, validated, with health indicator (Phase 0)
+- [x] Project path stored per-project, validated, with health indicator (Phase 0)
 - [ ] Features that need filesystem access use project path service (Phase 0)
 - [ ] `PHASE_OPTIONS` loaded dynamically (Issue #24)
 - [ ] UI accepts injected `ConfigProvider` implementation

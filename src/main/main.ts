@@ -331,6 +331,22 @@ app.whenReady().then(() => {
   })
 })
 
+// Flush pending saves before quit — renderer has a 500ms debounce that could
+// lose data if the app exits within that window. Send a signal and wait briefly
+// for the renderer to acknowledge it has persisted.
+app.on('before-quit', (event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // Only block once — prevent infinite loop if renderer never responds
+    if (!(app as any).__flushRequested) {
+      (app as any).__flushRequested = true
+      event.preventDefault()
+      mainWindow.webContents.send('app:flush-save')
+      // Give renderer up to 1 second to flush, then quit regardless
+      setTimeout(() => app.quit(), 1000)
+    }
+  }
+})
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
