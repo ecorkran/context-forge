@@ -195,6 +195,30 @@ function setupIpcHandlers(): void {
         throw new Error('Access denied')
       }
 
+      // Write guard: prevent catastrophic data loss for projects.json
+      // Refuses to overwrite a multi-project file with near-empty data
+      if (filename === 'projects.json' && existsSync(filePath)) {
+        try {
+          const existing = await readFile(filePath, 'utf-8')
+          const existingParsed = JSON.parse(existing)
+          const incomingParsed = JSON.parse(data)
+
+          if (Array.isArray(existingParsed) && Array.isArray(incomingParsed)) {
+            if (existingParsed.length > 2 && incomingParsed.length <= 1) {
+              console.error(
+                `Write guard: refusing to overwrite ${existingParsed.length} projects with ${incomingParsed.length}`
+              )
+              return {
+                success: false,
+                error: `Write guard: significant data reduction detected (${existingParsed.length} → ${incomingParsed.length})`
+              }
+            }
+          }
+        } catch {
+          // Guard itself failed (e.g., existing file unparseable) — allow write through
+        }
+      }
+
       // Atomic write process:
       // 1. Create backup of existing file (single .backup, overwritten each write)
       if (existsSync(filePath)) {
