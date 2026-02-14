@@ -48,8 +48,32 @@ export class ElectronStorageService {
       
       return projects;
     } catch (error) {
+      // Main file and .backup both failed — try versioned backups
+      console.warn('Main file and backup both failed, attempting versioned backup recovery');
+      try {
+        const listResult = await window.electronAPI.storage.listBackups(this.mainFile);
+        if (listResult.success && listResult.backups && listResult.backups.length > 0) {
+          for (const backup of listResult.backups) {
+            try {
+              const backupResult = await storageClient.readFile(backup.name);
+              if (backupResult.data) {
+                const projects = JSON.parse(backupResult.data);
+                if (Array.isArray(projects) && projects.length > 0 && projects[0].id && projects[0].name) {
+                  console.log(`Recovered ${projects.length} projects from versioned backup: ${backup.name}`);
+                  return projects;
+                }
+              }
+            } catch {
+              // This versioned backup failed, try the next one
+              continue;
+            }
+          }
+        }
+      } catch {
+        // listBackups itself failed — nothing more we can do
+      }
+
       console.log('No existing project data found, starting fresh');
-      // Return empty array if no valid data found
       return [];
     }
   }
