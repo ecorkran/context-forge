@@ -5,7 +5,7 @@ feature: projects-versioned-backup
 project: context-forge
 lld: user/features/756-feature.projects-versioned-backup.md
 dependencies: [110-slice.persistence]
-status: not started
+status: in-progress
 projectState: >
   Electron+React+TypeScript app (Vite build). Persistence via projects.json
   written through Electron IPC (storage:write in main.ts). Current backup is
@@ -39,25 +39,25 @@ dateUpdated: 20260214
 **Objective**: Replace single `.backup` copy with timestamped versioned backups in the main process `storage:write` IPC handler.
 
 **Steps**:
-- [ ] Open `src/main/main.ts`
-- [ ] Locate the `storage:write` IPC handler (currently at approximately line 158)
-- [ ] Find the section that creates a backup before writing:
+- [x] Open `src/main/main.ts`
+- [x] Locate the `storage:write` IPC handler (currently at approximately line 158)
+- [x] Find the section that creates a backup before writing:
   ```typescript
   if (existsSync(filePath)) {
     await copyFile(filePath, backupPath)
   }
   ```
-- [ ] Replace with versioned backup creation:
+- [x] Replace with versioned backup creation:
   - Generate timestamp string from `new Date().toISOString()` with `:` and `.` replaced by `-`
   - Create backup at `{storagePath}/{filename}.{timestamp}.backup`
   - Keep the existing single `.backup` copy as well (backwards compatibility — `storage:read` still uses it for first-tier recovery)
-- [ ] Verify the atomic write flow (temp → validate → rename) remains unchanged after the backup step
+- [x] Verify the atomic write flow (temp → validate → rename) remains unchanged after the backup step
 
 **Success Criteria**:
-- [ ] Each `storage:write` call creates a new timestamped backup file alongside the existing `.backup`
-- [ ] Timestamped backup filenames follow pattern `{filename}.{ISO-timestamp}.backup`
-- [ ] Existing `.backup` file still created for backwards compatibility
-- [ ] Atomic write flow (temp file → JSON validate → rename) unchanged
+- [x] Each `storage:write` call creates a new timestamped backup file alongside the existing `.backup`
+- [x] Timestamped backup filenames follow pattern `{filename}.{ISO-timestamp}.backup`
+- [x] Existing `.backup` file still created for backwards compatibility
+- [x] Atomic write flow (temp file → JSON validate → rename) unchanged
 
 ---
 
@@ -69,19 +69,19 @@ dateUpdated: 20260214
 **Objective**: After creating a versioned backup, prune old ones to keep only the last 10 per file.
 
 **Steps**:
-- [ ] In `src/main/main.ts`, after the versioned backup copy in `storage:write`:
-- [ ] Read the storage directory with `readdir`
-- [ ] Filter entries matching the pattern `{filename}.*.backup` (but NOT the plain `{filename}.backup`)
-- [ ] Sort matches by filename descending (ISO timestamps sort lexicographically)
-- [ ] Delete all entries beyond the 10th (oldest first)
-- [ ] Wrap rotation in try/catch — rotation failure must not block the write operation
-- [ ] Log rotation activity (number pruned) at debug level
+- [x] In `src/main/main.ts`, after the versioned backup copy in `storage:write`:
+- [x] Read the storage directory with `readdir`
+- [x] Filter entries matching the pattern `{filename}.*.backup` (but NOT the plain `{filename}.backup`)
+- [x] Sort matches by filename descending (ISO timestamps sort lexicographically)
+- [x] Delete all entries beyond the 10th (oldest first)
+- [x] Wrap rotation in try/catch — rotation failure must not block the write operation
+- [x] Log rotation activity (number pruned) at debug level
 
 **Success Criteria**:
-- [ ] At most 10 versioned backup files exist per source file after any write
-- [ ] The plain `.backup` file is NOT counted or deleted by rotation
-- [ ] Rotation failure does not prevent the write from completing
-- [ ] Oldest backups are deleted first
+- [x] At most 10 versioned backup files exist per source file after any write
+- [x] The plain `.backup` file is NOT counted or deleted by rotation
+- [x] Rotation failure does not prevent the write from completing
+- [x] Oldest backups are deleted first
 
 ---
 
@@ -93,21 +93,21 @@ dateUpdated: 20260214
 **Objective**: Prevent catastrophic data loss by refusing to overwrite a multi-project file with near-empty data.
 
 **Steps**:
-- [ ] In `src/main/main.ts`, in the `storage:write` handler, before the atomic write step:
-- [ ] Add guard logic only for `projects.json` (check `filename === 'projects.json'`)
-- [ ] If the existing file exists, read and parse it
-- [ ] Parse the incoming `data` parameter
-- [ ] If both are arrays: reject the write when existing has >2 entries and incoming has ≤1
-- [ ] Return `{ success: false, error: 'Write guard: significant data reduction detected. Refusing to overwrite N projects with M.' }` on rejection
-- [ ] Log the rejection with `console.error` including both counts
-- [ ] Wrap all guard logic in try/catch — if the guard itself fails (e.g., existing file unparseable), allow the write to proceed (the guard is protective, not blocking)
+- [x] In `src/main/main.ts`, in the `storage:write` handler, before the atomic write step:
+- [x] Add guard logic only for `projects.json` (check `filename === 'projects.json'`)
+- [x] If the existing file exists, read and parse it
+- [x] Parse the incoming `data` parameter
+- [x] If both are arrays: reject the write when existing has >2 entries and incoming has ≤1
+- [x] Return `{ success: false, error: 'Write guard: significant data reduction detected. Refusing to overwrite N projects with M.' }` on rejection
+- [x] Log the rejection with `console.error` including both counts
+- [x] Wrap all guard logic in try/catch — if the guard itself fails (e.g., existing file unparseable), allow the write to proceed (the guard is protective, not blocking)
 
 **Success Criteria**:
-- [ ] Writing 1 project over 3+ projects is rejected with descriptive error
-- [ ] Writing 5 projects over 6 projects is allowed (normal single-delete)
-- [ ] Writing 0 projects over 3+ projects is rejected
-- [ ] Guard only applies to `projects.json`, not `app-state.json` or other files
-- [ ] Guard failure (unparseable existing file) allows write to proceed
+- [x] Writing 1 project over 3+ projects is rejected with descriptive error
+- [x] Writing 5 projects over 6 projects is allowed (normal single-delete)
+- [x] Writing 0 projects over 3+ projects is rejected
+- [x] Guard only applies to `projects.json`, not `app-state.json` or other files
+- [x] Guard failure (unparseable existing file) allows write to proceed
 
 ---
 
@@ -119,28 +119,28 @@ dateUpdated: 20260214
 **Objective**: Expose an IPC channel that lists available versioned backups for a given file.
 
 **Steps**:
-- [ ] In `src/main/main.ts`, add new IPC handler `storage:list-backups`:
+- [x] In `src/main/main.ts`, add new IPC handler `storage:list-backups`:
   - Receives `filename: string`
   - Validates filename (same traversal checks as `storage:read`)
   - Reads storage directory, filters for `{filename}.*.backup` entries
   - Returns sorted array (newest first) of `{ name: string, timestamp: string, size: number }`
   - Returns `{ success: true, backups: [...] }` or `{ success: false, error: string }`
-- [ ] Open `src/preload/preload.ts`
-- [ ] Add to the `storage` namespace:
+- [x] Open `src/preload/preload.ts`
+- [x] Add to the `storage` namespace:
   ```typescript
   listBackups: (filename: string) => ipcRenderer.invoke('storage:list-backups', filename)
   ```
-- [ ] Open `src/services/storage/StorageClient.ts`
-- [ ] Add to the `Window.electronAPI.storage` type declaration:
+- [x] Open `src/services/storage/StorageClient.ts`
+- [x] Add to the `Window.electronAPI.storage` type declaration:
   ```typescript
   listBackups: (filename: string) => Promise<{ success: boolean; backups?: Array<{ name: string; timestamp: string; size: number }>; error?: string }>;
   ```
 
 **Success Criteria**:
-- [ ] `window.electronAPI.storage.listBackups('projects.json')` returns list of versioned backups
-- [ ] Results sorted newest first
-- [ ] Invalid filenames return structured error
-- [ ] Build passes with no type errors
+- [x] `window.electronAPI.storage.listBackups('projects.json')` returns list of versioned backups
+- [x] Results sorted newest first
+- [x] Invalid filenames return structured error
+- [x] Build passes with no type errors
 
 ---
 

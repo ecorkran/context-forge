@@ -23,6 +23,11 @@ declare global {
         read: (filename: string) => Promise<StorageResponse>;
         write: (filename: string, data: string) => Promise<StorageResponse>;
         backup: (filename: string) => Promise<StorageResponse>;
+        listBackups: (filename: string) => Promise<{
+          success: boolean;
+          backups?: Array<{ name: string; timestamp: string; size: number }>;
+          error?: string;
+        }>;
       };
       statements: {
         load: (filename?: string) => Promise<Record<string, any>>;

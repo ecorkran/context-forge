@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { URL } from 'node:url'
 import { join } from 'node:path'
-import { readFile, writeFile, mkdir, copyFile, rename, unlink, readdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, copyFile, rename, unlink, readdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
@@ -272,6 +272,47 @@ function setupIpcHandlers(): void {
       }
 
       return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  })
+
+  ipcMain.handle('storage:list-backups', async (_, filename: string) => {
+    try {
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        throw new Error('Invalid filename')
+      }
+
+      const storagePath = getStoragePath()
+      const entries = await readdir(storagePath)
+
+      // Match versioned backups: {filename}.{timestamp}.backup
+      const versionedPattern = `${filename}.`
+      const backups: Array<{ name: string; timestamp: string; size: number }> = []
+
+      for (const entry of entries) {
+        if (entry.startsWith(versionedPattern) && entry.endsWith('.backup') && entry !== `${filename}.backup`) {
+          // Extract timestamp from: {filename}.{timestamp}.backup
+          const tsStart = versionedPattern.length
+          const tsEnd = entry.length - '.backup'.length
+          const timestamp = entry.substring(tsStart, tsEnd)
+
+          try {
+            const info = await stat(join(storagePath, entry))
+            backups.push({ name: entry, timestamp, size: info.size })
+          } catch {
+            backups.push({ name: entry, timestamp, size: 0 })
+          }
+        }
+      }
+
+      // Newest first
+      backups.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+
+      return { success: true, backups }
     } catch (error) {
       return {
         success: false,

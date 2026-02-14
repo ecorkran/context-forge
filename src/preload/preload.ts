@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storage: {
     read: (filename: string) => ipcRenderer.invoke('storage:read', filename),
     write: (filename: string, data: string) => ipcRenderer.invoke('storage:write', filename, data),
-    backup: (filename: string) => ipcRenderer.invoke('storage:backup', filename)
+    backup: (filename: string) => ipcRenderer.invoke('storage:backup', filename),
+    listBackups: (filename: string) => ipcRenderer.invoke('storage:list-backups', filename),
   },
   statements: {
     load: (filename?: string) => ipcRenderer.invoke('statements:load', filename),
