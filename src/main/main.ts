@@ -2,10 +2,27 @@ import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { URL } from 'node:url'
 import { join } from 'node:path'
-import { readFile, writeFile, mkdir, copyFile, rename, unlink } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, copyFile, rename, unlink, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
+
+/** Files to create versioned backups for on startup and exit. */
+const VERSIONED_BACKUP_FILES = ['projects.json'] as const
+
+/**
+ * Create a versioned timestamped backup of a file in the storage directory.
+ * Called once at startup (snapshot known-good state) and once at exit.
+ */
+async function createVersionedBackup(storagePath: string, filename: string): Promise<void> {
+  const filePath = join(storagePath, filename)
+  if (!existsSync(filePath)) return
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const versionedPath = join(storagePath, `${filename}.${timestamp}.backup`)
+  await copyFile(filePath, versionedPath)
+  console.log(`Versioned backup created: ${filename}.${timestamp}.backup`)
+}
 
 function isAllowedUrl(target: string): boolean {
   try {
@@ -21,6 +38,203 @@ function isAllowedUrl(target: string): boolean {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+/** Storage path — only call after app is ready. */
+function getStoragePath(): string {
+  return join(app.getPath('userData'), 'context-forge')
+}
+
+/**
+ * Register all IPC handlers. Called once at app startup — never per-window.
+ */
+function setupIpcHandlers(): void {
+  ipcMain.handle('ping', () => {
+    return 'pong'
+  })
+
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion()
+  })
+
+  ipcMain.handle('update-window-title', (_, projectName?: string) => {
+    if (!mainWindow) return
+
+    const title = projectName
+      ? `Context Forge Pro - ${projectName}`
+      : 'Context Forge Pro'
+
+    mainWindow.setTitle(title)
+  })
+
+  // Storage IPC handlers
+
+  ipcMain.handle('storage:read', async (_, filename: string) => {
+    try {
+      // Validate filename to prevent directory traversal
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        throw new Error('Invalid filename')
+      }
+
+      const storagePath = getStoragePath()
+      const filePath = join(storagePath, filename)
+      const backupPath = join(storagePath, `${filename}.backup`)
+
+      // Ensure file is within allowed directory
+      if (!filePath.startsWith(storagePath)) {
+        throw new Error('Access denied')
+      }
+
+      try {
+        // Try to read main file first
+        const data = await readFile(filePath, 'utf-8')
+
+        // Validate JSON structure
+        try {
+          JSON.parse(data)
+          return { success: true, data }
+        } catch (parseError) {
+          // Main file is corrupted, try backup
+          console.warn(`Main file corrupted: ${filename}, attempting backup recovery`)
+          throw new Error('Main file corrupted')
+        }
+      } catch (mainFileError) {
+        // Main file doesn't exist or is corrupted, try backup
+        try {
+          const backupData = await readFile(backupPath, 'utf-8')
+
+          // Validate backup JSON structure
+          JSON.parse(backupData)
+
+          console.log(`Recovered data from backup: ${filename}`)
+
+          // Try to restore main file from backup
+          try {
+            await copyFile(backupPath, filePath)
+            console.log(`Restored main file from backup: ${filename}`)
+          } catch (restoreError) {
+            console.warn(`Could not restore main file, but backup is available: ${restoreError}`)
+          }
+
+          return {
+            success: true,
+            data: backupData,
+            recovered: true,
+            message: 'Data recovered from backup file'
+          }
+        } catch (backupError) {
+          // Neither main nor backup file is available/valid
+          if (mainFileError instanceof Error && mainFileError.message.includes('ENOENT')) {
+            return {
+              success: false,
+              error: 'File not found',
+              notFound: true
+            }
+          }
+
+          return {
+            success: false,
+            error: 'File corrupted and no valid backup available'
+          }
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  })
+
+  ipcMain.handle('storage:write', async (_, filename: string, data: string) => {
+    try {
+      // Validate filename to prevent directory traversal
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        throw new Error('Invalid filename')
+      }
+
+      const storagePath = getStoragePath()
+
+      // Create directory if it doesn't exist
+      if (!existsSync(storagePath)) {
+        await mkdir(storagePath, { recursive: true })
+      }
+
+      const filePath = join(storagePath, filename)
+      const tempPath = join(storagePath, `${filename}.tmp`)
+      const backupPath = join(storagePath, `${filename}.backup`)
+
+      // Ensure paths are within allowed directory
+      if (!filePath.startsWith(storagePath) || !tempPath.startsWith(storagePath)) {
+        throw new Error('Access denied')
+      }
+
+      // Atomic write process:
+      // 1. Create backup of existing file (single .backup, overwritten each write)
+      if (existsSync(filePath)) {
+        await copyFile(filePath, backupPath)
+      }
+
+      // 2. Write to temporary file first
+      await writeFile(tempPath, data, 'utf-8')
+
+      // 3. Validate JSON structure
+      try {
+        JSON.parse(data)
+      } catch (parseError) {
+        // Clean up temp file and restore backup
+        if (existsSync(tempPath)) {
+          await unlink(tempPath)
+        }
+        throw new Error('Invalid JSON data')
+      }
+
+      // 4. Atomically rename temp file to main file
+      await rename(tempPath, filePath)
+
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  })
+
+  ipcMain.handle('storage:backup', async (_, filename: string) => {
+    try {
+      // Validate filename to prevent directory traversal
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        throw new Error('Invalid filename')
+      }
+
+      const storagePath = getStoragePath()
+      const filePath = join(storagePath, filename)
+      const backupPath = join(storagePath, `${filename}.backup`)
+
+      // Ensure paths are within allowed directory
+      if (!filePath.startsWith(storagePath) || !backupPath.startsWith(storagePath)) {
+        throw new Error('Access denied')
+      }
+
+      if (existsSync(filePath)) {
+        await copyFile(filePath, backupPath)
+      }
+
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  })
+
+  // Setup service-specific IPC handlers
+  setupContextServiceHandlers()
+  setupProjectPathHandlers()
+
+  console.log('All IPC handlers registered')
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -51,197 +265,6 @@ function createWindow(): void {
   win.webContents.on('will-navigate', (e, url) => {
     if (!isAllowedUrl(url)) e.preventDefault()
   })
-
-  // Basic IPC example
-  ipcMain.handle('ping', () => {
-    return 'pong'
-  })
-
-  ipcMain.handle('get-app-version', () => {
-    return app.getVersion()
-  })
-
-  // Window title management
-  ipcMain.handle('update-window-title', (_, projectName?: string) => {
-    if (!mainWindow) return
-    
-    const title = projectName 
-      ? `Context Forge Pro - ${projectName}`
-      : 'Context Forge Pro'
-    
-    mainWindow.setTitle(title)
-  })
-
-  // Storage IPC handlers
-  const getStoragePath = () => {
-    const userDataPath = app.getPath('userData')
-    return join(userDataPath, 'context-forge')
-  }
-
-  ipcMain.handle('storage:read', async (_, filename: string) => {
-    try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-      
-      const storagePath = getStoragePath()
-      const filePath = join(storagePath, filename)
-      const backupPath = join(storagePath, `${filename}.backup`)
-      
-      // Ensure file is within allowed directory
-      if (!filePath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-      
-      try {
-        // Try to read main file first
-        const data = await readFile(filePath, 'utf-8')
-        
-        // Validate JSON structure
-        try {
-          JSON.parse(data)
-          return { success: true, data }
-        } catch (parseError) {
-          // Main file is corrupted, try backup
-          console.warn(`Main file corrupted: ${filename}, attempting backup recovery`)
-          throw new Error('Main file corrupted')
-        }
-      } catch (mainFileError) {
-        // Main file doesn't exist or is corrupted, try backup
-        try {
-          const backupData = await readFile(backupPath, 'utf-8')
-          
-          // Validate backup JSON structure
-          JSON.parse(backupData)
-          
-          console.log(`Recovered data from backup: ${filename}`)
-          
-          // Try to restore main file from backup
-          try {
-            await copyFile(backupPath, filePath)
-            console.log(`Restored main file from backup: ${filename}`)
-          } catch (restoreError) {
-            console.warn(`Could not restore main file, but backup is available: ${restoreError}`)
-          }
-          
-          return { 
-            success: true, 
-            data: backupData,
-            recovered: true,
-            message: 'Data recovered from backup file'
-          }
-        } catch (backupError) {
-          // Neither main nor backup file is available/valid
-          if (mainFileError instanceof Error && mainFileError.message.includes('ENOENT')) {
-            return { 
-              success: false, 
-              error: 'File not found',
-              notFound: true 
-            }
-          }
-          
-          return { 
-            success: false, 
-            error: 'File corrupted and no valid backup available' 
-          }
-        }
-      }
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      }
-    }
-  })
-
-  ipcMain.handle('storage:write', async (_, filename: string, data: string) => {
-    try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-      
-      const storagePath = getStoragePath()
-      
-      // Create directory if it doesn't exist
-      if (!existsSync(storagePath)) {
-        await mkdir(storagePath, { recursive: true })
-      }
-      
-      const filePath = join(storagePath, filename)
-      const tempPath = join(storagePath, `${filename}.tmp`)
-      const backupPath = join(storagePath, `${filename}.backup`)
-      
-      // Ensure paths are within allowed directory
-      if (!filePath.startsWith(storagePath) || !tempPath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-      
-      // Atomic write process:
-      // 1. Create backup of existing file
-      if (existsSync(filePath)) {
-        await copyFile(filePath, backupPath)
-      }
-      
-      // 2. Write to temporary file first
-      await writeFile(tempPath, data, 'utf-8')
-      
-      // 3. Validate JSON structure
-      try {
-        JSON.parse(data)
-      } catch (parseError) {
-        // Clean up temp file and restore backup
-        if (existsSync(tempPath)) {
-          await unlink(tempPath)
-        }
-        throw new Error('Invalid JSON data')
-      }
-      
-      // 4. Atomically rename temp file to main file
-      await rename(tempPath, filePath)
-      
-      return { success: true }
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      }
-    }
-  })
-
-  ipcMain.handle('storage:backup', async (_, filename: string) => {
-    try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-      
-      const storagePath = getStoragePath()
-      const filePath = join(storagePath, filename)
-      const backupPath = join(storagePath, `${filename}.backup`)
-      
-      // Ensure paths are within allowed directory
-      if (!filePath.startsWith(storagePath) || !backupPath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-      
-      if (existsSync(filePath)) {
-        await copyFile(filePath, backupPath)
-      }
-      
-      return { success: true }
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      }
-    }
-  })
-
-  // Setup IPC handlers
-  setupContextServiceHandlers()
-  setupProjectPathHandlers()
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -310,8 +333,9 @@ app.whenReady().then(() => {
 
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
+  setupIpcHandlers()
   createWindow()
-  
+
   // Basic CSP in production
   if (!process.env.ELECTRON_RENDERER_URL) {
     const { session } = require('electron') as typeof import('electron')
@@ -341,8 +365,18 @@ app.on('before-quit', (event) => {
       (app as any).__flushRequested = true
       event.preventDefault()
       mainWindow.webContents.send('app:flush-save')
-      // Give renderer up to 1 second to flush, then quit regardless
-      setTimeout(() => app.quit(), 1000)
+      // Give renderer up to 1 second to flush, then create exit backup and quit
+      setTimeout(async () => {
+        const sp = getStoragePath()
+        for (const file of VERSIONED_BACKUP_FILES) {
+          try {
+            await createVersionedBackup(sp, file)
+          } catch (err) {
+            console.error(`Exit backup failed for ${file}:`, err)
+          }
+        }
+        app.quit()
+      }, 1000)
     }
   }
 })
