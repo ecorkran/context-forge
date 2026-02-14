@@ -4,9 +4,9 @@ docType: feature
 issueNumber: 25
 title: Auto-Resolve File Indices for Artifact Creation
 architecture: 050-arch.prompt-system-decoupling
-relatedIssues: [24, 25]
-dependencies: []
-status: backlog
+relatedIssues: [24, 25, 26]
+dependencies: [128-slice.project-path-awareness]
+status: ready
 priority: P2
 dateCreated: 20260212
 dateUpdated: 20260213
@@ -28,41 +28,68 @@ The Slice and Task File fields are useful when the user knows the exact filename
 - Should work for slices, tasks, and features
 - System should scan the appropriate `project-documents/user/` subdirectory
 
-## Complexity: Project Path Dependency
+## Prerequisites (Resolved)
 
-The original concept assumes Context Forge can scan `project-documents/user/` subdirectories to find existing indices. This introduces a fundamental new requirement that the feature document and initial task breakdown did not capture:
+**Slice 128: Project Path Awareness** delivered all the infrastructure this feature needs:
 
-### Current State
+- `projectPath` field on ProjectData — per-project filesystem path, persisted
+- `ProjectPathService.listDirectory()` — lists files in any `project-documents/user/{subdirectory}/` (or `project-artifacts/{subdirectory}/` for monorepo)
+- IPC channel `project-path:list-directory` — exposes directory listing to renderer
+- Preload binding `window.electronAPI.projectPath.listDirectory()` — callable from React components
+- Health indicator — user sees at a glance whether the path is valid
+- Shared types at `src/main/services/project/types.ts` — `PathValidationResult`, `DirectoryListResult`
 
-Context Forge does **not** access project directories today. It is a form-based context builder — the user types filenames (slice, task file, etc.) as plain text. The app has no knowledge of where a project's files actually live on disk.
+No new IPC channels, preload changes, or filesystem access patterns are needed. This feature builds entirely on existing infrastructure.
 
-### What Auto-Index Resolution Requires
+## Design
 
-To scan for existing file indices, Context Forge needs filesystem access to the target project's `project-documents/user/` tree. This creates several cascading requirements:
+### Index Range Allocations
 
-1. **Project Path Setting**: The user must be able to specify a local (or network) filesystem path to their project root. This is a new concept for Context Forge — projects currently have no associated path.
+From `file-naming-conventions.md`:
 
-2. **Per-Project Storage**: The path will be different for every project. It must be persisted alongside existing project data (project name, slice, task file, phase, etc.) in the same storage mechanism.
+| Range | Artifact Type | Directory | File Pattern |
+|-------|--------------|-----------|--------------|
+| 050-089 | Architecture | `architecture/` | `nnn-arch.{name}.md` |
+| 100-749 | Slices | `slices/` | `nnn-slice.{name}.md` |
+| 750-799 | Standalone features | `features/` | `nnn-feature.{name}.md` |
+| 900-939 | Code reviews | `code-reviews/` | `nnn-tasks.code-review.{name}.md` |
+| 940-949 | Codebase analysis | `analysis/` | `nnn-analysis.{name}.md` |
+| 950-999 | Maintenance | `tasks/` | `nnn-tasks.maintenance.{name}.md` |
 
-3. **UI Considerations**: Path configuration should not clutter the main form. It belongs behind an expandable section, settings icon, or similar — alongside any future per-project settings. There will be related UI tasks for this.
+### IndexResolver Service
 
-4. **Scope Boundary**: Initially, paths must be local or network-accessible filesystem paths only. Direct repository connections (GitHub, etc.) are explicitly out of scope for this feature and deferred to future work.
+New main-process service at `src/main/services/project/IndexResolverService.ts`. Stateless — receives project path and flags per-call, same pattern as `ProjectPathService`.
 
-5. **Cross-Project Tool**: Context Forge is used across many different projects. The path resolution must be project-aware — switching projects in the selector must also switch the resolved path context.
+**Responsibilities:**
+1. Parse existing filenames to extract numeric indices
+2. Determine next available index within a given range
+3. Generate a suggested filename following naming conventions
 
-### Impact on Architecture
+**Uses `ProjectPathService.listDirectory()`** — does not duplicate `fs.readdir` logic.
 
-This requirement aligns with the broader prompt system decoupling initiative (050-arch). A "project path" is a prerequisite for several future capabilities:
-- Auto-index resolution (this feature)
-- Dynamic phase option extraction from prompt files (Issue #24)
-- Future ConfigProvider implementations that read from project files
+### IPC & Preload
 
-### Status
+New IPC channel `index-resolver:get-next-index` and preload binding under `window.electronAPI.indexResolver`. Minimal surface — one method covers the primary use case.
 
-**Awaiting revised approach from Project Manager.** The task breakdown in `750-tasks.auto-index-resolution.md` does not yet reflect these complexities and should not be executed until the approach is finalized.
+### UI Integration
+
+Add an auto-resolve button (small icon) next to the Slice field in `ProjectConfigForm.tsx`. On click:
+1. Call `window.electronAPI.indexResolver.getNextIndex(...)` with artifact type and user-provided name
+2. Populate the slice field with the suggested filename
+3. Existing `generateTaskFileName()` auto-derives the task filename
+
+The button is only enabled when `projectPath` is set and valid. Projects without a path continue to use manual entry with no change in behavior.
+
+### Graceful Degradation
+
+- No `projectPath` set: auto-resolve button hidden or disabled, no disruption
+- Path invalid: button disabled, health indicator already signals the issue
+- Range exhausted: show inline message, user can still type manually
+- Directory empty: return range minimum as first index
 
 ## Related
 
 - **Architecture**: `050-arch.prompt-system-decoupling.md`
+- **Prerequisite**: `128-slice.project-path-awareness.md` (complete)
 - **GitHub Issue**: [#25](https://github.com/ecorkran/context-forge/issues/25)
-- **Related Issue**: [#24](https://github.com/ecorkran/context-forge/issues/24) - Dynamic Phase Options (same decoupling initiative)
+- **Related Issues**: [#24](https://github.com/ecorkran/context-forge/issues/24) (dynamic phases), [#26](https://github.com/ecorkran/context-forge/issues/26) (browse files)
