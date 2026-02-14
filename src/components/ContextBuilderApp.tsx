@@ -225,7 +225,7 @@ export const ContextBuilderApp: React.FC = () => {
   }, [persistentStore]);
 
   const handleFormChange = useCallback((data: CreateProjectData) => {
-    setFormData(data);
+    setFormData(prev => ({ ...prev, ...data }));
   }, []);
 
   // Update project name in the projects list
