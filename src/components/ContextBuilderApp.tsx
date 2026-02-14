@@ -108,6 +108,7 @@ export const ContextBuilderApp: React.FC = () => {
             projectDate: newProject.projectDate,
             isMonorepo: newProject.isMonorepo,
             isMonorepoEnabled: newProject.isMonorepoEnabled,
+            projectPath: newProject.projectPath,
             customData: {
               recentEvents: '',
               additionalNotes: '',
@@ -115,7 +116,7 @@ export const ContextBuilderApp: React.FC = () => {
               availableTools: ''
             },
           });
-          
+
           // Update window title for new project
           if (window.electronAPI?.updateWindowTitle) {
             window.electronAPI.updateWindowTitle(newProject.name);
@@ -123,7 +124,7 @@ export const ContextBuilderApp: React.FC = () => {
         } else {
           // Restore last active project
           const activeProject = await projectManager.getCurrentProject() || allProjects[0];
-          
+
           setCurrentProjectId(activeProject.id);
           const restoredFormData = {
             name: activeProject.name,
@@ -136,6 +137,7 @@ export const ContextBuilderApp: React.FC = () => {
             projectDate: activeProject.projectDate,
             isMonorepo: activeProject.isMonorepo,
             isMonorepoEnabled: activeProject.isMonorepoEnabled,
+            projectPath: activeProject.projectPath,
             customData: {
               recentEvents: activeProject.customData?.recentEvents || '',
               additionalNotes: activeProject.customData?.additionalNotes || '',
@@ -235,6 +237,7 @@ export const ContextBuilderApp: React.FC = () => {
         projectDate: switchedProject.projectDate,
         isMonorepo: switchedProject.isMonorepo,
         isMonorepoEnabled: switchedProject.isMonorepoEnabled,
+        projectPath: switchedProject.projectPath,
         customData: {
           recentEvents: switchedProject.customData?.recentEvents || '',
           additionalNotes: switchedProject.customData?.additionalNotes || '',
@@ -346,6 +349,7 @@ export const ContextBuilderApp: React.FC = () => {
           projectDate: newActiveProject.projectDate,
           isMonorepo: newActiveProject.isMonorepo,
           isMonorepoEnabled: newActiveProject.isMonorepoEnabled,
+          projectPath: newActiveProject.projectPath,
           customData: {
             recentEvents: newActiveProject.customData?.recentEvents || '',
             additionalNotes: newActiveProject.customData?.additionalNotes || '',
