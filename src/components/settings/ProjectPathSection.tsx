@@ -15,6 +15,8 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
 }) => {
   const [validationResult, setValidationResult] = useState<PathValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  // Track the displayed path independently so we can show attempted (invalid) paths
+  const [displayPath, setDisplayPath] = useState<string>(projectPath ?? '');
 
   const runValidation = useCallback(async (pathToValidate: string) => {
     setIsValidating(true);
@@ -23,17 +25,23 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
       setValidationResult(result);
       return result;
     } catch {
-      setValidationResult({
+      const failResult: PathValidationResult = {
         valid: false,
         projectPath: pathToValidate,
         errors: ['Validation failed unexpectedly'],
         structure: { hasProjectDocuments: false, hasUserDir: false, subdirectories: [] },
-      });
-      return null;
+      };
+      setValidationResult(failResult);
+      return failResult;
     } finally {
       setIsValidating(false);
     }
   }, []);
+
+  // Sync display path when prop changes (e.g. project switch)
+  useEffect(() => {
+    setDisplayPath(projectPath ?? '');
+  }, [projectPath]);
 
   // Validate on mount if path is already set
   useEffect(() => {
@@ -48,14 +56,20 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
     const picked = await window.electronAPI.projectPath.pickFolder();
     if (!picked) return;
 
+    // Show the selected path immediately so user sees what they picked
+    setDisplayPath(picked.path);
+
     const result = await runValidation(picked.path);
     if (result?.valid) {
       onPathChange(picked.path);
     }
+    // If invalid, displayPath still shows the attempted path and
+    // validationResult shows the error — user can see what went wrong
   };
 
   const handleClear = () => {
     onPathChange(undefined);
+    setDisplayPath('');
     setValidationResult(null);
   };
 
@@ -67,7 +81,7 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
         <input
           type="text"
           readOnly
-          value={projectPath ?? ''}
+          value={displayPath}
           placeholder="No path selected"
           className="flex-1 px-3 py-1.5 text-sm bg-neutral-2 border border-neutral-6 rounded-md text-neutral-11 placeholder:text-neutral-8 cursor-default"
         />
@@ -78,7 +92,7 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
         >
           Browse...
         </button>
-        {projectPath && (
+        {(projectPath || displayPath) && (
           <button
             onClick={handleClear}
             className="px-2 py-1.5 text-sm text-neutral-9 hover:text-neutral-12 hover:bg-neutral-3 rounded-md transition-colors"
@@ -91,9 +105,9 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
 
       <div className="mt-2 text-sm">
         <ValidationFeedback
-          projectPath={projectPath}
           validationResult={validationResult}
           isValidating={isValidating}
+          hasPath={!!displayPath}
         />
       </div>
     </div>
@@ -102,19 +116,19 @@ export const ProjectPathSection: React.FC<ProjectPathSectionProps> = ({
 
 /** Inline validation status display. */
 function ValidationFeedback({
-  projectPath,
   validationResult,
   isValidating,
+  hasPath,
 }: {
-  projectPath?: string;
   validationResult: PathValidationResult | null;
   isValidating: boolean;
+  hasPath: boolean;
 }) {
   if (isValidating) {
     return <span className="text-neutral-9">Validating...</span>;
   }
 
-  if (!projectPath) {
+  if (!hasPath) {
     return (
       <span className="text-neutral-9">
         No project path set &mdash; some features require a path
