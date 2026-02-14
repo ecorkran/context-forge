@@ -6,50 +6,10 @@ import { readFile, writeFile, mkdir, copyFile, rename, unlink, readdir, stat } f
 import { existsSync } from 'node:fs'
 import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
+import { createVersionedBackup, checkWriteGuard } from './services/storage/backupService'
 
 /** Files to create versioned backups for on startup and exit. */
 const VERSIONED_BACKUP_FILES = ['projects.json'] as const
-
-/** Maximum number of versioned backups to retain per file. */
-const MAX_VERSIONED_BACKUPS = 10
-
-/**
- * Create a versioned timestamped backup of a file in the storage directory,
- * then prune old backups beyond the retention limit.
- * Called at app exit (after renderer flush, before quit).
- */
-async function createVersionedBackup(storagePath: string, filename: string): Promise<void> {
-  const filePath = join(storagePath, filename)
-  if (!existsSync(filePath)) return
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const versionedPath = join(storagePath, `${filename}.${timestamp}.backup`)
-  await copyFile(filePath, versionedPath)
-  console.log(`Versioned backup created: ${filename}.${timestamp}.backup`)
-
-  // Prune old versioned backups beyond retention limit
-  try {
-    const entries = await readdir(storagePath)
-    // Match versioned backups: {filename}.{timestamp}.backup
-    // Exclude the plain .backup file (no timestamp segment)
-    const versionedPattern = `${filename}.`
-    const versionedBackups = entries
-      .filter((e) => e.startsWith(versionedPattern) && e.endsWith('.backup') && e !== `${filename}.backup`)
-      .sort()
-      .reverse() // newest first (ISO timestamps sort lexicographically)
-
-    if (versionedBackups.length > MAX_VERSIONED_BACKUPS) {
-      const toDelete = versionedBackups.slice(MAX_VERSIONED_BACKUPS)
-      for (const old of toDelete) {
-        await unlink(join(storagePath, old))
-      }
-      console.log(`Pruned ${toDelete.length} old versioned backup(s) for ${filename}`)
-    }
-  } catch (err) {
-    // Rotation failure must not block the backup or app exit
-    console.error(`Backup rotation failed for ${filename}:`, err)
-  }
-}
 
 function isAllowedUrl(target: string): boolean {
   try {
@@ -196,27 +156,9 @@ function setupIpcHandlers(): void {
       }
 
       // Write guard: prevent catastrophic data loss for projects.json
-      // Refuses to overwrite a multi-project file with near-empty data
-      if (filename === 'projects.json' && existsSync(filePath)) {
-        try {
-          const existing = await readFile(filePath, 'utf-8')
-          const existingParsed = JSON.parse(existing)
-          const incomingParsed = JSON.parse(data)
-
-          if (Array.isArray(existingParsed) && Array.isArray(incomingParsed)) {
-            if (existingParsed.length > 2 && incomingParsed.length <= 1) {
-              console.error(
-                `Write guard: refusing to overwrite ${existingParsed.length} projects with ${incomingParsed.length}`
-              )
-              return {
-                success: false,
-                error: `Write guard: significant data reduction detected (${existingParsed.length} → ${incomingParsed.length})`
-              }
-            }
-          }
-        } catch {
-          // Guard itself failed (e.g., existing file unparseable) — allow write through
-        }
+      const guardError = await checkWriteGuard(storagePath, filename, data)
+      if (guardError) {
+        return { success: false, error: guardError }
       }
 
       // Atomic write process:

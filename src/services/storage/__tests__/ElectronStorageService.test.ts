@@ -142,8 +142,123 @@ describe('ElectronStorageService', () => {
 
       expect(result).toEqual([])
       expect(consoleSpy).toHaveBeenCalledWith('Electron storage not available, returning empty array')
-      
+
       consoleSpy.mockRestore()
+    })
+
+    describe('versioned backup recovery fallback', () => {
+      it('should recover from versioned backup when main and .backup both fail', async () => {
+        const mockStorageClient = storageClient as any
+        // Main read throws (triggers catch block)
+        mockStorageClient.readFile
+          .mockRejectedValueOnce(new Error('Main file corrupted'))
+          // Second call (reading the versioned backup file) succeeds
+          .mockResolvedValueOnce({ data: JSON.stringify(mockProjects) })
+
+        // listBackups returns one backup
+        window.electronAPI.storage.listBackups = vi.fn().mockResolvedValue({
+          success: true,
+          backups: [{ name: 'projects.json.2026-02-14T10-00-00-000Z.backup', timestamp: '2026-02-14T10-00-00-000Z', size: 500 }],
+        })
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await service.readProjects()
+
+        expect(result).toEqual(mockProjects)
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Recovered 2 projects from versioned backup')
+        )
+
+        consoleSpy.mockRestore()
+      })
+
+      it('should try multiple versioned backups until one succeeds', async () => {
+        const mockStorageClient = storageClient as any
+        mockStorageClient.readFile
+          .mockRejectedValueOnce(new Error('Main file corrupted'))
+          // First versioned backup is also corrupt
+          .mockResolvedValueOnce({ data: 'corrupt json' })
+          // Second versioned backup succeeds
+          .mockResolvedValueOnce({ data: JSON.stringify(mockProjects) })
+
+        window.electronAPI.storage.listBackups = vi.fn().mockResolvedValue({
+          success: true,
+          backups: [
+            { name: 'projects.json.2026-02-14T10-01-00-000Z.backup', timestamp: '2026-02-14T10-01-00-000Z', size: 100 },
+            { name: 'projects.json.2026-02-14T10-00-00-000Z.backup', timestamp: '2026-02-14T10-00-00-000Z', size: 500 },
+          ],
+        })
+
+        vi.spyOn(console, 'log').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await service.readProjects()
+
+        expect(result).toEqual(mockProjects)
+      })
+
+      it('should return empty array when no versioned backups exist', async () => {
+        const mockStorageClient = storageClient as any
+        mockStorageClient.readFile.mockRejectedValue(new Error('Main file corrupted'))
+
+        window.electronAPI.storage.listBackups = vi.fn().mockResolvedValue({
+          success: true,
+          backups: [],
+        })
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await service.readProjects()
+
+        expect(result).toEqual([])
+        expect(consoleSpy).toHaveBeenCalledWith('No existing project data found, starting fresh')
+
+        consoleSpy.mockRestore()
+      })
+
+      it('should return empty array when listBackups itself fails', async () => {
+        const mockStorageClient = storageClient as any
+        mockStorageClient.readFile.mockRejectedValue(new Error('Main file corrupted'))
+
+        window.electronAPI.storage.listBackups = vi.fn().mockRejectedValue(new Error('IPC error'))
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await service.readProjects()
+
+        expect(result).toEqual([])
+
+        consoleSpy.mockRestore()
+      })
+
+      it('should skip versioned backups with invalid project data', async () => {
+        const mockStorageClient = storageClient as any
+        mockStorageClient.readFile
+          .mockRejectedValueOnce(new Error('Main file corrupted'))
+          // Backup has data but missing required fields
+          .mockResolvedValueOnce({ data: JSON.stringify([{ foo: 'bar' }]) })
+
+        window.electronAPI.storage.listBackups = vi.fn().mockResolvedValue({
+          success: true,
+          backups: [
+            { name: 'projects.json.2026-02-14T10-00-00-000Z.backup', timestamp: '2026-02-14T10-00-00-000Z', size: 100 },
+          ],
+        })
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await service.readProjects()
+
+        // Invalid data (no id/name) — should fall through to empty
+        expect(result).toEqual([])
+
+        consoleSpy.mockRestore()
+      })
     })
   })
 
