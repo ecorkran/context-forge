@@ -14,6 +14,8 @@ dateUpdated: 20260213
 
 # Feature: Auto-Resolve File Indices for Artifact Creation
 
+## Status
+
 ## User-Provided Concept
 
 When creating new project artifacts (slices, tasks, features), the user must manually determine the next available file index by consulting file-naming-conventions.md and inspecting existing files. This is tedious and error-prone.
