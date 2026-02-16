@@ -12,7 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Electron output directory
+# Package build output
+packages/*/dist/
+packages/electron/out/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Legacy root output (can be removed after full migration)
 out/*
 
 # Editor directories and files

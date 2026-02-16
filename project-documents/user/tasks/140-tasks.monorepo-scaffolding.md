@@ -142,33 +142,33 @@ dateUpdated: 20260215
 ### Task 6: Update root configuration for workspace orchestration
 **Objective**: Transform root package.json and pnpm-workspace.yaml into workspace orchestrators.
 
-- [ ] Update `pnpm-workspace.yaml`:
-  - [ ] Add `packages: ['packages/*']`
-  - [ ] Preserve existing `onlyBuiltDependencies` list
-- [ ] Update root `package.json`:
-  - [ ] Set `"private": true`
-  - [ ] Retain `"packageManager": "pnpm@10.14.0"`
-  - [ ] Remove all `dependencies` and `devDependencies` (moved to electron)
-  - [ ] Replace scripts with workspace delegation:
-    - [ ] `"dev": "pnpm --filter @context-forge/electron dev"`
-    - [ ] `"build": "pnpm --filter @context-forge/electron build"`
-    - [ ] `"test": "pnpm -r test"`
-    - [ ] `"lint": "pnpm -r lint"`
-    - [ ] `"typecheck": "pnpm -r typecheck"`
-  - [ ] Preserve ai-support scripts (`setup-guides`, `update-guides`, etc.) in root
-  - [ ] Remove `main` entry (no longer applicable to root)
-- [ ] Remove or repurpose root `tsconfig.json`:
-  - [ ] If electron-vite or other tools reference it, convert to a project-references config pointing to `packages/*/tsconfig.json`
-  - [ ] If nothing references it, remove it
-- [ ] Update `.gitignore`:
-  - [ ] Add `packages/*/dist/` for core and mcp-server build output
-  - [ ] Verify `packages/electron/out/` is covered (was previously `out/`)
+- [x] Update `pnpm-workspace.yaml`:
+  - [x] Add `packages: ['packages/*']`
+  - [x] Preserve existing `onlyBuiltDependencies` list
+- [x] Update root `package.json`:
+  - [x] Set `"private": true`
+  - [x] Retain `"packageManager": "pnpm@10.14.0"`
+  - [x] Remove all `dependencies` and `devDependencies` (moved to electron)
+  - [x] Replace scripts with workspace delegation:
+    - [x] `"dev": "pnpm --filter @context-forge/electron dev"`
+    - [x] `"build": "pnpm --filter @context-forge/electron build"`
+    - [x] `"test": "pnpm -r test"`
+    - [x] `"lint": "pnpm -r lint"`
+    - [x] `"typecheck": "pnpm -r typecheck"`
+  - [x] Preserve ai-support scripts (`setup-guides`, `update-guides`, etc.) in root
+  - [x] Remove `main` entry (no longer applicable to root)
+- [x] Remove or repurpose root `tsconfig.json`:
+  - [x] If electron-vite or other tools reference it, convert to a project-references config pointing to `packages/*/tsconfig.json`
+  - [x] If nothing references it, remove it
+- [x] Update `.gitignore`:
+  - [x] Add `packages/*/dist/` for core and mcp-server build output
+  - [x] Verify `packages/electron/out/` is covered (was previously `out/`)
 
 **Success Criteria**:
-- [ ] Root package.json has no direct dependencies
-- [ ] Root package.json scripts delegate to workspace packages
-- [ ] `pnpm-workspace.yaml` declares `packages/*`
-- [ ] `.gitignore` covers all package build output directories
+- [x] Root package.json has no direct dependencies
+- [x] Root package.json scripts delegate to workspace packages
+- [x] `pnpm-workspace.yaml` declares `packages/*`
+- [x] `.gitignore` covers all package build output directories
 
 ---
 
