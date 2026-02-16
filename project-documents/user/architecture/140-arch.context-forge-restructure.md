@@ -7,7 +7,7 @@ audience: [human, ai]
 description: Concept for Context Forge v2 - extracting core logic into an MCP server with monorepo architecture
 dependsOn: [002-spec.context-builder.md]
 dateCreated: 20260214
-dateUpdated: 20260214
+dateUpdated: 20260215
 status: in_progress
 ---
 
@@ -66,7 +66,7 @@ This is largely an extraction and consolidation of existing services from `src/m
 - `prompt_list` / `prompt_get` — List available prompt templates, retrieve a specific one with variables filled
 - `template_preview` — Preview what a context would look like with given parameters without committing state changes
 
-Transport: stdio (for Claude Code integration) and optionally SSE (for network clients like Electron).
+Transport: stdio (for Claude Code integration) and optionally Streamable HTTP (for network clients like Electron). Note: SSE transport is deprecated as of MCP protocol version 2025-03-26; Streamable HTTP consolidates to a single endpoint that can optionally use SSE for streaming.
 
 **`packages/electron`** — The existing Electron UI, thinned to a display/configuration client. Connects to the MCP server for all data operations. Retains:
 - Visual project configuration and browsing
@@ -94,7 +94,7 @@ Transport: stdio (for Claude Code integration) and optionally SSE (for network c
 │ mcp-server    │   │ electron        │
 │               │   │                 │
 │ MCP tools     │   │ React UI        │
-│ stdio/SSE     │   │ (MCP client)    │
+│ stdio/HTTP    │   │ (MCP client)    │
 │ transport     │   │                 │
 └───┬───────┬───┘   └─────────────────┘
     │       │
@@ -184,7 +184,7 @@ In priority order:
 
 **Future users:**
 
-4. **Team developer** — Accesses a shared (remote) MCP server. Benefits from consistent prompt templates and shared project configurations maintained by a team lead. Same MCP protocol, different transport (SSE instead of stdio).
+4. **Team developer** — Accesses a shared (remote) MCP server. Benefits from consistent prompt templates and shared project configurations maintained by a team lead. Same MCP protocol, different transport (Streamable HTTP instead of stdio).
 
 5. **Team AI agents** — Same as persona 3, but operating against a shared team server.
 
@@ -252,7 +252,7 @@ packages:
 
 Each package has its own `package.json`, `tsconfig.json`, and build configuration. `packages/core` builds to CommonJS + ESM. `packages/mcp-server` targets Node.js. `packages/electron` retains its electron-vite build.
 
-**MCP SDK**: Use the official `@modelcontextprotocol/sdk` for server implementation. The SDK handles transport (stdio, SSE), protocol negotiation, and tool registration.
+**MCP SDK**: Use the official `@modelcontextprotocol/sdk` (v1) or `@modelcontextprotocol/server` (v2) for server implementation. The SDK handles transport (stdio, Streamable HTTP), protocol negotiation, and tool registration. Check SDK version at implementation time — v2 stable anticipated Q1 2026.
 
 **Existing code reuse**: The services in `src/main/services/context/` and `src/services/context/` are the primary extraction targets. The main/renderer split actually created two parallel implementations (e.g., `SystemPromptParser` in main vs `SystemPromptParserIPC` in renderer). The core package unifies these — one implementation, multiple consumers.
 

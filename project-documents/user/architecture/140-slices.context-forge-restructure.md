@@ -1,15 +1,15 @@
 ---
 docType: slice-plan
-parent: user/architecture/055-arch.context-forge-restructure.md
+parent: user/architecture/140-arch.context-forge-restructure.md
 project: context-forge
 dateCreated: 20260214
-dateUpdated: 20260214
+dateUpdated: 20260215
 ---
 
 # Slice Plan: Context Forge Restructure
 
 ## Parent Document
-`user/architecture/055-arch.context-forge-restructure.md` — Architecture document for evolving Context Forge from a standalone Electron application into a monorepo with an MCP server as the core engine and state owner.
+`user/architecture/140-arch.context-forge-restructure.md` — Architecture document for evolving Context Forge from a standalone Electron application into a monorepo with an MCP server as the core engine and state owner.
 
 ## Foundation Work
 

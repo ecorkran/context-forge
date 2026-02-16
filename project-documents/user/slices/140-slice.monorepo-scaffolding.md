@@ -2,7 +2,7 @@
 docType: slice-design
 slice: monorepo-scaffolding
 project: context-forge
-parent: user/architecture/055-slices.context-forge-restructure.md
+parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: []
 interfaces: [core-types-extraction, core-services-extraction, storage-migration]
 status: not started
@@ -492,4 +492,5 @@ Nothing — this is the first slice.
 - **CLAUDE.md references**: The project's CLAUDE.md references `src/` paths conceptually. These do not need updating for this slice — subsequent slices that move logic will update documentation as appropriate.
 - **CI/CD**: If any CI scripts reference `src/` directly, they need updating. Check `scripts/` directory.
 - **`nodenext` module resolution**: This requires `.js` extensions on relative imports (e.g., `import { Foo } from './types.js'`). For `core` and `mcp-server` this is fine since they start empty. When code is extracted into them (slices 2-5), import paths must include extensions. This is a consideration for those slices, not this one.
-- **MCP SDK version awareness**: The [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) has v1 and v2 with different import paths. v1 uses `@modelcontextprotocol/sdk/server/mcp.js`, v2 uses `@modelcontextprotocol/server`. The [official quickstart](https://modelcontextprotocol.io/docs/develop/build-server) and [Anthropic skills guide](https://github.com/anthropics/skills/blob/main/skills/mcp-builder/reference/node_mcp_server.md) currently show v1 paths. Slice 6 (MCP Server — Project Tools) must determine which SDK version to use at implementation time; this slice only sets up the empty package structure.
+- **MCP SDK version awareness**: The MCP TypeScript SDK has v1 and v2 with different import paths and package structures. v1 uses subpath exports from a single package (`@modelcontextprotocol/sdk/server/mcp.js`, `@modelcontextprotocol/sdk/server/stdio.js`). v2 ships as separate packages (`@modelcontextprotocol/server`, `@modelcontextprotocol/client`) with optional middleware packages. As of February 2026, v2 stable may have just landed or be imminent (anticipated Q1 2026); v1.x will receive bug fixes for at least 6 months post-v2. The MCP Server — Project Tools slice must check the actual SDK README at implementation time to determine which version to use — do not rely on cached documentation. The local tool guide at `ai-project-guide/tool-guides/mcp/01-overview.md` provides additional MCP development guidance. This slice only sets up the empty package structure.
+- **Transport terminology**: The MCP protocol defines two standard transports: **stdio** (for local process integration — Claude Code, Cursor) and **Streamable HTTP** (for remote/network scenarios). SSE is deprecated as of protocol version 2025-03-26. For Context Forge, stdio is correct and sufficient for the MCP server slices; Streamable HTTP would only matter if Electron connects as an MCP client over HTTP, which is deferred to post-v2.
