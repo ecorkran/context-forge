@@ -72,70 +72,70 @@ dateUpdated: 20260215
 ### Task 3: Move Electron app into `packages/electron/`
 **Objective**: Relocate all existing application source code and build configuration into `packages/electron/` using `git mv` to preserve history.
 
-- [ ] Create `packages/electron/` directory
-- [ ] Move source code: `git mv src/ packages/electron/src/`
-- [ ] Move build config: `git mv electron.vite.config.ts packages/electron/`
-- [ ] Move HTML entry: `git mv index.html packages/electron/`
-- [ ] Move test config: `git mv vitest.config.ts packages/electron/`
-- [ ] Evaluate and move `public/`:
-  - [ ] Check if `public/` is referenced by electron-vite renderer build
-  - [ ] If yes, `git mv public/ packages/electron/public/`
-  - [ ] If no, leave at root
-- [ ] Evaluate and move `tests/`:
-  - [ ] Check what tests exist in root `tests/` directory
-  - [ ] Move them with the Electron app: `git mv tests/ packages/electron/tests/`
-- [ ] Evaluate `default-statements.md`:
-  - [ ] Check if referenced from `src/` code
-  - [ ] If yes, `git mv default-statements.md packages/electron/`
-- [ ] Verify no stale source files remain at root that should have moved
+- [x] Create `packages/electron/` directory
+- [x] Move source code: `git mv src/ packages/electron/src/`
+- [x] Move build config: `git mv electron.vite.config.ts packages/electron/`
+- [x] Move HTML entry: `git mv index.html packages/electron/`
+- [x] Move test config: `git mv vitest.config.ts packages/electron/`
+- [x] Evaluate and move `public/`:
+  - [x] Check if `public/` is referenced by electron-vite renderer build
+  - [x] If yes, `git mv public/ packages/electron/public/`
+  - [x] If no, leave at root
+- [x] Evaluate and move `tests/`:
+  - [x] Check what tests exist in root `tests/` directory
+  - [x] Move them with the Electron app: `git mv tests/ packages/electron/tests/`
+- [x] Evaluate `default-statements.md`:
+  - [x] Check if referenced from `src/` code
+  - [x] If yes, `git mv default-statements.md packages/electron/`
+- [x] Verify no stale source files remain at root that should have moved
 
 **Success Criteria**:
-- [ ] `packages/electron/src/` contains all previous `src/` contents
-- [ ] `electron.vite.config.ts`, `index.html`, `vitest.config.ts` are in `packages/electron/`
-- [ ] All moved files show as renames in `git status` (not delete + add)
-- [ ] No orphaned source or config files remain at root
+- [x] `packages/electron/src/` contains all previous `src/` contents
+- [x] `electron.vite.config.ts`, `index.html`, `vitest.config.ts` are in `packages/electron/`
+- [x] All moved files show as renames in `git status` (not delete + add)
+- [x] No orphaned source or config files remain at root
 
 ---
 
 ### Task 4: Create `packages/electron/package.json`
 **Objective**: Create the Electron package.json by deriving it from the current root package.json.
 
-- [ ] Read the current root `package.json` to capture all fields
-- [ ] Create `packages/electron/package.json` with:
-  - [ ] `"name": "@context-forge/electron"`
-  - [ ] All existing `dependencies` moved from root
-  - [ ] All existing `devDependencies` moved from root
-  - [ ] Add `"@context-forge/core": "workspace:*"` to dependencies
-  - [ ] All existing build/dev/test scripts preserved
-  - [ ] `main` entry updated for the package-relative path (`./out/main/main.js`)
-  - [ ] Any electron-builder or packaging config preserved
-  - [ ] Retain `packageManager` field if appropriate, or let root handle it
-- [ ] Include the ai-support scripts from `snippets/npm-scripts.ai-support.json.md` (setup-guides, update-guides, etc.) in the scripts block
-- [ ] Verify the scripts reference correct relative paths from `packages/electron/`
+- [x] Read the current root `package.json` to capture all fields
+- [x] Create `packages/electron/package.json` with:
+  - [x] `"name": "@context-forge/electron"`
+  - [x] All existing `dependencies` moved from root
+  - [x] All existing `devDependencies` moved from root
+  - [x] Add `"@context-forge/core": "workspace:*"` to dependencies
+  - [x] All existing build/dev/test scripts preserved
+  - [x] `main` entry updated for the package-relative path (`./out/main/main.js`)
+  - [x] Any electron-builder or packaging config preserved
+  - [x] Retain `packageManager` field if appropriate, or let root handle it
+- [x] Include the ai-support scripts from `snippets/npm-scripts.ai-support.json.md` (setup-guides, update-guides, etc.) in the scripts block
+- [x] Verify the scripts reference correct relative paths from `packages/electron/`
 
 **Success Criteria**:
-- [ ] `packages/electron/package.json` contains all dependencies from the original root
-- [ ] `@context-forge/core` is declared as a workspace dependency
-- [ ] Build scripts (`dev`, `build`, `test`, `lint`) are present and point to correct locations
+- [x] `packages/electron/package.json` contains all dependencies from the original root
+- [x] `@context-forge/core` is declared as a workspace dependency
+- [x] Build scripts (`dev`, `build`, `test`, `lint`) are present and point to correct locations
 
 ---
 
 ### Task 5: Create `packages/electron/tsconfig.json`
 **Objective**: Create the Electron TypeScript configuration derived from the current root tsconfig.json.
 
-- [ ] Read the current root `tsconfig.json` to capture all compiler options
-- [ ] Create `packages/electron/tsconfig.json` preserving existing settings
-- [ ] Update path aliases to be package-relative:
-  - [ ] `"@/*"` → `["./src/*"]`
-  - [ ] `"@main/*"` → `["./src/main/*"]`
-  - [ ] `"@renderer/*"` → `["./src/renderer/*"]`
-  - [ ] `"@preload/*"` → `["./src/preload/*"]`
-- [ ] Do NOT change target/module/lib settings — keep existing values (electron-vite manages these)
+- [x] Read the current root `tsconfig.json` to capture all compiler options
+- [x] Create `packages/electron/tsconfig.json` preserving existing settings
+- [x] Update path aliases to be package-relative:
+  - [x] `"@/*"` → `["./src/*"]`
+  - [x] `"@main/*"` → `["./src/main/*"]`
+  - [x] `"@renderer/*"` → `["./src/renderer/*"]`
+  - [x] `"@preload/*"` → `["./src/preload/*"]`
+- [x] Do NOT change target/module/lib settings — keep existing values (electron-vite manages these)
 
 **Success Criteria**:
-- [ ] `packages/electron/tsconfig.json` exists with correct path aliases
-- [ ] Compiler options match the original root tsconfig (except paths)
-- [ ] No references to monorepo root paths remain
+- [x] `packages/electron/tsconfig.json` exists with correct path aliases
+- [x] Compiler options match the original root tsconfig (except paths)
+- [x] No references to monorepo root paths remain
 
 ---
 
