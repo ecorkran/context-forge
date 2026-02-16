@@ -175,24 +175,24 @@ dateUpdated: 20260215
 ### Task 7: Update electron-vite and vitest path references
 **Objective**: Fix all path references in build and test configuration files that broke due to the file move.
 
-- [ ] Review `packages/electron/electron.vite.config.ts`:
-  - [ ] Verify entry points resolve correctly (main, preload, renderer)
-  - [ ] Verify output directories resolve correctly (`out/` relative to package)
-  - [ ] Verify alias resolution (e.g., `@/` prefix) points to `packages/electron/src/`
-  - [ ] Verify `externalizeDepsPlugin()` and any custom plugins still work
-  - [ ] Fix any broken path references
-- [ ] Review `packages/electron/vitest.config.ts`:
-  - [ ] Verify test glob patterns resolve correctly from new location
-  - [ ] Verify setup file path (`src/test/setup.ts`) resolves correctly
-  - [ ] Fix any broken path references
-- [ ] Check `scripts/` directory at root:
-  - [ ] Identify any scripts that reference `src/` directly
-  - [ ] Update paths or document needed changes
+- [x] Review `packages/electron/electron.vite.config.ts`:
+  - [x] Verify entry points resolve correctly (main, preload, renderer)
+  - [x] Verify output directories resolve correctly (`out/` relative to package)
+  - [x] Verify alias resolution (e.g., `@/` prefix) points to `packages/electron/src/`
+  - [x] Verify `externalizeDepsPlugin()` and any custom plugins still work
+  - [x] Fix any broken path references
+- [x] Review `packages/electron/vitest.config.ts`:
+  - [x] Verify test glob patterns resolve correctly from new location
+  - [x] Verify setup file path (`src/test/setup.ts`) resolves correctly
+  - [x] Fix any broken path references
+- [x] Check `scripts/` directory at root:
+  - [x] Identify any scripts that reference `src/` directly
+  - [x] Update paths or document needed changes
 
 **Success Criteria**:
-- [ ] `electron.vite.config.ts` has no broken path references
-- [ ] `vitest.config.ts` has no broken path references
-- [ ] All paths resolve relative to `packages/electron/`
+- [x] `electron.vite.config.ts` has no broken path references
+- [x] `vitest.config.ts` has no broken path references
+- [x] All paths resolve relative to `packages/electron/`
 
 ---
 
