@@ -25,47 +25,47 @@ dateUpdated: 20260215
 ### Task 1: Create `packages/core/` package
 **Objective**: Create the empty `@context-forge/core` package with build configuration.
 
-- [ ] Create directory `packages/core/src/`
-- [ ] Create `packages/core/src/index.ts` with an empty barrel export:
+- [x] Create directory `packages/core/src/`
+- [x] Create `packages/core/src/index.ts` with an empty barrel export:
   ```ts
   // @context-forge/core — context assembly engine
   // Populated in subsequent extraction slices
   export {}
   ```
-- [ ] Create `packages/core/package.json` per the slice design (name: `@context-forge/core`, type: module, private: true, version: 0.1.0)
-  - [ ] Include scripts: `build`, `dev`, `test`, `typecheck`
-  - [ ] Include devDependencies: `typescript ~5.8.3`, `vitest ^3.2.1`
-- [ ] Create `packages/core/tsconfig.json` per the slice design (target: ES2023, module: nodenext, moduleResolution: nodenext)
-  - [ ] Include: declaration, declarationMap, sourceMap, strict, outDir: ./dist, rootDir: ./src
+- [x] Create `packages/core/package.json` per the slice design (name: `@context-forge/core`, type: module, private: true, version: 0.1.0)
+  - [x] Include scripts: `build`, `dev`, `test`, `typecheck`
+  - [x] Include devDependencies: `typescript ~5.8.3`, `vitest ^3.2.1`
+- [x] Create `packages/core/tsconfig.json` per the slice design (target: ES2023, module: nodenext, moduleResolution: nodenext)
+  - [x] Include: declaration, declarationMap, sourceMap, strict, outDir: ./dist, rootDir: ./src
 
 **Success Criteria**:
-- [ ] `packages/core/` directory exists with package.json, tsconfig.json, and src/index.ts
-- [ ] Configuration matches the slice design specifications exactly
+- [x] `packages/core/` directory exists with package.json, tsconfig.json, and src/index.ts
+- [x] Configuration matches the slice design specifications exactly
 
 ---
 
 ### Task 2: Create `packages/mcp-server/` package
 **Objective**: Create the empty `context-forge-mcp` package with build configuration.
 
-- [ ] Create directory `packages/mcp-server/src/`
-- [ ] Create `packages/mcp-server/src/index.ts` with an empty barrel export:
+- [x] Create directory `packages/mcp-server/src/`
+- [x] Create `packages/mcp-server/src/index.ts` with an empty barrel export:
   ```ts
   // context-forge-mcp — MCP protocol wrapper around @context-forge/core
   // Populated in MCP server slices
   export {}
   ```
-- [ ] Create `packages/mcp-server/package.json` per the slice design (name: `context-forge-mcp`, type: module, private: true, version: 0.1.0)
-  - [ ] Include `bin` entry: `"context-forge-mcp": "./dist/index.js"`
-  - [ ] Include `start` script: `node dist/index.js`
-  - [ ] Include dependency: `"@context-forge/core": "workspace:*"`
-  - [ ] Include devDependencies: `typescript ~5.8.3`, `vitest ^3.2.1`
-  - [ ] Do NOT include MCP SDK dependencies yet (added in a later slice)
-- [ ] Create `packages/mcp-server/tsconfig.json` per the slice design (same as core: ES2023, nodenext)
+- [x] Create `packages/mcp-server/package.json` per the slice design (name: `context-forge-mcp`, type: module, private: true, version: 0.1.0)
+  - [x] Include `bin` entry: `"context-forge-mcp": "./dist/index.js"`
+  - [x] Include `start` script: `node dist/index.js`
+  - [x] Include dependency: `"@context-forge/core": "workspace:*"`
+  - [x] Include devDependencies: `typescript ~5.8.3`, `vitest ^3.2.1`
+  - [x] Do NOT include MCP SDK dependencies yet (added in a later slice)
+- [x] Create `packages/mcp-server/tsconfig.json` per the slice design (same as core: ES2023, nodenext)
 
 **Success Criteria**:
-- [ ] `packages/mcp-server/` directory exists with package.json, tsconfig.json, and src/index.ts
-- [ ] `@context-forge/core` listed as workspace dependency
-- [ ] Configuration matches the slice design specifications exactly
+- [x] `packages/mcp-server/` directory exists with package.json, tsconfig.json, and src/index.ts
+- [x] `@context-forge/core` listed as workspace dependency
+- [x] Configuration matches the slice design specifications exactly
 
 ---
 
