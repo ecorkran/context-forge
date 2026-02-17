@@ -1,3 +1,2 @@
 // @context-forge/core — context assembly engine
-// Populated in subsequent extraction slices
-export {}
+export * from './types/index.js';
