@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TemplateStatement, ParsedStatement } from './types/TemplateStatement';
+import { TemplateStatement, ParsedStatement } from '@context-forge/core';
 
 /**
  * Default statements for fallback when files are missing

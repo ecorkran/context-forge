@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SystemPrompt, ParsedPromptFile, PromptCacheEntry, SpecialPromptKeys } from './types/SystemPrompt';
+import { SystemPrompt, ParsedPromptFile, PromptCacheEntry, SpecialPromptKeys } from '@context-forge/core';
 
 /**
  * Service for parsing system prompts from the prompt.ai-project.system.md file

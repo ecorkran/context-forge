@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { StatementManager, SystemPromptParser } from '../services/context';
-import { TemplateStatement } from '../services/context/types/TemplateStatement';
+import { TemplateStatement } from '@context-forge/core';
 
 /**
  * Initialize all IPC handlers for context services

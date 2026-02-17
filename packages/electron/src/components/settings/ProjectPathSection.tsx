@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { PathValidationResult } from '../../main/services/project/types';
+import type { PathValidationResult } from '@context-forge/core';
 
 interface ProjectPathSectionProps {
   projectPath?: string;
