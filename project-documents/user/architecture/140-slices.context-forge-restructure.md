@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/140-arch.context-forge-restructure.md
 project: context-forge
 dateCreated: 20260214
-dateUpdated: 20260215
+dateUpdated: 20260217
 ---
 
 # Slice Plan: Context Forge Restructure
@@ -13,7 +13,7 @@ dateUpdated: 20260215
 
 ## Foundation Work
 
-1. [ ] **Monorepo Scaffolding** — Create pnpm workspace structure. Move existing `src/` into `packages/electron/src/`. Create empty `packages/core/` and `packages/mcp-server/` with package.json, tsconfig.json, and build configuration. Electron app must still build and run identically after this change. Effort: 2/5
+1. [x] **Monorepo Scaffolding** — Create pnpm workspace structure. Move existing `src/` into `packages/electron/src/`. Create empty `packages/core/` and `packages/mcp-server/` with package.json, tsconfig.json, and build configuration. Electron app must still build and run identically after this change. Effort: 2/5
 
 ## Migration / Refactoring Slices
 
