@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ProjectData } from '../services/storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 import { ContextIntegrator } from '../services/context/ContextIntegrator';
 
 /**

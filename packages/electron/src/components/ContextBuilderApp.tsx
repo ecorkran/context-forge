@@ -4,7 +4,7 @@ import { ProjectConfigForm } from './forms/ProjectConfigForm';
 import { ContextOutput } from './display/ContextOutput';
 import { SettingsButton } from './settings/SettingsButton';
 import { PersistentProjectStore } from '../services/storage/PersistentProjectStore';
-import { CreateProjectData, ProjectData } from '../services/storage/types/ProjectData';
+import { CreateProjectData, ProjectData } from '@context-forge/core';
 import { ProjectManager } from '../services/project/ProjectManager';
 import { useContextGeneration } from '../hooks/useContextGeneration';
 import { useDebounce } from '../hooks/useDebounce';

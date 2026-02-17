@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings } from 'lucide-react';
 import { SettingsDialog } from './SettingsDialog';
 import { HealthIndicator } from './HealthIndicator';
-import { ProjectData } from '../../services/storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 
 interface SettingsButtonProps {
   className?: string;

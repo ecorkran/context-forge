@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from '../../lib/ui-core/components/overlays/Modal';
 import { Checkbox } from '../../lib/ui-core/components/form/checkbox';
-import { ProjectData } from '../../services/storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 import { ProjectPathSection } from './ProjectPathSection';
 
 interface SettingsDialogProps {

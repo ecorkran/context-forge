@@ -4,7 +4,7 @@
  */
 
 import { PersistentProjectStore } from '../storage/PersistentProjectStore';
-import { ProjectData } from '../storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 
 export class ProjectManager {
   private persistentStore: PersistentProjectStore;

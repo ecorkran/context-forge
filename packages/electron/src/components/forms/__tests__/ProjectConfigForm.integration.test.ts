@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ProjectData, CreateProjectData, UpdateProjectData } from '../../../services/storage/types/ProjectData';
+import { ProjectData, CreateProjectData, UpdateProjectData } from '@context-forge/core';
 
 describe('Task File Data Structure Tests', () => {
   // Test data structure compatibility and serialization

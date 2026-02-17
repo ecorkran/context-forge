@@ -8,7 +8,7 @@ import {
   SelectValue
 } from '../../lib/ui-core/components/form/select';
 import { Checkbox } from '../../lib/ui-core/components/form/checkbox';
-import { CreateProjectData, ProjectData } from '../../services/storage/types/ProjectData';
+import { CreateProjectData, ProjectData } from '@context-forge/core';
 import { ProjectSelector } from '../project/ProjectSelector';
 
 /**

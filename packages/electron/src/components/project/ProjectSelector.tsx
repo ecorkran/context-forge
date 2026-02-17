@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from '../../lib/ui-core/components/form/select';
 import { Button } from '../../lib/ui-core/components/ui/button';
-import { ProjectData } from '../../services/storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 
 export interface ProjectSelectorProps {
   projects: ProjectData[];

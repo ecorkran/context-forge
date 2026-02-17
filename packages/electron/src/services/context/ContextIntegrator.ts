@@ -1,5 +1,4 @@
-import { ProjectData } from '../storage/types/ProjectData';
-import { ContextData, EnhancedContextData } from './types/ContextData';
+import { ProjectData, ContextData, EnhancedContextData } from '@context-forge/core';
 import { TemplateProcessor } from './TemplateProcessor';
 import { ContextTemplateEngine } from './ContextTemplateEngine';
 import { createSystemPromptParser, createStatementManager } from './ServiceFactory';

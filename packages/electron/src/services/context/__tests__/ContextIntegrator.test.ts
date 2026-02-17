@@ -1,5 +1,5 @@
 import { ContextIntegrator } from '../ContextIntegrator';
-import { ProjectData } from '../../storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 
 describe('ContextIntegrator', () => {
   let contextIntegrator: ContextIntegrator;

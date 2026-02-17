@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProjectManager } from '../ProjectManager'
 import { PersistentProjectStore } from '../../storage/PersistentProjectStore'
-import { ProjectData } from '../../storage/types/ProjectData'
+import { ProjectData } from '@context-forge/core'
 
 // Mock PersistentProjectStore
 vi.mock('../../storage/PersistentProjectStore')

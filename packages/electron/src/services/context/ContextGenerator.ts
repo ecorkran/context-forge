@@ -1,4 +1,4 @@
-import { ProjectData } from '../storage/types/ProjectData';
+import { ProjectData } from '@context-forge/core';
 
 /**
  * Basic context generation service for Claude Code prompts

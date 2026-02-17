@@ -1,4 +1,4 @@
-import { ProjectData, CreateProjectData } from '../storage/types/ProjectData';
+import { ProjectData, CreateProjectData } from '@context-forge/core';
 
 /**
  * Validation result interface
