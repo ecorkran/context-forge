@@ -11,7 +11,7 @@ export { SystemPromptParserIPC } from './SystemPromptParserIPC';
 // Factory functions (re-export from ServiceFactory)
 export { createStatementManager, createSystemPromptParser } from './ServiceFactory';
 
-// Types
-export type { ContextData, ContextGenerator, EnhancedContextData } from './types/ContextData';
-export type { TemplateStatement } from './types/TemplateStatement';
-export type { ContextSection } from './types/ContextSection';
+// Types (re-exported from @context-forge/core)
+export type { ContextData, ContextGenerator, EnhancedContextData } from '@context-forge/core';
+export type { TemplateStatement } from '@context-forge/core';
+export type { ContextSection } from '@context-forge/core';
