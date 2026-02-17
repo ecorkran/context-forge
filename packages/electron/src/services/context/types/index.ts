@@ -1,1 +1,0 @@
-export type { ContextData, ContextGenerator } from './ContextData';
