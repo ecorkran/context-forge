@@ -42,9 +42,9 @@ declare global {
         getForInstruction: (filename: string, instruction: string) => Promise<any | null>;
       };
       projectPath: {
-        validate: (path: string) => Promise<import('../../main/services/project/types').PathValidationResult>;
-        healthCheck: (path: string) => Promise<import('../../main/services/project/types').PathValidationResult>;
-        listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) => Promise<import('../../main/services/project/types').DirectoryListResult>;
+        validate: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;
+        healthCheck: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;
+        listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) => Promise<import('@context-forge/core').DirectoryListResult>;
         pickFolder: () => Promise<{ path: string } | null>;
       };
     };
