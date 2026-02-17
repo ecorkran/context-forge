@@ -7,6 +7,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 ---
 
 ## 2026-02-17
+### Slice 141: Core Types Extraction — Complete
+- Implementation complete: 8 commits (a4537a7 → 8e7ba18), all 10 tasks done
+- Created 6 type modules in `packages/core/src/types/` (context, sections, statements, prompts, project, paths)
+- Updated 21 consumer files in Electron to import from `@context-forge/core`
+- Deleted 11 original type files, removed 2 empty `types/` directories
+- Found and fixed 3 additional inline `import()` type references in `StorageClient.ts`
+- Full workspace builds clean, 155/163 tests pass (8 pre-existing failures unchanged)
+- Zero stale imports remain — all types now sourced from `@context-forge/core`
+
 ### Slice 141: Core Types Extraction — Design & Tasks Created
 - Slice design complete: `141-slice.core-types-extraction.md` — consolidates duplicated type hierarchies (main-process vs renderer-process) into `packages/core/src/types/`
 - Key design decisions: renderer `ContextData` superset as canonical definition, `EnhancedContextData` deduplicated from 3 definitions to 1, enums preserved as-is, no re-export shims
