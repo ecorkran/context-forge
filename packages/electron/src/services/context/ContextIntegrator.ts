@@ -3,6 +3,8 @@ import { ContextData, EnhancedContextData } from './types/ContextData';
 import { TemplateProcessor } from './TemplateProcessor';
 import { ContextTemplateEngine } from './ContextTemplateEngine';
 import { createSystemPromptParser, createStatementManager } from './ServiceFactory';
+import { PROMPT_FILE_RELATIVE_PATH } from './SystemPromptParserIPC';
+import { STATEMENTS_FILE_RELATIVE_PATH } from './StatementManagerIPC';
 
 /**
  * Default template for context generation
@@ -64,9 +66,18 @@ export class ContextIntegrator {
    * Generate context using the new template engine
    */
   private async generateWithTemplateEngine(project: ProjectData): Promise<string> {
+    // Resolve absolute file paths from project root before IPC calls
+    if (project.projectPath) {
+      const base = project.projectPath.replace(/\/+$/, '');
+      this.templateEngine.updateServicePaths(
+        `${base}/${PROMPT_FILE_RELATIVE_PATH}`,
+        `${base}/${STATEMENTS_FILE_RELATIVE_PATH}`
+      );
+    }
+
     // Map project data to enhanced context data
     const enhancedData = await this.mapProjectToEnhancedContext(project);
-    
+
     // Generate using template engine
     return await this.templateEngine.generateContext(enhancedData);
   }

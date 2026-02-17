@@ -273,4 +273,12 @@ Check the console for detailed error information.`;
     this.enableNewEngine = enabled;
   }
 
+  /**
+   * Update file paths on internal services (resolves absolute paths from projectPath)
+   */
+  updateServicePaths(promptFilePath: string, statementFilePath: string): void {
+    this.promptParser.setFilePath(promptFilePath);
+    this.statementManager.setFilePath(statementFilePath);
+  }
+
 }

@@ -1,5 +1,8 @@
 import { TemplateStatement } from './types/TemplateStatement';
 
+/** Relative path from project root to the default statements file */
+export const STATEMENTS_FILE_RELATIVE_PATH = 'default-statements.md';
+
 /**
  * IPC adapter for StatementManager that delegates to main process
  * Provides the same interface as the original StatementManager
@@ -10,7 +13,7 @@ export class StatementManagerIPC {
   private statementsCache: Record<string, TemplateStatement> = {};
 
   constructor(filename?: string) {
-    this.filename = filename || 'default-statements.md';
+    this.filename = filename || '';
   }
 
   /**
@@ -127,5 +130,16 @@ export class StatementManagerIPC {
    */
   get filePath(): string {
     return this.filename;
+  }
+
+  /**
+   * Set filename and reset loaded state
+   */
+  setFilePath(filename: string): void {
+    if (filename !== this.filename) {
+      this.filename = filename;
+      this.isLoaded = false;
+      this.statementsCache = {};
+    }
   }
 }

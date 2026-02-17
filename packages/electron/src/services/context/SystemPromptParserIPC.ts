@@ -9,6 +9,9 @@ type SystemPrompt = {
   parameters: string[];
 };
 
+/** Relative path from project root to the system prompt file */
+export const PROMPT_FILE_RELATIVE_PATH = 'project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md';
+
 /**
  * IPC adapter for SystemPromptParser that delegates to main process
  * Provides the same interface as the original SystemPromptParser
@@ -19,8 +22,7 @@ export class SystemPromptParserIPC {
   private cacheTimestamp: number = 0;
 
   constructor(filename?: string) {
-    // Default to the same path as the main process SystemPromptParser
-    this.filename = filename || 'project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md';
+    this.filename = filename || '';
   }
 
   /**
