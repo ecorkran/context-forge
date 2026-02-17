@@ -6,6 +6,19 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-17
+### Slice 140: Monorepo Scaffolding — Complete
+- 8 commits on main (d18e39d → 08e7d2c), foundation slice checked off in 140-slices
+- Created pnpm workspace with 3 packages: `@context-forge/core`, `context-forge-mcp`, `@context-forge/electron`
+- All packages build in topological order (core → mcp-server → electron), workspace symlinks working
+- `.npmrc` with `public-hoist-pattern[]=electron` required — pnpm strict mode prevents electron-vite from resolving the electron binary; hoisting fixes this without affecting published packages
+- `electron.vite.config.ts` needed two path fixes after move: vite-plugin-content import (`../../lib/vite/...`) and content alias (`../../content`)
+- Root tsconfig.json converted to project-references; root package.json stripped to workspace orchestrator
+- 157/163 tests pass (6 pre-existing failures logged to 999-tasks.maintenance-ongoing.md — stale IPC test mocks and prompt path expectations)
+- Dependency isolation confirmed: core has zero runtime deps, mcp-server depends only on core — no electron/UI leakage to MCP consumers
+- Pending: manual verification of Electron launch + core app functionality
+- Next: Slice 2 (Core Types Extraction)
+
 ## 2026-02-07
 
 - Reorganized slice 125 for macOS-only focus; deferred Linux (126) and Windows (127)
