@@ -12,14 +12,13 @@ export class SystemPromptParser {
   private static readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(filePath?: string) {
-    // Default path relative to project root
-    this.filePath = filePath || path.join(
-      process.cwd(),
-      'project-documents',
-      'ai-project-guide',
-      'project-guides',
-      'prompt.ai-project.system.md'
-    );
+    if (!filePath) {
+      throw new Error(
+        'SystemPromptParser requires an explicit file path. ' +
+        'Configure a project path in the UI to resolve prompt files.'
+      );
+    }
+    this.filePath = filePath;
   }
 
   /**

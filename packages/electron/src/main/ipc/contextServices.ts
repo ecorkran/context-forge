@@ -2,10 +2,6 @@ import { ipcMain } from 'electron';
 import { StatementManager, SystemPromptParser } from '../services/context';
 import { TemplateStatement } from '../services/context/types/TemplateStatement';
 
-// Create service instances
-const statementManager = new StatementManager();
-const systemPromptParser = new SystemPromptParser();
-
 /**
  * Initialize all IPC handlers for context services
  */
@@ -13,7 +9,10 @@ export function setupContextServiceHandlers() {
   // Statement management handlers
   ipcMain.handle('statements:load', async (_event, filename?: string) => {
     try {
-      const manager = filename ? new StatementManager(filename) : statementManager;
+      if (!filename) {
+        throw new Error('No statement file path provided. Configure a project path first.');
+      }
+      const manager = new StatementManager(filename);
       await manager.loadStatements();
       return manager.getAllStatements();
     } catch (error) {
@@ -67,7 +66,10 @@ export function setupContextServiceHandlers() {
   // System prompt handlers
   ipcMain.handle('systemPrompts:parse', async (_event, filename?: string) => {
     try {
-      const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
+      if (!filename) {
+        throw new Error('No prompt file path provided. Configure a project path first.');
+      }
+      const parser = new SystemPromptParser(filename);
       const prompts = await parser.getAllPrompts();
       return prompts;
     } catch (error) {
@@ -78,7 +80,10 @@ export function setupContextServiceHandlers() {
 
   ipcMain.handle('systemPrompts:getContextInit', async (_event, filename?: string, isMonorepo: boolean = false) => {
     try {
-      const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
+      if (!filename) {
+        throw new Error('No prompt file path provided. Configure a project path first.');
+      }
+      const parser = new SystemPromptParser(filename);
       return await parser.getContextInitializationPrompt(isMonorepo);
     } catch (error) {
       console.error('Error getting context init prompt:', error);
@@ -88,7 +93,10 @@ export function setupContextServiceHandlers() {
 
   ipcMain.handle('systemPrompts:getToolUse', async (_event, filename?: string) => {
     try {
-      const parser = filename ? new SystemPromptParser(filename) : systemPromptParser;
+      if (!filename) {
+        throw new Error('No prompt file path provided. Configure a project path first.');
+      }
+      const parser = new SystemPromptParser(filename);
       return await parser.getToolUsePrompt();
     } catch (error) {
       console.error('Error getting tool use prompt:', error);

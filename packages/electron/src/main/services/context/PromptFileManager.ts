@@ -6,17 +6,16 @@ import * as path from 'path';
  * Handles file loading, validation, and basic monitoring
  */
 export class PromptFileManager {
-  private static readonly DEFAULT_PROMPT_PATH = path.join(
-    process.cwd(),
-    'project-documents',
-    'project-guides',
-    'prompt.ai-project.system.md'
-  );
-
   private filePath: string;
 
   constructor(filePath?: string) {
-    this.filePath = filePath || PromptFileManager.DEFAULT_PROMPT_PATH;
+    if (!filePath) {
+      throw new Error(
+        'PromptFileManager requires an explicit file path. ' +
+        'Configure a project path in the UI to resolve prompt files.'
+      );
+    }
+    this.filePath = filePath;
   }
 
   /**

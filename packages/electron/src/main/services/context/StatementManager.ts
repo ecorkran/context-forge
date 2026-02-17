@@ -72,15 +72,13 @@ export class StatementManager {
   private isLoaded: boolean = false;
 
   constructor(filePath?: string) {
-    // Default path relative to project root in user directory
-    this.filePath = filePath || path.join(
-      process.cwd(),
-      'project-documents',
-      'user',
-      'content',
-      'statements',
-      'default-statements.md'
-    );
+    if (!filePath) {
+      throw new Error(
+        'StatementManager requires an explicit file path. ' +
+        'Configure a project path in the UI to resolve statement files.'
+      );
+    }
+    this.filePath = filePath;
   }
 
   /**
