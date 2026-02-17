@@ -7,6 +7,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 ---
 
 ## 2026-02-17
+### Slice 141: Core Types Extraction — Design & Tasks Created
+- Slice design complete: `141-slice.core-types-extraction.md` — consolidates duplicated type hierarchies (main-process vs renderer-process) into `packages/core/src/types/`
+- Key design decisions: renderer `ContextData` superset as canonical definition, `EnhancedContextData` deduplicated from 3 definitions to 1, enums preserved as-is, no re-export shims
+- Task breakdown complete: `141-tasks.core-types-extraction.md` — 10 tasks covering 6 type modules, barrel exports, ~26 consumer import updates across ~20 files, deletion of 11 original type files
+- `AppState`/`WindowBounds` intentionally kept in Electron (UI-specific, deferred to storage migration)
+- Scope: types only, zero runtime behavior change, verified by compiler + existing test suite
+
 ### Slice 140: Monorepo Scaffolding — Complete
 - 8 commits on main (d18e39d → 08e7d2c), foundation slice checked off in 140-slices
 - Created pnpm workspace with 3 packages: `@context-forge/core`, `context-forge-mcp`, `@context-forge/electron`

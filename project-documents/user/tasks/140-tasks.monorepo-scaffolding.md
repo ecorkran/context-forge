@@ -234,24 +234,24 @@ dateUpdated: 20260217
 - [x] Run typecheck:
   - [x] Execute `pnpm -r typecheck`
   - [x] No type errors in any package — Core and mcp-server pass. Electron typecheck failures are pre-existing (Issue #27 combobox.tsx + IPCIntegration test mock missing onFlushSave). Documented in maintenance-tasks.md
-- [ ] Verify Electron app launches:
-  - [ ] Run `pnpm dev` (or `pnpm --filter @context-forge/electron dev`)
-  - [ ] App window opens without errors
-  - [ ] Dev console shows no new errors or warnings
+- [x] Verify Electron app launches:
+  - [x] Run `pnpm dev` (or `pnpm --filter @context-forge/electron dev`)
+  - [x] App window opens without errors
+  - [x] Dev console shows no new errors or warnings
 - [ ] Verify core app functionality:
-  - [ ] Can load existing projects
-  - [ ] Can edit project configuration
-  - [ ] Can generate context output
-  - [ ] Can copy generated context to clipboard
-  - [ ] IPC communication between main and renderer works
+  - [x] Can load existing projects
+  - [x] Can edit project configuration
+  - [x] Can generate context output
+  - [x] Can copy generated context to clipboard
+  - [x] IPC communication between main and renderer works
 
 **Note**: Electron app launch verification items remain pending (will be completed during manual testing phase)
 
 **Success Criteria**:
 - [x] All existing tests pass — 157 of 163 pass; 6 pre-existing failures are unrelated to restructure
 - [x] Typecheck passes across all packages — Core and mcp-server pass; electron typecheck has pre-existing errors (Issue #27)
-- [ ] Electron app launches and all core features work
-- [ ] No new warnings or errors in dev console
+- [x] Electron app launches and all core features work
+- [x] No new warnings or errors in dev console
 
 ---
 

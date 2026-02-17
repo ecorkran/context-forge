@@ -5,7 +5,7 @@ project: context-forge
 parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: []
 interfaces: [core-types-extraction, core-services-extraction, storage-migration]
-status: in-progress
+status: complete
 dateCreated: 20260215
 dateUpdated: 20260217
 ---
