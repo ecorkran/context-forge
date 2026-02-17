@@ -1,4 +1,9 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+
+// Pin the app name so userData path stays consistent regardless of package.json name changes.
+// Without this, Electron derives the name from package.json, and the monorepo rename to
+// "@context-forge/electron" would move userData to a different directory.
+app.name = 'context-forge'
 import { fileURLToPath } from 'node:url'
 import { URL } from 'node:url'
 import { join } from 'node:path'
