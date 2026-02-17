@@ -1,5 +1,4 @@
-import { EnhancedContextData } from './types/ContextData';
-import { ContextSection, ContextTemplate } from './types/ContextSection';
+import { EnhancedContextData, ContextSection, ContextTemplate } from '@context-forge/core';
 import { SystemPromptParserIPC } from './SystemPromptParserIPC';
 import { StatementManagerIPC } from './StatementManagerIPC';
 import { SectionBuilder } from './SectionBuilder';

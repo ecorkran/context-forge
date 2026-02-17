@@ -1,5 +1,5 @@
 import { TemplateProcessor } from '../TemplateProcessor';
-import { ContextData } from '../types/ContextData';
+import { ContextData } from '@context-forge/core';
 
 describe('TemplateProcessor', () => {
   let processor: TemplateProcessor;

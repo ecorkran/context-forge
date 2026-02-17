@@ -1,4 +1,4 @@
-import { TemplateStatement } from './types/TemplateStatement';
+import { TemplateStatement } from '@context-forge/core';
 
 /** Relative path from project root to the default statements file */
 export const STATEMENTS_FILE_RELATIVE_PATH = 'default-statements.md';

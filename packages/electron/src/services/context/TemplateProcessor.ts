@@ -1,4 +1,4 @@
-import { ContextData } from './types/ContextData';
+import { ContextData } from '@context-forge/core';
 
 /**
  * Utility for processing template strings with variable substitution
