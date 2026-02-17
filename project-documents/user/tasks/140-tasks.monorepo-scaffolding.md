@@ -199,27 +199,27 @@ dateUpdated: 20260215
 ### Task 8: Install dependencies and build verification
 **Objective**: Run pnpm install, build all packages, and verify the Electron app works.
 
-- [ ] Run `pnpm install` from repo root
-  - [ ] Verify workspace packages are linked (check `node_modules/@context-forge/`)
-  - [ ] Resolve any dependency resolution errors
-- [ ] Build `@context-forge/core`:
-  - [ ] Run `pnpm --filter @context-forge/core build`
-  - [ ] Verify `packages/core/dist/index.js` and `packages/core/dist/index.d.ts` are produced
-- [ ] Build `context-forge-mcp`:
-  - [ ] Run `pnpm --filter context-forge-mcp build`
-  - [ ] Verify `packages/mcp-server/dist/index.js` is produced
-- [ ] Build `@context-forge/electron`:
-  - [ ] Run `pnpm --filter @context-forge/electron build`
-  - [ ] Verify `packages/electron/out/` contains main, preload, and renderer output
-  - [ ] Fix any build errors (most likely path resolution issues)
-- [ ] Run full workspace build:
-  - [ ] Run `pnpm -r build`
-  - [ ] Verify topological build order: core → mcp-server → electron
+- [x] Run `pnpm install` from repo root
+  - [x] Verify workspace packages are linked (check `node_modules/@context-forge/`)
+  - [x] Resolve any dependency resolution errors
+- [x] Build `@context-forge/core`:
+  - [x] Run `pnpm --filter @context-forge/core build`
+  - [x] Verify `packages/core/dist/index.js` and `packages/core/dist/index.d.ts` are produced
+- [x] Build `context-forge-mcp`:
+  - [x] Run `pnpm --filter context-forge-mcp build`
+  - [x] Verify `packages/mcp-server/dist/index.js` is produced
+- [x] Build `@context-forge/electron`:
+  - [x] Run `pnpm --filter @context-forge/electron build`
+  - [x] Verify `packages/electron/out/` contains main, preload, and renderer output
+  - [x] Fix any build errors (most likely path resolution issues)
+- [x] Run full workspace build:
+  - [x] Run `pnpm -r build`
+  - [x] Verify topological build order: core → mcp-server → electron
 
 **Success Criteria**:
-- [ ] All three packages build without errors
-- [ ] `pnpm -r build` completes successfully with correct ordering
-- [ ] Workspace symlinks are correctly established
+- [x] All three packages build without errors
+- [x] `pnpm -r build` completes successfully with correct ordering
+- [x] Workspace symlinks are correctly established
 
 ---
 
