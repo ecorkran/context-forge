@@ -303,26 +303,26 @@ This slice changes zero runtime behavior. Verification is:
 
 ### Functional Requirements
 
-- [ ] All types listed in the slice plan are present in `packages/core/src/types/`
-- [ ] `ContextData` is a single consolidated interface (renderer superset)
-- [ ] `EnhancedContextData` exists in exactly one location (`context.ts`)
-- [ ] All Electron consumers import types from `@context-forge/core`
-- [ ] No type files remain in the old Electron locations (except `AppState.ts`)
-- [ ] Electron app builds and runs identically to pre-extraction
+- [x] All types listed in the slice plan are present in `packages/core/src/types/`
+- [x] `ContextData` is a single consolidated interface (renderer superset)
+- [x] `EnhancedContextData` exists in exactly one location (`context.ts`)
+- [x] All Electron consumers import types from `@context-forge/core`
+- [x] No type files remain in the old Electron locations (except `AppState.ts`)
+- [x] Electron app builds and runs identically to pre-extraction
 
 ### Technical Requirements
 
-- [ ] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` in `dist/`
-- [ ] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
-- [ ] `pnpm -r build` succeeds (full workspace)
-- [ ] All existing tests pass (`pnpm --filter @context-forge/electron test`)
-- [ ] Core package has zero runtime dependencies (types-only, no npm packages needed)
-- [ ] `.js` extensions used on all relative imports within `packages/core/`
+- [x] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` in `dist/`
+- [x] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
+- [x] `pnpm -r build` succeeds (full workspace)
+- [x] All existing tests pass (`pnpm --filter @context-forge/electron test`)
+- [x] Core package has zero runtime dependencies (types-only, no npm packages needed)
+- [x] `.js` extensions used on all relative imports within `packages/core/`
 
 ### Integration Requirements
 
-- [ ] `@context-forge/core` types are importable from `packages/mcp-server/` (workspace link works)
-- [ ] TypeScript IntelliSense resolves `@context-forge/core` types in the IDE
+- [x] `@context-forge/core` types are importable from `packages/mcp-server/` (workspace link works)
+- [x] TypeScript IntelliSense resolves `@context-forge/core` types in the IDE
 
 ## Implementation Notes
 
