@@ -6,6 +6,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-18
+### Slice 142: Core Services Extraction — Design Complete
+- Slice design: `142-slice.core-services-extraction.md` — extracts 5 services (TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ProjectPathService) to `packages/core/src/services/`
+- Key decisions: keep Node.js `fs` as-is (core is a Node.js package, not browser), define minimal interfaces (`IStatementReader`, `IPromptReader`) for SectionBuilder's dependency injection
+- Scope: relocation not redesign, ~1315 lines of service code, ~8 consumer files to update
+- Found broken import in `ProjectPathService` (`./types` deleted in slice 141) — will fix during extraction
+- Domain constants (`DEFAULT_STATEMENTS`, file path constants) exported from core
+
 ## 2026-02-17
 ### Slice 141: Core Types Extraction — Complete
 - Implementation complete: 8 commits (a4537a7 → 8e7ba18), all 10 tasks done
