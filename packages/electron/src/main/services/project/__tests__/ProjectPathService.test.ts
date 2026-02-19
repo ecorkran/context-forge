@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ProjectPathService } from '@context-forge/core';
+import { ProjectPathService } from '@context-forge/core/node';
 
 // Mock fs module
 vi.mock('fs', () => ({

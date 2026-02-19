@@ -1,5 +1,5 @@
-// Services now in @context-forge/core
-export { StatementManager, SystemPromptParser } from '@context-forge/core';
+// Node.js services from @context-forge/core/node
+export { StatementManager, SystemPromptParser } from '@context-forge/core/node';
 
 // Other main process context services
 export { PromptFileManager } from './PromptFileManager';

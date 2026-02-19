@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
-import { ProjectPathService } from '@context-forge/core';
+import { ProjectPathService } from '@context-forge/core/node';
 
 const projectPathService = new ProjectPathService();
 
