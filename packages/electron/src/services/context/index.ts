@@ -1,8 +1,9 @@
 // Main services
 export { ContextIntegrator } from './ContextIntegrator';
-export { TemplateProcessor } from './TemplateProcessor';
 export { ContextTemplateEngine } from './ContextTemplateEngine';
-export { SectionBuilder } from './SectionBuilder';
+
+// Services now in @context-forge/core
+export { TemplateProcessor, SectionBuilder } from '@context-forge/core';
 
 // IPC implementations (for renderer process)
 export { StatementManagerIPC } from './StatementManagerIPC';

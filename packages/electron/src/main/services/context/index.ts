@@ -1,6 +1,7 @@
-// Export main process context services
-export { StatementManager } from './StatementManager';
-export { SystemPromptParser } from './SystemPromptParser';
+// Services now in @context-forge/core
+export { StatementManager, SystemPromptParser } from '@context-forge/core';
+
+// Other main process context services
 export { PromptFileManager } from './PromptFileManager';
 
 // Export types (re-exported from @context-forge/core)

@@ -1,5 +1,4 @@
-import { ProjectData, ContextData, EnhancedContextData } from '@context-forge/core';
-import { TemplateProcessor } from './TemplateProcessor';
+import { ProjectData, ContextData, EnhancedContextData, TemplateProcessor } from '@context-forge/core';
 import { ContextTemplateEngine } from './ContextTemplateEngine';
 import { createSystemPromptParser, createStatementManager } from './ServiceFactory';
 import { PROMPT_FILE_RELATIVE_PATH } from './SystemPromptParserIPC';
