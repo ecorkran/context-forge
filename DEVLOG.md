@@ -7,6 +7,16 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 ---
 
 ## 2026-02-18
+### Slice 142: Core Services Extraction — Complete
+- Implementation complete: 4 commits (7c52150 → 0d26f0b), all 12 tasks done
+- Extracted 5 services to `packages/core/src/services/`: TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ProjectPathService
+- Added `services/constants.ts` (DEFAULT_STATEMENTS, file path constants) and `services/interfaces.ts` (IStatementReader, IPromptReader)
+- Updated 8 Electron consumer files to import from `@context-forge/core`; deleted 5 original service files from Electron
+- Required infrastructure fix: added `@types/node` + `types:["node"]` to core tsconfig (services use `fs`/`path`, lib was ES2023 only)
+- Fixed `EnhancedContextData` import location (context.ts not sections.ts); removed unused `path` import from SystemPromptParser
+- Fixed `ProjectPathService` broken `./types` import (file deleted in slice 141) — resolved to `../types/paths.js`
+- Full workspace builds clean (`pnpm -r build`), 155/163 tests pass (same 8 pre-existing failures)
+
 ### Slice 142: Core Services Extraction — Design Complete
 - Slice design: `142-slice.core-services-extraction.md` — extracts 5 services (TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ProjectPathService) to `packages/core/src/services/`
 - Key decisions: keep Node.js `fs` as-is (core is a Node.js package, not browser), define minimal interfaces (`IStatementReader`, `IPromptReader`) for SectionBuilder's dependency injection

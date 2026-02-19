@@ -5,7 +5,7 @@ project: context-forge
 parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: [core-types-extraction]
 interfaces: [core-orchestration-extraction, electron-client-conversion]
-status: not started
+status: complete
 dateCreated: 20260218
 dateUpdated: 20260218
 ---
@@ -320,27 +320,27 @@ This slice changes zero runtime behavior. Verification is:
 
 ### Functional Requirements
 
-- [ ] All 5 services are present in `packages/core/src/services/`
-- [ ] `IStatementReader` and `IPromptReader` interfaces are defined and exported from core
-- [ ] `DEFAULT_STATEMENTS`, `STATEMENTS_FILE_RELATIVE_PATH`, `PROMPT_FILE_RELATIVE_PATH` are exported from core
-- [ ] All Electron consumers import services from `@context-forge/core`
-- [ ] No service files remain in the old Electron locations
-- [ ] Electron app builds and runs identically to pre-extraction
-- [ ] IPC wrappers (`StatementManagerIPC`, `SystemPromptParserIPC`) remain in Electron and function unchanged
+- [x] All 5 services are present in `packages/core/src/services/`
+- [x] `IStatementReader` and `IPromptReader` interfaces are defined and exported from core
+- [x] `DEFAULT_STATEMENTS`, `STATEMENTS_FILE_RELATIVE_PATH`, `PROMPT_FILE_RELATIVE_PATH` are exported from core
+- [x] All Electron consumers import services from `@context-forge/core`
+- [x] No service files remain in the old Electron locations
+- [x] Electron app builds and runs identically to pre-extraction
+- [x] IPC wrappers (`StatementManagerIPC`, `SystemPromptParserIPC`) remain in Electron and function unchanged
 
 ### Technical Requirements
 
-- [ ] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` in `dist/`
-- [ ] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
-- [ ] `pnpm -r build` succeeds (full workspace)
-- [ ] All existing tests pass (`pnpm --filter @context-forge/electron test`)
-- [ ] `.js` extensions used on all relative imports within `packages/core/`
-- [ ] No unused imports carried from Electron (e.g., `path` in SystemPromptParser)
+- [x] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` in `dist/`
+- [x] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
+- [x] `pnpm -r build` succeeds (full workspace)
+- [x] All existing tests pass (`pnpm --filter @context-forge/electron test`) — 155/163 (same 8 pre-existing failures)
+- [x] `.js` extensions used on all relative imports within `packages/core/`
+- [x] No unused imports carried from Electron (e.g., `path` in SystemPromptParser)
 
 ### Integration Requirements
 
-- [ ] Services are importable from `packages/mcp-server/` (workspace link works)
-- [ ] `SectionBuilder` accepts both core `StatementManager`/`SystemPromptParser` and Electron IPC wrappers through the interface types
+- [x] Services are importable from `packages/mcp-server/` (workspace link works — mcp-server builds clean in `pnpm -r build`)
+- [x] `SectionBuilder` accepts both core `StatementManager`/`SystemPromptParser` and Electron IPC wrappers through the interface types
 
 ## Risk Assessment
 
