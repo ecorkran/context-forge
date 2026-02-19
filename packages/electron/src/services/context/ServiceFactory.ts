@@ -6,12 +6,12 @@ import { SystemPromptParserIPC } from './SystemPromptParserIPC';
  * Always uses IPC implementations since renderer cannot use Node.js modules
  */
 
-export function createStatementManager(filename?: string) {
+export function createStatementManager(filename?: string): StatementManagerIPC {
   // Renderer process always uses IPC implementation
   return new StatementManagerIPC(filename);
 }
 
-export function createSystemPromptParser(filename?: string) {
+export function createSystemPromptParser(filename?: string): SystemPromptParserIPC {
   // Renderer process always uses IPC implementation
   return new SystemPromptParserIPC(filename);
 }

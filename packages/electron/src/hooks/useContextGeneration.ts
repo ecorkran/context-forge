@@ -2,11 +2,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { ProjectData, ContextIntegrator, ContextTemplateEngine } from '@context-forge/core';
 import { createSystemPromptParser, createStatementManager } from '../services/context/ServiceFactory';
 
+/** Return type for useContextGeneration hook */
+interface UseContextGenerationResult {
+  contextString: string;
+  isLoading: boolean;
+  error: string | null;
+  regenerate: () => void;
+}
+
 /**
  * Hook for managing context generation from project data
  * Handles loading states, error handling, and automatic regeneration
  */
-export const useContextGeneration = (projectData: ProjectData | null) => {
+export const useContextGeneration = (projectData: ProjectData | null): UseContextGenerationResult => {
   const [contextString, setContextString] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
