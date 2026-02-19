@@ -1,4 +1,6 @@
 import type { ContextData } from './context.js';
+import type { TemplateStatement } from './statements.js';
+import type { SystemPrompt } from './prompts.js';
 
 /**
  * Represents a section in the context template
@@ -17,7 +19,7 @@ export interface ContextSection {
   conditional?: boolean;
 
   /** Function to determine if section should be included */
-  condition?: (data: ContextData | any) => boolean;
+  condition?: (data: ContextData) => boolean;
 
   /** Sort order for the section (lower numbers appear first) */
   order: number;
@@ -31,10 +33,10 @@ export interface ContextTemplate {
   sections: ContextSection[];
 
   /** Available statements for the template */
-  statements: Record<string, any>;
+  statements: Record<string, TemplateStatement>;
 
   /** Available system prompts */
-  prompts: Record<string, any>;
+  prompts: Record<string, SystemPrompt>;
 }
 
 /**
