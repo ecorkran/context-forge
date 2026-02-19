@@ -234,6 +234,7 @@ export class ContextTemplateEngine {
    */
   private validateInputData(data: EnhancedContextData): void {
     const required = ['projectName', 'template', 'slice', 'instruction'];
+    // Assertion safe: required array contains only known EnhancedContextData keys
     const missing = required.filter(field => !data[field as keyof EnhancedContextData]);
 
     if (missing.length > 0) {
