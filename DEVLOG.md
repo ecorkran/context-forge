@@ -8,6 +8,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-19
 
+### Slice 145: MCP Server — Project Tools — Design Complete
+- Slice design: `145-slice.mcp-server-project-tools.md` — first MCP feature slice, implements `project_list`, `project_get`, `project_update` wrapping `FileProjectStore` from core
+- SDK: `@modelcontextprotocol/server` v2 with `zod/v4` for input schemas; v1 fallback documented
+- Transport: stdio only; file structure: `src/index.ts` (server lifecycle) + `src/tools/projectTools.ts` (tool implementations)
+- Tool annotations: read-only hints for list/get, idempotent+non-destructive for update
+- Fresh `FileProjectStore` per call (avoids stale state vs Electron); error messages guide users to correct tools
+
 ### Slice 144: Storage Migration — Implementation Complete
 - Implementation complete: 6 commits (549111f → 7c8597e), all 18 tasks done
 - Created `packages/core/src/storage/` with 5 modules: `interfaces.ts`, `storagePaths.ts`, `backupService.ts`, `FileStorageService.ts`, `FileProjectStore.ts`
