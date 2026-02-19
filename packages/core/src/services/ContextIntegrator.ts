@@ -167,10 +167,11 @@ export class ContextIntegrator {
    * @param error Error that occurred
    * @returns Fallback context string
    */
-  private getErrorContext(project: ProjectData, error: any): string {
+  private getErrorContext(project: ProjectData, error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
     return `# Project: ${project.name || 'Unknown'}
 
-⚠️ Error generating context: ${error?.message || 'Unknown error'}
+⚠️ Error generating context: ${message}
 
 ## Project Details
 - Template: ${project.template || 'Unknown'}
