@@ -8,6 +8,20 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-19
 
+### Slice 144: Storage Migration — Implementation Complete
+- Implementation complete: 6 commits (549111f → 7c8597e), all 18 tasks done
+- Created `packages/core/src/storage/` with 5 modules: `interfaces.ts`, `storagePaths.ts`, `backupService.ts`, `FileStorageService.ts`, `FileProjectStore.ts`
+- `IProjectStore` interface for project CRUD; `IStorageService` for low-level atomic file operations
+- `env-paths` resolves cross-platform storage (`~/Library/Preferences/context-forge/` on macOS); `CONTEXT_FORGE_DATA_DIR` override for testing
+- Backup service extracted from Electron (already had no Electron deps); `FileStorageService` implements atomic write (temp+rename), backup on write, recovery from corruption
+- `FileProjectStore` provides full CRUD with field migration, lazy init, and one-time legacy data migration from `~/Library/Application Support/context-forge/context-forge/`
+- Electron `main.ts` IPC handlers delegate to core: 153 lines removed, 32 added; storage behavior preserved
+- Fixed `ProjectPathService.test.ts` mock to use `importOriginal` (needed after expanded core/node exports)
+- Exported from `@context-forge/core/node` (implementations) and `@context-forge/core` (type-only interfaces)
+- Pipeline integration test validates: project CRUD, context generation from storage, backup recovery — all without Electron
+- 54 core tests passing; 155/163 Electron tests (same 8 pre-existing failures)
+- Commits: 549111f, ed402c8, 0241f65, 9f46826, fb012b8, 7c8597e
+
 ### Slice 144: Storage Migration — Task Breakdown Complete
 - Task breakdown: `144-tasks.storage-migration.md` — 18 tasks across 6 phases
 - Phase 1: Setup (env-paths, interfaces); Phase 2: Backup service extraction; Phase 3: FileStorageService; Phase 4: FileProjectStore; Phase 5: Electron integration; Phase 6: Pipeline integration test

@@ -12,7 +12,7 @@ projectState: >
   ~/Library/Application Support/context-forge/context-forge/.
 dateCreated: 20260219
 dateUpdated: 20260219
-status: in-progress
+status: complete
 ---
 
 ## Context Summary
@@ -191,34 +191,34 @@ status: in-progress
 ## Phase 6: Pipeline Integration Test and Final Verification
 
 ### Task 16: Create test fixture project
-- [ ] Create `packages/core/src/__tests__/__fixtures__/test-project/project-documents/ai-project-guide/`
-- [ ] Create minimal `prompt.ai-project.system.md` containing a simple template with at least one variable placeholder (e.g., `{{project_state}}`)
-- [ ] Create minimal `statements.ai-project.default.md` with at least one statement section
-- [ ] Verify fixture structure matches what `createContextPipeline()` expects (`PROMPT_FILE_RELATIVE_PATH` and `STATEMENTS_FILE_RELATIVE_PATH` constants)
-- [ ] **Success**: Fixture directory exists with valid prompt and statement files
+- [x] Create `packages/core/src/__tests__/__fixtures__/test-project/project-documents/ai-project-guide/`
+- [x] Create minimal `prompt.ai-project.system.md` containing a simple template with at least one variable placeholder (e.g., `{{project_state}}`)
+- [x] Create minimal `statements.ai-project.default.md` with at least one statement section
+- [x] Verify fixture structure matches what `createContextPipeline()` expects (`PROMPT_FILE_RELATIVE_PATH` and `STATEMENTS_FILE_RELATIVE_PATH` constants)
+- [x] **Success**: Fixture directory exists with valid prompt and statement files
 
 ### Task 17: Write pipeline integration test
-- [ ] Create `packages/core/src/__tests__/pipeline-integration.test.ts`
-- [ ] Test: create project via `FileProjectStore`, wire `createContextPipeline()` with fixture path, call `integrator.generateContextFromProject(project)`, verify non-empty string output — see slice design §Pipeline Integration Test
-- [ ] Test: CRUD round-trip on `FileProjectStore` (create, read, update, delete)
-- [ ] Test: recovery from corrupted `projects.json` via backup
-- [ ] All tests use `CONTEXT_FORGE_DATA_DIR` env var with temp directories; clean up in `afterEach`
-- [ ] **Success**: All pipeline integration tests pass; validates full context generation chain without Electron
+- [x] Create `packages/core/src/__tests__/pipeline-integration.test.ts`
+- [x] Test: create project via `FileProjectStore`, wire `createContextPipeline()` with fixture path, call `integrator.generateContextFromProject(project)`, verify non-empty string output — see slice design §Pipeline Integration Test
+- [x] Test: CRUD round-trip on `FileProjectStore` (create, read, update, delete)
+- [x] Test: recovery from corrupted `projects.json` via backup
+- [x] All tests use `CONTEXT_FORGE_DATA_DIR` env var with temp directories; clean up in `afterEach`
+- [x] **Success**: All pipeline integration tests pass; validates full context generation chain without Electron
 
 ### Task 18: Full workspace build, test, and final commit
-- [ ] Run `pnpm --filter @context-forge/core build` — verify success
-- [ ] Run `pnpm --filter @context-forge/electron build` — verify success
-- [ ] Run `pnpm -r build` — full workspace builds in correct order
-- [ ] Run `pnpm --filter @context-forge/core test` — all storage and integration tests pass
-- [ ] Run `pnpm --filter @context-forge/electron test` — same pass/fail as pre-slice
-- [ ] Grep `packages/core/src/` for Electron imports (`electron`, `app.getPath`, `BrowserWindow`) — must find zero
-- [ ] Verify `FileProjectStore` importable from `@context-forge/core/node` (workspace link)
-- [ ] Verify `IProjectStore` type importable from `@context-forge/core` (browser-safe barrel)
-- [ ] Git commit: pipeline integration test and final verification
-- [ ] Update DEVLOG with slice 144 implementation summary
-- [ ] **Note**: After successful build, PM should manually copy versioned backups:
+- [x] Run `pnpm --filter @context-forge/core build` — verify success
+- [x] Run `pnpm --filter @context-forge/electron build` — verify success
+- [x] Run `pnpm -r build` — full workspace builds in correct order
+- [x] Run `pnpm --filter @context-forge/core test` — all storage and integration tests pass
+- [x] Run `pnpm --filter @context-forge/electron test` — same pass/fail as pre-slice
+- [x] Grep `packages/core/src/` for Electron imports (`electron`, `app.getPath`, `BrowserWindow`) — must find zero
+- [x] Verify `FileProjectStore` importable from `@context-forge/core/node` (workspace link)
+- [x] Verify `IProjectStore` type importable from `@context-forge/core` (browser-safe barrel)
+- [x] Git commit: pipeline integration test and final verification
+- [x] Update DEVLOG with slice 144 implementation summary
+- [x] **Note**: After successful build, PM should manually copy versioned backups:
   ```
   cp ~/Library/Application\ Support/context-forge/context-forge/projects.json.*.backup \
      ~/Library/Preferences/context-forge/
   ```
-- [ ] **Success**: Full workspace builds; all tests pass; no Electron imports in core; storage accessible from MCP server package
+- [x] **Success**: Full workspace builds; all tests pass; no Electron imports in core; storage accessible from MCP server package
