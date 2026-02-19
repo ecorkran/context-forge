@@ -268,6 +268,14 @@ export class SystemPromptParser {
   }
 
   /**
+   * Set a new file path and invalidate the cache
+   */
+  setFilePath(path: string): void {
+    this.filePath = path;
+    this.promptsCache.clear();
+  }
+
+  /**
    * Clear cache (useful for testing or forced refresh)
    */
   clearCache(): void {

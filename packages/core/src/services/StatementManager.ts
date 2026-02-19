@@ -229,6 +229,15 @@ lastUpdated: "${new Date().toISOString().split('T')[0]}"
   }
 
   /**
+   * Set a new file path and reset loaded state
+   */
+  setFilePath(path: string): void {
+    this.filePath = path;
+    this.isLoaded = false;
+    this.statements = {};
+  }
+
+  /**
    * Reset statements to defaults
    */
   resetToDefaults(): void {
