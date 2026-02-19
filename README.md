@@ -1,166 +1,92 @@
 # Context Forge
 
-A desktop application for automating the creation of structured context prompts for Claude Code sessions. Built with Electron, React, and TypeScript.
+Context Forge generates structured context prompts for AI-assisted coding sessions. Instead of manually assembling project state, templates, and task context every time you start a session with Claude Code, Cursor, or similar tools, Context Forge builds it from your project configuration in seconds.
 
-## 🚀 Quick Start
+> **This project is in active development.** The architecture is mid-restructure (Electron app to monorepo with MCP server). Things work, but expect rough edges. Tested on macOS and Linux only.
+
+## The Problem
+
+Every AI coding session benefits from structured context: what you're working on, what conventions to follow, what the current task is, where things are in your codebase. Building that context by hand is tedious and error-prone. Copy-pasting from multiple files, remembering to include the right template sections, keeping project state current — it adds up to several minutes per session, every session.
+
+## What Context Forge Does
+
+Context Forge takes a template-driven approach to context generation:
+
+- **Templates and statements** define the structure of your context prompt — sections for project state, work context, instructions, conventions, monorepo configuration, etc.
+- **Project configuration** captures what you're currently working on — active slice, task file, instruction mode, custom data fields.
+- **The context engine** assembles these into a formatted prompt you can paste into your AI coding tool.
+
+You configure your project once, update it as your work progresses, and generate a fresh context prompt whenever you start a new session.
+
+### Dependency: ai-project-guide
+
+Context Forge is currently tightly coupled to the [ai-project-guide](https://github.com/ecorkran/ai-project-guide) template system (also a work-in-progress). The prompts, statement templates, and project structure conventions that Context Forge uses come from ai-project-guide. You'll need to set it up for Context Forge to be useful:
 
 ```bash
+pnpm setup-guides
+```
+
+This bootstraps the ai-project-guide templates into your project. See the [ai-project-guide repo](https://github.com/ecorkran/ai-project-guide) for details on the methodology.
+
+## Quick Start
+
+```bash
+git clone https://github.com/ecorkran/context-forge.git
+cd context-forge
 pnpm install
-pnpm dev
+pnpm setup-guides   # bootstrap ai-project-guide templates
+pnpm dev             # launches the Electron app with hot reload
 ```
 
-The Electron app will launch with hot reload enabled for rapid development.
+Requirements: Node.js 18+, pnpm 10+.
 
-## 📖 What is Context Forge?
+## Architecture
 
-Context Forge eliminates the manual, time-consuming process of building structured context prompts for AI-assisted development sessions. Instead of spending 3-4 minutes manually assembling context for each Claude Code session, developers can generate consistent, well-formatted prompts in seconds.
+Context Forge is a pnpm monorepo with three packages:
 
-### Key Features
-- **Multi-Project Support**: Manage multiple projects with easy dropdown switching
-- **Template-Driven Generation**: Use curated prompts and instruction templates
-- **Project Context Management**: Track current work state, slices, tasks, and phases
-- **Custom Instructions**: Add project-specific guidance and recent events
-- **Copy-Optimized Output**: One-click copy of formatted context prompts
-- **Persistent Storage**: Project configurations saved locally for quick access
-
-### Perfect For
-- Developers using Claude Code for AI-assisted development
-- Teams using structured methodologies (templates, slices, phases)
-- Projects following the ai-project-guide workflow
-- Anyone working on multiple projects requiring consistent context
-
-## ✨ What's Included
-- **Electron 37** with secure architecture (main/preload/renderer)
-- **React 19** with TypeScript for the renderer process
-- **Vite** for fast development and building via electron-vite
-- **Tailwind CSS 4** for styling with custom themes
-- **Radix UI** components for accessible interface elements
-- **Component Library** - Pre-built UI components from ui-core
-- **Router** - React Router with HashRouter for Electron compatibility
-- **Build System** - Production packaging with electron-builder
-
-## 🔧 Development
-
-### Scripts
-```bash
-pnpm dev          # Start development server with Electron app
-pnpm build        # Build for production
-pnpm package      # Create distributable packages
-pnpm typecheck    # TypeScript type checking
-pnpm lint         # ESLint code linting
+```
+packages/
+  core/           @context-forge/core — context engine, types, services
+  electron/       @context-forge/electron — desktop app (Electron + React)
+  mcp-server/     context-forge-mcp — MCP server (scaffolded, not yet functional)
 ```
 
-### Architecture
-```
-src/
-├── main/              # Electron main process
-│   ├── main.ts        # Application entry point
-│   ├── ipc/           # IPC handlers for context services
-│   └── services/      # Context generation, storage, prompts
-├── preload/           # Secure IPC bridge
-├── components/        # React UI components
-│   ├── forms/         # Project configuration forms
-│   ├── layout/        # Layout components (split pane)
-│   └── project/       # Project selector and management
-├── services/          # Frontend services
-│   ├── context/       # Context generation engine
-│   └── storage/       # Project data persistence
-├── pages/             # React pages/routes
-└── lib/               # UI core library and utilities
-```
+**`@context-forge/core`** contains the context generation pipeline: template processing, statement management, prompt parsing, section building, and project path resolution. It has no Electron dependency and can be used by any Node.js consumer.
 
-## 🎯 Usage
-1. **Create or Select a Project**: Use the project selector dropdown to create new projects or switch between existing ones
-2. **Configure Project Details**:
-   - Set project name, template, and slice
-   - Add task file and custom instructions
-   - Configure monorepo settings if applicable
-3. **Add Context Information**:
-   - Recent events relevant to current work
-   - Additional notes and guidance
-   - Available tools and MCP servers
-4. **Generate Context**: Click "Copy Context" to generate and copy the formatted prompt
-5. **Paste into Claude Code**: Use the generated context to start your AI-assisted development session
+**`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes. This is the part that works today.
 
-## 📦 Building & Distribution
+**`context-forge-mcp`** will expose the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. This is the primary goal of the current restructure.
 
-### Development Build
-```bash
-pnpm build
-```
-Creates optimized bundles in `out/` directory for local development and testing.
+## Current State
 
-### Package for Distribution (In Progress)
-```bash
-pnpm package
-```
-**Note:** Full application packaging is not yet complete. The basic electron-builder configuration is in place, but requires:
-- Application icons (icon.icns for macOS, icon.png for other platforms)
-- Code signing certificates for distribution
-- Platform-specific installer configurations
+**What works:**
+- Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow
+- Core context engine extracted to `@context-forge/core` — types, services, and orchestrators
+- Full context assembly pipeline runs without Electron
 
-Once complete, this will create:
-- **macOS**: DMG file
-- **Windows**: NSIS installer
-- **Linux**: AppImage (configurable)
+**In progress:**
+- Storage migration — moving from Electron-specific storage to a shared filesystem layer so both the desktop app and MCP server can access the same project data
+- MCP server implementation — project tools and context generation tools
 
-## 🔒 Security
+**Planned:**
+- MCP server context tools — `context_build`, `template_preview`, etc.
+- Electron client simplification — thin wrapper over core instead of duplicated logic
+- Application packaging and distribution
 
-- **Context Isolation**: Enabled for security
-- **Node Integration**: Disabled in renderer
-- **Preload Scripts**: Secure IPC communication bridge
-- **CSP Headers**: Content Security Policy in production
+## Tech Stack
 
-## 🎨 UI System
+- TypeScript (strict mode, no `any`)
+- Electron 37 + React 19 + Vite (via electron-vite)
+- Tailwind CSS 4 + Radix UI
+- pnpm workspaces
+- Vitest for testing
 
-### Components
-Built on the ui-core component library with custom components for:
-- Project configuration forms with validation
-- Split-pane layout for input/preview
-- Project selector with dropdown
-- Theme toggle (light/dark modes)
+## Contributing
 
-### Themes
-The theme system uses CSS custom properties:
-- **Light/Dark**: System preference aware with manual toggle
-- **Radix UI**: Accessible, themeable components
-- **Tailwind CSS 4**: Modern utility-first styling
+Issues and pull requests are welcome at [github.com/ecorkran/context-forge](https://github.com/ecorkran/context-forge). This is a personal project in active development — the codebase is changing frequently, and some areas are mid-refactor.
 
-## 📚 Project Structure
+If you're interested in the ai-project-guide methodology that Context Forge supports, that's at [github.com/ecorkran/ai-project-guide](https://github.com/ecorkran/ai-project-guide).
 
-### Context Generation
-The context engine (`ContextTemplateEngine.ts`) generates structured prompts by:
-1. Loading system prompts and statement templates
-2. Building context sections (project info, work context, instructions)
-3. Applying conditional sections (monorepo, naming conventions)
-4. Formatting output for Claude Code consumption
+## License
 
-### Storage
-Project data is persisted locally using Electron's storage APIs:
-- JSON-based project storage
-- Auto-save functionality
-- Backup and recovery support
-
-### IPC Architecture
-Secure communication between main and renderer processes:
-- Context generation services
-- Storage operations
-- System prompt management
-
-## 🚀 Roadmap
-- [x] Core context generation
-- [x] Multi-project support
-- [x] Template-based prompts
-- [x] Monorepo configuration
-- [x] Auto-save functionality
-- [ ] Naming convention controls (in progress)
-- [ ] Application packaging and distribution
-- [ ] Plugin system for extensibility
-- [ ] Context templates library
-- [ ] Export/import project configurations
-
-## 📄 License
-MIT - Build amazing context prompts! 🚀
-
-## 🤝 Contributing
-Issues and contributions welcome! This project follows the ai-project-guide methodology with slice-based development.
+MIT
