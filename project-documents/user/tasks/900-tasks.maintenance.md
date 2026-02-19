@@ -485,6 +485,38 @@ Increase character limits for Project State and Additional Instructions fields f
   - Only expected eval warning from gray-matter dependency
   - **Success:** Application builds successfully with increased limits
 
+## Task 11: Security — Add Path Validation to Context Service IPC Handlers
+
+**Priority: P1** — Found in 2026-02-19 security review. Exploitable only if renderer is already compromised, but defense-in-depth matters.
+
+- [ ] **Add path validation to `contextServices.ts` IPC handlers**
+  - `statements:load`, `statements:save`, `statements:get`, `statements:update`, `systemPrompts:parse`, `systemPrompts:getContextInit`, `systemPrompts:getToolUse`, `systemPrompts:getForInstruction` all accept arbitrary file paths from renderer with no validation
+  - `StatementManager` and `SystemPromptParser` call `readFileSync`/`writeFileSync` on whatever path is supplied
+  - At minimum: reject paths containing `..`, null bytes; validate file extension is `.md`; optionally restrict to paths under a validated project directory
+  - Reference: storage IPC handlers in `main.ts` already have proper path validation (lines 63-68) — follow the same pattern
+  - **Success**: Context service IPC handlers validate paths before passing to core services; no arbitrary filesystem read/write from renderer
+
+## Task 12: Security — Tighten Production CSP
+
+**Priority: P2** — Found in 2026-02-19 security review.
+
+- [ ] **Remove `unsafe-inline` from `default-src` in production CSP**
+  - In `packages/electron/src/main/main.ts` line 382, production CSP has `default-src 'self' 'unsafe-inline'`
+  - `unsafe-inline` in `default-src` applies to all resource types without their own directive — overly permissive
+  - Keep `unsafe-inline` in `style-src` only (required by Tailwind)
+  - Target CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self';`
+  - **Success**: Production CSP has `unsafe-inline` only in `style-src`
+
+## Task 13: Security — Route All External Links Through URL Allowlist
+
+**Priority: P3** — Found in 2026-02-19 security review. Low risk (hardcoded safe URL) but inconsistent pattern.
+
+- [ ] **Route Help menu `shell.openExternal` through `isAllowedUrl`**
+  - `main.ts` line 367: `shell.openExternal('https://github.com/anthropics/claude-code')` bypasses `isAllowedUrl` check
+  - All other external navigation goes through the allowlist — this should too for consistency
+  - Also update the URL to point to context-forge repo instead of claude-code
+  - **Success**: All `shell.openExternal` calls go through `isAllowedUrl`
+
 ## Notes
 
 **Priority:** P2 - Non-critical maintenance work
