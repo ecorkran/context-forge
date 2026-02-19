@@ -51,7 +51,7 @@ export class ContextIntegrator {
       } else {
         return this.generateWithLegacySystem(project);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating context from project:', error);
       return this.getErrorContext(project, error);
     }

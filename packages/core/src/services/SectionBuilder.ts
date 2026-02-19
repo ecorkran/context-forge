@@ -78,7 +78,7 @@ export class SectionBuilder {
       }
 
       return sections.join('\n\n');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building tools section:', error);
       return '';
     }
@@ -105,7 +105,7 @@ export class SectionBuilder {
       }
 
       return baseStatement;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building monorepo section:', error);
       return '';
     }
@@ -145,7 +145,7 @@ export class SectionBuilder {
       }
 
       return sections.join('\n\n');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building instruction section:', error);
       return `Instruction: ${data.instruction}`;
     }
@@ -194,7 +194,7 @@ export class SectionBuilder {
       infoLines.push(`  monorepo: ${data.isMonorepo}`);
 
       return `### Current Work Context\n[\n${infoLines.join(',\n')}\n]`;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building project info section:', error);
       return `### Current Work Context\n[\n  project: ${data.projectName || 'unknown'}\n]`;
     }
@@ -234,7 +234,7 @@ export class SectionBuilder {
       }
 
       return parts.join('\n\n');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error building section ${section.key}:`, error);
       return '';
     }
@@ -261,7 +261,7 @@ export class SectionBuilder {
       parts.push(content);
 
       return parts.join('\n\n');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building current events section:', error);
       return '';
     }
@@ -288,7 +288,7 @@ export class SectionBuilder {
       parts.push(content);
 
       return parts.join('\n\n');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building additional notes section:', error);
       return '';
     }

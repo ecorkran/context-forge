@@ -235,7 +235,7 @@ export class SystemPromptParser {
       }
 
       return cached.prompts;
-    } catch (error) {
+    } catch (error: unknown) {
       // File might not exist, cache is invalid
       this.promptsCache.delete(this.filePath);
       return null;
@@ -261,7 +261,7 @@ export class SystemPromptParser {
           this.promptsCache.delete(oldestKey);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Don't fail on cache errors
       console.warn('Failed to cache prompts:', error);
     }
@@ -317,8 +317,9 @@ export class SystemPromptParser {
         isValid: errors.length === 0,
         errors
       };
-    } catch (error) {
-      errors.push(`Validation error: ${error}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`Validation error: ${message}`);
       return { isValid: false, errors };
     }
   }

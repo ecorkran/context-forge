@@ -33,7 +33,7 @@ export class ContextTemplateEngine {
     try {
       // Try to load statements, this will set isLoaded to true
       await this.statementManager.loadStatements();
-    } catch (error) {
+    } catch (error: unknown) {
       // If loading fails, initialize with defaults
       console.warn('Failed to load custom statements, using defaults:', error);
       // The StatementManager should handle this gracefully with its fallback system
@@ -59,7 +59,7 @@ export class ContextTemplateEngine {
 
       // Format and return final output
       return this.formatOutput(sections);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating context with template engine:', error);
       // Fallback to basic template
       return this.getErrorContext(data);

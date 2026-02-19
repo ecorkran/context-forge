@@ -113,7 +113,7 @@ export class StatementManager {
       }
 
       this.isLoaded = true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading statements:', error);
       // Fall back to defaults on any error (deep copy)
       this.statements = {};
@@ -161,9 +161,10 @@ lastUpdated: "${new Date().toISOString().split('T')[0]}"
       fs.writeFileSync(tempPath, content, 'utf-8');
       fs.renameSync(tempPath, this.filePath);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving statements:', error);
-      throw new Error(`Failed to save statements: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to save statements: ${message}`);
     }
   }
 

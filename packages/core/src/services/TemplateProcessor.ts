@@ -73,10 +73,10 @@ export class TemplateProcessor {
       });
 
       return processed;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error processing template:', error);
-      // Return original template with error message rather than failing
-      return `${template}\n\n[Error processing template: ${error}]`;
+      const message = error instanceof Error ? error.message : String(error);
+      return `${template}\n\n[Error processing template: ${message}]`;
     }
   }
 
@@ -139,7 +139,7 @@ export class TemplateProcessor {
         const isTrue = Boolean(value);
 
         return isTrue ? trueContent : falseContent;
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn(`Error evaluating conditional for '${variableName}':`, error);
         // Default to false content on error
         return falseContent;
@@ -168,7 +168,7 @@ export class TemplateProcessor {
       const endIfStatements = (template.match(/\{\{\/if\}\}/g) || []).length;
 
       return ifStatements === endIfStatements;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Template validation error:', error);
       return false;
     }
