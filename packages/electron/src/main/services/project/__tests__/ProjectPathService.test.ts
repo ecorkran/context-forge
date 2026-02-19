@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProjectPathService } from '@context-forge/core/node';
 
-// Mock fs module
-vi.mock('fs', () => ({
-  promises: {
-    stat: vi.fn(),
-    readdir: vi.fn(),
-  },
-}));
+// Mock fs module — use importOriginal to preserve exports needed by other
+// modules in the import chain (e.g., backupService.ts needs existsSync)
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      stat: vi.fn(),
+      readdir: vi.fn(),
+    },
+  };
+});
 
 import * as fs from 'fs';
 

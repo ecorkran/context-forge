@@ -7,11 +7,10 @@ app.name = 'context-forge'
 import { fileURLToPath } from 'node:url'
 import { URL } from 'node:url'
 import { join } from 'node:path'
-import { readFile, writeFile, mkdir, copyFile, rename, unlink, readdir, stat } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
-import { createVersionedBackup, checkWriteGuard } from './services/storage/backupService'
+import { FileStorageService, getStoragePath, createVersionedBackup } from '@context-forge/core/node'
 
 /** Files to create versioned backups for on startup and exit. */
 const VERSIONED_BACKUP_FILES = ['projects.json'] as const
@@ -30,11 +29,7 @@ function isAllowedUrl(target: string): boolean {
 }
 
 let mainWindow: BrowserWindow | null = null;
-
-/** Storage path — only call after app is ready. */
-function getStoragePath(): string {
-  return join(app.getPath('userData'), 'context-forge')
-}
+let storageService: FileStorageService | null = null;
 
 /**
  * Register all IPC handlers. Called once at app startup — never per-window.
@@ -58,78 +53,21 @@ function setupIpcHandlers(): void {
     mainWindow.setTitle(title)
   })
 
-  // Storage IPC handlers
+  // Storage IPC handlers — delegate to core's FileStorageService
 
   ipcMain.handle('storage:read', async (_, filename: string) => {
     try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-
-      const storagePath = getStoragePath()
-      const filePath = join(storagePath, filename)
-      const backupPath = join(storagePath, `${filename}.backup`)
-
-      // Ensure file is within allowed directory
-      if (!filePath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-
-      try {
-        // Try to read main file first
-        const data = await readFile(filePath, 'utf-8')
-
-        // Validate JSON structure
-        try {
-          JSON.parse(data)
-          return { success: true, data }
-        } catch (parseError) {
-          // Main file is corrupted, try backup
-          console.warn(`Main file corrupted: ${filename}, attempting backup recovery`)
-          throw new Error('Main file corrupted')
-        }
-      } catch (mainFileError) {
-        // Main file doesn't exist or is corrupted, try backup
-        try {
-          const backupData = await readFile(backupPath, 'utf-8')
-
-          // Validate backup JSON structure
-          JSON.parse(backupData)
-
-          console.log(`Recovered data from backup: ${filename}`)
-
-          // Try to restore main file from backup
-          try {
-            await copyFile(backupPath, filePath)
-            console.log(`Restored main file from backup: ${filename}`)
-          } catch (restoreError) {
-            console.warn(`Could not restore main file, but backup is available: ${restoreError}`)
-          }
-
-          return {
-            success: true,
-            data: backupData,
-            recovered: true,
-            message: 'Data recovered from backup file'
-          }
-        } catch (backupError) {
-          // Neither main nor backup file is available/valid
-          if (mainFileError instanceof Error && mainFileError.message.includes('ENOENT')) {
-            return {
-              success: false,
-              error: 'File not found',
-              notFound: true
-            }
-          }
-
-          return {
-            success: false,
-            error: 'File corrupted and no valid backup available'
-          }
-        }
+      const result = await storageService!.read(filename)
+      return {
+        success: true,
+        data: result.data,
+        recovered: result.recovered,
+        message: result.message,
       }
     } catch (error) {
+      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { success: false, error: 'File not found', notFound: true }
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -139,56 +77,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('storage:write', async (_, filename: string, data: string) => {
     try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-
-      const storagePath = getStoragePath()
-
-      // Create directory if it doesn't exist
-      if (!existsSync(storagePath)) {
-        await mkdir(storagePath, { recursive: true })
-      }
-
-      const filePath = join(storagePath, filename)
-      const tempPath = join(storagePath, `${filename}.tmp`)
-      const backupPath = join(storagePath, `${filename}.backup`)
-
-      // Ensure paths are within allowed directory
-      if (!filePath.startsWith(storagePath) || !tempPath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-
-      // Write guard: prevent catastrophic data loss for projects.json
-      const guardError = await checkWriteGuard(storagePath, filename, data)
-      if (guardError) {
-        return { success: false, error: guardError }
-      }
-
-      // Atomic write process:
-      // 1. Create backup of existing file (single .backup, overwritten each write)
-      if (existsSync(filePath)) {
-        await copyFile(filePath, backupPath)
-      }
-
-      // 2. Write to temporary file first
-      await writeFile(tempPath, data, 'utf-8')
-
-      // 3. Validate JSON structure
-      try {
-        JSON.parse(data)
-      } catch (parseError) {
-        // Clean up temp file and restore backup
-        if (existsSync(tempPath)) {
-          await unlink(tempPath)
-        }
-        throw new Error('Invalid JSON data')
-      }
-
-      // 4. Atomically rename temp file to main file
-      await rename(tempPath, filePath)
-
+      await storageService!.write(filename, data)
       return { success: true }
     } catch (error) {
       return {
@@ -200,24 +89,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('storage:backup', async (_, filename: string) => {
     try {
-      // Validate filename to prevent directory traversal
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-
-      const storagePath = getStoragePath()
-      const filePath = join(storagePath, filename)
-      const backupPath = join(storagePath, `${filename}.backup`)
-
-      // Ensure paths are within allowed directory
-      if (!filePath.startsWith(storagePath) || !backupPath.startsWith(storagePath)) {
-        throw new Error('Access denied')
-      }
-
-      if (existsSync(filePath)) {
-        await copyFile(filePath, backupPath)
-      }
-
+      await storageService!.createBackup(filename)
       return { success: true }
     } catch (error) {
       return {
@@ -233,8 +105,8 @@ function setupIpcHandlers(): void {
         throw new Error('Invalid filename')
       }
 
-      const storagePath = getStoragePath()
-      const entries = await readdir(storagePath)
+      const sp = getStoragePath()
+      const entries = await readdir(sp)
 
       // Match versioned backups: {filename}.{timestamp}.backup
       const versionedPattern = `${filename}.`
@@ -248,7 +120,7 @@ function setupIpcHandlers(): void {
           const timestamp = entry.substring(tsStart, tsEnd)
 
           try {
-            const info = await stat(join(storagePath, entry))
+            const info = await stat(join(sp, entry))
             backups.push({ name: entry, timestamp, size: info.size })
           } catch {
             backups.push({ name: entry, timestamp, size: 0 })
@@ -314,6 +186,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'true'
+  storageService = new FileStorageService(getStoragePath())
   
   // Create simplified application menu for macOS compatibility
   const template = [
