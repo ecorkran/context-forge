@@ -35,11 +35,3 @@ export interface EnhancedContextData extends ContextData {
   };
 }
 
-/**
- * Type for context generation functions
- */
-export interface ContextGenerator {
-  generateContext(data: ContextData): Promise<string>;
-  processTemplate(template: string, data: ContextData): string;
-  formatOutput(content: string): string;
-}

@@ -1,5 +1,5 @@
 // Context types
-export type { ContextData, EnhancedContextData, ContextGenerator } from './context.js';
+export type { ContextData, EnhancedContextData } from './context.js';
 
 // Section types
 export type { ContextSection, ContextTemplate, SectionBuilderConfig, SectionValidation } from './sections.js';

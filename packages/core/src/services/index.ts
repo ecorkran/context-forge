@@ -10,3 +10,11 @@ export { SystemPromptParser } from './SystemPromptParser.js';
 export { StatementManager } from './StatementManager.js';
 export { SectionBuilder } from './SectionBuilder.js';
 export { ProjectPathService } from './ProjectPathService.js';
+
+// Orchestrators
+export { ContextGenerator } from './ContextGenerator.js';
+export { ContextTemplateEngine } from './ContextTemplateEngine.js';
+export { ContextIntegrator } from './ContextIntegrator.js';
+
+// Pipeline factory
+export { createContextPipeline } from './CoreServiceFactory.js';
