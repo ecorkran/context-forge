@@ -4,6 +4,11 @@ import type { PathValidationResult, DirectoryListResult } from '../types/paths.j
 
 const EXPECTED_SUBDIRS = ['slices', 'tasks', 'features', 'architecture'] as const;
 
+/** Type guard for Node.js filesystem errors */
+function isNodeError(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err;
+}
+
 /**
  * Stateless service for validating project paths and listing directory contents.
  * Runs in the main process; all data passed per-call (no constructor state).
@@ -39,13 +44,16 @@ export class ProjectPathService {
         return result;
       }
     } catch (err: unknown) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        result.errors.push('Path does not exist');
-      } else if (code === 'EACCES') {
-        result.errors.push('Permission denied');
+      if (isNodeError(err)) {
+        if (err.code === 'ENOENT') {
+          result.errors.push('Path does not exist');
+        } else if (err.code === 'EACCES') {
+          result.errors.push('Permission denied');
+        } else {
+          result.errors.push(`Cannot access path: ${err.code ?? 'unknown error'}`);
+        }
       } else {
-        result.errors.push(`Cannot access path: ${code ?? 'unknown error'}`);
+        result.errors.push(`Cannot access path: ${err instanceof Error ? err.message : 'unknown error'}`);
       }
       return result;
     }
@@ -132,13 +140,15 @@ export class ProjectPathService {
 
       return { files };
     } catch (err: unknown) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        return { files: [], error: `Directory not found: ${subdirectory}` };
-      } else if (code === 'EACCES') {
-        return { files: [], error: 'Permission denied' };
+      if (isNodeError(err)) {
+        if (err.code === 'ENOENT') {
+          return { files: [], error: `Directory not found: ${subdirectory}` };
+        } else if (err.code === 'EACCES') {
+          return { files: [], error: 'Permission denied' };
+        }
+        return { files: [], error: `Cannot read directory: ${err.code ?? 'unknown error'}` };
       }
-      return { files: [], error: `Cannot read directory: ${code ?? 'unknown error'}` };
+      return { files: [], error: `Cannot read directory: ${err instanceof Error ? err.message : 'unknown error'}` };
     }
   }
 }
