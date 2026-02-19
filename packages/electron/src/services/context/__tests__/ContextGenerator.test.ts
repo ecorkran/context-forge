@@ -1,5 +1,4 @@
-import { ContextGenerator } from '../ContextGenerator';
-import { ProjectData } from '@context-forge/core';
+import { ContextGenerator, ProjectData } from '@context-forge/core';
 
 describe('ContextGenerator', () => {
   let generator: ContextGenerator;

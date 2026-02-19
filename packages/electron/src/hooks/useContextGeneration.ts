@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ProjectData } from '@context-forge/core';
-import { ContextIntegrator } from '../services/context/ContextIntegrator';
+import { ProjectData, ContextIntegrator, ContextTemplateEngine } from '@context-forge/core';
+import { createSystemPromptParser, createStatementManager } from '../services/context/ServiceFactory';
 
 /**
  * Hook for managing context generation from project data
@@ -11,8 +11,13 @@ export const useContextGeneration = (projectData: ProjectData | null) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Create ContextIntegrator instance (memoized to avoid recreation)
-  const contextIntegrator = useMemo(() => new ContextIntegrator(), []);
+  // Create ContextIntegrator instance wired with IPC-aware services (memoized)
+  const contextIntegrator = useMemo(() => {
+    const promptParser = createSystemPromptParser();
+    const statementManager = createStatementManager();
+    const engine = new ContextTemplateEngine(promptParser, statementManager);
+    return new ContextIntegrator(engine);
+  }, []);
 
   useEffect(() => {
     const generateContext = async () => {

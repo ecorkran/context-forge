@@ -1,6 +1,5 @@
-// Main services
-export { ContextIntegrator } from './ContextIntegrator';
-export { ContextTemplateEngine } from './ContextTemplateEngine';
+// Orchestrators now in @context-forge/core
+export { ContextGenerator, ContextTemplateEngine, ContextIntegrator } from '@context-forge/core';
 
 // Services now in @context-forge/core
 export { TemplateProcessor, SectionBuilder } from '@context-forge/core';
@@ -13,6 +12,6 @@ export { SystemPromptParserIPC } from './SystemPromptParserIPC';
 export { createStatementManager, createSystemPromptParser } from './ServiceFactory';
 
 // Types (re-exported from @context-forge/core)
-export type { ContextData, ContextGenerator, EnhancedContextData } from '@context-forge/core';
+export type { ContextData, EnhancedContextData } from '@context-forge/core';
 export type { TemplateStatement } from '@context-forge/core';
 export type { ContextSection } from '@context-forge/core';

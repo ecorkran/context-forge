@@ -1,11 +1,18 @@
-import { ContextIntegrator } from '../ContextIntegrator';
-import { ProjectData } from '@context-forge/core';
+import { ContextIntegrator, ContextTemplateEngine, ProjectData } from '@context-forge/core';
+import { createSystemPromptParser, createStatementManager } from '../ServiceFactory';
+
+/** Helper: create an engine wired with IPC services (same as runtime usage) */
+function makeEngine(): ContextTemplateEngine {
+  const promptParser = createSystemPromptParser();
+  const statementManager = createStatementManager();
+  return new ContextTemplateEngine(promptParser, statementManager);
+}
 
 describe('ContextIntegrator', () => {
   let contextIntegrator: ContextIntegrator;
-  
+
   beforeEach(() => {
-    contextIntegrator = new ContextIntegrator(false); // Use legacy system for legacy tests
+    contextIntegrator = new ContextIntegrator(makeEngine(), false); // Use legacy system for legacy tests
   });
 
   describe('generateContextFromProject', () => {
@@ -178,7 +185,7 @@ describe('ContextIntegrator', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       };
 
-      const newEngineIntegrator = new ContextIntegrator(true);
+      const newEngineIntegrator = new ContextIntegrator(makeEngine(), true);
       const result = await newEngineIntegrator.generateContextFromProject(mockProject);
 
       // New template engine should produce structured output
@@ -200,7 +207,7 @@ describe('ContextIntegrator', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       };
 
-      const legacyIntegrator = new ContextIntegrator(false);
+      const legacyIntegrator = new ContextIntegrator(makeEngine(), false);
       const result = await legacyIntegrator.generateContextFromProject(mockProject);
 
       // Legacy system should produce old template format
@@ -210,13 +217,13 @@ describe('ContextIntegrator', () => {
     });
 
     it('should allow toggling template engine', async () => {
-      const integrator = new ContextIntegrator(true);
-      
+      const integrator = new ContextIntegrator(makeEngine(), true);
+
       expect(integrator.isNewEngineEnabled()).toBe(true);
-      
+
       integrator.setNewEngineEnabled(false);
       expect(integrator.isNewEngineEnabled()).toBe(false);
-      
+
       integrator.setNewEngineEnabled(true);
       expect(integrator.isNewEngineEnabled()).toBe(true);
     });
