@@ -4,7 +4,7 @@ slice: mcp-server-project-tools
 project: context-forge
 parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: [storage-migration]
-interfaces: [mcp-server-context-tools]
+interfaces: [mcp-server-context-tools, mcp-server-state-update-tools, mcp-server-integration-testing]
 status: not started
 dateCreated: 20260219
 dateUpdated: 20260219
@@ -85,6 +85,8 @@ All logging via `console.error()` (writes to stderr). No logging library — pre
 
 Lists all configured projects with summary fields.
 
+**Description**: `"List all configured Context Forge projects. Returns project IDs, names, current slices, and other summary fields. Use this to discover available projects before calling project_get or project_update."`
+
 **Input**: None (empty schema)
 
 **Annotations**: `{ readOnlyHint: true, openWorldHint: false }`
@@ -125,6 +127,8 @@ inputSchema: z.object({})
 
 Returns full project details by ID.
 
+**Description**: `"Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. Use project_list first to find project IDs."`
+
 **Input**: `{ id: string }`
 
 **Annotations**: `{ readOnlyHint: true, openWorldHint: false }`
@@ -149,6 +153,8 @@ inputSchema: z.object({
 ### `project_update`
 
 Updates one or more fields on an existing project.
+
+**Description**: `"Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., slice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields."`
 
 **Input**: `{ id: string }` plus any combination of updatable fields.
 
@@ -267,7 +273,20 @@ After implementation, verify with MCP Inspector:
 npx @modelcontextprotocol/inspector node packages/mcp-server/dist/index.js
 ```
 
-Invoke each tool and verify responses against real data in `~/Library/Preferences/context-forge/projects.json`.
+Invoke each tool and verify responses against real data at the path returned by `getStoragePath()` (macOS: `~/Library/Preferences/context-forge/projects.json`).
+
+### Server Lifecycle Test (`src/__tests__/serverLifecycle.test.ts`)
+
+Automated integration test that spawns the MCP server as a child process and verifies the JSON-RPC handshake completes. This catches wiring issues (missing shebang, broken imports, transport connection failures) that unit tests cannot.
+
+Approach:
+1. Spawn `node dist/index.js` (or `tsx src/index.ts`) as a child process with stdio pipes
+2. Send an MCP `initialize` request over stdin
+3. Assert the response contains `serverInfo.name === "context-forge-mcp"` and lists the 3 registered tools
+4. Send `notifications/initialized` then close stdin
+5. Verify process exits cleanly (exit code 0)
+
+Use `CONTEXT_FORGE_DATA_DIR` pointed at a temp directory to isolate from real data.
 
 ### Build Verification
 
@@ -283,8 +302,9 @@ Invoke each tool and verify responses against real data in `~/Library/Preference
 5. `project_update` modifies project fields and returns the updated project, error for invalid ID or no fields
 6. All tool responses are valid MCP `CallToolResult` objects
 7. Unit tests cover happy path and error cases for all 3 tools
-8. No writes to stdout — all logging to stderr
-9. Full workspace build succeeds (`pnpm -r build`)
+8. Server lifecycle test verifies startup, MCP handshake, tool listing, and clean shutdown
+9. No writes to stdout — all logging to stderr
+10. Full workspace build succeeds (`pnpm -r build`)
 
 ## Implementation Notes
 
@@ -292,3 +312,4 @@ Invoke each tool and verify responses against real data in `~/Library/Preference
 - **Zod import**: SDK v2 expects `zod/v4` (`import * as z from 'zod/v4'`). If using v1, use `import { z } from 'zod'`. Verify at installation time.
 - **TypeScript**: The existing `tsconfig.json` is already configured correctly (`nodenext`, `strict`, `ES2023`). No changes needed.
 - **Bin shebang**: The compiled `dist/index.ts` needs `#!/usr/bin/env node` at the top. TypeScript preserves shebang comments during compilation.
+- **Pagination**: `project_list` returns all projects without pagination. Acceptable for the expected scale (tens of projects, not thousands). If project counts grow significantly, add optional `limit`/`offset` parameters in a future slice.
