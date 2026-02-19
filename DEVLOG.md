@@ -6,6 +6,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-19
+
+### Slice 144: Storage Migration — Design Complete
+- Slice design: `144-slice.storage-migration.md` — replaces Electron-specific storage with filesystem-based layer in `packages/core/src/storage/`
+- Key decisions: `IProjectStore` interface for CRUD, `FileStorageService` for atomic read/write/backup, `env-paths` for cross-platform storage path (`~/Library/Preferences/context-forge/` on macOS)
+- Migration: automated copy of `projects.json` + `.backup` from legacy Electron location; versioned backups copied manually by PM
+- Includes pipeline integration test design: validates full context generation (storage → pipeline → output) without Electron
+- Scope: backup service extracted from Electron (already has no Electron deps), main.ts IPC handlers delegate to core; renderer-side storage classes stay until slice 149
+
 ## 2026-02-18
 
 ### Slice 143: Core Orchestration Extraction — Complete
