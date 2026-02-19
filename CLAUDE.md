@@ -44,103 +44,262 @@
 
 - Log warnings to `/project-documents/user/maintenance/maintenance-tasks.md`. Write in raw markdown format, with each warning as a list item, using a checkbox in place of standard bullet point.   Note that this path is affected by `monorepo active` mode.
 
-## Python Development Rules
+### TypeScript Rules
 
-### Version & Type Hints
+#### Core Principles
 
-- Target Python 3.9+ exclusively (no 2.x or 3.7 compatibility)
-- Use built-in types: `list`, `dict`, `tuple`, not `List`, `Dict`, `Tuple`
-- Use `|` for union types: `str | None` not `Optional[str]` or `Union[str, None]`
-- Type hint all function signatures and class attributes
-- Use `from __future__ import annotations` when needed for forward references
+TypeScript's type system is a **compile-time safety net**. The goal is to catch errors before runtime. Every `any` is a hole in that net. Every untyped function boundary is a place where bugs can hide. Write types that make illegal states unrepresentable.
 
-### Code Style & Structure
+#### Strict Mode & the `any` Ban
 
-- Follow PEP 8 with 88-character line length (Black formatter default)
-- Use descriptive variable names, avoid single letters except in comprehensions
-- Prefer f-strings over `.format()` or `%` formatting
-- Use pathlib.Path for file operations, not os.path
-- Dataclasses or Pydantic for data structures, avoid raw dicts for complex data
-- One class per file for models/services, group related utilities
+- **Strict mode is mandatory.** `tsconfig.json` must include `"strict": true`.
+- **`any` is forbidden.** This is not a suggestion. Do not use `any` in type annotations, return types, generic parameters, or type assertions (`as any`).
+  - If you are tempted to use `any`, stop and determine the actual type.
+  - If the type is complex, define an interface or type alias.
+  - If you are working with truly unknown data (e.g., parsing JSON, external API responses), use `unknown` and narrow with type guards.
+  - If a library's types are incomplete, write a declaration file (`.d.ts`) rather than using `any`.
+- **`as` type assertions are a code smell.** Prefer type guards, discriminated unions, or generics. If you must assert, document why in a comment.
 
-### Functions & Error Handling
+##### When You Encounter `any` in Existing Code
 
-- Small, single-purpose functions (max 20 lines preferred)
-- Use early returns to reduce nesting
-- Explicit exception handling, avoid bare `except:`
-- Raise specific exceptions with meaningful messages
-- Use context managers (`with`) for resource management
-- Prefer `ValueError`, `TypeError` over generic `Exception`
+If you encounter `any` in code you are modifying, **replace it** with a proper type as part of your change. Do not propagate `any` to new code. If the fix is non-trivial and outside the scope of your current task, add a `// TODO: Replace any — see [reason]` comment and flag it.
 
-### Modern Python Patterns
+#### Type Design Patterns
 
-- Use `match/case` for complex conditionals (3.10+)
-- Walrus operator `:=` where it improves readability
-- Comprehensions over `map`/`filter` when clear
-- Generator expressions for memory efficiency
-- `itertools` and `functools` for functional patterns
-- Enum for constants, not module-level variables
+##### Discriminated Unions Over String Checks
 
-### Testing & Quality
+Use discriminated unions (tagged unions) instead of runtime string matching to distinguish between variants. The compiler enforces exhaustiveness.
 
-- Write tests alongside implementation
-- Use pytest, not unittest
-- Fixtures for test data and dependencies
-- Parametrize tests for multiple scenarios
-- Mock external dependencies at boundaries
-- Docstrings for public APIs (Google or NumPy style)
-- Type check with mypy or pyright in strict mode
+```typescript
+// GOOD — compiler-enforced, exhaustive
+type TemplateExpression =
+  | { kind: 'simple'; variableName: string }
+  | { kind: 'pipe'; parts: string[] }
+  | { kind: 'conditional'; variable: string; trueContent: string; falseContent: string };
 
-### Dependencies & Imports
+function evaluate(expr: TemplateExpression): string {
+  switch (expr.kind) {
+    case 'simple': return lookupVariable(expr.variableName);
+    case 'pipe': return processPipe(expr.parts);
+    case 'conditional': return expr.variable ? expr.trueContent : expr.falseContent;
+    // TypeScript errors if a case is missing
+  }
+}
 
-- Use poetry for complex projects, uv for simple ones
-- Pin direct dependencies, let tools resolve transitive ones
-- Group imports: standard library, third-party, local
-- Absolute imports for project modules
-- Avoid wildcard imports except in `__init__.py`
+// BAD — runtime guessing, no compiler help
+function evaluate(expression: string): string {
+  if (expression.includes(' | ')) { /* ... */ }
+  else if (expression.startsWith('#if')) { /* ... */ }
+  else { /* ... */ }
+}
+```
 
-### Async & Performance
+##### Use `unknown` Instead of `any` for Untyped Data
 
-- Use `async`/`await` for I/O operations
-- asyncio or trio for concurrency, not threading
-- Profile before optimizing
-- functools.cache for expensive pure functions
-- Prefer built-in functions and comprehensions for speed
+When data shape is not known at compile time, use `unknown` and narrow:
 
-### Security & Best Practices
+```typescript
+// GOOD
+function parseConfig(raw: unknown): ProjectConfig {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error('Config must be an object');
+  }
+  // Narrow further or use a validation library (Zod, etc.)
+}
 
-- Never hardcode secrets or credentials
-- Use environment variables or secret management
-- Validate all external input
-- Use parameterized queries for SQL
-- Keep dependencies updated
-- Use `secrets` module for tokens, not `random`
+// BAD
+function parseConfig(raw: any): ProjectConfig {
+  return raw; // no safety at all
+}
+```
 
-## React & Next.js Rules
+##### Index Signatures and Record Types
+
+When you need dynamic keys, be explicit about the value type:
+
+```typescript
+// GOOD — clear contract
+type TemplateVariables = Record<string, string | number | boolean>;
+
+// GOOD — when you need to distinguish known from dynamic keys
+interface EnhancedContextData extends ContextData {
+  [computedKey: string]: string | number | boolean | undefined;
+}
+
+// BAD — erases all type information
+const data: any = { ...baseData };
+```
+
+##### Prefer Interfaces for Object Shapes, Type Aliases for Unions
+
+```typescript
+// Interfaces — extendable, good for object shapes
+interface ProjectConfig {
+  name: string;
+  version: string;
+}
+
+// Type aliases — good for unions, intersections, mapped types
+type BuildTarget = 'electron' | 'mcp-server' | 'core';
+type Nullable<T> = T | null;
+```
+
+##### Const Assertions and Literal Types
+
+Prefer `as const` objects over TypeScript enums:
+
+```typescript
+// GOOD
+const LogLevel = {
+  Debug: 'debug',
+  Info: 'info',
+  Warn: 'warn',
+  Error: 'error',
+} as const;
+
+type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];
+// Result: 'debug' | 'info' | 'warn' | 'error'
+
+// AVOID — TypeScript enums have runtime behavior and quirks
+enum LogLevel { Debug, Info, Warn, Error }
+```
+
+#### Function Signatures
+
+- **Always annotate return types on exported functions.** TypeScript can infer return types, but explicit annotations catch accidental changes and serve as documentation.
+- **Use `readonly` for parameters that should not be mutated.**
+- **Prefer named parameters (via object destructuring) when a function takes 3+ parameters.**
+
+```typescript
+// GOOD
+export function buildContext(
+  config: Readonly<ProjectConfig>,
+  options: { includeMetadata: boolean; format: OutputFormat }
+): ContextResult { /* ... */ }
+
+// BAD — positional params are hard to read at call sites
+export function buildContext(
+  config: ProjectConfig, includeMetadata: boolean, format: string
+) { /* ... */ }
+```
+
+#### Generics
+
+Use generics to write reusable code without losing type information:
+
+```typescript
+// GOOD — caller gets back the type they put in
+function getOrDefault<T>(map: Map<string, T>, key: string, fallback: T): T {
+  return map.get(key) ?? fallback;
+}
+
+// BAD — type information lost
+function getOrDefault(map: Map<string, any>, key: string, fallback: any): any {
+  return map.get(key) ?? fallback;
+}
+```
+
+Constrain generics when appropriate:
+
+```typescript
+function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+```
+
+#### Error Handling
+
+- Type your errors. Use discriminated unions for expected error cases rather than throwing strings.
+- Use `Result` patterns for operations that can fail predictably:
+
+```typescript
+type Result<T, E = Error> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+```
+
+- Catch blocks: the caught value is `unknown` in strict mode. Narrow before using:
+
+```typescript
+try { /* ... */ } catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  // ...
+}
+```
+
+#### Project Structure Conventions
+
+- Shared types go in `packages/core/src/types/` (for the monorepo) or `src/lib/types.ts` (for single-package projects).
+- Use `tsx` scripts for migrations.
+- Reusable logic in `src/lib/utils/shared.ts` or `src/lib/utils/server.ts`.
+
+##### tRPC Routers (when enabled)
+
+- Routers in `src/lib/api/routers`, composed in `src/lib/api/root.ts`.
+- Use `publicProcedure` or `protectedProcedure` with Zod for input validation.
+- Access from React via `@/lib/trpc/react`.
+
+#### Naming Conventions
+
+- **Types/Interfaces**: PascalCase (`ProjectConfig`, `TemplateExpression`)
+- **Variables/Functions**: camelCase (`processTemplate`, `enhancedData`)
+- **Constants**: UPPER_SNAKE_CASE for true constants, camelCase for const references
+- **Type parameters**: Single uppercase letter for simple cases (`T`, `K`), descriptive PascalCase for complex ones (`TInput`, `TOutput`)
+- **Files**: kebab-case (`template-processor.ts`, `context-data.ts`)
+
+#### Advanced Patterns (Use When Appropriate)
+
+These are powerful but add complexity. Use them when they genuinely improve safety or DX, not for their own sake.
+
+##### Conditional Types
+
+Extract or transform types based on conditions:
+
+```typescript
+// Extract only the string-valued keys from a type
+type StringKeys<T> = {
+  [K in keyof T]: T[K] extends string ? K : never;
+}[keyof T];
+```
+
+##### Mapped Types
+
+Transform all properties of a type systematically:
+
+```typescript
+// Make all properties optional and nullable
+type Draft<T> = {
+  [K in keyof T]?: T[K] | null;
+};
+```
+
+##### Template Literal Types
+
+Useful for string patterns:
+
+```typescript
+type EventName = `on${Capitalize<string>}`;
+type CSSProperty = `--${string}`;
+```
+
+#### Quick Reference: What to Use Instead of `any`
+
+| Situation | Use Instead |
+|---|---|
+| Unknown JSON data | `unknown` + type guard or Zod |
+| Object with dynamic keys | `Record<string, ValueType>` |
+| Function that works on multiple types | Generics (`<T>`) |
+| Third-party lib with bad types | Declaration file (`.d.ts`) |
+| Spread into a new shape | Define the target interface explicitly |
+| Callback with unknown signature | `(...args: unknown[]) => unknown` |
+| "I'll figure out the type later" | `// TODO:` with `unknown`, never `any` |
+
 
 ### Components & Naming
 - Use functional components with `"use client"` if needed.
 - Name in PascalCase under `src/components/`.
 - Keep them small, typed with interfaces.
 - Use React, Tailwind 4, and Radix.  Do not use Shadcn
-
-### React and Next.js Structure
-- Use App Router in `app/`. 
-- Skip auth unless and until it is needed.
-- Use `.env` for secrets.
-
-### Icons
-- Prefer `lucide-react`; name icons in PascalCase.
-- Custom icons in `src/components/icons`.
-
-### Toast Notifications
-- Use `react-toastify` in client components.
-- `toast.success()`, `toast.error()`, etc.
-
-### Tailwind Usage
-- Always use tailwind 4, never tailwind 3.  If you see or use a tailwind.config.ts (or .ts), it's almost always wrong.  
-- Use Tailwind (mobile-first, dark mode with dark:(class)). 
-- For animations, prefer Framer Motion. 
 
 ###  Code Style
 - Use `eslint` unless directed otherwise.
@@ -157,16 +316,6 @@
 - use pnpm not npm
 - After all changes are made, ALWAYS build the project with `pnpm build`. Allow warnings, fix errors.
 - If a `package.json` exists, ensure the AI-support script block from `snippets/npm-scripts.ai-support.json` is present before running `pnpm build`
-
-### Next.js
-- Default to client components in server pages for Next.js
-- NextAuth + Prisma for auth.
-
-### Inngest / Background Jobs
-- **enabled**: false
-- Use `inngest.config.ts` for Inngest configuration.
-- Use `src/app/api/inngest/route.ts` for Inngest API route.
-- Use polling to update the UI when Inngest events are received, not trpc success response. 
 
 ## Code Review Rules
 
@@ -452,127 +601,12 @@ These guidelines facilitate comprehensive code reviews by:
 
 The structured process transforms code reviews from subjective assessments into systematic quality assurance with measurable outcomes.
 
-## SQL & PostgreSQL Development Rules
-
-### Query Style & Formatting
-
-- UPPERCASE SQL keywords: `SELECT`, `FROM`, `WHERE`, not `select`
-- Lowercase table and column names with underscores: `user_accounts`
-- Indent multi-line queries consistently (2 or 4 spaces)
-- One column per line in SELECT for readability
-- Leading commas in SELECT lists for easier modification
-- Meaningful table aliases, avoid single letters
-
-### Query Optimization
-
-- Always use EXPLAIN ANALYZE for performance tuning
-- Create indexes for WHERE, JOIN, and ORDER BY columns
-- Use partial indexes for filtered queries
-- Prefer JOIN over subqueries when possible
-- LIMIT queries during development testing
-- Avoid SELECT * in production code
-- Use EXISTS instead of COUNT for existence checks
-
-### PostgreSQL Best Practices
-
-- Use appropriate data types: JSONB over JSON, TEXT over VARCHAR
-- UUID for distributed IDs, SERIAL/BIGSERIAL for single-node
-- Check constraints for data validation
-- Foreign keys with appropriate CASCADE options
-- Use transactions for multi-statement operations
-- RETURNING clause to get modified data
-- CTEs (WITH clauses) for complex queries
-
-### Naming & Schema Design
-
-- Singular table names: `user` not `users`
-- Primary key as `id` or `table_name_id`
-- Foreign keys as `referenced_table_id`
-- Boolean columns prefixed with `is_` or `has_`
-- Timestamps: `created_at`, `updated_at` with timezone
-- Use schemas to organize related tables
-- Version control migrations with sequential numbering
-
-### Security & Safety
-
-- Always use parameterized queries, never string concatenation
-- GRANT minimum required privileges
-- Use ROW LEVEL SECURITY for multi-tenant apps
-- Sanitize all user input
-- Prepared statements for repeated queries
-- Connection pooling with appropriate limits
-- Set statement_timeout for long-running queries
-
-### pgvector Specific
-
-- Use `vector` type for embeddings
-- Create HNSW or IVFFlat indexes for similarity search
-- Normalize vectors before storage when needed
-- Use `<->` for L2 distance, `<#>` for inner product
-- Batch insert embeddings for performance
-- Consider dimension reduction for large vectors
-
-### TimescaleDB Specific
-
-- Create hypertables for time-series data
-- Use appropriate chunk intervals (typically 1 week to 1 month)
-- Continuous aggregates for common queries
-- Compression policies for older data
-- Retention policies to manage data lifecycle
-- Use time_bucket() for time-based aggregations
-- Data retention policies with drop_chunks()
-
-### Performance & Monitoring
-
-- Index foreign keys and commonly filtered columns
-- VACUUM and ANALYZE regularly
-- Monitor pg_stat_statements for slow queries
-- Use connection pooling (PgBouncer/pgpool)
-- Partition large tables by date or ID range
-- Avoid excessive indexes (write performance cost)
-- Use COPY for bulk inserts
-
-### Migrations & Maintenance
-
-- Always reversible migrations when possible
-- Test migrations on copy of production data
-- Use IF NOT EXISTS for idempotent operations
-- Document breaking changes
-- Backup before structural changes
-- Zero-downtime migrations with careful planning
-
 ## Testing & Development Tools
-
-### Storybook
-
-- **enabled**: false
-- Place stories in `src/stories` with `.stories.tsx` extension.
-- One story file per component, matching component name.
-- Use autodocs for automatic documentation.
-- Include multiple variants and sizes in stories.
-- Test interactive features with actions.
-- Use relative imports from component directory.
 
 ### Tools
 - When you make a change to the UI, use the `screenshot` tool to show the changes.
 - If the user asks for a complex task to be performed, find any relevant files and call the `architect` tool to get a plan and show it to the user. Use this plan as guidance for the changes you make, but maintain the existing patterns and structure of the codebase.
 - After a complex task is performed, use the `codeReview` tool create a diff and use the diff to conduct a code review of the changes. 
 
-## TypeScript Rules
 
-### TypeScript & Syntax
-- Strict mode. Avoid `any`.
-- Use optional chaining, union types (no enums).
-
-### Structure
-- Use `tsx` scripts for migrations.
-- Reusable logic in `src/lib/utils/shared.ts` or `src/lib/utils/server.ts`.
-- Shared types in `src/lib/types.ts`.
-
-
-### tRPC Routers
-- **enabled**: as needed
-- Routers in `src/lib/api/routers`, compose in `src/lib/api/root.ts`.
-- `publicProcedure` or `protectedProcedure` with Zod.
-- Access from React via `@/lib/trpc/react`. 
 
