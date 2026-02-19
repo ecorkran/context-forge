@@ -8,6 +8,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-18
 
+### Slice 143: Core Orchestration Extraction — Complete
+- Implementation complete: 4 commits (aaa9f7a → 121841d), all 15 tasks done
+- Extracted ContextGenerator, ContextTemplateEngine, ContextIntegrator + CoreServiceFactory to `packages/core/src/services/`
+- Extended IPromptReader with `getContextInitializationPrompt()`; added IStatementService/IPromptService; added setFilePath() to SystemPromptParser and StatementManager
+- Constructor injection pattern: ContextTemplateEngine takes IPromptService/IStatementService; ContextIntegrator takes ContextTemplateEngine
+- `createContextPipeline(projectPath)` in CoreServiceFactory wires the full pipeline for MCP/CLI consumers
+- Removed obsolete ContextGenerator interface from types (replaced by class); fixed IPCIntegration.test.ts dynamic imports
+- Full workspace builds clean; 155/163 tests pass (same 8 pre-existing failures)
+
 ### Slice 143: Core Orchestration Extraction — Design Complete
 - Slice design: `143-slice.core-orchestration-extraction.md` — extracts ContextTemplateEngine, ContextIntegrator, ContextGenerator, and CoreServiceFactory to `packages/core/src/services/`
 - Key decisions: extend IPromptReader with `getContextInitializationPrompt()`; new `IStatementService`/`IPromptService` interfaces; constructor injection (no default ServiceFactory in core); `createContextPipeline()` convenience factory

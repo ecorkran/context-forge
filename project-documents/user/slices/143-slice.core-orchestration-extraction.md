@@ -5,7 +5,7 @@ project: context-forge
 parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: [core-services-extraction]
 interfaces: [mcp-server-context-tools, electron-client-conversion, core-test-suite]
-status: not started
+status: complete
 dateCreated: 20260218
 dateUpdated: 20260218
 ---
@@ -344,29 +344,29 @@ This slice changes zero runtime behavior. Verification:
 
 ### Functional Requirements
 
-- [ ] `ContextGenerator`, `ContextTemplateEngine`, `ContextIntegrator` are in `packages/core/src/services/`
-- [ ] `CoreServiceFactory` with `createContextPipeline()` exists and is exported
-- [ ] `IPromptReader` extended with `getContextInitializationPrompt()`
-- [ ] `IStatementService` and `IPromptService` interfaces defined and exported
-- [ ] `setFilePath()` added to core `SystemPromptParser` and `StatementManager`
-- [ ] All Electron consumers import orchestrators from `@context-forge/core`
-- [ ] No orchestrator files remain in old Electron locations (except `ServiceFactory.ts`)
-- [ ] Electron app builds and runs identically to pre-extraction
-- [ ] `useContextGeneration.ts` constructs orchestrators with IPC services explicitly
+- [x] `ContextGenerator`, `ContextTemplateEngine`, `ContextIntegrator` are in `packages/core/src/services/`
+- [x] `CoreServiceFactory` with `createContextPipeline()` exists and is exported
+- [x] `IPromptReader` extended with `getContextInitializationPrompt()`
+- [x] `IStatementService` and `IPromptService` interfaces defined and exported
+- [x] `setFilePath()` added to core `SystemPromptParser` and `StatementManager`
+- [x] All Electron consumers import orchestrators from `@context-forge/core`
+- [x] No orchestrator files remain in old Electron locations (except `ServiceFactory.ts`)
+- [x] Electron app builds and runs identically to pre-extraction
+- [x] `useContextGeneration.ts` constructs orchestrators with IPC services explicitly
 
 ### Technical Requirements
 
-- [ ] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` for all new files
-- [ ] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
-- [ ] `pnpm -r build` succeeds (full workspace)
-- [ ] All existing tests pass (`pnpm --filter @context-forge/electron test`) — same pass/fail as pre-extraction
-- [ ] `.js` extensions used on all relative imports within `packages/core/`
-- [ ] No Electron-specific imports (`window.electronAPI`, IPC wrappers) in any core file
+- [x] `pnpm --filter @context-forge/core build` succeeds, producing `.js` and `.d.ts` for all new files
+- [x] `pnpm --filter @context-forge/electron build` succeeds with zero type errors
+- [x] `pnpm -r build` succeeds (full workspace)
+- [x] All existing tests pass (`pnpm --filter @context-forge/electron test`) — same pass/fail as pre-extraction
+- [x] `.js` extensions used on all relative imports within `packages/core/`
+- [x] No Electron-specific imports (`window.electronAPI`, IPC wrappers) in any core file
 
 ### Integration Requirements
 
-- [ ] `createContextPipeline()` is callable from `packages/mcp-server/` (workspace link works)
-- [ ] Core orchestrators accept both core services and Electron IPC wrappers through interface types (structural compatibility)
+- [x] `createContextPipeline()` is callable from `packages/mcp-server/` (workspace link works)
+- [x] Core orchestrators accept both core services and Electron IPC wrappers through interface types (structural compatibility)
 
 ## Risk Assessment
 
