@@ -307,10 +307,11 @@ describe('IPC Integration Tests', () => {
         parameters: {}
       });
       
-      const { ContextIntegrator } = await import('../ContextIntegrator');
-      
-      const integrator = new ContextIntegrator(true); // Enable new engine
-      
+      const { ContextIntegrator, ContextTemplateEngine } = await import('@context-forge/core');
+      const { createSystemPromptParser, createStatementManager } = await import('../ServiceFactory');
+      const engine = new ContextTemplateEngine(createSystemPromptParser(), createStatementManager());
+      const integrator = new ContextIntegrator(engine, true); // Enable new engine
+
       const mockProject = {
         id: 'test-project',
         name: 'Test Project',
@@ -326,9 +327,9 @@ describe('IPC Integration Tests', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      
+
       const result = await integrator.generateContextFromProject(mockProject);
-      
+
       // Should generate a context string using the new template engine with IPC services
       expect(result).toContain('We are continuing work on our project.');
       expect(result).toContain('Recent test events');
@@ -339,10 +340,11 @@ describe('IPC Integration Tests', () => {
     it('should fallback to legacy system if IPC services fail', async () => {
       // Mock IPC failure
       mockElectronAPI.statements.getStatement.mockRejectedValue(new Error('IPC failed'));
-      
-      const { ContextIntegrator } = await import('../ContextIntegrator');
-      
-      const integrator = new ContextIntegrator(true); // Enable new engine
+
+      const { ContextIntegrator, ContextTemplateEngine } = await import('@context-forge/core');
+      const { createSystemPromptParser, createStatementManager } = await import('../ServiceFactory');
+      const engine = new ContextTemplateEngine(createSystemPromptParser(), createStatementManager());
+      const integrator = new ContextIntegrator(engine, true); // Enable new engine
       
       const mockProject = {
         id: 'test-project',
