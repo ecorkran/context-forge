@@ -3,6 +3,7 @@ slice: core-orchestration-extraction
 project: context-forge
 lld: user/slices/143-slice.core-orchestration-extraction.md
 dependencies: [core-services-extraction]
+status: in-progress
 projectState: >
   Slices 140-142 complete. packages/core contains types (6 modules) and services
   (5 services + interfaces + constants). Full workspace builds clean. 155/163 tests
@@ -24,29 +25,29 @@ dateUpdated: 20260218
 ## Phase 1: Core Infrastructure Changes
 
 ### Task 1: Extend interfaces in `packages/core/src/services/interfaces.ts`
-- [ ] Add `getContextInitializationPrompt(isMonorepo?: boolean): Promise<SystemPrompt | null>` to `IPromptReader`
-- [ ] Create `IStatementService extends IStatementReader` with `loadStatements(): Promise<void>` and `setFilePath(path: string): void`
-- [ ] Create `IPromptService extends IPromptReader` with `setFilePath(path: string): void`
-- [ ] **Success**: `pnpm --filter @context-forge/core build` succeeds; `IStatementReader` unchanged; new interfaces exported from `services/index.ts`
+- [x] Add `getContextInitializationPrompt(isMonorepo?: boolean): Promise<SystemPrompt | null>` to `IPromptReader`
+- [x] Create `IStatementService extends IStatementReader` with `loadStatements(): Promise<void>` and `setFilePath(path: string): void`
+- [x] Create `IPromptService extends IPromptReader` with `setFilePath(path: string): void`
+- [x] **Success**: `pnpm --filter @context-forge/core build` succeeds; `IStatementReader` unchanged; new interfaces exported from `services/index.ts`
 
 ### Task 2: Add `setFilePath()` to core `SystemPromptParser`
-- [ ] Add `setFilePath(path: string): void` method to `packages/core/src/services/SystemPromptParser.ts`
+- [x] Add `setFilePath(path: string): void` method to `packages/core/src/services/SystemPromptParser.ts`
   1. Set `this.filePath` to the new path
   2. Clear `this.promptsCache` (call `.clear()` on the Map)
-- [ ] **Success**: Method exists; `SystemPromptParser` structurally satisfies `IPromptService`; core builds clean
+- [x] **Success**: Method exists; `SystemPromptParser` structurally satisfies `IPromptService`; core builds clean
 
 ### Task 3: Add `setFilePath()` to core `StatementManager`
-- [ ] Add `setFilePath(path: string): void` method to `packages/core/src/services/StatementManager.ts`
+- [x] Add `setFilePath(path: string): void` method to `packages/core/src/services/StatementManager.ts`
   1. Set `this.filePath` to the new path
   2. Reset `this.isLoaded` to `false`
   3. Reset `this.statements` to `{}`
-- [ ] **Success**: Method exists; `StatementManager` structurally satisfies `IStatementService`; core builds clean
+- [x] **Success**: Method exists; `StatementManager` structurally satisfies `IStatementService`; core builds clean
 
 ### Task 4: Build core and commit infrastructure changes
-- [ ] Run `pnpm --filter @context-forge/core build` — verify success
-- [ ] Verify `dist/` contains updated `.d.ts` for interfaces, SystemPromptParser, StatementManager
-- [ ] Git commit: interfaces + setFilePath changes
-- [ ] **Success**: Core builds clean; commit created
+- [x] Run `pnpm --filter @context-forge/core build` — verify success
+- [x] Verify `dist/` contains updated `.d.ts` for interfaces, SystemPromptParser, StatementManager
+- [x] Git commit: interfaces + setFilePath changes
+- [x] **Success**: Core builds clean; commit created
 
 ---
 

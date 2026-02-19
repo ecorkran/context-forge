@@ -7,6 +7,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 ---
 
 ## 2026-02-18
+
+### Slice 143: Core Orchestration Extraction — Design Complete
+- Slice design: `143-slice.core-orchestration-extraction.md` — extracts ContextTemplateEngine, ContextIntegrator, ContextGenerator, and CoreServiceFactory to `packages/core/src/services/`
+- Key decisions: extend IPromptReader with `getContextInitializationPrompt()`; new `IStatementService`/`IPromptService` interfaces; constructor injection (no default ServiceFactory in core); `createContextPipeline()` convenience factory
+- Scope: ~580 lines of orchestration code, 5 Electron consumer files to update, ServiceFactory stays in Electron for IPC wrapper creation
+- Also marked slice 142 complete in 140-slices plan
+- Commits: 67f600e
+
 ### Slice 142: Core Services Extraction — Complete
 - Implementation complete: 4 commits (7c52150 → 0d26f0b), all 12 tasks done
 - Extracted 5 services to `packages/core/src/services/`: TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ProjectPathService
