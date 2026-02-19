@@ -1,5 +1,8 @@
 import type { ContextData } from '../types/context.js';
 
+/** Template data with known + computed alias keys for variable substitution */
+type TemplateVariableMap = Record<string, string | number | boolean | undefined>;
+
 /**
  * Utility for processing template strings with variable substitution
  * Handles simple {{variable}} replacement and boolean conditionals
@@ -25,8 +28,8 @@ export class TemplateProcessor {
 
       // Then replace simple variables: {{variableName}} and {variableName}
       // First handle double brace format: {{variableName}}
-      processed = processed.replace(/\{\{(\w+)\}\}/g, (_match, variableName) => {
-        const value = (enhancedData as any)[variableName];
+      processed = processed.replace(/\{\{(\w+)\}\}/g, (_match, variableName: string) => {
+        const value = enhancedData[variableName];
         if (value !== undefined && value !== null) {
           return String(value);
         }
@@ -43,7 +46,7 @@ export class TemplateProcessor {
           const parts = expression.split(' | ').map((part: string) => part.trim());
           // Use the first part as the primary variable name
           const primaryVar = parts[0];
-          const value = (enhancedData as any)[primaryVar];
+          const value = enhancedData[primaryVar];
           if (value !== undefined && value !== null) {
             return String(value);
           }
@@ -59,7 +62,7 @@ export class TemplateProcessor {
           variableName = 'projectName';
         }
 
-        const value = (enhancedData as any)[variableName];
+        const value = enhancedData[variableName];
         if (value !== undefined && value !== null) {
           return String(value);
         }
@@ -82,8 +85,8 @@ export class TemplateProcessor {
    * @param data Original context data
    * @returns Enhanced data with slice parsing and template computations
    */
-  private createEnhancedData(data: ContextData): any {
-    const enhanced: any = { ...data };
+  private createEnhancedData(data: ContextData): TemplateVariableMap {
+    const enhanced: TemplateVariableMap = { ...data };
 
     // Parse slice into sliceindex and slicename
     if (data.slice) {
@@ -125,9 +128,12 @@ export class TemplateProcessor {
     // Pattern: {{#if variableName}}true content{{else}}false content{{/if}}
     const conditionalPattern = /\{\{#if\s+(\w+)\}\}(.*?)\{\{else\}\}(.*?)\{\{\/if\}\}/gs;
 
-    return template.replace(conditionalPattern, (_match, variableName, trueContent, falseContent) => {
+    return template.replace(conditionalPattern, (_match, variableName: string, trueContent: string, falseContent: string) => {
       try {
-        const value = (data as any)[variableName];
+        // Dynamic key lookup — variable names come from templates at runtime
+        const value = variableName in data
+          ? (data as unknown as TemplateVariableMap)[variableName]
+          : undefined;
 
         // Evaluate as boolean
         const isTrue = Boolean(value);
