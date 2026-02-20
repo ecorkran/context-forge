@@ -190,3 +190,68 @@ describe('project_get', () => {
     expect(content[0].text).toContain('project_list');
   });
 });
+
+describe('project_update', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('applies update and returns full read-back project', async () => {
+    const updatedProject = { ...MOCK_PROJECT, slice: 'new-slice', updatedAt: '2026-02-19T13:00:00.000Z' };
+
+    // First getById call: existence check; second: read-back after update
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id, slice: 'new-slice' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed.slice).toBe('new-slice');
+    expect(parsed.id).toBe(MOCK_PROJECT.id);
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, { slice: 'new-slice' });
+  });
+
+  it('returns isError for non-existent ID', async () => {
+    mockGetById.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: 'project_nonexistent', slice: 'new-slice' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('Project not found');
+    expect(content[0].text).toContain('project_nonexistent');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns isError when no update fields provided (only id)', async () => {
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('No update fields provided');
+    expect(mockGetById).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});

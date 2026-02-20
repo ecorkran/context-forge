@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore } from '@context-forge/core/node';
-import type { ProjectData } from '@context-forge/core';
+import type { ProjectData, UpdateProjectData } from '@context-forge/core';
 
 /** Summary fields returned by project_list */
 interface ProjectSummary {
@@ -82,6 +82,76 @@ export function registerProjectTools(server: McpServer): void {
           );
         }
         return jsonResult(project);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${message}`);
+      }
+    },
+  );
+
+  // --- project_update ---
+  server.registerTool(
+    'project_update',
+    {
+      title: 'Update Project',
+      description:
+        'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., slice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
+      inputSchema: {
+        id: z.string().describe('Project ID to update'),
+        name: z.string().optional().describe('Project display name'),
+        template: z.string().optional().describe('Template name'),
+        slice: z.string().optional().describe('Current slice name'),
+        taskFile: z.string().optional().describe('Task file name'),
+        instruction: z.string().optional().describe('Instruction type (e.g., implementation, design, review)'),
+        developmentPhase: z.string().optional().describe('Current development phase'),
+        workType: z.enum(['start', 'continue']).optional().describe('Whether starting or continuing work'),
+        projectDate: z.string().optional().describe('Project date string'),
+        isMonorepo: z.boolean().optional().describe('Whether project uses monorepo mode'),
+        isMonorepoEnabled: z.boolean().optional().describe('Whether monorepo UI is enabled'),
+        projectPath: z.string().optional().describe('Absolute path to project root'),
+        customData: z
+          .object({
+            recentEvents: z.string().optional(),
+            additionalNotes: z.string().optional(),
+            monorepoNote: z.string().optional(),
+            availableTools: z.string().optional(),
+          })
+          .optional()
+          .describe('Custom data fields for context generation'),
+      },
+      annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ id, ...fields }) => {
+      try {
+        // Collect defined update fields (exclude undefined values)
+        const updates: UpdateProjectData = {};
+        for (const [key, value] of Object.entries(fields)) {
+          if (value !== undefined) {
+            (updates as Record<string, unknown>)[key] = value;
+          }
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return errorResult(
+            'No update fields provided. Specify at least one field to update (e.g., slice, instruction, name).',
+          );
+        }
+
+        const store = new FileProjectStore();
+
+        // Check project exists
+        const existing = await store.getById(id);
+        if (!existing) {
+          return errorResult(
+            `Project not found: '${id}'. Use the project_list tool to see available projects and their IDs.`,
+          );
+        }
+
+        await store.update(id, updates);
+
+        // Read back updated project
+        const updated = await store.getById(id);
+        return jsonResult(updated);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${message}`);
