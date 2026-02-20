@@ -8,6 +8,11 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-19
 
+### Slice 145: MCP Server — Project Tools — Task Breakdown Complete
+- Task breakdown: `145-tasks.mcp-server-project-tools.md` — 12 tasks across 4 phases
+- Phase 1: Deps + scaffold (install SDK, create index.ts); Phase 2: Tool implementations (list/get/update); Phase 3: Unit tests; Phase 4: Lifecycle test + verification
+- Commit checkpoints at Tasks 3, 7, 9, 12
+
 ### Slice 145: MCP Server — Project Tools — Design Complete
 - Slice design: `145-slice.mcp-server-project-tools.md` — first MCP feature slice, implements `project_list`, `project_get`, `project_update` wrapping `FileProjectStore` from core
 - SDK: `@modelcontextprotocol/server` v2 with `zod/v4` for input schemas; v1 fallback documented
