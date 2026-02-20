@@ -8,6 +8,18 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-19
 
+### Slice 145: MCP Server — Project Tools — Implementation Complete
+- Implementation complete: 4 commits (3166a02 → ec43baa), all 12 tasks done across 4 phases
+- SDK: `@modelcontextprotocol/sdk` v1.26.0 (v2 `@modelcontextprotocol/server` not yet on npm); zod v4.1.5
+- Created `packages/mcp-server/src/tools/projectTools.ts` with `registerProjectTools(server)` — registers 3 MCP tools
+- `project_list`: returns summary fields (id, name, slice, template, instruction, isMonorepo, projectPath, updatedAt) with count
+- `project_get`: returns full `ProjectData` by ID, or `isError` with helpful "use project_list" message
+- `project_update`: validates at least one update field provided, checks existence, applies via `FileProjectStore.update()`, returns read-back
+- `src/index.ts`: shebang, `McpServer` + `StdioServerTransport`, stderr-only logging, async main with error handling
+- Tests: 7 unit tests (InMemoryTransport + Client for protocol-level verification) + 1 lifecycle test (child process spawn, JSON-RPC handshake, tools/list assertion)
+- All 8 MCP tests pass; 54 core tests pass; full workspace builds clean
+- Commits: 3166a02, 7b6b5f0, ca86917, ec43baa
+
 ### Slice 145: MCP Server — Project Tools — Task Breakdown Complete
 - Task breakdown: `145-tasks.mcp-server-project-tools.md` — 12 tasks across 4 phases
 - Phase 1: Deps + scaffold (install SDK, create index.ts); Phase 2: Tool implementations (list/get/update); Phase 3: Unit tests; Phase 4: Lifecycle test + verification

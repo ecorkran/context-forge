@@ -29,7 +29,7 @@ dateUpdated: 20260217
 
 ## Feature Slices
 
-6. [ ] **MCP Server — Project Tools** — Create `packages/mcp-server` using the `@modelcontextprotocol/sdk`. Implement project management tools: `project_list`, `project_get`, `project_update`. These wrap the core storage layer to expose project state via MCP protocol. Transport: stdio. This is the first slice that delivers value to the MCP-only developer persona — after this, Claude Code can read and modify project configuration. Dependencies: [Storage Migration]. Risk: Medium. Effort: 3/5
+6. [x] **MCP Server — Project Tools** — Create `packages/mcp-server` using the `@modelcontextprotocol/sdk`. Implement project management tools: `project_list`, `project_get`, `project_update`. These wrap the core storage layer to expose project state via MCP protocol. Transport: stdio. This is the first slice that delivers value to the MCP-only developer persona — after this, Claude Code can read and modify project configuration. Dependencies: [Storage Migration]. Risk: Medium. Effort: 3/5
 
 7. [ ] **MCP Server — Context Tools** — Add context assembly tools to the MCP server: `context_build`, `template_preview`, `prompt_list`, `prompt_get`. These wrap the core orchestration layer. After this slice, Claude Code can generate complete context prompts — the primary value proposition of the entire restructure. Dependencies: [MCP Server — Project Tools, Core Orchestration Extraction]. Risk: Medium. Effort: 3/5
 
@@ -46,6 +46,10 @@ dateUpdated: 20260217
 11. [ ] **MCP Server Integration Testing** — Integration tests that invoke MCP tools and verify correct responses. Test against a fixture project with known configuration to validate context output matches expectations. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
 
 12. [ ] **Documentation and Packaging** — README for `context-forge-mcp` (installation, configuration for Claude Code / Cursor, available tools). Update root README for the monorepo. npm publishing configuration for `context-forge-mcp` and `@context-forge/core`. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
+
+13. [ ] MCP Server — Streamable HTTP Transport — Add a Streamable HTTP endpoint to the MCP server alongside the existing stdio transport. Same tool registrations, second transport binding. Enables multi-client access (Electron + Claude Code against one server instance), long-lived agent sessions that survive individual agent spawns, and remote/team server deployments. Configuration: port selection, optional auth token. The hybrid launch model from the architecture doc (Electron connects to already-running server) becomes fully functional with this slice. Dependencies: [MCP Server — State Update Tools]. Risk: Low (SDK supports both transports with same API surface). Effort: 2/5
+
+Note: Primary near-term driver is orchestration integration — a persistent MCP server that agent systems connect to across spawn cycles. Multi-client Electron and team/remote scenarios are secondary triggers. Stdio remains the default transport for single-developer Claude Code usage.
 
 ## Implementation Order
 
@@ -69,6 +73,9 @@ Integration (after features):
   10. Core Test Suite
   11. MCP Server Integration Testing
   12. Documentation and Packaging
+
+Future:
+  13. MCP Server Streamable HTTP Transport
 ```
 
 ## Notes
