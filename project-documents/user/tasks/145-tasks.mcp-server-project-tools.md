@@ -59,9 +59,9 @@ Key references:
 
 ---
 
-## Phase 2: Tool Implementations
+## Phase 2: Read-Only Tools — Implementation and Tests
 
-### Task 4: Create `projectTools.ts` and Implement `project_list`
+### Task 4: Create `projectTools.ts`, Implement `project_list` and `project_get`
 
 - [ ] Create `packages/mcp-server/src/tools/projectTools.ts`
 - [ ] Export a `registerProjectTools(server: McpServer)` function (type `McpServer` from SDK)
@@ -71,31 +71,53 @@ Key references:
   - Description: `'List all configured Context Forge projects. Returns project IDs, names, current slices, and other summary fields. Use this to discover available projects before calling project_get or project_update.'`
   - Input schema: `z.object({})`
   - Annotations: `{ readOnlyHint: true, openWorldHint: false }`
-- [ ] Handler logic:
+- [ ] `project_list` handler logic:
   1. Instantiate `FileProjectStore` from `@context-forge/core/node`
   2. Call `store.getAll()`
   3. Map to summary fields: `id`, `name`, `slice`, `template`, `instruction`, `isMonorepo`, `projectPath`, `updatedAt`
   4. Return `{ content: [{ type: 'text', text: JSON.stringify({ projects, count }, null, 2) }] }`
-- [ ] Wrap handler body in try/catch — errors return `{ content: [...], isError: true }`
-- **Success**: File compiles. `project_list` is registered and returns summary JSON.
-
-### Task 5: Implement `project_get`
-
-- [ ] Register `project_get` tool in `registerProjectTools()`:
+- [ ] Register `project_get` tool:
   - Name: `'project_get'`
   - Title: `'Get Project'`
   - Description: `'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. Use project_list first to find project IDs.'`
   - Input schema: `z.object({ id: z.string().describe('Project ID (e.g., project_1739...). Use project_list to find IDs.') })`
   - Annotations: `{ readOnlyHint: true, openWorldHint: false }`
-- [ ] Handler logic:
+- [ ] `project_get` handler logic:
   1. Instantiate `FileProjectStore`
   2. Call `store.getById(id)`
   3. If undefined: return `isError: true` with message `"Project not found: '{id}'. Use the project_list tool to see available projects and their IDs."`
   4. Return full `ProjectData` as JSON text content
-- [ ] Wrap in try/catch per error handling pattern
-- **Success**: File compiles. `project_get` returns full project or actionable error.
+- [ ] Wrap both handlers in try/catch — errors return `{ content: [...], isError: true }`
+- [ ] Wire in `index.ts`: import `registerProjectTools`, call before `server.connect(transport)`
+- **Success**: File compiles. Both read-only tools are registered.
 
-### Task 6: Implement `project_update`
+### Task 5: Unit Tests for `project_list` and `project_get`
+
+- [ ] Create `packages/mcp-server/src/__tests__/projectTools.test.ts`
+- [ ] Mock `FileProjectStore` from `@context-forge/core/node` using `vi.mock()`
+- [ ] Create mock project data fixture matching `ProjectData` shape
+- [ ] `project_list` tests:
+  - Returns formatted summary with correct fields and count
+  - Returns `{ projects: [], count: 0 }` for empty store (not an error)
+- [ ] `project_get` tests:
+  - Returns full `ProjectData` for valid ID
+  - Returns `isError: true` with helpful message for non-existent ID
+- [ ] Run `pnpm --filter context-forge-mcp test` — all tests pass
+- **Success**: All read-only tool tests pass.
+
+Note on test approach: Tests should call the tool handler functions directly. If the SDK's `registerTool` makes direct invocation difficult, extract handler logic into testable functions that `registerProjectTools` wraps. The design allows either approach.
+
+### Task 6: Build and Commit Read-Only Tools
+
+- [ ] Run `pnpm --filter context-forge-mcp build`
+- [ ] Commit: "feat(mcp-server): implement project_list and project_get tools with tests (slice 145)"
+- **Success**: Clean build, tests pass, commit on branch.
+
+---
+
+## Phase 3: Mutation Tool — Implementation and Tests
+
+### Task 7: Implement `project_update`
 
 - [ ] Register `project_update` tool in `registerProjectTools()`:
   - Name: `'project_update'`
@@ -113,42 +135,20 @@ Key references:
 - [ ] Wrap in try/catch per error handling pattern
 - **Success**: File compiles. `project_update` validates inputs and returns updated project.
 
-### Task 7: Wire Tools and Build
+### Task 8: Unit Tests for `project_update`
 
-- [ ] In `src/index.ts`, import `registerProjectTools` from `./tools/projectTools.js`
-- [ ] Call `registerProjectTools(server)` before `server.connect(transport)`
-- [ ] Run `pnpm --filter context-forge-mcp build`
-- [ ] Commit: "feat(mcp-server): implement project_list, project_get, project_update tools (slice 145)"
-- **Success**: Clean build with all 3 tools registered.
-
----
-
-## Phase 3: Unit Tests
-
-### Task 8: Unit Tests for `project_list` and `project_get`
-
-- [ ] Create `packages/mcp-server/src/__tests__/projectTools.test.ts`
-- [ ] Mock `FileProjectStore` from `@context-forge/core/node` using `vi.mock()`
-- [ ] Create mock project data fixture matching `ProjectData` shape
-- [ ] `project_list` tests:
-  - Returns formatted summary with correct fields and count
-  - Returns `{ projects: [], count: 0 }` for empty store (not an error)
-- [ ] `project_get` tests:
-  - Returns full `ProjectData` for valid ID
-  - Returns `isError: true` with helpful message for non-existent ID
-- **Success**: All tests pass with `pnpm --filter context-forge-mcp test`
-
-### Task 9: Unit Tests for `project_update`
-
-- [ ] `project_update` tests (in same test file):
+- [ ] Add `project_update` tests to existing `projectTools.test.ts`:
   - Applies update and returns full read-back project
   - Returns `isError: true` for non-existent ID
   - Returns `isError: true` when no update fields provided (only `id`)
-- [ ] Run `pnpm --filter context-forge-mcp test` — all tests pass
-- [ ] Commit: "test(mcp-server): unit tests for project tools (slice 145)"
-- **Success**: All unit tests pass. Commit on branch.
+- [ ] Run `pnpm --filter context-forge-mcp test` — all tests pass (read-only + update)
+- **Success**: All unit tests pass.
 
-Note on test approach: Tests should call the tool handler functions directly. If the SDK's `registerTool` makes direct invocation difficult, extract handler logic into testable functions that `registerProjectTools` wraps. The design allows either approach.
+### Task 9: Build and Commit Mutation Tool
+
+- [ ] Run `pnpm --filter context-forge-mcp build`
+- [ ] Commit: "feat(mcp-server): implement project_update tool with tests (slice 145)"
+- **Success**: Clean build, all tests pass, commit on branch.
 
 ---
 
