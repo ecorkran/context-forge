@@ -6,6 +6,24 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-20
+
+### Slice 146: MCP Server — Context Tools — Task Breakdown Complete
+- Task breakdown: `146-tasks.mcp-server-context-tools.md` — 15 tasks across 4 phases (240 lines)
+- Phase 1: Core API inspection + shared `generateContext` helper; Phase 2: `context_build` + `template_preview` + tests; Phase 3: `prompt_list` + `prompt_get` + tests; Phase 4: Integration wiring + lifecycle test update
+- Key API path: `createContextPipeline(projectPath)` → `integrator.generateContextFromProject(project)` for context generation
+- Templates are sections within a single prompt file (parsed by `#####` headers) — `SystemPromptParser.getAllPrompts()` enumerates them
+- Commit checkpoints at Tasks 3, 7, 11, 15
+
+### Slice 146: MCP Server — Context Tools — Design Complete
+- Slice design: `146-slice.mcp-context-tools.md` — 4 tools wrapping core orchestration layer
+- `context_build`: primary context generation with optional parameter overrides (plain text output)
+- `template_preview`: read-only preview sharing `context_build` logic (different annotations for future-proofing)
+- `prompt_list`: enumerate templates from project's prompt file (JSON output)
+- `prompt_get`: retrieve specific template content by name/key (plain text output)
+
+---
+
 ## 2026-02-19
 
 ### Slice 145: MCP Server — Project Tools — Implementation Complete
