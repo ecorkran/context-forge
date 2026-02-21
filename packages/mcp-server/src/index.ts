@@ -6,6 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerProjectTools } from './tools/projectTools.js';
 import { registerContextTools } from './tools/contextTools.js';
+import { registerStateTools } from './tools/stateTools.js';
 
 const SERVER_NAME = 'context-forge-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
 
   registerProjectTools(server);
   registerContextTools(server);
+  registerStateTools(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
