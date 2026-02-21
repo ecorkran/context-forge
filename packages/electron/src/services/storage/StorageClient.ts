@@ -19,6 +19,24 @@ declare global {
       getAppVersion: () => Promise<string>;
       updateWindowTitle: (projectName?: string) => Promise<void>;
       onFlushSave: (callback: () => void) => () => void;
+
+      // ── Domain-level API (electron-client-conversion) ──────────────────────
+      project: {
+        list: () => Promise<import('@context-forge/core').ProjectData[]>;
+        get: (id: string) => Promise<import('@context-forge/core').ProjectData | null>;
+        create: (data: import('@context-forge/core').CreateProjectData) => Promise<import('@context-forge/core').ProjectData>;
+        update: (id: string, updates: import('@context-forge/core').UpdateProjectData) => Promise<import('@context-forge/core').ProjectData>;
+        delete: (id: string) => Promise<void>;
+      };
+      context: {
+        generate: (projectId: string, overrides?: import('../main/ipc/contextHandlers').ContextOverrides) => Promise<string>;
+      };
+      appState: {
+        get: () => Promise<import('./types/AppState').AppState>;
+        update: (updates: Partial<import('./types/AppState').AppState>) => Promise<void>;
+      };
+
+      // ── Legacy channels (kept for coexistence during migration) ────────────
       storage: {
         read: (filename: string) => Promise<StorageResponse>;
         write: (filename: string, data: string) => Promise<StorageResponse>;
@@ -30,16 +48,16 @@ declare global {
         }>;
       };
       statements: {
-        load: (filename?: string) => Promise<Record<string, any>>;
-        save: (filename: string, statements: Record<string, any>) => Promise<void>;
+        load: (filename?: string) => Promise<Record<string, unknown>>;
+        save: (filename: string, statements: Record<string, unknown>) => Promise<void>;
         getStatement: (filename: string, key: string) => Promise<string>;
         updateStatement: (filename: string, key: string, content: string) => Promise<void>;
       };
       systemPrompts: {
-        parse: (filename?: string) => Promise<any[]>;
-        getContextInit: (filename?: string, isMonorepo?: boolean) => Promise<any | null>;
-        getToolUse: (filename?: string) => Promise<any | null>;
-        getForInstruction: (filename: string, instruction: string) => Promise<any | null>;
+        parse: (filename?: string) => Promise<unknown[]>;
+        getContextInit: (filename?: string, isMonorepo?: boolean) => Promise<unknown | null>;
+        getToolUse: (filename?: string) => Promise<unknown | null>;
+        getForInstruction: (filename: string, instruction: string) => Promise<unknown | null>;
       };
       projectPath: {
         validate: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;
