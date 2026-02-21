@@ -33,7 +33,7 @@ dateUpdated: 20260217
 
 7. [x] **MCP Server — Context Tools** — Add context assembly tools to the MCP server: `context_build`, `template_preview`, `prompt_list`, `prompt_get`. These wrap the core orchestration layer. After this slice, Claude Code can generate complete context prompts — the primary value proposition of the entire restructure. Dependencies: [MCP Server — Project Tools, Core Orchestration Extraction]. Risk: Medium. Effort: 3/5
 
-8. [ ] **MCP Server — State Update Tools** — Add `context_summarize` (update project summary / recent events) and any remaining state mutation tools needed for the agent workflow. This completes the MCP server's tool surface for the v2 scope. Dependencies: [MCP Server — Context Tools]. Risk: Low. Effort: 2/5
+8. [x] **MCP Server — State Update Tools** — Add `context_summarize` (update project summary / recent events) and any remaining state mutation tools needed for the agent workflow. This completes the MCP server's tool surface for the v2 scope. Dependencies: [MCP Server — Context Tools]. Risk: Low. Effort: 2/5
 
 9. [ ] **Electron Client Conversion** — Rewire the Electron app to consume `packages/core` directly (replacing internal service implementations and eliminating the IPC wrappers). The renderer no longer needs `SystemPromptParserIPC` or `StatementManagerIPC` — it uses core services through the main process or through a simplified IPC layer that delegates to core. The app continues to function as before from a user perspective, but is now a thin client over core. Dependencies: [Core Orchestration Extraction, Storage Migration]. Risk: Medium. Effort: 3/5
 

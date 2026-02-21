@@ -8,6 +8,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-20
 
+### Slice 147: MCP Server — State Update Tools — Implementation Complete
+- Implementation complete: all 7 tasks done across 3 phases
+- Created `packages/mcp-server/src/tools/stateTools.ts` with `registerStateTools(server)` — registers `context_summarize`
+- `context_summarize`: persists session summary to `customData.recentEvents`, preserves other customData fields via spread merge, optionally updates `additionalNotes`
+- Tests: 7 unit tests (InMemoryTransport + Client) + lifecycle test updated to assert 8 tools
+- All 31 MCP tests pass; full workspace builds clean
+- Commits: d1c58ff (task breakdown), f54e59f (implementation)
+
 ### Slice 147: MCP Server — State Update Tools — Task Breakdown Complete
 - Task breakdown: `147-tasks.mcp-server-state-tools.md` — 7 tasks across 3 phases
 - Phase 1: Create `stateTools.ts` with `context_summarize` tool; Phase 2: Unit tests; Phase 3: Integration wiring + lifecycle test update
