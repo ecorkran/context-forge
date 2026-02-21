@@ -6,6 +6,18 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-21
+
+### Slice 148: Electron Client Conversion — Design Complete
+- Slice design: `148-slice.electron-client-conversion.md` — rewire Electron as thin client over `@context-forge/core`
+- Replaces renderer's multi-layer storage stack (StorageClient → ElectronStorageService → PersistentProjectStore → ProjectManager) with domain-level IPC handlers delegating to `FileProjectStore`
+- Eliminates `StatementManagerIPC`, `SystemPromptParserIPC`, renderer `ServiceFactory` — context generation moves entirely to main process via `createContextPipeline`
+- New IPC channels: `project:list/get/create/update/delete`, `context:generate`, `app-state:get/update`
+- 4-phase migration: (1) main-process handlers, (2) preload + renderer API, (3) consumer migration, (4) cleanup — each phase leaves app working
+- Testing integrated per-phase: handler unit tests, IPC round-trip tests, behavioral parity verification, context output snapshot comparison
+
+---
+
 ## 2026-02-20
 
 ### Maintenance: Migrate Tests to Centralized `tests/` Directories
