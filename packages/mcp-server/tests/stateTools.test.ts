@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ProjectData } from '@context-forge/core';
-import { registerStateTools } from '../tools/stateTools.js';
+import { registerStateTools } from '../src/tools/stateTools.js';
 
 // --- Mocks ---
 

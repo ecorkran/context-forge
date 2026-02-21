@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { FileStorageService } from '../FileStorageService.js';
+import { FileStorageService } from '../../src/storage/FileStorageService.js';
 
 describe('FileStorageService', () => {
   let tempDir: string;

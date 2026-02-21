@@ -309,13 +309,65 @@ type CSSProperty = `--${string}`;
 - Routes in kebab-case (e.g. `app/dashboard/page.tsx`).
 - Sort imports (external → internal → sibling → styles).
 
-### Testing
-- Prefer vitest over jest
-
 ### Builds
 - use pnpm not npm
 - After all changes are made, ALWAYS build the project with `pnpm build`. Allow warnings, fix errors.
 - If a `package.json` exists, ensure the AI-support script block from `snippets/npm-scripts.ai-support.json` is present before running `pnpm build`
+
+### Testing Rules
+
+#### General Testing Philosophy
+
+- **Write tests as you go** - Create unit tests while completing tasks, not at the end
+- **Not strict TDD** - AI development doesn't require test-first, but tests should accompany implementation
+- **Focus on value** - Test critical paths, edge cases, and business logic; don't test trivial code
+
+#### JavaScript/TypeScript Testing
+
+##### Test Framework
+- **Prefer Vitest** over Jest for new projects (faster, better ESM support, compatible API)
+- Use `vitest` for unit and integration tests
+- Use `@testing-library/react` for component testing
+
+##### Test Organization
+- Use a centralized `tests/` directory at the package level, not colocated `__tests__/` directories inside `src/`.
+
+** Directory Structure Example**:
+``` markdown
+packages/my-package/
+  src/
+    index.ts
+    services/
+      myService.ts
+  tests/
+    services/
+      myService.test.ts
+    integration/
+      serverLifecycle.test.ts
+  package.json
+  tsconfig.json
+```
+
+*Note: Ensure `tsconfig.json` includes `tests/` for type checking but excludes it from build output.*
+
+##### Test File Naming
+- Unit tests: `{module}.test.ts` — mirrors the source file name
+- Integration tests: `{feature}.integration.test.ts` or grouped in `tests/integration/`
+- Test fixtures: `tests/fixtures/` directory
+
+##### What to Test
+- **Critical paths**: User workflows, data transformations, business logic
+- **Edge cases**: Null/undefined values, empty arrays, boundary conditions
+- **Error states**: How code handles failures, invalid input, network errors
+- **Not trivial**: Don't test framework code, getters/setters, or obvious pass-throughs
+
+##### Test Coverage
+- Aim for meaningful coverage, not 100% coverage
+- Critical business logic: high coverage
+- UI components: test interactions and state changes
+- Utilities and helpers: comprehensive edge case coverage
+
+
 
 ## Code Review Rules
 

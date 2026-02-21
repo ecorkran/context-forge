@@ -24,6 +24,6 @@
       "@preload/*": ["./src/preload/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "tests"],
   "references": []
 }

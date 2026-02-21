@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ElectronProjectStore } from '../ElectronProjectStore'
-import { CreateProjectData } from '../types/ProjectData'
+import { ElectronProjectStore } from '@/services/storage/ElectronProjectStore'
+import { CreateProjectData } from '@/services/storage/types/ProjectData'
 
 // Mock the entire storage chain
-vi.mock('../StorageClient', () => ({
+vi.mock('@/services/storage/StorageClient', () => ({
   storageClient: {
     isAvailable: vi.fn().mockReturnValue(true),
     readFile: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock('../StorageClient', () => ({
   }
 }))
 
-import { storageClient } from '../StorageClient'
+import { storageClient } from '@/services/storage/StorageClient'
 
 describe('Storage Integration Tests', () => {
   let store: ElectronProjectStore

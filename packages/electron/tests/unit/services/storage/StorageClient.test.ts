@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { StorageClient } from '../StorageClient'
-import { mockElectronAPI } from '../../../test/setup'
+import { StorageClient } from '@/services/storage/StorageClient'
+import { mockElectronAPI } from '@/test/setup'
 
 describe('StorageClient', () => {
   let storageClient: StorageClient

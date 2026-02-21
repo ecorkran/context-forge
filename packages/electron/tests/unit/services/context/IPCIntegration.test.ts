@@ -58,7 +58,7 @@ describe('IPC Integration Tests', () => {
 
   describe('Statement Management via IPC', () => {
     it('should load statements via IPC', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const mockStatements = {
         'project-intro-statement': {
@@ -80,7 +80,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should get individual statements via IPC', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const mockStatements = {
         'project-intro-statement': {
@@ -101,7 +101,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should update statements via IPC', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const mockStatements = {
         'project-intro-statement': {
@@ -123,7 +123,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should save statements via IPC', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const mockStatements = {
         'project-intro-statement': {
@@ -145,7 +145,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should handle IPC errors gracefully', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const error = new Error('IPC communication failed');
       mockElectronAPI.statements.load.mockRejectedValue(error);
@@ -158,7 +158,7 @@ describe('IPC Integration Tests', () => {
 
   describe('System Prompt Parsing via IPC', () => {
     it('should parse system prompts via IPC', async () => {
-      const { SystemPromptParserIPC } = await import('../SystemPromptParserIPC');
+      const { SystemPromptParserIPC } = await import('@/services/context/SystemPromptParserIPC');
       
       const mockPrompts = [
         {
@@ -180,7 +180,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should get context initialization prompt via IPC', async () => {
-      const { SystemPromptParserIPC } = await import('../SystemPromptParserIPC');
+      const { SystemPromptParserIPC } = await import('@/services/context/SystemPromptParserIPC');
       
       const mockPrompt = {
         name: 'Context Initialization',
@@ -199,7 +199,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should get tool use prompt via IPC', async () => {
-      const { SystemPromptParserIPC } = await import('../SystemPromptParserIPC');
+      const { SystemPromptParserIPC } = await import('@/services/context/SystemPromptParserIPC');
       
       const mockPrompt = {
         name: 'Tool Usage',
@@ -218,7 +218,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should get instruction-specific prompts via IPC', async () => {
-      const { SystemPromptParserIPC } = await import('../SystemPromptParserIPC');
+      const { SystemPromptParserIPC } = await import('@/services/context/SystemPromptParserIPC');
       
       const mockPrompt = {
         name: 'Implementation Prompt',
@@ -237,7 +237,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should handle system prompt IPC errors gracefully', async () => {
-      const { SystemPromptParserIPC } = await import('../SystemPromptParserIPC');
+      const { SystemPromptParserIPC } = await import('@/services/context/SystemPromptParserIPC');
       
       const error = new Error('System prompt parsing failed');
       mockElectronAPI.systemPrompts.getContextInit.mockRejectedValue(error);
@@ -252,7 +252,7 @@ describe('IPC Integration Tests', () => {
 
   describe('Service Factory Integration', () => {
     it('should create IPC adapters when electronAPI is available', async () => {
-      const { createStatementManager, createSystemPromptParser } = await import('../ServiceFactory');
+      const { createStatementManager, createSystemPromptParser } = await import('@/services/context/ServiceFactory');
       
       const statementManager = createStatementManager();
       const promptParser = createSystemPromptParser();
@@ -263,7 +263,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should maintain same interface as direct implementations', async () => {
-      const { createStatementManager, createSystemPromptParser } = await import('../ServiceFactory');
+      const { createStatementManager, createSystemPromptParser } = await import('@/services/context/ServiceFactory');
       
       const statementManager = createStatementManager();
       const promptParser = createSystemPromptParser();
@@ -308,7 +308,7 @@ describe('IPC Integration Tests', () => {
       });
       
       const { ContextIntegrator, ContextTemplateEngine } = await import('@context-forge/core');
-      const { createSystemPromptParser, createStatementManager } = await import('../ServiceFactory');
+      const { createSystemPromptParser, createStatementManager } = await import('@/services/context/ServiceFactory');
       const engine = new ContextTemplateEngine(createSystemPromptParser(), createStatementManager());
       const integrator = new ContextIntegrator(engine, true); // Enable new engine
 
@@ -342,7 +342,7 @@ describe('IPC Integration Tests', () => {
       mockElectronAPI.statements.getStatement.mockRejectedValue(new Error('IPC failed'));
 
       const { ContextIntegrator, ContextTemplateEngine } = await import('@context-forge/core');
-      const { createSystemPromptParser, createStatementManager } = await import('../ServiceFactory');
+      const { createSystemPromptParser, createStatementManager } = await import('@/services/context/ServiceFactory');
       const engine = new ContextTemplateEngine(createSystemPromptParser(), createStatementManager());
       const integrator = new ContextIntegrator(engine, true); // Enable new engine
       
@@ -372,7 +372,7 @@ describe('IPC Integration Tests', () => {
 
   describe('Data Integrity Across IPC Boundary', () => {
     it('should preserve data types and structure', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const originalStatements = {
         'project-intro-statement': {
@@ -401,7 +401,7 @@ describe('IPC Integration Tests', () => {
     });
 
     it('should handle undefined and null values correctly', async () => {
-      const { StatementManagerIPC } = await import('../StatementManagerIPC');
+      const { StatementManagerIPC } = await import('@/services/context/StatementManagerIPC');
       
       const mockStatements = {}; // Empty statements
       mockElectronAPI.statements.load.mockResolvedValue(mockStatements);

@@ -1,5 +1,5 @@
 import { ContextIntegrator, ContextTemplateEngine, ProjectData } from '@context-forge/core';
-import { createSystemPromptParser, createStatementManager } from '../ServiceFactory';
+import { createSystemPromptParser, createStatementManager } from '@/services/context/ServiceFactory';
 
 /** Helper: create an engine wired with IPC services (same as runtime usage) */
 function makeEngine(): ContextTemplateEngine {

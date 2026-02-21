@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const DIST_INDEX = join(import.meta.dirname, '..', '..', 'dist', 'index.js');
+const DIST_INDEX = join(import.meta.dirname, '..', 'dist', 'index.js');
 const INIT_REQUEST = JSON.stringify({
   jsonrpc: '2.0',
   id: 1,

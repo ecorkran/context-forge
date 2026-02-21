@@ -8,6 +8,16 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-20
 
+### Maintenance: Migrate Tests to Centralized `tests/` Directories
+- Moved all test files from colocated `__tests__/` dirs to centralized `tests/` at package level per updated CLAUDE.md guidelines
+- core: 4 test files (54 tests) → `tests/` and `tests/storage/`, fixtures → `tests/fixtures/`
+- mcp-server: 4 test files (31 tests) → `tests/`
+- electron: 11 test files → `tests/unit/` and `tests/integration/`, updated to use `@/` alias imports
+- Added `vitest.config.ts` for core and mcp-server; `tsconfig.test.json` for type-checking
+- Updated electron `vitest.config.ts` (removed `src/` pattern) and `tsconfig.json` (added `tests` to include)
+- All core and mcp-server tests pass; electron has pre-existing failures (already documented in maintenance-tasks)
+- Commits: 93233e6
+
 ### Slice 147: MCP Server — State Update Tools — Implementation Complete
 - Implementation complete: all 7 tasks done across 3 phases
 - Created `packages/mcp-server/src/tools/stateTools.ts` with `registerStateTools(server)` — registers `context_summarize`

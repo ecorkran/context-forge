@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { FileProjectStore } from '../FileProjectStore.js';
+import { FileProjectStore } from '../../src/storage/FileProjectStore.js';
 
 describe('FileProjectStore', () => {
   let tempDir: string;

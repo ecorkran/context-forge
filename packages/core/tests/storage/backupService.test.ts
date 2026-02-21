@@ -5,7 +5,7 @@ import {
   checkWriteGuard,
   MAX_VERSIONED_BACKUPS,
   type BackupFsDeps,
-} from '../backupService.js';
+} from '../../src/storage/backupService.js';
 
 /** Create a mock fs deps object with all methods as vi.fn() */
 function mockFsDeps(overrides: Partial<BackupFsDeps> = {}): BackupFsDeps {

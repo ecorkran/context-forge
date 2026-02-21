@@ -4,8 +4,8 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { FileProjectStore } from '../storage/FileProjectStore.js';
-import { createContextPipeline } from '../services/CoreServiceFactory.js';
+import { FileProjectStore } from '../src/storage/FileProjectStore.js';
+import { createContextPipeline } from '../src/services/CoreServiceFactory.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,7 +37,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
     // 1. Create a project via core storage
     const fixtureProjectPath = join(
       __dirname,
-      '__fixtures__',
+      'fixtures',
       'test-project'
     );
     const project = await store.create({
