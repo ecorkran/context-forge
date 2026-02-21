@@ -8,6 +8,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-20
 
+### Slice 147: MCP Server — State Update Tools — Design Complete
+- Slice design: `147-slice.mcp-server-state-tools.md` — adds `context_summarize` tool
+- `context_summarize`: persists session state summary to `customData.recentEvents`, preserves other customData fields
+- New file `stateTools.ts` with `registerStateTools(server)` — reuses helpers from `contextTools.ts`
+- Completes MCP server tool surface (8 tools total) per architecture spec
+
 ### Slice 146: MCP Server — Context Tools — Implementation Complete
 - Implementation complete: 4 commits (7d618f4 → 47be7c0), all 15 tasks done across 4 phases
 - Created `packages/mcp-server/src/tools/contextTools.ts` with `registerContextTools(server)` — registers 4 MCP tools
