@@ -31,7 +31,7 @@ dateUpdated: 20260217
 
 6. [x] **MCP Server — Project Tools** — Create `packages/mcp-server` using the `@modelcontextprotocol/sdk`. Implement project management tools: `project_list`, `project_get`, `project_update`. These wrap the core storage layer to expose project state via MCP protocol. Transport: stdio. This is the first slice that delivers value to the MCP-only developer persona — after this, Claude Code can read and modify project configuration. Dependencies: [Storage Migration]. Risk: Medium. Effort: 3/5
 
-7. [ ] **MCP Server — Context Tools** — Add context assembly tools to the MCP server: `context_build`, `template_preview`, `prompt_list`, `prompt_get`. These wrap the core orchestration layer. After this slice, Claude Code can generate complete context prompts — the primary value proposition of the entire restructure. Dependencies: [MCP Server — Project Tools, Core Orchestration Extraction]. Risk: Medium. Effort: 3/5
+7. [x] **MCP Server — Context Tools** — Add context assembly tools to the MCP server: `context_build`, `template_preview`, `prompt_list`, `prompt_get`. These wrap the core orchestration layer. After this slice, Claude Code can generate complete context prompts — the primary value proposition of the entire restructure. Dependencies: [MCP Server — Project Tools, Core Orchestration Extraction]. Risk: Medium. Effort: 3/5
 
 8. [ ] **MCP Server — State Update Tools** — Add `context_summarize` (update project summary / recent events) and any remaining state mutation tools needed for the agent workflow. This completes the MCP server's tool surface for the v2 scope. Dependencies: [MCP Server — Context Tools]. Risk: Low. Effort: 2/5
 

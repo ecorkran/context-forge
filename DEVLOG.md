@@ -8,6 +8,18 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-20
 
+### Slice 146: MCP Server — Context Tools — Implementation Complete
+- Implementation complete: 4 commits (7d618f4 → 47be7c0), all 15 tasks done across 4 phases
+- Created `packages/mcp-server/src/tools/contextTools.ts` with `registerContextTools(server)` — registers 4 MCP tools
+- `context_build`: generates complete context prompt via `createContextPipeline` → `generateContextFromProject`, supports parameter overrides (plain text output)
+- `template_preview`: identical logic to `context_build` with `readOnlyHint: true` annotations
+- `prompt_list`: enumerates templates via `SystemPromptParser.getAllPrompts()`, returns JSON with name/key/parameterCount
+- `prompt_get`: retrieves specific template by name (case-insensitive) or key (exact), returns plain text with metadata header
+- Shared `generateContext` helper loads project, applies overrides, appends additionalInstructions
+- Tests: 16 unit tests (InMemoryTransport + Client) + lifecycle test updated to assert 7 tools
+- All 24 MCP tests pass; full workspace builds clean
+- Commits: 7d618f4, 3a64aa6, 0d02d83, 47be7c0
+
 ### Slice 146: MCP Server — Context Tools — Task Breakdown Complete
 - Task breakdown: `146-tasks.mcp-server-context-tools.md` — 15 tasks across 4 phases (240 lines)
 - Phase 1: Core API inspection + shared `generateContext` helper; Phase 2: `context_build` + `template_preview` + tests; Phase 3: `prompt_list` + `prompt_get` + tests; Phase 4: Integration wiring + lifecycle test update
