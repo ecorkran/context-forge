@@ -22,72 +22,72 @@ dateUpdated: 20260221
 ## Phase 1: Main-Process Domain Handlers
 
 ### Task 1: Create `projectHandlers.ts` — project CRUD IPC handlers
-- [ ] Create `packages/electron/src/main/ipc/projectHandlers.ts`
-  - [ ] Export `registerProjectHandlers(store: FileProjectStore)` function
-  - [ ] Register IPC handlers for: `project:list`, `project:get`, `project:create`, `project:update`, `project:delete`
-  - [ ] `project:list` calls `store.getAll()`, sorts by `updatedAt` descending
-  - [ ] `project:get` calls `store.getById(id)`, returns `ProjectData | null`
-  - [ ] `project:create` calls `store.create(data)`, returns created `ProjectData`
-  - [ ] `project:update` calls `store.update(id, updates)` then `store.getById(id)` to return updated data
-  - [ ] `project:delete` calls `store.delete(id)`
-  - [ ] All handlers wrap calls in try/catch — rethrow errors with descriptive messages for IPC error propagation
-  - [ ] **Success:** File compiles, exports the registration function, all 5 handlers use `ipcMain.handle()`
+- [x] Create `packages/electron/src/main/ipc/projectHandlers.ts`
+  - [x] Export `registerProjectHandlers(store: FileProjectStore)` function
+  - [x] Register IPC handlers for: `project:list`, `project:get`, `project:create`, `project:update`, `project:delete`
+  - [x] `project:list` calls `store.getAll()`, sorts by `updatedAt` descending
+  - [x] `project:get` calls `store.getById(id)`, returns `ProjectData | null`
+  - [x] `project:create` calls `store.create(data)`, returns created `ProjectData`
+  - [x] `project:update` calls `store.update(id, updates)` then `store.getById(id)` to return updated data
+  - [x] `project:delete` calls `store.delete(id)`
+  - [x] All handlers wrap calls in try/catch — rethrow errors with descriptive messages for IPC error propagation
+  - [x] **Success:** File compiles, exports the registration function, all 5 handlers use `ipcMain.handle()`
 
 ### Task 2: Unit tests for `projectHandlers.ts`
-- [ ] Create `packages/electron/tests/unit/main/ipc/projectHandlers.test.ts`
-  - [ ] Mock `FileProjectStore` with vi.fn() for each method
-  - [ ] Test `project:list` calls `getAll()` and returns sorted array
-  - [ ] Test `project:get` returns project when found, null when not
-  - [ ] Test `project:create` passes `CreateProjectData` to `create()` and returns result
-  - [ ] Test `project:update` calls `update()` then `getById()` for read-back
-  - [ ] Test `project:delete` calls `delete()` with correct id
-  - [ ] Test error propagation: handler rethrows when store method throws
-  - [ ] **Success:** All tests pass via `pnpm --filter @context-forge/electron test:run`
+- [x] Create `packages/electron/tests/unit/main/ipc/projectHandlers.test.ts`
+  - [x] Mock `FileProjectStore` with vi.fn() for each method
+  - [x] Test `project:list` calls `getAll()` and returns sorted array
+  - [x] Test `project:get` returns project when found, null when not
+  - [x] Test `project:create` passes `CreateProjectData` to `create()` and returns result
+  - [x] Test `project:update` calls `update()` then `getById()` for read-back
+  - [x] Test `project:delete` calls `delete()` with correct id
+  - [x] Test error propagation: handler rethrows when store method throws
+  - [x] **Success:** All tests pass via `pnpm --filter @context-forge/electron test:run`
 
 ### Task 3: Create `contextHandlers.ts` — context generation IPC handler
-- [ ] Create `packages/electron/src/main/ipc/contextHandlers.ts`
-  - [ ] Define `ContextOverrides` interface (or import from a shared types location — see slice design for shape)
-  - [ ] Export `registerContextHandlers(store: FileProjectStore)` function
-  - [ ] Register `context:generate` handler: takes `(projectId: string, overrides?: ContextOverrides)`
-  - [ ] Handler flow: `store.getById(projectId)` → validate project exists → apply overrides to project copy → `createContextPipeline(project.projectPath)` → `integrator.generateContextFromProject(modifiedProject)` → return context string
-  - [ ] Override application: merge override fields into a shallow copy of ProjectData before passing to pipeline (same pattern as MCP server's `context_build`)
-  - [ ] Error case: project not found → throw descriptive error
-  - [ ] Error case: project has no `projectPath` → throw descriptive error
-  - [ ] **Success:** File compiles, exports registration function, handler delegates to `createContextPipeline`
+- [x] Create `packages/electron/src/main/ipc/contextHandlers.ts`
+  - [x] Define `ContextOverrides` interface (or import from a shared types location — see slice design for shape)
+  - [x] Export `registerContextHandlers(store: FileProjectStore)` function
+  - [x] Register `context:generate` handler: takes `(projectId: string, overrides?: ContextOverrides)`
+  - [x] Handler flow: `store.getById(projectId)` → validate project exists → apply overrides to project copy → `createContextPipeline(project.projectPath)` → `integrator.generateContextFromProject(modifiedProject)` → return context string
+  - [x] Override application: merge override fields into a shallow copy of ProjectData before passing to pipeline (same pattern as MCP server's `context_build`)
+  - [x] Error case: project not found → throw descriptive error
+  - [x] Error case: project has no `projectPath` → throw descriptive error
+  - [x] **Success:** File compiles, exports registration function, handler delegates to `createContextPipeline`
 
 ### Task 4: Unit tests for `contextHandlers.ts`
-- [ ] Create `packages/electron/tests/unit/main/ipc/contextHandlers.test.ts`
-  - [ ] Mock `FileProjectStore` and `createContextPipeline` (from `@context-forge/core/node`)
-  - [ ] Test successful generation: returns context string from integrator
-  - [ ] Test with overrides: verify override fields are applied to project before passing to pipeline
-  - [ ] Test project not found: throws error with descriptive message
-  - [ ] Test project missing projectPath: throws error
-  - [ ] **Success:** All tests pass
+- [x] Create `packages/electron/tests/unit/main/ipc/contextHandlers.test.ts`
+  - [x] Mock `FileProjectStore` and `createContextPipeline` (from `@context-forge/core/node`)
+  - [x] Test successful generation: returns context string from integrator
+  - [x] Test with overrides: verify override fields are applied to project before passing to pipeline
+  - [x] Test project not found: throws error with descriptive message
+  - [x] Test project missing projectPath: throws error
+  - [x] **Success:** All tests pass
 
 ### Task 5: Create `appStateHandlers.ts` — app state IPC handlers
-- [ ] Create `packages/electron/src/main/ipc/appStateHandlers.ts`
-  - [ ] Export `registerAppStateHandlers(storageService: FileStorageService)` function
-  - [ ] Register `app-state:get` handler: reads `app-state.json` via `storageService.read()`, parses JSON, returns `AppState` object (return default empty state if file doesn't exist)
-  - [ ] Register `app-state:update` handler: reads current state, merges `Partial<AppState>` updates, writes back via `storageService.write()`
-  - [ ] Define `AppState` interface (reuse from existing `src/services/storage/types/AppState.ts` — move type to a shared location or define inline)
-  - [ ] **Success:** File compiles, both handlers registered
+- [x] Create `packages/electron/src/main/ipc/appStateHandlers.ts`
+  - [x] Export `registerAppStateHandlers(storageService: FileStorageService)` function
+  - [x] Register `app-state:get` handler: reads `app-state.json` via `storageService.read()`, parses JSON, returns `AppState` object (return default empty state if file doesn't exist)
+  - [x] Register `app-state:update` handler: reads current state, merges `Partial<AppState>` updates, writes back via `storageService.write()`
+  - [x] Define `AppState` interface (reuse from existing `src/services/storage/types/AppState.ts` — move type to a shared location or define inline)
+  - [x] **Success:** File compiles, both handlers registered
 
 ### Task 6: Unit tests for `appStateHandlers.ts`
-- [ ] Create `packages/electron/tests/unit/main/ipc/appStateHandlers.test.ts`
-  - [ ] Mock `FileStorageService` read/write methods
-  - [ ] Test `app-state:get` returns parsed state from file
-  - [ ] Test `app-state:get` returns default state when file doesn't exist
-  - [ ] Test `app-state:update` merges partial updates with existing state
-  - [ ] **Success:** All tests pass
+- [x] Create `packages/electron/tests/unit/main/ipc/appStateHandlers.test.ts`
+  - [x] Mock `FileStorageService` read/write methods
+  - [x] Test `app-state:get` returns parsed state from file
+  - [x] Test `app-state:get` returns default state when file doesn't exist
+  - [x] Test `app-state:update` merges partial updates with existing state
+  - [x] **Success:** All tests pass
 
 ### Task 7: Wire handlers into `main.ts` and verify build
-- [ ] Modify `packages/electron/src/main/main.ts`
-  - [ ] Import `FileProjectStore`, `FileStorageService`, `getStoragePath` from `@context-forge/core/node`
-  - [ ] Initialize `FileProjectStore` instance at app startup (using `getStoragePath()`)
-  - [ ] Initialize `FileStorageService` instance for app state
-  - [ ] Import and call `registerProjectHandlers(store)`, `registerContextHandlers(store)`, `registerAppStateHandlers(storageService)`
-  - [ ] Keep existing old handlers registered (coexistence — both old and new channels work)
-  - [ ] **Success:** `pnpm build` succeeds across workspace. App launches and old functionality still works. New handlers are registered (verifiable via logs or a simple test).
+- [x] Modify `packages/electron/src/main/main.ts`
+  - [x] Import `FileProjectStore`, `FileStorageService`, `getStoragePath` from `@context-forge/core/node`
+  - [x] Initialize `FileProjectStore` instance at app startup (using `getStoragePath()`)
+  - [x] Initialize `FileStorageService` instance for app state
+  - [x] Import and call `registerProjectHandlers(store)`, `registerContextHandlers(store)`, `registerAppStateHandlers(storageService)`
+  - [x] Keep existing old handlers registered (coexistence — both old and new channels work)
+  - [x] **Success:** `pnpm build` succeeds across workspace. App launches and old functionality still works. New handlers are registered (verifiable via logs or a simple test).
 
 ### Task 8: Commit Phase 1
 - [ ] Git add and commit all Phase 1 files (new handlers, tests, main.ts changes)

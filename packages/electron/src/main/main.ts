@@ -10,7 +10,10 @@ import { join } from 'node:path'
 import { readdir, stat } from 'node:fs/promises'
 import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
-import { FileStorageService, getStoragePath, createVersionedBackup } from '@context-forge/core/node'
+import { registerProjectHandlers } from './ipc/projectHandlers'
+import { registerContextHandlers } from './ipc/contextHandlers'
+import { registerAppStateHandlers } from './ipc/appStateHandlers'
+import { FileStorageService, FileProjectStore, getStoragePath, createVersionedBackup } from '@context-forge/core/node'
 
 /** Files to create versioned backups for on startup and exit. */
 const VERSIONED_BACKUP_FILES = ['projects.json'] as const
@@ -30,6 +33,7 @@ function isAllowedUrl(target: string): boolean {
 
 let mainWindow: BrowserWindow | null = null;
 let storageService: FileStorageService | null = null;
+let projectStore: FileProjectStore | null = null;
 
 /**
  * Register all IPC handlers. Called once at app startup — never per-window.
@@ -140,9 +144,17 @@ function setupIpcHandlers(): void {
     }
   })
 
-  // Setup service-specific IPC handlers
+  // Setup service-specific IPC handlers (legacy channels — kept for coexistence)
   setupContextServiceHandlers()
   setupProjectPathHandlers()
+
+  // Register new domain-level IPC handlers (Phase 1 of electron-client-conversion)
+  if (projectStore && storageService) {
+    registerProjectHandlers(projectStore)
+    registerContextHandlers(projectStore)
+    registerAppStateHandlers(storageService)
+    console.log('Domain IPC handlers registered (project:*, context:generate, app-state:*)')
+  }
 
   console.log('All IPC handlers registered')
 }
@@ -187,6 +199,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'true'
   storageService = new FileStorageService(getStoragePath())
+  projectStore = new FileProjectStore()
   
   // Create simplified application menu for macOS compatibility
   const template = [
