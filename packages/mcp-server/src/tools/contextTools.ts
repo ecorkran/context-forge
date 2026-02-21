@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 
@@ -60,8 +61,82 @@ export async function generateContext(
   return contextString;
 }
 
+/** Zod schema for optional project parameter overrides */
+const contextOverridesSchema = {
+  projectId: z.string().describe('Project ID. Use project_list to find IDs.'),
+  slice: z.string().optional().describe('Override the current slice name'),
+  taskFile: z.string().optional().describe('Override the task file name'),
+  instruction: z.string().optional().describe('Override the instruction type (e.g., implementation, design, review)'),
+  developmentPhase: z.string().optional().describe('Override the current development phase'),
+  workType: z.enum(['start', 'continue']).optional().describe('Override whether starting or continuing work'),
+  additionalInstructions: z.string().optional().describe('Additional instructions to append to the generated context'),
+};
+
 // --- Tool registration ---
 
-export function registerContextTools(_server: McpServer): void {
-  // Tools will be registered in Tasks 4, 5, 8, 9
+export function registerContextTools(server: McpServer): void {
+  // --- context_build ---
+  server.registerTool(
+    'context_build',
+    {
+      title: 'Build Context',
+      description:
+        'Build a complete context prompt for a Context Forge project. This is the primary tool for generating structured context blocks. Optionally override project parameters (slice, instruction, etc.) without modifying the stored project. Returns the assembled context ready for use.',
+      inputSchema: contextOverridesSchema,
+      annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ projectId, additionalInstructions, ...overrideFields }) => {
+      try {
+        // Collect defined overrides
+        const overrides: Partial<ProjectData> = {};
+        for (const [key, value] of Object.entries(overrideFields)) {
+          if (value !== undefined) {
+            (overrides as unknown as Record<string, unknown>)[key] = value;
+          }
+        }
+
+        const contextString = await generateContext(
+          projectId,
+          Object.keys(overrides).length > 0 ? overrides : undefined,
+          additionalInstructions,
+        );
+        return textResult(contextString);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return errorResult(message);
+      }
+    },
+  );
+
+  // --- template_preview ---
+  server.registerTool(
+    'template_preview',
+    {
+      title: 'Preview Context',
+      description:
+        'Preview a context prompt with specified parameters without modifying the stored project or triggering any side effects. Use this to explore what context would be generated with different configurations before committing to a context_build.',
+      inputSchema: contextOverridesSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ projectId, additionalInstructions, ...overrideFields }) => {
+      try {
+        const overrides: Partial<ProjectData> = {};
+        for (const [key, value] of Object.entries(overrideFields)) {
+          if (value !== undefined) {
+            (overrides as unknown as Record<string, unknown>)[key] = value;
+          }
+        }
+
+        const contextString = await generateContext(
+          projectId,
+          Object.keys(overrides).length > 0 ? overrides : undefined,
+          additionalInstructions,
+        );
+        return textResult(contextString);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return errorResult(message);
+      }
+    },
+  );
 }
