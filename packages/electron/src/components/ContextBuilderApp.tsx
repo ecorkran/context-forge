@@ -1,173 +1,101 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { SplitPaneLayout } from './layout/SplitPaneLayout';
 import { ProjectConfigForm } from './forms/ProjectConfigForm';
 import { ContextOutput } from './display/ContextOutput';
 import { SettingsButton } from './settings/SettingsButton';
-import { PersistentProjectStore } from '../services/storage/PersistentProjectStore';
-import { CreateProjectData, ProjectData } from '@context-forge/core';
-import { ProjectManager } from '../services/project/ProjectManager';
+import { projectApi, appStateApi } from '../services/api';
+import type { CreateProjectData, ProjectData } from '@context-forge/core';
 import { useContextGeneration } from '../hooks/useContextGeneration';
 import { useDebounce } from '../hooks/useDebounce';
 
+/** Default form values for a new project */
+const DEFAULT_FORM_DATA: CreateProjectData = {
+  name: '',
+  template: '',
+  slice: '',
+  taskFile: '',
+  instruction: 'implementation',
+  workType: 'continue',
+  isMonorepo: false,
+  customData: {
+    recentEvents: '',
+    additionalNotes: '',
+  },
+};
+
 /**
- * Main application component that integrates all functionality
+ * Main application component — thin UI client over the domain IPC API.
+ * All project persistence and context generation run in the main process.
  */
 export const ContextBuilderApp: React.FC = () => {
-  const [formData, setFormData] = useState<CreateProjectData>({
-    name: '',
-    template: '',
-    slice: '',
-    taskFile: '',
-    instruction: 'implementation',
-    workType: 'continue',
-    isMonorepo: false,
-    customData: {
-      recentEvents: '',
-      additionalNotes: ''
-    }
-  });
-
-  // Add persistence state management
+  const [formData, setFormData] = useState<CreateProjectData>(DEFAULT_FORM_DATA);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(false);
   const [multiProjectError, setMultiProjectError] = useState<string | null>(null);
 
-  // Create persistent storage service instance
-  const persistentStore = useMemo(() => {
-    try {
-      return new PersistentProjectStore();
-    } catch (error) {
-      console.error('Failed to initialize persistent storage:', error);
-      return null;
-    }
-  }, []);
+  // Debounce current project id so context:generate isn't called on every keystroke
+  const debouncedProjectId = useDebounce(currentProjectId, 300);
 
-  // Create ProjectManager instance
-  const projectManager = useMemo(() => {
-    if (!persistentStore) return null;
-    try {
-      return new ProjectManager(persistentStore);
-    } catch (error) {
-      console.error('Failed to initialize project manager:', error);
-      return null;
-    }
-  }, [persistentStore]);
+  // Context generation is now a single IPC call to the main process
+  const { contextString, isLoading: isGenerating, error } = useContextGeneration(debouncedProjectId);
 
-  // Create a temporary project object for context generation
-  const tempProject: ProjectData | null = useMemo(() => {
-    // Start generating context when we have project name and slice
-    // Template is optional - use default if not provided
-    const hasRequiredFields = formData.name && formData.slice;
-    
-    if (!hasRequiredFields) {
-      return null;
-    }
-
-    return {
-      id: 'temp',
-      ...formData,
-      template: formData.template || 'default', // Provide default template for non-monorepo
-      taskFile: formData.taskFile || '', // Ensure taskFile is always a string
-      instruction: formData.instruction || 'implementation',
-      workType: formData.workType || 'continue',
-      customData: formData.customData || {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-  }, [formData]);
-
-  // Debounce the project data for smoother real-time updates (300ms delay)
-  const debouncedProject = useDebounce(tempProject, 300);
-
-  // Use the context generation hook
-  const { contextString, isLoading: isGenerating, error } = useContextGeneration(debouncedProject);
-
-  // Load last session on mount (simple, fast)
+  // ── Session Initialization ────────────────────────────────────────────────────
   useEffect(() => {
     const loadLastSession = async () => {
-      if (!projectManager) return;
-
       try {
-        const allProjects = await projectManager.loadAllProjects();
+        const allProjects = await projectApi.list();
         setProjects(allProjects);
-        
+
         if (allProjects.length === 0) {
-          // Create default project for first-time users
-          const newProject = await projectManager.createNewProject();
+          // First launch — create a default project
+          const newProject = await projectApi.create({
+            name: 'New Project',
+            template: '',
+            slice: '',
+            taskFile: '',
+            instruction: 'implementation',
+            workType: 'continue',
+            isMonorepo: false,
+            customData: {},
+          });
           setProjects([newProject]);
           setCurrentProjectId(newProject.id);
-          setFormData({
-            name: newProject.name,
-            template: newProject.template,
-            slice: newProject.slice,
-            taskFile: newProject.taskFile || '',
-            instruction: newProject.instruction,
-            developmentPhase: newProject.developmentPhase,
-            workType: newProject.workType,
-            projectDate: newProject.projectDate,
-            isMonorepo: newProject.isMonorepo,
-            isMonorepoEnabled: newProject.isMonorepoEnabled,
-            projectPath: newProject.projectPath,
-            customData: {
-              recentEvents: '',
-              additionalNotes: '',
-              monorepoNote: '',
-              availableTools: ''
-            },
-          });
+          setFormData(projectToFormData(newProject));
+          await appStateApi.update({ lastActiveProjectId: newProject.id });
 
-          // Update window title for new project
           if (window.electronAPI?.updateWindowTitle) {
             window.electronAPI.updateWindowTitle(newProject.name);
           }
         } else {
-          // Restore last active project
-          const activeProject = await projectManager.getCurrentProject() || allProjects[0];
+          // Restore last active project from app state
+          const appState = await appStateApi.get().catch(() => null);
+          const lastId = appState?.lastActiveProjectId;
+          const activeProject =
+            (lastId && allProjects.find((p) => p.id === lastId)) ?? allProjects[0];
 
           setCurrentProjectId(activeProject.id);
-          const restoredFormData = {
-            name: activeProject.name,
-            template: activeProject.template,
-            slice: activeProject.slice,
-            taskFile: activeProject.taskFile || '',
-            instruction: activeProject.instruction,
-            developmentPhase: activeProject.developmentPhase,
-            workType: activeProject.workType,
-            projectDate: activeProject.projectDate,
-            isMonorepo: activeProject.isMonorepo,
-            isMonorepoEnabled: activeProject.isMonorepoEnabled,
-            projectPath: activeProject.projectPath,
-            customData: {
-              recentEvents: activeProject.customData?.recentEvents || '',
-              additionalNotes: activeProject.customData?.additionalNotes || '',
-              monorepoNote: activeProject.customData?.monorepoNote || '',
-              availableTools: activeProject.customData?.availableTools || ''
-            },
-          };
-          console.log('ContextBuilderApp: Restoring project data:', restoredFormData);
-          setFormData(restoredFormData);
-          
-          // Update window title for restored project
+          setFormData(projectToFormData(activeProject));
+
           if (window.electronAPI?.updateWindowTitle) {
             window.electronAPI.updateWindowTitle(activeProject.name);
           }
         }
-      } catch (error) {
-        console.error('Failed to load project:', error);
+      } catch (e) {
+        console.error('Failed to load session:', e);
       }
     };
 
     loadLastSession();
-  }, [projectManager]);
+  }, []);
 
-  // Simple auto-save on form changes
+  // ── Auto-save on form changes ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!persistentStore || !currentProjectId) return;
+    if (!currentProjectId) return;
 
     const timeoutId = setTimeout(async () => {
       try {
-        await persistentStore.updateProject(currentProjectId, {
+        await projectApi.update(currentProjectId, {
           name: formData.name,
           template: formData.template,
           slice: formData.slice,
@@ -181,257 +109,158 @@ export const ContextBuilderApp: React.FC = () => {
           projectPath: formData.projectPath,
           customData: formData.customData,
         });
-        await persistentStore.setLastActiveProject(currentProjectId);
-      } catch (error) {
-        console.error('Auto-save failed:', error);
+        await appStateApi.update({ lastActiveProjectId: currentProjectId });
+      } catch (e) {
+        console.error('Auto-save failed:', e);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [formData, currentProjectId, persistentStore]);
+  }, [formData, currentProjectId]);
 
-  // Keep refs to latest values so the flush callback is never stale
-  const formDataRef = useRef(formData);
-  const projectIdRef = useRef(currentProjectId);
-  formDataRef.current = formData;
-  projectIdRef.current = currentProjectId;
-
-  // Flush pending saves when the app is about to quit
-  useEffect(() => {
-    if (!persistentStore) return;
-
-    const cleanup = window.electronAPI?.onFlushSave(() => {
-      const data = formDataRef.current;
-      const id = projectIdRef.current;
-      if (!id) return;
-
-      persistentStore.updateProject(id, {
-        name: data.name,
-        template: data.template,
-        slice: data.slice,
-        taskFile: data.taskFile,
-        instruction: data.instruction,
-        developmentPhase: data.developmentPhase,
-        workType: data.workType,
-        projectDate: data.projectDate,
-        isMonorepo: data.isMonorepo,
-        isMonorepoEnabled: data.isMonorepoEnabled,
-        projectPath: data.projectPath,
-        customData: data.customData,
-      }).catch((err) => console.error('Flush save failed:', err));
-    });
-
-    return cleanup;
-  }, [persistentStore]);
-
+  // ── Event Handlers ────────────────────────────────────────────────────────────
   const handleFormChange = useCallback((data: CreateProjectData) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    setFormData((prev) => ({ ...prev, ...data }));
   }, []);
 
-  // Update project name in the projects list
   const updateProjectName = useCallback(() => {
     if (currentProjectId) {
-      setProjects(prev => prev.map(project => 
-        project.id === currentProjectId 
-          ? { ...project, name: formData.name }
-          : project
-      ));
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === currentProjectId ? { ...p, name: formData.name } : p,
+        ),
+      );
     }
   }, [currentProjectId, formData.name]);
 
   const handleCreateProject = useCallback(async () => {
-    // This is now handled by auto-save - keeping for form compatibility
-    console.log('Project auto-saved via persistence layer');
+    console.log('Project auto-saved via IPC persistence layer');
   }, []);
 
-  // Project Management Handlers
-  const handleProjectSwitch = useCallback(async (projectId: string) => {
-    if (!projectManager || projectId === currentProjectId) return;
-    
-    setLoading(true);
-    setMultiProjectError(null);
-    
-    try {
-      const switchedProject = await projectManager.switchToProject(projectId);
-      if (!switchedProject) {
-        throw new Error('Failed to get project data after switch');
+  const handleProjectSwitch = useCallback(
+    async (projectId: string) => {
+      if (projectId === currentProjectId) return;
+
+      setLoading(true);
+      setMultiProjectError(null);
+
+      try {
+        const project = await projectApi.get(projectId);
+        if (!project) throw new Error('Project not found after switch');
+
+        setCurrentProjectId(projectId);
+        setFormData(projectToFormData(project));
+        await appStateApi.update({ lastActiveProjectId: projectId });
+
+        if (window.electronAPI?.updateWindowTitle) {
+          window.electronAPI.updateWindowTitle(project.name);
+        }
+      } catch (e) {
+        console.error('Failed to switch project:', e);
+        setMultiProjectError(
+          `Failed to switch project: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      } finally {
+        setLoading(false);
       }
-      
-      setCurrentProjectId(projectId);
-      
-      // Update form with switched project data
-      setFormData({
-        name: switchedProject.name,
-        template: switchedProject.template,
-        slice: switchedProject.slice,
-        taskFile: switchedProject.taskFile || '',
-        instruction: switchedProject.instruction,
-        developmentPhase: switchedProject.developmentPhase,
-        workType: switchedProject.workType,
-        projectDate: switchedProject.projectDate,
-        isMonorepo: switchedProject.isMonorepo,
-        isMonorepoEnabled: switchedProject.isMonorepoEnabled,
-        projectPath: switchedProject.projectPath,
-        customData: {
-          recentEvents: switchedProject.customData?.recentEvents || '',
-          additionalNotes: switchedProject.customData?.additionalNotes || '',
-          monorepoNote: switchedProject.customData?.monorepoNote || '',
-          availableTools: switchedProject.customData?.availableTools || ''
-        },
-      });
-      
-      // Update window title with project name
-      if (window.electronAPI?.updateWindowTitle) {
-        window.electronAPI.updateWindowTitle(switchedProject.name);
-      }
-      
-      console.log('ContextBuilderApp: Switched to project:', switchedProject.name, 'Template:', switchedProject.template, 'Monorepo:', switchedProject.isMonorepo);
-    } catch (error) {
-      console.error('Failed to switch project:', error);
-      setMultiProjectError(`Failed to switch project: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectManager, currentProjectId]);
+    },
+    [currentProjectId],
+  );
 
   const handleNewProjectCreate = useCallback(async () => {
-    if (!projectManager) return;
-    
     setLoading(true);
     setMultiProjectError(null);
-    
+
     try {
-      const newProject = await projectManager.createNewProject();
-      const updatedProjects = await projectManager.loadAllProjects();
+      const newProject = await projectApi.create({
+        name: generateProjectName(projects),
+        template: formData.template || '',
+        slice: formData.slice || '',
+        taskFile: formData.taskFile || '',
+        instruction: 'implementation',
+        workType: 'continue',
+        isMonorepo: false,
+        projectDate: new Date().toISOString().split('T')[0],
+        customData: { recentEvents: '', additionalNotes: '', monorepoNote: '', availableTools: '' },
+      });
+
+      const updatedProjects = await projectApi.list();
       setProjects(updatedProjects);
       setCurrentProjectId(newProject.id);
-      
-      // Populate new project with current form template/slice for immediate preview
-      const newFormData = {
-        name: newProject.name,
-        template: formData.template || '',  // Inherit from current project
-        slice: formData.slice || '',        // Inherit from current project
-        taskFile: formData.taskFile || '',  // Inherit from current project
-        instruction: newProject.instruction,
-        developmentPhase: formData.developmentPhase || '',  // Inherit from current project
-        workType: formData.workType || newProject.workType,  // Inherit from current project
-        projectDate: new Date().toISOString().split('T')[0],  // Set to today's date (YYYY-MM-DD)
-        isMonorepo: newProject.isMonorepo,
-        isMonorepoEnabled: newProject.isMonorepoEnabled,
-        customData: {
-          recentEvents: '',
-          additionalNotes: '',
-          monorepoNote: '',
-          availableTools: ''
-        },
-      };
-      
-      setFormData(newFormData);
-      
-      // Update window title for new project
+      setFormData(projectToFormData(newProject));
+      await appStateApi.update({ lastActiveProjectId: newProject.id });
+
       if (window.electronAPI?.updateWindowTitle) {
         window.electronAPI.updateWindowTitle(newProject.name);
       }
-      
-      // Update the project with inherited values for immediate save
-      if (formData.template || formData.slice) {
-        setTimeout(async () => {
-          try {
-            await persistentStore?.updateProject(newProject.id, {
-              template: formData.template,
-              slice: formData.slice
-            });
-          } catch (error) {
-            console.error('Failed to update new project with inherited values:', error);
-          }
-        }, 100);
-      }
-    } catch (error) {
-      console.error('Failed to create project:', error);
-      setMultiProjectError(`Failed to create project: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (e) {
+      console.error('Failed to create project:', e);
+      setMultiProjectError(
+        `Failed to create project: ${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       setLoading(false);
     }
-  }, [projectManager, formData.template, formData.slice]);
+  }, [formData.template, formData.slice, formData.taskFile, projects]);
 
-  const handleProjectDelete = useCallback(async (projectId: string) => {
-    if (!projectManager || projects.length <= 1) return;
-    
-    const confirmDelete = window.confirm('Are you sure you want to delete this project? This action cannot be undone.');
-    if (!confirmDelete) return;
-    
-    setLoading(true);
-    setMultiProjectError(null);
-    
-    try {
-      await projectManager.deleteProject(projectId);
-      const updatedProjects = await projectManager.loadAllProjects();
-      setProjects(updatedProjects);
-      
-      // If we deleted the current project, switch to another one
-      if (projectId === currentProjectId && updatedProjects.length > 0) {
-        const newActiveProject = updatedProjects[0];
-        setCurrentProjectId(newActiveProject.id);
-        setFormData({
-          name: newActiveProject.name,
-          template: newActiveProject.template,
-          slice: newActiveProject.slice,
-          taskFile: newActiveProject.taskFile || '',
-          instruction: newActiveProject.instruction,
-          developmentPhase: newActiveProject.developmentPhase,
-          workType: newActiveProject.workType,
-          projectDate: newActiveProject.projectDate,
-          isMonorepo: newActiveProject.isMonorepo,
-          isMonorepoEnabled: newActiveProject.isMonorepoEnabled,
-          projectPath: newActiveProject.projectPath,
-          customData: {
-            recentEvents: newActiveProject.customData?.recentEvents || '',
-            additionalNotes: newActiveProject.customData?.additionalNotes || '',
-            monorepoNote: newActiveProject.customData?.monorepoNote || '',
-            availableTools: newActiveProject.customData?.availableTools || ''
-          },
-        });
+  const handleProjectDelete = useCallback(
+    async (projectId: string) => {
+      if (projects.length <= 1) return;
+
+      const confirmDelete = window.confirm(
+        'Are you sure you want to delete this project? This action cannot be undone.',
+      );
+      if (!confirmDelete) return;
+
+      setLoading(true);
+      setMultiProjectError(null);
+
+      try {
+        await projectApi.delete(projectId);
+        const updatedProjects = await projectApi.list();
+        setProjects(updatedProjects);
+
+        if (projectId === currentProjectId && updatedProjects.length > 0) {
+          const next = updatedProjects[0];
+          setCurrentProjectId(next.id);
+          setFormData(projectToFormData(next));
+          await appStateApi.update({ lastActiveProjectId: next.id });
+        }
+      } catch (e) {
+        console.error('Failed to delete project:', e);
+        setMultiProjectError(
+          `Failed to delete project: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to delete project:', error);
-      setMultiProjectError(`Failed to delete project: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectManager, projects.length, currentProjectId]);
+    },
+    [projects.length, currentProjectId],
+  );
 
-  // Get current project object
-  const currentProject = useMemo(() => {
-    return currentProjectId ? projects.find(p => p.id === currentProjectId) ?? null : null;
-  }, [currentProjectId, projects]);
+  const currentProject = projects.find((p) => p.id === currentProjectId) ?? null;
 
-  // Callback to update project settings
-  const handleProjectUpdate = useCallback(async (updates: Partial<ProjectData>) => {
-    if (!currentProject) return;
+  const handleProjectUpdate = useCallback(
+    async (updates: Partial<ProjectData>) => {
+      if (!currentProject) return;
+      const updatedFormData = { ...formData, ...updates };
+      setFormData(updatedFormData);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === currentProjectId ? { ...p, ...updates } : p)),
+      );
+      handleFormChange(updatedFormData);
+    },
+    [currentProject, formData, handleFormChange, currentProjectId],
+  );
 
-    const updatedFormData = {
-      ...formData,
-      ...updates
-    };
-
-    setFormData(updatedFormData);
-
-    // Update the projects array to reflect the changes immediately
-    setProjects(prev => prev.map(project =>
-      project.id === currentProjectId
-        ? { ...project, ...updates }
-        : project
-    ));
-
-    // Trigger form change handler to update output preview and persist changes
-    handleFormChange(updatedFormData);
-  }, [currentProject, formData, handleFormChange, currentProjectId]);
-
+  // ── Render ────────────────────────────────────────────────────────────────────
   const leftPanelContent = (
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-neutral-12 ml-[calc(var(--radius)*0.25)]">Project Configuration</h2>
+          <h2 className="text-xl font-semibold text-neutral-12 ml-[calc(var(--radius)*0.25)]">
+            Project Configuration
+          </h2>
           <SettingsButton
             className="mr-[calc(var(--radius)*0.25)]"
             currentProject={currentProject}
@@ -458,16 +287,31 @@ export const ContextBuilderApp: React.FC = () => {
   const rightPanelContent = (
     <div className="flex flex-col h-full space-y-4">
       {error && (
-        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="assertive">
+        <div
+          className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-md"
+          role="alert"
+          aria-live="assertive"
+        >
           <p className="text-sm text-red-700 flex items-center">
-            <svg className="mr-2 h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="mr-2 h-4 w-4 text-red-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             Error: {error}
           </p>
         </div>
       )}
-      
+
       <div className="flex-grow relative min-h-0">
         <ContextOutput
           context={contextString}
@@ -476,9 +320,25 @@ export const ContextBuilderApp: React.FC = () => {
         />
         {isGenerating && (
           <div className="absolute top-2 right-2 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs flex items-center">
-            <svg className="animate-spin -ml-1 mr-1 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin -ml-1 mr-1 h-3 w-3"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
             </svg>
             Updating...
           </div>
@@ -487,10 +347,38 @@ export const ContextBuilderApp: React.FC = () => {
     </div>
   );
 
-  return (
-    <SplitPaneLayout
-      leftContent={leftPanelContent}
-      rightContent={rightPanelContent}
-    />
-  );
+  return <SplitPaneLayout leftContent={leftPanelContent} rightContent={rightPanelContent} />;
 };
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function projectToFormData(project: ProjectData): CreateProjectData {
+  return {
+    name: project.name,
+    template: project.template,
+    slice: project.slice,
+    taskFile: project.taskFile || '',
+    instruction: project.instruction,
+    developmentPhase: project.developmentPhase,
+    workType: project.workType,
+    projectDate: project.projectDate,
+    isMonorepo: project.isMonorepo,
+    isMonorepoEnabled: project.isMonorepoEnabled,
+    projectPath: project.projectPath,
+    customData: {
+      recentEvents: project.customData?.recentEvents || '',
+      additionalNotes: project.customData?.additionalNotes || '',
+      monorepoNote: project.customData?.monorepoNote || '',
+      availableTools: project.customData?.availableTools || '',
+    },
+  };
+}
+
+function generateProjectName(existingProjects: ProjectData[]): string {
+  const baseName = 'New Project';
+  const existingNames = existingProjects.map((p) => p.name);
+  if (!existingNames.includes(baseName)) return baseName;
+  let counter = 2;
+  while (existingNames.includes(`${baseName} ${counter}`)) counter++;
+  return `${baseName} ${counter}`;
+}
