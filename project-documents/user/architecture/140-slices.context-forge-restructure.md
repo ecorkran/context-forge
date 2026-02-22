@@ -35,7 +35,7 @@ dateUpdated: 20260217
 
 8. [x] **MCP Server — State Update Tools** — Add `context_summarize` (update project summary / recent events) and any remaining state mutation tools needed for the agent workflow. This completes the MCP server's tool surface for the v2 scope. Dependencies: [MCP Server — Context Tools]. Risk: Low. Effort: 2/5
 
-9. [ ] **Electron Client Conversion** — Rewire the Electron app to consume `packages/core` directly (replacing internal service implementations and eliminating the IPC wrappers). The renderer no longer needs `SystemPromptParserIPC` or `StatementManagerIPC` — it uses core services through the main process or through a simplified IPC layer that delegates to core. The app continues to function as before from a user perspective, but is now a thin client over core. Dependencies: [Core Orchestration Extraction, Storage Migration]. Risk: Medium. Effort: 3/5
+9. [x] **Electron Client Conversion** — Rewire the Electron app to consume `packages/core` directly (replacing internal service implementations and eliminating the IPC wrappers). The renderer no longer needs `SystemPromptParserIPC` or `StatementManagerIPC` — it uses core services through the main process or through a simplified IPC layer that delegates to core. The app continues to function as before from a user perspective, but is now a thin client over core. Dependencies: [Core Orchestration Extraction, Storage Migration]. Risk: Medium. Effort: 3/5
 
    *Note: This slice makes Electron a core client, not an MCP client. MCP client integration (Electron connecting to a running MCP server) is a future enhancement. For v2, the Electron app uses core directly — which is the graceful degradation path described in the architecture doc.*
 
