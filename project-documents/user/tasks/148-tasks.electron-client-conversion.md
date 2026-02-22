@@ -98,72 +98,72 @@ dateUpdated: 20260221
 ## Phase 2: Preload and Renderer API
 
 ### Task 9: Update preload script with new IPC channels
-- [ ] Modify `packages/electron/src/preload/preload.ts`
-  - [ ] Add new channel bindings via `contextBridge.exposeInMainWorld`:
-    - `project: { list, get, create, update, delete }` — each calls `ipcRenderer.invoke('project:...')`
-    - `context: { generate }` — calls `ipcRenderer.invoke('context:generate', ...)`
-    - `appState: { get, update }` — calls `ipcRenderer.invoke('app-state:...')`
-  - [ ] Keep existing bindings intact for now (old and new coexist)
-  - [ ] **Success:** Preload exposes both old and new API surfaces. Build passes.
+- [x] Modify `packages/electron/src/preload/preload.ts`
+  - [x] Add new channel bindings via `contextBridge.exposeInMainWorld`:
+    - [x] `project: { list, get, create, update, delete }` — each calls `ipcRenderer.invoke('project:...')`
+    - [x] `context: { generate }` — calls `ipcRenderer.invoke('context:generate', ...)`
+    - [x] `appState: { get, update }` — calls `ipcRenderer.invoke('app-state:...')`
+  - [x] Keep existing bindings intact for now (old and new coexist)
+  - [x] **Success:** Preload exposes both old and new API surfaces. Build passes.
 
 ### Task 10: Create renderer-side API module (`services/api.ts`)
-- [ ] Create `packages/electron/src/services/api.ts`
-  - [ ] Define typed API objects: `projectApi`, `contextApi`, `appStateApi`
-  - [ ] Each method calls through `window.electronAPI.project.*`, `window.electronAPI.context.*`, `window.electronAPI.appState.*`
-  - [ ] Import types from `@context-forge/core` (`ProjectData`, `CreateProjectData`, `UpdateProjectData`)
-  - [ ] Define `ContextOverrides` type (import or re-export from contextHandlers if shared, or define locally)
-  - [ ] Update global type declarations for `window.electronAPI` to include new API surface (likely in `StorageClient.ts` or a dedicated `.d.ts` — check current location)
-  - [ ] **Success:** `api.ts` compiles with full type safety. No runtime usage yet.
+- [x] Create `packages/electron/src/services/api.ts`
+  - [x] Define typed API objects: `projectApi`, `contextApi`, `appStateApi`
+  - [x] Each method calls through `window.electronAPI.project.*`, `window.electronAPI.context.*`, `window.electronAPI.appState.*`
+  - [x] Import types from `@context-forge/core` (`ProjectData`, `CreateProjectData`, `UpdateProjectData`)
+  - [x] Define `ContextOverrides` type (import or re-export from contextHandlers if shared, or define locally)
+  - [x] Update global type declarations for `window.electronAPI` to include new API surface (likely in `StorageClient.ts` or a dedicated `.d.ts` — check current location)
+  - [x] **Success:** `api.ts` compiles with full type safety. No runtime usage yet.
 
 ### Task 11: Commit Phase 2
-- [ ] Git add and commit Phase 2 files (preload changes, api.ts)
-  - [ ] **Success:** Clean commit, build passes
+- [x] Git add and commit Phase 2 files (preload changes, api.ts)
+  - [x] **Success:** Clean commit, build passes
 
 ---
 
 ## Phase 3: Consumer Migration
 
 ### Task 12: Migrate `useContextGeneration` hook
-- [ ] Modify `packages/electron/src/hooks/useContextGeneration.ts`
-  - [ ] Replace import of `createSystemPromptParser`, `createStatementManager` from `ServiceFactory` with import of `contextApi` from `services/api`
-  - [ ] Remove imports of `ContextTemplateEngine`, `ContextIntegrator`, `SectionBuilder` from core (no longer used in renderer)
-  - [ ] Simplify hook: single `contextApi.generate(projectId, overrides)` call replaces local pipeline orchestration
-  - [ ] Maintain same return interface: `{ contextString, isLoading, error, regenerate }`
-  - [ ] Hook signature changes from accepting project data to accepting `projectId: string | null`
-  - [ ] **Success:** Hook compiles, same return type, uses IPC instead of local orchestration
+- [x] Modify `packages/electron/src/hooks/useContextGeneration.ts`
+  - [x] Replace import of `createSystemPromptParser`, `createStatementManager` from `ServiceFactory` with import of `contextApi` from `services/api`
+  - [x] Remove imports of `ContextTemplateEngine`, `ContextIntegrator`, `SectionBuilder` from core (no longer used in renderer)
+  - [x] Simplify hook: single `contextApi.generate(projectId, overrides)` call replaces local pipeline orchestration
+  - [x] Maintain same return interface: `{ contextString, isLoading, error, regenerate }`
+  - [x] Hook signature changes from accepting project data to accepting `projectId: string | null`
+  - [x] **Success:** Hook compiles, same return type, uses IPC instead of local orchestration
 
 ### Task 13: Test `useContextGeneration` hook
-- [ ] Create or update test at `packages/electron/tests/unit/hooks/useContextGeneration.test.ts`
-  - [ ] Mock `window.electronAPI.context.generate` via vi.fn()
-  - [ ] Test loading state transitions: idle → loading → success
-  - [ ] Test error state: mock rejects → error string populated
-  - [ ] Test regenerate with overrides: verify overrides passed through
-  - [ ] Test null projectId: regenerate is no-op
-  - [ ] **Success:** All tests pass
+- [x] Create or update test at `packages/electron/tests/unit/hooks/useContextGeneration.test.ts`
+  - [x] Mock `window.electronAPI.context.generate` via vi.fn()
+  - [x] Test loading state transitions: idle → loading → success
+  - [x] Test error state: mock rejects → error string populated
+  - [x] Test regenerate with overrides: verify overrides passed through
+  - [x] Test null projectId: regenerate is no-op
+  - [x] **Success:** All tests pass
 
 ### Task 14: Migrate `ContextBuilderApp.tsx` — replace ProjectManager and PersistentProjectStore
-- [ ] Modify `packages/electron/src/components/ContextBuilderApp.tsx`
-  - [ ] Replace `PersistentProjectStore` import with `projectApi` and `appStateApi` from `services/api`
-  - [ ] Replace `ProjectManager` import with direct `projectApi` calls
-  - [ ] Update project loading: `projectApi.list()` instead of `projectManager.loadAllProjects()`
-  - [ ] Update project creation: `projectApi.create(data)` instead of `projectManager.createNewProject(data)`
-  - [ ] Update project switching: `projectApi.get(id)` + `appStateApi.update({ lastActiveProjectId: id })` instead of `projectManager.switchToProject(id)`
-  - [ ] Update project deletion: `projectApi.delete(id)` instead of `projectManager.deleteProject(id)`
-  - [ ] Update project updates/auto-save: `projectApi.update(id, changes)` instead of `persistentStore.saveProject(project)`
-  - [ ] Update app state: `appStateApi.get()` / `appStateApi.update()` instead of `persistentStore.getAppState()` / `persistentStore.updateAppState()`
-  - [ ] Update `useContextGeneration` call to pass `projectId` instead of full project data
-  - [ ] Evaluate `app:flush-save` handler: if all writes are `await`ed IPC calls, flush may be unnecessary. Remove or simplify.
-  - [ ] **Success:** Component compiles, all project workflows function via new API
+- [x] Modify `packages/electron/src/components/ContextBuilderApp.tsx`
+  - [x] Replace `PersistentProjectStore` import with `projectApi` and `appStateApi` from `services/api`
+  - [x] Replace `ProjectManager` import with direct `projectApi` calls
+  - [x] Update project loading: `projectApi.list()` instead of `projectManager.loadAllProjects()`
+  - [x] Update project creation: `projectApi.create(data)` instead of `projectManager.createNewProject(data)`
+  - [x] Update project switching: `projectApi.get(id)` + `appStateApi.update({ lastActiveProjectId: id })` instead of `projectManager.switchToProject(id)`
+  - [x] Update project deletion: `projectApi.delete(id)` instead of `projectManager.deleteProject(id)`
+  - [x] Update project updates/auto-save: `projectApi.update(id, changes)` instead of `persistentStore.saveProject(project)`
+  - [x] Update app state: `appStateApi.get()` / `appStateApi.update()` instead of `persistentStore.getAppState()` / `persistentStore.updateAppState()`
+  - [x] Update `useContextGeneration` call to pass `projectId` instead of full project data
+  - [x] Evaluate `app:flush-save` handler: if all writes are `await`ed IPC calls, flush may be unnecessary. Remove or simplify.
+  - [x] **Success:** Component compiles, all project workflows function via new API
 
 ### Task 15: Verify build and run behavioral parity check
-- [ ] Run `pnpm build` — must succeed
-- [ ] Run all existing tests — note any failures from updated interfaces
-  - [ ] Fix test failures caused by interface changes in ContextBuilderApp or useContextGeneration
-  - [ ] **Success:** Build succeeds, all non-deleted-module tests pass
+- [x] Run `pnpm build` — must succeed
+- [x] Run all existing tests — note any failures from updated interfaces
+  - [x] Fix test failures caused by interface changes in ContextBuilderApp or useContextGeneration
+  - [x] **Success:** Build succeeds, all non-deleted-module tests pass
 
 ### Task 16: Commit Phase 3
-- [ ] Git add and commit Phase 3 files
-  - [ ] **Success:** Clean commit, build passes
+- [x] Git add and commit Phase 3 files
+  - [x] **Success:** Clean commit, build passes
 
 ---
 

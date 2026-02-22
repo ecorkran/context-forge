@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url'
 import { URL } from 'node:url'
 import { join } from 'node:path'
 import { readdir, stat } from 'node:fs/promises'
-import { setupContextServiceHandlers } from './ipc/contextServices'
 import { setupProjectPathHandlers } from './ipc/projectPathHandlers'
 import { registerProjectHandlers } from './ipc/projectHandlers'
 import { registerContextHandlers } from './ipc/contextHandlers'
@@ -22,7 +21,7 @@ function isAllowedUrl(target: string): boolean {
   try {
     const u = new URL(target)
     return u.protocol === 'https:' && (
-      u.hostname === 'github.com' || 
+      u.hostname === 'github.com' ||
       u.hostname === 'docs.anthropic.com' ||
       u.hostname.endsWith('.github.io')
     )
@@ -39,122 +38,24 @@ let projectStore: FileProjectStore | null = null;
  * Register all IPC handlers. Called once at app startup — never per-window.
  */
 function setupIpcHandlers(): void {
-  ipcMain.handle('ping', () => {
-    return 'pong'
-  })
+  ipcMain.handle('ping', () => 'pong')
 
-  ipcMain.handle('get-app-version', () => {
-    return app.getVersion()
-  })
+  ipcMain.handle('get-app-version', () => app.getVersion())
 
   ipcMain.handle('update-window-title', (_, projectName?: string) => {
     if (!mainWindow) return
-
-    const title = projectName
-      ? `Context Forge Pro - ${projectName}`
-      : 'Context Forge Pro'
-
-    mainWindow.setTitle(title)
+    mainWindow.setTitle(
+      projectName ? `Context Forge Pro - ${projectName}` : 'Context Forge Pro',
+    )
   })
 
-  // Storage IPC handlers — delegate to core's FileStorageService
-
-  ipcMain.handle('storage:read', async (_, filename: string) => {
-    try {
-      const result = await storageService!.read(filename)
-      return {
-        success: true,
-        data: result.data,
-        recovered: result.recovered,
-        message: result.message,
-      }
-    } catch (error) {
-      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return { success: false, error: 'File not found', notFound: true }
-      }
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  })
-
-  ipcMain.handle('storage:write', async (_, filename: string, data: string) => {
-    try {
-      await storageService!.write(filename, data)
-      return { success: true }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  })
-
-  ipcMain.handle('storage:backup', async (_, filename: string) => {
-    try {
-      await storageService!.createBackup(filename)
-      return { success: true }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  })
-
-  ipcMain.handle('storage:list-backups', async (_, filename: string) => {
-    try {
-      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        throw new Error('Invalid filename')
-      }
-
-      const sp = getStoragePath()
-      const entries = await readdir(sp)
-
-      // Match versioned backups: {filename}.{timestamp}.backup
-      const versionedPattern = `${filename}.`
-      const backups: Array<{ name: string; timestamp: string; size: number }> = []
-
-      for (const entry of entries) {
-        if (entry.startsWith(versionedPattern) && entry.endsWith('.backup') && entry !== `${filename}.backup`) {
-          // Extract timestamp from: {filename}.{timestamp}.backup
-          const tsStart = versionedPattern.length
-          const tsEnd = entry.length - '.backup'.length
-          const timestamp = entry.substring(tsStart, tsEnd)
-
-          try {
-            const info = await stat(join(sp, entry))
-            backups.push({ name: entry, timestamp, size: info.size })
-          } catch {
-            backups.push({ name: entry, timestamp, size: 0 })
-          }
-        }
-      }
-
-      // Newest first
-      backups.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-
-      return { success: true, backups }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  })
-
-  // Setup service-specific IPC handlers (legacy channels — kept for coexistence)
-  setupContextServiceHandlers()
+  // Project path handlers (kept — used by SettingsDialog for folder picker and path validation)
   setupProjectPathHandlers()
 
-  // Register new domain-level IPC handlers (Phase 1 of electron-client-conversion)
-  if (projectStore && storageService) {
-    registerProjectHandlers(projectStore)
-    registerContextHandlers(projectStore)
-    registerAppStateHandlers(storageService)
-    console.log('Domain IPC handlers registered (project:*, context:generate, app-state:*)')
-  }
+  // Domain-level IPC handlers — delegate to @context-forge/core
+  registerProjectHandlers(projectStore!)
+  registerContextHandlers(projectStore!)
+  registerAppStateHandlers(storageService!)
 
   console.log('All IPC handlers registered')
 }
@@ -200,7 +101,7 @@ app.whenReady().then(() => {
   process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'true'
   storageService = new FileStorageService(getStoragePath())
   projectStore = new FileProjectStore()
-  
+
   // Create simplified application menu for macOS compatibility
   const template = [
     // This special role makes a proper "App" menu on macOS (About, Services, Hide, Quit, etc.)
@@ -274,35 +175,29 @@ app.whenReady().then(() => {
       })
     })
   }
-  
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Flush pending saves before quit — renderer has a 500ms debounce that could
-// lose data if the app exits within that window. Send a signal and wait briefly
-// for the renderer to acknowledge it has persisted.
+// Create versioned exit backup before quit — FileProjectStore writes are atomic
+// and immediately persisted, so no renderer flush signal is needed.
 app.on('before-quit', (event) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    // Only block once — prevent infinite loop if renderer never responds
-    if (!(app as any).__flushRequested) {
-      (app as any).__flushRequested = true
-      event.preventDefault()
-      mainWindow.webContents.send('app:flush-save')
-      // Give renderer up to 1 second to flush, then create exit backup and quit
-      setTimeout(async () => {
-        const sp = getStoragePath()
-        for (const file of VERSIONED_BACKUP_FILES) {
-          try {
-            await createVersionedBackup(sp, file)
-          } catch (err) {
-            console.error(`Exit backup failed for ${file}:`, err)
-          }
+  if (!(app as { __backupRequested?: boolean }).__backupRequested) {
+    (app as { __backupRequested?: boolean }).__backupRequested = true
+    event.preventDefault()
+    ;(async () => {
+      const sp = getStoragePath()
+      for (const file of VERSIONED_BACKUP_FILES) {
+        try {
+          await createVersionedBackup(sp, file)
+        } catch (err) {
+          console.error(`Exit backup failed for ${file}:`, err)
         }
-        app.quit()
-      }, 1000)
-    }
+      }
+      app.quit()
+    })()
   }
 })
 

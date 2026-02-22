@@ -6,18 +6,27 @@ global.window = global.window || {};
 const mockElectronAPI = {
   ping: vi.fn().mockResolvedValue('pong'),
   getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
-  storage: {
-    read: vi.fn(),
-    write: vi.fn(),
-    backup: vi.fn(),
-    listBackups: vi.fn(),
+  updateWindowTitle: vi.fn().mockResolvedValue(undefined),
+  project: {
+    list: vi.fn(),
+    get: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  context: {
+    generate: vi.fn(),
+  },
+  appState: {
+    get: vi.fn(),
+    update: vi.fn(),
   },
   projectPath: {
     validate: vi.fn(),
     healthCheck: vi.fn(),
     listDirectory: vi.fn(),
     pickFolder: vi.fn(),
-  }
+  },
 }
 
 // @ts-ignore
