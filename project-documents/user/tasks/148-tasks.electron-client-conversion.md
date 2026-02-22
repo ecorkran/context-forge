@@ -90,8 +90,8 @@ dateUpdated: 20260221
   - [x] **Success:** `pnpm build` succeeds across workspace. App launches and old functionality still works. New handlers are registered (verifiable via logs or a simple test).
 
 ### Task 8: Commit Phase 1
-- [ ] Git add and commit all Phase 1 files (new handlers, tests, main.ts changes)
-  - [ ] **Success:** Clean commit with all Phase 1 work, build passes
+- [x] Git add and commit all Phase 1 files (new handlers, tests, main.ts changes)
+  - [x] **Success:** Clean commit with all Phase 1 work, build passes
 
 ---
 
@@ -170,46 +170,46 @@ dateUpdated: 20260221
 ## Phase 4: Cleanup
 
 ### Task 17: Delete obsolete renderer service files
-- [ ] Delete the following files from `packages/electron/src/`:
-  - [ ] `services/storage/StorageClient.ts`
-  - [ ] `services/storage/ElectronStorageService.ts`
-  - [ ] `services/storage/PersistentProjectStore.ts`
-  - [ ] `services/storage/StorageService.ts`
-  - [ ] `services/project/ProjectManager.ts`
-  - [ ] `services/context/StatementManagerIPC.ts`
-  - [ ] `services/context/SystemPromptParserIPC.ts`
-  - [ ] `services/context/ServiceFactory.ts`
-- [ ] Update or replace `services/context/index.ts` — if any re-exports from core are still needed by other renderer files, keep only those. Otherwise delete.
-- [ ] Verify no remaining imports reference deleted files (TypeScript build will catch this)
-- [ ] **Success:** Files deleted, `pnpm build` succeeds
+- [x] Delete the following files from `packages/electron/src/`:
+  - [x] `services/storage/StorageClient.ts`
+  - [x] `services/storage/ElectronStorageService.ts`
+  - [x] `services/storage/PersistentProjectStore.ts`
+  - [x] `services/storage/StorageService.ts`
+  - [x] `services/project/ProjectManager.ts`
+  - [x] `services/context/StatementManagerIPC.ts`
+  - [x] `services/context/SystemPromptParserIPC.ts`
+  - [x] `services/context/ServiceFactory.ts`
+- [x] Update or replace `services/context/index.ts` — if any re-exports from core are still needed by other renderer files, keep only those. Otherwise delete.
+- [x] Verify no remaining imports reference deleted files (TypeScript build will catch this)
+- [x] **Success:** Files deleted, `pnpm build` succeeds
 
 ### Task 18: Delete obsolete test files
-- [ ] Delete test files for removed modules from `packages/electron/tests/`:
-  - [ ] `unit/services/storage/StorageClient.test.ts`
-  - [ ] `unit/services/storage/ElectronStorageService.test.ts`
-  - [ ] `unit/services/storage/integration.test.ts` (if it tests old storage stack)
-  - [ ] `unit/services/project/ProjectManager.test.ts`
-  - [ ] `unit/services/context/IPCIntegration.test.ts` (if it tests old IPC wrappers)
-- [ ] Review remaining test files: `ContextGenerator.test.ts`, `ContextIntegrator.test.ts`, `TemplateProcessor.test.ts` — these test core services and may still be valid if they import from `@context-forge/core`. Keep if passing, update imports if needed.
-- [ ] **Success:** No test references to deleted modules, `pnpm test:run` passes for remaining tests
+- [x] Delete test files for removed modules from `packages/electron/tests/`:
+  - [x] `unit/services/storage/StorageClient.test.ts`
+  - [x] `unit/services/storage/ElectronStorageService.test.ts`
+  - [x] `unit/services/storage/integration.test.ts` (if it tests old storage stack)
+  - [x] `unit/services/project/ProjectManager.test.ts`
+  - [x] `unit/services/context/IPCIntegration.test.ts` (if it tests old IPC wrappers)
+- [x] Review remaining test files: `ContextGenerator.test.ts`, `ContextIntegrator.test.ts`, `TemplateProcessor.test.ts` — these test core services and may still be valid if they import from `@context-forge/core`. Keep if passing, update imports if needed.
+- [x] **Success:** No test references to deleted modules, `pnpm test:run` passes for remaining tests
 
 ### Task 19: Remove old IPC handlers and preload bindings
-- [ ] Remove old IPC handlers from `main.ts` or `contextServices.ts`:
-  - [ ] `storage:read`, `storage:write`, `storage:backup`, `storage:list-backups` handlers
-  - [ ] `statements:load`, `statements:save`, `statements:get`, `statements:update` handlers
-  - [ ] `systemPrompts:parse`, `systemPrompts:getContextInit`, `systemPrompts:getToolUse`, `systemPrompts:getForInstruction` handlers
-- [ ] Delete `src/main/ipc/contextServices.ts` if all its handlers are removed
-- [ ] Remove old channel bindings from `preload.ts` (the `storage`, `statements`, `systemPrompts` sections)
-- [ ] Clean up global type declarations: remove old `window.electronAPI` shape for deleted channels
-- [ ] **Success:** Only new domain-level IPC channels remain. Build passes.
+- [x] Remove old IPC handlers from `main.ts` or `contextServices.ts`:
+  - [x] `storage:read`, `storage:write`, `storage:backup`, `storage:list-backups` handlers
+  - [x] `statements:load`, `statements:save`, `statements:get`, `statements:update` handlers
+  - [x] `systemPrompts:parse`, `systemPrompts:getContextInit`, `systemPrompts:getToolUse`, `systemPrompts:getForInstruction` handlers
+- [x] Delete `src/main/ipc/contextServices.ts` if all its handlers are removed
+- [x] Remove old channel bindings from `preload.ts` (the `storage`, `statements`, `systemPrompts` sections)
+- [x] Clean up global type declarations: remove old `window.electronAPI` shape for deleted channels
+- [x] **Success:** Only new domain-level IPC channels remain. Build passes.
 
 ### Task 20: Final verification and commit
-- [ ] Run `pnpm build` across full workspace
-- [ ] Run `pnpm --filter @context-forge/electron test:run` — all remaining tests pass
-- [ ] Verify success criteria from slice design:
-  - [ ] No renderer code imports from `@context-forge/core/node`
-  - [ ] All IPC channels are domain-level operations
-  - [ ] `StatementManagerIPC`, `SystemPromptParserIPC`, `ServiceFactory`, `ElectronStorageService`, `PersistentProjectStore`, `StorageClient`, `ProjectManager` are deleted
-  - [ ] Unit tests exist for all new IPC handler modules
-- [ ] Git add and commit cleanup
-  - [ ] **Success:** Clean commit, build passes, all tests pass, slice complete
+- [x] Run `pnpm build` across full workspace
+- [x] Run `pnpm --filter @context-forge/electron test:run` — all remaining tests pass
+- [x] Verify success criteria from slice design:
+  - [x] No renderer code imports from `@context-forge/core/node`
+  - [x] All IPC channels are domain-level operations
+  - [x] `StatementManagerIPC`, `SystemPromptParserIPC`, `ServiceFactory`, `ElectronStorageService`, `PersistentProjectStore`, `StorageClient`, `ProjectManager` are deleted
+  - [x] Unit tests exist for all new IPC handler modules
+- [x] Git add and commit cleanup
+  - [x] **Success:** Clean commit, build passes, all tests pass, slice complete
