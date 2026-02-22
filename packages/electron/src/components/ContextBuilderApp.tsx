@@ -6,7 +6,6 @@ import { SettingsButton } from './settings/SettingsButton';
 import { projectApi, appStateApi } from '../services/api';
 import type { CreateProjectData, ProjectData } from '@context-forge/core';
 import { useContextGeneration } from '../hooks/useContextGeneration';
-import { useDebounce } from '../hooks/useDebounce';
 
 /** Default form values for a new project */
 const DEFAULT_FORM_DATA: CreateProjectData = {
@@ -34,11 +33,8 @@ export const ContextBuilderApp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [multiProjectError, setMultiProjectError] = useState<string | null>(null);
 
-  // Debounce current project id so context:generate isn't called on every keystroke
-  const debouncedProjectId = useDebounce(currentProjectId, 300);
-
   // Context generation is now a single IPC call to the main process
-  const { contextString, isLoading: isGenerating, error } = useContextGeneration(debouncedProjectId);
+  const { contextString, isLoading: isGenerating, error, regenerate } = useContextGeneration(currentProjectId);
 
   // ── Session Initialization ────────────────────────────────────────────────────
   useEffect(() => {
@@ -89,7 +85,7 @@ export const ContextBuilderApp: React.FC = () => {
     loadLastSession();
   }, []);
 
-  // ── Auto-save on form changes ─────────────────────────────────────────────────
+  // ── Auto-save on form changes, then regenerate context ───────────────────────
   useEffect(() => {
     if (!currentProjectId) return;
 
@@ -110,13 +106,14 @@ export const ContextBuilderApp: React.FC = () => {
           customData: formData.customData,
         });
         await appStateApi.update({ lastActiveProjectId: currentProjectId });
+        regenerate();
       } catch (e) {
         console.error('Auto-save failed:', e);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [formData, currentProjectId]);
+  }, [formData, currentProjectId, regenerate]);
 
   // ── Event Handlers ────────────────────────────────────────────────────────────
   const handleFormChange = useCallback((data: CreateProjectData) => {
