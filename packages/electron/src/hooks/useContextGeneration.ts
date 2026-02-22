@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { contextApi } from '../services/api';
 import type { ContextOverrides } from '../main/ipc/contextHandlers';
 
@@ -35,6 +35,11 @@ export const useContextGeneration = (projectId: string | null): UseContextGenera
       setIsLoading(false);
     }
   }, [projectId]);
+
+  // Auto-generate whenever the active project changes
+  useEffect(() => {
+    regenerate();
+  }, [regenerate]);
 
   return { contextString, isLoading, error, regenerate };
 };
