@@ -6,7 +6,7 @@ dependencies: [150-mcp-integration-test]
 projectState: Slices 140-150 complete. Monorepo restructure done. Core has 224 tests, MCP server has 56 tests (31 unit + 25 integration), Electron has 106 tests. All 8 MCP tools implemented and tested. No package READMEs exist. Both packages have "private":true. Root README is outdated (says MCP server is "scaffolded, not yet functional").
 dateCreated: 20260223
 dateUpdated: 20260223
-status: not started
+status: complete
 ---
 
 ## Context Summary
@@ -25,23 +25,23 @@ status: not started
 
 ### Phase 1: Tool Reference Documentation
 
-- [ ] **Task 1: Create `docs/TOOLS.md` — full tool reference** (Effort: 2/5)
+- [x] **Task 1: Create `docs/TOOLS.md` — full tool reference** (Effort: 2/5)
   - Create `docs/TOOLS.md` with detailed parameter reference for all 8 MCP tools
   - For each tool, document: name, title, description, parameters table (name, type, required/optional, description), and a brief usage scenario
   - Tool order: `project_list`, `project_get`, `project_update`, `context_build`, `template_preview`, `prompt_list`, `prompt_get`, `context_summarize`
   - Source tool descriptions and parameter schemas from `packages/mcp-server/src/tools/` source files (do not guess — read the actual registrations)
-  - [ ] All 8 tools documented with complete parameter tables
-  - [ ] Descriptions match the actual tool registration descriptions in source
-  - [ ] File is valid markdown with consistent formatting
+  - [x] All 8 tools documented with complete parameter tables
+  - [x] Descriptions match the actual tool registration descriptions in source
+  - [x] File is valid markdown with consistent formatting
 
-- [ ] **Task 2: Commit — tool reference** (Effort: 1/5)
+- [x] **Task 2: Commit — tool reference** (Effort: 1/5)
   - Stage `docs/TOOLS.md`
   - Verify `pnpm build` passes
-  - [ ] Clean commit with descriptive message
+  - [x] Clean commit with descriptive message
 
 ### Phase 2: MCP Server README
 
-- [ ] **Task 3: Create `packages/mcp-server/README.md`** (Effort: 3/5)
+- [x] **Task 3: Create `packages/mcp-server/README.md`** (Effort: 3/5)
   - Create the primary adoption-facing README per the slice design content outline
   - Sections (in order):
     1. **Title + one-liner**: `context-forge-mcp` — MCP server that generates structured context prompts for AI coding sessions
@@ -56,20 +56,20 @@ status: not started
     10. **License**: MIT
   - Tone: informative and readable, not a terse man page. A developer skimming should understand the value in 30 seconds
   - MCP config JSON examples must be valid and copy-pasteable
-  - [ ] README exists at `packages/mcp-server/README.md`
-  - [ ] Contains all 10 sections listed above
-  - [ ] Claude Code and Cursor config examples are valid JSON
-  - [ ] Tool overview table lists all 8 tools
-  - [ ] Links to `docs/TOOLS.md` for detailed reference
-  - [ ] Mentions ai-project-guide dependency with link and bootstrap command
+  - [x] README exists at `packages/mcp-server/README.md`
+  - [x] Contains all 10 sections listed above
+  - [x] Claude Code and Cursor config examples are valid JSON
+  - [x] Tool overview table lists all 8 tools
+  - [x] Links to `docs/TOOLS.md` for detailed reference
+  - [x] Mentions ai-project-guide dependency with link and bootstrap command
 
-- [ ] **Task 4: Commit — MCP server README** (Effort: 1/5)
+- [x] **Task 4: Commit — MCP server README** (Effort: 1/5)
   - Stage `packages/mcp-server/README.md`
-  - [ ] Clean commit with descriptive message
+  - [x] Clean commit with descriptive message
 
 ### Phase 3: Core Package README
 
-- [ ] **Task 5: Create `packages/core/README.md`** (Effort: 2/5)
+- [x] **Task 5: Create `packages/core/README.md`** (Effort: 2/5)
   - Create a developer/contributor-focused README for `@context-forge/core`
   - Sections:
     1. **Title + one-liner**: `@context-forge/core` — context generation engine for Context Forge
@@ -79,18 +79,18 @@ status: not started
     5. **Usage in the monorepo**: How MCP server and Electron both depend on core
     6. **License**: MIT
   - Tone: concise and technical — audience is developers reading source, not end users
-  - [ ] README exists at `packages/core/README.md`
-  - [ ] Documents both export paths with examples
-  - [ ] Lists key services with brief descriptions
-  - [ ] Explains monorepo role
+  - [x] README exists at `packages/core/README.md`
+  - [x] Documents both export paths with examples
+  - [x] Lists key services with brief descriptions
+  - [x] Explains monorepo role
 
-- [ ] **Task 6: Commit — core README** (Effort: 1/5)
+- [x] **Task 6: Commit — core README** (Effort: 1/5)
   - Stage `packages/core/README.md`
-  - [ ] Clean commit with descriptive message
+  - [x] Clean commit with descriptive message
 
 ### Phase 4: Root README Update
 
-- [ ] **Task 7: Update root `README.md`** (Effort: 2/5)
+- [x] **Task 7: Update root `README.md`** (Effort: 2/5)
   - Update the existing root README to reflect current project state (slices 140-150 complete)
   - Specific changes:
     1. **Architecture section**: Change `context-forge-mcp — MCP server (scaffolded, not yet functional)` → describe as functional with 8 tools and link to its README
@@ -101,19 +101,19 @@ status: not started
     6. **Quick Start**: Add a brief MCP alternative alongside Electron quick-start (e.g., "For CLI/agent use: `npx context-forge-mcp`")
   - Preserve existing structure, tone, and content that is still accurate
   - Do not change sections that don't need updating (Problem, dependency, Tech Stack, Contributing, License)
-  - [ ] No references to MCP server being "scaffolded" or "not yet functional"
-  - [ ] "What works" includes MCP server
-  - [ ] "In progress" and "Planned" reflect actual current state
-  - [ ] MCP callout with link to mcp-server README is present
-  - [ ] Quick Start includes MCP alternative
+  - [x] No references to MCP server being "scaffolded" or "not yet functional"
+  - [x] "What works" includes MCP server
+  - [x] "In progress" and "Planned" reflect actual current state
+  - [x] MCP callout with link to mcp-server README is present
+  - [x] Quick Start includes MCP alternative
 
-- [ ] **Task 8: Commit — root README update** (Effort: 1/5)
+- [x] **Task 8: Commit — root README update** (Effort: 1/5)
   - Stage `README.md`
-  - [ ] Clean commit with descriptive message
+  - [x] Clean commit with descriptive message
 
 ### Phase 5: npm Publishing Configuration
 
-- [ ] **Task 9: Update `packages/mcp-server/package.json` — publishing metadata** (Effort: 1/5)
+- [x] **Task 9: Update `packages/mcp-server/package.json` — publishing metadata** (Effort: 1/5)
   - Remove `"private": true` (or set to `false`)
   - Add the following fields per slice design:
     - `description`: MCP server description
@@ -124,12 +124,12 @@ status: not started
     - `author`: `"Manta Templates"`
     - `engines`: `{ "node": ">=18.0.0" }`
     - `files`: `["dist", "README.md"]`
-  - [ ] `"private"` field removed or set to `false`
-  - [ ] All metadata fields present and correct
-  - [ ] `pnpm build` passes
-  - [ ] `pnpm test` passes in `packages/mcp-server`
+  - [x] `"private"` field removed or set to `false`
+  - [x] All metadata fields present and correct
+  - [x] `pnpm build` passes
+  - [x] `pnpm test` passes in `packages/mcp-server`
 
-- [ ] **Task 10: Update `packages/core/package.json` — publishing metadata** (Effort: 1/5)
+- [x] **Task 10: Update `packages/core/package.json` — publishing metadata** (Effort: 1/5)
   - Remove `"private": true` (or set to `false`)
   - Add the following fields per slice design:
     - `description`: Core engine description
@@ -140,18 +140,18 @@ status: not started
     - `author`: `"Manta Templates"`
     - `engines`: `{ "node": ">=18.0.0" }`
     - `files`: `["dist", "README.md"]`
-  - [ ] `"private"` field removed or set to `false`
-  - [ ] All metadata fields present and correct
-  - [ ] `pnpm build` passes
-  - [ ] `pnpm test` passes in `packages/core`
+  - [x] `"private"` field removed or set to `false`
+  - [x] All metadata fields present and correct
+  - [x] `pnpm build` passes
+  - [x] `pnpm test` passes in `packages/core`
 
-- [ ] **Task 11: Commit — package.json publishing metadata** (Effort: 1/5)
+- [x] **Task 11: Commit — package.json publishing metadata** (Effort: 1/5)
   - Stage both `packages/mcp-server/package.json` and `packages/core/package.json`
-  - [ ] Clean commit with descriptive message
+  - [x] Clean commit with descriptive message
 
 ### Phase 6: Verification and Finalization
 
-- [ ] **Task 12: Full verification** (Effort: 1/5)
+- [x] **Task 12: Full verification** (Effort: 1/5)
   - Run `pnpm build` from workspace root — clean build
   - Run `pnpm test` from workspace root — all tests pass
   - Verify all cross-document links resolve:
@@ -160,14 +160,14 @@ status: not started
     - MCP server README → ai-project-guide repo
     - Core README exists and is referenced from root
   - Verify MCP config JSON examples are valid (parseable JSON)
-  - [ ] Workspace builds clean
-  - [ ] All tests pass
-  - [ ] All document links are correct
+  - [x] Workspace builds clean
+  - [x] All tests pass
+  - [x] All document links are correct
 
-- [ ] **Task 13: DEVLOG update and final commit** (Effort: 1/5)
+- [x] **Task 13: DEVLOG update and final commit** (Effort: 1/5)
   - Update `DEVLOG.md` with slice 151 completion entry
   - List commits from this slice (hash + short description)
   - Match existing DEVLOG format
-  - [ ] DEVLOG updated with slice 151 entry
-  - [ ] Clean final commit
-  - [ ] All tests pass
+  - [x] DEVLOG updated with slice 151 entry
+  - [x] Clean final commit
+  - [x] All tests pass

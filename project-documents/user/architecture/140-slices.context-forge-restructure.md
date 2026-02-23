@@ -45,7 +45,7 @@ dateUpdated: 20260217
 
 11. [x] **MCP Server Integration Testing** — Integration tests that invoke MCP tools and verify correct responses. Test against a fixture project with known configuration to validate context output matches expectations. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
 
-12. [ ] **Documentation and Packaging** — README for `context-forge-mcp` (installation, configuration for Claude Code / Cursor, available tools). Update root README for the monorepo. npm publishing configuration for `context-forge-mcp` and `@context-forge/core`. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
+12. [x] **Documentation and Packaging** — README for `context-forge-mcp` (installation, configuration for Claude Code / Cursor, available tools). Update root README for the monorepo. npm publishing configuration for `context-forge-mcp` and `@context-forge/core`. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
 
 ## Future Work
 This section is intended to be moved to a separate architectural component and addressed in later revisions.  It is intended to grow as new needs are discovered during the course of implementing the slices in the plan described in this document.  Uses separate index restarting at 1.

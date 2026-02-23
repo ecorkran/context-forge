@@ -8,11 +8,18 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-23
 
-### Slice 151: Documentation and Packaging — Phase 4/5 (Design + Task Breakdown) Complete
-- Slice design: `151-slice.documentation-and-packaging.md` — READMEs, tool reference, npm publishing config
-- Task file: `151-tasks.documentation-and-packaging.md` — 13 tasks across 6 phases
-- Primary deliverable: `packages/mcp-server/README.md` (adoption-facing, Claude Code/Cursor config examples)
-- Also: `packages/core/README.md`, `docs/TOOLS.md`, root README update, package.json publishing metadata
+### Slice 151: Documentation and Packaging — Complete
+- `docs/TOOLS.md`: full parameter reference for all 8 MCP tools
+- `packages/mcp-server/README.md`: installation, Claude Code/Cursor config, tool overview
+- `packages/core/README.md`: export paths, key services, monorepo role
+- Root `README.md` updated: MCP server functional, quick start for CLI users
+- Both package.json files: removed `private:true`, added publishing metadata (description, keywords, repository, engines, files)
+- Commits:
+  - `5c78dd6` — docs: add MCP tool reference (docs/TOOLS.md)
+  - `b4c3668` — docs: add MCP server README
+  - `8704afe` — docs: add core package README
+  - `1579585` — docs: update root README
+  - `76350a9` — chore: add npm publishing metadata
 
 ### Slice 150: MCP Server Integration Testing — Phase 7 (Implementation) Complete
 - 25 integration tests added across all 8 MCP tools using real `@context-forge/core` services
