@@ -6,7 +6,7 @@ dependencies: [147-mcp-server-state-tools, 149-integration-core-test]
 projectState: Slices 140-149 complete. Core extraction done, 224 core tests passing. MCP server has 31 unit tests across 3 tool files + 1 lifecycle test. All 8 tools implemented. No integration tests exist yet.
 dateCreated: 20260223
 dateUpdated: 20260223
-status: in-progress
+status: complete
 ---
 
 ## Context Summary
@@ -71,11 +71,11 @@ status: in-progress
   - [x] Existing 31 unit tests still pass
   - [x] No `vi.mock()` on `@context-forge/core` in the integration test file
 
-- [ ] **Task 4: Commit — test infrastructure and smoke test** (Effort: 1/5)
+- [x] **Task 4: Commit — test infrastructure and smoke test** (Effort: 1/5)
   - Stage: fixture directory, helper module, integration test file
   - Verify `pnpm test` passes in `packages/mcp-server`
-  - [ ] Clean commit with descriptive message
-  - [ ] All tests pass (unit + integration)
+  - [x] Clean commit with descriptive message
+  - [x] All tests pass (unit + integration)
 
 ### Phase 2: Project Tool Integration Tests
 
@@ -108,10 +108,10 @@ status: in-progress
   - [x] Mutation tests clean up after themselves
   - [x] Read-back verification confirms persistence
 
-- [ ] **Task 8: Commit — project tool integration tests** (Effort: 1/5)
+- [x] **Task 8: Commit — project tool integration tests** (Effort: 1/5)
   - Verify `pnpm test` passes in `packages/mcp-server`
-  - [ ] Clean commit with descriptive message
-  - [ ] All tests pass
+  - [x] Clean commit with descriptive message
+  - [x] All tests pass
 
 ### Phase 3: Context Tool Integration Tests
 
@@ -153,10 +153,10 @@ status: in-progress
   - [x] All `prompt_get` tests pass
   - [x] Error case returns `isError: true`
 
-- [ ] **Task 13: Commit — context tool integration tests** (Effort: 1/5)
+- [x] **Task 13: Commit — context tool integration tests** (Effort: 1/5)
   - Verify `pnpm test` passes in `packages/mcp-server`
-  - [ ] Clean commit with descriptive message
-  - [ ] All tests pass
+  - [x] Clean commit with descriptive message
+  - [x] All tests pass
 
 ### Phase 4: State Tool Integration Tests
 
@@ -171,27 +171,27 @@ status: in-progress
   - [x] Mutation tests clean up after themselves
   - [x] Read-back verification confirms persistence
 
-- [ ] **Task 15: Commit — state tool integration tests** (Effort: 1/5)
+- [x] **Task 15: Commit — state tool integration tests** (Effort: 1/5)
   - Verify `pnpm test` passes in `packages/mcp-server`
-  - [ ] Clean commit with descriptive message
-  - [ ] All tests pass
+  - [x] Clean commit with descriptive message
+  - [x] All tests pass
 
 ### Phase 5: Validation and Finalization
 
-- [ ] **Task 16: Full test suite verification** (Effort: 1/5)
+- [x] **Task 16: Full test suite verification** (Effort: 1/5)
   - Run `pnpm test` in `packages/mcp-server` — all unit + integration tests pass
   - Run `pnpm build` from workspace root — clean build
   - Verify no `vi.mock()` on `@context-forge/core` in any integration test file
   - Verify fixture project is self-contained (no references to user data)
-  - [ ] All MCP server tests pass (unit + integration)
-  - [ ] Workspace builds clean
-  - [ ] No `vi.mock()` on core in integration tests
-  - [ ] Fixture is self-contained
+  - [x] All MCP server tests pass (unit + integration)
+  - [x] Workspace builds clean
+  - [x] No `vi.mock()` on core in integration tests
+  - [x] Fixture is self-contained
 
-- [ ] **Task 17: Final commit and DEVLOG update** (Effort: 1/5)
+- [x] **Task 17: Final commit and DEVLOG update** (Effort: 1/5)
   - Stage any remaining changes
   - Update DEVLOG with slice 150 completion entry (list commits)
   - Final `pnpm build` verification
-  - [ ] DEVLOG updated with Phase 7 completion
-  - [ ] Clean commit
-  - [ ] All tests pass
+  - [x] DEVLOG updated with Phase 7 completion
+  - [x] Clean commit
+  - [x] All tests pass
