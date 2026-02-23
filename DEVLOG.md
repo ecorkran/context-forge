@@ -8,6 +8,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-23
 
+### Slice 151: Documentation and Packaging — Phase 4/5 (Design + Task Breakdown) Complete
+- Slice design: `151-slice.documentation-and-packaging.md` — READMEs, tool reference, npm publishing config
+- Task file: `151-tasks.documentation-and-packaging.md` — 13 tasks across 6 phases
+- Primary deliverable: `packages/mcp-server/README.md` (adoption-facing, Claude Code/Cursor config examples)
+- Also: `packages/core/README.md`, `docs/TOOLS.md`, root README update, package.json publishing metadata
+
 ### Slice 150: MCP Server Integration Testing — Phase 7 (Implementation) Complete
 - 25 integration tests added across all 8 MCP tools using real `@context-forge/core` services
 - Fixture project: `packages/mcp-server/tests/fixtures/integration-project/` (self-contained)
