@@ -8,6 +8,16 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-22
 
+### Slice 149: Core Test Suite — Phase 5 (Task Breakdown) Complete
+- Task file: `149-tasks.integration-core-test.md` — 18 tasks across 6 phases
+- Phase 1: Test infrastructure (helpers, fixture expansion) — Tasks 1-4
+- Phase 2: Pure logic tests (TemplateProcessor) — Tasks 5-6
+- Phase 3: Filesystem service tests (SystemPromptParser, StatementManager, ProjectPathService) — Tasks 7-10
+- Phase 4: Mock-injected tests (SectionBuilder) — Tasks 11-12
+- Phase 5: Integration tests (ContextTemplateEngine, ContextIntegrator, CoreServiceFactory) — Tasks 13-16
+- Phase 6: Final validation and DEVLOG — Tasks 17-18
+- Commit checkpoints at Tasks 4, 6, 10, 12, 16, 18
+
 ### Slice 149: Core Test Suite — Phase 4 (Slice Design) Complete
 - Slice design: `149-slice.integration-core-test.md` — comprehensive unit tests for all `packages/core/src/services/` modules
 - 8 test files covering: TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ContextTemplateEngine, ContextIntegrator, ProjectPathService, CoreServiceFactory
