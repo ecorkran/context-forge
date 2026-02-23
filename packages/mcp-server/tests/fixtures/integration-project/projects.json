@@ -1,0 +1,24 @@
+[
+  {
+    "id": "project_integration_001",
+    "name": "integration-test-project",
+    "template": "default",
+    "slice": "100-slice.auth",
+    "taskFile": "100-tasks.auth",
+    "instruction": "implementation",
+    "developmentPhase": "Phase 7: Implementation",
+    "workType": "continue",
+    "projectDate": "2026-02-23",
+    "isMonorepo": false,
+    "isMonorepoEnabled": false,
+    "projectPath": "__FIXTURE_PROJECT_PATH__",
+    "customData": {
+      "recentEvents": "Integration test fixture — verifies MCP tool responses.",
+      "additionalNotes": "Additional notes for integration testing.",
+      "monorepoNote": "",
+      "availableTools": "context7"
+    },
+    "createdAt": "2026-02-23T00:00:00.000Z",
+    "updatedAt": "2026-02-23T00:00:00.000Z"
+  }
+]
