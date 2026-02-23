@@ -2,7 +2,7 @@
 
 Context Forge generates structured context prompts for AI-assisted coding sessions. Instead of manually assembling project state, templates, and task context every time you start a session with Claude Code, Cursor, or similar tools, Context Forge builds it from your project configuration in seconds.
 
-> **This project is in active development.** The architecture is mid-restructure (Electron app to monorepo with MCP server). Things work, but expect rough edges. Tested on macOS and Linux only.
+> **This project is in active development.** The monorepo restructure is complete — the MCP server, core engine, and Electron app all work. Expect rough edges. Tested on macOS and Linux only.
 
 ## The Problem
 
@@ -18,6 +18,10 @@ Context Forge takes a template-driven approach to context generation:
 
 You configure your project once, update it as your work progresses, and generate a fresh context prompt whenever you start a new session.
 
+### For CLI and Agent Users
+
+If you use Claude Code, Cursor, or another MCP-compatible tool, you can access Context Forge directly from your AI assistant — no desktop app needed. See the [MCP server package](packages/mcp-server/README.md) for installation and configuration.
+
 ### Dependency: ai-project-guide
 
 Context Forge is currently tightly coupled to the [ai-project-guide](https://github.com/ecorkran/ai-project-guide) template system (also a work-in-progress). The prompts, statement templates, and project structure conventions that Context Forge uses come from ai-project-guide. You'll need to set it up for Context Forge to be useful:
@@ -29,6 +33,20 @@ pnpm setup-guides
 This bootstraps the ai-project-guide templates into your project. See the [ai-project-guide repo](https://github.com/ecorkran/ai-project-guide) for details on the methodology.
 
 ## Quick Start
+
+### MCP Server (for Claude Code, Cursor, etc.)
+
+```bash
+# Add to Claude Code
+claude mcp add --transport stdio context-forge -- npx context-forge-mcp
+
+# Or run directly
+npx context-forge-mcp
+```
+
+See the [MCP server README](packages/mcp-server/README.md) for full configuration details.
+
+### Desktop App (Electron)
 
 ```bash
 git clone https://github.com/ecorkran/context-forge.git
@@ -48,30 +66,27 @@ Context Forge is a pnpm monorepo with three packages:
 packages/
   core/           @context-forge/core — context engine, types, services
   electron/       @context-forge/electron — desktop app (Electron + React)
-  mcp-server/     context-forge-mcp — MCP server (scaffolded, not yet functional)
+  mcp-server/     context-forge-mcp — MCP server for Claude Code, Cursor, etc.
 ```
 
-**`@context-forge/core`** contains the context generation pipeline: template processing, statement management, prompt parsing, section building, and project path resolution. It has no Electron dependency and can be used by any Node.js consumer.
+**[`@context-forge/core`](packages/core/README.md)** contains the context generation pipeline: template processing, statement management, prompt parsing, section building, and project path resolution. It has no Electron dependency and can be used by any Node.js consumer.
 
-**`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes. This is the part that works today.
+**`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes.
 
-**`context-forge-mcp`** will expose the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. This is the primary goal of the current restructure.
+**[`context-forge-mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 8 tools for project management, context generation, template inspection, and session state tracking.
 
 ## Current State
 
 **What works:**
-- Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow
-- Core context engine extracted to `@context-forge/core` — types, services, and orchestrators
-- Full context assembly pipeline runs without Electron
-
-**In progress:**
-- Storage migration — moving from Electron-specific storage to a shared filesystem layer so both the desktop app and MCP server can access the same project data
-- MCP server implementation — project tools and context generation tools
+- MCP server — 8 tools for project management, context generation, template access, and state tracking (56 tests)
+- Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow (106 tests)
+- Core context engine — template processing, statement management, prompt parsing, section building (224 tests)
+- Shared filesystem storage — both the MCP server and desktop app access the same project data
 
 **Planned:**
-- MCP server context tools — `context_build`, `template_preview`, etc.
-- Electron client simplification — thin wrapper over core instead of duplicated logic
-- Application packaging and distribution
+- npm publishing for `context-forge-mcp` and `@context-forge/core`
+- CI/CD pipeline for automated testing and publishing
+- Application packaging and distribution for the desktop app
 
 ## Tech Stack
 
