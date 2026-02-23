@@ -1,7 +1,7 @@
 {
   "name": "@context-forge/core",
   "version": "0.1.0",
-  "private": true,
+  "description": "Core context generation engine for Context Forge — template processing, project state, prompt assembly",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,11 +15,33 @@
       "default": "./dist/node.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "context-forge",
+    "context",
+    "ai",
+    "template",
+    "prompt"
+  ],
+  "author": "Manta Templates",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ecorkran/context-forge.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ecorkran/context-forge/tree/main/packages/core#readme",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
