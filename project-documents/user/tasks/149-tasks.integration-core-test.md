@@ -6,6 +6,7 @@ dependencies: [143-core-orchestration-extraction, 144-storage-migration]
 projectState: Slices 140-148 complete. Core extraction done, storage migrated, Electron rewired as thin client. 54 core storage tests + 106 Electron tests passing. No existing service-level tests in packages/core.
 dateCreated: 20260222
 dateUpdated: 20260222
+status: complete
 ---
 
 ## Context Summary
@@ -23,7 +24,7 @@ dateUpdated: 20260222
 
 ### Phase 1: Test Infrastructure
 
-- [ ] **Task 1: Create shared test helper module** (Effort: 1/5)
+- [x] **Task 1: Create shared test helper module** (Effort: 1/5)
   - Create `packages/core/tests/helpers/testData.ts`
   - Implement factory functions referenced in slice design §Shared Test Helpers:
     1. `createTestContextData(overrides?)` — valid `ContextData` with sensible defaults
@@ -36,7 +37,7 @@ dateUpdated: 20260222
   - [ ] Each factory returns a fully valid object (no missing required fields)
   - [ ] File compiles with `pnpm build` in `packages/core`
 
-- [ ] **Task 2: Expand test fixture for StatementManager format** (Effort: 1/5)
+- [x] **Task 2: Expand test fixture for StatementManager format** (Effort: 1/5)
   - The existing `tests/fixtures/test-project/default-statements.md` uses `#####` headers
   - `StatementManager.parseMarkdownStatements()` expects `## headers` with `<!-- key: ..., editable: ... -->` HTML comments
   - Update the fixture to match the production format (see `StatementManager.ts` parser logic)
@@ -44,7 +45,7 @@ dateUpdated: 20260222
   - [ ] Fixture parses correctly when loaded by `StatementManager`
   - [ ] Existing pipeline-integration tests still pass (`pnpm test` in `packages/core`)
 
-- [ ] **Task 3: Expand prompt fixture for instruction-matching tests** (Effort: 1/5)
+- [x] **Task 3: Expand prompt fixture for instruction-matching tests** (Effort: 1/5)
   - The existing `tests/fixtures/test-project/.../prompt.ai-project.system.md` has only 3 sections
   - Add sections needed for testing: `design`, `review`, `monorepo` instruction variants
   - Keep existing sections (`Context Initialization`, `Tool Use`, `implementation`) intact
@@ -52,7 +53,7 @@ dateUpdated: 20260222
   - [ ] At least 6 `#####` sections present for comprehensive instruction-matching tests
   - [ ] Existing pipeline-integration tests still pass
 
-- [ ] **Task 4: Commit — test infrastructure** (Effort: 1/5)
+- [x] **Task 4: Commit — test infrastructure** (Effort: 1/5)
   - Stage and commit: `tests/helpers/testData.ts`, updated fixtures
   - Verify `pnpm test` passes in `packages/core` (existing 54 tests unaffected)
   - [ ] Clean commit with descriptive message
@@ -60,7 +61,7 @@ dateUpdated: 20260222
 
 ### Phase 2: Pure Logic Service Tests
 
-- [ ] **Task 5: TemplateProcessor tests** (Effort: 2/5)
+- [x] **Task 5: TemplateProcessor tests** (Effort: 2/5)
   - Create `packages/core/tests/services/TemplateProcessor.test.ts`
   - Test cases per slice design §1 (TemplateProcessor):
     1. Simple `{{variable}}` substitution
@@ -72,17 +73,17 @@ dateUpdated: 20260222
     7. Template validation (`validateTemplate`)
     8. Edge cases: empty template, nested braces, malformed conditionals
   - Use `createTestEnhancedContextData()` from helpers
-  - [ ] All public methods of `TemplateProcessor` have at least one test
-  - [ ] Tests pass with `pnpm test` in `packages/core`
-  - [ ] No `any` types in test code
+  - [x] All public methods of `TemplateProcessor` have at least one test
+  - [x] Tests pass with `pnpm test` in `packages/core`
+  - [x] No `any` types in test code
 
-- [ ] **Task 6: Commit — TemplateProcessor tests** (Effort: 1/5)
+- [x] **Task 6: Commit — TemplateProcessor tests** (Effort: 1/5)
   - Stage and commit `tests/services/TemplateProcessor.test.ts`
-  - [ ] Clean commit, all tests pass
+  - [x] Clean commit, all tests pass
 
 ### Phase 3: Filesystem Service Tests
 
-- [ ] **Task 7: SystemPromptParser tests** (Effort: 2/5)
+- [x] **Task 7: SystemPromptParser tests** (Effort: 2/5)
   - Create `packages/core/tests/services/SystemPromptParser.test.ts`
   - Test cases per slice design §2 (SystemPromptParser):
     1. Parsing `#####` sections from markdown (use fixture file)
@@ -97,11 +98,11 @@ dateUpdated: 20260222
     10. Error handling: missing file, `validatePromptFile()`
   - Use real fixture file at `tests/fixtures/test-project/.../prompt.ai-project.system.md`
   - For cache TTL tests, use `vi.useFakeTimers()` if needed
-  - [ ] All public methods have at least one test
-  - [ ] Caching behavior verified (second call cached, file change invalidates)
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Caching behavior verified (second call cached, file change invalidates)
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 8: StatementManager tests** (Effort: 2/5)
+- [x] **Task 8: StatementManager tests** (Effort: 2/5)
   - Create `packages/core/tests/services/StatementManager.test.ts`
   - Test cases per slice design §3 (StatementManager):
     1. `loadStatements()` from updated fixture markdown file
@@ -116,11 +117,11 @@ dateUpdated: 20260222
     10. Default backfill: missing keys in file filled from defaults
   - Use temp directories for write tests (matching `pipeline-integration.test.ts` pattern)
   - Use fixture file for read-only tests
-  - [ ] All public methods have at least one test
-  - [ ] Default fallback behavior verified (missing file → `DEFAULT_STATEMENTS`)
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Default fallback behavior verified (missing file → `DEFAULT_STATEMENTS`)
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 9: ProjectPathService tests** (Effort: 2/5)
+- [x] **Task 9: ProjectPathService tests** (Effort: 2/5)
   - Create `packages/core/tests/services/ProjectPathService.test.ts`
   - Test cases per slice design §7 (ProjectPathService):
     1. `validate()` — valid project structure (project-documents/, user/, subdirs)
@@ -131,17 +132,17 @@ dateUpdated: 20260222
     6. `listDirectory()` security: path traversal in subdirectory parameter
     7. `healthCheck()` delegates to `validate()` (same result)
   - Use temp directories created in `beforeEach`, cleaned in `afterEach`
-  - [ ] All public methods have at least one test
-  - [ ] Security checks verified (null chars, `..` traversal rejected)
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Security checks verified (null chars, `..` traversal rejected)
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 10: Commit — filesystem service tests** (Effort: 1/5)
+- [x] **Task 10: Commit — filesystem service tests** (Effort: 1/5)
   - Stage and commit: SystemPromptParser, StatementManager, ProjectPathService test files
-  - [ ] Clean commit, all tests pass
+  - [x] Clean commit, all tests pass
 
 ### Phase 4: Mock-Injected Service Tests
 
-- [ ] **Task 11: SectionBuilder tests** (Effort: 2/5)
+- [x] **Task 11: SectionBuilder tests** (Effort: 2/5)
   - Create `packages/core/tests/services/SectionBuilder.test.ts`
   - Inject `createMockStatementReader()` and `createMockPromptReader()` from helpers
   - Test cases per slice design §4 (SectionBuilder):
@@ -154,17 +155,17 @@ dateUpdated: 20260222
     7. `validateSection()` — missing key, missing order, conditional without condition function
     8. `createSection()` — factory produces valid section objects
     9. Config options: `includeEmptySections`, `includeTitles`
-  - [ ] All public methods have at least one test
-  - [ ] Mock injection pattern works cleanly (no module-level `vi.mock()`)
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Mock injection pattern works cleanly (no module-level `vi.mock()`)
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 12: Commit — SectionBuilder tests** (Effort: 1/5)
+- [x] **Task 12: Commit — SectionBuilder tests** (Effort: 1/5)
   - Stage and commit `tests/services/SectionBuilder.test.ts`
-  - [ ] Clean commit, all tests pass
+  - [x] Clean commit, all tests pass
 
 ### Phase 5: Integration Service Tests
 
-- [ ] **Task 13: ContextTemplateEngine tests** (Effort: 2/5)
+- [x] **Task 13: ContextTemplateEngine tests** (Effort: 2/5)
   - Create `packages/core/tests/services/ContextTemplateEngine.test.ts`
   - Inject mock `IPromptService` and `IStatementService`
   - Test cases per slice design §5 (ContextTemplateEngine):
@@ -176,11 +177,11 @@ dateUpdated: 20260222
     6. Error fallback: `getErrorContext()` when generation fails
     7. `updateServicePaths()` delegates to parser/manager `setFilePath`
     8. `setEnabled()` / `isEnabled()` toggle
-  - [ ] All public methods have at least one test
-  - [ ] Conditional section inclusion verified
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Conditional section inclusion verified
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 14: ContextIntegrator tests** (Effort: 2/5)
+- [x] **Task 14: ContextIntegrator tests** (Effort: 2/5)
   - Create `packages/core/tests/services/ContextIntegrator.test.ts`
   - Inject mock `ContextTemplateEngine` (or use `vi.fn()` to mock its methods)
   - Test cases per slice design §6 (ContextIntegrator):
@@ -192,39 +193,39 @@ dateUpdated: 20260222
     6. `setNewEngineEnabled()` toggling between new and legacy
     7. Error handling: engine throws → returns error context
     8. `updateServicePaths()` called with correct absolute paths from `projectPath`
-  - [ ] All public methods have at least one test
-  - [ ] Legacy fallback behavior verified
-  - [ ] Tests pass, no `any` types
+  - [x] All public methods have at least one test
+  - [x] Legacy fallback behavior verified
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 15: CoreServiceFactory tests** (Effort: 1/5)
+- [x] **Task 15: CoreServiceFactory tests** (Effort: 1/5)
   - Create `packages/core/tests/services/CoreServiceFactory.test.ts`
   - Test cases per slice design §8 (CoreServiceFactory):
     1. `createContextPipeline()` returns `{ engine, integrator }` with correct types
     2. Pipeline wires correct file paths from `projectPath` + constants
     3. Generated context from fixture project is non-empty and contains expected content
   - Use real fixture project at `tests/fixtures/test-project/`
-  - [ ] Pipeline creation succeeds with fixture project path
-  - [ ] Generated context contains expected project name and structure
-  - [ ] Tests pass, no `any` types
+  - [x] Pipeline creation succeeds with fixture project path
+  - [x] Generated context contains expected project name and structure
+  - [x] Tests pass, no `any` types
 
-- [ ] **Task 16: Commit — integration service tests** (Effort: 1/5)
+- [x] **Task 16: Commit — integration service tests** (Effort: 1/5)
   - Stage and commit: ContextTemplateEngine, ContextIntegrator, CoreServiceFactory test files
-  - [ ] Clean commit, all tests pass
+  - [x] Clean commit, all tests pass
 
 ### Phase 6: Final Validation
 
-- [ ] **Task 17: Full test suite verification** (Effort: 1/5)
+- [x] **Task 17: Full test suite verification** (Effort: 1/5)
   - Run `pnpm test` in `packages/core` — all tests must pass (existing 54 + new service tests)
   - Verify no test depends on Electron APIs or browser globals
   - Verify no `any` types in any test file (grep for `: any` and `as any`)
   - Run `pnpm build` in workspace root — clean build
-  - [ ] All tests pass
-  - [ ] No Electron dependencies in test imports
-  - [ ] No `any` types in test code
-  - [ ] Workspace builds clean
+  - [x] All tests pass
+  - [x] No Electron dependencies in test imports
+  - [x] No `any` types in test code
+  - [x] Workspace builds clean
 
-- [ ] **Task 18: Final commit and DEVLOG update** (Effort: 1/5)
+- [x] **Task 18: Final commit and DEVLOG update** (Effort: 1/5)
   - If any uncommitted changes remain, stage and commit
   - Update `DEVLOG.md` with Slice 149 implementation entry (list commit hashes)
-  - [ ] DEVLOG updated with implementation summary
-  - [ ] All work committed
+  - [x] DEVLOG updated with implementation summary
+  - [x] All work committed

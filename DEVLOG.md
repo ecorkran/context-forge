@@ -8,6 +8,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-22
 
+### Slice 149: Core Test Suite — Implementation Complete
+- 170 new tests across 8 test files + 1 helper module; 224 total core tests passing
+- TemplateProcessor (28), SystemPromptParser (24), StatementManager (25), ProjectPathService (18), SectionBuilder (38), ContextTemplateEngine (18), ContextIntegrator (16), CoreServiceFactory (3)
+- Shared `testData.ts` helper with 5 factory functions; fixture expansion for StatementManager format + prompt instruction variants
+- Commits: cac74ba, cf7ae19, a9b6609, a44ecd7, dee6498
+
 ### Slice 149: Core Test Suite — Phase 5 (Task Breakdown) Complete
 - Task file: `149-tasks.integration-core-test.md` — 18 tasks across 6 phases
 - Phase 1: Test infrastructure (helpers, fixture expansion) — Tasks 1-4

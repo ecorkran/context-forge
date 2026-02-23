@@ -41,7 +41,7 @@ dateUpdated: 20260217
 
 ## Integration Work
 
-10. [ ] **Core Test Suite** — Comprehensive unit tests for `packages/core` covering the context assembly pipeline end-to-end without Electron. Validates that the extraction preserved behavior. Dependencies: [Core Orchestration Extraction, Storage Migration]. Effort: 2/5
+10. [x] **Core Test Suite** — Comprehensive unit tests for `packages/core` covering the context assembly pipeline end-to-end without Electron. Validates that the extraction preserved behavior. Dependencies: [Core Orchestration Extraction, Storage Migration]. Effort: 2/5
 
 11. [ ] **MCP Server Integration Testing** — Integration tests that invoke MCP tools and verify correct responses. Test against a fixture project with known configuration to validate context output matches expectations. Dependencies: [MCP Server — State Update Tools]. Effort: 2/5
 
