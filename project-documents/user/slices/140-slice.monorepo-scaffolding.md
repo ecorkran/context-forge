@@ -191,13 +191,13 @@ See "ES Target Decision" in Technical Decisions for the rationale behind ES2023/
 
 ```json
 {
-  "name": "context-forge-mcp",
+  "name": "context-forge/mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "context-forge-mcp": "./dist/index.js"
+    "context-forge/mcp": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
