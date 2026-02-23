@@ -8,6 +8,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-22
 
+### Slice 149: Core Test Suite — Phase 4 (Slice Design) Complete
+- Slice design: `149-slice.integration-core-test.md` — comprehensive unit tests for all `packages/core/src/services/` modules
+- 8 test files covering: TemplateProcessor, SystemPromptParser, StatementManager, SectionBuilder, ContextTemplateEngine, ContextIntegrator, ProjectPathService, CoreServiceFactory
+- Shared test helper module (`testData.ts`) with factory functions for mock data construction
+- Testing strategy: real temp directories for filesystem tests (matching existing patterns), interface mocks for dependency injection, fixture project for integration tests
+- Estimated 40-60 test cases, effort 2/5
+
 ### Slice 148: Electron Client Conversion — Implementation Complete
 - 4-phase migration executed; Electron is now a thin UI client over `@context-forge/core`
 - **Deleted:** `StorageClient`, `ElectronStorageService`, `PersistentProjectStore`, `ProjectManager`, `StatementManagerIPC`, `SystemPromptParserIPC`, `ServiceFactory`, `contextServices.ts` (legacy IPC wrappers)
