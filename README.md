@@ -38,10 +38,10 @@ This bootstraps the ai-project-guide templates into your project. See the [ai-pr
 
 ```bash
 # Add to Claude Code
-claude mcp add --transport stdio context-forge -- npx context-forge-mcp
+claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 
 # Or run directly
-npx context-forge-mcp
+npx @context-forge/mcp
 ```
 
 See the [MCP server README](packages/mcp-server/README.md) for full configuration details.
@@ -66,14 +66,14 @@ Context Forge is a pnpm monorepo with three packages:
 packages/
   core/           @context-forge/core — context engine, types, services
   electron/       @context-forge/electron — desktop app (Electron + React)
-  mcp-server/     context-forge-mcp — MCP server for Claude Code, Cursor, etc.
+  mcp-server/     @context-forge/mcp — MCP server for Claude Code, Cursor, etc.
 ```
 
 **[`@context-forge/core`](packages/core/README.md)** contains the context generation pipeline: template processing, statement management, prompt parsing, section building, and project path resolution. It has no Electron dependency and can be used by any Node.js consumer.
 
 **`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes.
 
-**[`context-forge-mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 8 tools for project management, context generation, template inspection, and session state tracking.
+**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 8 tools for project management, context generation, template inspection, and session state tracking.
 
 ## Current State
 
@@ -84,7 +84,7 @@ packages/
 - Shared filesystem storage — both the MCP server and desktop app access the same project data
 
 **Planned:**
-- npm publishing for `context-forge-mcp` and `@context-forge/core`
+- npm publishing for `@context-forge/mcp` and `@context-forge/core`
 - CI/CD pipeline for automated testing and publishing
 - Application packaging and distribution for the desktop app
 

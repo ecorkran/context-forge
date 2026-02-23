@@ -1,4 +1,4 @@
-# context-forge/mcp
+# @context-forge/mcp
 
 An MCP server that generates structured context prompts for AI coding sessions. Configure your project once, then generate fresh, consistent context whenever you start a new session with Claude Code, Cursor, or any MCP-compatible tool.
 
@@ -20,10 +20,10 @@ Context Forge eliminates that overhead. You configure your project once — temp
 
 ```bash
 # Run directly (no install needed)
-npx context-forge/mcp
+npx @context-forge/mcp
 
 # Or install globally
-npm install -g context-forge/mcp
+npm install -g @context-forge/mcp
 ```
 
 ### Configure for Claude Code
@@ -31,7 +31,7 @@ npm install -g context-forge/mcp
 Add the server using the Claude Code CLI:
 
 ```bash
-claude mcp add --transport stdio context-forge -- npx context-forge/mcp
+claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 ```
 
 Or add it manually to your project's `.mcp.json`:
@@ -42,7 +42,7 @@ Or add it manually to your project's `.mcp.json`:
     "context-forge": {
       "type": "stdio",
       "command": "npx",
-      "args": ["context-forge/mcp"]
+      "args": ["@context-forge/mcp"]
     }
   }
 }
@@ -57,7 +57,7 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
   "mcpServers": {
     "context-forge": {
       "command": "npx",
-      "args": ["context-forge/mcp"]
+      "args": ["@context-forge/mcp"]
     }
   }
 }
