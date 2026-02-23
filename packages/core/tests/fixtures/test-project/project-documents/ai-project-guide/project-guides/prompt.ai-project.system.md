@@ -14,7 +14,7 @@ You are working on {{projectName}} in monorepo mode. The current slice is {{slic
 
 {{project_state}}
 
-##### Tool Use
+##### Tool Usage
 Use the following tools as appropriate for your task.
 
 ##### implementation
