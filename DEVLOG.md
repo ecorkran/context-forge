@@ -6,7 +6,24 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-23
+
+### Slice 150: MCP Server Integration Testing — Phase 5 (Task Breakdown) Complete
+- Task file: `150-tasks.mcp-integration-test.md` — 17 tasks across 5 phases
+- Phase 1: Test infrastructure (fixture project, helper module, smoke test) — Tasks 1-4
+- Phase 2: Project tool integration tests (list, get, update) — Tasks 5-8
+- Phase 3: Context tool integration tests (build, preview, prompt_list, prompt_get) — Tasks 9-13
+- Phase 4: State tool integration tests (context_summarize) — Tasks 14-15
+- Phase 5: Validation and finalization — Tasks 16-17
+
 ## 2026-02-22
+
+### Slice 150: MCP Server Integration Testing — Phase 4 (Slice Design) Complete
+- Slice design: `150-slice.integration-core-test.md` — integration tests for all 8 MCP tools against real core services
+- Fixture project with known configuration; `CONTEXT_FORGE_DATA_DIR` env override for isolation
+- Tests use `InMemoryTransport` with all tool groups registered (no `vi.mock()` on core)
+- Estimated 20-28 integration tests covering project CRUD, context generation, prompt listing, state updates
+- Effort 2/5
 
 ### Slice 149: Core Test Suite — Implementation Complete
 - 170 new tests across 8 test files + 1 helper module; 224 total core tests passing
