@@ -22,15 +22,18 @@ You configure your project once, update it as your work progresses, and generate
 
 If you use Claude Code, Cursor, or another MCP-compatible tool, you can access Context Forge directly from your AI assistant — no desktop app needed. See the [MCP server package](packages/mcp-server/README.md) for installation and configuration.
 
-### Dependency: ai-project-guide
+### Recommended: ai-project-guide
 
-Context Forge is currently tightly coupled to the [ai-project-guide](https://github.com/ecorkran/ai-project-guide) template system (also a work-in-progress). The prompts, statement templates, and project structure conventions that Context Forge uses come from ai-project-guide. You'll need to set it up for Context Forge to be useful:
+Context Forge works out of the box with a bundled prompt system — install the MCP server and you can start generating context immediately.
+
+For the full experience, install [ai-project-guide](https://github.com/ecorkran/ai-project-guide) into your project. The guide provides the structured development methodology that Context Forge's prompts are designed around: phase-based workflows, slice planning guides, task breakdown templates, code review rules, and IDE configuration. The generated prompts reference these guides directly, so having them available roughly doubles the value you get from the tool.
 
 ```bash
-pnpm setup-guides
+# Quick install (copies guide files into your project)
+curl -fsSL https://raw.githubusercontent.com/ecorkran/ai-project-guide/main/scripts/bootstrap.sh | bash
 ```
 
-This bootstraps the ai-project-guide templates into your project. See the [ai-project-guide repo](https://github.com/ecorkran/ai-project-guide) for details on the methodology.
+See the [ai-project-guide repo](https://github.com/ecorkran/ai-project-guide) for details on the methodology.
 
 ## Quick Start
 
@@ -83,8 +86,11 @@ packages/
 - Core context engine — template processing, statement management, prompt parsing, section building (224 tests)
 - Shared filesystem storage — both the MCP server and desktop app access the same project data
 
+**Published on npm:**
+- [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp) — MCP server, installable via `npx @context-forge/mcp`
+- [`@context-forge/core`](https://www.npmjs.com/package/@context-forge/core) — core engine
+
 **Planned:**
-- npm publishing for `@context-forge/mcp` and `@context-forge/core`
 - CI/CD pipeline for automated testing and publishing
 - Application packaging and distribution for the desktop app
 
