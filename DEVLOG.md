@@ -6,6 +6,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-26
+
+### Slice 161: Project Schema Standardization — Phase 4 (Slice Design) Complete
+- Designed schema migration for `ProjectData` field renames: `slice`→`fileSlice`, `taskFile`→`fileTasks`, `projectDate`→`dateProject`
+- Defined four new artifact reference fields: `fileHLD`, `fileArch`, `fileSlicePlan`, `fileSpec`
+- Mapped full consumer surface (7+ source files across types, storage, MCP tools, context pipeline)
+- Migration strategy: read-normalize with old→new fallback, write-new exclusively, idempotent
+- Documented integration points with Slices 162 (Config System) and 163 (Artifact Introspection)
+
 ## 2026-02-23
 
 ### Slice 151: Documentation and Packaging — Complete
