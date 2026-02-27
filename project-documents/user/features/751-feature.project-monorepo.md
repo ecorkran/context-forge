@@ -1,5 +1,6 @@
 ---
 layer: project
+parent: 140
 phase: feature
 phaseName: project-monorepo
 guideRole: primary

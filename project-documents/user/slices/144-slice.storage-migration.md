@@ -5,7 +5,7 @@ project: context-forge
 parent: user/architecture/140-slices.context-forge-restructure.md
 dependencies: [core-types-extraction]
 interfaces: [mcp-server-project-tools, electron-client-conversion, core-test-suite]
-status: not started
+status: in-progress
 dateCreated: 20260218
 dateUpdated: 20260218
 ---

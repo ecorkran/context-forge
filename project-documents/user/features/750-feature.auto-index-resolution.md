@@ -1,5 +1,6 @@
 ---
 layer: project
+parent: 140
 docType: feature
 issueNumber: 25
 title: Auto-Resolve File Indices for Artifact Creation

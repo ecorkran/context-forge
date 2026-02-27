@@ -1,5 +1,6 @@
 ---
 item: naming-schema-controls
+parent: 140
 project: context-builder
 type: feature
 github: https://github.com/ecorkran/context-builder/issues/9
