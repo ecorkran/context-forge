@@ -14,6 +14,7 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 - Mapped full consumer surface (7+ source files across types, storage, MCP tools, context pipeline)
 - Migration strategy: read-normalize with old→new fallback, write-new exclusively, idempotent
 - Documented integration points with Slices 162 (Config System) and 163 (Artifact Introspection)
+- Commits: `efa602d` — docs: add slice 161 design
 
 ## 2026-02-23
 
