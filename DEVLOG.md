@@ -14,7 +14,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 - Mapped full consumer surface (7+ source files across types, storage, MCP tools, context pipeline)
 - Migration strategy: read-normalize with old→new fallback, write-new exclusively, idempotent
 - Documented integration points with Slices 162 (Config System) and 163 (Artifact Introspection)
-- Commits: `efa602d` — docs: add slice 161 design
+
+### Slice 161: Project Schema Standardization — Phase 5 (Task Breakdown) Complete
+- 7 task groups, 18 sub-tasks covering types, storage, context pipeline, MCP tools, templates, fixtures, verification
+- Test-with pattern: unit tests immediately follow each implementation task
+- 5 commit checkpoints distributed across task sequence
+- Commits: `efa602d` — slice design, `277c182` — task breakdown
 
 ## 2026-02-23
 
