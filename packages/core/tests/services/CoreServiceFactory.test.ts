@@ -25,7 +25,7 @@ describe('CoreServiceFactory — createContextPipeline', () => {
       projectPath: FIXTURE_PROJECT_PATH,
       name: 'test-project',
       template: 'default',
-      slice: '100-slice.auth',
+      fileSlice: '100-slice.auth',
       instruction: 'implementation',
     });
 

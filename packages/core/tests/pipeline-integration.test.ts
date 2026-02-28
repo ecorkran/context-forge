@@ -43,7 +43,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
     const project = await store.create({
       name: 'test-project',
       template: 'default',
-      slice: 'auth',
+      fileSlice: 'auth',
       isMonorepo: false,
       projectPath: fixtureProjectPath,
     });
@@ -72,7 +72,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
     const project = await store.create({
       name: 'crud-test',
       template: 'default',
-      slice: '',
+      fileSlice: '',
       isMonorepo: false,
     });
     expect(project.id).toMatch(/^project_/);
@@ -82,9 +82,9 @@ describe('Context Pipeline Integration (no Electron)', () => {
     expect(all).toHaveLength(1);
 
     // Update
-    await store.update(project.id, { slice: 'updated-slice' });
+    await store.update(project.id, { fileSlice: 'updated-slice' });
     const updated = await store.getById(project.id);
-    expect(updated!.slice).toBe('updated-slice');
+    expect(updated!.fileSlice).toBe('updated-slice');
 
     // Delete
     await store.delete(project.id);
@@ -99,7 +99,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
     const project = await store.create({
       name: 'backup-test',
       template: '',
-      slice: '',
+      fileSlice: '',
       isMonorepo: false,
     });
 

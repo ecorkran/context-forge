@@ -8,7 +8,7 @@ This package contains the core logic shared by both the [MCP server](../mcp-serv
 
 Key capabilities:
 - **Context pipeline** — assembles structured context prompts from project configuration, templates, and statements
-- **Template processing** — variable substitution (`{{projectName}}`, `{{slice}}`, etc.) with conditional sections
+- **Template processing** — variable substitution (`{{projectName}}`, `{{fileSlice}}`, etc.) with conditional sections
 - **Statement management** — loads and resolves default statements (start/continue, tool intro, instruction blocks)
 - **Prompt parsing** — reads `prompt.ai-project.system.md` files and extracts named template sections
 - **Project storage** — filesystem-backed CRUD for project configuration with backup and migration support
