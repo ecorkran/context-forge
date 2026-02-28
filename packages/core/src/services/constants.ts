@@ -38,7 +38,7 @@ export const DEFAULT_STATEMENTS: Record<string, TemplateStatement> = {
   'monorepo-statement': {
     key: 'monorepo-statement',
     content:
-      'Project is configured as a monorepo. Working in package: {{template}}, Slice: {{slice}}',
+      'Project is configured as a monorepo. Working in package: {{template}}, Slice: {{fileSlice}}',
     description: 'Monorepo configuration statement',
     editable: true
   },
