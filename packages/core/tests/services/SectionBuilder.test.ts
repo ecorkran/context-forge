@@ -66,7 +66,7 @@ describe('SectionBuilder', () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({
         template: 'packages/core',
-        slice: '100-slice.auth',
+        fileSlice: '100-slice.auth',
       });
 
       const result = builder.buildMonorepoSection(data);
@@ -130,7 +130,7 @@ describe('SectionBuilder', () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({
         projectName: 'my-project',
-        slice: '100-slice.auth',
+        fileSlice: '100-slice.auth',
       });
 
       const result = await builder.buildProjectInfoSection(data);
@@ -168,9 +168,9 @@ describe('SectionBuilder', () => {
       expect(result).not.toContain('template:');
     });
 
-    it('shows null for empty slice', async () => {
+    it('shows null for empty fileSlice', async () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({ slice: '' });
+      const data = createTestEnhancedContextData({ fileSlice: '' });
 
       const result = await builder.buildProjectInfoSection(data);
       expect(result).toContain('slice: null');
@@ -186,7 +186,7 @@ describe('SectionBuilder', () => {
 
     it('includes project date when present', async () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({ projectDate: '2026-02-22' });
+      const data = createTestEnhancedContextData({ dateProject: '2026-02-22' });
 
       const result = await builder.buildProjectInfoSection(data);
       expect(result).toContain('currentDate: 2026-02-22');

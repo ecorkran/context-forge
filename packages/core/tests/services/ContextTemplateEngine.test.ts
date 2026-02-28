@@ -71,7 +71,7 @@ describe('ContextTemplateEngine', () => {
       const data = createTestEnhancedContextData({
         projectName: 'my-project',
         instruction: 'implementation',
-        slice: '100-slice.auth',
+        fileSlice: '100-slice.auth',
         template: 'default',
       });
 
@@ -175,9 +175,9 @@ describe('ContextTemplateEngine', () => {
       expect(result).toContain('ERROR');
     });
 
-    it('returns error context when slice missing', async () => {
+    it('returns error context when fileSlice missing', async () => {
       const engine = createEngine();
-      const data = createTestEnhancedContextData({ slice: '' });
+      const data = createTestEnhancedContextData({ fileSlice: '' });
 
       const result = await engine.generateContext(data);
       expect(result).toContain('ERROR');

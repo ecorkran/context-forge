@@ -233,7 +233,7 @@ export class ContextTemplateEngine {
    * Validate input data has required fields
    */
   private validateInputData(data: EnhancedContextData): void {
-    const required = ['projectName', 'template', 'slice', 'instruction'];
+    const required = ['projectName', 'template', 'fileSlice', 'instruction'];
     // Assertion safe: required array contains only known EnhancedContextData keys
     const missing = required.filter(field => !data[field as keyof EnhancedContextData]);
 
@@ -250,7 +250,7 @@ export class ContextTemplateEngine {
 
 Project: ${data.projectName || 'MISSING_PROJECT_NAME'}
 Template: ${data.template || 'MISSING_TEMPLATE'}
-Slice: ${data.slice || 'MISSING_SLICE'}
+Slice: ${data.fileSlice || 'MISSING_SLICE'}
 Instruction: ${data.instruction || 'MISSING_INSTRUCTION'}
 Monorepo: ${data.isMonorepo ? 'Yes' : 'No'}
 

@@ -10,7 +10,7 @@ import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './cons
  */
 const DEFAULT_TEMPLATE = `# Project: {{projectName}}
 Template: {{template}}
-Slice: {{slice}}
+Slice: {{fileSlice}}
 Instruction: {{instruction}}
 {{#if isMonorepo}}Monorepo: Yes{{else}}Monorepo: No{{/if}}
 
@@ -21,7 +21,7 @@ Instruction: {{instruction}}
 {{additionalNotes}}
 
 ## Current Status
-Ready for {{instruction}} work on {{slice}} slice.`;
+Ready for {{instruction}} work on {{fileSlice}} slice.`;
 
 /**
  * Service for integrating project data with context generation
@@ -105,12 +105,12 @@ export class ContextIntegrator {
     return {
       projectName: project.name || 'Unknown Project',
       template: project.template || '',
-      slice: project.slice || 'Unknown Slice',
-      taskFile: project.taskFile || '',
+      fileSlice: project.fileSlice || 'Unknown Slice',
+      fileTasks: project.fileTasks || '',
       instruction: project.instruction || 'implementation',
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
-      projectDate: project.projectDate || new Date().toISOString().split('T')[0],
+      dateProject: project.dateProject || new Date().toISOString().split('T')[0],
       isMonorepo: project.isMonorepo || false,
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
@@ -131,12 +131,12 @@ export class ContextIntegrator {
     return {
       projectName: project.name || 'Unknown Project',
       template: project.template || 'Unknown Template',
-      slice: project.slice || 'Unknown Slice',
-      taskFile: project.taskFile || '',
+      fileSlice: project.fileSlice || 'Unknown Slice',
+      fileTasks: project.fileTasks || '',
       instruction: project.instruction || 'implementation',
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
-      projectDate: project.projectDate || new Date().toISOString().split('T')[0],
+      dateProject: project.dateProject || new Date().toISOString().split('T')[0],
       isMonorepo: project.isMonorepo || false,
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || ''
@@ -175,7 +175,7 @@ export class ContextIntegrator {
 
 ## Project Details
 - Template: ${project.template || 'Unknown'}
-- Slice: ${project.slice || 'Unknown'}
+- Slice: ${project.fileSlice || 'Unknown'}
 - Instruction: ${project.instruction || 'Unknown'}
 - Monorepo: ${project.isMonorepo ? 'Yes' : 'No'}
 
@@ -195,7 +195,7 @@ Please check the console for detailed error information.`;
     return Boolean(
       project.name &&
       project.template &&
-      project.slice
+      project.fileSlice
     );
   }
 

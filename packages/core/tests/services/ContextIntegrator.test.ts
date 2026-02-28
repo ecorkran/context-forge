@@ -115,9 +115,9 @@ describe('ContextIntegrator', () => {
       expect(integrator.validateProject(project)).toBe(false);
     });
 
-    it('returns false when slice missing', () => {
+    it('returns false when fileSlice missing', () => {
       const integrator = new ContextIntegrator(createMockEngine());
-      const project = createTestProjectData({ slice: '' });
+      const project = createTestProjectData({ fileSlice: '' });
       expect(integrator.validateProject(project)).toBe(false);
     });
 

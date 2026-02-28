@@ -13,8 +13,8 @@ describe('TemplateProcessor', () => {
     });
 
     it('replaces multiple variables in one template', () => {
-      const data = createTestContextData({ projectName: 'my-app', slice: '42-slice.auth' });
-      const result = processor.processTemplate('{{projectName}} — slice {{slice}}', data);
+      const data = createTestContextData({ projectName: 'my-app', fileSlice: '42-slice.auth' });
+      const result = processor.processTemplate('{{projectName}} — slice {{fileSlice}}', data);
       expect(result).toBe('my-app — slice 42-slice.auth');
     });
 
@@ -39,8 +39,8 @@ describe('TemplateProcessor', () => {
     });
 
     it('handles pipe expressions using first part as variable', () => {
-      const data = createTestContextData({ slice: '100-slice.auth' });
-      const result = processor.processTemplate('{slice | feature}', data);
+      const data = createTestContextData({ fileSlice: '100-slice.auth' });
+      const result = processor.processTemplate('{fileSlice | feature}', data);
       expect(result).toBe('100-slice.auth');
     });
 
@@ -90,14 +90,14 @@ describe('TemplateProcessor', () => {
   });
 
   describe('processTemplate — slice parsing', () => {
-    it('parses slice into sliceindex and slicename', () => {
-      const data = createTestContextData({ slice: '149-slice.integration-core-test' });
+    it('parses fileSlice into sliceindex and slicename', () => {
+      const data = createTestContextData({ fileSlice: '149-slice.integration-core-test' });
       const result = processor.processTemplate('Index: {{sliceindex}}, Name: {{slicename}}', data);
       expect(result).toBe('Index: 149, Name: integration-core-test');
     });
 
-    it('does not parse non-matching slice format', () => {
-      const data = createTestContextData({ slice: 'plain-slice-name' });
+    it('does not parse non-matching fileSlice format', () => {
+      const data = createTestContextData({ fileSlice: 'plain-slice-name' });
       const result = processor.processTemplate('Index: {{sliceindex}}', data);
       // sliceindex not set, so replaced with empty string
       expect(result).toBe('Index: ');
@@ -111,14 +111,14 @@ describe('TemplateProcessor', () => {
       expect(result).toBe('Phase 7: Implementation');
     });
 
-    it('resolves {task-file} alias', () => {
-      const data = createTestContextData({ taskFile: '149-tasks.core-test' });
+    it('resolves {task-file} alias from fileTasks', () => {
+      const data = createTestContextData({ fileTasks: '149-tasks.core-test' });
       const result = processor.processTemplate('{task-file}', data);
       expect(result).toBe('149-tasks.core-test');
     });
 
-    it('resolves {project-date} alias', () => {
-      const data = createTestContextData({ projectDate: '2026-02-22' });
+    it('resolves {project-date} alias from dateProject', () => {
+      const data = createTestContextData({ dateProject: '2026-02-22' });
       const result = processor.processTemplate('{project-date}', data);
       expect(result).toBe('2026-02-22');
     });

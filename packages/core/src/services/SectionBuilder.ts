@@ -93,7 +93,7 @@ export class SectionBuilder {
 
       let baseStatement: string;
       if (!monorepoStatement) {
-        baseStatement = `Project is configured as a monorepo. Working in package: ${data.template}, Slice: ${data.slice}`;
+        baseStatement = `Project is configured as a monorepo. Working in package: ${data.template}, Slice: ${data.fileSlice}`;
       } else {
         baseStatement = this.templateProcessor.processTemplate(monorepoStatement, data);
       }
@@ -167,20 +167,20 @@ export class SectionBuilder {
       }
 
       // Include current date if present (helps AI understand today's date)
-      if (data.projectDate) {
-        infoLines.push(`  currentDate: ${data.projectDate}`);
+      if (data.dateProject) {
+        infoLines.push(`  currentDate: ${data.dateProject}`);
       }
 
       // Include slice if present, or null if empty
-      if (data.slice && data.slice.trim()) {
-        infoLines.push(`  slice: ${data.slice}`);
+      if (data.fileSlice && data.fileSlice.trim()) {
+        infoLines.push(`  slice: ${data.fileSlice}`);
       } else {
         infoLines.push(`  slice: null`);
       }
 
       // Include task file if present
-      if (data.taskFile && data.taskFile.trim()) {
-        infoLines.push(`  taskFile: ${data.taskFile}`);
+      if (data.fileTasks && data.fileTasks.trim()) {
+        infoLines.push(`  taskFile: ${data.fileTasks}`);
       } else {
         infoLines.push(`  taskFile: null`);
       }

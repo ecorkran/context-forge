@@ -88,9 +88,9 @@ export class TemplateProcessor {
   private createEnhancedData(data: ContextData): TemplateVariableMap {
     const enhanced: TemplateVariableMap = { ...data };
 
-    // Parse slice into sliceindex and slicename
-    if (data.slice) {
-      const sliceMatch = data.slice.match(/^(\d+)-slice\.(.+)$/);
+    // Parse fileSlice into sliceindex and slicename
+    if (data.fileSlice) {
+      const sliceMatch = data.fileSlice.match(/^(\d+)-slice\.(.+)$/);
       if (sliceMatch) {
         enhanced.sliceindex = sliceMatch[1];
         enhanced.slicename = sliceMatch[2];
@@ -102,16 +102,16 @@ export class TemplateProcessor {
       enhanced['development-phase'] = data.developmentPhase;
     }
 
-    // Add kebab-case alias for taskFile
-    if (data.taskFile) {
-      enhanced['task-file'] = data.taskFile;
+    // Add kebab-case alias for fileTasks
+    if (data.fileTasks) {
+      enhanced['task-file'] = data.fileTasks;
     }
 
     // Add date aliases for template variable substitution
-    if (data.projectDate) {
-      enhanced['project-date'] = data.projectDate;
-      enhanced['projectDate'] = data.projectDate;
-      enhanced['projectdate'] = data.projectDate;
+    if (data.dateProject) {
+      enhanced['project-date'] = data.dateProject;
+      enhanced['projectDate'] = data.dateProject;
+      enhanced['projectdate'] = data.dateProject;
     }
 
     return enhanced;
