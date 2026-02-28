@@ -235,15 +235,15 @@ interface ProjectSummary {
 
 ## Success Criteria
 
-- [ ] All `ProjectData` fields follow consistent naming (`fileX` for file references, `dateX` for dates)
-- [ ] Four new artifact reference fields (`fileHLD`, `fileArch`, `fileSlicePlan`, `fileSpec`) exist on `ProjectData` and are settable via `project_update`
-- [ ] Stored projects with old field names load correctly (migration on read)
-- [ ] Migration is idempotent — reading a migrated project produces identical output
-- [ ] All existing tests pass with updated field names
-- [ ] `project_get`, `project_list`, `project_update` MCP tools use new field names in both input and output
-- [ ] Context generation pipeline (`ContextIntegrator` → `ContextTemplateEngine`) produces correct output with renamed fields
-- [ ] No old field names remain in source code (except inside `migrateProjectFields()` for backward compatibility)
-- [ ] Build succeeds with no type errors
+- [x] All `ProjectData` fields follow consistent naming (`fileX` for file references, `dateX` for dates)
+- [x] Four new artifact reference fields (`fileHLD`, `fileArch`, `fileSlicePlan`, `fileSpec`) exist on `ProjectData` and are settable via `project_update`
+- [x] Stored projects with old field names load correctly (migration on read)
+- [x] Migration is idempotent — reading a migrated project produces identical output
+- [x] All existing tests pass with updated field names
+- [x] `project_get`, `project_list`, `project_update` MCP tools use new field names in both input and output
+- [x] Context generation pipeline (`ContextIntegrator` → `ContextTemplateEngine`) produces correct output with renamed fields
+- [x] No old field names remain in source code (except inside `migrateProjectFields()` for backward compatibility)
+- [x] Build succeeds with no type errors
 
 ## Implementation Notes
 
