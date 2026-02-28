@@ -2,19 +2,19 @@ import { TemplateProcessor, ContextData } from '@context-forge/core';
 
 describe('TemplateProcessor', () => {
   let processor: TemplateProcessor;
-  
+
   const createMockData = (overrides?: Partial<ContextData>): ContextData => ({
     projectName: 'Test Project',
     template: 'react-nextjs',
-    slice: 'foundation',
-    taskFile: 'foundation-tasks.md',
+    fileSlice: 'foundation',
+    fileTasks: 'foundation-tasks.md',
     instruction: 'implementation',
     isMonorepo: false,
     recentEvents: 'Added user authentication',
     additionalNotes: 'Focus on security',
     ...overrides
   });
-  
+
   beforeEach(() => {
     processor = new TemplateProcessor();
   });
@@ -50,12 +50,12 @@ describe('TemplateProcessor', () => {
     it('should handle complex template with multiple variables and conditionals', () => {
       const template = `# {{projectName}}
 Template: {{template}}
-Slice: {{slice}}
+Slice: {{fileSlice}}
 {{#if isMonorepo}}This is a monorepo{{else}}This is not a monorepo{{/if}}
 Recent: {{recentEvents}}`;
 
       const result = processor.processTemplate(template, mockContextData);
-      
+
       expect(result).toContain('# Test Project');
       expect(result).toContain('Template: react-nextjs');
       expect(result).toContain('Slice: foundation');
@@ -67,7 +67,7 @@ Recent: {{recentEvents}}`;
       const emptyData = createMockData({
         projectName: '',
         template: '',
-        slice: '',
+        fileSlice: '',
         recentEvents: '',
         additionalNotes: ''
       });
@@ -78,56 +78,56 @@ Recent: {{recentEvents}}`;
     });
 
     describe('Enhanced template processing', () => {
-      it('should parse slice into sliceindex and slicename', () => {
-        const data = createMockData({ slice: '025-slice.combo-box' });
-        
+      it('should parse fileSlice into sliceindex and slicename', () => {
+        const data = createMockData({ fileSlice: '025-slice.combo-box' });
+
         const template = 'Tasks: {sliceindex}-tasks.{slicename}.md';
-        
+
         const result = processor.processTemplate(template, data);
-        
+
         expect(result).toBe('Tasks: 025-tasks.combo-box.md');
       });
 
       it('should handle template variable substitution', () => {
         const data = createMockData({ template: 'templates/react' });
-        
+
         const template = 'Use project-artifacts/{template}/ for files';
-        
+
         const result = processor.processTemplate(template, data);
-        
+
         expect(result).toBe('Use project-artifacts/templates/react/ for files');
       });
 
-      it('should work with complex slice names', () => {
-        const data = createMockData({ slice: '100-slice.multi-word-component' });
-        
+      it('should work with complex fileSlice names', () => {
+        const data = createMockData({ fileSlice: '100-slice.multi-word-component' });
+
         const template = 'File: {sliceindex}-tasks.{slicename}.md';
-        
+
         const result = processor.processTemplate(template, data);
-        
+
         expect(result).toBe('File: 100-tasks.multi-word-component.md');
       });
 
-      it('should handle slice that does not match pattern', () => {
-        const data = createMockData({ slice: 'invalid-slice-format' });
-        
+      it('should handle fileSlice that does not match pattern', () => {
+        const data = createMockData({ fileSlice: 'invalid-slice-format' });
+
         const template = 'Tasks: {sliceindex}-{slicename}';
-        
+
         const result = processor.processTemplate(template, data);
-        
+
         expect(result).toBe('Tasks: sliceindex-slicename'); // Should leave as-is
       });
 
       it('should handle real-world context initialization template', () => {
-        const data = createMockData({ 
+        const data = createMockData({
           projectName: 'manta-templates',
-          slice: '025-slice.combo-box',
+          fileSlice: '025-slice.combo-box',
           template: 'templates/react'
         });
-        
+
         const template = `Current work context:
 - Project: {project}
-- Current slice: {slice}
+- Current slice: {fileSlice}
 - Current tasks: user/tasks/{sliceindex}-tasks.{slicename}.md
 - Monorepo Template Development: Use \`project-artifacts/{template}/\` for project-specific files`;
 

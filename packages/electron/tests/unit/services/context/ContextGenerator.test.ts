@@ -8,13 +8,13 @@ describe('ContextGenerator', () => {
   });
 
   describe('generateContext', () => {
-    it('should include Tasks File in output when taskFile is provided', () => {
+    it('should include Tasks File in output when fileTasks is provided', () => {
       const project: ProjectData = {
         id: 'test-id',
         name: 'Test Project',
         template: 'react',
-        slice: '001-slice.test',
-        taskFile: '001-tasks.test.md',
+        fileSlice: '001-slice.test',
+        fileTasks: '001-tasks.test.md',
         instruction: 'implementation',
         isMonorepo: false,
         createdAt: '2025-01-01',
@@ -27,13 +27,13 @@ describe('ContextGenerator', () => {
       expect(result).toContain('- **Tasks File:** 001-tasks.test.md');
     });
 
-    it('should include empty Tasks File line when taskFile is empty', () => {
+    it('should include empty Tasks File line when fileTasks is empty', () => {
       const project: ProjectData = {
         id: 'test-id',
         name: 'Test Project',
         template: 'react',
-        slice: '001-slice.test',
-        taskFile: '',
+        fileSlice: '001-slice.test',
+        fileTasks: '',
         instruction: 'implementation',
         isMonorepo: false,
         createdAt: '2025-01-01',
@@ -46,12 +46,12 @@ describe('ContextGenerator', () => {
       expect(result).toContain('- **Tasks File:** ');
     });
 
-    it('should handle missing taskFile field gracefully', () => {
+    it('should handle missing fileTasks field gracefully', () => {
       const project = {
         id: 'test-id',
         name: 'Test Project',
         template: 'react',
-        slice: '001-slice.test',
+        fileSlice: '001-slice.test',
         instruction: 'implementation',
         isMonorepo: false,
         createdAt: '2025-01-01',
