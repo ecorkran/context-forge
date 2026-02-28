@@ -11,8 +11,8 @@ import { useContextGeneration } from '../hooks/useContextGeneration';
 const DEFAULT_FORM_DATA: CreateProjectData = {
   name: '',
   template: '',
-  slice: '',
-  taskFile: '',
+  fileSlice: '',
+  fileTasks: '',
   instruction: 'implementation',
   workType: 'continue',
   isMonorepo: false,
@@ -48,8 +48,8 @@ export const ContextBuilderApp: React.FC = () => {
           const newProject = await projectApi.create({
             name: 'New Project',
             template: '',
-            slice: '',
-            taskFile: '',
+            fileSlice: '',
+            fileTasks: '',
             instruction: 'implementation',
             workType: 'continue',
             isMonorepo: false,
@@ -94,12 +94,12 @@ export const ContextBuilderApp: React.FC = () => {
         await projectApi.update(currentProjectId, {
           name: formData.name,
           template: formData.template,
-          slice: formData.slice,
-          taskFile: formData.taskFile,
+          fileSlice: formData.fileSlice,
+          fileTasks: formData.fileTasks,
           instruction: formData.instruction,
           developmentPhase: formData.developmentPhase,
           workType: formData.workType,
-          projectDate: formData.projectDate,
+          dateProject: formData.dateProject,
           isMonorepo: formData.isMonorepo,
           isMonorepoEnabled: formData.isMonorepoEnabled,
           projectPath: formData.projectPath,
@@ -172,12 +172,12 @@ export const ContextBuilderApp: React.FC = () => {
       const newProject = await projectApi.create({
         name: generateProjectName(projects),
         template: formData.template || '',
-        slice: formData.slice || '',
-        taskFile: formData.taskFile || '',
+        fileSlice: formData.fileSlice || '',
+        fileTasks: formData.fileTasks || '',
         instruction: 'implementation',
         workType: 'continue',
         isMonorepo: false,
-        projectDate: new Date().toISOString().split('T')[0],
+        dateProject: new Date().toISOString().split('T')[0],
         customData: { recentEvents: '', additionalNotes: '', monorepoNote: '', availableTools: '' },
       });
 
@@ -198,7 +198,7 @@ export const ContextBuilderApp: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [formData.template, formData.slice, formData.taskFile, projects]);
+  }, [formData.template, formData.fileSlice, formData.fileTasks, projects]);
 
   const handleProjectDelete = useCallback(
     async (projectId: string) => {
@@ -353,12 +353,12 @@ function projectToFormData(project: ProjectData): CreateProjectData {
   return {
     name: project.name,
     template: project.template,
-    slice: project.slice,
-    taskFile: project.taskFile || '',
+    fileSlice: project.fileSlice,
+    fileTasks: project.fileTasks || '',
     instruction: project.instruction,
     developmentPhase: project.developmentPhase,
     workType: project.workType,
-    projectDate: project.projectDate,
+    dateProject: project.dateProject,
     isMonorepo: project.isMonorepo,
     isMonorepoEnabled: project.isMonorepoEnabled,
     projectPath: project.projectPath,

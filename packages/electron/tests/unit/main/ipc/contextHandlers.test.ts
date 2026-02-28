@@ -32,8 +32,8 @@ const makeProject = (overrides: Partial<ProjectData> = {}): ProjectData => ({
   id: 'proj-1',
   name: 'Test Project',
   template: 'default',
-  slice: 'my-slice',
-  taskFile: 'tasks.md',
+  fileSlice: 'my-slice',
+  fileTasks: 'tasks.md',
   instruction: 'implementation',
   workType: 'continue',
   isMonorepo: false,
@@ -71,31 +71,31 @@ describe('contextHandlers', () => {
     })
 
     it('applies overrides to project before passing to pipeline', async () => {
-      const project = makeProject({ slice: 'original-slice', instruction: 'implementation' })
+      const project = makeProject({ fileSlice: 'original-slice', instruction: 'implementation' })
       mockStore.getById.mockResolvedValue(project)
       mockIntegrator.generateContextFromProject.mockResolvedValue('context with overrides')
 
       await invoke('context:generate', 'proj-1', {
-        slice: 'override-slice',
+        fileSlice: 'override-slice',
         instruction: 'design',
       })
 
       // The integrator should receive the merged project, not the original
       const callArg = mockIntegrator.generateContextFromProject.mock.calls[0][0]
-      expect(callArg.slice).toBe('override-slice')
+      expect(callArg.fileSlice).toBe('override-slice')
       expect(callArg.instruction).toBe('design')
       // Non-overridden fields should be preserved
       expect(callArg.name).toBe('Test Project')
     })
 
     it('does not mutate original project when applying overrides', async () => {
-      const project = makeProject({ slice: 'original-slice' })
+      const project = makeProject({ fileSlice: 'original-slice' })
       mockStore.getById.mockResolvedValue(project)
       mockIntegrator.generateContextFromProject.mockResolvedValue('ctx')
 
-      await invoke('context:generate', 'proj-1', { slice: 'override-slice' })
+      await invoke('context:generate', 'proj-1', { fileSlice: 'override-slice' })
 
-      expect(project.slice).toBe('original-slice')
+      expect(project.fileSlice).toBe('original-slice')
     })
 
     it('throws descriptive error when project is not found', async () => {

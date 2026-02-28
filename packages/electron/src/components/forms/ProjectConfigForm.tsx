@@ -122,12 +122,12 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
   const [formData, setFormData] = useState<CreateProjectData>({
     name: initialData?.name || '',
     template: initialData?.template || '',
-    slice: initialData?.slice || '',
-    taskFile: initialData?.taskFile || generateTaskFileName(initialData?.slice || ''),
+    fileSlice: initialData?.fileSlice || '',
+    fileTasks: initialData?.fileTasks || generateTaskFileName(initialData?.fileSlice || ''),
     instruction: initialData?.instruction || 'implementation',
     developmentPhase: initialData?.developmentPhase,
     workType: initialData?.workType || 'continue',
-    projectDate: initialData?.projectDate || new Date().toISOString().split('T')[0],
+    dateProject: initialData?.dateProject || new Date().toISOString().split('T')[0],
     isMonorepo: initialData?.isMonorepo || false,
     isMonorepoEnabled: initialData?.isMonorepoEnabled,
     customData: {
@@ -147,16 +147,16 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
         if (prev.name !== initialData.name ||
             prev.isMonorepo !== initialData.isMonorepo ||
             prev.template !== initialData.template ||
-            prev.slice !== initialData.slice) {
+            prev.fileSlice !== initialData.fileSlice) {
           return {
             name: initialData.name || '',
             template: initialData.template || '',
-            slice: initialData.slice || '',
-            taskFile: initialData.taskFile || generateTaskFileName(initialData.slice || ''),
+            fileSlice: initialData.fileSlice || '',
+            fileTasks: initialData.fileTasks || generateTaskFileName(initialData.fileSlice || ''),
             instruction: initialData.instruction || 'implementation',
             developmentPhase: initialData.developmentPhase,
             workType: initialData.workType || 'continue',
-            projectDate: initialData.projectDate || new Date().toISOString().split('T')[0],
+            dateProject: initialData.dateProject || new Date().toISOString().split('T')[0],
             isMonorepo: initialData.isMonorepo || false,
             isMonorepoEnabled: initialData.isMonorepoEnabled,
             customData: {
@@ -204,16 +204,16 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
   const handleSliceChange = (newSlice: string) => {
     setFormData(prev => {
       const newTaskFile = generateTaskFileName(newSlice);
-      const oldExpectedTaskFile = generateTaskFileName(prev.slice);
+      const oldExpectedTaskFile = generateTaskFileName(prev.fileSlice);
 
-      // Only auto-update if current taskFile is what we would have generated
+      // Only auto-update if current fileTasks is what we would have generated
       // This preserves manual edits (like adding -x9) while still providing auto-fill
-      const shouldAutoUpdate = prev.taskFile === oldExpectedTaskFile || !prev.taskFile;
+      const shouldAutoUpdate = prev.fileTasks === oldExpectedTaskFile || !prev.fileTasks;
 
       return {
         ...prev,
-        slice: newSlice,
-        taskFile: shouldAutoUpdate ? newTaskFile : prev.taskFile
+        fileSlice: newSlice,
+        fileTasks: shouldAutoUpdate ? newTaskFile : prev.fileTasks
       };
     });
   };
@@ -259,27 +259,27 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="projectDate" className="block text-sm font-medium text-neutral-11 mb-2">
+          <label htmlFor="dateProject" className="block text-sm font-medium text-neutral-11 mb-2">
             Project Date
           </label>
           <input
-            id="projectDate"
-            name="projectDate"
+            id="dateProject"
+            name="dateProject"
             type="date"
-            value={formData.projectDate || new Date().toISOString().split('T')[0]}
-            onChange={(e) => handleInputChange('projectDate', e.target.value)}
+            value={formData.dateProject || new Date().toISOString().split('T')[0]}
+            onChange={(e) => handleInputChange('dateProject', e.target.value)}
             className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50"
           />
         </div>
 
         <div>
-          <label htmlFor="slice" className="block text-sm font-medium text-neutral-11 mb-2">
+          <label htmlFor="fileSlice" className="block text-sm font-medium text-neutral-11 mb-2">
             Current Slice
           </label>
           <input
-            id="slice"
+            id="fileSlice"
             type="text"
-            value={formData.slice}
+            value={formData.fileSlice}
             onChange={(e) => handleSliceChange(e.target.value)}
             className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent"
             placeholder="foundation, auth, ui-components..."
@@ -287,14 +287,14 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="task-file" className="block text-sm font-medium text-neutral-11 mb-2">
+          <label htmlFor="fileTasks" className="block text-sm font-medium text-neutral-11 mb-2">
             Task File
           </label>
           <input
-            id="task-file"
+            id="fileTasks"
             type="text"
-            value={formData.taskFile || ''}
-            onChange={(e) => handleInputChange('taskFile', e.target.value)}
+            value={formData.fileTasks || ''}
+            onChange={(e) => handleInputChange('fileTasks', e.target.value)}
             className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent"
             placeholder="031-tasks.hero-section"
           />

@@ -3,8 +3,8 @@ import { FileProjectStore, createContextPipeline } from '@context-forge/core/nod
 
 /** Override fields that the renderer can pass to context:generate */
 export interface ContextOverrides {
-  slice?: string
-  taskFile?: string
+  fileSlice?: string
+  fileTasks?: string
   instruction?: string
   developmentPhase?: string
   workType?: 'start' | 'continue'
