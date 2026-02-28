@@ -6,6 +6,17 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-02-28
+
+### Slice 161: Project Schema Standardization — Phase 7 (Implementation) Complete
+- Renamed `slice`→`fileSlice`, `taskFile`→`fileTasks`, `projectDate`→`dateProject` across all packages
+- Added four artifact reference fields: `fileHLD`, `fileArch`, `fileSlicePlan`, `fileSpec`
+- `migrateProjectFields()` handles old/new/mixed schema with new-name precedence (idempotent)
+- Updated MCP tool schemas (`project_update`, `context_build`, `template_preview`) to new field names
+- Updated Electron UI components (ContextBuilderApp, ProjectConfigForm, contextHandlers)
+- All 392 tests pass (core: 230, mcp-server: 56, electron: 106), build succeeds
+- Commits: `6e8389d` — types + storage, `3029d8c` — context pipeline, `94a98ca` — MCP tools + fixtures, `7373827` — integration tests + docs, `60cfcc8` — electron tests, `a6db65a` — electron UI, `1ba7bc8` — remaining electron tests
+
 ## 2026-02-26
 
 ### Slice 161: Project Schema Standardization — Phase 4 (Slice Design) Complete
