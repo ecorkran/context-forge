@@ -33,12 +33,12 @@ const MOCK_PROJECT: ProjectData = {
   id: 'project_17390001',
   name: 'test-project',
   template: 'default',
-  slice: 'auth',
-  taskFile: 'auth-tasks',
+  fileSlice: 'auth',
+  fileTasks: 'auth-tasks',
   instruction: 'implementation',
   developmentPhase: 'Phase 7',
   workType: 'continue',
-  projectDate: '2026-02-19',
+  dateProject: '2026-02-19',
   isMonorepo: false,
   isMonorepoEnabled: false,
   projectPath: '/home/user/projects/test-project',
@@ -143,14 +143,14 @@ describe('context_build', () => {
       name: 'context_build',
       arguments: {
         projectId: MOCK_PROJECT.id,
-        slice: 'new-slice',
+        fileSlice: 'new-slice',
         instruction: 'design',
       },
     });
 
     // Verify the working copy passed to generateContextFromProject has overrides
     const calledWith = mockGenerateContextFromProject.mock.calls[0][0];
-    expect(calledWith.slice).toBe('new-slice');
+    expect(calledWith.fileSlice).toBe('new-slice');
     expect(calledWith.instruction).toBe('design');
     // Unmodified fields should remain
     expect(calledWith.name).toBe(MOCK_PROJECT.name);

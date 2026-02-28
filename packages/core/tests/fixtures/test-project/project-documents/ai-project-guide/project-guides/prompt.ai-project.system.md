@@ -5,12 +5,12 @@ docType: system-prompt
 # System Prompt
 
 ##### Context Initialization
-You are working on {{projectName}}. The current slice is {{slice}}.
+You are working on {{projectName}}. The current slice is {{fileSlice}}.
 
 {{project_state}}
 
 ##### Context Initialization Monorepo
-You are working on {{projectName}} in monorepo mode. The current slice is {{slice}}, package: {{template}}.
+You are working on {{projectName}} in monorepo mode. The current slice is {{fileSlice}}, package: {{template}}.
 
 {{project_state}}
 

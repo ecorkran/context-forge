@@ -56,9 +56,9 @@ describe('SystemPromptParser', () => {
       const parsed = await parser.parsePromptFile();
       const contextInit = parsed.prompts.find((p) => p.key === 'context-initialization');
       expect(contextInit).toBeDefined();
-      // Content has {projectName}, {slice}, {project_state} — but only \w+ matches
+      // Content has {projectName}, {fileSlice}, {project_state} — but only \w+ matches
       expect(contextInit!.parameters).toContain('projectName');
-      expect(contextInit!.parameters).toContain('slice');
+      expect(contextInit!.parameters).toContain('fileSlice');
     });
 
     it('preserves section content', async () => {

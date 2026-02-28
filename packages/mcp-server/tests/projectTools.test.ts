@@ -25,12 +25,12 @@ const MOCK_PROJECT: ProjectData = {
   id: 'project_17390001',
   name: 'test-project',
   template: 'default',
-  slice: 'auth',
-  taskFile: 'auth-tasks',
+  fileSlice: 'auth',
+  fileTasks: 'auth-tasks',
   instruction: 'implementation',
   developmentPhase: 'Phase 7',
   workType: 'continue',
-  projectDate: '2026-02-19',
+  dateProject: '2026-02-19',
   isMonorepo: false,
   isMonorepoEnabled: false,
   projectPath: '/home/user/projects/test-project',
@@ -48,8 +48,8 @@ const MOCK_PROJECT_2: ProjectData = {
   id: 'project_17390002',
   name: 'another-project',
   template: 'minimal',
-  slice: 'setup',
-  taskFile: 'setup-tasks',
+  fileSlice: 'setup',
+  fileTasks: 'setup-tasks',
   instruction: 'design',
   isMonorepo: true,
   projectPath: '/home/user/projects/another',
@@ -112,7 +112,7 @@ describe('project_list', () => {
     expect(first).toEqual({
       id: MOCK_PROJECT.id,
       name: MOCK_PROJECT.name,
-      slice: MOCK_PROJECT.slice,
+      fileSlice: MOCK_PROJECT.fileSlice,
       template: MOCK_PROJECT.template,
       instruction: MOCK_PROJECT.instruction,
       isMonorepo: MOCK_PROJECT.isMonorepo,
@@ -123,7 +123,7 @@ describe('project_list', () => {
     // Summary should NOT include full fields like customData, createdAt
     expect(first.customData).toBeUndefined();
     expect(first.createdAt).toBeUndefined();
-    expect(first.taskFile).toBeUndefined();
+    expect(first.fileTasks).toBeUndefined();
   });
 
   it('returns empty list with count 0 for empty store (not an error)', async () => {
@@ -171,7 +171,7 @@ describe('project_get', () => {
     expect(parsed.id).toBe(MOCK_PROJECT.id);
     expect(parsed.customData).toEqual(MOCK_PROJECT.customData);
     expect(parsed.createdAt).toBe(MOCK_PROJECT.createdAt);
-    expect(parsed.taskFile).toBe(MOCK_PROJECT.taskFile);
+    expect(parsed.fileTasks).toBe(MOCK_PROJECT.fileTasks);
     expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
   });
 
@@ -207,7 +207,7 @@ describe('project_update', () => {
   });
 
   it('applies update and returns full read-back project', async () => {
-    const updatedProject = { ...MOCK_PROJECT, slice: 'new-slice', updatedAt: '2026-02-19T13:00:00.000Z' };
+    const updatedProject = { ...MOCK_PROJECT, fileSlice: 'new-slice', updatedAt: '2026-02-19T13:00:00.000Z' };
 
     // First getById call: existence check; second: read-back after update
     mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
@@ -215,16 +215,16 @@ describe('project_update', () => {
 
     const result = await client.callTool({
       name: 'project_update',
-      arguments: { id: MOCK_PROJECT.id, slice: 'new-slice' },
+      arguments: { id: MOCK_PROJECT.id, fileSlice: 'new-slice' },
     });
 
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
 
-    expect(parsed.slice).toBe('new-slice');
+    expect(parsed.fileSlice).toBe('new-slice');
     expect(parsed.id).toBe(MOCK_PROJECT.id);
-    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, { slice: 'new-slice' });
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, { fileSlice: 'new-slice' });
   });
 
   it('returns isError for non-existent ID', async () => {
@@ -232,7 +232,7 @@ describe('project_update', () => {
 
     const result = await client.callTool({
       name: 'project_update',
-      arguments: { id: 'project_nonexistent', slice: 'new-slice' },
+      arguments: { id: 'project_nonexistent', fileSlice: 'new-slice' },
     });
 
     expect(result.isError).toBe(true);

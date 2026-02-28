@@ -66,8 +66,8 @@ export async function generateContext(
 /** Zod schema for optional project parameter overrides */
 const contextOverridesSchema = {
   projectId: z.string().describe('Project ID. Use project_list to find IDs.'),
-  slice: z.string().optional().describe('Override the current slice name'),
-  taskFile: z.string().optional().describe('Override the task file name'),
+  fileSlice: z.string().optional().describe('Override the current slice name'),
+  fileTasks: z.string().optional().describe('Override the task file name'),
   instruction: z.string().optional().describe('Override the instruction type (e.g., implementation, design, review)'),
   developmentPhase: z.string().optional().describe('Override the current development phase'),
   workType: z.enum(['start', 'continue']).optional().describe('Override whether starting or continuing work'),
@@ -83,7 +83,7 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'Build Context',
       description:
-        'Build a complete context prompt for a Context Forge project. This is the primary tool for generating structured context blocks. Optionally override project parameters (slice, instruction, etc.) without modifying the stored project. Returns the assembled context ready for use.',
+        'Build a complete context prompt for a Context Forge project. This is the primary tool for generating structured context blocks. Optionally override project parameters (fileSlice, instruction, etc.) without modifying the stored project. Returns the assembled context ready for use.',
       inputSchema: contextOverridesSchema,
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },

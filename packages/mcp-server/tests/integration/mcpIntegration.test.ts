@@ -83,7 +83,7 @@ describe('project_list', () => {
     const fixture = parsed.projects.find((p) => p.id === FIXTURE_PROJECT_ID);
     expect(fixture).toBeDefined();
     expect(fixture?.name).toBe(FIXTURE_PROJECT_NAME);
-    expect(fixture?.slice).toBe(FIXTURE_SLICE);
+    expect(fixture?.fileSlice).toBe(FIXTURE_SLICE);
     expect(fixture?.template).toBe(FIXTURE_TEMPLATE);
     expect(fixture?.instruction).toBe(FIXTURE_INSTRUCTION);
   });
@@ -101,7 +101,7 @@ describe('project_list', () => {
     expect(fixture).toBeDefined();
     expect(fixture?.customData).toBeUndefined();
     expect(fixture?.createdAt).toBeUndefined();
-    expect(fixture?.taskFile).toBeUndefined();
+    expect(fixture?.fileTasks).toBeUndefined();
   });
 
   it('count matches number of fixture projects (1)', async () => {
@@ -175,22 +175,22 @@ describe('project_update', () => {
     await resetFixtureData(fixtureEnv.tempDir);
   });
 
-  it('updates slice field and subsequent project_get returns updated value', async () => {
+  it('updates fileSlice field and subsequent project_get returns updated value', async () => {
     const updateResult = await client.callTool({
       name: 'project_update',
-      arguments: { id: FIXTURE_PROJECT_ID, slice: '200-slice.updated' },
+      arguments: { id: FIXTURE_PROJECT_ID, fileSlice: '200-slice.updated' },
     });
 
     expect(updateResult.isError).toBeFalsy();
     const updateContent = updateResult.content as { type: string; text: string }[];
-    const updated = JSON.parse(updateContent[0].text) as { slice: string };
-    expect(updated.slice).toBe('200-slice.updated');
+    const updated = JSON.parse(updateContent[0].text) as { fileSlice: string };
+    expect(updated.fileSlice).toBe('200-slice.updated');
   });
 
   it('preserves unmodified fields after update', async () => {
     const updateResult = await client.callTool({
       name: 'project_update',
-      arguments: { id: FIXTURE_PROJECT_ID, slice: '200-slice.updated' },
+      arguments: { id: FIXTURE_PROJECT_ID, fileSlice: '200-slice.updated' },
     });
 
     expect(updateResult.isError).toBeFalsy();
@@ -207,7 +207,7 @@ describe('project_update', () => {
   it('state persists: project_get after update reflects the change', async () => {
     await client.callTool({
       name: 'project_update',
-      arguments: { id: FIXTURE_PROJECT_ID, slice: '300-slice.persisted' },
+      arguments: { id: FIXTURE_PROJECT_ID, fileSlice: '300-slice.persisted' },
     });
 
     const getResult = await client.callTool({
@@ -217,8 +217,8 @@ describe('project_update', () => {
 
     expect(getResult.isError).toBeFalsy();
     const content = getResult.content as { type: string; text: string }[];
-    const parsed = JSON.parse(content[0].text) as { slice: string };
-    expect(parsed.slice).toBe('300-slice.persisted');
+    const parsed = JSON.parse(content[0].text) as { fileSlice: string };
+    expect(parsed.fileSlice).toBe('300-slice.persisted');
   });
 });
 
@@ -251,10 +251,10 @@ describe('context_build', () => {
     expect(text).toContain(FIXTURE_SLICE);
   });
 
-  it('override slice parameter appears in generated output', async () => {
+  it('override fileSlice parameter appears in generated output', async () => {
     const result = await client.callTool({
       name: 'context_build',
-      arguments: { projectId: FIXTURE_PROJECT_ID, slice: 'override-slice-test' },
+      arguments: { projectId: FIXTURE_PROJECT_ID, fileSlice: 'override-slice-test' },
     });
 
     expect(result.isError).toBeFalsy();
@@ -299,10 +299,10 @@ describe('template_preview', () => {
     expect(previewContent[0].text).toContain(FIXTURE_PROJECT_NAME);
   });
 
-  it('override slice parameter works correctly in template_preview', async () => {
+  it('override fileSlice parameter works correctly in template_preview', async () => {
     const result = await client.callTool({
       name: 'template_preview',
-      arguments: { projectId: FIXTURE_PROJECT_ID, slice: 'preview-override-slice' },
+      arguments: { projectId: FIXTURE_PROJECT_ID, fileSlice: 'preview-override-slice' },
     });
 
     expect(result.isError).toBeFalsy();
@@ -387,7 +387,7 @@ describe('prompt_get', () => {
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('{{projectName}}');
-    expect(content[0].text).toContain('{{slice}}');
+    expect(content[0].text).toContain('{{fileSlice}}');
   });
 
   it('returns isError for non-existent template name', async () => {

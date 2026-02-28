@@ -7,7 +7,7 @@ import type { ProjectData, UpdateProjectData } from '@context-forge/core';
 interface ProjectSummary {
   id: string;
   name: string;
-  slice: string;
+  fileSlice: string;
   template: string;
   instruction: string;
   isMonorepo: boolean;
@@ -19,7 +19,7 @@ function toSummary(project: ProjectData): ProjectSummary {
   return {
     id: project.id,
     name: project.name,
-    slice: project.slice,
+    fileSlice: project.fileSlice,
     template: project.template,
     instruction: project.instruction,
     isMonorepo: project.isMonorepo,
@@ -95,20 +95,24 @@ export function registerProjectTools(server: McpServer): void {
     {
       title: 'Update Project',
       description:
-        'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., slice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
+        'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., fileSlice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
       inputSchema: {
         id: z.string().describe('Project ID to update'),
         name: z.string().optional().describe('Project display name'),
         template: z.string().optional().describe('Template name'),
-        slice: z.string().optional().describe('Current slice name'),
-        taskFile: z.string().optional().describe('Task file name'),
+        fileSlice: z.string().optional().describe('Current slice name'),
+        fileTasks: z.string().optional().describe('Task file name'),
         instruction: z.string().optional().describe('Instruction type (e.g., implementation, design, review)'),
         developmentPhase: z.string().optional().describe('Current development phase'),
         workType: z.enum(['start', 'continue']).optional().describe('Whether starting or continuing work'),
-        projectDate: z.string().optional().describe('Project date string'),
+        dateProject: z.string().optional().describe('Project date string'),
         isMonorepo: z.boolean().optional().describe('Whether project uses monorepo mode'),
         isMonorepoEnabled: z.boolean().optional().describe('Whether monorepo UI is enabled'),
         projectPath: z.string().optional().describe('Absolute path to project root'),
+        fileHLD: z.string().optional().describe('Path to HLD document (relative to project root)'),
+        fileArch: z.string().optional().describe('Path to architecture document (relative to project root)'),
+        fileSlicePlan: z.string().optional().describe('Path to slice plan (relative to project root)'),
+        fileSpec: z.string().optional().describe('Path to project spec (relative to project root)'),
         customData: z
           .object({
             recentEvents: z.string().optional(),
@@ -133,7 +137,7 @@ export function registerProjectTools(server: McpServer): void {
 
         if (Object.keys(updates).length === 0) {
           return errorResult(
-            'No update fields provided. Specify at least one field to update (e.g., slice, instruction, name).',
+            'No update fields provided. Specify at least one field to update (e.g., fileSlice, instruction, name).',
           );
         }
 

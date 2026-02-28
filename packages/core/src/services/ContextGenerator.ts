@@ -15,8 +15,8 @@ export class ContextGenerator {
     let context = template
       .replace('{{PROJECT_NAME}}', project.name)
       .replace('{{TEMPLATE}}', project.template)
-      .replace('{{SLICE}}', project.slice)
-      .replace('{{TASK_FILE}}', project.taskFile || '')
+      .replace('{{SLICE}}', project.fileSlice)
+      .replace('{{TASK_FILE}}', project.fileTasks || '')
       .replace('{{MONOREPO_STATUS}}', project.isMonorepo ? 'Monorepo project' : 'Single project')
       .replace('{{TIMESTAMP}}', new Date().toLocaleString());
 
@@ -68,7 +68,7 @@ Please help me continue development on this slice, following the project guideli
       errors.push('Template is required');
     }
 
-    if (!project.slice || project.slice.trim().length === 0) {
+    if (!project.fileSlice || project.fileSlice.trim().length === 0) {
       errors.push('Slice is required');
     }
 
