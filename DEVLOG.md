@@ -8,6 +8,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-28
 
+### Slice 162: Config System — Phase 4 (Slice Design) Complete
+- Two-tier TOML config: user-level (`~/.config/context-forge/config.toml`) + project-level (`{projectPath}/.context-forge.toml`)
+- Three new MCP tools: `config_set`, `config_get`, `config_list` with scope and source reporting
+- `ConfigManager` in `packages/core/src/config/` — resolution chain: project → user → default
+- `default_project` integration: all project-accepting MCP tools gain optional `projectId` with config fallback
+- Initial keys: `default_project`, `guide.auto_update`, `guide.source`, `guide.git_strategy`
+- Uses `smol-toml` (zero-dep TOML parser); effort 2/5
+
 ### Slice 161: Project Schema Standardization — Phase 7 (Implementation) Complete
 - Renamed `slice`→`fileSlice`, `taskFile`→`fileTasks`, `projectDate`→`dateProject` across all packages
 - Added four artifact reference fields: `fileHLD`, `fileArch`, `fileSlicePlan`, `fileSpec`
