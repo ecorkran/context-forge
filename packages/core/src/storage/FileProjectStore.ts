@@ -21,7 +21,15 @@ function migrateProjectFields(project: Record<string, unknown>): ProjectData {
   const base = project as unknown as ProjectData;
   return {
     ...base,
-    taskFile: typeof project.taskFile === 'string' ? base.taskFile : '',
+    // Renamed fields: prefer new name, fall back to old name
+    fileSlice: (project.fileSlice ?? project.slice ?? '') as string,
+    fileTasks: (project.fileTasks ?? project.taskFile ?? '') as string,
+    dateProject: (project.dateProject ?? project.projectDate) as string | undefined,
+    // New artifact fields: undefined when absent
+    fileHLD: project.fileHLD as string | undefined,
+    fileArch: project.fileArch as string | undefined,
+    fileSlicePlan: project.fileSlicePlan as string | undefined,
+    fileSpec: project.fileSpec as string | undefined,
     instruction:
       typeof project.instruction === 'string'
         ? base.instruction
@@ -99,15 +107,19 @@ export class FileProjectStore implements IProjectStore {
       id: generateProjectId(),
       name: data.name,
       template: data.template,
-      slice: data.slice,
-      taskFile: data.taskFile ?? '',
+      fileSlice: data.fileSlice,
+      fileTasks: data.fileTasks ?? '',
       instruction: data.instruction ?? 'implementation',
       developmentPhase: data.developmentPhase,
       workType: data.workType,
-      projectDate: data.projectDate,
+      dateProject: data.dateProject,
       isMonorepo: data.isMonorepo,
       isMonorepoEnabled: data.isMonorepoEnabled,
       projectPath: data.projectPath,
+      fileHLD: data.fileHLD,
+      fileArch: data.fileArch,
+      fileSlicePlan: data.fileSlicePlan,
+      fileSpec: data.fileSpec,
       customData: data.customData ?? {},
       createdAt: now,
       updatedAt: now,

@@ -1,17 +1,17 @@
 /**
  * Data structure for context generation.
  * Maps directly to template variables.
- * Consolidated from renderer superset (includes taskFile, developmentPhase, workType, projectDate).
+ * Consolidated from renderer superset (includes fileTasks, developmentPhase, workType, dateProject).
  */
 export interface ContextData {
   projectName: string;
   template: string;
-  slice: string;
-  taskFile: string;
+  fileSlice: string;
+  fileTasks: string;
   instruction: string;
   developmentPhase?: string;
   workType?: 'start' | 'continue';
-  projectDate?: string;
+  dateProject?: string;
   isMonorepo: boolean;
   recentEvents: string;
   additionalNotes: string;

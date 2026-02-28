@@ -5,16 +5,24 @@ export interface ProjectData {
   id: string;
   name: string;
   template: string;
-  slice: string;
-  taskFile: string;
+  fileSlice: string;
+  fileTasks: string;
   instruction: string;
   developmentPhase?: string;
   workType?: 'start' | 'continue';
-  projectDate?: string;
+  dateProject?: string;
   isMonorepo: boolean;
   isMonorepoEnabled?: boolean;
   /** Absolute path to project root (contains project-documents/) */
   projectPath?: string;
+  /** Path to HLD document (relative to project root) */
+  fileHLD?: string;
+  /** Path to architecture document (relative to project root) */
+  fileArch?: string;
+  /** Path to current slice plan (relative to project root) */
+  fileSlicePlan?: string;
+  /** Path to project specification (relative to project root) */
+  fileSpec?: string;
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
@@ -31,13 +39,13 @@ export interface ProjectData {
  */
 export type CreateProjectData = Omit<
   ProjectData,
-  'id' | 'createdAt' | 'updatedAt' | 'instruction' | 'developmentPhase' | 'workType' | 'taskFile' | 'projectDate' | 'customData'
+  'id' | 'createdAt' | 'updatedAt' | 'instruction' | 'developmentPhase' | 'workType' | 'fileTasks' | 'dateProject' | 'customData'
 > & {
   instruction?: string;
   developmentPhase?: string;
   workType?: 'start' | 'continue';
-  taskFile?: string;
-  projectDate?: string;
+  fileTasks?: string;
+  dateProject?: string;
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
@@ -54,15 +62,19 @@ export type UpdateProjectData = Partial<
     ProjectData,
     | 'name'
     | 'template'
-    | 'slice'
-    | 'taskFile'
+    | 'fileSlice'
+    | 'fileTasks'
     | 'instruction'
     | 'developmentPhase'
     | 'workType'
-    | 'projectDate'
+    | 'dateProject'
     | 'isMonorepo'
     | 'isMonorepoEnabled'
     | 'projectPath'
+    | 'fileHLD'
+    | 'fileArch'
+    | 'fileSlicePlan'
+    | 'fileSpec'
     | 'customData'
   >
 >;
