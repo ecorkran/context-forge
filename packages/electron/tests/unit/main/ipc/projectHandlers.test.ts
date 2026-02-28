@@ -28,8 +28,8 @@ const makeProject = (overrides: Partial<ProjectData> = {}): ProjectData => ({
   id: 'proj-1',
   name: 'Test Project',
   template: 'default',
-  slice: 'my-slice',
-  taskFile: 'tasks.md',
+  fileSlice: 'my-slice',
+  fileTasks: 'tasks.md',
   instruction: 'implementation',
   workType: 'continue',
   isMonorepo: false,
@@ -112,8 +112,8 @@ describe('projectHandlers', () => {
       const createData: CreateProjectData = {
         name: 'New Project',
         template: 'default',
-        slice: 'init-slice',
-        taskFile: '',
+        fileSlice: 'init-slice',
+        fileTasks: '',
         isMonorepo: false,
       }
       const created = makeProject({ id: 'new-1', name: 'New Project' })
