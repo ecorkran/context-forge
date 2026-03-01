@@ -8,6 +8,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-28
 
+### Slice 162: Config System — Phase 7 (Implementation) Complete
+- `packages/core/src/config/`: `ConfigManager`, `ConfigKeys`, `configPaths`, `index` — two-tier TOML config (user + project)
+- `packages/mcp-server/src/tools/`: `configTools.ts` (3 new tools), `resolveProjectId.ts` — 7 existing tools gain optional `projectId`
+- 431 tests pass (core: 252, mcp-server: 73, electron: 106); full build clean
+- Commits: `07ed46d` smol-toml dep, `d7abe49` core config module, `46771e7` core tests, `74c9c33` MCP config tools, `0b68c5e` MCP tests, `20018e1` default_project integration, `d8892e5` integration tests
+
 ### Slice 162: Config System — Phase 5 (Task Breakdown) Complete
 - 13 task groups: setup → configPaths → ConfigKeys → ConfigManager → exports → unit tests → MCP tools → MCP tests → resolveProjectId → projectTools integration → context/state tools integration → integration tests → final verification
 - Test-with pattern: ConfigManager tests follow implementation (task 6), MCP tool tests follow tool creation (task 8), integration tests follow default_project wiring (task 12)
