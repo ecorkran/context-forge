@@ -8,6 +8,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-01
 
+### Slice 167: Future Work Collector — Phase 7 (Implementation) Complete
+- `FutureWorkCollector` service in `packages/core/src/introspection/` — aggregates future work across all initiatives; detects standalone `*-slices.future.*` files via filename; groups by initiative with source attribution
+- Added `filepath` and `entries` fields to `SlicePlanBlock` type; populated in `buildModel()`
+- New types: `CollectedFutureWorkItem`, `FutureWorkGroup`, `FutureWorkCollectorResult` in `types.ts`
+- `workflow_future` MCP tool in new `workflowTools.ts`; input: `projectId`, `status` (all/pending/completed), `includeMarkdown`
+- 42 total test files pass (core: 22, mcp-server: 9, electron: 11); 18 MCP tools total
+- Commits: `bf7c94c` types+fixture, `421caf8` FutureWorkCollector+tests, `029db41` MCP tool+tests+wiring
+
 ### Fix: buildModel() now surfaces undesigned slices from slice plan main body
 - Bug: planned-but-undesigned slices (e.g., 165-168) were invisible in MCP output; parse.py showed them correctly
 - Root cause: builder iterated `futureWork` items for planned-slice fill instead of calling `parseSlicePlan()`
