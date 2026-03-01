@@ -67,7 +67,7 @@ export function registerProjectTools(server: McpServer): void {
     {
       title: 'Get Project',
       description:
-        'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. Use project_list first to find project IDs.',
+        'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. When the project has a projectPath, the response includes an `introspection` field with: slicePlan (totalSlices, completedSlices, summary), currentTasks (totalTasks, completedTasks, inferredStatus, summary), and artifacts (presence flags for slicePlan, HLD, arch, spec, currentSliceDesign, currentTaskFile). Use project_list first to find project IDs.',
       inputSchema: {
         id: z.string().optional().describe('Project ID (e.g., project_1739...). Omit to use default_project config.'),
       },

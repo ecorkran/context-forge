@@ -8,6 +8,7 @@ import { registerProjectTools } from './tools/projectTools.js';
 import { registerContextTools } from './tools/contextTools.js';
 import { registerStateTools } from './tools/stateTools.js';
 import { registerConfigTools } from './tools/configTools.js';
+import { registerIntrospectionTools } from './tools/introspectionTools.js';
 
 const SERVER_NAME = 'context-forge-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   registerContextTools(server);
   registerStateTools(server);
   registerConfigTools(server);
+  registerIntrospectionTools(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
