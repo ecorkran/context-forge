@@ -11,6 +11,7 @@ const mockGetAll = vi.fn<() => Promise<ProjectData[]>>();
 const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
 const mockConfigGet = vi.fn();
+const mockSummarize = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -20,6 +21,9 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
+  })),
+  ArtifactIntrospector: vi.fn().mockImplementation(() => ({
+    summarize: mockSummarize,
   })),
 }));
 
@@ -161,6 +165,9 @@ describe('project_get', () => {
 
   it('returns full ProjectData for valid ID', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockSummarize.mockResolvedValue({
+      artifacts: { hasSlicePlan: false, hasHLD: false, hasArch: false, hasSpec: false, hasCurrentSliceDesign: false, hasCurrentTaskFile: false },
+    });
 
     const result = await client.callTool({
       name: 'project_get',
@@ -260,6 +267,83 @@ describe('project_update', () => {
   });
 });
 
+describe('project_get introspection enrichment', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns introspection field when project has projectPath and introspection succeeds', async () => {
+    const mockIntrospection = {
+      slicePlan: { totalSlices: 7, completedSlices: 3, summary: '3 of 7 slices complete' },
+      currentTasks: { totalTasks: 10, completedTasks: 5, inferredStatus: 'in-progress', summary: '5 of 10 tasks done' },
+      artifacts: {
+        hasSlicePlan: true, hasHLD: false, hasArch: true,
+        hasSpec: false, hasCurrentSliceDesign: true, hasCurrentTaskFile: true,
+      },
+    };
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockSummarize.mockResolvedValue(mockIntrospection);
+
+    const result = await client.callTool({
+      name: 'project_get',
+      arguments: { id: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed.introspection).toBeDefined();
+    expect(parsed.introspection.slicePlan.totalSlices).toBe(7);
+    expect(parsed.introspection.currentTasks.summary).toBe('5 of 10 tasks done');
+    expect(parsed.id).toBe(MOCK_PROJECT.id);
+  });
+
+  it('returns project without introspection when project has no projectPath', async () => {
+    const projectNoPath = { ...MOCK_PROJECT, projectPath: undefined };
+    mockGetById.mockResolvedValue(projectNoPath);
+
+    const result = await client.callTool({
+      name: 'project_get',
+      arguments: { id: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed.introspection).toBeUndefined();
+    expect(mockSummarize).not.toHaveBeenCalled();
+  });
+
+  it('returns project without introspection when introspector throws (graceful degradation)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockSummarize.mockRejectedValue(new Error('Introspection failed'));
+
+    const result = await client.callTool({
+      name: 'project_get',
+      arguments: { id: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed.introspection).toBeUndefined();
+    expect(parsed.id).toBe(MOCK_PROJECT.id);
+  });
+});
+
 describe('default_project fallback', () => {
   let client: Client;
   let cleanup: () => Promise<void>;
@@ -282,6 +366,9 @@ describe('default_project fallback', () => {
       source: 'user',
     });
     mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockSummarize.mockResolvedValue({
+      artifacts: { hasSlicePlan: false, hasHLD: false, hasArch: false, hasSpec: false, hasCurrentSliceDesign: false, hasCurrentTaskFile: false },
+    });
 
     const result = await client.callTool({ name: 'project_get', arguments: {} });
 

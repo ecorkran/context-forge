@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
@@ -82,6 +82,19 @@ export function registerProjectTools(server: McpServer): void {
           return errorResult(
             `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
+        }
+
+        // Enrich with introspection when projectPath is available
+        if (project.projectPath) {
+          try {
+            const introspector = new ArtifactIntrospector();
+            const introspection = await introspector.summarize(project);
+            return jsonResult({ ...project, introspection });
+          } catch (e: unknown) {
+            // Graceful degradation — return project without introspection
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`Introspection failed for project ${resolvedId}: ${msg}`);
+          }
         }
         return jsonResult(project);
       } catch (error: unknown) {
