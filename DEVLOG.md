@@ -15,6 +15,16 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 - Updates `project_get` description to document the `introspection` enrichment field
 - Commit: `da9289e`
 
+### Slice 164: MCP Introspection Tools — Phase 5 (Task Breakdown) Complete
+- 18 tasks across 6 phases, test-with pattern throughout
+- Phase 1: Types + fixture expansion (Tasks 1-2)
+- Phase 2: ProjectModelBuilder — scanDirectory, buildModel + tests (Tasks 3-6)
+- Phase 3: Path resolution helper (Task 7)
+- Phase 4: 5 granular MCP tools + tests (Tasks 8-13)
+- Phase 5: project_structure aggregate tool + wiring + project_get update (Tasks 14-17)
+- Phase 6: Final verification (Task 18)
+- Commit: `60f0c67`
+
 ## 2026-02-28
 
 ### Slice 163: Artifact Introspection Engine — Phase 7 (Implementation) Complete
