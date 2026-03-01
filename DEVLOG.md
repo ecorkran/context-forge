@@ -8,6 +8,12 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-01
 
+### Fix: buildModel() now surfaces undesigned slices from slice plan main body
+- Bug: planned-but-undesigned slices (e.g., 165-168) were invisible in MCP output; parse.py showed them correctly
+- Root cause: builder iterated `futureWork` items for planned-slice fill instead of calling `parseSlicePlan()`
+- Fix: added `parseSlicePlan()` call alongside `parseFutureWork()`; replaced buggy fill loop; added fixture entry + test
+- 537 tests pass (was 536); commit: `a5669d9`
+
 ### Slice 167: Future Work Collector — Phase 5 (Task Breakdown) Complete
 - 10 tasks across 5 phases; test-with pattern throughout
 - Phase 1: types + standalone future-work fixture (Tasks 1-2)
