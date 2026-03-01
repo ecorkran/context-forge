@@ -66,6 +66,85 @@ export interface DocumentDetectionResult {
   slicePlan: string | null;
 }
 
+// --- ProjectModel types (for buildModel output, matching parse.py) ---
+
+/** Base document shape produced by _d() in parse.py */
+export interface DocSummary {
+  index: string;
+  name: string;
+  status: string;
+  dateCreated?: string;
+  dateUpdated?: string;
+}
+
+/** Foundation band entry (index 000-009) */
+export interface FoundationEntry extends DocSummary {
+  type: string;
+}
+
+/** Project architecture band entry (index 050-099) */
+export interface ArchEntry extends DocSummary {
+  type: 'arch' | 'hld';
+}
+
+/** Task block within a slice */
+export interface TaskModelEntry {
+  index: string;
+  name: string;
+  status: string;
+  taskCount: number;
+  completedTasks: number;
+  dateCreated?: string;
+  dateUpdated?: string;
+  items?: TaskItem[];
+}
+
+/** Slice within an initiative */
+export interface SliceModelEntry extends DocSummary {
+  tasks?: TaskModelEntry;
+  features?: DocSummary[];
+  planned?: true;
+}
+
+/** Slice plan block with future work items */
+export interface SlicePlanBlock extends DocSummary {
+  futureWork: FutureWorkItem[];
+}
+
+/** An initiative (base index in 100-799 with arch/slices doc) */
+export interface Initiative {
+  name: string;
+  slices: SliceModelEntry[];
+  features: DocSummary[];
+  arch?: DocSummary;
+  slicePlan?: SlicePlanBlock;
+}
+
+/** Standalone feature not claimed by any slice */
+export interface FutureSliceEntry extends DocSummary {
+  parent?: string;
+}
+
+/** Maintenance task entry (900+) */
+export interface MaintenanceEntry extends DocSummary {
+  taskCount?: number;
+  completedTasks?: number;
+}
+
+/** Full project model — top-level output of buildModel() */
+export interface ProjectModel {
+  name: string;
+  description: string;
+  foundation: FoundationEntry[];
+  projectArchitecture: ArchEntry[];
+  initiatives: Record<string, Initiative>;
+  futureSlices: FutureSliceEntry[];
+  quality: DocSummary[];
+  investigation: DocSummary[];
+  maintenance: MaintenanceEntry[];
+  devlog: boolean;
+}
+
 /** Introspection summary suitable for enriching project_get */
 export interface IntrospectionSummary {
   slicePlan?: {

@@ -68,11 +68,11 @@ describe('parseSlicePlan', () => {
     expect(s162).toBeDefined();
     expect(s162!.isChecked).toBe(true);
 
-    // 163 is not started
+    // 163 is complete (slice 163 delivered)
     const s163 = result.entries.find((e) => e.index === 163);
     expect(s163).toBeDefined();
-    expect(s163!.isChecked).toBe(false);
-    expect(s163!.status).toBe('not-started');
+    expect(s163!.isChecked).toBe(true);
+    expect(s163!.status).toBe('complete');
 
     expect(result.completedSlices).toBeGreaterThanOrEqual(2);
   });
