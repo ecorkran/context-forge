@@ -8,6 +8,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-01
 
+### Slice 167: Future Work Collector — Phase 4 (Slice Design) Complete
+- `workflow_future` MCP tool design: walks all slice plans, extracts future work, returns grouped view with source attribution
+- Resolved architectural decisions: hybrid storage convention (inline `## Future Work` + standalone `*-slices.future.*` files), per-project scope only, checkbox convention for completed/migrated items
+- Updated `780-slices.future.guide-management.md` to new checkbox convention
+- Fixed slice numbering in 160-slices implementation order diagram
+- Commit: `fe2288f`
+
 ### Slice 164: MCP Introspection Tools — Phase 7 (Implementation) Complete
 - `ProjectModelBuilder` in `packages/core/src/introspection/` — `scanDirectory()` + `buildModel()` replicating parse.py
 - 6 new MCP tools in `packages/mcp-server/src/tools/introspectionTools.ts`: `introspection_slice_plan`, `introspection_tasks`, `introspection_frontmatter`, `introspection_documents`, `introspection_future_work`, `project_structure`
