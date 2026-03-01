@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/160-arch.project-workflow-system.md
 project: context-forge
 dateCreated: 20260226
-dateUpdated: 20260226
+dateUpdated: 20260228
 ---
 
 # Slice Plan: Project Workflow System
@@ -31,7 +31,7 @@ dateUpdated: 20260226
 
    *Migrated from 140-slices.context-forge-restructure.md Future Work #1, re-scoped and expanded.*
 
-2. [ ] **(162) Config System** — Persistent two-tier TOML configuration. User-level config at `~/.config/context-forge/config.toml`, project-level config at `{projectPath}/.context-forge.toml`. New MCP tools: `config_set` (set value at user or project level), `config_get` (get resolved value with source indication), `config_list` (show all keys with values and resolution sources). Resolution precedence: MCP tool parameter → project config → user config → built-in default. Uses `smol-toml` (zero-dependency TOML parser). Initial config keys include `default_project`, `guide.auto_update`, `guide.git_strategy`, `guide.source`, plus placeholders for workflow settings added by later slices. New `packages/core/src/config/` module: `ConfigManager`, `ConfigKeys` (typed key definitions with defaults and validation).
+2. [x] **(162) Config System** — Persistent two-tier TOML configuration. User-level config at `~/.config/context-forge/config.toml`, project-level config at `{projectPath}/.context-forge.toml`. New MCP tools: `config_set` (set value at user or project level), `config_get` (get resolved value with source indication), `config_list` (show all keys with values and resolution sources). Resolution precedence: MCP tool parameter → project config → user config → built-in default. Uses `smol-toml` (zero-dependency TOML parser). Initial config keys include `default_project`, `guide.auto_update`, `guide.git_strategy`, `guide.source`, plus placeholders for workflow settings added by later slices. New `packages/core/src/config/` module: `ConfigManager`, `ConfigKeys` (typed key definitions with defaults and validation).
 
    **Value:** Eliminates repetitive parameter passing across MCP tool calls. Enables preference persistence. Foundation for all subsequent configurable behavior including guide management (780-band) and workflow settings.
    **Success Criteria:**
