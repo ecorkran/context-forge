@@ -6,6 +6,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-03-01
+
+### Slice 164: MCP Introspection Tools — Phase 4 (Slice Design) Complete
+- Six MCP tools: 5 granular parsers (`introspection_slice_plan`, `introspection_tasks`, `introspection_frontmatter`, `introspection_documents`, `introspection_future_work`) + aggregate `project_structure`
+- New `ProjectModelBuilder` in core replicates parse.py's `build_model()` — directory scanning, filename regex, initiative band grouping
+- Granular tools accept `projectId`+relative path or direct `filePath`; `project_structure` requires `projectId`
+- Updates `project_get` description to document the `introspection` enrichment field
+- Commit: `da9289e`
+
 ## 2026-02-28
 
 ### Slice 163: Artifact Introspection Engine — Phase 7 (Implementation) Complete
