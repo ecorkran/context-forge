@@ -63,7 +63,21 @@ dateUpdated: 20260228
    **Risk:** Medium — markdown parsing heuristics must handle real-world variation in file formatting
    **Effort:** 3/5
 
-4. [ ] **(164) Workflow Navigator** — MCP tools that compute methodology position and recommend next actions. `workflow_status` returns structured state: current methodology phase, slice plan completion summary, active slice status (needs design / needs tasks / in implementation / complete), and overall project progression. `workflow_next` returns a recommended next action with rationale — implements the state machine: check current slice tasks → check slice plan for next unstarted slice → determine what that slice needs (design? tasks? implementation?) → check for undefined architecture components → report. Output is structured JSON (machine-consumable) with a human-readable `summary` field. Adds workflow-related config keys (e.g., `workflow.auto_advance` — whether completing a slice automatically advances to the next).
+4. [ ] **(164) MCP Introspection Tools** — Expose the introspection engine (slice 163) through dedicated MCP tools so external consumers (e.g., context-visualizer) can access parsed methodology data over MCP without importing the Node.js package. Individual tools for granular access: slice plan parsing, task file parsing, frontmatter extraction, document detection. Plus a `project_structure` tool that returns the full aggregated project model (equivalent to parse.py's `build_model` output). Update `project_get` tool description to document the existing `introspection` summary field.
+
+   **Value:** Makes Context Forge the canonical source of methodology introspection data for any MCP client — Python, browser, or otherwise. Eliminates the need for consumers to maintain their own parsers. Enables context-visualizer to consume live project state rather than static JSON.
+   **Success Criteria:**
+   - Each introspection parser is accessible as a named MCP tool with typed parameters and documented response schema
+   - `project_structure` tool returns complete project model matching parse.py's output shape (foundation, initiatives, slices with tasks, future work, operational sections)
+   - `project_get` tool description documents the `introspection` summary field
+   - All tools handle missing/malformed files gracefully (error results, never crashes)
+   - An MCP client (e.g., Claude Code) can call these tools and receive structured JSON
+   **Dependencies:** [163 — Artifact Introspection Engine], [161 — Schema Standardization]
+   **Interfaces:** MCP protocol — consumed by context-visualizer and any MCP-compatible tool
+   **Risk:** Low — wrapping existing internals, main work is API design and response shaping
+   **Effort:** 2/5
+
+5. [ ] **(165) Workflow Navigator** — MCP tools that compute methodology position and recommend next actions. `workflow_status` returns structured state: current methodology phase, slice plan completion summary, active slice status (needs design / needs tasks / in implementation / complete), and overall project progression. `workflow_next` returns a recommended next action with rationale — implements the state machine: check current slice tasks → check slice plan for next unstarted slice → determine what that slice needs (design? tasks? implementation?) → check for undefined architecture components → report. Output is structured JSON (machine-consumable) with a human-readable `summary` field. Adds workflow-related config keys (e.g., `workflow.auto_advance` — whether completing a slice automatically advances to the next).
 
    **Value:** The capstone capability. Answers "where am I?" and "what should I do next?" for both humans resuming work after a break and agents that need to self-orient. Directly addresses the cognitive load and stall problems described in the architecture document.
    **Success Criteria:**
@@ -77,7 +91,7 @@ dateUpdated: 20260228
    **Risk:** Medium — state machine logic must handle the full range of methodology states without false recommendations
    **Effort:** 3/5
 
-5. [ ] **(165) Consistency Checker** — MCP tool (`workflow_check`) that compares related artifact states within a project and flags mismatches. Checks include: task file fully complete but slice not marked complete in plan, slice marked complete but task file has unchecked items, slice design exists but isn't listed in slice plan, frontmatter status doesn't match computed state. Returns a structured list of inconsistencies with severity (info/warning/error), location, and suggested fix. Optional `fix` parameter applies non-destructive corrections (update a checkbox, set a frontmatter status field). Config key `workflow.auto_fix` enables automatic correction on detection. Project-scoped; a `workflow_check_all` variant iterates across all managed projects.
+6. [ ] **(166) Consistency Checker** — MCP tool (`workflow_check`) that compares related artifact states within a project and flags mismatches. Checks include: task file fully complete but slice not marked complete in plan, slice marked complete but task file has unchecked items, slice design exists but isn't listed in slice plan, frontmatter status doesn't match computed state. Returns a structured list of inconsistencies with severity (info/warning/error), location, and suggested fix. Optional `fix` parameter applies non-destructive corrections (update a checkbox, set a frontmatter status field). Config key `workflow.auto_fix` enables automatic correction on detection. Project-scoped; a `workflow_check_all` variant iterates across all managed projects.
 
    **Value:** Catches the drift between what happened and what got recorded. Reduces the "wait, is this actually done?" uncertainty that accumulates over a project's lifetime. Low effort to build since it's a thin consumer of introspection.
    **Success Criteria:**
@@ -90,7 +104,7 @@ dateUpdated: 20260228
    **Risk:** Low — detection is straightforward once introspection exists; write-back is the only novel part
    **Effort:** 2/5
 
-6. [ ] **(166) Future Work Collector** — MCP tool (`workflow_future`) that walks all slice plans in a project, extracts "Future Work" sections, and presents them as a consolidated view grouped by source architecture component. Each collected item includes: description, source file, source initiative index, and any dependencies or effort estimates mentioned in the original. Output is structured JSON and also available as a markdown summary suitable for inclusion in planning discussions. Project-scoped; a `workflow_future_all` variant iterates across all managed projects. Pulling items out of future work into real slices remains a manual decision — this tool surfaces what's there, it doesn't reorganize it.
+7. [ ] **(167) Future Work Collector** — MCP tool (`workflow_future`) that walks all slice plans in a project, extracts "Future Work" sections, and presents them as a consolidated view grouped by source architecture component. Each collected item includes: description, source file, source initiative index, and any dependencies or effort estimates mentioned in the original. Output is structured JSON and also available as a markdown summary suitable for inclusion in planning discussions. Project-scoped; a `workflow_future_all` variant iterates across all managed projects. Pulling items out of future work into real slices remains a manual decision — this tool surfaces what's there, it doesn't reorganize it.
 
    **Value:** Makes the strategic backlog visible. Future work items currently accumulate in individual slice plans and are only discovered by manually scanning files. This tool answers "what's on the backlog?" in one call, supporting both human planning sessions and potential automation that needs to assess remaining work.
    **Success Criteria:**
@@ -105,7 +119,7 @@ dateUpdated: 20260228
 
 ## Integration Work
 
-7. [ ] **(167) Integration Testing and Documentation** — MCP-level integration tests that exercise the new tools end-to-end via protocol, covering cross-slice interactions that unit tests within individual slices cannot reach. Fixture projects representing realistic multi-state scenarios: a project mid-way through a slice plan, a project with inconsistencies across artifact layers, a project with no methodology artifacts at all. Update `context-forge-mcp` README with new tool documentation. Update root monorepo README. If npm packages are published, version bump for new capabilities.
+8. [ ] **(168) Integration Testing and Documentation** — MCP-level integration tests that exercise the new tools end-to-end via protocol, covering cross-slice interactions that unit tests within individual slices cannot reach. Fixture projects representing realistic multi-state scenarios: a project mid-way through a slice plan, a project with inconsistencies across artifact layers, a project with no methodology artifacts at all. Update `context-forge-mcp` README with new tool documentation. Update root monorepo README. If npm packages are published, version bump for new capabilities.
 
    *Note: Unit tests for each module (ConfigManager, ArtifactIntrospector, WorkflowNavigator, ConsistencyChecker, FutureWorkCollector) are created during their respective slices, not deferred to this slice. This slice covers integration-level and end-to-end testing only.*
 
