@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore } from '@context-forge/core/node';
 import { errorResult, jsonResult } from './contextTools.js';
+import { resolveProjectId } from './resolveProjectId.js';
 
 export function registerStateTools(server: McpServer): void {
   // --- context_summarize ---
@@ -14,7 +15,7 @@ export function registerStateTools(server: McpServer): void {
         'which will be included in subsequent context_build output. Use this after significant work milestones, context ' +
         "switches, or to record session progress for continuity. Analogous to Claude Code's /compact but for project-level state.",
       inputSchema: {
-        projectId: z.string().describe('Project ID to update. Use project_list to find IDs.'),
+        projectId: z.string().optional().describe('Project ID to update. Use project_list to find IDs. Omit to use default_project config.'),
         summary: z
           .string()
           .describe(
@@ -40,13 +41,14 @@ export function registerStateTools(server: McpServer): void {
           );
         }
 
+        const resolvedId = await resolveProjectId(projectId);
         const store = new FileProjectStore();
 
         // Check project exists
-        const existing = await store.getById(projectId);
+        const existing = await store.getById(resolvedId);
         if (!existing) {
           return errorResult(
-            `Project not found: '${projectId}'. Use the project_list tool to see available projects and their IDs.`,
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
 
@@ -57,10 +59,10 @@ export function registerStateTools(server: McpServer): void {
           ...(additionalNotes !== undefined && { additionalNotes }),
         };
 
-        await store.update(projectId, { customData: mergedCustomData });
+        await store.update(resolvedId, { customData: mergedCustomData });
 
         // Read back updated project
-        const updated = await store.getById(projectId);
+        const updated = await store.getById(resolvedId);
         return jsonResult(updated);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);

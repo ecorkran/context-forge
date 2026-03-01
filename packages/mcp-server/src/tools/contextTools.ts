@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore, createContextPipeline, SystemPromptParser } from '@context-forge/core/node';
+import { resolveProjectId } from './resolveProjectId.js';
 import { PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
 
@@ -65,7 +66,7 @@ export async function generateContext(
 
 /** Zod schema for optional project parameter overrides */
 const contextOverridesSchema = {
-  projectId: z.string().describe('Project ID. Use project_list to find IDs.'),
+  projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
   fileSlice: z.string().optional().describe('Override the current slice name'),
   fileTasks: z.string().optional().describe('Override the task file name'),
   instruction: z.string().optional().describe('Override the instruction type (e.g., implementation, design, review)'),
@@ -89,6 +90,7 @@ export function registerContextTools(server: McpServer): void {
     },
     async ({ projectId, additionalInstructions, ...overrideFields }) => {
       try {
+        const resolvedId = await resolveProjectId(projectId);
         // Collect defined overrides
         const overrides: Partial<ProjectData> = {};
         for (const [key, value] of Object.entries(overrideFields)) {
@@ -98,7 +100,7 @@ export function registerContextTools(server: McpServer): void {
         }
 
         const contextString = await generateContext(
-          projectId,
+          resolvedId,
           Object.keys(overrides).length > 0 ? overrides : undefined,
           additionalInstructions,
         );
@@ -122,6 +124,7 @@ export function registerContextTools(server: McpServer): void {
     },
     async ({ projectId, additionalInstructions, ...overrideFields }) => {
       try {
+        const resolvedId = await resolveProjectId(projectId);
         const overrides: Partial<ProjectData> = {};
         for (const [key, value] of Object.entries(overrideFields)) {
           if (value !== undefined) {
@@ -130,7 +133,7 @@ export function registerContextTools(server: McpServer): void {
         }
 
         const contextString = await generateContext(
-          projectId,
+          resolvedId,
           Object.keys(overrides).length > 0 ? overrides : undefined,
           additionalInstructions,
         );
@@ -150,18 +153,19 @@ export function registerContextTools(server: McpServer): void {
       description:
         'List available prompt templates for a Context Forge project. Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
       inputSchema: {
-        projectId: z.string().describe('Project ID. Use project_list to find IDs.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ projectId }) => {
       try {
+        const resolvedId = await resolveProjectId(projectId);
         const store = new FileProjectStore();
-        const project = await store.getById(projectId);
+        const project = await store.getById(resolvedId);
 
         if (!project) {
           return errorResult(
-            `Project not found: '${projectId}'. Use the project_list tool to see available projects and their IDs.`,
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
 
@@ -197,19 +201,20 @@ export function registerContextTools(server: McpServer): void {
       description:
         'Get the full content of a specific prompt template. Returns the raw template text. Useful for inspecting what a template contains before building context with it.',
       inputSchema: {
-        projectId: z.string().describe('Project ID. Use project_list to find IDs.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
         templateName: z.string().describe('Template name or key to match. Use prompt_list to see available templates.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ projectId, templateName }) => {
       try {
+        const resolvedId = await resolveProjectId(projectId);
         const store = new FileProjectStore();
-        const project = await store.getById(projectId);
+        const project = await store.getById(resolvedId);
 
         if (!project) {
           return errorResult(
-            `Project not found: '${projectId}'. Use the project_list tool to see available projects and their IDs.`,
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
 

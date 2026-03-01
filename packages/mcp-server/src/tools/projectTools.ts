@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData } from '@context-forge/core';
+import { resolveProjectId } from './resolveProjectId.js';
 
 /** Summary fields returned by project_list */
 interface ProjectSummary {
@@ -68,17 +69,18 @@ export function registerProjectTools(server: McpServer): void {
       description:
         'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. Use project_list first to find project IDs.',
       inputSchema: {
-        id: z.string().describe('Project ID (e.g., project_1739...). Use project_list to find IDs.'),
+        id: z.string().optional().describe('Project ID (e.g., project_1739...). Omit to use default_project config.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ id }) => {
       try {
+        const resolvedId = await resolveProjectId(id);
         const store = new FileProjectStore();
-        const project = await store.getById(id);
+        const project = await store.getById(resolvedId);
         if (!project) {
           return errorResult(
-            `Project not found: '${id}'. Use the project_list tool to see available projects and their IDs.`,
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
         return jsonResult(project);
@@ -97,7 +99,7 @@ export function registerProjectTools(server: McpServer): void {
       description:
         'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., fileSlice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
       inputSchema: {
-        id: z.string().describe('Project ID to update'),
+        id: z.string().optional().describe('Project ID to update. Omit to use default_project config.'),
         name: z.string().optional().describe('Project display name'),
         template: z.string().optional().describe('Template name'),
         fileSlice: z.string().optional().describe('Current slice name'),
@@ -127,6 +129,8 @@ export function registerProjectTools(server: McpServer): void {
     },
     async ({ id, ...fields }) => {
       try {
+        const resolvedId = await resolveProjectId(id);
+
         // Collect defined update fields (exclude undefined values)
         const updates: UpdateProjectData = {};
         for (const [key, value] of Object.entries(fields)) {
@@ -144,17 +148,17 @@ export function registerProjectTools(server: McpServer): void {
         const store = new FileProjectStore();
 
         // Check project exists
-        const existing = await store.getById(id);
+        const existing = await store.getById(resolvedId);
         if (!existing) {
           return errorResult(
-            `Project not found: '${id}'. Use the project_list tool to see available projects and their IDs.`,
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
 
-        await store.update(id, updates);
+        await store.update(resolvedId, updates);
 
         // Read back updated project
-        const updated = await store.getById(id);
+        const updated = await store.getById(resolvedId);
         return jsonResult(updated);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
