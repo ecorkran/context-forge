@@ -1,0 +1,75 @@
+import { describe, it, expect } from 'vitest';
+import { normalizeStatus } from '../../src/introspection/parsers/statusNormalizer.js';
+
+describe('normalizeStatus', () => {
+  describe('complete variants', () => {
+    it.each(['complete', 'completed', 'done'])('maps "%s" to "complete"', (input) => {
+      expect(normalizeStatus(input)).toBe('complete');
+    });
+  });
+
+  describe('in-progress variants', () => {
+    it.each(['in_progress', 'in-progress', 'in progress', 'active'])(
+      'maps "%s" to "in-progress"',
+      (input) => {
+        expect(normalizeStatus(input)).toBe('in-progress');
+      },
+    );
+  });
+
+  describe('not-started variants', () => {
+    it.each(['not_started', 'not-started', 'not started', 'ready', 'pending', 'planned'])(
+      'maps "%s" to "not-started"',
+      (input) => {
+        expect(normalizeStatus(input)).toBe('not-started');
+      },
+    );
+  });
+
+  describe('deprecated', () => {
+    it('maps "deprecated" to "deprecated"', () => {
+      expect(normalizeStatus('deprecated')).toBe('deprecated');
+    });
+  });
+
+  describe('case insensitivity', () => {
+    it.each([
+      ['COMPLETE', 'complete'],
+      ['In-Progress', 'in-progress'],
+      ['NOT_STARTED', 'not-started'],
+      ['Deprecated', 'deprecated'],
+      ['DONE', 'complete'],
+      ['Active', 'in-progress'],
+    ])('maps "%s" to "%s"', (input, expected) => {
+      expect(normalizeStatus(input)).toBe(expected);
+    });
+  });
+
+  describe('whitespace trimming', () => {
+    it('trims leading and trailing whitespace', () => {
+      expect(normalizeStatus('  complete  ')).toBe('complete');
+    });
+
+    it('trims tabs and mixed whitespace', () => {
+      expect(normalizeStatus('\tin-progress\t')).toBe('in-progress');
+    });
+  });
+
+  describe('unknown and empty values', () => {
+    it('returns "not-started" for unknown values', () => {
+      expect(normalizeStatus('unknown')).toBe('not-started');
+    });
+
+    it('returns "not-started" for empty string', () => {
+      expect(normalizeStatus('')).toBe('not-started');
+    });
+
+    it('returns "not-started" for undefined', () => {
+      expect(normalizeStatus(undefined)).toBe('not-started');
+    });
+
+    it('returns "not-started" for null', () => {
+      expect(normalizeStatus(null)).toBe('not-started');
+    });
+  });
+});
