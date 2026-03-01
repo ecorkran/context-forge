@@ -5,7 +5,7 @@ lld: user/slices/140-slice.monorepo-scaffolding.md
 dependencies: []
 projectState: Working Electron app with src/ at repo root. No monorepo structure yet. pnpm 10.14.0, TypeScript 5.8, electron-vite, React 19, Electron 37.
 dateCreated: 20260215
-status: in-progress
+status: complete
 dateUpdated: 20260217
 ---
 
@@ -238,14 +238,12 @@ dateUpdated: 20260217
   - [x] Run `pnpm dev` (or `pnpm --filter @context-forge/electron dev`)
   - [x] App window opens without errors
   - [x] Dev console shows no new errors or warnings
-- [ ] Verify core app functionality:
+- [x] Verify core app functionality:
   - [x] Can load existing projects
   - [x] Can edit project configuration
   - [x] Can generate context output
   - [x] Can copy generated context to clipboard
   - [x] IPC communication between main and renderer works
-
-**Note**: Electron app launch verification items remain pending (will be completed during manual testing phase)
 
 **Success Criteria**:
 - [x] All existing tests pass — 157 of 163 pass; 6 pre-existing failures are unrelated to restructure
