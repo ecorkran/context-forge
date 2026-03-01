@@ -8,6 +8,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-01
 
+### Slice 167: Future Work Collector — Phase 5 (Task Breakdown) Complete
+- 10 tasks across 5 phases; test-with pattern throughout
+- Phase 1: types + standalone future-work fixture (Tasks 1-2)
+- Phase 2: FutureWorkCollector service + markdown formatter + core export (Tasks 3-5)
+- Phase 3: unit tests (Task 6); Phase 4: workflowTools.ts + tests + wiring (Tasks 7-9)
+- Key design: standalone `*-slices.future.*` files use slicePlan.entries; regular plans use slicePlan.futureWork
+- Commit: `6de2bfc`
+
 ### Slice 167: Future Work Collector — Phase 4 (Slice Design) Complete
 - `workflow_future` MCP tool design: walks all slice plans, extracts future work, returns grouped view with source attribution
 - Resolved architectural decisions: hybrid storage convention (inline `## Future Work` + standalone `*-slices.future.*` files), per-project scope only, checkbox convention for completed/migrated items
