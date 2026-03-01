@@ -63,7 +63,7 @@ dateUpdated: 20260228
    **Risk:** Medium — markdown parsing heuristics must handle real-world variation in file formatting
    **Effort:** 3/5
 
-4. [ ] **(164) MCP Introspection Tools** — Expose the introspection engine (slice 163) through dedicated MCP tools so external consumers (e.g., context-visualizer) can access parsed methodology data over MCP without importing the Node.js package. Individual tools for granular access: slice plan parsing, task file parsing, frontmatter extraction, document detection. Plus a `project_structure` tool that returns the full aggregated project model (equivalent to parse.py's `build_model` output). Update `project_get` tool description to document the existing `introspection` summary field.
+4. [x] **(164) MCP Introspection Tools** — Expose the introspection engine (slice 163) through dedicated MCP tools so external consumers (e.g., context-visualizer) can access parsed methodology data over MCP without importing the Node.js package. Individual tools for granular access: slice plan parsing, task file parsing, frontmatter extraction, document detection. Plus a `project_structure` tool that returns the full aggregated project model (equivalent to parse.py's `build_model` output). Update `project_get` tool description to document the existing `introspection` summary field.
 
    **Value:** Makes Context Forge the canonical source of methodology introspection data for any MCP client — Python, browser, or otherwise. Eliminates the need for consumers to maintain their own parsers. Enables context-visualizer to consume live project state rather than static JSON.
    **Success Criteria:**

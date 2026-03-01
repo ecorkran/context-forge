@@ -8,6 +8,15 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-01
 
+### Slice 164: MCP Introspection Tools — Phase 7 (Implementation) Complete
+- `ProjectModelBuilder` in `packages/core/src/introspection/` — `scanDirectory()` + `buildModel()` replicating parse.py
+- 6 new MCP tools in `packages/mcp-server/src/tools/introspectionTools.ts`: `introspection_slice_plan`, `introspection_tasks`, `introspection_frontmatter`, `introspection_documents`, `introspection_future_work`, `project_structure`
+- ProjectModel types: `DocSummary`, `FoundationEntry`, `ArchEntry`, `Initiative`, `SliceModelEntry`, `TaskModelEntry`, `MaintenanceEntry`, etc.
+- Expanded fixture project with foundation doc, HLD, maintenance task, DEVLOG
+- Updated `project_get` description to document `introspection` field
+- 536 tests pass (core: 341, mcp-server: 89, electron: 106); full build clean; 17 MCP tools total
+- Commits: `ceb3655` types+fixtures, `b637d88` ProjectModelBuilder, `d3fa530` MCP tools+tests+wiring
+
 ### Slice 164: MCP Introspection Tools — Phase 4 (Slice Design) Complete
 - Six MCP tools: 5 granular parsers (`introspection_slice_plan`, `introspection_tasks`, `introspection_frontmatter`, `introspection_documents`, `introspection_future_work`) + aggregate `project_structure`
 - New `ProjectModelBuilder` in core replicates parse.py's `build_model()` — directory scanning, filename regex, initiative band grouping
