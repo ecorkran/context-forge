@@ -108,6 +108,8 @@ export interface SliceModelEntry extends DocSummary {
 
 /** Slice plan block with future work items */
 export interface SlicePlanBlock extends DocSummary {
+  filepath?: string;
+  entries?: SlicePlanEntry[];
   futureWork: FutureWorkItem[];
 }
 

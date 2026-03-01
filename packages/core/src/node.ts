@@ -21,3 +21,4 @@ export { parseTaskItems, parseTaskFile } from './introspection/parsers/taskFileP
 export { parseFutureWork } from './introspection/parsers/futureWorkParser.js';
 export { detectDocuments, checkFileExists } from './introspection/parsers/documentDetector.js';
 export { buildModel, scanDirectory } from './introspection/ProjectModelBuilder.js';
+export { FutureWorkCollector } from './introspection/FutureWorkCollector.js';

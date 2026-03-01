@@ -281,6 +281,8 @@ export async function buildModel(
       planEntries = planResult.entries;
       const planBlock: SlicePlanBlock = {
         ...toDocSummary(slicesDoc),
+        filepath: slicesDoc.filepath,
+        entries: planResult.entries,
         futureWork: fwResult.items,
       };
       initiative.slicePlan = planBlock;
