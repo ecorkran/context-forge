@@ -10,10 +10,15 @@ import { registerStateTools } from '../src/tools/stateTools.js';
 const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
 
+const mockConfigGet = vi.fn();
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
     update: mockUpdate,
+  })),
+  ConfigManager: vi.fn().mockImplementation(() => ({
+    get: mockConfigGet,
   })),
 }));
 
@@ -202,5 +207,24 @@ describe('context_summarize', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('Disk write failed');
+  });
+
+  it('uses default_project when projectId is omitted', async () => {
+    mockConfigGet.mockResolvedValue({
+      key: 'default_project',
+      value: MOCK_PROJECT.id,
+      source: 'user',
+    });
+    const updatedProject = { ...MOCK_PROJECT, customData: { ...MOCK_PROJECT.customData, recentEvents: 'Via default' } };
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'context_summarize',
+      arguments: { summary: 'Via default' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
   });
 });

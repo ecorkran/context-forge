@@ -5,17 +5,21 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ProjectData } from '@context-forge/core';
 import { registerProjectTools } from '../src/tools/projectTools.js';
 
-// --- Mock FileProjectStore ---
+// --- Mocks ---
 
 const mockGetAll = vi.fn<() => Promise<ProjectData[]>>();
 const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
+const mockConfigGet = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
     update: mockUpdate,
+  })),
+  ConfigManager: vi.fn().mockImplementation(() => ({
+    get: mockConfigGet,
   })),
 }));
 
@@ -253,5 +257,49 @@ describe('project_update', () => {
     expect(content[0].text).toContain('No update fields provided');
     expect(mockGetById).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('default_project fallback', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('project_get uses default_project when id omitted', async () => {
+    mockConfigGet.mockResolvedValue({
+      key: 'default_project',
+      value: MOCK_PROJECT.id,
+      source: 'user',
+    });
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+
+    const result = await client.callTool({ name: 'project_get', arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
+  });
+
+  it('project_get returns error when id omitted and no default_project configured', async () => {
+    mockConfigGet.mockResolvedValue({
+      key: 'default_project',
+      value: '',
+      source: 'default',
+    });
+
+    const result = await client.callTool({ name: 'project_get', arguments: {} });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('No project ID provided');
   });
 });

@@ -13,6 +13,8 @@ const mockGenerateContextFromProject = vi.fn<(project: ProjectData) => Promise<s
 
 const mockGetAllPrompts = vi.fn();
 
+const mockConfigGet = vi.fn();
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
@@ -24,6 +26,9 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   SystemPromptParser: vi.fn().mockImplementation(() => ({
     getAllPrompts: mockGetAllPrompts,
+  })),
+  ConfigManager: vi.fn().mockImplementation(() => ({
+    get: mockConfigGet,
   })),
 }));
 
@@ -415,5 +420,51 @@ describe('prompt_get', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('Project not found');
+  });
+});
+
+describe('default_project fallback (context tools)', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('context_build uses default_project when projectId omitted', async () => {
+    mockConfigGet.mockResolvedValue({
+      key: 'default_project',
+      value: MOCK_PROJECT.id,
+      source: 'user',
+    });
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    const result = await client.callTool({ name: 'context_build', arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
+  });
+
+  it('prompt_list uses default_project when projectId omitted', async () => {
+    mockConfigGet.mockResolvedValue({
+      key: 'default_project',
+      value: MOCK_PROJECT.id,
+      source: 'user',
+    });
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetAllPrompts.mockResolvedValue(MOCK_PROMPTS);
+
+    const result = await client.callTool({ name: 'prompt_list', arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
   });
 });
