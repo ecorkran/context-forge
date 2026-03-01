@@ -27,11 +27,11 @@ dateUpdated: 20260228
 
 ## Future Work
 
-1. [ ] **(200) Advanced Analytics** — Add analytics dashboard and reporting.
+1. [ ] (200) Advanced Analytics — Add analytics dashboard and reporting.
 
 2. [ ] Future enhancement without explicit index — better UI.
 
-3. [x] **(201) Plugin System** — Extensible plugin architecture.
+3. [x] (201) Plugin System — Extensible plugin architecture.
 
 ## Implementation Order
 
