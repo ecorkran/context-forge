@@ -90,9 +90,9 @@ describe('ArtifactIntrospector', () => {
 
       // Slice plan summary
       expect(summary.slicePlan).toBeDefined();
-      expect(summary.slicePlan!.totalSlices).toBe(1);
+      expect(summary.slicePlan!.totalSlices).toBe(2);
       expect(summary.slicePlan!.completedSlices).toBe(1);
-      expect(summary.slicePlan!.summary).toBe('1 of 1 slices complete');
+      expect(summary.slicePlan!.summary).toBe('1 of 2 slices complete');
 
       // Task summary
       expect(summary.currentTasks).toBeDefined();

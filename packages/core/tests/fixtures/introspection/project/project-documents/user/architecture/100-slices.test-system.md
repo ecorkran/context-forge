@@ -8,3 +8,4 @@ project: test-project
 ## Foundation Work
 
 1. [x] **(100) Test Feature** — The test feature.
+2. [ ] **(101) Planned Feature** — Planned but no design file yet.

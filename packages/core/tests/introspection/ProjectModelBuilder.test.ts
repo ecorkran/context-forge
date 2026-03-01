@@ -74,6 +74,20 @@ describe('buildModel', () => {
     expect(init.slices.length).toBeGreaterThan(0);
   });
 
+  it('planned slice: slice plan entry without design file appears as planned: true', async () => {
+    const model = await buildModel(PROJECT_ROOT);
+    const init = model.initiatives['100'];
+    const planned = init.slices.find((s) => s.index === '101');
+    expect(planned).toBeDefined();
+    expect(planned!.planned).toBe(true);
+    expect(planned!.name).toBe('Planned Feature');
+    expect(planned!.status).toBe('not-started');
+    // The actual designed slice (100) should still be present and NOT marked planned
+    const actual = init.slices.find((s) => s.index === '100');
+    expect(actual).toBeDefined();
+    expect(actual!.planned).toBeUndefined();
+  });
+
   it('task merging: split task files merge into single task entry', async () => {
     const model = await buildModel(PROJECT_ROOT);
     const init = model.initiatives['100'];

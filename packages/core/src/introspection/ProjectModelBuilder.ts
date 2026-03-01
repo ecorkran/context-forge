@@ -3,6 +3,7 @@ import { join, basename } from 'node:path';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { parseTaskItems } from './parsers/taskFileParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
+import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
 import type {
   TaskItem,
@@ -270,9 +271,14 @@ export async function buildModel(
       initiative.arch = toDocSummary(archDoc);
     }
 
-    // Slice plan with future work
+    // Slice plan: parse both main-body entries and future work section
+    let planEntries: import('./types.js').SlicePlanEntry[] = [];
     if (slicesDoc) {
-      const fwResult = await parseFutureWork(slicesDoc.filepath, upper);
+      const [planResult, fwResult] = await Promise.all([
+        parseSlicePlan(slicesDoc.filepath),
+        parseFutureWork(slicesDoc.filepath, upper),
+      ]);
+      planEntries = planResult.entries;
       const planBlock: SlicePlanBlock = {
         ...toDocSummary(slicesDoc),
         futureWork: fwResult.items,
@@ -331,23 +337,19 @@ export async function buildModel(
       initiative.slices.push(entry);
     }
 
-    // Fill planned-but-unwritten slices from slice plan future work
-    if (initiative.slicePlan) {
-      for (const fw of initiative.slicePlan.futureWork) {
-        const fwIdx = parseInt(fw.index, 10);
-        if (!isNaN(fwIdx) && fwIdx >= base && fwIdx < upper && !sliceIndices.has(fwIdx)) {
-          const planned: SliceModelEntry = {
-            index: pad(fwIdx),
-            name: fw.name,
-            status: fw.done ? 'complete' : 'not-started',
-            planned: true,
-          };
-          initiative.slices.push(planned);
-        }
+    // Fill planned-but-unwritten slices from slice plan main body (matching parse.py)
+    for (const entry of planEntries) {
+      if (entry.index >= base && entry.index < upper && !sliceIndices.has(entry.index)) {
+        initiative.slices.push({
+          index: pad(entry.index),
+          name: entry.name,
+          status: entry.isChecked ? 'complete' : 'not-started',
+          planned: true,
+        });
       }
-      // Re-sort slices by index
-      initiative.slices.sort((a, b) => a.index.localeCompare(b.index));
     }
+    // Re-sort all slices by index
+    initiative.slices.sort((a, b) => a.index.localeCompare(b.index));
 
     // Collect unclaimed features as futureSlices
     for (const [idx, feats] of featuresByIndex) {
