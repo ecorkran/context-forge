@@ -145,6 +145,39 @@ export interface ProjectModel {
   devlog: boolean;
 }
 
+// --- FutureWorkCollector types ---
+
+/** A single future work item with source attribution */
+export interface CollectedFutureWorkItem {
+  index: string;
+  name: string;
+  done: boolean;
+  sourceFile: string;
+  sourceInitiativeIndex: string;
+  sourceInitiativeName: string;
+}
+
+/** Future work grouped by source initiative */
+export interface FutureWorkGroup {
+  initiativeIndex: string;
+  initiativeName: string;
+  sourceFile: string;
+  items: CollectedFutureWorkItem[];
+  totalItems: number;
+  pendingItems: number;
+  completedItems: number;
+}
+
+/** Top-level result from FutureWorkCollector.collect() / workflow_future */
+export interface FutureWorkCollectorResult {
+  projectPath: string;
+  groups: FutureWorkGroup[];
+  totalItems: number;
+  pendingItems: number;
+  completedItems: number;
+  markdown: string;
+}
+
 /** Introspection summary suitable for enriching project_get */
 export interface IntrospectionSummary {
   slicePlan?: {

@@ -9,8 +9,8 @@ describe('scanDirectory', () => {
   it('returns correct number of docs from fixture', async () => {
     const docs = await scanDirectory(USER_DIR);
     // Fixture has: 100-arch, 100-slices, 100-slice, 100-tasks, 100-tasks-1,
-    //              050-arch.hld, 002-spec, 900-tasks.maintenance
-    expect(docs.length).toBe(8);
+    //              050-arch.hld, 002-spec, 900-tasks.maintenance, 780-slices.future.test-future
+    expect(docs.length).toBe(9);
   });
 
   it('each DocEntry has expected fields', async () => {
