@@ -8,3 +8,4 @@ export { parseFrontmatter } from './parsers/frontmatterParser.js';
 export { parseTaskItems, parseTaskFile } from './parsers/taskFileParser.js';
 export { parseSlicePlan } from './parsers/slicePlanParser.js';
 export { parseFutureWork } from './parsers/futureWorkParser.js';
+export { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
