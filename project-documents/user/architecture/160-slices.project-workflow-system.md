@@ -144,12 +144,12 @@ Foundation (sequential):
 Feature (163 first, then 164-166 can parallelize):
   163. Artifact Introspection Engine
     ↓
-  164. Workflow Navigator  ─┐
-  165. Consistency Checker  ├─ parallel after 163
-  166. Future Work Collector┘
+  165. Workflow Navigator  ─┐
+  166. Consistency Checker  ├─ parallel after 163
+  167. Future Work Collector┘
 
 Integration (after all features):
-  167. Testing and Documentation
+  168. Testing and Documentation
 ```
 
 ## Notes
