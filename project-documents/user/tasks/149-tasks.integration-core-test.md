@@ -33,31 +33,31 @@ status: complete
     4. `createMockStatementReader(overrides?)` — mock `IStatementReader` using `vi.fn()`
     5. `createMockPromptReader(overrides?)` — mock `IPromptReader` using `vi.fn()`
   - Import types from `@context-forge/core` and interfaces from `../src/services/interfaces.js`
-  - [ ] No `any` types
-  - [ ] Each factory returns a fully valid object (no missing required fields)
-  - [ ] File compiles with `pnpm build` in `packages/core`
+  - [x] No `any` types
+  - [x] Each factory returns a fully valid object (no missing required fields)
+  - [x] File compiles with `pnpm build` in `packages/core`
 
 - [x] **Task 2: Expand test fixture for StatementManager format** (Effort: 1/5)
   - The existing `tests/fixtures/test-project/default-statements.md` uses `#####` headers
   - `StatementManager.parseMarkdownStatements()` expects `## headers` with `<!-- key: ..., editable: ... -->` HTML comments
   - Update the fixture to match the production format (see `StatementManager.ts` parser logic)
   - Ensure all 7 default statement keys from `constants.ts` `DEFAULT_STATEMENTS` are present
-  - [ ] Fixture parses correctly when loaded by `StatementManager`
-  - [ ] Existing pipeline-integration tests still pass (`pnpm test` in `packages/core`)
+  - [x] Fixture parses correctly when loaded by `StatementManager`
+  - [x] Existing pipeline-integration tests still pass (`pnpm test` in `packages/core`)
 
 - [x] **Task 3: Expand prompt fixture for instruction-matching tests** (Effort: 1/5)
   - The existing `tests/fixtures/test-project/.../prompt.ai-project.system.md` has only 3 sections
   - Add sections needed for testing: `design`, `review`, `monorepo` instruction variants
   - Keep existing sections (`Context Initialization`, `Tool Use`, `implementation`) intact
-  - [ ] File retains valid YAML frontmatter
-  - [ ] At least 6 `#####` sections present for comprehensive instruction-matching tests
-  - [ ] Existing pipeline-integration tests still pass
+  - [x] File retains valid YAML frontmatter
+  - [x] At least 6 `#####` sections present for comprehensive instruction-matching tests
+  - [x] Existing pipeline-integration tests still pass
 
 - [x] **Task 4: Commit — test infrastructure** (Effort: 1/5)
   - Stage and commit: `tests/helpers/testData.ts`, updated fixtures
   - Verify `pnpm test` passes in `packages/core` (existing 54 tests unaffected)
-  - [ ] Clean commit with descriptive message
-  - [ ] All existing tests pass
+  - [x] Clean commit with descriptive message
+  - [x] All existing tests pass
 
 ### Phase 2: Pure Logic Service Tests
 
