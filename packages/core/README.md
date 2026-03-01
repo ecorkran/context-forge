@@ -37,6 +37,14 @@ import { createContextPipeline } from '@context-forge/core/node';
 import { StatementManager, SystemPromptParser } from '@context-forge/core/node';
 import { ProjectPathService } from '@context-forge/core/node';
 import { getStoragePath } from '@context-forge/core/node';
+
+// Artifact introspection
+import { ArtifactIntrospector } from '@context-forge/core/node';
+import { buildModel, scanDirectory } from '@context-forge/core/node';
+import { parseFrontmatter, parseSlicePlan } from '@context-forge/core/node';
+import { parseTaskItems, parseTaskFile } from '@context-forge/core/node';
+import { parseFutureWork, detectDocuments } from '@context-forge/core/node';
+import { FutureWorkCollector } from '@context-forge/core/node';
 ```
 
 This entry point includes filesystem-dependent services. Use it in main processes, CLI tools, MCP servers, and tests. Do not import from browser/renderer code.
@@ -53,6 +61,9 @@ This entry point includes filesystem-dependent services. Use it in main processe
 | `ContextIntegrator` | `.` | Orchestrates full context generation from a `ProjectData` object |
 | `TemplateProcessor` | `.` | Handles `{{variable}}` substitution in template strings |
 | `SectionBuilder` | `.` | Assembles individual context sections (statements, instructions, tools) |
+| `ArtifactIntrospector` | `./node` | Parses methodology documents: slice plans, task files, frontmatter, future work, document detection |
+| `buildModel` | `./node` | Builds a full `ProjectModel` from a project root path — foundation, initiatives, slices, tasks, future work |
+| `FutureWorkCollector` | `./node` | Aggregates future work items across all slice plans; groups by initiative; supports status filtering |
 
 ## Usage in the Monorepo
 

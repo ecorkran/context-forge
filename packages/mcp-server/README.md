@@ -91,6 +91,27 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 | `config_set` | Set a config key at user or project scope |
 | `config_list` | List all config keys with current values, sources, and defaults |
 
+### Artifact Introspection
+
+Tools that parse methodology documents and extract structured information. All return JSON; all accept `projectId` (or `filePath` for file-targeted tools) and fall back to `default_project`.
+
+| Tool | Description |
+|------|-------------|
+| `project_structure` | Build full project model (foundation, initiatives, slices, tasks, future work) — equivalent to parse.py `build_model()` |
+| `introspection_slice_plan` | Parse a slice plan and return entries with index, name, status, and completion counts |
+| `introspection_tasks` | Parse a task file and return items with done state, total count, and inferred status |
+| `introspection_frontmatter` | Extract YAML frontmatter key-value pairs from any methodology document |
+| `introspection_documents` | Detect which methodology files exist for a given slice index (design, tasks, arch, plan) |
+| `introspection_future_work` | Parse the `## Future Work` section from a slice plan document |
+
+### Workflow
+
+Tools that operate across all slice plans in a project to support planning and review.
+
+| Tool | Description |
+|------|-------------|
+| `workflow_future` | Aggregate all future work items across a project, grouped by source initiative, with markdown summary. Accepts optional `status` filter (`all`/`pending`/`completed`) and `includeMarkdown` flag. |
+
 **Tip:** Set `default_project` once and omit `projectId` from all other tool calls:
 
 ```
