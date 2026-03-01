@@ -8,6 +8,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-28
 
+### Slice 163: Artifact Introspection Engine — Phase 4 (Slice Design) Complete
+- Re-implements relevant parsing from context-visualizer `parse.py` in TypeScript as `packages/core/src/introspection/`
+- Six parser modules: frontmatter, slice plan, task file, future work, document detector, status normalizer
+- `ArtifactIntrospector` orchestrator with `IArtifactIntrospector` interface consumed by slices 164–166
+- Enriched `project_get` with computed `introspection` summary (slice plan completion, task progress, artifact presence)
+- No new npm dependencies; regex-based line parsing (no markdown AST); Node.js-only exports from `@context-forge/core/node`
+
 ### Slice 162: Config System — Phase 7 (Implementation) Complete
 - `packages/core/src/config/`: `ConfigManager`, `ConfigKeys`, `configPaths`, `index` — two-tier TOML config (user + project)
 - `packages/mcp-server/src/tools/`: `configTools.ts` (3 new tools), `resolveProjectId.ts` — 7 existing tools gain optional `projectId`
