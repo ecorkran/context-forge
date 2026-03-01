@@ -1,11 +1,6 @@
-// Introspection module — types and interfaces (browser-safe)
+// Introspection module — browser-safe exports (types, interfaces, pure functions)
 export * from './types.js';
 export type { IArtifactIntrospector } from './interfaces.js';
 
-// Parser functions (Node.js — fs dependent)
+// normalizeStatus is a pure function with no fs dependency — browser-safe
 export { normalizeStatus } from './parsers/statusNormalizer.js';
-export { parseFrontmatter } from './parsers/frontmatterParser.js';
-export { parseTaskItems, parseTaskFile } from './parsers/taskFileParser.js';
-export { parseSlicePlan } from './parsers/slicePlanParser.js';
-export { parseFutureWork } from './parsers/futureWorkParser.js';
-export { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
