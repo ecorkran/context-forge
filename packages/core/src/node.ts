@@ -9,3 +9,6 @@ export { createContextPipeline } from './services/CoreServiceFactory.js';
 
 // Storage — filesystem-backed project CRUD, backup, and storage utilities
 export * from './storage/index.js';
+
+// Config — two-tier TOML configuration (user + project level)
+export * from './config/index.js';
