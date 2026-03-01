@@ -6,3 +6,4 @@ export type { IArtifactIntrospector } from './interfaces.js';
 export { normalizeStatus } from './parsers/statusNormalizer.js';
 export { parseFrontmatter } from './parsers/frontmatterParser.js';
 export { parseTaskItems, parseTaskFile } from './parsers/taskFileParser.js';
+export { parseSlicePlan } from './parsers/slicePlanParser.js';

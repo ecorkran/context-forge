@@ -22,93 +22,93 @@ dateUpdated: 20260228
 
 ## Task 1: Types and Interfaces
 
-- [ ] Create `packages/core/src/introspection/types.ts` with all result types from slice design:
-  - [ ] `NormalizedStatus` type union
-  - [ ] `SlicePlanEntry`, `SlicePlanResult`
-  - [ ] `TaskItem`, `TaskFileResult`
-  - [ ] `FrontmatterData`, `FrontmatterResult`
-  - [ ] `FutureWorkItem`, `FutureWorkResult`
-  - [ ] `DocumentDetectionResult`
-  - [ ] `IntrospectionSummary` (with `slicePlan`, `currentTasks`, `artifacts` sub-objects)
-- [ ] Create `packages/core/src/introspection/interfaces.ts` with `IArtifactIntrospector` interface
-  - [ ] Methods: `parseSlicePlan`, `parseTaskFile`, `parseFrontmatter`, `parseFutureWork`, `detectDocuments`, `summarize`
-  - [ ] All methods return `Promise<T>` for consistency (async filesystem access)
-- [ ] Create `packages/core/src/introspection/index.ts` barrel — export types and interface only for now
-- [ ] Add introspection type exports to `packages/core/src/index.ts` (browser-safe)
-- [ ] Verify: `pnpm -r build` succeeds
+- [x] Create `packages/core/src/introspection/types.ts` with all result types from slice design:
+  - [x] `NormalizedStatus` type union
+  - [x] `SlicePlanEntry`, `SlicePlanResult`
+  - [x] `TaskItem`, `TaskFileResult`
+  - [x] `FrontmatterData`, `FrontmatterResult`
+  - [x] `FutureWorkItem`, `FutureWorkResult`
+  - [x] `DocumentDetectionResult`
+  - [x] `IntrospectionSummary` (with `slicePlan`, `currentTasks`, `artifacts` sub-objects)
+- [x] Create `packages/core/src/introspection/interfaces.ts` with `IArtifactIntrospector` interface
+  - [x] Methods: `parseSlicePlan`, `parseTaskFile`, `parseFrontmatter`, `parseFutureWork`, `detectDocuments`, `summarize`
+  - [x] All methods return `Promise<T>` for consistency (async filesystem access)
+- [x] Create `packages/core/src/introspection/index.ts` barrel — export types and interface only for now
+- [x] Add introspection type exports to `packages/core/src/index.ts` (browser-safe)
+- [x] Verify: `pnpm -r build` succeeds
 
 ## Task 2: Status Normalizer
 
-- [ ] Create `packages/core/src/introspection/parsers/statusNormalizer.ts`
-  - [ ] `normalizeStatus(raw: string | undefined | null): NormalizedStatus` function
-  - [ ] Port `_STATUS` mapping from `parse.py` — all variant spellings map to `complete`, `in-progress`, `not-started`, `deprecated`
-  - [ ] Unknown/empty values default to `not-started`
-  - [ ] Case-insensitive, trims whitespace
-- [ ] Update barrel export in `introspection/index.ts`
+- [x] Create `packages/core/src/introspection/parsers/statusNormalizer.ts`
+  - [x] `normalizeStatus(raw: string | undefined | null): NormalizedStatus` function
+  - [x] Port `_STATUS` mapping from `parse.py` — all variant spellings map to `complete`, `in-progress`, `not-started`, `deprecated`
+  - [x] Unknown/empty values default to `not-started`
+  - [x] Case-insensitive, trims whitespace
+- [x] Update barrel export in `introspection/index.ts`
 
 ## Task 3: Status Normalizer Tests
 
-- [ ] Create `packages/core/tests/introspection/statusNormalizer.test.ts`
-  - [ ] Test all known variant spellings: `complete`, `completed`, `done`, `in_progress`, `in-progress`, `in progress`, `active`, `not_started`, `not-started`, `not started`, `ready`, `pending`, `planned`, `deprecated`
-  - [ ] Test case insensitivity (`COMPLETE`, `In-Progress`)
-  - [ ] Test whitespace trimming (`  complete  `)
-  - [ ] Test unknown values return `not-started`
-  - [ ] Test `undefined` and `null` return `not-started`
-- [ ] Verify: `pnpm --filter @context-forge/core test` passes
+- [x] Create `packages/core/tests/introspection/statusNormalizer.test.ts`
+  - [x] Test all known variant spellings: `complete`, `completed`, `done`, `in_progress`, `in-progress`, `in progress`, `active`, `not_started`, `not-started`, `not started`, `ready`, `pending`, `planned`, `deprecated`
+  - [x] Test case insensitivity (`COMPLETE`, `In-Progress`)
+  - [x] Test whitespace trimming (`  complete  `)
+  - [x] Test unknown values return `not-started`
+  - [x] Test `undefined` and `null` return `not-started`
+- [x] Verify: `pnpm --filter @context-forge/core test` passes
 
 ## Task 4: Frontmatter Parser
 
-- [ ] Create `packages/core/src/introspection/parsers/frontmatterParser.ts`
-  - [ ] `parseFrontmatter(filePath: string): Promise<FrontmatterResult>` function
-  - [ ] Read file, check first line is `---`, extract `key: value` pairs until closing `---`
-  - [ ] Split on first `:` only (values may contain colons)
-  - [ ] Strip surrounding quotes from values (single and double)
-  - [ ] Return `{ filePath, found: true, data: {...} }` on success
-  - [ ] Return `{ filePath, found: false, data: {} }` if file missing, no frontmatter, or read error
-  - [ ] Never throws — all errors caught and returned as empty result
-- [ ] Update barrel export
+- [x] Create `packages/core/src/introspection/parsers/frontmatterParser.ts`
+  - [x] `parseFrontmatter(filePath: string): Promise<FrontmatterResult>` function
+  - [x] Read file, check first line is `---`, extract `key: value` pairs until closing `---`
+  - [x] Split on first `:` only (values may contain colons)
+  - [x] Strip surrounding quotes from values (single and double)
+  - [x] Return `{ filePath, found: true, data: {...} }` on success
+  - [x] Return `{ filePath, found: false, data: {} }` if file missing, no frontmatter, or read error
+  - [x] Never throws — all errors caught and returned as empty result
+- [x] Update barrel export
 
 ## Task 5: Frontmatter Parser Tests
 
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/valid-frontmatter.md` — file with standard YAML frontmatter (status, dateCreated, dateUpdated, project, parent)
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/no-frontmatter.md` — markdown file with no `---` delimiter
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/quoted-values.md` — frontmatter with single-quoted and double-quoted values
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/colon-in-value.md` — frontmatter where a value contains `:` (e.g., `description: Phase 4: Slice Design`)
-- [ ] Create `packages/core/tests/introspection/frontmatterParser.test.ts`
-  - [ ] Test valid frontmatter extracts all key-value pairs
-  - [ ] Test no-frontmatter file returns `{ found: false, data: {} }`
-  - [ ] Test quoted values have quotes stripped
-  - [ ] Test colon-in-value preserves the full value after first colon
-  - [ ] Test nonexistent file returns `{ found: false, data: {} }` (no throw)
-  - [ ] Test empty file returns `{ found: false, data: {} }`
-- [ ] Verify: tests pass
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/valid-frontmatter.md` — file with standard YAML frontmatter (status, dateCreated, dateUpdated, project, parent)
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/no-frontmatter.md` — markdown file with no `---` delimiter
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/quoted-values.md` — frontmatter with single-quoted and double-quoted values
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/colon-in-value.md` — frontmatter where a value contains `:` (e.g., `description: Phase 4: Slice Design`)
+- [x] Create `packages/core/tests/introspection/frontmatterParser.test.ts`
+  - [x] Test valid frontmatter extracts all key-value pairs
+  - [x] Test no-frontmatter file returns `{ found: false, data: {} }`
+  - [x] Test quoted values have quotes stripped
+  - [x] Test colon-in-value preserves the full value after first colon
+  - [x] Test nonexistent file returns `{ found: false, data: {} }` (no throw)
+  - [x] Test empty file returns `{ found: false, data: {} }`
+- [x] Verify: tests pass
 
 ## Task 6: Task File Parser
 
-- [ ] Create `packages/core/src/introspection/parsers/taskFileParser.ts`
-  - [ ] `parseTaskItems(filePath: string): Promise<TaskItem[]>` — extract checkbox items from a single file
-  - [ ] `parseTaskFile(filePaths: string | string[]): Promise<TaskFileResult>` — parse one or more files, merge items, compute counts and inferred status
-  - [ ] Checkbox regex: `^(?:\s*)-\s+\[([ xX])\]\s+(.+)$` (from `parse.py`)
-  - [ ] Truncate task names longer than 120 characters (matching `parse.py`)
-  - [ ] Status inference: all done → `complete`, some done → `in-progress`, none done → `not-started`
-  - [ ] For multiple files (split support): merge items in path order, use first file's path as `filePath`
-  - [ ] Missing/unreadable file: return empty result (no throw)
-- [ ] Update barrel export
+- [x] Create `packages/core/src/introspection/parsers/taskFileParser.ts`
+  - [x] `parseTaskItems(filePath: string): Promise<TaskItem[]>` — extract checkbox items from a single file
+  - [x] `parseTaskFile(filePaths: string | string[]): Promise<TaskFileResult>` — parse one or more files, merge items, compute counts and inferred status
+  - [x] Checkbox regex: `^(?:\s*)-\s+\[([ xX])\]\s+(.+)$` (from `parse.py`)
+  - [x] Truncate task names longer than 120 characters (matching `parse.py`)
+  - [x] Status inference: all done → `complete`, some done → `in-progress`, none done → `not-started`
+  - [x] For multiple files (split support): merge items in path order, use first file's path as `filePath`
+  - [x] Missing/unreadable file: return empty result (no throw)
+- [x] Update barrel export
 
 ## Task 7: Task File Parser Tests
 
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/sample-tasks.md` — task file with mix of checked/unchecked items at various indentation levels (frontmatter + checkboxes)
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/all-complete-tasks.md` — task file with all items checked
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/empty-tasks.md` — task file with frontmatter but no checkbox items
-- [ ] Create `packages/core/tests/introspection/taskFileParser.test.ts`
-  - [ ] Test mixed checked/unchecked: correct total, completed counts, inferred status `in-progress`
-  - [ ] Test all-complete: inferred status `complete`
-  - [ ] Test empty: zero counts, inferred status `not-started`
-  - [ ] Test split file merge: pass two file paths, verify items merge in order with correct combined counts
-  - [ ] Test long task name truncation at 120 characters
-  - [ ] Test nonexistent file: empty result, no throw
-  - [ ] Test `[X]` (capital X) treated as checked
-- [ ] Verify: tests pass
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/sample-tasks.md` — task file with mix of checked/unchecked items at various indentation levels (frontmatter + checkboxes)
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/all-complete-tasks.md` — task file with all items checked
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/empty-tasks.md` — task file with frontmatter but no checkbox items
+- [x] Create `packages/core/tests/introspection/taskFileParser.test.ts`
+  - [x] Test mixed checked/unchecked: correct total, completed counts, inferred status `in-progress`
+  - [x] Test all-complete: inferred status `complete`
+  - [x] Test empty: zero counts, inferred status `not-started`
+  - [x] Test split file merge: pass two file paths, verify items merge in order with correct combined counts
+  - [x] Test long task name truncation at 120 characters
+  - [x] Test nonexistent file: empty result, no throw
+  - [x] Test `[X]` (capital X) treated as checked
+- [x] Verify: tests pass
 
 ## Task 8: Slice Plan Parser
 
