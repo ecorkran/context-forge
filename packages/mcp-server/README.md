@@ -65,16 +65,37 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 
 ## Available Tools
 
+### Project Management
+
 | Tool | Description |
 |------|-------------|
 | `project_list` | List all configured projects with summary fields |
-| `project_get` | Get full project details by ID |
+| `project_get` | Get full project details by ID (or default project) |
 | `project_update` | Update project configuration (slice, instruction, phase, etc.) |
+
+### Context Generation
+
+| Tool | Description |
+|------|-------------|
 | `context_build` | Generate a complete context prompt from project configuration |
 | `template_preview` | Preview context output without side effects |
 | `prompt_list` | List available prompt templates for a project |
 | `prompt_get` | Get the full content of a specific prompt template |
 | `context_summarize` | Update project session state (recent events, notes) |
+
+### Configuration
+
+| Tool | Description |
+|------|-------------|
+| `config_get` | Get the current value of a config key (with source: project/user/default) |
+| `config_set` | Set a config key at user or project scope |
+| `config_list` | List all config keys with current values, sources, and defaults |
+
+**Tip:** Set `default_project` once and omit `projectId` from all other tool calls:
+
+```
+config_set key="default_project" value="project_1739..." scope="user"
+```
 
 For full parameter details, see the [Tool Reference](../../docs/TOOLS.md).
 

@@ -76,15 +76,16 @@ packages/
 
 **`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes.
 
-**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 8 tools for project management, context generation, template inspection, and session state tracking.
+**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 11 tools for project management, context generation, template inspection, session state tracking, and persistent configuration.
 
 ## Current State
 
 **What works:**
-- MCP server — 8 tools for project management, context generation, template access, and state tracking (56 tests)
+- MCP server — 11 tools for project management, context generation, template access, state tracking, and persistent TOML configuration (73 tests)
 - Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow (106 tests)
-- Core context engine — template processing, statement management, prompt parsing, section building (224 tests)
+- Core context engine — template processing, statement management, prompt parsing, section building (252 tests)
 - Shared filesystem storage — both the MCP server and desktop app access the same project data
+- Two-tier TOML config — user-level and project-level config with `default_project` support (set once, omit `projectId` from all tool calls)
 
 **Published on npm:**
 - [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp) — MCP server, installable via `npx @context-forge/mcp`
