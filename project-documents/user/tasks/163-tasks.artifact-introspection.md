@@ -4,7 +4,7 @@ project: context-forge
 lld: user/slices/163-slice.artifact-introspection.md
 dependencies: [161-project-schema-standardization]
 projectState: Slices 161 (schema standardization) and 162 (config system) complete. 431 tests passing. ProjectData has artifact reference fields (fileHLD, fileArch, fileSlicePlan, fileSpec). Core exports from @context-forge/core (browser-safe types) and @context-forge/core/node (Node.js implementations).
-status: not started
+status: in-progress
 dateCreated: 20260228
 dateUpdated: 20260228
 ---
