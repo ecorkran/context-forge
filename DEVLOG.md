@@ -8,6 +8,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-02-28
 
+### Slice 163: Artifact Introspection Engine — Phase 7 (Implementation) Complete
+- `packages/core/src/introspection/`: 6 parser modules + `ArtifactIntrospector` orchestrator
+- Parsers: statusNormalizer, frontmatterParser, taskFileParser, slicePlanParser, futureWorkParser, documentDetector
+- Types/interfaces export from `@context-forge/core`; implementations from `@context-forge/core/node`
+- Enriched `project_get` MCP tool with computed `introspection` field
+- 509 tests pass (core: 327, mcp-server: 76, electron: 106); full build clean; no new deps
+- Commits: `c88e8e4` types, `3cc2088` status normalizer, `8858036` frontmatter, `8fdd071` task parser, `422e07c` slice plan, `8ff9bb1` future work, `f8976b8` document detector, `930a294` orchestrator, `d72f095` project_get enrichment
+
 ### Slice 163: Artifact Introspection Engine — Phase 5 (Task Breakdown) Complete
 - 18 tasks across 4 commit checkpoints, test-with pattern throughout
 - Tasks 1–3: types, interfaces, status normalizer + tests

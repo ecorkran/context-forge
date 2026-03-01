@@ -4,7 +4,7 @@ project: context-forge
 lld: user/slices/163-slice.artifact-introspection.md
 dependencies: [161-project-schema-standardization]
 projectState: Slices 161 (schema standardization) and 162 (config system) complete. 431 tests passing. ProjectData has artifact reference fields (fileHLD, fileArch, fileSlicePlan, fileSpec). Core exports from @context-forge/core (browser-safe types) and @context-forge/core/node (Node.js implementations).
-status: in-progress
+status: complete
 dateCreated: 20260228
 dateUpdated: 20260228
 ---
@@ -112,150 +112,150 @@ dateUpdated: 20260228
 
 ## Task 8: Slice Plan Parser
 
-- [ ] Create `packages/core/src/introspection/parsers/slicePlanParser.ts`
-  - [ ] `parseSlicePlan(filePath: string): Promise<SlicePlanResult>` function
-  - [ ] Slice entry regex: `^\d+\.\s+\[([ xX])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*` (from `parse.py`)
-  - [ ] Section-aware: track headings, skip `_NON_SLICE_HEADINGS` (future work, implementation order, notes, parent document)
-  - [ ] Extract: index (number), name (string), isChecked (boolean), status (checked → `complete`, unchecked → `not-started`)
-  - [ ] Compute `totalSlices` and `completedSlices` from entries
-  - [ ] Missing/unreadable file: return empty result with zero counts
-- [ ] Update barrel export
+- [x] Create `packages/core/src/introspection/parsers/slicePlanParser.ts`
+  - [x] `parseSlicePlan(filePath: string): Promise<SlicePlanResult>` function
+  - [x] Slice entry regex: `^\d+\.\s+\[([ xX])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*` (from `parse.py`)
+  - [x] Section-aware: track headings, skip `_NON_SLICE_HEADINGS` (future work, implementation order, notes, parent document)
+  - [x] Extract: index (number), name (string), isChecked (boolean), status (checked → `complete`, unchecked → `not-started`)
+  - [x] Compute `totalSlices` and `completedSlices` from entries
+  - [x] Missing/unreadable file: return empty result with zero counts
+- [x] Update barrel export
 
 ## Task 9: Slice Plan Parser Tests
 
-- [ ] Create test fixture: `packages/core/tests/fixtures/introspection/sample-slice-plan.md` — realistic slice plan with Foundation Work, Feature Slices, Future Work, Implementation Order, and Notes sections. Mix of checked and unchecked entries.
-- [ ] Create `packages/core/tests/introspection/slicePlanParser.test.ts`
-  - [ ] Test extracts correct entries with index, name, isChecked, status
-  - [ ] Test skips entries in Future Work, Implementation Order, Notes sections
-  - [ ] Test totalSlices and completedSlices are correct
-  - [ ] Test nonexistent file returns empty result
-  - [ ] Test real-world validation: parse this project's own `160-slices.project-workflow-system.md` and verify known entries (161 complete, 163 not started, etc.)
-- [ ] Verify: tests pass
+- [x] Create test fixture: `packages/core/tests/fixtures/introspection/sample-slice-plan.md` — realistic slice plan with Foundation Work, Feature Slices, Future Work, Implementation Order, and Notes sections. Mix of checked and unchecked entries.
+- [x] Create `packages/core/tests/introspection/slicePlanParser.test.ts`
+  - [x] Test extracts correct entries with index, name, isChecked, status
+  - [x] Test skips entries in Future Work, Implementation Order, Notes sections
+  - [x] Test totalSlices and completedSlices are correct
+  - [x] Test nonexistent file returns empty result
+  - [x] Test real-world validation: parse this project's own `160-slices.project-workflow-system.md` and verify known entries (161 complete, 163 not started, etc.)
+- [x] Verify: tests pass
 
 **Commit checkpoint: types, normalizer, frontmatter parser, task parser, slice plan parser + all tests**
 
 ## Task 10: Future Work Parser
 
-- [ ] Create `packages/core/src/introspection/parsers/futureWorkParser.ts`
-  - [ ] `parseFutureWork(filePath: string, nextIndex?: number): Promise<FutureWorkResult>` function
-  - [ ] Locate `## Future Work` heading; read numbered items until next heading
-  - [ ] Item regex: `^\d+\.\s+\[([ xX])\]\s+(.+)$` (from `parse.py`)
-  - [ ] Items with explicit `(NNN)` index use that index; unnumbered items get sequential indices starting at `nextIndex`
-  - [ ] Extract short title from item text (text before em-dash or colon)
-  - [ ] Missing/unreadable file or no Future Work section: return empty items array
-- [ ] Update barrel export
+- [x] Create `packages/core/src/introspection/parsers/futureWorkParser.ts`
+  - [x] `parseFutureWork(filePath: string, nextIndex?: number): Promise<FutureWorkResult>` function
+  - [x] Locate `## Future Work` heading; read numbered items until next heading
+  - [x] Item regex: `^\d+\.\s+\[([ xX])\]\s+(.+)$` (from `parse.py`)
+  - [x] Items with explicit `(NNN)` index use that index; unnumbered items get sequential indices starting at `nextIndex`
+  - [x] Extract short title from item text (text before em-dash or colon)
+  - [x] Missing/unreadable file or no Future Work section: return empty items array
+- [x] Update barrel export
 
 ## Task 11: Future Work Parser Tests
 
-- [ ] Use the `sample-slice-plan.md` fixture (from Task 9) which should include a Future Work section
-- [ ] Create `packages/core/tests/introspection/futureWorkParser.test.ts`
-  - [ ] Test extracts items from Future Work section with correct index, name, done
-  - [ ] Test explicit `(NNN)` index items get that index
-  - [ ] Test unnumbered items get sequential indices from `nextIndex`
-  - [ ] Test title extraction stops at em-dash or colon
-  - [ ] Test nonexistent file returns empty result
-  - [ ] Test file with no Future Work section returns empty result
-- [ ] Verify: tests pass
+- [x] Use the `sample-slice-plan.md` fixture (from Task 9) which should include a Future Work section
+- [x] Create `packages/core/tests/introspection/futureWorkParser.test.ts`
+  - [x] Test extracts items from Future Work section with correct index, name, done
+  - [x] Test explicit `(NNN)` index items get that index
+  - [x] Test unnumbered items get sequential indices from `nextIndex`
+  - [x] Test title extraction stops at em-dash or colon
+  - [x] Test nonexistent file returns empty result
+  - [x] Test file with no Future Work section returns empty result
+- [x] Verify: tests pass
 
 ## Task 12: Document Detector
 
-- [ ] Create `packages/core/src/introspection/parsers/documentDetector.ts`
-  - [ ] `detectDocuments(projectPath: string, sliceIndex: number): Promise<DocumentDetectionResult>` function
-  - [ ] Check for files matching naming conventions under `project-documents/user/`:
-    - [ ] `slices/{index}-slice.*.md` → `sliceDesign`
-    - [ ] `tasks/{index}-tasks.*.md` → `taskFile` (array, supports split files like `*-1.md`, `*-2.md`)
-    - [ ] `architecture/{index}-arch.*.md` → `architecture`
-    - [ ] `architecture/{index}-slices.*.md` → `slicePlan`
-  - [ ] `checkFileExists(projectPath: string, relativePath: string): Promise<boolean>` — helper for explicit path checks (fileHLD, fileArch, etc.)
-  - [ ] Use `fs.readdir` + filename matching (not external glob library)
-  - [ ] Missing directories: return nulls (no throw)
-- [ ] Update barrel export
+- [x] Create `packages/core/src/introspection/parsers/documentDetector.ts`
+  - [x] `detectDocuments(projectPath: string, sliceIndex: number): Promise<DocumentDetectionResult>` function
+  - [x] Check for files matching naming conventions under `project-documents/user/`:
+    - [x] `slices/{index}-slice.*.md` → `sliceDesign`
+    - [x] `tasks/{index}-tasks.*.md` → `taskFile` (array, supports split files like `*-1.md`, `*-2.md`)
+    - [x] `architecture/{index}-arch.*.md` → `architecture`
+    - [x] `architecture/{index}-slices.*.md` → `slicePlan`
+  - [x] `checkFileExists(projectPath: string, relativePath: string): Promise<boolean>` — helper for explicit path checks (fileHLD, fileArch, etc.)
+  - [x] Use `fs.readdir` + filename matching (not external glob library)
+  - [x] Missing directories: return nulls (no throw)
+- [x] Update barrel export
 
 ## Task 13: Document Detector Tests
 
-- [ ] Extend the existing test fixture at `packages/core/tests/fixtures/test-project/` or create a dedicated `packages/core/tests/fixtures/introspection/project/` with a minimal `project-documents/user/` structure containing a few slice, task, and architecture files
-- [ ] Create `packages/core/tests/introspection/documentDetector.test.ts`
-  - [ ] Test detects existing slice design file for a known index
-  - [ ] Test detects task file(s) including split files
-  - [ ] Test detects architecture and slice plan files
-  - [ ] Test returns null for indices with no matching files
-  - [ ] Test `checkFileExists` for existing and nonexistent relative paths
-  - [ ] Test nonexistent project path returns all nulls (no throw)
-- [ ] Verify: tests pass
+- [x] Extend the existing test fixture at `packages/core/tests/fixtures/test-project/` or create a dedicated `packages/core/tests/fixtures/introspection/project/` with a minimal `project-documents/user/` structure containing a few slice, task, and architecture files
+- [x] Create `packages/core/tests/introspection/documentDetector.test.ts`
+  - [x] Test detects existing slice design file for a known index
+  - [x] Test detects task file(s) including split files
+  - [x] Test detects architecture and slice plan files
+  - [x] Test returns null for indices with no matching files
+  - [x] Test `checkFileExists` for existing and nonexistent relative paths
+  - [x] Test nonexistent project path returns all nulls (no throw)
+- [x] Verify: tests pass
 
 **Commit checkpoint: future work parser, document detector + tests**
 
 ## Task 14: ArtifactIntrospector Orchestrator
 
-- [ ] Create `packages/core/src/introspection/ArtifactIntrospector.ts`
-  - [ ] Implements `IArtifactIntrospector`
-  - [ ] Each method delegates to the corresponding parser function, resolving file paths from `projectPath` as needed
-  - [ ] `summarize(project: ProjectData): Promise<IntrospectionSummary>`:
-    1. [ ] If `fileSlicePlan` + `projectPath` set: parse slice plan, populate `slicePlan` summary
-    2. [ ] If `fileTasks` + `projectPath` set: locate task file(s) via document detector, parse, populate `currentTasks` summary
-    3. [ ] Check existence of `fileHLD`, `fileArch`, `fileSpec`, `fileSlicePlan` references
-    4. [ ] Extract slice index from `fileSlice` (parse `NNN-` prefix), check for current slice design
-    5. [ ] Assemble `artifacts` presence flags
-  - [ ] Each operation is individually try/caught — failure in one doesn't prevent others
-  - [ ] Summary strings: `"N of M slices complete"`, `"N of M tasks done"`
-- [ ] Update barrel export in `introspection/index.ts` — add `ArtifactIntrospector`
-- [ ] Add Node.js export in `packages/core/src/node.ts`: `export { ArtifactIntrospector } from './introspection/ArtifactIntrospector.js'`
-- [ ] Add type exports in `packages/core/src/index.ts`: export `IArtifactIntrospector` and all result types from `introspection/`
-- [ ] Verify: `pnpm -r build` succeeds
+- [x] Create `packages/core/src/introspection/ArtifactIntrospector.ts`
+  - [x] Implements `IArtifactIntrospector`
+  - [x] Each method delegates to the corresponding parser function, resolving file paths from `projectPath` as needed
+  - [x] `summarize(project: ProjectData): Promise<IntrospectionSummary>`:
+    1. [x] If `fileSlicePlan` + `projectPath` set: parse slice plan, populate `slicePlan` summary
+    2. [x] If `fileTasks` + `projectPath` set: locate task file(s) via document detector, parse, populate `currentTasks` summary
+    3. [x] Check existence of `fileHLD`, `fileArch`, `fileSpec`, `fileSlicePlan` references
+    4. [x] Extract slice index from `fileSlice` (parse `NNN-` prefix), check for current slice design
+    5. [x] Assemble `artifacts` presence flags
+  - [x] Each operation is individually try/caught — failure in one doesn't prevent others
+  - [x] Summary strings: `"N of M slices complete"`, `"N of M tasks done"`
+- [x] Update barrel export in `introspection/index.ts` — add `ArtifactIntrospector`
+- [x] Add Node.js export in `packages/core/src/node.ts`: `export { ArtifactIntrospector } from './introspection/ArtifactIntrospector.js'`
+- [x] Add type exports in `packages/core/src/index.ts`: export `IArtifactIntrospector` and all result types from `introspection/`
+- [x] Verify: `pnpm -r build` succeeds
 
 ## Task 15: ArtifactIntrospector Tests
 
-- [ ] Create or extend fixture project directory at `packages/core/tests/fixtures/introspection/project/` with:
-  - [ ] `project-documents/user/architecture/` containing a slice plan file with mixed completion
-  - [ ] `project-documents/user/slices/` containing a slice design file
-  - [ ] `project-documents/user/tasks/` containing a task file with mixed checkboxes
-- [ ] Create `packages/core/tests/introspection/ArtifactIntrospector.test.ts`
-  - [ ] Test `parseSlicePlan` delegates correctly and returns typed result
-  - [ ] Test `parseTaskFile` with single and multiple paths
-  - [ ] Test `parseFrontmatter` delegates correctly
-  - [ ] Test `parseFutureWork` delegates correctly
-  - [ ] Test `detectDocuments` delegates correctly
-  - [ ] Test `summarize` with fully populated project: slicePlan summary, currentTasks summary, all artifact flags
-  - [ ] Test `summarize` with minimal project (no projectPath): returns empty introspection (no errors)
-  - [ ] Test `summarize` with partial data (projectPath but no fileSlicePlan): partial result, no crash
-  - [ ] Test individual operation failure doesn't prevent other operations from completing
-- [ ] Verify: all tests pass
+- [x] Create or extend fixture project directory at `packages/core/tests/fixtures/introspection/project/` with:
+  - [x] `project-documents/user/architecture/` containing a slice plan file with mixed completion
+  - [x] `project-documents/user/slices/` containing a slice design file
+  - [x] `project-documents/user/tasks/` containing a task file with mixed checkboxes
+- [x] Create `packages/core/tests/introspection/ArtifactIntrospector.test.ts`
+  - [x] Test `parseSlicePlan` delegates correctly and returns typed result
+  - [x] Test `parseTaskFile` with single and multiple paths
+  - [x] Test `parseFrontmatter` delegates correctly
+  - [x] Test `parseFutureWork` delegates correctly
+  - [x] Test `detectDocuments` delegates correctly
+  - [x] Test `summarize` with fully populated project: slicePlan summary, currentTasks summary, all artifact flags
+  - [x] Test `summarize` with minimal project (no projectPath): returns empty introspection (no errors)
+  - [x] Test `summarize` with partial data (projectPath but no fileSlicePlan): partial result, no crash
+  - [x] Test individual operation failure doesn't prevent other operations from completing
+- [x] Verify: all tests pass
 
 **Commit checkpoint: ArtifactIntrospector + tests**
 
 ## Task 16: Enrich `project_get` MCP Tool
 
-- [ ] Update `packages/mcp-server/src/tools/projectTools.ts`:
-  - [ ] Import `ArtifactIntrospector` from `@context-forge/core/node`
-  - [ ] In `project_get` handler, after retrieving project: if `project.projectPath` is set, create `ArtifactIntrospector` and call `summarize(project)`
-  - [ ] Return `{ ...project, introspection: summary }` when introspection is available
-  - [ ] If introspection fails (any error), return project without `introspection` field (graceful degradation, log to stderr)
-  - [ ] Projects without `projectPath` return as before (no enrichment)
-- [ ] Verify: `pnpm -r build` succeeds
+- [x] Update `packages/mcp-server/src/tools/projectTools.ts`:
+  - [x] Import `ArtifactIntrospector` from `@context-forge/core/node`
+  - [x] In `project_get` handler, after retrieving project: if `project.projectPath` is set, create `ArtifactIntrospector` and call `summarize(project)`
+  - [x] Return `{ ...project, introspection: summary }` when introspection is available
+  - [x] If introspection fails (any error), return project without `introspection` field (graceful degradation, log to stderr)
+  - [x] Projects without `projectPath` return as before (no enrichment)
+- [x] Verify: `pnpm -r build` succeeds
 
 ## Task 17: `project_get` Enrichment Tests
 
-- [ ] Update `packages/mcp-server/tests/projectTools.test.ts`:
-  - [ ] Add mock for `ArtifactIntrospector` (vi.mock for `@context-forge/core/node`)
-  - [ ] Test `project_get` returns `introspection` field when project has `projectPath` and introspection succeeds
-  - [ ] Test `project_get` returns project without `introspection` when project has no `projectPath`
-  - [ ] Test `project_get` returns project without `introspection` when introspector throws (graceful degradation)
-- [ ] Verify: all MCP server tests pass
+- [x] Update `packages/mcp-server/tests/projectTools.test.ts`:
+  - [x] Add mock for `ArtifactIntrospector` (vi.mock for `@context-forge/core/node`)
+  - [x] Test `project_get` returns `introspection` field when project has `projectPath` and introspection succeeds
+  - [x] Test `project_get` returns project without `introspection` when project has no `projectPath`
+  - [x] Test `project_get` returns project without `introspection` when introspector throws (graceful degradation)
+- [x] Verify: all MCP server tests pass
 
 **Commit checkpoint: project_get enrichment + tests**
 
 ## Task 18: Final Verification and Cleanup
 
-- [ ] Run full test suite: `pnpm -r test`
-  - [ ] All core tests pass (existing + new introspection tests)
-  - [ ] All MCP server tests pass (existing + enrichment tests)
-  - [ ] All electron tests pass (unchanged)
-- [ ] Run full build: `pnpm -r build`
-- [ ] Verify export surface:
-  - [ ] `@context-forge/core` exports: `IArtifactIntrospector`, all result types, `NormalizedStatus`
-  - [ ] `@context-forge/core/node` exports: `ArtifactIntrospector` class
-- [ ] Verify no new npm dependencies were added
-- [ ] Final commit with any cleanup
+- [x] Run full test suite: `pnpm -r test`
+  - [x] All core tests pass (existing + new introspection tests)
+  - [x] All MCP server tests pass (existing + enrichment tests)
+  - [x] All electron tests pass (unchanged)
+- [x] Run full build: `pnpm -r build`
+- [x] Verify export surface:
+  - [x] `@context-forge/core` exports: `IArtifactIntrospector`, all result types, `NormalizedStatus`
+  - [x] `@context-forge/core/node` exports: `ArtifactIntrospector` class
+- [x] Verify no new npm dependencies were added
+- [x] Final commit with any cleanup
 
 ---
 
