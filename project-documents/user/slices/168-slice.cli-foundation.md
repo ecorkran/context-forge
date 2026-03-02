@@ -7,7 +7,7 @@ dependencies: [schema-standardization, config-system, artifact-introspection-eng
 interfaces: [consistency-checker, integration-testing-and-documentation]
 status: not_started
 dateCreated: 20260301
-dateUpdated: 20260301
+dateUpdated: 20260302
 ---
 
 # Slice Design: CLI Foundation
@@ -42,7 +42,7 @@ After this slice, a developer can type `cf status` to see where a project stands
 - `cf project` — Project management (list/get/update)
 - `cf future` — Consolidated future work view across slice plans
 - `cf check` — Consistency checker (artifact state mismatches)
-- `cf prompts` — List available prompt templates
+- `cf prompt` — Prompt template access with variable substitution (list, get with resolved variables)
 
 **Infrastructure:**
 - `packages/cli/` package in the monorepo with its own `package.json`, `tsconfig.json`
@@ -102,7 +102,7 @@ packages/cli/
 │   │   ├── project.ts        # cf project list/get/update
 │   │   ├── future.ts         # cf future
 │   │   ├── check.ts          # cf check
-│   │   └── prompts.ts        # cf prompts
+│   │   └── prompt.ts         # cf prompt
 │   ├── output/
 │   │   ├── formatter.ts      # Output formatting (terminal vs JSON)
 │   │   ├── tables.ts         # Table rendering helpers
@@ -332,18 +332,68 @@ cf check [--project <id>] [--fix] [--json]
 
 Note: Depends on slice 166 (Consistency Checker) which is not yet complete. This command can be stubbed initially and wired when 166 lands, or 166 can be completed first. The CLI infrastructure doesn't depend on 166 — just this one command does.
 
-### `cf prompts`
+### `cf prompt`
 
-List available prompt templates.
+Prompt template access. Two distinct operations: list available templates, or get a resolved template ready to paste.
 
 ```
-cf prompts [--project <id>] [--json]
-cf prompts get <name> [--project <id>]
+cf prompt list [--project <id>] [--json]
+cf prompt get <phase> [--project <id>] [--raw]
 ```
 
-**Behavior:** Wraps `SystemPromptParser` or equivalent template discovery. Lists template names and descriptions. `get` retrieves full template content.
+- `list`: Shows all available prompt templates with descriptions. Wraps `SystemPromptParser` or equivalent template discovery.
+- `get <phase>`: Retrieves a prompt template with project variables substituted from the current project state. Output is raw text to stdout (pipeable, no colors or wrapping) — the same stdout-clean convention as `cf build`.
+- `--raw`: Output the unsubstituted template. Useful for inspecting what variables a template uses before the project is configured.
+
+**Phase resolution:** The `<phase>` argument is matched case-insensitively. Hyphens and spaces are interchangeable, so `task-breakdown`, `Task Breakdown`, and `TASK-BREAKDOWN` all resolve to the same template. Phase shorthands (`P1`, `P4`, `P5`, etc.) are also accepted.
+
+**Phase shorthand mapping** is derived at runtime by parsing `packages/core/assets/prompt.ai-project.system.md` — no table is hardcoded in the CLI. Any heading matching `(Phase n)` or `(Phase n.m)` (where n and m are integers) yields a shorthand. Adding or renaming a phase in the prompt file automatically updates the available shorthands without a code change.
+
+The table below reflects what the current prompt file produces and is **illustrative only**:
+
+| Shorthand | Template Name |
+|---|---|
+| `P1` | Concept Creation |
+| `P2` | Spec Creation |
+| `P2.5` | High-Level Design (HLD) Creation |
+| `P3` | Slice Planning |
+| `P3.5` | Architectural Component Design |
+| `P4` | Slice Design |
+| `P5` | Task Breakdown |
+| `P6` | Slice Task Expansion |
+| `P7` | Task Implementation |
+
+Note: `Task Breakdown - Explicit (Phase 5 - Extra)` does not match the integer pattern and has no shorthand. It is a deprecation candidate; do not treat it as a stable target.
+
+**Variable substitution:** `cf prompt get` resolves project variables from the current project's data. Variables left unresolved (no value in project data) are preserved as-is in the output — not silently blanked — so the user can see which variables need to be set.
+
+| Variable | Source |
+|---|---|
+| `{project}` | project name |
+| `{slice}` | `fileSlice` |
+| `{task-file}` | `fileTasks` |
+| `{fileArch}` | `fileArch` |
+| `{fileHLD}` | `fileHLD` |
+| `{fileSpec}` | `fileSpec` |
+| `{development-phase}` | `developmentPhase` |
+
+**Usage examples:**
+```bash
+cf prompt get P5                    # Task Breakdown prompt, variables resolved
+cf prompt get task-breakdown        # same (name match, case-insensitive)
+cf prompt get P5 --raw              # unsubstituted template
+cf prompt get P5 | pbcopy           # copy to clipboard for next session
+```
 
 ## Technical Decisions
+
+### Prompt Metadata Derived at Runtime, Not Hardcoded
+
+Phase shorthands, template names, and variable lists must be derived from the prompt asset file at runtime — not baked into the CLI as static lookup tables. The prompt library (`packages/core/assets/prompt.ai-project.system.md`) is actively maintained and the `ai-project-guide` may evolve. A hardcoded table would create a maintenance coupling that breaks silently when phases are added, renamed, or deprecated.
+
+The implementation should parse the prompt file on demand (or cache it at startup) using the same pattern-matching rules (`(Phase n)` / `(Phase n.m)`) described in the command spec. If the prompt library is later split across multiple files, this parsing logic is the one place to update.
+
+This same principle applies to any other metadata derived from guide or config assets: prefer reading from source over duplicating into constants.
 
 ### Why commander (not Typer)
 
@@ -423,11 +473,18 @@ Unexpected errors display a brief message and suggest `--verbose` for the full t
 - `--project` flag overrides `default_project` config on any command
 - `--json` produces valid JSON on all read commands
 - Error messages are user-friendly with actionable guidance
+- `cf prompt list` shows all templates with names and descriptions
+- `cf prompt get <phase>` outputs the template with project variables resolved to stdout (raw, pipeable)
+- Phase shorthands (`P1`–`P7`, `P2.5`, `P3.5`) resolve correctly to their templates
+- Phase names are matched case-insensitively with hyphens as space equivalents
+- `--raw` outputs the unsubstituted template text
+- Unresolvable variables are preserved as-is (e.g., `{framework}` stays `{framework}` if not set)
 
 ### Technical Requirements
 
 - Package builds and `cf` binary works after `pnpm install`
 - Unit tests for each command's core logic (project resolution, option parsing, output formatting)
+- Unit tests for `cf prompt get`: variable substitution with fully-populated project data, partial project data (some vars missing — verify pass-through), and `--raw` mode
 - Tests use fixture projects (can share fixtures with MCP server tests)
 - No dependency on `@modelcontextprotocol/sdk` — CLI is MCP-independent
 
@@ -441,7 +498,7 @@ Suggested order within this slice:
 2. **Project resolution and config commands** — `cf config list/get/set`, `cf project list` — these are needed to set up `default_project` before other commands are useful
 3. **Status and next** — `cf status`, `cf next` — validates workflow navigation through CLI
 4. **Build** — `cf build` with all override flags — the highest-value command
-5. **Remaining commands** — `cf future`, `cf check`, `cf prompts`
+5. **Remaining commands** — `cf future`, `cf check`, `cf prompt`
 6. **Output polish** — Table formatting, color consistency, help text quality
 
 ### Testing Strategy
@@ -452,31 +509,13 @@ Suggested order within this slice:
 
 ## Additional Notes
 
-Response is result of statement that often we do not need to generate a whole new context, but only generate the next prompt with string replacements, for example with {slice} replaced with the actual slice, so the AI can pull the relevant file if needed.  We were just about to make this update when a partial outage occurred.
+**Design decision recorded (20260302):** The original `cf prompts` command (list-only) was expanded into `cf prompt` with two operations: `list` and `get`. The key insight driving this change is that `cf build` and `cf prompt get` serve different workflows:
 
-Response (Claude):
-That's a really clean insight, and it changes how the CLI should think about cf build vs. a lighter operation. Two distinct workflows:
+- **`cf build`** — full context assembly for starting or switching sessions. Heavy payload.
+- **`cf prompt get <phase>`** — phase transition within an active session. Outputs just the instruction prompt with project variables substituted. The LLM receiving this prompt sees filenames (e.g., `user/slices/168-slice.cli-foundation.md`) and pulls the files it needs. No file content inlined.
 
-Full context (cf build): Starting fresh or switching context. Assembles everything — architecture docs, slice plan, slice design, task file, system prompt, additional instructions. Heavy payload, used at the start of a session.
+This distinction makes `cf prompt get P5` the natural tool for moving from design to task breakdown mid-session, without rebuilding the full context.
 
-Phase prompt only (cf prompt): You're mid-session, context is loaded, you just finished P4 and want to pivot to P5. You need the task-breakdown prompt template with {slice} replaced with your current slice name, {taskFile} with the task file path, etc. The LLM sees user/slices/115-slice.conversation-persistence.md in the output and knows to pull it — you don't need the CLI to inline the file content.
+**Prompt template source:** `packages/core/assets/prompt.ai-project.system.md`. Phase shorthands are auto-derived from headings matching `(Phase n)` or `(Phase n.m)`. `Task Breakdown - Explicit (Phase 5 - Extra)` is excluded (non-integer suffix) and is a deprecation candidate in the prompt library.
 
-This is basically prompt_get with variable substitution applied. Something like:
-bashcf prompt task-breakdown
-cf prompt P5
-cf prompt implementation
-
-And it outputs the prompt text with variables resolved against current project settings. Raw text to stdout, just like cf build, so it's pipeable. But much smaller — just the instructions, not the whole context sandwich.
-
-The variable resolution uses the same project data that cf build uses: current fileSlice, fileTasks, fileArch, etc. If a variable resolves to a filename, it stays as a filename string. The LLM reading it knows what to do.
-
-This also naturally addresses the "I don't want to reconfigure anything, just change the phase" case. Your project already has the right slice, right tasks file, right architecture set from the P4 work. cf prompt P5 just grabs the different prompt template and fills in the same variables.
-
-Want me to update the slice design to add this as the cf prompt command (replacing or augmenting the current cf prompts list command)? 
-
-I'm thinking:
-bashcf prompt list                    # list available prompt templates (was cf prompts)
-cf prompt get <phase>             # get prompt with variables resolved
-cf prompt get P5                  # phase number shorthand
-cf prompt get task-breakdown      # phase name
-cf prompt get P5 --raw            # without variable substitution (see the template)
+**Variable substitution:** The prompt file template variables may need minor updates (e.g., ensuring `{task-file}` and `{fileArch}` match the canonical variable names used in the prompt templates). This should be verified during implementation.

@@ -6,6 +6,20 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-03-02
+
+### Slice 168: CLI Foundation — Phase 4 (Slice Design) Complete
+- Design created at `project-documents/user/slices/168-slice.cli-foundation.md`
+- Covers: `packages/cli/` structure, 8 commands (`cf status`, `next`, `build`, `config`, `project`, `future`, `check`, `prompt`), commander.js, chalk, cli-table3
+- Key design decision: `cf prompt` (singular) replaces `cf prompts`; adds `cf prompt get <phase>` with variable substitution — lightweight mid-session phase-pivot alternative to full `cf build`
+- Phase shorthand mapping (P1–P7, P2.5, P3.5) auto-built from `(Phase n)` / `(Phase n.m)` headings in prompt asset file; case-insensitive, hyphen/space interchangeable
+- Unresolvable variables preserved as-is (no silent blanking)
+- Testing spec includes: variable substitution with full/partial project data, `--raw` mode
+- Commits: `f71d870` (initial overview + slice design)
+- Next: Phase 5 task breakdown for slice 168
+
+---
+
 ## 2026-03-01
 
 ### Slice 167: Future Work Collector — Phase 7 (Implementation) Complete
