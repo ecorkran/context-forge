@@ -117,6 +117,15 @@ dateUpdated: 20260228
    **Risk:** Low — primarily extraction and formatting
    **Effort:** 2/5
 
+8. [ ] **(168) CLI Foundation** — Adds a `packages/cli` package to the Context Forge monorepo that provides direct terminal access to context assembly, project management, workflow navigation, and configuration. The CLI wraps the same core functions consumed by the MCP server, giving developers a fast, pipeable, LLM-free interface to Context Forge capabilities.
+
+After this slice, a developer can type `cf status` to see where a project stands, `cf build --phase task-breakdown` to generate a ready-to-use context prompt, and `cf config set default_project orchestration` to persist preferences — all without leaving the terminal or requiring an MCP client.  Additional commands and functions are documented in the slice design.
+
+   **Value:** allows user (and AI, ideally) to easily create and verify contexts and prompts through CLI commands.  Currently the only way for the user to interact is through the MCP.  While this is extremely useful for communication between AIs, it is less natural and efficient for many human users used to terminal style programs.
+   **Risk:**: Low - we are providing new access to existing commands.  
+   **Effort**: 3/5
+
+
 ## Integration Work
 
 8. [ ] **(168) Integration Testing and Documentation** — MCP-level integration tests that exercise the new tools end-to-end via protocol, covering cross-slice interactions that unit tests within individual slices cannot reach. Fixture projects representing realistic multi-state scenarios: a project mid-way through a slice plan, a project with inconsistencies across artifact layers, a project with no methodology artifacts at all. Update `context-forge-mcp` README with new tool documentation. Update root monorepo README. If npm packages are published, version bump for new capabilities.
