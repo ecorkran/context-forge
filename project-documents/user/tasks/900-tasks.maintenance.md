@@ -488,6 +488,7 @@ Increase character limits for Project State and Additional Instructions fields f
 ## Task 11: Security — Add Path Validation to Context Service IPC Handlers
 
 **Priority: P1** — Found in 2026-02-19 security review. Exploitable only if renderer is already compromised, but defense-in-depth matters.
+**GitHub:** [#35](https://github.com/ecorkran/context-forge/issues/35)
 
 - [ ] **Add path validation to `contextServices.ts` IPC handlers**
   - `statements:load`, `statements:save`, `statements:get`, `statements:update`, `systemPrompts:parse`, `systemPrompts:getContextInit`, `systemPrompts:getToolUse`, `systemPrompts:getForInstruction` all accept arbitrary file paths from renderer with no validation
@@ -499,6 +500,7 @@ Increase character limits for Project State and Additional Instructions fields f
 ## Task 12: Security — Tighten Production CSP
 
 **Priority: P2** — Found in 2026-02-19 security review.
+**GitHub:** [#36](https://github.com/ecorkran/context-forge/issues/36)
 
 - [ ] **Remove `unsafe-inline` from `default-src` in production CSP**
   - In `packages/electron/src/main/main.ts` line 382, production CSP has `default-src 'self' 'unsafe-inline'`
@@ -510,12 +512,62 @@ Increase character limits for Project State and Additional Instructions fields f
 ## Task 13: Security — Route All External Links Through URL Allowlist
 
 **Priority: P3** — Found in 2026-02-19 security review. Low risk (hardcoded safe URL) but inconsistent pattern.
+**GitHub:** [#37](https://github.com/ecorkran/context-forge/issues/37)
 
 - [ ] **Route Help menu `shell.openExternal` through `isAllowedUrl`**
   - `main.ts` line 367: `shell.openExternal('https://github.com/anthropics/claude-code')` bypasses `isAllowedUrl` check
   - All other external navigation goes through the allowlist — this should too for consistency
   - Also update the URL to point to context-forge repo instead of claude-code
   - **Success**: All `shell.openExternal` calls go through `isAllowedUrl`
+
+## Task 14: Electron UI — Add Empty State for Missing Project Directory
+
+**GitHub:** [#38](https://github.com/ecorkran/context-forge/issues/38)
+
+### Overview
+When a new project is created without a project directory (projectPath), the Generated Context preview silently shows stale content from a previously selected project rather than showing an error or empty state. The user sees no indication that the project is in an unconfigured state.
+
+**Expected behavior:** When the selected project has no projectPath set, the context preview area should display a clear message (e.g., "No project directory set — select a project path to generate context") rather than showing stale output.
+
+### 14.1 Identify Error Handling in Context Generation
+
+- [x] **Research context generation error cases**
+  - `contextHandlers.ts` throws `"Project X has no projectPath configured"` when `projectPath` is missing
+  - Error propagates through `contextApi.generate` → `useContextGeneration` → `error` state
+  - `contextString` was not cleared on error, leaving stale content visible
+  - **Success:** Error path fully understood
+
+### 14.2 Add Empty State UI
+
+- [x] **Clear stale context on error**
+  - In `useContextGeneration.ts` catch block: call `setContextString('')` before setting error
+  - Prevents stale output from prior project appearing alongside error message
+  - **Success:** Context cleared on error, no stale content shown
+
+- [x] **Wire up user-friendly error message**
+  - In `ContextBuilderApp.tsx`: detect `"has no projectPath configured"` in error string
+  - Display "No project directory set — select a project path to generate context" for this case
+  - All other errors continue to show `Error: {message}` as before
+  - **Success:** Panel shows clear actionable message when projectPath is missing
+
+### 14.3 Testing and Verification
+
+- [ ] **Test missing projectPath behavior**
+  - Create a new project without setting a project directory
+  - Verify context preview shows the clear error message, not stale content
+  - Confirm message persists until a valid projectPath is set
+  - **Success:** Error state displays correctly for unconfigured projects
+
+- [ ] **Test switching projects with missing paths**
+  - Switch to projects with and without valid projectPath values
+  - Verify correct display state (error message or valid context) for each
+  - Confirm no stale content from previous selections appears
+  - **Success:** Switching between projects shows appropriate state for each
+
+- [x] **Build and verify**
+  - Built with `pnpm build` — no TypeScript errors
+  - Only expected gray-matter eval warning (pre-existing, unrelated)
+  - **Success:** Application builds successfully with new error handling
 
 ## Notes
 

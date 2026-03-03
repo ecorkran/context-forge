@@ -281,9 +281,14 @@ export const ContextBuilderApp: React.FC = () => {
     </div>
   );
 
+  const isNoProjectPath = error?.includes('has no projectPath configured') ?? false;
+  const errorMessage = isNoProjectPath
+    ? 'No project directory set — select a project path to generate context'
+    : error ? `Error: ${error}` : null;
+
   const rightPanelContent = (
     <div className="flex flex-col h-full space-y-4">
-      {error && (
+      {errorMessage && (
         <div
           className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-md"
           role="alert"
@@ -304,7 +309,7 @@ export const ContextBuilderApp: React.FC = () => {
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            Error: {error}
+            {errorMessage}
           </p>
         </div>
       )}

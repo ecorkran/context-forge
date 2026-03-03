@@ -30,6 +30,7 @@ export const useContextGeneration = (projectId: string | null): UseContextGenera
       setContextString(result);
     } catch (err) {
       console.error('Context generation failed:', err);
+      setContextString('');
       setError(err instanceof Error ? err.message : 'Context generation failed');
     } finally {
       setIsLoading(false);
