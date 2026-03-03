@@ -106,9 +106,9 @@ describe('TemplateProcessor', () => {
 
   describe('processTemplate — alias resolution', () => {
     it('resolves {development-phase} alias', () => {
-      const data = createTestContextData({ developmentPhase: 'Phase 7: Implementation' });
+      const data = createTestContextData({ developmentPhase: 'Phase 6: Implementation' });
       const result = processor.processTemplate('{development-phase}', data);
-      expect(result).toBe('Phase 7: Implementation');
+      expect(result).toBe('Phase 6: Implementation');
     });
 
     it('resolves {task-file} alias from fileTasks', () => {

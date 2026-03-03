@@ -178,10 +178,10 @@ describe('SectionBuilder', () => {
 
     it('includes development phase when present', async () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({ developmentPhase: 'Phase 7: Implementation' });
+      const data = createTestEnhancedContextData({ developmentPhase: 'Phase 6: Implementation' });
 
       const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('phase: Phase 7: Implementation');
+      expect(result).toContain('phase: Phase 6: Implementation');
     });
 
     it('includes project date when present', async () => {

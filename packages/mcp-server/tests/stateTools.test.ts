@@ -31,7 +31,7 @@ const MOCK_PROJECT: ProjectData = {
   fileSlice: 'auth',
   fileTasks: 'auth-tasks',
   instruction: 'implementation',
-  developmentPhase: 'Phase 7',
+  developmentPhase: 'Phase 6',
   workType: 'continue',
   dateProject: '2026-02-19',
   isMonorepo: false,

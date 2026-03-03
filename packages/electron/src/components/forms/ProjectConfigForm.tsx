@@ -21,9 +21,9 @@ import { ProjectSelector } from '../project/ProjectSelector';
  * header contains the value string (case-insensitive).
  *
  * Examples:
- * - value="implementation" matches "##### Task Implementation (Phase 7)"
+ * - value="implementation" matches "##### Implementation (Phase 6)"
  * - value="task-breakdown" matches "##### Task Breakdown (Phase 5)"
- * - value="concept" matches "##### Concept Creation (Phase 1)"
+ * - value="concept" matches "##### Concept (Phase 1)"
  *
  * The 'label' field is the human-readable text shown in the dropdown AND used
  * as the {development-phase} variable in context output templates.
@@ -37,15 +37,13 @@ type PhaseOption =
 
 const PHASE_OPTIONS: PhaseOption[] = [
   { type: 'option', value: 'concept', label: 'Phase 1: Concept' },
-  { type: 'option', value: 'spec-creation', label: 'Phase 2: Spec Creation' },
+  { type: 'option', value: 'architecture', label: 'Phase 2: Architecture' },
   { type: 'option', value: 'slice-planning', label: 'Phase 3: Slice Planning' },
   { type: 'option', value: 'slice-design', label: 'Phase 4: Slice Design' },
   { type: 'option', value: 'task-breakdown', label: 'Phase 5: Task Breakdown' },
-  { type: 'option', value: 'task-breakdown-explicit', label: 'Phase 5: Task Breakdown - Explicit Follow' },
-  { type: 'option', value: 'task-expansion', label: 'Phase 6: Task Expansion' },
-  { type: 'option', value: 'implementation', label: 'Phase 7: Implementation' },
+  { type: 'option', value: 'implementation', label: 'Phase 6: Implementation' },
+  { type: 'option', value: 'integration', label: 'Phase 7: Integration' },
   { type: 'divider' },
-  { type: 'option', value: 'feature-design', label: 'Feature Design' },
   { type: 'option', value: 'ad-hoc-tasks', label: 'Ad-Hoc Tasks' },
   { type: 'option', value: 'custom-instruction', label: 'Custom Instruction' },
   { type: 'divider' },

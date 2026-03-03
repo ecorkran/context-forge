@@ -353,17 +353,15 @@ The table below reflects what the current prompt file produces and is **illustra
 
 | Shorthand | Template Name |
 |---|---|
-| `P1` | Concept Creation |
-| `P2` | Spec Creation |
-| `P2.5` | High-Level Design (HLD) Creation |
+| `P1` | Concept |
+| `P2` | Architecture |
 | `P3` | Slice Planning |
-| `P3.5` | Architectural Component Design |
 | `P4` | Slice Design |
 | `P5` | Task Breakdown |
-| `P6` | Slice Task Expansion |
-| `P7` | Task Implementation |
+| `P6` | Implementation |
+| `P7` | Integration |
 
-Note: `Task Breakdown - Explicit (Phase 5 - Extra)` does not match the integer pattern and has no shorthand. It is a deprecation candidate; do not treat it as a stable target.
+Note: Task Breakdown Supplement and Task Expansion are variants of P5 (`Supplement: Phase 5` / `Variant: Phase 5`) — they do not match the `(Phase n)` pattern and have no shorthands. Use the full instruction name to select them.
 
 **Variable substitution:** `cf prompt get` resolves project variables from the current project's data. Variables left unresolved (no value in project data) are preserved as-is in the output — not silently blanked — so the user can see which variables need to be set.
 
@@ -475,7 +473,7 @@ Unexpected errors display a brief message and suggest `--verbose` for the full t
 - Error messages are user-friendly with actionable guidance
 - `cf prompt list` shows all templates with names and descriptions
 - `cf prompt get <phase>` outputs the template with project variables resolved to stdout (raw, pipeable)
-- Phase shorthands (`P1`–`P7`, `P2.5`, `P3.5`) resolve correctly to their templates
+- Phase shorthands (`P1`–`P7`) resolve correctly to their templates
 - Phase names are matched case-insensitively with hyphens as space equivalents
 - `--raw` outputs the unsubstituted template text
 - Unresolvable variables are preserved as-is (e.g., `{framework}` stays `{framework}` if not set)
@@ -516,6 +514,6 @@ Suggested order within this slice:
 
 This distinction makes `cf prompt get P5` the natural tool for moving from design to task breakdown mid-session, without rebuilding the full context.
 
-**Prompt template source:** `packages/core/assets/prompt.ai-project.system.md`. Phase shorthands are auto-derived from headings matching `(Phase n)` or `(Phase n.m)`. `Task Breakdown - Explicit (Phase 5 - Extra)` is excluded (non-integer suffix) and is a deprecation candidate in the prompt library.
+**Prompt template source:** `packages/core/assets/prompt.ai-project.system.md` (v0.13.0). Phase shorthands P1–P7 are auto-derived from headings matching `(Phase n)`. Task Breakdown Supplement and Task Expansion use `Supplement:` / `Variant:` prefix notation and have no shorthands.
 
 **Variable substitution:** The prompt file template variables may need minor updates (e.g., ensuring `{task-file}` and `{fileArch}` match the canonical variable names used in the prompt templates). This should be verified during implementation.
