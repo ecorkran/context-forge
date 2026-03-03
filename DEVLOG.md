@@ -8,6 +8,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-03
 
+### Slice 168: CLI Foundation — Phase 5 (Task Breakdown) Complete
+- Task files created: `168-tasks.cli-foundation-1.md` (Tasks 1–4: scaffolding, utilities, config, project) and `168-tasks.cli-foundation-2.md` (Tasks 5–13: status, next, build, future, check stub, prompt, polish, integration tests, docs)
+- Split into two files per 350-line guideline; combined 314 lines
+- `cf check` documented as stub pending slice 166 (Consistency Checker)
+- Phase shorthand parser (P1–P7) specified as runtime-derived from prompt asset, never hardcoded
+- Next: Phase 6 implementation of `packages/cli`
+
 ### Maintenance: Tasks 11–14 Triaged; Task 14 Implemented
 - Reviewed open maintenance tasks (11–14); all four remain relevant
 - Logged GitHub issues: #35 (path validation P1), #36 (CSP tightening P2), #37 (external URL allowlist P3), #38 (empty state for missing projectPath)
