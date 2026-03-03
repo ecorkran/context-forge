@@ -552,13 +552,13 @@ When a new project is created without a project directory (projectPath), the Gen
 
 ### 14.3 Testing and Verification
 
-- [ ] **Test missing projectPath behavior**
+- [x] **Test missing projectPath behavior**
   - Create a new project without setting a project directory
   - Verify context preview shows the clear error message, not stale content
   - Confirm message persists until a valid projectPath is set
   - **Success:** Error state displays correctly for unconfigured projects
 
-- [ ] **Test switching projects with missing paths**
+- [x] **Test switching projects with missing paths**
   - Switch to projects with and without valid projectPath values
   - Verify correct display state (error message or valid context) for each
   - Confirm no stale content from previous selections appears
