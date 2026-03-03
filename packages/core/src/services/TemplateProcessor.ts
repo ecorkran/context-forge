@@ -88,8 +88,9 @@ export class TemplateProcessor {
   private createEnhancedData(data: ContextData): TemplateVariableMap {
     const enhanced: TemplateVariableMap = { ...data };
 
-    // Parse fileSlice into sliceindex and slicename
+    // Parse fileSlice into slice alias, sliceindex, and slicename
     if (data.fileSlice) {
+      enhanced['slice'] = data.fileSlice;
       const sliceMatch = data.fileSlice.match(/^(\d+)-slice\.(.+)$/);
       if (sliceMatch) {
         enhanced.sliceindex = sliceMatch[1];
