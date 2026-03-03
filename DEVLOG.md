@@ -6,6 +6,17 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-03-03
+
+### Maintenance: Tasks 11–14 Triaged; Task 14 Implemented
+- Reviewed open maintenance tasks (11–14); all four remain relevant
+- Logged GitHub issues: #35 (path validation P1), #36 (CSP tightening P2), #37 (external URL allowlist P3), #38 (empty state for missing projectPath)
+- Task 14 implemented: `useContextGeneration.ts` clears stale `contextString` on error; `ContextBuilderApp.tsx` detects missing-projectPath error and shows user-friendly message
+- Manually verified: new project without directory shows correct message; switching between configured/unconfigured projects shows correct state; closed #38
+- Commits: `0a3fcb9`
+
+---
+
 ## 2026-03-02
 
 ### Slice 168: CLI Foundation — Phase 4 (Slice Design) Complete
