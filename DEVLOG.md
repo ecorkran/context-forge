@@ -6,6 +6,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-03-04
+
+### Slice 169: Multi-Project & UX Polish — Phase 5 (Task Breakdown) Complete
+- 9 tasks across CWD detection, name-based resolution, resolution indicators, output formatting, and version bump
+- Core work: `findByNameOrId`, `findProjectByCwd`, three-step `resolveProjectId` chain with `ResolutionSource`
+- No `@context-forge/core` API changes — all utilities are CLI-layer
+
+---
 ## 2026-03-03
 
 ### Maintenance: Tasks 11–14 Triaged; Task 14 Implemented
