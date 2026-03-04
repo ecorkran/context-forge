@@ -20,11 +20,11 @@ npm install -g @context-forge/cli
 ## Quick Start
 
 ```bash
-# Set your default project
-cf config set default_project <project-id>
+# Set your default project (by name or ID)
+cf config set default_project orchestration
 
-# Check project status
-cf status
+# Check project status (auto-detects from CWD)
+cd ~/repos/orchestration && cf status
 
 # Generate a context prompt and copy to clipboard
 cf build | pbcopy
@@ -54,7 +54,7 @@ cf prompt get P5
 
 ## Common Options
 
-- `--project <id>` — Override the default project (available on most commands)
+- `--project <name|id>` — Override the default project by name or ID (available on most commands)
 - `--json` — Output as JSON (not applicable to `build` and `prompt get`)
 
 ## Phase Shorthands
@@ -73,6 +73,18 @@ cf prompt get P5
 
 Shorthands are derived at runtime from the project's prompt asset file.
 
+## Project Resolution
+
+`cf` resolves which project to operate on using a three-level chain:
+
+1. **`--project` flag** — highest priority. Accepts project name or ID.
+2. **CWD detection** — if the current directory is inside a registered project's path, that project is used automatically.
+3. **`default_project` config** — fallback when no flag or CWD match.
+
+`cf status` displays which method was used: `(--project flag)`, `(from CWD)`, or `(default)`.
+
+**Planned config key:** `default_additional_instruction` — not yet implemented. Will allow setting a default additional instruction appended to `cf build` output.
+
 ## Architecture
 
 The CLI wraps `@context-forge/core` directly (no MCP layer), following the same pattern as the Electron package. All core services are imported from `@context-forge/core/node`.
@@ -85,3 +97,20 @@ pnpm --filter @context-forge/cli dev       # Watch mode
 pnpm --filter @context-forge/cli test      # Run tests
 pnpm --filter @context-forge/cli typecheck # Type check
 ```
+
+## Changelog
+
+### v0.2.0
+
+- **CWD-based project detection** — `cf` auto-detects the project from your current directory
+- **Name-based resolution** — use `--project orchestration` or `cf config set default_project orchestration` with project names instead of IDs
+- **Resolution indicators** — `cf status` shows how the project was resolved (`from CWD`, `default`, `--project flag`)
+- **Compact `cf project list`** — Name/Path/Slice/Default columns with `●` default indicator and `~` path shortening
+- **Tighter output formatting** — consistent label alignment, suppressed empty fields, standardized error messages
+
+### v0.1.0
+
+- Initial release with 8 commands: `status`, `next`, `build`, `config`, `project`, `future`, `check`, `prompt`
+- Integration with `@context-forge/core` for context assembly
+- Phase shorthands for prompt templates
+- JSON output mode on all applicable commands
