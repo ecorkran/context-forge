@@ -1,15 +1,19 @@
+import * as os from 'node:os';
 import { Command } from 'commander';
-import { FileProjectStore } from '@context-forge/core/node';
+import { FileProjectStore, ConfigManager } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectId, findByNameOrId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, value as valueStyle, success } from '../output/styles.js';
 
-/** Fields visible in the project list table. */
-function toListRow(p: ProjectData): string[] {
-  return [p.id, p.name, p.projectPath ?? '', p.fileSlice];
+/** Shorten an absolute path by replacing the home directory with ~. */
+function shortenPath(p: string): string {
+  const home = os.homedir();
+  if (p === home) return '~';
+  if (p.startsWith(home + '/')) return '~' + p.slice(home.length);
+  return p;
 }
 
 /** Updatable fields on ProjectData (matches UpdateProjectData keys). */
@@ -34,15 +38,32 @@ export function registerProjectCommand(program: Command): void {
         const store = new FileProjectStore();
         const projects = await store.getAll();
 
+        // Read default_project config to determine which project is the default
+        const cm = new ConfigManager();
+        const defaultRef = (await cm.get('default_project')).value as string;
+        let defaultProject: ProjectData | null = null;
+        if (defaultRef) {
+          defaultProject = await findByNameOrId(defaultRef, store);
+        }
+
         if (opts.json) {
           printJson(projects.map((p) => ({
-            id: p.id, name: p.name, projectPath: p.projectPath, fileSlice: p.fileSlice,
+            id: p.id,
+            name: p.name,
+            projectPath: p.projectPath,
+            fileSlice: p.fileSlice,
+            isDefault: defaultProject?.id === p.id,
           })));
           return;
         }
 
-        const rows = projects.map(toListRow);
-        console.log(renderTable(['ID', 'Name', 'Path', 'Slice'], rows));
+        const rows = projects.map((p) => [
+          p.name,
+          shortenPath(p.projectPath ?? ''),
+          p.fileSlice,
+          defaultProject?.id === p.id ? '●' : '',
+        ]);
+        console.log(renderTable(['Name', 'Path', 'Slice', 'Default'], rows));
       } catch (err) {
         handleError(err);
       }

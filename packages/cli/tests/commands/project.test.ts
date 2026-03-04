@@ -13,7 +13,7 @@ vi.mock('@context-forge/core/node', () => ({
     update: mockUpdate,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: 'test-project-id' }),
+    get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
   })),
 }));
 
@@ -47,20 +47,31 @@ describe('cf project list', () => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
 
-  it('renders a table with ID/Name/Path/Slice columns', async () => {
+  it('renders compact table with Name/Path/Slice/Default columns', async () => {
     mockGetAll.mockResolvedValue([sampleProject]);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'project', 'list']);
 
     const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
-    expect(output).toContain('proj_001');
     expect(output).toContain('test-project');
-    expect(output).toContain('/tmp/test');
     expect(output).toContain('100-slice.auth');
+    expect(output).toContain('Default');
+    expect(output).toContain('●');
   });
 
-  it('outputs JSON with --json flag', async () => {
+  it('shortens path with ~', async () => {
+    const homeProject = { ...sampleProject, projectPath: `${process.env.HOME}/repos/test` };
+    mockGetAll.mockResolvedValue([homeProject]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'list']);
+
+    const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
+    expect(output).toContain('~/repos/test');
+  });
+
+  it('outputs JSON with --json flag including isDefault', async () => {
     mockGetAll.mockResolvedValue([sampleProject]);
 
     const program = createProgram();
@@ -70,6 +81,7 @@ describe('cf project list', () => {
     const parsed = JSON.parse(output);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].id).toBe('proj_001');
+    expect(parsed[0].isDefault).toBe(true);
   });
 });
 
