@@ -5,8 +5,8 @@ lld: user/slices/168-slice.cli-foundation.md
 dependencies: [schema-standardization, config-system, artifact-introspection-engine, workflow-navigator, future-work-collector]
 projectState: All 160-band prerequisite slices complete. Core services stable. packages/cli does not yet exist.
 dateCreated: 20260303
-dateUpdated: 20260303
-status: not_started
+dateUpdated: 20260304
+status: in_progress
 ---
 
 ## Context Summary
@@ -23,34 +23,34 @@ status: not_started
 
 ## Task 1: Package Scaffolding
 
-- [ ] **Create `packages/cli/` directory structure**
-  - [ ] Create `packages/cli/src/commands/`, `src/output/`, `src/utils/`, `tests/commands/`, `tests/utils/`
-  - [ ] Success: directory tree matches slice design architecture section
+- [x] **Create `packages/cli/` directory structure**
+  - [x] Create `packages/cli/src/commands/`, `src/output/`, `src/utils/`, `tests/commands/`, `tests/utils/`
+  - [x] Success: directory tree matches slice design architecture section
 
-- [ ] **Create `packages/cli/package.json`**
-  - [ ] Name: `@context-forge/cli`; version `0.1.0`; type: `module`
-  - [ ] `"bin": { "cf": "./dist/index.js" }`
-  - [ ] Scripts: `build`, `dev`, `test`, `typecheck`
-  - [ ] Dependencies: `@context-forge/core: workspace:*`, `commander`, `chalk`, `cli-table3`
-  - [ ] DevDeps: `@types/node`, `typescript`, `vitest`
-  - [ ] Success: `pnpm install` succeeds from monorepo root
+- [x] **Create `packages/cli/package.json`**
+  - [x] Name: `@context-forge/cli`; version `0.1.0`; type: `module`
+  - [x] `"bin": { "cf": "./dist/index.js" }`
+  - [x] Scripts: `build`, `dev`, `test`, `typecheck`
+  - [x] Dependencies: `@context-forge/core: workspace:*`, `commander`, `chalk`, `cli-table3`
+  - [x] DevDeps: `@types/node`, `typescript`, `vitest`
+  - [x] Success: `pnpm install` succeeds from monorepo root
 
-- [ ] **Create `packages/cli/tsconfig.json`**
-  - [ ] Extend workspace root config; `outDir: ./dist`, `rootDir: ./src`
-  - [ ] Target Node.js (ES2023, nodenext module resolution) — same pattern as `packages/mcp-server`
-  - [ ] `"include": ["src/**/*", "tests/**/*"]`
-  - [ ] Success: `pnpm --filter @context-forge/cli typecheck` passes with empty stubs
+- [x] **Create `packages/cli/tsconfig.json`**
+  - [x] Extend workspace root config; `outDir: ./dist`, `rootDir: ./src`
+  - [x] Target Node.js (ES2023, nodenext module resolution) — same pattern as `packages/mcp-server`
+  - [x] `"include": ["src/**/*", "tests/**/*"]`
+  - [x] Success: `pnpm --filter @context-forge/cli typecheck` passes with empty stubs
 
-- [ ] **Create `packages/cli/src/index.ts` entry point**
-  - [ ] Import commander `Command`, create root program with name `cf`, version, description
-  - [ ] Register all 8 subcommands (stubs at this stage)
-  - [ ] Add `#!/usr/bin/env node` shebang as first line of compiled output (via `src/index.ts`)
-  - [ ] Success: `cf --help` displays program name and lists all commands after build
+- [x] **Create `packages/cli/src/index.ts` entry point**
+  - [x] Import commander `Command`, create root program with name `cf`, version, description
+  - [x] Register all 8 subcommands (stubs at this stage)
+  - [x] Add `#!/usr/bin/env node` shebang as first line of compiled output (via `src/index.ts`)
+  - [x] Success: `cf --help` displays program name and lists all commands after build
 
-- [ ] **Verify binary wiring**
-  - [ ] Run `pnpm --filter @context-forge/cli build`
-  - [ ] Run `pnpm --filter @context-forge/cli start -- --help` or invoke `cf --help` via workspace
-  - [ ] Success: help output visible, no import errors
+- [x] **Verify binary wiring**
+  - [x] Run `pnpm --filter @context-forge/cli build`
+  - [x] Run `pnpm --filter @context-forge/cli start -- --help` or invoke `cf --help` via workspace
+  - [x] Success: help output visible, no import errors
 
 ---
 

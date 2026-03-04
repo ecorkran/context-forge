@@ -1,0 +1,49 @@
+{
+  "name": "@context-forge/cli",
+  "version": "0.1.0",
+  "description": "CLI for Context Forge — terminal access to context assembly, project management, workflow navigation, and configuration",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "cf": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cli",
+    "context",
+    "ai",
+    "context-forge"
+  ],
+  "author": "Manta Templates",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ecorkran/context-forge.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/ecorkran/context-forge/tree/main/packages/cli#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@context-forge/core": "workspace:*",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.1"
+  }
+}
