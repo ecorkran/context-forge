@@ -8,10 +8,25 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ## 2026-03-04
 
-### Slice 169: Multi-Project & UX Polish — Phase 5 (Task Breakdown) Complete
+### Slice 169: Multi-Project & UX Polish — Phase 6 (Implementation) Complete
+- 9 tasks, all complete. 80 tests (18 new + 62 original), all passing.
+- `findByNameOrId` + `findProjectByCwd` utilities in `packages/cli/src/utils/project.ts`
+- Three-step `resolveProjectId` chain: flag → CWD → default, returns `{ id, source: ResolutionSource }`
+- `cf status` shows resolution indicator: `(from CWD)`, `(default)`, `(--project flag)`
+- `cf project list` compact format: Name/Path/Slice/Default with `●` indicator, `~` path shortening
+- Version bump 0.1.0 → 0.2.0 with changelog in README
+- Commits:
+  - `178bd40` feat(cli): add findByNameOrId and findProjectByCwd utilities
+  - `c7fd2eb` feat(cli): three-step project resolution chain with source tracking
+  - `6d1fe48` feat(cli): show resolution source in cf status
+  - `b20969b` feat(cli): name-based project resolution
+  - `b30e2e9` feat(cli): compact cf project list with default indicator
+  - `e1f1848` style(cli): tighten output formatting across commands
+  - `81bb13f` docs(cli): version 0.2.0 changelog and README updates
+  - `55d78bd` fix(cli): update hardcoded version string to 0.2.0
+
+### Slice 169: Multi-Project & UX Polish — Phase 5 (Task Breakdown)
 - 9 tasks across CWD detection, name-based resolution, resolution indicators, output formatting, and version bump
-- Core work: `findByNameOrId`, `findProjectByCwd`, three-step `resolveProjectId` chain with `ResolutionSource`
-- No `@context-forge/core` API changes — all utilities are CLI-layer
 
 ### Slice 168: CLI Foundation — Phase 6 (Implementation) Complete
 - `packages/cli` fully implemented: 8 commands (status, next, build, config, project, future, check stub, prompt)

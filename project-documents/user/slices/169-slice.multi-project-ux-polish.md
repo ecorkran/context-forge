@@ -5,7 +5,7 @@ project: context-forge
 parent: user/architecture/160-slices.project-workflow-system.md
 dependencies: [cli-foundation]
 interfaces: []
-status: design
+status: complete
 dateCreated: 20260304
 dateUpdated: 20260304
 ---

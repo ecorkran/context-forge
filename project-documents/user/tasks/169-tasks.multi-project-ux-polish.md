@@ -6,7 +6,8 @@ dependencies: [cli-foundation]
 projectState: packages/cli exists with 8 commands (v0.1.0). resolveProjectId currently takes optional explicit ID, falls back to config default_project. No CWD detection, no name-based resolution. FileProjectStore has getAll/getById but no findByName. Output uses cli-table3 with basic formatting.
 dateCreated: 20260304
 dateUpdated: 20260304
-status: not_started
+testResults: 80 passing tests across 13 files, 0 failures. Typecheck clean. Build successful. Integration tests pass. No regressions from slice 168.
+status: complete
 ---
 
 ## Context Summary
@@ -135,19 +136,19 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Verify `--project <name>` works across commands**
-  - [ ] Since `resolveProjectId` now uses `findByNameOrId`, `--project context-forge` should resolve by name
-  - [ ] Verify `cf config set default_project orchestration` stores the name as-is (already works — config stores raw value)
-  - [ ] Verify `cf status --project <name>` resolves correctly
-  - [ ] No code change expected — just verification of the Task 3 refactor
-  - [ ] Success: `--project` accepts both names and IDs on all commands
+- [x] **Verify `--project <name>` works across commands**
+  - [x] Since `resolveProjectId` now uses `findByNameOrId`, `--project context-forge` should resolve by name
+  - [x] Verify `cf config set default_project orchestration` stores the name as-is (already works — config stores raw value)
+  - [x] Verify `cf status --project <name>` resolves correctly
+  - [x] No code change expected — just verification of the Task 3 refactor
+  - [x] Success: `--project` accepts both names and IDs on all commands
 
-- [ ] **Update `UserError` messages to reference names**
-  - [ ] Error when project not found: include suggestion to check name spelling + `cf project list`
-  - [ ] Error when `default_project` is stale: show the configured value and suggest updating
-  - [ ] Success: error messages are actionable with name-based examples
+- [x] **Update `UserError` messages to reference names**
+  - [x] Error when project not found: include suggestion to check name spelling + `cf project list`
+  - [x] Error when `default_project` is stale: show the configured value and suggest updating
+  - [x] Success: error messages are actionable with name-based examples
 
-- [ ] **Commit**: `feat(cli): name-based project resolution in --project and default_project`
+- [x] **Commit**: `feat(cli): name-based project resolution in --project and default_project`
 
 ---
 
@@ -155,22 +156,22 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Redesign `cf project list` table layout**
-  - [ ] Columns: Name, Path, Slice, Default (bullet indicator)
-  - [ ] Remove ID column from default display (IDs are machine-generated, not useful in terminal)
-  - [ ] Path column: shorten with `~` for home directory (e.g. `~/source/repos/manta/context-forge`)
-  - [ ] Default column: show `●` bullet on the project matching `default_project` config value
-  - [ ] Read `default_project` from config to determine which project is the default
-  - [ ] `--json` output still includes full data (ID, name, path, slice, isDefault)
-  - [ ] Success: `cf project list` renders a compact, readable table with default indicator
+- [x] **Redesign `cf project list` table layout**
+  - [x] Columns: Name, Path, Slice, Default (bullet indicator)
+  - [x] Remove ID column from default display (IDs are machine-generated, not useful in terminal)
+  - [x] Path column: shorten with `~` for home directory (e.g. `~/source/repos/manta/context-forge`)
+  - [x] Default column: show `●` bullet on the project matching `default_project` config value
+  - [x] Read `default_project` from config to determine which project is the default
+  - [x] `--json` output still includes full data (ID, name, path, slice, isDefault)
+  - [x] Success: `cf project list` renders a compact, readable table with default indicator
 
-- [ ] **Update `cf project list` tests**
-  - [ ] Test: default indicator appears for the matching project
-  - [ ] Test: path is shortened with `~`
-  - [ ] Test: `--json` includes `isDefault` field
-  - [ ] Success: all project list tests pass
+- [x] **Update `cf project list` tests**
+  - [x] Test: default indicator appears for the matching project
+  - [x] Test: path is shortened with `~`
+  - [x] Test: `--json` includes `isDefault` field
+  - [x] Success: all project list tests pass
 
-- [ ] **Commit**: `feat(cli): compact cf project list with default indicator`
+- [x] **Commit**: `feat(cli): compact cf project list with default indicator`
 
 ---
 
@@ -178,30 +179,30 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Tighten `cf status` output**
-  - [ ] Align labels with consistent padding (no excess spaces)
-  - [ ] Group related fields visually (project/phase/slice, then progress, then slice plan)
-  - [ ] Single-screen summary: no unnecessary blank lines between groups
-  - [ ] Refer to the UI example screenshot in the slice design for target style
+- [x] **Tighten `cf status` output**
+  - [x] Align labels with consistent padding (no excess spaces)
+  - [x] Group related fields visually (project/phase/slice, then progress, then slice plan)
+  - [x] Single-screen summary: no unnecessary blank lines between groups
+  - [x] Refer to the UI example screenshot in the slice design for target style
 
-- [ ] **Tighten `cf config list` output**
-  - [ ] Compact table: Key, Value, Source columns
-  - [ ] Source column right-aligned or consistently positioned
-  - [ ] No box-drawing characters (use simple aligned text if cli-table3 is too heavy)
+- [x] **Tighten `cf config list` output**
+  - [x] Compact table: Key, Value, Source columns
+  - [x] Source column right-aligned or consistently positioned
+  - [x] No box-drawing characters (use simple aligned text if cli-table3 is too heavy)
 
-- [ ] **Tighten `cf project get` output**
-  - [ ] Consistent label width, aligned values
-  - [ ] Suppress empty/null fields instead of showing blank values
+- [x] **Tighten `cf project get` output**
+  - [x] Consistent label width, aligned values
+  - [x] Suppress empty/null fields instead of showing blank values
 
-- [ ] **Standardize error message format**
-  - [ ] All `UserError` messages follow pattern: problem statement + newline + actionable suggestion(s)
-  - [ ] Suggestion lines indented with `  ` (two spaces)
-  - [ ] Review existing error messages across all commands for consistency
+- [x] **Standardize error message format**
+  - [x] All `UserError` messages follow pattern: problem statement + newline + actionable suggestion(s)
+  - [x] Suggestion lines indented with `  ` (two spaces)
+  - [x] Review existing error messages across all commands for consistency
 
-- [ ] **Update affected tests if output assertions change**
-  - [ ] Success: all tests pass, output is visually tighter across commands
+- [x] **Update affected tests if output assertions change**
+  - [x] Success: all tests pass, output is visually tighter across commands
 
-- [ ] **Commit**: `style(cli): tighten output formatting across commands`
+- [x] **Commit**: `style(cli): tighten output formatting across commands`
 
 ---
 
@@ -209,19 +210,19 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Bump version in `packages/cli/package.json`**
-  - [ ] `0.1.0` → `0.2.0`
+- [x] **Bump version in `packages/cli/package.json`**
+  - [x] `0.1.0` → `0.2.0`
 
-- [ ] **Add changelog section to `packages/cli/README.md`**
-  - [ ] Add `## Changelog` section (or append to existing)
-  - [ ] v0.2.0 entry: CWD-based project detection, name-based resolution, compact output, resolution indicators
-  - [ ] Document `default_additional_instruction` as a planned config key (not implemented — deferred per slice design)
+- [x] **Add changelog section to `packages/cli/README.md`**
+  - [x] Add `## Changelog` section (or append to existing)
+  - [x] v0.2.0 entry: CWD-based project detection, name-based resolution, compact output, resolution indicators
+  - [x] Document `default_additional_instruction` as a planned config key (not implemented — deferred per slice design)
 
-- [ ] **Update command reference in README if signatures changed**
-  - [ ] Verify `--project` description mentions name support
-  - [ ] Success: README reflects current command behavior
+- [x] **Update command reference in README if signatures changed**
+  - [x] Verify `--project` description mentions name support
+  - [x] Success: README reflects current command behavior
 
-- [ ] **Commit**: `docs(cli): version 0.2.0 changelog and README updates`
+- [x] **Commit**: `docs(cli): version 0.2.0 changelog and README updates`
 
 ---
 
@@ -229,17 +230,17 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Run full test suite**
-  - [ ] `pnpm --filter @context-forge/cli test` — all unit tests pass
-  - [ ] `pnpm --filter @context-forge/cli typecheck` — no type errors
-  - [ ] `pnpm --filter @context-forge/cli build` — compiles successfully
+- [x] **Run full test suite**
+  - [x] `pnpm --filter @context-forge/cli test` — all unit tests pass (80 tests, 13 files)
+  - [x] `pnpm --filter @context-forge/cli typecheck` — no type errors
+  - [x] `pnpm --filter @context-forge/cli build` — compiles successfully
 
-- [ ] **Verify existing integration tests still pass**
-  - [ ] `build.integration.test.ts` tests still pass (core pipeline parity)
-  - [ ] No regressions in 168-era functionality
+- [x] **Verify existing integration tests still pass**
+  - [x] `build.integration.test.ts` tests still pass (core pipeline parity)
+  - [x] No regressions in 168-era functionality
 
-- [ ] **Verify all 168 tests pass (no regressions)**
-  - [ ] All 62 original tests + new tests added in this slice pass together
-  - [ ] Success: `pnpm --filter @context-forge/cli test` shows all passing, zero failures
+- [x] **Verify all 168 tests pass (no regressions)**
+  - [x] All 62 original tests + new tests added in this slice pass together (80 total)
+  - [x] Success: `pnpm --filter @context-forge/cli test` shows all passing, zero failures
 
-- [ ] **Commit**: mark slice 169 complete in task file, slice design, and slice plan
+- [x] **Commit**: mark slice 169 complete in task file, slice design, and slice plan

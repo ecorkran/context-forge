@@ -125,7 +125,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:**: Low - we are providing new access to existing commands.  
    **Effort**: 3/5
 
-9. [ ] **(169) Multi-Project & UX Polish** — Extend `packages/cli` with CWD-based project detection, name-based project resolution, output formatting improvements, and version bump to 0.2.0. Three-level resolution chain: `--project` flag → CWD match → `default_project` config. Resolution source tracking shown in `cf status`. Compact table formatting across commands.
+9. [x] **(169) Multi-Project & UX Polish** — Extend `packages/cli` with CWD-based project detection, name-based project resolution, output formatting improvements, and version bump to 0.2.0. Three-level resolution chain: `--project` flag → CWD match → `default_project` config. Resolution source tracking shown in `cf status`. Compact table formatting across commands.
 
    **Value:** Zero-friction multi-project use. Developers can `cd` into any registered project directory and `cf status` resolves automatically. Names replace opaque IDs in config and flags.
    **Success Criteria:**
