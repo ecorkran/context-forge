@@ -9,11 +9,13 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 ## 2026-03-04
 
 ### Slice 169: Multi-Project & UX Polish — Phase 6 (Implementation) Complete
-- 9 tasks, all complete. 80 tests (18 new + 62 original), all passing.
+- 10 tasks, all complete. 80 tests (18 new + 62 original), all passing.
 - `findByNameOrId` + `findProjectByCwd` utilities in `packages/cli/src/utils/project.ts`
 - Three-step `resolveProjectId` chain: flag → CWD → default, returns `{ id, source: ResolutionSource }`
 - `cf status` shows resolution indicator: `(from CWD)`, `(default)`, `(--project flag)`
 - `cf project list` compact format: Name/Path/Slice/Default with `●` indicator, `~` path shortening
+- Output presentation matching orchestration CLI: borderless tables (bold cyan headers, `─` underline), aligned config list, colored help (yellow commands, cyan options, bold titles)
+- Removed `cli-table3` dependency — replaced with custom chalk-based table renderer
 - Version bump 0.1.0 → 0.2.0 with changelog in README
 - Commits:
   - `178bd40` feat(cli): add findByNameOrId and findProjectByCwd utilities
@@ -24,6 +26,7 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
   - `e1f1848` style(cli): tighten output formatting across commands
   - `81bb13f` docs(cli): version 0.2.0 changelog and README updates
   - `55d78bd` fix(cli): update hardcoded version string to 0.2.0
+  - `64e18f6` style(cli): match orchestration output style — borderless tables, colored help
 
 ### Slice 169: Multi-Project & UX Polish — Phase 5 (Task Breakdown)
 - 9 tasks across CWD detection, name-based resolution, resolution indicators, output formatting, and version bump
