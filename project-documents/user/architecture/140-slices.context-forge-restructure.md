@@ -60,6 +60,8 @@ Note: Primary near-term driver is orchestration integration — a persistent MCP
 
 6. [ ] (782) — Guide Update & Auto-Update: guide_update tool + startup auto-update when config enables it. Full replacement strategy (customizers point guide.source at their fork). 24-hour rate limit on checks. Effort 2/5.
 
+7. [ ] CLI Init & Default Project Deprecation — Add `cf init` command that registers the current directory as a Context Forge project (name derived from directory, accepts `--name` override). Minimal: creates project store entry with `name` and `projectPath`, sensible defaults. Does not scaffold `project-documents/` directory (future slice). Deprecate `default_project` config key — warn when it is the resolution source (CWD detection and `--project` flag are the preferred workflows). Dependencies: [CLI Foundation]. Effort: 2/5.
+
 ## Implementation Order
 
 ```
