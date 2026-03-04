@@ -3,6 +3,7 @@
 A lightweight, append-only record of development activity. Newest entries first.
 
 Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
+Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
@@ -17,6 +18,7 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 - Output presentation matching orchestration CLI: borderless tables (bold cyan headers, `─` underline), aligned config list, colored help (yellow commands, cyan options, bold titles)
 - Removed `cli-table3` dependency — replaced with custom chalk-based table renderer
 - Version bump 0.1.0 → 0.2.0 with changelog in README
+- Tags: `@context-forge/cli@0.2.0`, `@context-forge/core@0.1.1`, `@context-forge/mcp@0.1.1`
 - Commits:
   - `178bd40` feat(cli): add findByNameOrId and findProjectByCwd utilities
   - `c7fd2eb` feat(cli): three-step project resolution chain with source tracking
