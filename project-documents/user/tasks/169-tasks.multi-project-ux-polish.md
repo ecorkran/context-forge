@@ -26,20 +26,20 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Add `findByNameOrId` to `src/utils/project.ts`**
-  - [ ] Signature: `async function findByNameOrId(nameOrId: string, store: FileProjectStore): Promise<ProjectData | null>`
-  - [ ] Try exact ID match via `store.getById(nameOrId)` first
-  - [ ] If no ID match, call `store.getAll()` and find case-insensitive name match
-  - [ ] Return matched `ProjectData` or `null`
-  - [ ] Export the function (used by `resolveProjectId` and other commands)
-  - [ ] Success: function exported, handles ID match, name match (case-insensitive), and not-found
+- [x] **Add `findByNameOrId` to `src/utils/project.ts`**
+  - [x] Signature: `async function findByNameOrId(nameOrId: string, store: FileProjectStore): Promise<ProjectData | null>`
+  - [x] Try exact ID match via `store.getById(nameOrId)` first
+  - [x] If no ID match, call `store.getAll()` and find case-insensitive name match
+  - [x] Return matched `ProjectData` or `null`
+  - [x] Export the function (used by `resolveProjectId` and other commands)
+  - [x] Success: function exported, handles ID match, name match (case-insensitive), and not-found
 
-- [ ] **Unit tests for `findByNameOrId`**
-  - [ ] Test: exact ID match returns correct project
-  - [ ] Test: case-insensitive name match returns correct project
-  - [ ] Test: no match returns null
-  - [ ] Test: ID match takes priority over name match (if both could match)
-  - [ ] Success: all tests pass via `pnpm --filter @context-forge/cli test`
+- [x] **Unit tests for `findByNameOrId`**
+  - [x] Test: exact ID match returns correct project
+  - [x] Test: case-insensitive name match returns correct project
+  - [x] Test: no match returns null
+  - [x] Test: ID match takes priority over name match (if both could match)
+  - [x] Success: all tests pass via `pnpm --filter @context-forge/cli test`
 
 ---
 
@@ -47,28 +47,28 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Add `findProjectByCwd` to `src/utils/project.ts`**
-  - [ ] Signature: `async function findProjectByCwd(store: FileProjectStore): Promise<ProjectData | null>`
-  - [ ] Get all projects via `store.getAll()`
-  - [ ] Get `process.cwd()` and match against `project.projectPath`
-  - [ ] Match if CWD equals `projectPath` OR CWD starts with `projectPath + '/'` (subdirectory)
-  - [ ] Normalize: handle `projectPath` with or without trailing slash
-  - [ ] When multiple projects match (nested paths), longest `projectPath` wins
-  - [ ] Return best match or `null`
-  - [ ] Export the function
-  - [ ] Success: function exported, handles exact match, subdirectory match, longest-match, and no-match
+- [x] **Add `findProjectByCwd` to `src/utils/project.ts`**
+  - [x] Signature: `async function findProjectByCwd(store: FileProjectStore): Promise<ProjectData | null>`
+  - [x] Get all projects via `store.getAll()`
+  - [x] Get `process.cwd()` and match against `project.projectPath`
+  - [x] Match if CWD equals `projectPath` OR CWD starts with `projectPath + '/'` (subdirectory)
+  - [x] Normalize: handle `projectPath` with or without trailing slash
+  - [x] When multiple projects match (nested paths), longest `projectPath` wins
+  - [x] Return best match or `null`
+  - [x] Export the function
+  - [x] Success: function exported, handles exact match, subdirectory match, longest-match, and no-match
 
-- [ ] **Unit tests for `findProjectByCwd`**
-  - [ ] Mock `process.cwd()` to control test CWD
-  - [ ] Mock store to return test projects with known paths
-  - [ ] Test: exact path match returns correct project
-  - [ ] Test: subdirectory match returns correct project
-  - [ ] Test: longest-match wins when paths overlap (e.g. `/a/b` and `/a/b/c`)
-  - [ ] Test: no match returns null
-  - [ ] Test: projects without `projectPath` are skipped
-  - [ ] Success: all tests pass
+- [x] **Unit tests for `findProjectByCwd`**
+  - [x] Mock `process.cwd()` to control test CWD
+  - [x] Mock store to return test projects with known paths
+  - [x] Test: exact path match returns correct project
+  - [x] Test: subdirectory match returns correct project
+  - [x] Test: longest-match wins when paths overlap (e.g. `/a/b` and `/a/b/c`)
+  - [x] Test: no match returns null
+  - [x] Test: projects without `projectPath` are skipped
+  - [x] Success: all tests pass
 
-- [ ] **Commit**: `feat(cli): add findByNameOrId and findProjectByCwd utilities`
+- [x] **Commit**: `feat(cli): add findByNameOrId and findProjectByCwd utilities`
 
 ---
 
@@ -76,36 +76,36 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Refactor `resolveProjectId` in `src/utils/project.ts`**
-  - [ ] Add types:
+- [x] **Refactor `resolveProjectId` in `src/utils/project.ts`**
+  - [x] Add types:
     ```typescript
     type ResolutionSource = 'flag' | 'cwd' | 'default' | 'none';
     interface ResolvedProject { id: string; source: ResolutionSource; }
     ```
-  - [ ] Change return type from `Promise<string>` to `Promise<ResolvedProject>`
-  - [ ] Update signature to accept `store: FileProjectStore` parameter (callers already have one)
-  - [ ] Step 1: if `explicit` provided, use `findByNameOrId(explicit, store)` — throw `UserError` if not found (include hint about `cf project list`)
-  - [ ] Step 2: call `findProjectByCwd(store)` — return with `source: 'cwd'` if found
-  - [ ] Step 3: read `default_project` config, if set use `findByNameOrId` to resolve — throw if set but not found (stale config), return with `source: 'default'` if found
-  - [ ] Step 4: throw `UserError` with actionable guidance (use `--project`, set default, `cf project list`)
-  - [ ] Export `ResolutionSource` and `ResolvedProject` types
+  - [x] Change return type from `Promise<string>` to `Promise<ResolvedProject>`
+  - [x] Update signature to accept `store: FileProjectStore` parameter (callers already have one)
+  - [x] Step 1: if `explicit` provided, use `findByNameOrId(explicit, store)` — throw `UserError` if not found (include hint about `cf project list`)
+  - [x] Step 2: call `findProjectByCwd(store)` — return with `source: 'cwd'` if found
+  - [x] Step 3: read `default_project` config, if set use `findByNameOrId` to resolve — throw if set but not found (stale config), return with `source: 'default'` if found
+  - [x] Step 4: throw `UserError` with actionable guidance (use `--project`, set default, `cf project list`)
+  - [x] Export `ResolutionSource` and `ResolvedProject` types
 
-- [ ] **Update all command files that call `resolveProjectId`**
-  - [ ] Each command now passes its `store` instance to `resolveProjectId`
-  - [ ] Each command destructures `{ id, source }` from the result (only `cf status` uses `source` initially; others ignore it)
-  - [ ] Commands affected: `status.ts`, `next.ts`, `build.ts`, `future.ts`, `check.ts`, `prompt.ts`, `project.ts` (get/set subcommands)
-  - [ ] Success: all commands compile and function with the new signature
+- [x] **Update all command files that call `resolveProjectId`**
+  - [x] Each command now passes its `store` instance to `resolveProjectId`
+  - [x] Each command destructures `{ id, source }` from the result (only `cf status` uses `source` initially; others ignore it)
+  - [x] Commands affected: `status.ts`, `next.ts`, `build.ts`, `future.ts`, `check.ts`, `prompt.ts`, `project.ts` (get/set subcommands)
+  - [x] Success: all commands compile and function with the new signature
 
-- [ ] **Update existing `resolveProjectId` tests**
-  - [ ] Tests now verify `{ id, source }` return shape
-  - [ ] Add test: CWD resolution returns `source: 'cwd'`
-  - [ ] Add test: default_project resolution returns `source: 'default'`
-  - [ ] Add test: explicit flag resolution returns `source: 'flag'`
-  - [ ] Add test: stale `default_project` (name doesn't match any project) throws `UserError`
-  - [ ] Add test: no resolution throws `UserError` with guidance text
-  - [ ] Success: all unit tests pass, `pnpm --filter @context-forge/cli typecheck` passes
+- [x] **Update existing `resolveProjectId` tests**
+  - [x] Tests now verify `{ id, source }` return shape
+  - [x] Add test: CWD resolution returns `source: 'cwd'`
+  - [x] Add test: default_project resolution returns `source: 'default'`
+  - [x] Add test: explicit flag resolution returns `source: 'flag'`
+  - [x] Add test: stale `default_project` (name doesn't match any project) throws `UserError`
+  - [x] Add test: no resolution throws `UserError` with guidance text
+  - [x] Success: all unit tests pass, `pnpm --filter @context-forge/cli typecheck` passes
 
-- [ ] **Commit**: `feat(cli): three-step project resolution chain with source tracking`
+- [x] **Commit**: `feat(cli): three-step project resolution chain with source tracking`
 
 ---
 
@@ -113,21 +113,21 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Update `cf status` to display resolution source**
-  - [ ] After resolving project, include source in header line:
+- [x] **Update `cf status` to display resolution source**
+  - [x] After resolving project, include source in header line:
     - `source: 'cwd'` → `(from CWD)`
     - `source: 'default'` → `(default)`
     - `source: 'flag'` → `(--project flag)`
-  - [ ] Display as: `Project:  orchestration  (from CWD)`
-  - [ ] Include `resolutionSource` in `--json` output
-  - [ ] Success: running `cf status` from a project directory shows `(from CWD)`, from elsewhere shows `(default)` or `(--project flag)`
+  - [x] Display as: `Project:  orchestration  (from CWD)`
+  - [x] Include `resolutionSource` in `--json` output
+  - [x] Success: running `cf status` from a project directory shows `(from CWD)`, from elsewhere shows `(default)` or `(--project flag)`
 
-- [ ] **Update `cf status` tests**
-  - [ ] Test: resolution source label appears in terminal output
-  - [ ] Test: `--json` output includes `resolutionSource` field
-  - [ ] Success: all status tests pass
+- [x] **Update `cf status` tests**
+  - [x] Test: resolution source label appears in terminal output
+  - [x] Test: `--json` output includes `resolutionSource` field
+  - [x] Success: all status tests pass
 
-- [ ] **Commit**: `feat(cli): show resolution source in cf status`
+- [x] **Commit**: `feat(cli): show resolution source in cf status`
 
 ---
 
