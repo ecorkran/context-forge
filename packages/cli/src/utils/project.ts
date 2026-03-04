@@ -1,5 +1,48 @@
-import { ConfigManager } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
+import type { ProjectData } from '@context-forge/core';
 import { UserError } from './errors.js';
+
+/**
+ * Find a project by exact ID or case-insensitive name.
+ * ID match takes priority over name match.
+ */
+export async function findByNameOrId(
+  nameOrId: string,
+  store: FileProjectStore,
+): Promise<ProjectData | null> {
+  const projects = await store.getAll();
+
+  // Exact ID match first
+  const byId = projects.find((p) => p.id === nameOrId);
+  if (byId) return byId;
+
+  // Case-insensitive name match
+  const lower = nameOrId.toLowerCase();
+  const byName = projects.find((p) => p.name?.toLowerCase() === lower);
+  return byName ?? null;
+}
+
+/**
+ * Find the project whose projectPath best matches the current working directory.
+ * When multiple projects match (nested paths), the longest projectPath wins.
+ * Projects without a projectPath are skipped.
+ */
+export async function findProjectByCwd(
+  store: FileProjectStore,
+): Promise<ProjectData | null> {
+  const projects = await store.getAll();
+  const cwd = process.cwd();
+
+  const matches = projects
+    .filter((p) => {
+      if (!p.projectPath) return false;
+      const path = p.projectPath.endsWith('/') ? p.projectPath.slice(0, -1) : p.projectPath;
+      return cwd === path || cwd.startsWith(path + '/');
+    })
+    .sort((a, b) => (b.projectPath?.length ?? 0) - (a.projectPath?.length ?? 0));
+
+  return matches[0] ?? null;
+}
 
 /**
  * Resolves which project ID to use.
