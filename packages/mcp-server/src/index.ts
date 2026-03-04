@@ -2,6 +2,7 @@
 // MCP SDK: @modelcontextprotocol/sdk v1.26.0 (v1 monolithic package)
 // Zod: v4.1.5 — imported as `z` from 'zod'
 
+import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerProjectTools } from './tools/projectTools.js';
@@ -11,8 +12,9 @@ import { registerConfigTools } from './tools/configTools.js';
 import { registerIntrospectionTools } from './tools/introspectionTools.js';
 import { registerWorkflowTools } from './tools/workflowTools.js';
 
+const require = createRequire(import.meta.url);
+const { version: SERVER_VERSION } = require('../package.json') as { version: string };
 const SERVER_NAME = 'context-forge-mcp';
-const SERVER_VERSION = '0.1.0';
 
 function log(message: string): void {
   console.error(`[${SERVER_NAME}] ${message}`);

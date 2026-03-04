@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'node:module';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
@@ -12,11 +13,14 @@ import { registerCheckCommand } from './commands/check.js';
 import { registerPromptCommand } from './commands/prompt.js';
 import { handleError } from './utils/errors.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('cf')
-  .version('0.2.0')
+  .version(version)
   .description('Context Forge CLI — terminal access to context assembly, project management, and workflow navigation')
   .configureHelp({
     styleTitle: (str) => chalk.bold(str),
