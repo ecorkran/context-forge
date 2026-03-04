@@ -76,6 +76,7 @@ describe('cf project list', () => {
 describe('cf project get', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -94,14 +95,14 @@ describe('cf project get', () => {
     expect(joined).toContain('100-slice.auth');
   });
 
-  it('errors for invalid project ID', async () => {
-    mockGetById.mockResolvedValue(undefined);
+  it('errors for invalid project name or ID', async () => {
+    mockGetAll.mockResolvedValue([sampleProject]);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'project', 'get', '--project', 'bad-id']);
 
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('Project not found'),
+      expect.stringContaining('not found'),
     );
   });
 });
@@ -109,6 +110,7 @@ describe('cf project get', () => {
 describe('cf project set', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);

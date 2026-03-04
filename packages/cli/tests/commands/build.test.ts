@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerBuildCommand } from '../../src/commands/build.js';
 
+const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGenerateContextFromProject = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
+    getAll: mockGetAll,
     getById: mockGetById,
   })),
   createContextPipeline: vi.fn().mockImplementation(() => ({
@@ -39,6 +41,7 @@ function createProgram(): Command {
 describe('cf build', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});

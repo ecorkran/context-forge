@@ -14,8 +14,8 @@ export function registerFutureCommand(program: Command): void {
     .option('--status <filter>', 'Filter by status: all, pending, completed', 'all')
     .action(async (opts: { json?: boolean; project?: string; status: string }) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {

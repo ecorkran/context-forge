@@ -55,8 +55,8 @@ export function registerProjectCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -105,8 +105,8 @@ export function registerProjectCommand(program: Command): void {
           );
         }
 
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
 
         const existing = await store.getById(id);
         if (!existing) {

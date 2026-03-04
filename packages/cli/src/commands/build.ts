@@ -26,8 +26,8 @@ export function registerBuildCommand(program: Command): void {
     .option('--additional <text>', 'Additional instructions to append')
     .action(async (opts: BuildOpts) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {

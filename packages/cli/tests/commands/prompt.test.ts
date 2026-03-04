@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerPromptCommand } from '../../src/commands/prompt.js';
 
+const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGetAllPrompts = vi.fn();
 const mockGetPromptForInstruction = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
+    getAll: mockGetAll,
     getById: mockGetById,
   })),
   SystemPromptParser: vi.fn().mockImplementation(() => ({
@@ -63,6 +65,7 @@ function createProgram(): Command {
 describe('cf prompt list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -98,6 +101,7 @@ describe('cf prompt list', () => {
 describe('cf prompt get', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerStatusCommand } from '../../src/commands/status.js';
 
+const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockSummarize = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
+    getAll: mockGetAll,
     getById: mockGetById,
   })),
   ArtifactIntrospector: vi.fn().mockImplementation(() => ({
@@ -43,6 +45,7 @@ function createProgram(): Command {
 describe('cf status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);

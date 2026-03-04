@@ -44,29 +44,65 @@ export async function findProjectByCwd(
   return matches[0] ?? null;
 }
 
+export type ResolutionSource = 'flag' | 'cwd' | 'default' | 'none';
+
+export interface ResolvedProject {
+  id: string;
+  source: ResolutionSource;
+}
+
 /**
- * Resolves which project ID to use.
+ * Resolves which project to use via a three-step chain:
  *
- * Priority:
- * 1. explicit — if provided via --project flag, return it
- * 2. default_project config — if configured, return its value
- * 3. Throw UserError with guidance
+ * 1. explicit --project flag → findByNameOrId
+ * 2. CWD detection → findProjectByCwd
+ * 3. default_project config → findByNameOrId
+ * 4. Throw UserError with guidance
  */
-export async function resolveProjectId(explicit?: string): Promise<string> {
+export async function resolveProjectId(
+  explicit: string | undefined,
+  store: FileProjectStore,
+): Promise<ResolvedProject> {
+  // Step 1: explicit --project flag
   if (explicit) {
-    return explicit;
+    const project = await findByNameOrId(explicit, store);
+    if (!project) {
+      throw new UserError(
+        `Project '${explicit}' not found.\n` +
+          '  Check the spelling, or run cf project list to see available projects.',
+      );
+    }
+    return { id: project.id, source: 'flag' };
   }
 
+  // Step 2: CWD detection
+  const cwdProject = await findProjectByCwd(store);
+  if (cwdProject) {
+    return { id: cwdProject.id, source: 'cwd' };
+  }
+
+  // Step 3: default_project config
   const cm = new ConfigManager();
   const result = await cm.get('default_project');
-  const defaultId = result.value as string;
+  const defaultRef = result.value as string;
 
-  if (defaultId) {
-    return defaultId;
+  if (defaultRef) {
+    const project = await findByNameOrId(defaultRef, store);
+    if (!project) {
+      throw new UserError(
+        `default_project is set to '${defaultRef}' but no matching project was found.\n` +
+          '  cf project list                        # see available projects\n' +
+          '  cf config set default_project <name>   # update the default',
+      );
+    }
+    return { id: project.id, source: 'default' };
   }
 
+  // Step 4: no resolution
   throw new UserError(
-    'No project ID specified. Use --project <id> or set a default:\n' +
-      '  cf config set default_project <project-id>',
+    'No project specified and no registered project found at current path.\n' +
+      '  Use --project <name> to specify a project, or\n' +
+      '  cf config set default_project <name>   # set a default\n' +
+      '  cf project list                        # see available projects',
   );
 }

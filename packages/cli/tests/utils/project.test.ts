@@ -123,33 +123,75 @@ describe('findProjectByCwd', () => {
 });
 
 describe('resolveProjectId', () => {
+  const projects = [
+    { id: 'project_001', name: 'context-forge', projectPath: '/repos/cf' },
+    { id: 'project_002', name: 'orchestration', projectPath: '/repos/orch' },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
-  it('returns explicit ID when provided', async () => {
-    const result = await resolveProjectId('my-project');
-    expect(result).toBe('my-project');
+  it('resolves explicit flag by name with source "flag"', async () => {
+    const store = mockStore(projects);
+    const result = await resolveProjectId('orchestration', store);
+    expect(result).toEqual({ id: 'project_002', source: 'flag' });
   });
 
-  it('falls back to default_project config', async () => {
-    const mockGet = vi.fn().mockResolvedValue({ value: 'config-project' });
+  it('resolves explicit flag by ID with source "flag"', async () => {
+    const store = mockStore(projects);
+    const result = await resolveProjectId('project_001', store);
+    expect(result).toEqual({ id: 'project_001', source: 'flag' });
+  });
+
+  it('throws UserError when explicit flag does not match', async () => {
+    const store = mockStore(projects);
+    await expect(resolveProjectId('nonexistent', store)).rejects.toThrow(UserError);
+    await expect(resolveProjectId('nonexistent', store)).rejects.toThrow('not found');
+  });
+
+  it('resolves by CWD with source "cwd"', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/orch/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectId(undefined, store);
+    expect(result).toEqual({ id: 'project_002', source: 'cwd' });
+  });
+
+  it('resolves by default_project config with source "default"', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
     vi.mocked(ConfigManager).mockImplementation(
       () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
     );
 
-    const result = await resolveProjectId();
-    expect(result).toBe('config-project');
+    const store = mockStore(projects);
+    const result = await resolveProjectId(undefined, store);
+    expect(result).toEqual({ id: 'project_001', source: 'default' });
     expect(mockGet).toHaveBeenCalledWith('default_project');
   });
 
-  it('throws UserError when no ID available', async () => {
+  it('throws UserError when default_project is stale', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const mockGet = vi.fn().mockResolvedValue({ value: 'deleted-project' });
+    vi.mocked(ConfigManager).mockImplementation(
+      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
+    );
+
+    const store = mockStore(projects);
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow('deleted-project');
+  });
+
+  it('throws UserError with guidance when no resolution available', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
     const mockGet = vi.fn().mockResolvedValue({ value: '' });
     vi.mocked(ConfigManager).mockImplementation(
       () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
     );
 
-    await expect(resolveProjectId()).rejects.toThrow(UserError);
-    await expect(resolveProjectId()).rejects.toThrow('--project');
+    const store = mockStore(projects);
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow('--project');
   });
 });

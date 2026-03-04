@@ -13,8 +13,8 @@ export function registerStatusCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id, source: _source } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {

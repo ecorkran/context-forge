@@ -42,8 +42,8 @@ export function registerPromptCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -93,8 +93,8 @@ export function registerPromptCommand(program: Command): void {
     .option('--raw', 'Output raw template without variable substitution')
     .action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
       try {
-        const id = await resolveProjectId(opts.project);
         const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {

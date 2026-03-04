@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerFutureCommand } from '../../src/commands/future.js';
 
+const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockCollect = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
+    getAll: mockGetAll,
     getById: mockGetById,
   })),
   FutureWorkCollector: vi.fn().mockImplementation(() => ({
@@ -55,6 +57,7 @@ function createProgram(): Command {
 describe('cf future', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
