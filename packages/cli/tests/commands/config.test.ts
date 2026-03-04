@@ -29,7 +29,7 @@ describe('cf config list', () => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
 
-  it('renders a table with key/value/source columns', async () => {
+  it('renders aligned text with key/value/source', async () => {
     mockList.mockResolvedValue([
       { key: 'default_project', value: 'my-project', source: 'user', description: '' },
       { key: 'guide.source', value: 'bundled', source: 'default', description: '' },
@@ -38,11 +38,12 @@ describe('cf config list', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'list']);
 
-    const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('default_project');
     expect(output).toContain('my-project');
     expect(output).toContain('user');
     expect(output).toContain('guide.source');
+    expect(output).toContain('bundled');
   });
 
   it('outputs JSON when --json flag is set', async () => {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import chalk from 'chalk';
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
 import { registerProjectCommand } from './commands/project.js';
@@ -17,7 +18,16 @@ program
   .name('cf')
   .version('0.2.0')
   .description('Context Forge CLI — terminal access to context assembly, project management, and workflow navigation')
-  .addHelpText('after', '\nCommon options (available on most commands):\n  --project <id>  Project ID (overrides default_project config)\n  --json          Output as JSON (not applicable to build/prompt get)');
+  .configureHelp({
+    styleTitle: (str) => chalk.bold(str),
+    styleCommandText: (str) => chalk.yellow(str),
+    styleSubcommandText: (str) => chalk.yellow(str),
+    styleOptionText: (str) => chalk.cyan(str),
+    styleArgumentText: (str) => chalk.magenta(str),
+    styleDescriptionText: (str) => str,
+    subcommandTerm: (cmd) => cmd.name(),
+  })
+  .addHelpText('after', `\n${chalk.bold('Common options')} (available on most commands):\n  ${chalk.cyan('--project <name|id>')}  Project name or ID (overrides default_project config)\n  ${chalk.cyan('--json')}               Output as JSON (not applicable to build/prompt get)`);
 
 registerConfigCommand(program);
 registerProjectCommand(program);

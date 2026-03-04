@@ -2,8 +2,7 @@ import { Command } from 'commander';
 import { ConfigManager } from '@context-forge/core/node';
 import { handleError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
-import { renderTable } from '../output/tables.js';
-import { label, value as valueStyle, success } from '../output/styles.js';
+import { label, value as valueStyle, dim, success } from '../output/styles.js';
 
 export function registerConfigCommand(program: Command): void {
   const cmd = program
@@ -25,12 +24,13 @@ export function registerConfigCommand(program: Command): void {
           return;
         }
 
-        const rows = entries.map((e) => [
-          e.key,
-          String(e.value ?? ''),
-          e.source,
-        ]);
-        console.log(renderTable(['Key', 'Value', 'Source'], rows));
+        // Aligned text output matching orchestration style
+        const maxKey = Math.max(...entries.map((e) => e.key.length));
+        const maxVal = Math.max(...entries.map((e) => String(e.value ?? '').length), 5);
+        for (const e of entries) {
+          const val = String(e.value ?? '');
+          console.log(`  ${e.key.padEnd(maxKey)}  ${valueStyle(val.padEnd(maxVal))}  ${dim(e.source)}`);
+        }
       } catch (err) {
         handleError(err);
       }
