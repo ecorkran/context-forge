@@ -50,7 +50,10 @@ export function registerPromptCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'.`);
         }
         if (!project.projectPath) {
-          throw new UserError(`Project '${project.name}' has no projectPath configured.`);
+          throw new UserError(
+            `Project '${project.name}' has no projectPath configured.\n` +
+              '  cf project set projectPath /path/to/project',
+          );
         }
 
         const promptFilePath = path.join(project.projectPath, PROMPT_FILE_RELATIVE_PATH);
@@ -101,7 +104,10 @@ export function registerPromptCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'.`);
         }
         if (!project.projectPath) {
-          throw new UserError(`Project '${project.name}' has no projectPath configured.`);
+          throw new UserError(
+            `Project '${project.name}' has no projectPath configured.\n` +
+              '  cf project set projectPath /path/to/project',
+          );
         }
 
         // Resolve shorthand or name to instruction key

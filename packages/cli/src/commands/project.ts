@@ -89,24 +89,24 @@ export function registerProjectCommand(program: Command): void {
           return;
         }
 
-        // Formatted key-value output
+        // Formatted key-value output — suppress empty/null fields
         const fields: [string, string][] = [
-          ['ID', project.id],
           ['Name', project.name],
+          ['ID', project.id],
+          ['Path', project.projectPath ?? ''],
           ['Template', project.template],
+          ['Phase', project.developmentPhase ?? ''],
           ['Slice', project.fileSlice],
           ['Tasks', project.fileTasks],
           ['Instruction', project.instruction],
-          ['Phase', project.developmentPhase ?? ''],
           ['Work Type', project.workType ?? ''],
           ['Date', project.dateProject ?? ''],
-          ['Monorepo', String(project.isMonorepo)],
-          ['Path', project.projectPath ?? ''],
+          ['Monorepo', project.isMonorepo ? 'true' : ''],
         ];
 
         for (const [k, v] of fields) {
           if (v) {
-            console.log(`${label(`${k}:`).padEnd(22)} ${valueStyle(v)}`);
+            console.log(`${label(`${k}:`.padEnd(14))}${valueStyle(v)}`);
           }
         }
       } catch (err) {

@@ -35,7 +35,10 @@ export function registerBuildCommand(program: Command): void {
         }
 
         if (!project.projectPath) {
-          throw new UserError(`Project '${project.name}' has no projectPath configured. Set it with cf project set projectPath <path>`);
+          throw new UserError(
+            `Project '${project.name}' has no projectPath configured.\n` +
+              '  cf project set projectPath /path/to/project',
+          );
         }
 
         // Status message goes to stderr so stdout stays clean for piping

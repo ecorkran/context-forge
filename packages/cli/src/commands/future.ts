@@ -23,7 +23,10 @@ export function registerFutureCommand(program: Command): void {
         }
 
         if (!project.projectPath) {
-          throw new UserError(`Project '${project.name}' has no projectPath configured.`);
+          throw new UserError(
+            `Project '${project.name}' has no projectPath configured.\n` +
+              '  cf project set projectPath /path/to/project',
+          );
         }
 
         const statusFilter = opts.status as 'all' | 'pending' | 'completed';
