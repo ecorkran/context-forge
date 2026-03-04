@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { dim } from '../output/styles.js';
 
 export function registerCheckCommand(program: Command): void {
   program
@@ -8,6 +9,6 @@ export function registerCheckCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .option('--fix', 'Apply non-destructive corrections (when available)')
     .action(async () => {
-      console.log('cf check: not yet implemented');
+      console.log(dim('cf check: Consistency checker not yet available. Depends on slice 166.'));
     });
 }
