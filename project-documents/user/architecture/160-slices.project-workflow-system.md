@@ -117,7 +117,7 @@ dateUpdated: 20260228
    **Risk:** Low — primarily extraction and formatting
    **Effort:** 2/5
 
-8. [ ] **(168) CLI Foundation** — Adds a `packages/cli` package to the Context Forge monorepo that provides direct terminal access to context assembly, project management, workflow navigation, and configuration. The CLI wraps the same core functions consumed by the MCP server, giving developers a fast, pipeable, LLM-free interface to Context Forge capabilities.
+8. [x] **(168) CLI Foundation** — Adds a `packages/cli` package to the Context Forge monorepo that provides direct terminal access to context assembly, project management, workflow navigation, and configuration. The CLI wraps the same core functions consumed by the MCP server, giving developers a fast, pipeable, LLM-free interface to Context Forge capabilities.
 
 After this slice, a developer can type `cf status` to see where a project stands, `cf build --phase task-breakdown` to generate a ready-to-use context prompt, and `cf config set default_project orchestration` to persist preferences — all without leaving the terminal or requiring an MCP client.  Additional commands and functions are documented in the slice design.
 

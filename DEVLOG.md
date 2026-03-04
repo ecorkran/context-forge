@@ -6,6 +6,29 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 
 ---
 
+## 2026-03-04
+
+### Slice 168: CLI Foundation — Phase 6 (Implementation) Complete
+- `packages/cli` fully implemented: 8 commands (status, next, build, config, project, future, check stub, prompt)
+- 62 tests (58 unit + 4 integration), all passing
+- `cf status` and `cf next` use ArtifactIntrospector (provisional — full WorkflowNavigator depends on slice 165)
+- `cf build` uses same `createContextPipeline` as MCP server — output parity verified
+- `cf prompt get` with runtime phase shorthand parser (P1–P7), variable substitution, `--raw` flag
+- `cf check` stubbed pending slice 166 (Consistency Checker)
+- Commits:
+  - `e5a46e7` feat(cli): scaffold packages/cli with 8 command stubs
+  - `9ddb1ed` feat(cli): add shared utilities
+  - `54a71ee` feat(cli): implement cf config
+  - `508f358` feat(cli): implement cf project
+  - `8a16871` feat(cli): implement cf status and cf next
+  - `0533dc5` feat(cli): implement cf build, cf future, cf check stub
+  - `7af4aaa` feat(cli): implement cf prompt with phase shorthand parser
+  - `28ccdc4` feat(cli): polish help text
+  - `d5a6dc9` test(cli): integration tests
+  - `e9bbf09` docs(cli): README
+
+---
+
 ## 2026-03-03
 
 ### Slice 168: CLI Foundation — Phase 5 (Task Breakdown) Complete
