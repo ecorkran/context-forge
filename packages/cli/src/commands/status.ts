@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { FileProjectStore, ArtifactIntrospector } from '@context-forge/core/node';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectId, type ResolutionSource } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim } from '../output/styles.js';
@@ -14,7 +14,7 @@ export function registerStatusCommand(program: Command): void {
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id, source: _source } = await resolveProjectId(opts.project, store);
+        const { id, source } = await resolveProjectId(opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -32,8 +32,16 @@ export function registerStatusCommand(program: Command): void {
           }
         }
 
+        const sourceLabels: Record<ResolutionSource, string> = {
+          flag: '(--project flag)',
+          cwd: '(from CWD)',
+          default: '(default)',
+          none: '',
+        };
+
         const statusData = {
           project: project.name,
+          resolutionSource: source,
           phase: project.developmentPhase ?? 'Not set',
           slice: project.fileSlice,
           tasks: project.fileTasks,
@@ -48,7 +56,11 @@ export function registerStatusCommand(program: Command): void {
           return;
         }
 
-        console.log(label('Project:  ') + valueStyle(statusData.project));
+        const sourceLabel = sourceLabels[source];
+        const projectLine = sourceLabel
+          ? `${valueStyle(statusData.project)}  ${dim(sourceLabel)}`
+          : valueStyle(statusData.project);
+        console.log(label('Project:  ') + projectLine);
         console.log(label('Phase:    ') + valueStyle(statusData.phase));
         console.log(label('Slice:    ') + valueStyle(statusData.slice));
         console.log(label('Tasks:    ') + valueStyle(statusData.tasks));

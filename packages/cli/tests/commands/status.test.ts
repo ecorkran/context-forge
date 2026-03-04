@@ -89,4 +89,27 @@ describe('cf status', () => {
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('7/10 slices');
   });
+
+  it('shows resolution source label in terminal output', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockSummarize.mockResolvedValue(sampleIntrospection);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('--project flag');
+  });
+
+  it('includes resolutionSource in JSON output', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockSummarize.mockResolvedValue(sampleIntrospection);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001', '--json']);
+
+    const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw);
+    expect(parsed.resolutionSource).toBe('flag');
+  });
 });
