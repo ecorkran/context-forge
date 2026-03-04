@@ -9,6 +9,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-04
 
+### Maintenance: Version Tagging & Dynamic Reads
+- CLI and MCP server now read version from `package.json` via `createRequire` — no more hardcoded strings
+- Fixed MCP server version drift (hardcoded 0.1.0 vs package.json 0.1.1)
+- Established git tagging convention: `@scope/pkg@version` (monorepo standard)
+- Added `Tags:` line to DEVLOG format
+- Tags: `@context-forge/cli@0.2.1`
+- Commits:
+  - `10be0e5` fix: read version from package.json instead of hardcoded strings
+  - `567f292` docs: add git tags and DEVLOG tagging convention
+  - `c597a2d` package(cli): bump version to 0.2.1
+
 ### Slice 169: Multi-Project & UX Polish — Phase 6 (Implementation) Complete
 - 10 tasks, all complete. 80 tests (18 new + 62 original), all passing.
 - `findByNameOrId` + `findProjectByCwd` utilities in `packages/cli/src/utils/project.ts`
