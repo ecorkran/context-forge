@@ -117,13 +117,26 @@ dateUpdated: 20260228
    **Risk:** Low — primarily extraction and formatting
    **Effort:** 2/5
 
-8. [ ] **(168) CLI Foundation** — Adds a `packages/cli` package to the Context Forge monorepo that provides direct terminal access to context assembly, project management, workflow navigation, and configuration. The CLI wraps the same core functions consumed by the MCP server, giving developers a fast, pipeable, LLM-free interface to Context Forge capabilities.
+8. [x] **(168) CLI Foundation** — Adds a `packages/cli` package to the Context Forge monorepo that provides direct terminal access to context assembly, project management, workflow navigation, and configuration. The CLI wraps the same core functions consumed by the MCP server, giving developers a fast, pipeable, LLM-free interface to Context Forge capabilities.
 
 After this slice, a developer can type `cf status` to see where a project stands, `cf build --phase task-breakdown` to generate a ready-to-use context prompt, and `cf config set default_project orchestration` to persist preferences — all without leaving the terminal or requiring an MCP client.  Additional commands and functions are documented in the slice design.
 
    **Value:** allows user (and AI, ideally) to easily create and verify contexts and prompts through CLI commands.  Currently the only way for the user to interact is through the MCP.  While this is extremely useful for communication between AIs, it is less natural and efficient for many human users used to terminal style programs.
    **Risk:**: Low - we are providing new access to existing commands.  
    **Effort**: 3/5
+
+9. [ ] **(169) Multi-Project & UX Polish** — Extend `packages/cli` with CWD-based project detection, name-based project resolution, output formatting improvements, and version bump to 0.2.0. Three-level resolution chain: `--project` flag → CWD match → `default_project` config. Resolution source tracking shown in `cf status`. Compact table formatting across commands.
+
+   **Value:** Zero-friction multi-project use. Developers can `cd` into any registered project directory and `cf status` resolves automatically. Names replace opaque IDs in config and flags.
+   **Success Criteria:**
+   - `cd ~/repos/orchestration && cf status` resolves to orchestration with no flags
+   - `cf config set default_project orchestration` works with names
+   - `cf status` shows resolution source indicator (`from CWD`, `default`, `--project flag`)
+   - `cf project list` shows compact format with default indicator
+   - All existing 168 tests continue to pass
+   **Dependencies:** [168 — CLI Foundation]
+   **Risk:** Low — extends existing CLI utilities, no core API changes
+   **Effort:** 2/5
 
 
 ## Integration Work
