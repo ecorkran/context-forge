@@ -15,7 +15,7 @@ const program = new Command();
 
 program
   .name('cf')
-  .version('0.1.0')
+  .version('0.2.0')
   .description('Context Forge CLI — terminal access to context assembly, project management, and workflow navigation')
   .addHelpText('after', '\nCommon options (available on most commands):\n  --project <id>  Project ID (overrides default_project config)\n  --json          Output as JSON (not applicable to build/prompt get)');
 
