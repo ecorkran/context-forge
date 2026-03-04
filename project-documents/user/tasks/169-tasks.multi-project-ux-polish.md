@@ -244,3 +244,45 @@ status: complete
   - [x] Success: `pnpm --filter @context-forge/cli test` shows all passing, zero failures
 
 - [x] **Commit**: mark slice 169 complete in task file, slice design, and slice plan
+
+---
+
+## Task 10: Output Presentation — Match Orchestration Style
+
+**Effort: 2/5**
+
+**Reference:** Orchestration uses Python's Typer + Rich. Key patterns:
+- `rich.table.Table(show_header=True, header_style="bold")` — bold headers, underline separator, no cell borders
+- `config list` uses manual `rprint(f"  {key:<N}  {val:<40}  ({source})")` — no table at all
+- Typer auto-generates colored Usage/Commands/Options in help output
+
+**Differences that will persist (acceptable):**
+- Commander (Node.js) does not natively produce Typer-style grouped help sections with box-drawing labels like `─ Options ─` and `─ Commands ─`. We can improve help formatting but won't match Typer exactly.
+- Rich supports inline markup like `[green]✓[/green]` — chalk uses function calls instead. Visual parity achievable but syntax differs.
+- Typer auto-colors option names (e.g. `--help` in yellow). Commander does not. We can add color via `configureHelp()` but it's more manual.
+
+**Changes to make:**
+
+- [x] **Replace cli-table3 grid style with borderless tables**
+  - [x] Update `renderTable` in `src/output/tables.ts` to use cli-table3 `chars` option that removes all box-drawing borders except a header underline
+  - [x] Target style: bold/cyan header row, thin `─` underline, plain rows with column padding, no vertical bars between cells
+  - [x] Verify all table consumers render correctly: `cf project list`, `cf config list`, `cf prompt list`
+  - [x] Success: tables visually match orchestration's Rich table style (bold headers, underline, no cell grids)
+
+- [x] **Switch `cf config list` to aligned text output (no table)**
+  - [x] Match orchestration's `config list` pattern: `  key<padded>  value<padded>  (source)`
+  - [x] Use chalk for dim source labels
+  - [x] Success: `cf config list` output is compact aligned text, not a bordered table
+
+- [x] **Improve help output formatting**
+  - [x] Use Commander's `configureHelp()` to customize help output
+  - [x] Color the Usage line (e.g. `Usage: cf [options] [command]` in yellow/bold like Typer)
+  - [x] Bold/color command names in the Commands list
+  - [x] Success: `cf --help` and `cf project --help` have colored Usage line and emphasized command names
+
+- [x] **Update affected tests**
+  - [x] Table tests: update assertions that check for box-drawing characters (e.g. `─`, `│`, `┌`)
+  - [x] Config list tests: update to expect aligned text instead of table format
+  - [x] Success: all tests pass after formatting changes
+
+- [x] **Commit**: `style(cli): match orchestration output style — borderless tables, colored help`
