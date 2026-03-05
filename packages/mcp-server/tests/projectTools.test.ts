@@ -385,3 +385,55 @@ describe('default_project fallback', () => {
     expect(content[0].text).toContain('No project ID provided');
   });
 });
+
+describe('project_schema', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns JSON with fields, aliases, groups keys', async () => {
+    const result = await client.callTool({ name: 'project_schema', arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed).toHaveProperty('fields');
+    expect(parsed).toHaveProperty('aliases');
+    expect(parsed).toHaveProperty('groups');
+  });
+
+  it('fields array contains expected field definitions', async () => {
+    const result = await client.callTool({ name: 'project_schema', arguments: {} });
+
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    const fieldNames = parsed.fields.map((f: { field: string }) => f.field);
+    expect(fieldNames).toContain('name');
+    expect(fieldNames).toContain('developmentPhase');
+    expect(fieldNames).toContain('fileArch');
+    expect(fieldNames).toContain('createdAt');
+  });
+
+  it('aliases object maps correctly', async () => {
+    const result = await client.callTool({ name: 'project_schema', arguments: {} });
+
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+
+    expect(parsed.aliases.phase).toBe('developmentPhase');
+    expect(parsed.aliases.arch).toBe('fileArch');
+    expect(parsed.aliases.path).toBe('projectPath');
+  });
+});

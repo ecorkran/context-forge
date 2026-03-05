@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore, ArtifactIntrospector } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData } from '@context-forge/core';
+import { getSchema } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 /** Summary fields returned by project_list */
@@ -172,6 +173,21 @@ export function registerProjectTools(server: McpServer): void {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${message}`);
       }
+    },
+  );
+
+  // --- project_schema ---
+  server.registerTool(
+    'project_schema',
+    {
+      title: 'Project Schema',
+      description:
+        'Returns the full project data schema including field definitions, aliases, groups, and enum values. Use this to discover available fields for project_update, understand field types, and find short aliases for field names.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      return jsonResult(getSchema());
     },
   );
 }
