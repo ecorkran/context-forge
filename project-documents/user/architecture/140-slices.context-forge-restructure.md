@@ -56,12 +56,6 @@ This section is intended to be moved to a separate architectural component and a
 
 Note: Primary near-term driver is orchestration integration — a persistent MCP server that agent systems connect to across spawn cycles. Multi-client Electron and team/remote scenarios are secondary triggers. Stdio remains the default transport for single-developer Claude Code usage.
 
-5. [ ] (781) — Bundled Prompt & Guide Install: Bundle the one critical file so zero-config works. Add guide_install tool that downloads from GitHub (tarball, not submodule). Respects the git strategy config for whether to gitignore the files. Effort 3/5.
-
-6. [ ] (782) — Guide Update & Auto-Update: guide_update tool + startup auto-update when config enables it. Full replacement strategy (customizers point guide.source at their fork). 24-hour rate limit on checks. Effort 2/5.
-
-7. [ ] CLI Init & Default Project Deprecation — Add `cf init` command that registers the current directory as a Context Forge project (name derived from directory, accepts `--name` override). Minimal: creates project store entry with `name` and `projectPath`, sensible defaults. Does not scaffold `project-documents/` directory (future slice). Deprecate `default_project` config key — warn when it is the resolution source (CWD detection and `--project` flag are the preferred workflows). Dependencies: [CLI Foundation]. Effort: 2/5.
-
 ## Implementation Order
 
 ```
