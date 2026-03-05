@@ -139,15 +139,18 @@ describe('cf project set', () => {
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '200-slice.new' });
   });
 
-  it('rejects unknown fields', async () => {
+  it('rejects unknown fields with --schema hint', async () => {
     const program = createProgram();
     await program.parseAsync([
-      'node', 'cf', 'project', 'set', 'badField', 'val',
+      'node', 'cf', 'project', 'set', 'foobar', 'val',
       '--project', 'proj_001',
     ]);
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('Unknown field'),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('--schema'),
     );
   });
 
@@ -162,5 +165,102 @@ describe('cf project set', () => {
 
     const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
     expect(output).toContain('Updated fileSlice');
+  });
+
+  it('resolves alias "phase" to developmentPhase', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'phase', 'Phase 4: Slice Design',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      developmentPhase: 'Phase 4: Slice Design',
+    });
+  });
+
+  it('resolves phase number to full phase string', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'phase', '4',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      developmentPhase: 'Phase 4: Slice Design',
+    });
+  });
+
+  it('resolves phase short name', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'phase', 'implementation',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      developmentPhase: 'Phase 6: Implementation',
+    });
+  });
+
+  it('resolves case-insensitive field names', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'DevelopmentPhase', 'Phase 6: Implementation',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      developmentPhase: 'Phase 6: Implementation',
+    });
+  });
+
+  it('resolves artifact alias "arch" to fileArch', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'arch', 'some/path.md',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      fileArch: 'some/path.md',
+    });
+  });
+
+  it('rejects invalid enum value with allowed values', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'workType', 'invalid',
+      '--project', 'proj_001',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid value'),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('start'),
+    );
+  });
+
+  it('rejects setting readonly field', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'id', 'new-id',
+      '--project', 'proj_001',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('read-only'),
+    );
   });
 });
