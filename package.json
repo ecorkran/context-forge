@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @context-forge/electron dev",
-    "build": "pnpm --filter @context-forge/electron build",
+    "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
