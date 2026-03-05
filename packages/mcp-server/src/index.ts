@@ -12,6 +12,7 @@ import { registerConfigTools } from './tools/configTools.js';
 import { registerIntrospectionTools } from './tools/introspectionTools.js';
 import { registerWorkflowTools } from './tools/workflowTools.js';
 import { registerVersionTool } from './tools/versionTool.js';
+import { registerGuideTools } from './tools/guideTools.js';
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require('../package.json') as { version: string };
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   registerConfigTools(server);
   registerIntrospectionTools(server);
   registerWorkflowTools(server);
+  registerGuideTools(server);
   registerVersionTool(server, SERVER_NAME, SERVER_VERSION);
 
   const transport = new StdioServerTransport();
