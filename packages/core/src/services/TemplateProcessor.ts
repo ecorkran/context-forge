@@ -20,7 +20,7 @@ export class TemplateProcessor {
       // Start with the template
       let processed = template;
 
-      // First handle boolean conditionals: {{#if isMonorepo}}Yes{{else}}No{{/if}}
+      // First handle boolean conditionals: {{#if recentEvents}}has events{{else}}no events{{/if}}
       processed = this.processBooleanConditionals(processed, data);
 
       // Create enhanced data with computed variables

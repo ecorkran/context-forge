@@ -137,6 +137,7 @@ describe('Server Lifecycle', () => {
       'project_update',
       'prompt_get',
       'prompt_list',
+      'server_version',
       'template_preview',
       'workflow_future',
     ]);
