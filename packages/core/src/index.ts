@@ -7,3 +7,6 @@ export type { IProjectStore, IStorageService, StorageReadResult } from './storag
 
 // Introspection types and interfaces (browser-safe — no fs dependencies)
 export * from './introspection/index.js';
+
+// Project schema (field metadata, aliases, phase maps)
+export * from './schema/projectSchema.js';
