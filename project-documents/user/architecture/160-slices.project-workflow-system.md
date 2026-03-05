@@ -209,7 +209,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Low — display, aliases, and validation; no data model changes. Electron refresh is low-risk (file watch or manual button).
    **Effort:** 3/5
 
-12. [ ] **(172) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
+12. [x] **(172) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
 
    **a) Bundled prompt file** — Copy `prompt.ai-project.system.md` into `packages/core/assets/`. SystemPromptParser resolves with fallback chain: project-local `project-documents/ai-project-guide/` → bundled asset. After this, `npx @context-forge/mcp` generates useful context immediately with no bootstrap step.
 

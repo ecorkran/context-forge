@@ -9,6 +9,25 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-05
 
+### Slice 172: Guide Management — Implementation Complete
+- Core: `GuideDetector`, `GuideManager`, three strategies (SubmoduleStrategy, CloneStrategy, TarballStrategy) in `packages/core/src/guides/`
+- Git helper (`gitExec.ts`) with safe `execFile` wrapper, `isGitAvailable`, `isGitRepo`
+- MCP: `guide_status`, `guide_install`, `guide_update` tools (22 total)
+- CLI: `cf guides` with `info` (default), `install`, `update` subcommands
+- 735 tests passing (412 core + 110 CLI + 107 MCP + 106 Electron)
+- Implementation commits:
+  - `64b47dd` feat(core): add guide management types and strategy interface
+  - `1757f1f` feat(core): add git execution helper for guide management
+  - `c4991ec` feat(core): add GuideDetector for installation state detection
+  - `48b6d3c` feat(core): add SubmoduleStrategy for guide installation
+  - `d5ed014` feat(core): add CloneStrategy for guide installation
+  - `71a3b7d` feat(core): add TarballStrategy for guide installation
+  - `a581add` feat(core): add GuideManager orchestration layer
+  - `d6b712f` feat(core): export guide management module
+  - `8252fe8` feat(mcp): add guide_status, guide_install, guide_update tools
+  - `a66689a` fix(mcp): update server lifecycle test for 22 tools
+  - `ce690e0` feat(cli): add cf guides command for guide lifecycle management
+
 ### Slice 172: Guide Management — Design & Task Breakdown Complete
 - Slice design for guide install/update/status lifecycle management
 - Strategy pattern: submodule (default), clone, tarball for installation methods
