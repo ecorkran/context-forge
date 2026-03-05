@@ -19,9 +19,8 @@ function shortenPath(p: string): string {
 /** Updatable fields on ProjectData (matches UpdateProjectData keys). */
 const UPDATABLE_FIELDS = new Set([
   'name', 'template', 'fileSlice', 'fileTasks', 'instruction',
-  'developmentPhase', 'workType', 'dateProject', 'isMonorepo',
-  'isMonorepoEnabled', 'projectPath', 'fileHLD', 'fileArch',
-  'fileSlicePlan', 'fileSpec',
+  'developmentPhase', 'workType', 'dateProject', 'projectPath',
+  'fileHLD', 'fileArch', 'fileSlicePlan', 'fileSpec',
 ]);
 
 export function registerProjectCommand(program: Command): void {
@@ -101,7 +100,6 @@ export function registerProjectCommand(program: Command): void {
           ['Instruction', project.instruction],
           ['Work Type', project.workType ?? ''],
           ['Date', project.dateProject ?? ''],
-          ['Monorepo', project.isMonorepo ? 'true' : ''],
         ];
 
         for (const [k, v] of fields) {

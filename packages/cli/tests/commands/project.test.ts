@@ -27,7 +27,6 @@ const sampleProject = {
   developmentPhase: 'Phase 6: Implementation',
   workType: 'continue',
   dateProject: '2026-03-04',
-  isMonorepo: false,
   projectPath: '/tmp/test',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-03-04T00:00:00Z',
