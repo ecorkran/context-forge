@@ -161,22 +161,36 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [ ] **(171) Project Schema Visibility** — Expose the project data model to users and ensure all fields are visible in CLI/MCP output.
+11. [ ] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution.
 
    **a) `cf project --schema`** — Display the full project schema: field names, types, required/optional, allowed values (e.g. `workType: 'start' | 'continue'`), and brief descriptions. Derived from a single source of truth (the `ProjectData` type and Zod schemas in MCP). Also available as `project_schema` MCP tool returning structured JSON.
 
    **b) Update `cf project get` display** — Show all populated fields, including the artifact reference fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) that are currently omitted from formatted output. Group fields logically: identity (name, id, path), workflow (phase, instruction, workType, slice, tasks), artifacts (fileArch, fileSlicePlan, fileHLD, fileSpec), metadata (template, date, timestamps).
 
-   **Value:** Discoverability — users and agents can inspect what fields exist without reading source code. Complete `project get` output means nothing is hidden. Schema tool enables intelligent field-setting in `cf init` and agent workflows.
+   **c) Smart `cf project set`** — Ergonomic field setting with aliases, value resolution, and validation:
+   - **Field aliases**: short names map to actual field names. `phase` → `developmentPhase`, `date` → `dateProject`, `arch` → `fileArch`, `slice` → `fileSlice`, `tasks` → `fileTasks`, `plan` → `fileSlicePlan`, `hld` → `fileHLD`, `spec` → `fileSpec`. Aliases are case-insensitive.
+   - **Phase resolution**: `cf project set phase 4` → `Phase 4: Slice Design`. Accepts phase numbers (1-7), short names (`slice-design`, `implementation`, `task-breakdown`, etc.), or full phase strings. Case-insensitive.
+   - **Instruction resolution**: similar short-name resolution for instruction values.
+   - **Case-insensitive field names**: `cf project set developmentPhase X` and `cf project set developmentphase X` both work.
+   - **Field grouping in schema display**: identity fields first (name, template), then artifacts in document-order (fileArch, fileSlicePlan, fileHLD, fileSpec, fileSlice, fileTasks), then workflow (phase, instruction, workType, date), then other (projectPath, customData).
+   - **Validation**: known enum fields (`workType`, `instruction`, `developmentPhase`) reject invalid values with a helpful message listing allowed values.
+   - Phase and instruction maps defined as a single source of truth in `packages/core` (or `packages/cli/src/utils/`) — same maps used by schema display, validation, and resolution.
+
+   **Value:** Discoverability — users and agents can inspect what fields exist without reading source code. Complete `project get` output means nothing is hidden. Smart setting eliminates friction: no need to remember exact field names or phase strings. Schema tool enables intelligent field-setting in `cf init` and agent workflows.
    **Success Criteria:**
    - `cf project --schema` displays all fields with types and descriptions
    - `project_schema` MCP tool returns equivalent structured JSON
    - `cf project get` displays all populated fields including artifact references
    - Fields are grouped logically in formatted output
+   - `cf project set phase 4` resolves to `Phase 4: Slice Design`
+   - `cf project set phase implementation` resolves to `Phase 6: Implementation`
+   - `cf project set date 2026-03-04` sets `dateProject`
+   - Field names and aliases are case-insensitive
+   - Invalid enum values produce helpful error with allowed values listed
    - Schema definition is single-source (no duplication between CLI and MCP)
    **Dependencies:** [170 — Project Model Cleanup] (schema changes must land first so we document the clean model)
-   **Risk:** Low — display and documentation, no data model changes
-   **Effort:** 1/5
+   **Risk:** Low — display, aliases, and validation; no data model changes
+   **Effort:** 2/5
 
 12. [ ] **(172) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
 
