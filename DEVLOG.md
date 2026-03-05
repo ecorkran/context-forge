@@ -9,12 +9,22 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-05
 
-### Slice 170: Project Model Cleanup & CLI Init — Phase 4-5 (Design + Task Breakdown) Complete
-- Created slice design: `user/slices/170-slice.project-model-cleanup-cli.md`
-- Created task breakdown: `user/tasks/170-tasks.project-model-cleanup-cli.md` (10 tasks, 288 lines)
-- Four sub-deliverables: monorepo field removal, `cf init`, `default_project` deprecation, MCP version tool
-- Full inventory of monorepo field usage: 5 core services, 6 Electron files, MCP schemas, CLI, 21 test files
-- Migration plan: strip fields on read in FileProjectStore, TypeScript compiler catches all references
+### Slice 170: Project Model Cleanup & CLI Init — Complete
+- Removed `isMonorepo`, `isMonorepoEnabled`, `monorepoNote` from entire stack (types, 5 core services, MCP schemas, CLI, 6 Electron files, 21 test files)
+- Added `cf init` command (registers CWD as project, derives name from basename, --name override)
+- Added `default_project` deprecation warning to stderr when resolution falls through to config
+- Added `server_version` MCP tool (returns name + version as JSON)
+- Migration strips legacy monorepo fields on read; TypeScript compiler caught all consumers
+- 632 tests passing across all packages (346 core + 84 CLI + 97 MCP + 105 Electron)
+- Commits:
+  - `88d9364` refactor(core): remove monorepo fields from types, services, and tests
+  - `2ca41c2` refactor(mcp): remove monorepo fields from schemas and tests
+  - `c4264cf` feat(mcp): add server_version tool
+  - `770b464` refactor(cli): remove monorepo fields from project command and tests
+  - `9c2071d` feat(cli): add cf init command
+  - `dde2306` feat(cli): add deprecation warning for default_project config
+  - `a9e2512` refactor(electron): remove monorepo fields from UI, IPC, and tests
+  - `0b92955` fix: clean up stale monorepo references in fixtures and comments
 
 ## 2026-03-04
 
