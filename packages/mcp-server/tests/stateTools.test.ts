@@ -34,13 +34,10 @@ const MOCK_PROJECT: ProjectData = {
   developmentPhase: 'Phase 6',
   workType: 'continue',
   dateProject: '2026-02-19',
-  isMonorepo: false,
-  isMonorepoEnabled: false,
   projectPath: '/home/user/projects/test-project',
   customData: {
     recentEvents: 'Started auth slice',
     additionalNotes: 'Some existing notes',
-    monorepoNote: 'Monorepo structure info',
     availableTools: 'context7',
   },
   createdAt: '2026-02-10T00:00:00.000Z',
@@ -109,7 +106,7 @@ describe('context_summarize', () => {
     expect(parsed.customData.recentEvents).toBe('Completed auth implementation');
   });
 
-  it('preserves other customData fields (monorepoNote, availableTools) during update', async () => {
+  it('preserves other customData fields (availableTools) during update', async () => {
     mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(MOCK_PROJECT);
     mockUpdate.mockResolvedValue(undefined);
 
@@ -123,7 +120,6 @@ describe('context_summarize', () => {
       customData: {
         recentEvents: 'New summary',
         additionalNotes: 'Some existing notes',
-        monorepoNote: 'Monorepo structure info',
         availableTools: 'context7',
       },
     });
@@ -146,7 +142,6 @@ describe('context_summarize', () => {
       customData: {
         recentEvents: 'New summary',
         additionalNotes: 'Updated notes',
-        monorepoNote: 'Monorepo structure info',
         availableTools: 'context7',
       },
     });

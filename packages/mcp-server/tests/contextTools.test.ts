@@ -44,13 +44,10 @@ const MOCK_PROJECT: ProjectData = {
   developmentPhase: 'Phase 6',
   workType: 'continue',
   dateProject: '2026-02-19',
-  isMonorepo: false,
-  isMonorepoEnabled: false,
   projectPath: '/home/user/projects/test-project',
   customData: {
     recentEvents: 'Started auth slice',
     additionalNotes: '',
-    monorepoNote: '',
     availableTools: 'context7',
   },
   createdAt: '2026-02-10T00:00:00.000Z',

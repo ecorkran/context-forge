@@ -11,7 +11,6 @@ interface ProjectSummary {
   fileSlice: string;
   template: string;
   instruction: string;
-  isMonorepo: boolean;
   projectPath: string | undefined;
   updatedAt: string;
 }
@@ -23,7 +22,6 @@ function toSummary(project: ProjectData): ProjectSummary {
     fileSlice: project.fileSlice,
     template: project.template,
     instruction: project.instruction,
-    isMonorepo: project.isMonorepo,
     projectPath: project.projectPath,
     updatedAt: project.updatedAt,
   };
@@ -121,8 +119,6 @@ export function registerProjectTools(server: McpServer): void {
         developmentPhase: z.string().optional().describe('Current development phase'),
         workType: z.enum(['start', 'continue']).optional().describe('Whether starting or continuing work'),
         dateProject: z.string().optional().describe('Project date string'),
-        isMonorepo: z.boolean().optional().describe('Whether project uses monorepo mode'),
-        isMonorepoEnabled: z.boolean().optional().describe('Whether monorepo UI is enabled'),
         projectPath: z.string().optional().describe('Absolute path to project root'),
         fileHLD: z.string().optional().describe('Path to HLD document (relative to project root)'),
         fileArch: z.string().optional().describe('Path to architecture document (relative to project root)'),
@@ -132,7 +128,6 @@ export function registerProjectTools(server: McpServer): void {
           .object({
             recentEvents: z.string().optional(),
             additionalNotes: z.string().optional(),
-            monorepoNote: z.string().optional(),
             availableTools: z.string().optional(),
           })
           .optional()

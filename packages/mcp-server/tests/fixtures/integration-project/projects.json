@@ -9,13 +9,10 @@
     "developmentPhase": "Phase 6: Implementation",
     "workType": "continue",
     "dateProject": "2026-02-23",
-    "isMonorepo": false,
-    "isMonorepoEnabled": false,
     "projectPath": "__FIXTURE_PROJECT_PATH__",
     "customData": {
       "recentEvents": "Integration test fixture — verifies MCP tool responses.",
       "additionalNotes": "Additional notes for integration testing.",
-      "monorepoNote": "",
       "availableTools": "context7"
     },
     "createdAt": "2026-02-23T00:00:00.000Z",

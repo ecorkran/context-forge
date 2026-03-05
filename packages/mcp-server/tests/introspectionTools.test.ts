@@ -42,7 +42,6 @@ const MOCK_PROJECT: ProjectData = {
   fileSlice: '100-slice.test-feature.md',
   fileTasks: '100-tasks.test-feature.md',
   instruction: 'implementation',
-  isMonorepo: false,
   projectPath: '/home/user/projects/test-project',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-03-01T00:00:00.000Z',
