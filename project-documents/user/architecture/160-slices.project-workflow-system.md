@@ -148,6 +148,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    - Monorepo-conditional template display in `buildProjectInfoSection` (always show template if non-default instead)
    - `monorepo: {bool}` line from project info output
    - Monorepo-specific prompt selection in `SystemPromptParser.getContextInitializationPrompt()` (always use standard prompt; monorepo prompt variant in the guide file is unchanged here — guide updates happen in ai-project-guide repo)
+   - Monorepo checkbox and any `isMonorepoEnabled` toggle from the Electron settings dialog UI
 
    *Note: A richer monorepo data model (e.g. `packages: [{name, path}]` for projects like context-forge with multiple packages) may be useful in the future. Tracked as GitHub issue #39 rather than a slice plan item to avoid premature design.*
 
