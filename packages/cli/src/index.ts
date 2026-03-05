@@ -11,6 +11,7 @@ import { registerBuildCommand } from './commands/build.js';
 import { registerFutureCommand } from './commands/future.js';
 import { registerCheckCommand } from './commands/check.js';
 import { registerPromptCommand } from './commands/prompt.js';
+import { registerInitCommand } from './commands/init.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,7 @@ registerBuildCommand(program);
 registerFutureCommand(program);
 registerCheckCommand(program);
 registerPromptCommand(program);
+registerInitCommand(program);
 
 // Catch unhandled errors at top level
 process.on('uncaughtException', handleError);

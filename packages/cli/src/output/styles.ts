@@ -17,3 +17,6 @@ export const error = chalk.red;
 
 /** Style for success messages */
 export const success = chalk.green;
+
+/** Style for warning messages */
+export const warn = chalk.yellow;
