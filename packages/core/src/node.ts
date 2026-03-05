@@ -13,6 +13,9 @@ export * from './storage/index.js';
 // Config — two-tier TOML configuration (user + project level)
 export * from './config/index.js';
 
+// Guides — guide lifecycle management (git/fs dependent)
+export * from './guides/index.js';
+
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector } from './introspection/ArtifactIntrospector.js';
 export { parseFrontmatter } from './introspection/parsers/frontmatterParser.js';
