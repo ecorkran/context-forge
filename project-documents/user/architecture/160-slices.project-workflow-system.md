@@ -138,6 +138,35 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Low — extends existing CLI utilities, no core API changes
    **Effort:** 2/5
 
+10. [ ] **(170) Project Model Cleanup & CLI Init** — Three related changes to simplify the project model and improve CLI onboarding:
+
+   **a) Remove monorepo fields** — Remove `isMonorepo`, `isMonorepoEnabled` from `ProjectData` and `ContextData`. Remove `customData.monorepoNote`. Remove monorepo-conditional logic in ContextIntegrator, ContextTemplateEngine, SectionBuilder, SystemPromptParser. Remove from MCP tool schemas (project_update, project_list summary). Remove from CLI display and UPDATABLE_FIELDS. Remove from Electron IPC/preload. Update FileProjectStore migration to strip fields on read. Update all affected tests. These fields supported an earlier multi-project-documents monorepo structure that is no longer used.
+
+   **b) `cf init` command** — Registers the current directory as a Context Forge project. Derives name from directory basename, accepts `--name` override. Creates project store entry with `name`, `projectPath`, and sensible defaults. Checks for existing registration (same path) and warns. Does not scaffold `project-documents/` directory (future slice).
+
+   **c) Deprecate `default_project` config** — Emit a warning when `default_project` is the actual resolution source in `resolveProjectId`. CWD detection and `--project` flag are the preferred workflows. The config key remains functional but is discouraged.
+
+   **d) MCP version tool** — Add a lightweight MCP tool (or extend server metadata) so clients can query the server version. Currently the version is passed to the McpServer constructor but not exposed to tool callers.
+
+   **Value:** Removes dead complexity from the data model. `cf init` closes the onboarding gap for new projects. Deprecation warning nudges users toward the better CWD workflow. Version tool enables client compatibility checks.
+   **Success Criteria:**
+   - All monorepo fields removed from types, core logic, MCP schemas, CLI, Electron, and tests
+   - Existing stored projects with `isMonorepo: true/false` load without error (migration strips field)
+   - `cf init` in an unregistered directory creates a project entry; re-running warns
+   - `cf status` from a directory registered via `cf init` resolves via CWD
+   - Warning emitted when `default_project` is the resolution source
+   - MCP clients can retrieve server version
+   - All existing tests pass (updated for removed fields)
+   **Dependencies:** [169 — Multi-Project & UX Polish]
+   **Risk:** Medium — monorepo field removal touches all packages and many test files
+   **Effort:** 3/5
+
+11. [ ] (781) — Bundled Prompt & Guide Install: Bundle the one critical file so zero-config works. Add guide_install tool that downloads from GitHub (tarball, not submodule). Respects the git strategy config for whether to gitignore the files. Effort 3/5.
+
+12. [ ] (782) — Guide Update & Auto-Update: guide_update tool + startup auto-update when config enables it. Full replacement strategy (customizers point guide.source at their fork). 24-hour rate limit on checks. Effort 2/5.
+
+
+
 
 ## Integration Work
 
