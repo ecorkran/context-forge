@@ -2,6 +2,12 @@ import * as os from 'node:os';
 import { Command } from 'commander';
 import { FileProjectStore, ConfigManager } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
+import {
+  resolveFieldName,
+  resolvePhaseValue,
+  validateFieldValue,
+  PROJECT_FIELDS,
+} from '@context-forge/core';
 import { resolveProjectId, findByNameOrId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -16,12 +22,6 @@ function shortenPath(p: string): string {
   return p;
 }
 
-/** Updatable fields on ProjectData (matches UpdateProjectData keys). */
-const UPDATABLE_FIELDS = new Set([
-  'name', 'template', 'fileSlice', 'fileTasks', 'instruction',
-  'developmentPhase', 'workType', 'dateProject', 'projectPath',
-  'fileHLD', 'fileArch', 'fileSlicePlan', 'fileSpec',
-]);
 
 export function registerProjectCommand(program: Command): void {
   const cmd = program
@@ -118,10 +118,35 @@ export function registerProjectCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .action(async (field: string, val: string, opts: { project?: string }) => {
       try {
-        if (!UPDATABLE_FIELDS.has(field)) {
+        const resolvedField = resolveFieldName(field);
+        if (!resolvedField) {
           throw new UserError(
-            `Unknown field: '${field}'. Updatable fields: ${[...UPDATABLE_FIELDS].join(', ')}`,
+            `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
           );
+        }
+
+        const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
+        if (fieldDef?.readonly) {
+          throw new UserError(`Field '${resolvedField}' is read-only and cannot be set.`);
+        }
+
+        // Resolve phase/instruction values (number, short name, or full string)
+        let resolvedValue = val;
+        if (resolvedField === 'developmentPhase' || resolvedField === 'instruction') {
+          const phaseVal = resolvePhaseValue(val);
+          if (!phaseVal) {
+            const allowed = fieldDef?.enumValues?.join(', ') ?? '';
+            throw new UserError(
+              `Invalid value "${val}" for field "${resolvedField}". Allowed values: ${allowed}`,
+            );
+          }
+          resolvedValue = phaseVal;
+        }
+
+        // Validate against enum constraints
+        const validation = validateFieldValue(resolvedField, resolvedValue);
+        if (!validation.valid) {
+          throw new UserError(validation.error!);
         }
 
         const store = new FileProjectStore();
@@ -132,13 +157,8 @@ export function registerProjectCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
 
-        // Coerce booleans
-        let coerced: string | boolean = val;
-        if (val === 'true') coerced = true;
-        else if (val === 'false') coerced = false;
-
-        await store.update(id, { [field]: coerced });
-        console.log(success(`Updated ${field} = ${String(coerced)} on project ${existing.name}`));
+        await store.update(id, { [resolvedField]: resolvedValue });
+        console.log(success(`Updated ${resolvedField} = ${resolvedValue} on project ${existing.name}`));
       } catch (err) {
         handleError(err);
       }
