@@ -232,14 +232,14 @@ export function registerProjectCommand(program: Command): void {
     });
 
   cmd
-    .command('rm')
+    .command('rm [nameOrId]')
     .description('Remove a project from Context Forge (files on disk are not deleted)')
     .option('--project <id>', 'Project ID (overrides default)')
     .option('--yes', 'Skip confirmation prompt')
-    .action(async (opts: { project?: string; yes?: boolean }) => {
+    .action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
+        const { id } = await resolveProjectId(nameOrId ?? opts.project, store);
         const project = await store.getById(id);
 
         if (!project) {

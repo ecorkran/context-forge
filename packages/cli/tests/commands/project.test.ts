@@ -363,7 +363,21 @@ describe('cf project rm', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('deletes project with --yes flag without prompt', async () => {
+  it('deletes project with --yes flag using positional name', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockDelete.mockResolvedValue(undefined);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'rm', 'test-project', '--yes',
+    ]);
+
+    expect(mockDelete).toHaveBeenCalledWith('proj_001');
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('removed');
+  });
+
+  it('deletes project with --yes flag using --project option', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockDelete.mockResolvedValue(undefined);
 
@@ -382,7 +396,7 @@ describe('cf project rm', () => {
 
     const program = createProgram();
     await program.parseAsync([
-      'node', 'cf', 'project', 'rm', '--project', 'bad-id', '--yes',
+      'node', 'cf', 'project', 'rm', 'bad-id', '--yes',
     ]);
 
     expect(console.error).toHaveBeenCalledWith(
