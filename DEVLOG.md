@@ -9,10 +9,23 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-05
 
-### Slice 171: Project Schema Visibility & Smart Field Setting — Task Breakdown Complete
-- Slice design: `user/slices/171-slice.project-schema.md`
-- Task breakdown: `user/tasks/171-tasks.project-schema.md` (10 tasks, 262 lines)
-- Covers: core schema module, smart set with aliases/phase resolution, grouped project get, schema introspection (CLI + MCP), project rm, Electron refresh
+### Slice 171: Project Schema Visibility & Smart Field Setting — Implementation Complete
+- Core schema module (`packages/core/src/schema/projectSchema.ts`): field metadata, aliases, phase maps, resolution helpers as single source of truth
+- CLI: smart `cf project set` with aliases/phase resolution, grouped `cf project get`, `cf project --schema`, `cf project rm`
+- MCP: `project_schema` tool (19 total tools)
+- Electron: `fs.watch` on `projects.json` with debounced IPC refresh
+- 672 tests passing (366 core + 100 CLI + 100 MCP + 106 Electron)
+- Commits:
+  - `83a196f` feat(core): add project schema definition module with field metadata and resolution helpers
+  - `5fe901e` test(core): add unit tests for project schema module
+  - `9cc1666` feat(cli): smart project set with aliases, phase resolution, and validation
+  - `b929323` test(cli): add tests for smart project set with aliases and phase resolution
+  - `5d2f89b` feat(cli): grouped project get display with artifact field visibility
+  - `05dfd18` feat(cli): add cf project --schema for schema introspection
+  - `aba1f74` feat(mcp): add project_schema tool for schema introspection
+  - `1bacf96` feat(cli): add cf project rm command
+  - `d306838` feat(electron): auto-refresh project list on external projects.json changes
+  - `a24d1ed` fix(mcp): update server lifecycle test for 19 tools
 
 ### Slice 170: Project Model Cleanup & CLI Init — Complete
 - Removed `isMonorepo`, `isMonorepoEnabled`, `monorepoNote` from entire stack (types, 5 core services, MCP schemas, CLI, 6 Electron files, 21 test files)

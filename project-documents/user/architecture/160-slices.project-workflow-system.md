@@ -171,7 +171,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [ ] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution. Also adds `cf project rm` and fixes Electron project list refresh.
+11. [x] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution. Also adds `cf project rm` and fixes Electron project list refresh.
 
    **a) `cf project --schema`** — Display the full project schema: field names, types, required/optional, allowed values (e.g. `workType: 'start' | 'continue'`), and brief descriptions. Derived from a single source of truth (the `ProjectData` type and Zod schemas in MCP). Also available as `project_schema` MCP tool returning structured JSON.
 
