@@ -214,6 +214,6 @@ describe('resolveProjectId', () => {
 
     const store = mockStore(projects);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
-    await expect(resolveProjectId(undefined, store)).rejects.toThrow('--project');
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow('cf init');
   });
 });

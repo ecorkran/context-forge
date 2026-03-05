@@ -106,8 +106,8 @@ export async function resolveProjectId(
   // Step 4: no resolution
   throw new UserError(
     'No project specified and no registered project found at current path.\n' +
-      '  Use --project <name> to specify a project, or\n' +
-      '  cf config set default_project <name>   # set a default\n' +
-      '  cf project list                        # see available projects',
+      '  cf init                    # register current directory as a project\n' +
+      '  --project <name>           # specify a project explicitly\n' +
+      '  cf project list            # see registered projects',
   );
 }
