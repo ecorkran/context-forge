@@ -7,7 +7,7 @@ dependencies: [multi-project-ux-polish]
 interfaces: [project-schema-visibility]
 dateCreated: 20260304
 dateUpdated: 20260304
-status: in_progress
+status: complete
 ---
 
 # Slice Design: Project Model Cleanup & CLI Init
