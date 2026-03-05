@@ -68,6 +68,8 @@ export function registerProjectCommand(program: Command): void {
     .action((opts: { schema?: boolean }) => {
       if (opts.schema) {
         displaySchema();
+      } else {
+        cmd.outputHelp();
       }
     });
 
