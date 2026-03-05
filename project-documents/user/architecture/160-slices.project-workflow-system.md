@@ -149,7 +149,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    - `monorepo: {bool}` line from project info output
    - Monorepo-specific prompt selection in `SystemPromptParser.getContextInitializationPrompt()` (always use standard prompt; monorepo prompt variant in the guide file is unchanged here — guide updates happen in ai-project-guide repo)
 
-   *Note: A richer monorepo data model (e.g. `packages: [{name, path}]` for projects like context-forge with multiple packages) may be useful in the future. This is tracked as a GitHub issue rather than a slice plan item to avoid premature design — see issue when created.*
+   *Note: A richer monorepo data model (e.g. `packages: [{name, path}]` for projects like context-forge with multiple packages) may be useful in the future. Tracked as GitHub issue #39 rather than a slice plan item to avoid premature design.*
 
    **b) `cf init` command** — Registers the current directory as a Context Forge project. Derives name from directory basename, accepts `--name` override. Creates project store entry with `name`, `projectPath`, and sensible defaults. Checks for existing registration (same path) and warns. Does not scaffold `project-documents/` directory (future slice).
 
