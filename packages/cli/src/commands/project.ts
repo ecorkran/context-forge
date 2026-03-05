@@ -7,7 +7,9 @@ import {
   resolvePhaseValue,
   validateFieldValue,
   PROJECT_FIELDS,
+  FIELD_GROUPS,
 } from '@context-forge/core';
+import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, findByNameOrId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -88,23 +90,47 @@ export function registerProjectCommand(program: Command): void {
           return;
         }
 
-        // Formatted key-value output — suppress empty/null fields
-        const fields: [string, string][] = [
-          ['Name', project.name],
-          ['ID', project.id],
-          ['Path', project.projectPath ?? ''],
-          ['Template', project.template],
-          ['Phase', project.developmentPhase ?? ''],
-          ['Slice', project.fileSlice],
-          ['Tasks', project.fileTasks],
-          ['Instruction', project.instruction],
-          ['Work Type', project.workType ?? ''],
-          ['Date', project.dateProject ?? ''],
-        ];
+        // Grouped display — iterate by group, skip empty groups
+        const groupLabels: Record<FieldGroup, string> = {
+          identity: 'Identity',
+          artifacts: 'Artifacts',
+          workflow: 'Workflow',
+          metadata: 'Metadata',
+        };
 
-        for (const [k, v] of fields) {
-          if (v) {
-            console.log(`${label(`${k}:`.padEnd(14))}${valueStyle(v)}`);
+        const projectRecord = project as unknown as Record<string, unknown>;
+
+        for (const group of FIELD_GROUPS) {
+          const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
+          const populated = groupFields.filter((f) => {
+            const val = projectRecord[f.field];
+            return val !== undefined && val !== null && val !== '';
+          });
+
+          if (populated.length === 0) continue;
+
+          console.log(`\n${label(groupLabels[group])}`);
+
+          for (const f of populated) {
+            const val = String(projectRecord[f.field]);
+            console.log(`  ${label(`${f.label}:`.padEnd(16))}${valueStyle(val)}`);
+          }
+        }
+
+        // Display customData sub-fields if populated
+        const custom = project.customData;
+        if (custom) {
+          const customEntries: [string, string][] = [
+            ['Recent Events', custom.recentEvents ?? ''],
+            ['Notes', custom.additionalNotes ?? ''],
+            ['Tools', custom.availableTools ?? ''],
+          ];
+          const populated = customEntries.filter(([, v]) => v);
+          if (populated.length > 0) {
+            console.log(`\n${label('Custom Data')}`);
+            for (const [k, v] of populated) {
+              console.log(`  ${label(`${k}:`.padEnd(16))}${valueStyle(v)}`);
+            }
           }
         }
       } catch (err) {

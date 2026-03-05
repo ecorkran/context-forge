@@ -94,7 +94,7 @@ describe('cf project get', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('displays project fields', async () => {
+  it('displays grouped output with group headers', async () => {
     mockGetById.mockResolvedValue(sampleProject);
 
     const program = createProgram();
@@ -102,8 +102,56 @@ describe('cf project get', () => {
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const joined = calls.join('\n');
+    expect(joined).toContain('Identity');
+    expect(joined).toContain('Workflow');
     expect(joined).toContain('test-project');
     expect(joined).toContain('100-slice.auth');
+  });
+
+  it('shows artifact fields when populated', async () => {
+    const projectWithArtifacts = {
+      ...sampleProject,
+      fileArch: 'user/architecture/160-arch.md',
+    };
+    mockGetById.mockResolvedValue(projectWithArtifacts);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'get', '--project', 'proj_001']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    expect(joined).toContain('Artifacts');
+    expect(joined).toContain('160-arch.md');
+  });
+
+  it('omits empty groups', async () => {
+    const minimalProject = {
+      ...sampleProject,
+      fileSlice: '',
+      fileTasks: '',
+      fileArch: undefined,
+    };
+    mockGetById.mockResolvedValue(minimalProject);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'get', '--project', 'proj_001']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    // Artifacts group should not appear since no artifact fields are populated
+    expect(joined).not.toContain('Artifacts');
+  });
+
+  it('outputs JSON unchanged with --json flag', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'get', '--project', 'proj_001', '--json']);
+
+    const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(output);
+    expect(parsed.id).toBe('proj_001');
+    expect(parsed.name).toBe('test-project');
   });
 
   it('errors for invalid project name or ID', async () => {
