@@ -161,9 +161,38 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [ ] (781) — Bundled Prompt & Guide Install: Bundle the one critical file so zero-config works. Add guide_install tool that downloads from GitHub (tarball, not submodule). Respects the git strategy config for whether to gitignore the files. Effort 3/5.
+11. [ ] **(171) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
 
-12. [ ] (782) — Guide Update & Auto-Update: guide_update tool + startup auto-update when config enables it. Full replacement strategy (customizers point guide.source at their fork). 24-hour rate limit on checks. Effort 2/5.
+   **a) Bundled prompt file** — Copy `prompt.ai-project.system.md` into `packages/core/assets/`. SystemPromptParser resolves with fallback chain: project-local `project-documents/ai-project-guide/` → bundled asset. After this, `npx @context-forge/mcp` generates useful context immediately with no bootstrap step.
+
+   **b) MCP tools** —
+   - `guide_install`: downloads ai-project-guide from GitHub (tarball by default), extracts to `{projectPath}/project-documents/ai-project-guide/`. Respects `guide.git_strategy` config (`submodule`, `clone`, `manual`). Respects `guide.source` config for fork support.
+   - `guide_status`: reports installed state, location, install method, version/date, whether using bundled or local prompt file.
+   - `guide_update`: downloads latest version from source, replaces existing installation. No-op with message if already current.
+
+   **c) `cf guides` CLI command** — Full parity with MCP tools:
+   - `cf guides` / `cf guides info` — installed state, version, install method, location
+   - `cf guides install` — installs latest version
+   - `cf guides update` — updates to latest if not current
+   - `cf guides --version` — short version output
+
+   **Not in scope:** Auto-update on startup (`guide.auto_update` config key remains defined but unused). Can be added later if there's demand. The `guide.auto_update` key is already in ConfigKeys — we leave it as-is rather than removing it.
+
+   **Value:** Eliminates the #1 adoption barrier — needing to set up ai-project-guide before Context Forge does anything useful. Zero-config first run via bundled prompt. Progressive adoption: experience context assembly value first, opt into full methodology when ready. CLI parity ensures both human and agent workflows are supported.
+   **Success Criteria:**
+   - `cf build` works in a project with no ai-project-guide installed (uses bundled prompt)
+   - `cf guides install` downloads and installs ai-project-guide into the project directory
+   - `cf guides` shows installed state, version, and method
+   - `cf guides update` updates to latest version; no-op if current
+   - MCP tools `guide_install`, `guide_status`, `guide_update` provide equivalent functionality
+   - `guide.git_strategy` config is respected (submodule vs clone vs manual/tarball)
+   - `guide.source` config is respected for fork support
+   - All existing tests pass
+   **Dependencies:** [162 — Config System] (complete), [170 — Project Model Cleanup & CLI Init]
+   **Risk:** Medium — download/extraction logic, git strategy branching, version detection
+   **Effort:** 3/5
+
+   *Supersedes 780-slices items 781 and 782. The 780-slices.future document should be updated to reference this slice.*
 
 
 
