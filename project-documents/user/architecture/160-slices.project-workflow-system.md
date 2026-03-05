@@ -161,7 +161,24 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [ ] **(171) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
+11. [ ] **(171) Project Schema Visibility** — Expose the project data model to users and ensure all fields are visible in CLI/MCP output.
+
+   **a) `cf project --schema`** — Display the full project schema: field names, types, required/optional, allowed values (e.g. `workType: 'start' | 'continue'`), and brief descriptions. Derived from a single source of truth (the `ProjectData` type and Zod schemas in MCP). Also available as `project_schema` MCP tool returning structured JSON.
+
+   **b) Update `cf project get` display** — Show all populated fields, including the artifact reference fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) that are currently omitted from formatted output. Group fields logically: identity (name, id, path), workflow (phase, instruction, workType, slice, tasks), artifacts (fileArch, fileSlicePlan, fileHLD, fileSpec), metadata (template, date, timestamps).
+
+   **Value:** Discoverability — users and agents can inspect what fields exist without reading source code. Complete `project get` output means nothing is hidden. Schema tool enables intelligent field-setting in `cf init` and agent workflows.
+   **Success Criteria:**
+   - `cf project --schema` displays all fields with types and descriptions
+   - `project_schema` MCP tool returns equivalent structured JSON
+   - `cf project get` displays all populated fields including artifact references
+   - Fields are grouped logically in formatted output
+   - Schema definition is single-source (no duplication between CLI and MCP)
+   **Dependencies:** [170 — Project Model Cleanup] (schema changes must land first so we document the clean model)
+   **Risk:** Low — display and documentation, no data model changes
+   **Effort:** 1/5
+
+12. [ ] **(172) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
 
    **a) Bundled prompt file** — Copy `prompt.ai-project.system.md` into `packages/core/assets/`. SystemPromptParser resolves with fallback chain: project-local `project-documents/ai-project-guide/` → bundled asset. After this, `npx @context-forge/mcp` generates useful context immediately with no bootstrap step.
 
