@@ -22,6 +22,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     update: (updates: unknown) => ipcRenderer.invoke('app-state:update', updates),
   },
 
+  // ── External change notifications ──────────────────────────────────────────
+  onProjectListChanged: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('project:list-changed', handler)
+    return () => { ipcRenderer.removeListener('project:list-changed', handler) }
+  },
+
   // ── Project path (kept — folder picker and path validation) ─────────────────
   projectPath: {
     validate: (path: string) => ipcRenderer.invoke('project-path:validate', { path }),

@@ -83,6 +83,22 @@ export const ContextBuilderApp: React.FC = () => {
     loadLastSession();
   }, []);
 
+  // ── External project list change listener ────────────────────────────────────
+  useEffect(() => {
+    if (!window.electronAPI?.onProjectListChanged) return
+
+    const cleanup = window.electronAPI.onProjectListChanged(async () => {
+      try {
+        const updatedProjects = await projectApi.list()
+        setProjects(updatedProjects)
+      } catch (e) {
+        console.error('Failed to refresh project list:', e)
+      }
+    })
+
+    return cleanup
+  }, [])
+
   // ── Auto-save on form changes, then regenerate context ───────────────────────
   useEffect(() => {
     if (!currentProjectId) return;

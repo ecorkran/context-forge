@@ -29,6 +29,9 @@ declare global {
         update: (updates: Partial<AppState>) => Promise<void>;
       };
 
+      // ── External change notifications ────────────────────────────────────
+      onProjectListChanged: (callback: () => void) => () => void;
+
       // ── Project path (folder picker and path validation) ──────────────────
       projectPath: {
         validate: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;

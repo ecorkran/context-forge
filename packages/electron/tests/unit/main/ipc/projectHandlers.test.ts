@@ -3,6 +3,7 @@ import type { ProjectData, CreateProjectData, UpdateProjectData } from '@context
 
 // Mock electron's ipcMain before importing the module under test
 const handlers: Record<string, (...args: unknown[]) => unknown> = {}
+const mockWillQuitHandlers: Array<() => void> = []
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -10,11 +11,21 @@ vi.mock('electron', () => ({
       handlers[channel] = handler
     }),
   },
+  BrowserWindow: {
+    getAllWindows: vi.fn(() => []),
+  },
+  app: {
+    on: vi.fn((event: string, handler: () => void) => {
+      if (event === 'will-quit') mockWillQuitHandlers.push(handler)
+    }),
+  },
 }))
 
-// Mock @context-forge/core/node — we only need FileProjectStore
+
+// Mock @context-forge/core/node — we only need FileProjectStore and getStoragePath
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn(),
+  getStoragePath: vi.fn(() => '/tmp/test-storage'),
 }))
 
 // Helper to invoke a captured handler as IPC would (first arg is event, rest are payload args)
@@ -174,6 +185,14 @@ describe('projectHandlers', () => {
       mockStore.delete.mockRejectedValue(new Error('not found'))
 
       await expect(invoke('project:delete', 'proj-1')).rejects.toThrow('project:delete failed: not found')
+    })
+  })
+
+  // ── file watcher cleanup ──────────────────────────────────────────────────
+  describe('projects.json file watcher', () => {
+    it('registers a will-quit handler for cleanup', async () => {
+      const { app } = await import('electron')
+      expect(app.on).toHaveBeenCalledWith('will-quit', expect.any(Function))
     })
   })
 })

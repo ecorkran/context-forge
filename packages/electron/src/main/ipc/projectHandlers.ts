@@ -1,10 +1,13 @@
-import { ipcMain } from 'electron'
-import { FileProjectStore } from '@context-forge/core/node'
+import { ipcMain, BrowserWindow, app } from 'electron'
+import { watch, type FSWatcher } from 'node:fs'
+import { join } from 'node:path'
+import { FileProjectStore, getStoragePath } from '@context-forge/core/node'
 import type { CreateProjectData, UpdateProjectData } from '@context-forge/core'
 
 /**
  * Register IPC handlers for domain-level project CRUD operations.
  * All handlers delegate to core's FileProjectStore.
+ * Also sets up a file watcher on projects.json to detect external changes.
  */
 export function registerProjectHandlers(store: FileProjectStore): void {
   // List all projects, sorted by updatedAt descending (most recent first)
@@ -64,5 +67,44 @@ export function registerProjectHandlers(store: FileProjectStore): void {
       const msg = error instanceof Error ? error.message : String(error)
       throw new Error(`project:delete failed: ${msg}`)
     }
+  })
+
+  // Watch projects.json for external changes (CLI, MCP)
+  setupProjectsFileWatcher()
+}
+
+/** Debounce timer for file watcher events. */
+const DEBOUNCE_MS = 300
+
+/**
+ * Watch projects.json for external changes. On change, sends
+ * 'project:list-changed' to all renderer windows.
+ */
+function setupProjectsFileWatcher(): void {
+  let watcher: FSWatcher | null = null
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  try {
+    const projectsPath = join(getStoragePath(), 'projects.json')
+    watcher = watch(projectsPath, () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send('project:list-changed')
+        }
+      }, DEBOUNCE_MS)
+    })
+
+    watcher.on('error', (err) => {
+      console.warn('projects.json watcher error:', err.message)
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn('Failed to set up projects.json watcher:', msg)
+  }
+
+  app.on('will-quit', () => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    if (watcher) watcher.close()
   })
 }
