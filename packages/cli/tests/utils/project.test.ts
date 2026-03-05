@@ -160,6 +160,7 @@ describe('resolveProjectId', () => {
 
   it('resolves by default_project config with source "default"', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
     vi.mocked(ConfigManager).mockImplementation(
       () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
@@ -169,6 +170,27 @@ describe('resolveProjectId', () => {
     const result = await resolveProjectId(undefined, store);
     expect(result).toEqual({ id: 'project_001', source: 'default' });
     expect(mockGet).toHaveBeenCalledWith('default_project');
+    stderrSpy.mockRestore();
+  });
+
+  it('emits deprecation warning to stderr when resolved via default_project', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
+    vi.mocked(ConfigManager).mockImplementation(
+      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
+    );
+
+    const store = mockStore(projects);
+    await resolveProjectId(undefined, store);
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Warning'),
+    );
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('default_project'),
+    );
+    stderrSpy.mockRestore();
   });
 
   it('throws UserError when default_project is stale', async () => {

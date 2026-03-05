@@ -95,6 +95,11 @@ export async function resolveProjectId(
           '  cf config set default_project <name>   # update the default',
       );
     }
+    console.error(
+      'Warning: Resolved via default_project config. Consider using --project or running from within a registered project directory.\n' +
+        '  cf init          # register current directory\n' +
+        '  cf project list  # see registered projects',
+    );
     return { id: project.id, source: 'default' };
   }
 
