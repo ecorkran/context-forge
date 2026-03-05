@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-05
 
+### Slice 171: Project Schema Visibility & Smart Field Setting — Design Complete
+- Slice design created at `user/slices/171-slice.project-schema.md`
+- Covers: schema introspection (CLI + MCP), complete `project get` display, smart `set` with aliases/phase resolution, `cf project rm`, Electron refresh
+- Single source of truth for field metadata, aliases, phase maps in `packages/core/src/schema/projectSchema.ts`
+
 ### Slice 170: Project Model Cleanup & CLI Init — Complete
 - Removed `isMonorepo`, `isMonorepoEnabled`, `monorepoNote` from entire stack (types, 5 core services, MCP schemas, CLI, 6 Electron files, 21 test files)
 - Added `cf init` command (registers CWD as project, derives name from basename, --name override)

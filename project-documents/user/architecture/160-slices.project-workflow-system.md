@@ -138,7 +138,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Low — extends existing CLI utilities, no core API changes
    **Effort:** 2/5
 
-10. [ ] **(170) Project Model Cleanup & CLI Init** — Three related changes to simplify the project model and improve CLI onboarding:
+10. [x] **(170) Project Model Cleanup & CLI Init** — Three related changes to simplify the project model and improve CLI onboarding:
 
    **a) Remove monorepo fields** — Remove `isMonorepo`, `isMonorepoEnabled` from `ProjectData` and `ContextData`. Remove `customData.monorepoNote`. Remove monorepo-conditional logic in ContextIntegrator, ContextTemplateEngine, SectionBuilder, SystemPromptParser. Remove from MCP tool schemas (project_update, project_list summary). Remove from CLI display and UPDATABLE_FIELDS. Remove from Electron IPC/preload. Update FileProjectStore migration to strip fields on read. Update all affected tests. These fields supported an earlier multi-project-documents monorepo structure (`project-artifacts/{type}/{project}`) that is no longer used.
 
