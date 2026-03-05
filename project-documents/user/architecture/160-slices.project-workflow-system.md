@@ -171,7 +171,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [ ] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution.
+11. [ ] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution. Also adds `cf project rm` and fixes Electron project list refresh.
 
    **a) `cf project --schema`** — Display the full project schema: field names, types, required/optional, allowed values (e.g. `workType: 'start' | 'continue'`), and brief descriptions. Derived from a single source of truth (the `ProjectData` type and Zod schemas in MCP). Also available as `project_schema` MCP tool returning structured JSON.
 
@@ -186,7 +186,11 @@ After this slice, a developer can type `cf status` to see where a project stands
    - **Validation**: known enum fields (`workType`, `instruction`, `developmentPhase`) reject invalid values with a helpful message listing allowed values.
    - Phase and instruction maps defined as a single source of truth in `packages/core` (or `packages/cli/src/utils/`) — same maps used by schema display, validation, and resolution.
 
-   **Value:** Discoverability — users and agents can inspect what fields exist without reading source code. Complete `project get` output means nothing is hidden. Smart setting eliminates friction: no need to remember exact field names or phase strings. Schema tool enables intelligent field-setting in `cf init` and agent workflows.
+   **d) `cf project rm`** — Remove a project from the store by name or ID. Accepts `--project <name|id>` or resolves via CWD. Requires confirmation (prints project name/path, asks for y/n) unless `--yes` flag is passed. Does not delete project files on disk — only removes the store entry. Complements `cf init` by providing the inverse operation.
+
+   **e) Electron project list refresh** — Projects created via `cf init` (or any CLI/MCP mutation) do not appear in the Electron project list until the app is restarted. The Electron app loads projects once on startup and does not detect external changes to `projects.json`. Add a refresh mechanism — either a "Refresh" button in the project selector, or file-watch on `projects.json` with debounced reload, or both.
+
+   **Value:** Discoverability — users and agents can inspect what fields exist without reading source code. Complete `project get` output means nothing is hidden. Smart setting eliminates friction: no need to remember exact field names or phase strings. Schema tool enables intelligent field-setting in `cf init` and agent workflows. Project removal closes the lifecycle gap (init → use → remove). Electron refresh ensures all clients see consistent project state.
    **Success Criteria:**
    - `cf project --schema` displays all fields with types and descriptions
    - `project_schema` MCP tool returns equivalent structured JSON
@@ -198,9 +202,12 @@ After this slice, a developer can type `cf status` to see where a project stands
    - Field names and aliases are case-insensitive
    - Invalid enum values produce helpful error with allowed values listed
    - Schema definition is single-source (no duplication between CLI and MCP)
+   - `cf project rm` removes project from store with confirmation prompt
+   - `cf project rm --yes` skips confirmation
+   - Projects created via CLI appear in Electron without restart
    **Dependencies:** [170 — Project Model Cleanup] (schema changes must land first so we document the clean model)
-   **Risk:** Low — display, aliases, and validation; no data model changes
-   **Effort:** 2/5
+   **Risk:** Low — display, aliases, and validation; no data model changes. Electron refresh is low-risk (file watch or manual button).
+   **Effort:** 3/5
 
 12. [ ] **(172) Guide Management** — Bundled prompt file, guide install/update tools with CLI parity. Consolidates 780-slices items 781 and 782 (minus auto-update on startup).
 
