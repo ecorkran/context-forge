@@ -80,26 +80,55 @@ describe('CloneStrategy', () => {
   });
 
   describe('update()', () => {
-    it('calls git pull --ff-only in target dir and returns versions', async () => {
+    it('fetches and pulls when on a branch', async () => {
       let describeCount = 0;
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') {
           describeCount++;
           return { stdout: describeCount === 1 ? 'v0.12.0' : 'v0.13.2', stderr: '' };
         }
-        if (args[0] === '-C') return { stdout: '', stderr: '' };
+        if (args[0] === 'fetch') return { stdout: '', stderr: '' };
+        if (args[0] === 'pull') return { stdout: '', stderr: '' };
         throw new Error('unexpected');
       });
 
       const result = await strategy.update(projectPath, targetDir);
 
       expect(mockGitExec).toHaveBeenCalledWith(
-        ['-C', targetDir, 'pull', '--ff-only'],
-        expect.any(String)
+        ['fetch', '--tags', 'origin'],
+        targetDir
+      );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['pull', '--ff-only'],
+        targetDir
       );
       expect(result.previousVersion).toBe('v0.12.0');
       expect(result.newVersion).toBe('v0.13.2');
       expect(result.method).toBe('clone');
+    });
+
+    it('falls back to tag checkout on detached HEAD', async () => {
+      let describeCount = 0;
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'describe') {
+          describeCount++;
+          return { stdout: describeCount === 1 ? 'v0.12.0' : 'v0.13.2', stderr: '' };
+        }
+        if (args[0] === 'fetch') return { stdout: '', stderr: '' };
+        if (args[0] === 'pull') throw new Error('not on a branch');
+        if (args[0] === 'tag') return { stdout: 'v0.13.2\nv0.12.0\n', stderr: '' };
+        if (args[0] === 'checkout') return { stdout: '', stderr: '' };
+        throw new Error('unexpected');
+      });
+
+      const result = await strategy.update(projectPath, targetDir);
+
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['checkout', 'v0.13.2'],
+        targetDir
+      );
+      expect(result.previousVersion).toBe('v0.12.0');
+      expect(result.newVersion).toBe('v0.13.2');
     });
   });
 });

@@ -101,12 +101,8 @@ export class GuideDetector {
 
   /** Determine installation method by inspecting filesystem */
   private detectMethod(projectPath: string, guidePath: string): GuideMethod {
-    // Check for .git subdirectory → clone
-    if (existsSync(join(guidePath, '.git'))) {
-      return 'clone';
-    }
-
-    // Check .gitmodules for matching path entry → submodule
+    // Check .gitmodules first — submodules also have a .git entry inside
+    // the guide directory, so checking .git first would misidentify them as clones
     const gitmodulesPath = join(projectPath, '.gitmodules');
     if (existsSync(gitmodulesPath)) {
       try {
@@ -115,8 +111,13 @@ export class GuideDetector {
           return 'submodule';
         }
       } catch {
-        // Fall through to manual
+        // Fall through
       }
+    }
+
+    // Check for .git subdirectory → clone (only reached if not a submodule)
+    if (existsSync(join(guidePath, '.git'))) {
+      return 'clone';
     }
 
     return 'manual';

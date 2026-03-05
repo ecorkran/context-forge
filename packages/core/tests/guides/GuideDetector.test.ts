@@ -65,6 +65,30 @@ describe('GuideDetector', () => {
       expect(info.usingBundledPrompt).toBe(false);
     });
 
+    it('detects submodule even when .git/ also exists (submodule has both)', async () => {
+      const gitmodulesPath = join(projectPath, '.gitmodules');
+      mockExistsSync.mockImplementation((p) => {
+        const path = String(p);
+        if (path === guidePath) return true;
+        if (path === join(guidePath, '.git')) return true; // submodules have .git too
+        if (path === gitmodulesPath) return true;
+        return false;
+      });
+      mockReadFileSync.mockReturnValue(
+        `[submodule "ai-project-guide"]\n\tpath = ${GUIDE_RELATIVE_PATH}\n\turl = https://github.com/ecorkran/ai-project-guide.git`
+      );
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        throw new Error('network');
+      });
+
+      const info = await detector.detect(projectPath);
+
+      expect(info.installed).toBe(true);
+      expect(info.method).toBe('submodule');
+      expect(info.version).toBe('v0.13.2');
+    });
+
     it('detects submodule method when .gitmodules contains path', async () => {
       const gitmodulesPath = join(projectPath, '.gitmodules');
       mockExistsSync.mockImplementation((p) => {

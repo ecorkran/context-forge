@@ -56,7 +56,28 @@ export class CloneStrategy implements InstallStrategy {
       // No previous version
     }
 
-    await gitExec(['-C', targetDir, 'pull', '--ff-only'], process.cwd());
+    // Fetch latest from remote, then try pull. If pull fails (e.g. detached HEAD),
+    // fetch + checkout the latest tag instead.
+    await gitExec(['fetch', '--tags', 'origin'], targetDir);
+    try {
+      await gitExec(['pull', '--ff-only'], targetDir);
+    } catch {
+      // Detached HEAD or no tracking branch — checkout latest tag
+      const { stdout: latestTag } = await gitExec(
+        ['describe', '--tags', '--abbrev=0', 'origin/HEAD'],
+        targetDir
+      ).catch(async () => {
+        // origin/HEAD may not exist; fall back to sorting tags
+        const { stdout: tags } = await gitExec(
+          ['tag', '--sort=-v:refname'],
+          targetDir
+        );
+        const first = tags.split('\n')[0]?.trim();
+        if (!first) throw new Error('No tags found after fetch');
+        return { stdout: first, stderr: '' };
+      });
+      await gitExec(['checkout', latestTag], targetDir);
+    }
 
     let newVersion: string | null = null;
     try {
