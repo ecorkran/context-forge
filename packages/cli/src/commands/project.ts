@@ -15,7 +15,7 @@ import { resolveProjectId, findByNameOrId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
-import { label, value as valueStyle, success } from '../output/styles.js';
+import { label, value as valueStyle, success, dim } from '../output/styles.js';
 
 /** Shorten an absolute path by replacing the home directory with ~. */
 function shortenPath(p: string): string {
@@ -69,7 +69,7 @@ export function registerProjectCommand(program: Command): void {
       if (opts.schema) {
         displaySchema();
       } else {
-        cmd.outputHelp();
+        console.log(`Usage: ${label('cf project')} [options] [command]  —  run ${dim('cf project --help')} for details`);
       }
     });
 
