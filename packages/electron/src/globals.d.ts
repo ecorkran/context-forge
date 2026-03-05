@@ -33,7 +33,7 @@ declare global {
       projectPath: {
         validate: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;
         healthCheck: (path: string) => Promise<import('@context-forge/core').PathValidationResult>;
-        listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) => Promise<import('@context-forge/core').DirectoryListResult>;
+        listDirectory: (path: string, subdirectory: string) => Promise<import('@context-forge/core').DirectoryListResult>;
         pickFolder: () => Promise<{ path: string } | null>;
       };
     };

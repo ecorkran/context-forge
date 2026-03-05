@@ -16,7 +16,7 @@ describe('ContextGenerator', () => {
         fileSlice: '001-slice.test',
         fileTasks: '001-tasks.test.md',
         instruction: 'implementation',
-        isMonorepo: false,
+
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01'
       };
@@ -35,7 +35,7 @@ describe('ContextGenerator', () => {
         fileSlice: '001-slice.test',
         fileTasks: '',
         instruction: 'implementation',
-        isMonorepo: false,
+
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01'
       };
@@ -53,7 +53,7 @@ describe('ContextGenerator', () => {
         template: 'react',
         fileSlice: '001-slice.test',
         instruction: 'implementation',
-        isMonorepo: false,
+
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01'
       } as ProjectData;

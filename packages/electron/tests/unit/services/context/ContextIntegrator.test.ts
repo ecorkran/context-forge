@@ -33,7 +33,7 @@ describe('ContextIntegrator', () => {
         fileSlice: 'foundation',
         fileTasks: 'foundation-tasks.md',
         instruction: 'implementation',
-        isMonorepo: false,
+
         customData: {
           recentEvents: 'Added authentication system',
           additionalNotes: 'Focus on error handling'
@@ -49,21 +49,19 @@ describe('ContextIntegrator', () => {
       expect(result).toContain('Template: react-nextjs');
       expect(result).toContain('Slice: foundation');
       expect(result).toContain('Instruction: implementation');
-      expect(result).toContain('Monorepo: No');
       expect(result).toContain('Added authentication system');
       expect(result).toContain('Focus on error handling');
       expect(result).toContain('Ready for implementation work on foundation slice');
     });
 
-    it('should handle monorepo project correctly', async () => {
+    it('should handle project with different instruction correctly', async () => {
       const mockProject: ProjectData = {
         id: 'test-project-2',
-        name: 'Monorepo Project',
+        name: 'Planning Project',
         template: 'nextjs',
         fileSlice: 'ui-components',
         fileTasks: 'ui-tasks.md',
         instruction: 'planning',
-        isMonorepo: true,
         customData: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z'
@@ -71,7 +69,6 @@ describe('ContextIntegrator', () => {
 
       const result = await contextIntegrator.generateContextFromProject(mockProject);
 
-      expect(result).toContain('Monorepo: Yes');
       expect(result).toContain('Ready for planning work on ui-components slice');
     });
 
@@ -83,7 +80,7 @@ describe('ContextIntegrator', () => {
         fileSlice: 'auth',
         fileTasks: '',
         instruction: 'debugging',
-        isMonorepo: false,
+
         customData: {
           recentEvents: '',
           additionalNotes: ''
@@ -110,7 +107,6 @@ describe('ContextIntegrator', () => {
         fileSlice: 'api',
         fileTasks: 'api-tasks.md',
         instruction: 'testing',
-        isMonorepo: true,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z'
       };
@@ -118,7 +114,6 @@ describe('ContextIntegrator', () => {
       const result = await contextIntegrator.generateContextFromProject(mockProject);
 
       expect(result).toContain('Project: No Custom Data');
-      expect(result).toContain('Monorepo: Yes');
       expect(result).toContain('Ready for testing work on api slice');
       expect(result).toContain('## Recent Events\n\n## Additional Context');
     });
@@ -133,7 +128,7 @@ describe('ContextIntegrator', () => {
         fileSlice: 'foundation',
         fileTasks: 'foundation-tasks.md',
         instruction: 'implementation',
-        isMonorepo: false,
+
         customData: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z'
@@ -149,7 +144,7 @@ describe('ContextIntegrator', () => {
         template: 'react',
         fileSlice: '',
         instruction: 'implementation',
-        isMonorepo: false,
+
         customData: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z'
@@ -169,7 +164,6 @@ describe('ContextIntegrator', () => {
       const template = contextIntegrator.getDefaultTemplate();
       expect(template).toContain('# Project: {{projectName}}');
       expect(template).toContain('Template: {{template}}');
-      expect(template).toContain('{{#if isMonorepo}}');
       expect(template).toContain('## Recent Events');
       expect(template).toContain('{{recentEvents}}');
       expect(template).toContain('{{additionalNotes}}');
@@ -185,7 +179,7 @@ describe('ContextIntegrator', () => {
         fileSlice: 'test-slice',
         fileTasks: 'test-tasks.md',
         instruction: 'implementation',
-        isMonorepo: false,
+
         customData: {
           recentEvents: 'Testing new engine',
           additionalNotes: 'Should use structured format'
@@ -211,7 +205,7 @@ describe('ContextIntegrator', () => {
         fileSlice: 'test-slice',
         fileTasks: 'legacy-tasks.md',
         instruction: 'implementation',
-        isMonorepo: false,
+
         customData: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z'

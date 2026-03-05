@@ -1,6 +1,5 @@
 import React from 'react';
 import { Modal } from '../../lib/ui-core/components/overlays/Modal';
-import { Checkbox } from '../../lib/ui-core/components/form/checkbox';
 import { ProjectData } from '@context-forge/core';
 import { ProjectPathSection } from './ProjectPathSection';
 
@@ -26,12 +25,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   };
 
-  const handleMonorepoModeChange = (checked: boolean) => {
-    if (currentProject) {
-      onProjectUpdate({ isMonorepoEnabled: checked });
-    }
-  };
-
   return (
     <Modal
       isOpen={isOpen}
@@ -47,36 +40,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               projectPath={currentProject.projectPath}
               onPathChange={handlePathChange}
             />
-
-            {/* Repository Type Section */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-neutral-12 mb-3">
-                  Repository Type
-                </h3>
-
-                <div className="space-y-3">
-                  <Checkbox
-                    id="project-monorepo"
-                    checked={currentProject.isMonorepoEnabled ?? false}
-                    onCheckedChange={handleMonorepoModeChange}
-                    label="Enable monorepo features for this project"
-                    uiVariant="accent"
-                  />
-
-                  <div className="ml-6 text-sm text-neutral-10">
-                    <p>
-                      Enables monorepo-specific controls and prompt sections for
-                      template development and multi-package repositories.
-                    </p>
-                    <p className="mt-2 text-neutral-9">
-                      Enable this if your project contains multiple packages,
-                      templates, or requires monorepo-specific tooling.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Footer */}
             <div className="flex justify-end pt-4 border-t border-neutral-6">

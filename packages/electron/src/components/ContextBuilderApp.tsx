@@ -15,7 +15,6 @@ const DEFAULT_FORM_DATA: CreateProjectData = {
   fileTasks: '',
   instruction: 'implementation',
   workType: 'continue',
-  isMonorepo: false,
   customData: {
     recentEvents: '',
     additionalNotes: '',
@@ -52,7 +51,6 @@ export const ContextBuilderApp: React.FC = () => {
             fileTasks: '',
             instruction: 'implementation',
             workType: 'continue',
-            isMonorepo: false,
             customData: {},
           });
           setProjects([newProject]);
@@ -100,8 +98,6 @@ export const ContextBuilderApp: React.FC = () => {
           developmentPhase: formData.developmentPhase,
           workType: formData.workType,
           dateProject: formData.dateProject,
-          isMonorepo: formData.isMonorepo,
-          isMonorepoEnabled: formData.isMonorepoEnabled,
           projectPath: formData.projectPath,
           customData: formData.customData,
         });
@@ -176,9 +172,8 @@ export const ContextBuilderApp: React.FC = () => {
         fileTasks: formData.fileTasks || '',
         instruction: 'implementation',
         workType: 'continue',
-        isMonorepo: false,
         dateProject: new Date().toISOString().split('T')[0],
-        customData: { recentEvents: '', additionalNotes: '', monorepoNote: '', availableTools: '' },
+        customData: { recentEvents: '', additionalNotes: '', availableTools: '' },
       });
 
       const updatedProjects = await projectApi.list();
@@ -364,13 +359,10 @@ function projectToFormData(project: ProjectData): CreateProjectData {
     developmentPhase: project.developmentPhase,
     workType: project.workType,
     dateProject: project.dateProject,
-    isMonorepo: project.isMonorepo,
-    isMonorepoEnabled: project.isMonorepoEnabled,
     projectPath: project.projectPath,
     customData: {
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
-      monorepoNote: project.customData?.monorepoNote || '',
       availableTools: project.customData?.availableTools || '',
     },
   };

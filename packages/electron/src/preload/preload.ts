@@ -26,8 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   projectPath: {
     validate: (path: string) => ipcRenderer.invoke('project-path:validate', { path }),
     healthCheck: (path: string) => ipcRenderer.invoke('project-path:health-check', { path }),
-    listDirectory: (path: string, subdirectory: string, isMonorepo?: boolean) =>
-      ipcRenderer.invoke('project-path:list-directory', { path, subdirectory, isMonorepo }),
+    listDirectory: (path: string, subdirectory: string) =>
+      ipcRenderer.invoke('project-path:list-directory', { path, subdirectory }),
     pickFolder: () => ipcRenderer.invoke('project-path:pick-folder'),
   },
 })

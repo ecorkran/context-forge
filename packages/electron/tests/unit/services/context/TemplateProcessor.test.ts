@@ -9,7 +9,6 @@ describe('TemplateProcessor', () => {
     fileSlice: 'foundation',
     fileTasks: 'foundation-tasks.md',
     instruction: 'implementation',
-    isMonorepo: false,
     recentEvents: 'Added user authentication',
     additionalNotes: 'Focus on security',
     ...overrides
@@ -29,16 +28,16 @@ describe('TemplateProcessor', () => {
     });
 
     it('should handle boolean conditionals correctly - false case', () => {
-      const template = '{{#if isMonorepo}}Monorepo: Yes{{else}}Monorepo: No{{/if}}';
-      const result = processor.processTemplate(template, mockContextData);
-      expect(result).toBe('Monorepo: No');
+      const template = '{{#if recentEvents}}Events: Yes{{else}}Events: No{{/if}}';
+      const noEventsData = { ...mockContextData, recentEvents: '' };
+      const result = processor.processTemplate(template, noEventsData);
+      expect(result).toBe('Events: No');
     });
 
     it('should handle boolean conditionals correctly - true case', () => {
-      const template = '{{#if isMonorepo}}Monorepo: Yes{{else}}Monorepo: No{{/if}}';
-      const monorepoData = { ...mockContextData, isMonorepo: true };
-      const result = processor.processTemplate(template, monorepoData);
-      expect(result).toBe('Monorepo: Yes');
+      const template = '{{#if recentEvents}}Events: Yes{{else}}Events: No{{/if}}';
+      const result = processor.processTemplate(template, mockContextData);
+      expect(result).toBe('Events: Yes');
     });
 
     it('should handle missing variables gracefully', () => {
@@ -51,7 +50,7 @@ describe('TemplateProcessor', () => {
       const template = `# {{projectName}}
 Template: {{template}}
 Slice: {{fileSlice}}
-{{#if isMonorepo}}This is a monorepo{{else}}This is not a monorepo{{/if}}
+{{#if recentEvents}}Has events{{else}}No events{{/if}}
 Recent: {{recentEvents}}`;
 
       const result = processor.processTemplate(template, mockContextData);
@@ -59,7 +58,7 @@ Recent: {{recentEvents}}`;
       expect(result).toContain('# Test Project');
       expect(result).toContain('Template: react-nextjs');
       expect(result).toContain('Slice: foundation');
-      expect(result).toContain('This is not a monorepo');
+      expect(result).toContain('Has events');
       expect(result).toContain('Recent: Added user authentication');
     });
 
@@ -129,7 +128,7 @@ Recent: {{recentEvents}}`;
 - Project: {project}
 - Current slice: {fileSlice}
 - Current tasks: user/tasks/{sliceindex}-tasks.{slicename}.md
-- Monorepo Template Development: Use \`project-artifacts/{template}/\` for project-specific files`;
+- Template: Use \`project-artifacts/{template}/\` for project-specific files`;
 
         const result = processor.processTemplate(template, data);
 
@@ -150,7 +149,7 @@ Recent: {{recentEvents}}`;
 
   describe('validateTemplate', () => {
     it('should validate correct template syntax', () => {
-      const validTemplate = '{{projectName}} - {{#if isMonorepo}}Yes{{else}}No{{/if}}';
+      const validTemplate = '{{projectName}} - {{#if recentEvents}}Yes{{else}}No{{/if}}';
       expect(processor.validateTemplate(validTemplate)).toBe(true);
     });
 
@@ -160,7 +159,7 @@ Recent: {{recentEvents}}`;
     });
 
     it('should invalidate unmatched conditional statements', () => {
-      const invalidTemplate = '{{#if isMonorepo}}Yes{{else}}No';
+      const invalidTemplate = '{{#if recentEvents}}Yes{{else}}No';
       expect(processor.validateTemplate(invalidTemplate)).toBe(false);
     });
 

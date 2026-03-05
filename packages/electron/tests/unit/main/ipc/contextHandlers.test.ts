@@ -36,7 +36,7 @@ const makeProject = (overrides: Partial<ProjectData> = {}): ProjectData => ({
   fileTasks: 'tasks.md',
   instruction: 'implementation',
   workType: 'continue',
-  isMonorepo: false,
+
   projectPath: '/projects/test',
   customData: {},
   createdAt: '2026-01-01T00:00:00.000Z',

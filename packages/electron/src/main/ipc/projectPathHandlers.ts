@@ -38,12 +38,12 @@ export function setupProjectPathHandlers() {
     }
   });
 
-  ipcMain.handle('project-path:list-directory', async (_event, args: { path: string; subdirectory: string; isMonorepo?: boolean }) => {
+  ipcMain.handle('project-path:list-directory', async (_event, args: { path: string; subdirectory: string }) => {
     try {
       if (!args?.path || !args?.subdirectory) {
         return { files: [], error: 'Missing required fields: path and subdirectory' };
       }
-      return await projectPathService.listDirectory(args.path, args.subdirectory, args.isMonorepo);
+      return await projectPathService.listDirectory(args.path, args.subdirectory);
     } catch (error) {
       console.error('Error listing project directory:', error);
       return { files: [], error: String(error) };

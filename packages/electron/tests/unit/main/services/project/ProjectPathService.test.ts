@@ -208,19 +208,6 @@ describe('ProjectPathService', () => {
       );
     });
 
-    it('should use project-artifacts/ path for monorepo', async () => {
-      mockReaddir.mockResolvedValueOnce([
-        { name: 'file.md', isFile: () => true, isDirectory: () => false },
-      ] as unknown as fs.Dirent[]);
-
-      const result = await service.listDirectory('/my/project', 'slices', true);
-      expect(result.files).toEqual(['file.md']);
-      expect(mockReaddir).toHaveBeenCalledWith(
-        expect.stringContaining('project-artifacts'),
-        { withFileTypes: true },
-      );
-    });
-
     it('should return empty array with error when directory not found', async () => {
       mockReaddir.mockRejectedValueOnce(enoent());
 

@@ -32,7 +32,7 @@ const makeProject = (overrides: Partial<ProjectData> = {}): ProjectData => ({
   fileTasks: 'tasks.md',
   instruction: 'implementation',
   workType: 'continue',
-  isMonorepo: false,
+
   customData: {},
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
@@ -114,7 +114,7 @@ describe('projectHandlers', () => {
         template: 'default',
         fileSlice: 'init-slice',
         fileTasks: '',
-        isMonorepo: false,
+      
       }
       const created = makeProject({ id: 'new-1', name: 'New Project' })
       mockStore.create.mockResolvedValue(created)

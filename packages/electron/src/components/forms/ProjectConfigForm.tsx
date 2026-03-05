@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '../../lib/ui-core/components/form/select';
-import { Checkbox } from '../../lib/ui-core/components/form/checkbox';
 import { CreateProjectData, ProjectData } from '@context-forge/core';
 import { ProjectSelector } from '../project/ProjectSelector';
 
@@ -113,10 +112,6 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
     return slice.replace(/^([^-]+)-/, '$1-tasks-');
   };
 
-  // Get current project to check if monorepo features are enabled
-  const currentProject = projects.find(p => p.id === currentProjectId);
-  const monorepoFeaturesEnabled = currentProject?.isMonorepoEnabled ?? false;
-
   const [formData, setFormData] = useState<CreateProjectData>({
     name: initialData?.name || '',
     template: initialData?.template || '',
@@ -126,24 +121,18 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
     developmentPhase: initialData?.developmentPhase,
     workType: initialData?.workType || 'continue',
     dateProject: initialData?.dateProject || new Date().toISOString().split('T')[0],
-    isMonorepo: initialData?.isMonorepo || false,
-    isMonorepoEnabled: initialData?.isMonorepoEnabled,
     customData: {
       recentEvents: initialData?.customData?.recentEvents || '',
       additionalNotes: initialData?.customData?.additionalNotes || '',
-      monorepoNote: initialData?.customData?.monorepoNote || '',
       availableTools: initialData?.customData?.availableTools || ''
     }
   });
-
-  // Get global settings to control monorepo UI visibility
 
   useEffect(() => {
     if (initialData) {
       setFormData(prev => {
         // Only update if the data actually changed
         if (prev.name !== initialData.name ||
-            prev.isMonorepo !== initialData.isMonorepo ||
             prev.template !== initialData.template ||
             prev.fileSlice !== initialData.fileSlice) {
           return {
@@ -155,12 +144,9 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
             developmentPhase: initialData.developmentPhase,
             workType: initialData.workType || 'continue',
             dateProject: initialData.dateProject || new Date().toISOString().split('T')[0],
-            isMonorepo: initialData.isMonorepo || false,
-            isMonorepoEnabled: initialData.isMonorepoEnabled,
             customData: {
               recentEvents: initialData.customData?.recentEvents || '',
               additionalNotes: initialData.customData?.additionalNotes || '',
-              monorepoNote: initialData.customData?.monorepoNote || '',
               availableTools: initialData.customData?.availableTools || ''
             }
           };
@@ -365,58 +351,19 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
           </Select>
         </div>
 
-        {/* 5. Repository structure - Only show when monorepo features are enabled */}
-        {monorepoFeaturesEnabled && (
-          <div className="space-y-3 pt-2" >
-            <Checkbox
-              id="is-monorepo"
-              checked={formData.isMonorepo}
-              onCheckedChange={(checked) => handleInputChange('isMonorepo', checked)}
-              label="Monorepo project"
-              uiVariant="accent"
-              className='ml-[calc(var(--radius)*0.25)]'
-            />
-
-            <div className='pt-2'>
-              <label htmlFor="template" className={`block text-sm font-medium mb-2 ${formData.isMonorepo ? 'text-neutral-11' : 'text-neutral-8'}`}>
-                Template
-              </label>
-              <input
-                id="template"
-                type="text"
-                value={formData.template}
-                onChange={(e) => handleInputChange('template', e.target.value)}
-                disabled={!formData.isMonorepo}
-                className={`w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent ${!formData.isMonorepo ? 'opacity-60' : ''}`}
-                placeholder={formData.isMonorepo ? "templates/react" : "Enable monorepo to set template"}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="monorepo-note" className={`block text-sm font-medium mb-2 ${formData.isMonorepo ? 'text-neutral-11' : 'text-neutral-8'}`}>
-                Monorepo Structure (optional)
-              </label>
-              <textarea
-                id="monorepo-note"
-                value={formData.customData?.monorepoNote || ''}
-                onChange={(e) => handleInputChange('customData', {
-                  ...formData.customData,
-                  monorepoNote: e.target.value
-                })}
-                disabled={!formData.isMonorepo}
-                className={`w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent resize-vertical transition-colors ${!formData.isMonorepo ? 'opacity-60' : ''}`}
-                placeholder={formData.isMonorepo ? "Package structure, workspace organization..." : "Enable monorepo for structure notes"}
-                rows={6}
-                maxLength={32000}
-              />
-              <div className="flex justify-end mt-1">
-                <span className="text-xs text-neutral-9">
-                  {(formData.customData?.monorepoNote || '').length}/32000 characters
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        <div>
+          <label htmlFor="template" className="block text-sm font-medium text-neutral-11 mb-2">
+            Template
+          </label>
+          <input
+            id="template"
+            type="text"
+            value={formData.template}
+            onChange={(e) => handleInputChange('template', e.target.value)}
+            className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent"
+            placeholder="templates/react"
+          />
+        </div>
 
         <div>
           <label htmlFor="recent-events" className="block text-sm font-medium text-neutral-11 mb-2">
