@@ -5,12 +5,14 @@ import { registerProjectCommand } from '../../src/commands/project.js';
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
+const mockDelete = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
     update: mockUpdate,
+    delete: mockDelete,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
@@ -349,5 +351,57 @@ describe('cf project --schema', () => {
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const joined = calls.join('\n');
     expect(joined).toContain('Values: start, continue');
+  });
+});
+
+describe('cf project rm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('deletes project with --yes flag without prompt', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockDelete.mockResolvedValue(undefined);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'rm', '--project', 'proj_001', '--yes',
+    ]);
+
+    expect(mockDelete).toHaveBeenCalledWith('proj_001');
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('removed');
+  });
+
+  it('errors when project not found', async () => {
+    mockGetAll.mockResolvedValue([sampleProject]);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'rm', '--project', 'bad-id', '--yes',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('not found'),
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('does not delete when project not found by ID', async () => {
+    mockGetById.mockResolvedValue(undefined);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'rm', '--project', 'proj_001', '--yes',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('not found'),
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });

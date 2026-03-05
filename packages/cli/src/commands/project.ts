@@ -1,4 +1,5 @@
 import * as os from 'node:os';
+import * as readline from 'node:readline';
 import { Command } from 'commander';
 import { FileProjectStore, ConfigManager } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
@@ -229,4 +230,47 @@ export function registerProjectCommand(program: Command): void {
         handleError(err);
       }
     });
+
+  cmd
+    .command('rm')
+    .description('Remove a project from Context Forge (files on disk are not deleted)')
+    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--yes', 'Skip confirmation prompt')
+    .action(async (opts: { project?: string; yes?: boolean }) => {
+      try {
+        const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
+        const project = await store.getById(id);
+
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+        }
+
+        if (!opts.yes) {
+          const answer = await askConfirmation(
+            `Remove project '${project.name}' at ${project.projectPath ?? 'unknown'} from Context Forge? (files on disk will not be deleted) [y/N] `,
+          );
+          if (!answer) {
+            console.log('Cancelled.');
+            return;
+          }
+        }
+
+        await store.delete(id);
+        console.log(success(`Project '${project.name}' removed.`));
+      } catch (err) {
+        handleError(err);
+      }
+    });
+}
+
+/** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
+function askConfirmation(prompt: string): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'y');
+    });
+  });
 }
