@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-05
+
+### Slice 170: Project Model Cleanup & CLI Init — Phase 4 (Slice Design) Complete
+- Created detailed slice design: `user/slices/170-slice.project-model-cleanup-cli.md`
+- Four sub-deliverables: monorepo field removal, `cf init`, `default_project` deprecation, MCP version tool
+- Full inventory of monorepo field usage: 5 core services, 6 Electron files, MCP schemas, CLI, 21 test files
+- Migration plan: strip fields on read in FileProjectStore, TypeScript compiler catches all references
+
 ## 2026-03-04
 
 ### Maintenance: Version Tagging & Dynamic Reads
