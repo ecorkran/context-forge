@@ -9,15 +9,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-05
 
-### Slice 172: Guide Management — Design Complete
+### Slice 172: Guide Management — Design & Task Breakdown Complete
 - Slice design for guide install/update/status lifecycle management
 - Strategy pattern: submodule (default), clone, tarball for installation methods
 - MCP tools: `guide_install`, `guide_status`, `guide_update`; CLI: `cf guides`
 - Core module: `GuideManager`, `GuideDetector`, strategy implementations in `packages/core/src/guides/`
 - Consumes existing config keys (`guide.source`, `guide.git_strategy`) and bundled prompt fallback
 - Fixed 780-slices references (was incorrectly pointing to slice 171)
+- Task breakdown: 12 tasks, 262 lines, test-with pattern throughout
 - Commits:
   - `46ed877` docs: add slice 172 guide management design
+  - `24647c3` docs: add task breakdown for slice 172 guide management
 
 ### Slice 171: Project Schema Visibility & Smart Field Setting — Implementation Complete
 - Core schema module (`packages/core/src/schema/projectSchema.ts`): field metadata, aliases, phase maps, resolution helpers as single source of truth
