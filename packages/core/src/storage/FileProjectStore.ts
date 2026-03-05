@@ -19,7 +19,7 @@ function generateProjectId(): string {
 /** Apply field-migration defaults for projects missing newer fields. */
 function migrateProjectFields(project: Record<string, unknown>): ProjectData {
   const base = project as unknown as ProjectData;
-  return {
+  const migrated = {
     ...base,
     // Renamed fields: prefer new name, fall back to old name
     fileSlice: (project.fileSlice ?? project.slice ?? '') as string,
@@ -34,13 +34,21 @@ function migrateProjectFields(project: Record<string, unknown>): ProjectData {
       typeof project.instruction === 'string'
         ? base.instruction
         : 'implementation',
-    isMonorepo:
-      typeof project.isMonorepo === 'boolean' ? base.isMonorepo : false,
     customData:
       project.customData && typeof project.customData === 'object'
         ? base.customData
         : {},
   };
+
+  // Strip legacy monorepo fields
+  const result = migrated as Record<string, unknown>;
+  delete result.isMonorepo;
+  delete result.isMonorepoEnabled;
+  if (migrated.customData) {
+    delete (migrated.customData as Record<string, unknown>).monorepoNote;
+  }
+
+  return migrated;
 }
 
 /**
@@ -113,8 +121,6 @@ export class FileProjectStore implements IProjectStore {
       developmentPhase: data.developmentPhase,
       workType: data.workType,
       dateProject: data.dateProject,
-      isMonorepo: data.isMonorepo,
-      isMonorepoEnabled: data.isMonorepoEnabled,
       projectPath: data.projectPath,
       fileHLD: data.fileHLD,
       fileArch: data.fileArch,

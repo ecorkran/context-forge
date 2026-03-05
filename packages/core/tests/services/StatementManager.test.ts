@@ -36,14 +36,13 @@ describe('StatementManager', () => {
       const manager = new StatementManager(FIXTURE_STATEMENTS_PATH);
       await manager.loadStatements();
 
-      // All 9 default keys should be present (fixture has all 9)
+      // All 8 default keys should be present (fixture has all 8)
       const all = manager.getAllStatements();
       const keys = Object.keys(all);
       expect(keys).toContain('start-project-statement');
       expect(keys).toContain('continue-project-statement');
       expect(keys).toContain('tool-intro-statement');
       expect(keys).toContain('instruction-intro-statement');
-      expect(keys).toContain('monorepo-statement');
       expect(keys).toContain('current-events-header');
       expect(keys).toContain('additional-notes-header');
       expect(keys).toContain('no-tools-statement');

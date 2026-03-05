@@ -17,7 +17,6 @@ export class ContextGenerator {
       .replace('{{TEMPLATE}}', project.template)
       .replace('{{SLICE}}', project.fileSlice)
       .replace('{{TASK_FILE}}', project.fileTasks || '')
-      .replace('{{MONOREPO_STATUS}}', project.isMonorepo ? 'Monorepo project' : 'Single project')
       .replace('{{TIMESTAMP}}', new Date().toLocaleString());
 
     // Add additional notes if provided
@@ -39,7 +38,6 @@ export class ContextGenerator {
 - **Template:** {{TEMPLATE}}
 - **Current Slice:** {{SLICE}}
 - **Tasks File:** {{TASK_FILE}}
-- **Type:** {{MONOREPO_STATUS}}
 - **Generated:** {{TIMESTAMP}}
 
 ## Working Context

@@ -148,30 +148,15 @@ export class SystemPromptParser {
 
   /**
    * Get context initialization prompt (Model Change or Context Refresh)
-   * @param isMonorepo - If true, returns monorepo-specific version; otherwise returns regular version
    */
-  async getContextInitializationPrompt(isMonorepo: boolean = false): Promise<SystemPrompt | null> {
+  async getContextInitializationPrompt(): Promise<SystemPrompt | null> {
     const parsed = await this.parsePromptFile();
 
-    if (isMonorepo) {
-      // Look for monorepo-specific context initialization prompt
-      const monorepoPrompt = parsed.prompts.find(prompt =>
-        prompt.name.toLowerCase().includes('context initialization') &&
-        prompt.name.toLowerCase().includes('monorepo')
-      );
-
-      if (monorepoPrompt) {
-        return monorepoPrompt;
-      }
-    }
-
-    // Return regular (non-monorepo) context initialization prompt
     return parsed.prompts.find(prompt =>
-      (prompt.key === SpecialPromptKeys.CONTEXT_INITIALIZATION ||
+      prompt.key === SpecialPromptKeys.CONTEXT_INITIALIZATION ||
        prompt.name.toLowerCase().includes('context initialization') ||
        prompt.name.toLowerCase().includes('model change') ||
-       prompt.name.toLowerCase().includes('context refresh')) &&
-      !prompt.name.toLowerCase().includes('monorepo')
+       prompt.name.toLowerCase().includes('context refresh')
     ) || null;
   }
 

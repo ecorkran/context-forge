@@ -101,23 +101,10 @@ describe('SystemPromptParser', () => {
       parser = new SystemPromptParser(FIXTURE_PROMPT_PATH);
     });
 
-    it('returns regular context init prompt (non-monorepo)', async () => {
-      const prompt = await parser.getContextInitializationPrompt(false);
-      expect(prompt).not.toBeNull();
-      expect(prompt!.key).toBe('context-initialization');
-      expect(prompt!.content).not.toContain('monorepo mode');
-    });
-
-    it('returns monorepo context init prompt when requested', async () => {
-      const prompt = await parser.getContextInitializationPrompt(true);
-      expect(prompt).not.toBeNull();
-      expect(prompt!.content).toContain('monorepo mode');
-    });
-
-    it('defaults to non-monorepo when called without argument', async () => {
+    it('returns context init prompt', async () => {
       const prompt = await parser.getContextInitializationPrompt();
       expect(prompt).not.toBeNull();
-      expect(prompt!.content).not.toContain('monorepo mode');
+      expect(prompt!.key).toBe('context-initialization');
     });
   });
 

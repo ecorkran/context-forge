@@ -9,7 +9,7 @@ export interface IStatementReader {
 export interface IPromptReader {
   getToolUsePrompt(): Promise<SystemPrompt | null>;
   getPromptForInstruction(instruction: string): Promise<SystemPrompt | null>;
-  getContextInitializationPrompt(isMonorepo?: boolean): Promise<SystemPrompt | null>;
+  getContextInitializationPrompt(): Promise<SystemPrompt | null>;
 }
 
 /** Extended interface for statement management with file path support */

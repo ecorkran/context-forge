@@ -92,8 +92,8 @@ export class ContextTemplateEngine {
       order: 1.5
     });
 
-    // 2. Context initialization prompt (select appropriate version based on monorepo mode)
-    const contextInitPrompt = await this.promptParser.getContextInitializationPrompt(data.isMonorepo);
+    // 2. Context initialization prompt
+    const contextInitPrompt = await this.promptParser.getContextInitializationPrompt();
     sections.push({
       key: 'context-init',
       title: '',
@@ -111,26 +111,14 @@ export class ContextTemplateEngine {
       order: 3
     });
 
-    // 4. Monorepo section (conditional on project setting only)
-    if (data.isMonorepo) {
-      sections.push({
-        key: 'monorepo-section',
-        title: '### Monorepo Note',
-        content: await this.sectionBuilder.buildMonorepoSection(data),
-        conditional: true,
-        condition: () => data.isMonorepo,
-        order: 4
-      });
-    }
-
-    // 5. Current project state section (always included if present)
+    // 4. Current project state section (always included if present)
     if (data.recentEvents && data.recentEvents.trim()) {
       sections.push({
         key: 'current-events',
         title: '### Current Project State',
         content: data.recentEvents,
         conditional: false,
-        order: 5
+        order: 4
       });
     }
 
@@ -140,7 +128,7 @@ export class ContextTemplateEngine {
       title: '### Instruction Prompt',
       content: await this.sectionBuilder.buildInstructionSection(data),
       conditional: false,
-      order: 6
+      order: 5
     });
 
     // 7. Additional instructions section (conditional)
@@ -150,7 +138,7 @@ export class ContextTemplateEngine {
         title: '## Additional Instructions',
         content: data.additionalNotes,
         conditional: false,
-        order: 7
+        order: 6
       });
     }
 
@@ -252,8 +240,6 @@ Project: ${data.projectName || 'MISSING_PROJECT_NAME'}
 Template: ${data.template || 'MISSING_TEMPLATE'}
 Slice: ${data.fileSlice || 'MISSING_SLICE'}
 Instruction: ${data.instruction || 'MISSING_INSTRUCTION'}
-Monorepo: ${data.isMonorepo ? 'Yes' : 'No'}
-
 This is an explicit error - context template engine failed to generate proper output.
 Check the console for detailed error information.`;
   }

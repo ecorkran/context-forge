@@ -14,7 +14,6 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     fileSlice: '100-slice.test-feature.md',
     fileTasks: '100-tasks.test-feature.md',
     instruction: 'implementation',
-    isMonorepo: false,
     createdAt: '2026-01-01',
     updatedAt: '2026-02-28',
     ...overrides,

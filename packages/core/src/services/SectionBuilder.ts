@@ -85,33 +85,6 @@ export class SectionBuilder {
   }
 
   /**
-   * Build the monorepo-specific section
-   */
-  buildMonorepoSection(data: EnhancedContextData): string {
-    try {
-      const monorepoStatement = this.statementManager.getStatement('monorepo-statement');
-
-      let baseStatement: string;
-      if (!monorepoStatement) {
-        baseStatement = `Project is configured as a monorepo. Working in package: ${data.template}, Slice: ${data.fileSlice}`;
-      } else {
-        baseStatement = this.templateProcessor.processTemplate(monorepoStatement, data);
-      }
-
-      // Append custom monorepo note if provided
-      const customNote = data.customData?.monorepoNote;
-      if (customNote && customNote.trim()) {
-        return `${baseStatement}\n\n${customNote.trim()}`;
-      }
-
-      return baseStatement;
-    } catch (error: unknown) {
-      console.error('Error building monorepo section:', error);
-      return '';
-    }
-  }
-
-  /**
    * Build the instruction section with appropriate system prompt
    */
   async buildInstructionSection(data: EnhancedContextData): Promise<string> {
@@ -161,8 +134,8 @@ export class SectionBuilder {
       // Always include project name
       infoLines.push(`  project: ${data.projectName}`);
 
-      // Include template only for monorepo projects
-      if (data.isMonorepo && data.template && data.template !== 'default') {
+      // Include template when non-default
+      if (data.template && data.template !== 'default') {
         infoLines.push(`  template: ${data.template}`);
       }
 
@@ -189,9 +162,6 @@ export class SectionBuilder {
       if (data.developmentPhase) {
         infoLines.push(`  phase: ${data.developmentPhase}`);
       }
-
-      // Always include monorepo status
-      infoLines.push(`  monorepo: ${data.isMonorepo}`);
 
       return `### Current Work Context\n[\n${infoLines.join(',\n')}\n]`;
     } catch (error: unknown) {

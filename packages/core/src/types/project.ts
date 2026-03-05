@@ -11,8 +11,6 @@ export interface ProjectData {
   developmentPhase?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;
-  isMonorepo: boolean;
-  isMonorepoEnabled?: boolean;
   /** Absolute path to project root (contains project-documents/) */
   projectPath?: string;
   /** Path to HLD document (relative to project root) */
@@ -26,7 +24,6 @@ export interface ProjectData {
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
-    monorepoNote?: string;
     availableTools?: string;
   };
   createdAt: string;
@@ -49,7 +46,6 @@ export type CreateProjectData = Omit<
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
-    monorepoNote?: string;
     availableTools?: string;
   };
 };
@@ -68,8 +64,6 @@ export type UpdateProjectData = Partial<
     | 'developmentPhase'
     | 'workType'
     | 'dateProject'
-    | 'isMonorepo'
-    | 'isMonorepoEnabled'
     | 'projectPath'
     | 'fileHLD'
     | 'fileArch'

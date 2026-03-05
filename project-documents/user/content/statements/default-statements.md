@@ -24,11 +24,6 @@ The following tools and MCP servers are available for this project:
 
 Current development phase and instructions:
 
-## Monorepo Statement
-<!-- key: monorepo-statement, editable: true -->
-
-Project is configured as a monorepo. Working in package: {{template}}, Slice: {{slice}}
-
 ## Current Project State Header
 <!-- key: current-events-header, editable: true -->
 

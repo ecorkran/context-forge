@@ -112,7 +112,6 @@ export class ProjectPathService {
   async listDirectory(
     projectPath: string,
     subdirectory: string,
-    isMonorepo?: boolean,
   ): Promise<DirectoryListResult> {
     if (!projectPath || typeof projectPath !== 'string') {
       return { files: [], error: 'Path must be a non-empty string' };
@@ -126,9 +125,7 @@ export class ProjectPathService {
       return { files: [], error: 'Subdirectory contains invalid characters' };
     }
 
-    const basePath = isMonorepo
-      ? path.join(projectPath, 'project-artifacts')
-      : path.join(projectPath, 'project-documents', 'user');
+    const basePath = path.join(projectPath, 'project-documents', 'user');
 
     const fullPath = path.join(basePath, subdirectory);
 

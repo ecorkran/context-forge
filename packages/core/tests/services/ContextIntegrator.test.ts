@@ -78,18 +78,6 @@ describe('ContextIntegrator', () => {
       expect(result).toContain('legacy-test');
     });
 
-    it('legacy output resolves conditionals', async () => {
-      const engine = createMockEngine();
-      const integrator = new ContextIntegrator(engine, false);
-
-      const monoProject = createTestProjectData({ isMonorepo: true });
-      const monoResult = await integrator.generateContextFromProject(monoProject);
-      expect(monoResult).toContain('Monorepo: Yes');
-
-      const stdProject = createTestProjectData({ isMonorepo: false });
-      const stdResult = await integrator.generateContextFromProject(stdProject);
-      expect(stdResult).toContain('Monorepo: No');
-    });
   });
 
   describe('validateProject', () => {

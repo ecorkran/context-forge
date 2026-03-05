@@ -35,13 +35,6 @@ export const DEFAULT_STATEMENTS: Record<string, TemplateStatement> = {
     description: 'Introduction to instruction prompt section',
     editable: true
   },
-  'monorepo-statement': {
-    key: 'monorepo-statement',
-    content:
-      'Project is configured as a monorepo. Working in package: {{template}}, Slice: {{fileSlice}}',
-    description: 'Monorepo configuration statement',
-    editable: true
-  },
   'current-events-header': {
     key: 'current-events-header',
     content: '### Current Project State',

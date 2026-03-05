@@ -12,7 +12,6 @@ const DEFAULT_TEMPLATE = `# Project: {{projectName}}
 Template: {{template}}
 Slice: {{fileSlice}}
 Instruction: {{instruction}}
-{{#if isMonorepo}}Monorepo: Yes{{else}}Monorepo: No{{/if}}
 
 ## Recent Events
 {{recentEvents}}
@@ -111,7 +110,6 @@ export class ContextIntegrator {
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
       dateProject: project.dateProject || new Date().toISOString().split('T')[0],
-      isMonorepo: project.isMonorepo || false,
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
       availableTools,
@@ -137,7 +135,6 @@ export class ContextIntegrator {
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
       dateProject: project.dateProject || new Date().toISOString().split('T')[0],
-      isMonorepo: project.isMonorepo || false,
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || ''
     };
@@ -177,7 +174,6 @@ export class ContextIntegrator {
 - Template: ${project.template || 'Unknown'}
 - Slice: ${project.fileSlice || 'Unknown'}
 - Instruction: ${project.instruction || 'Unknown'}
-- Monorepo: ${project.isMonorepo ? 'Yes' : 'No'}
 
 Please check the console for detailed error information.`;
   }

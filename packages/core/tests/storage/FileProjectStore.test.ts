@@ -36,7 +36,7 @@ describe('FileProjectStore', () => {
         name: 'test-project',
         template: 'default',
         fileSlice: 'auth',
-        isMonorepo: false,
+
       });
 
       expect(project.id).toBeDefined();
@@ -71,7 +71,7 @@ describe('FileProjectStore', () => {
         name: 'id-test',
         template: 'default',
         fileSlice: '',
-        isMonorepo: false,
+
       });
 
       expect(project.id).toMatch(/^project_\d+_[a-z0-9]+$/);
@@ -102,7 +102,6 @@ describe('FileProjectStore', () => {
       expect(all).toHaveLength(1);
       expect(all[0].fileTasks).toBe('');
       expect(all[0].instruction).toBe('implementation');
-      expect(all[0].isMonorepo).toBe(false);
       expect(all[0].customData).toEqual({});
     });
 
@@ -116,7 +115,7 @@ describe('FileProjectStore', () => {
           taskFile: '100-tasks.auth',
           projectDate: '2026-01-01',
           instruction: 'implementation',
-          isMonorepo: false,
+  
           customData: {},
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
@@ -146,7 +145,7 @@ describe('FileProjectStore', () => {
           fileTasks: '100-tasks.auth',
           dateProject: '2026-01-01',
           instruction: 'implementation',
-          isMonorepo: false,
+  
           customData: {},
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
@@ -179,7 +178,7 @@ describe('FileProjectStore', () => {
           projectDate: '2026-01-01',
           dateProject: '2026-02-01',
           instruction: 'implementation',
-          isMonorepo: false,
+  
           customData: {},
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
@@ -207,7 +206,7 @@ describe('FileProjectStore', () => {
           fileSlice: '161-slice.schema',
           fileTasks: '161-tasks.schema',
           instruction: 'implementation',
-          isMonorepo: false,
+  
           customData: {},
           fileHLD: 'project-documents/user/architecture/050-hld.md',
           fileArch: 'project-documents/user/architecture/060-arch.md',
@@ -228,6 +227,32 @@ describe('FileProjectStore', () => {
       expect(all[0].fileSlicePlan).toBeUndefined();
       expect(all[0].fileSpec).toBeUndefined();
     });
+
+    it('should strip legacy monorepo fields from loaded data', async () => {
+      const legacyProject = [{
+        id: 'project_legacy_mono',
+        name: 'legacy-mono',
+        template: 'default',
+        fileSlice: 'auth',
+        instruction: 'implementation',
+        isMonorepo: true,
+        isMonorepoEnabled: true,
+        customData: { monorepoNote: 'old note' },
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      }];
+      await writeFile(join(tempDir, 'projects.json'), JSON.stringify(legacyProject));
+
+      const store = new FileProjectStore();
+      const all = await store.getAll();
+
+      expect(all).toHaveLength(1);
+      expect(all[0].name).toBe('legacy-mono');
+      // Monorepo fields should be stripped
+      expect((all[0] as any).isMonorepo).toBeUndefined();
+      expect((all[0] as any).isMonorepoEnabled).toBeUndefined();
+      expect(all[0].customData?.monorepoNote).toBeUndefined();
+    });
   });
 
   describe('create() uses new field names', () => {
@@ -239,7 +264,7 @@ describe('FileProjectStore', () => {
         fileSlice: '161-slice.schema',
         fileTasks: '161-tasks.schema',
         dateProject: '2026-02-28',
-        isMonorepo: false,
+
       });
 
       expect(project.fileSlice).toBe('161-slice.schema');
@@ -253,7 +278,7 @@ describe('FileProjectStore', () => {
         name: 'artifact-create-test',
         template: 'default',
         fileSlice: '161-slice.schema',
-        isMonorepo: false,
+
         fileHLD: 'project-documents/user/architecture/050-hld.md',
         fileSpec: 'project-documents/user/spec.md',
       });
@@ -272,7 +297,7 @@ describe('FileProjectStore', () => {
         name: 'ts-test',
         template: 'default',
         fileSlice: '',
-        isMonorepo: false,
+
       });
 
       expect(project.createdAt).toMatch(
@@ -289,7 +314,7 @@ describe('FileProjectStore', () => {
         name: 'ts-test',
         template: 'default',
         fileSlice: '',
-        isMonorepo: false,
+
       });
 
       const originalCreatedAt = project.createdAt;
@@ -355,7 +380,7 @@ describe('FileProjectStore', () => {
           fileSlice: 'new-slice',
           fileTasks: '',
           instruction: 'implementation',
-          isMonorepo: false,
+  
           customData: {},
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',

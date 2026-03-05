@@ -40,7 +40,6 @@ function createMockStatementService(
     'continue-project-statement': 'Continuing work on {{projectName}}.',
     'tool-intro-statement': 'Tools available:',
     'instruction-intro-statement': 'Instructions:',
-    'monorepo-statement': 'Monorepo: {{template}}',
     'current-events-header': '### Current State',
     'additional-notes-header': '### Notes',
     'no-tools-statement': 'No tools detected.',
@@ -120,16 +119,12 @@ describe('ContextTemplateEngine', () => {
       expect(orders).toEqual(sorted);
     });
 
-    it('includes monorepo section only when isMonorepo=true', async () => {
+    it('does not include monorepo section', async () => {
       const engine = createEngine();
 
-      const monoData = createTestEnhancedContextData({ isMonorepo: true });
-      const monoTemplate = await engine.buildTemplate(monoData);
-      expect(monoTemplate.sections.some((s) => s.key === 'monorepo-section')).toBe(true);
-
-      const stdData = createTestEnhancedContextData({ isMonorepo: false });
-      const stdTemplate = await engine.buildTemplate(stdData);
-      expect(stdTemplate.sections.some((s) => s.key === 'monorepo-section')).toBe(false);
+      const data = createTestEnhancedContextData();
+      const template = await engine.buildTemplate(data);
+      expect(template.sections.every((s) => s.key !== 'monorepo-section')).toBe(true);
     });
 
     it('includes current-events only when recentEvents non-empty', async () => {

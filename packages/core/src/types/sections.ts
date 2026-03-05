@@ -60,7 +60,6 @@ export const SectionKeys = {
   PROJECT_INTRO: 'project-intro',
   CONTEXT_INIT: 'context-init',
   TOOLS_SECTION: 'tools-section',
-  MONOREPO_SECTION: 'monorepo-section',
   CURRENT_EVENTS: 'current-events',
   INSTRUCTION_PROMPT: 'instruction-prompt',
   ADDITIONAL_NOTES: 'additional-notes',

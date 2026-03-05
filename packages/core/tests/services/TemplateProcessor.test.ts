@@ -59,15 +59,15 @@ describe('TemplateProcessor', () => {
 
   describe('processTemplate — boolean conditionals', () => {
     it('renders true branch when condition is truthy', () => {
-      const data = createTestContextData({ isMonorepo: true });
-      const template = '{{#if isMonorepo}}mono{{else}}standard{{/if}}';
-      expect(processor.processTemplate(template, data)).toBe('mono');
+      const data = createTestContextData({ recentEvents: 'something' });
+      const template = '{{#if recentEvents}}has events{{else}}no events{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('has events');
     });
 
     it('renders false branch when condition is falsy', () => {
-      const data = createTestContextData({ isMonorepo: false });
-      const template = '{{#if isMonorepo}}mono{{else}}standard{{/if}}';
-      expect(processor.processTemplate(template, data)).toBe('standard');
+      const data = createTestContextData({ recentEvents: '' });
+      const template = '{{#if recentEvents}}has events{{else}}no events{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('no events');
     });
 
     it('handles non-empty string as truthy', () => {
@@ -83,8 +83,8 @@ describe('TemplateProcessor', () => {
     });
 
     it('handles multiline content in conditional branches', () => {
-      const data = createTestContextData({ isMonorepo: true });
-      const template = '{{#if isMonorepo}}line1\nline2{{else}}other{{/if}}';
+      const data = createTestContextData({ recentEvents: 'something' });
+      const template = '{{#if recentEvents}}line1\nline2{{else}}other{{/if}}';
       expect(processor.processTemplate(template, data)).toBe('line1\nline2');
     });
   });
@@ -137,8 +137,8 @@ describe('TemplateProcessor', () => {
     });
 
     it('handles template with only conditionals and variables', () => {
-      const data = createTestContextData({ projectName: 'app', isMonorepo: false });
-      const template = '{{#if isMonorepo}}Mono: {{projectName}}{{else}}Standard: {{projectName}}{{/if}}';
+      const data = createTestContextData({ projectName: 'app', recentEvents: '' });
+      const template = '{{#if recentEvents}}Events: {{projectName}}{{else}}Standard: {{projectName}}{{/if}}';
       expect(processor.processTemplate(template, data)).toBe('Standard: app');
     });
   });

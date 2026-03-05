@@ -12,7 +12,6 @@ export interface ContextData {
   developmentPhase?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;
-  isMonorepo: boolean;
   recentEvents: string;
   additionalNotes: string;
 }
@@ -30,7 +29,6 @@ export interface EnhancedContextData extends ContextData {
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
-    monorepoNote?: string;
     availableTools?: string;
   };
 }

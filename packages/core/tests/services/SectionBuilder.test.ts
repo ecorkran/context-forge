@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { SectionBuilder } from '../../src/services/SectionBuilder.js';
-import type { EnhancedContextData } from '../../src/types/context.js';
 import {
   createTestEnhancedContextData,
   createMockStatementReader,
@@ -61,40 +60,6 @@ describe('SectionBuilder', () => {
     });
   });
 
-  describe('buildMonorepoSection', () => {
-    it('processes monorepo statement with template variables', () => {
-      const builder = createBuilder();
-      const data = createTestEnhancedContextData({
-        template: 'packages/core',
-        fileSlice: '100-slice.auth',
-      });
-
-      const result = builder.buildMonorepoSection(data);
-      // Mock returns '[statement: monorepo-statement]' which gets template-processed
-      expect(result).toBeTruthy();
-    });
-
-    it('appends custom monorepo note', () => {
-      const builder = createBuilder();
-      const data = createTestEnhancedContextData({
-        customData: { monorepoNote: 'Custom monorepo info here' },
-      });
-
-      const result = builder.buildMonorepoSection(data);
-      expect(result).toContain('Custom monorepo info here');
-    });
-
-    it('omits custom note when empty', () => {
-      const builder = createBuilder();
-      const data = createTestEnhancedContextData({
-        customData: { monorepoNote: '' },
-      });
-
-      const result = builder.buildMonorepoSection(data);
-      expect(result).not.toContain('\n\n');
-    });
-  });
-
   describe('buildInstructionSection', () => {
     it('includes instruction prompt for known instruction', async () => {
       const builder = createBuilder();
@@ -138,18 +103,9 @@ describe('SectionBuilder', () => {
       expect(result).toContain('slice: 100-slice.auth');
     });
 
-    it('includes monorepo status', async () => {
-      const builder = createBuilder();
-      const data = createTestEnhancedContextData({ isMonorepo: true });
-
-      const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('monorepo: true');
-    });
-
-    it('includes template for monorepo projects', async () => {
+    it('includes template when non-default', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({
-        isMonorepo: true,
         template: 'packages/core',
       });
 
@@ -157,10 +113,9 @@ describe('SectionBuilder', () => {
       expect(result).toContain('template: packages/core');
     });
 
-    it('omits template for non-monorepo projects with default template', async () => {
+    it('omits template when default', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({
-        isMonorepo: false,
         template: 'default',
       });
 
@@ -205,10 +160,10 @@ describe('SectionBuilder', () => {
 
     it('returns empty string when condition is false', () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({ isMonorepo: false });
-      const section = builder.createSection('mono', 'Monorepo content', 1, {
+      const data = createTestEnhancedContextData({ recentEvents: '' });
+      const section = builder.createSection('conditional', 'Conditional content', 1, {
         conditional: true,
-        condition: (d: EnhancedContextData) => d.isMonorepo,
+        condition: () => false,
       });
 
       const result = builder.buildSection(section, data);
@@ -217,14 +172,14 @@ describe('SectionBuilder', () => {
 
     it('returns content when condition is true', () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({ isMonorepo: true });
-      const section = builder.createSection('mono', 'Monorepo content', 1, {
+      const data = createTestEnhancedContextData({ recentEvents: 'something' });
+      const section = builder.createSection('conditional', 'Conditional content', 1, {
         conditional: true,
-        condition: (d: EnhancedContextData) => d.isMonorepo,
+        condition: () => true,
       });
 
       const result = builder.buildSection(section, data);
-      expect(result).toContain('Monorepo content');
+      expect(result).toContain('Conditional content');
     });
 
     it('skips empty sections when includeEmptySections=false', () => {
@@ -347,14 +302,14 @@ describe('SectionBuilder', () => {
 
     it('creates a section with optional fields', () => {
       const builder = createBuilder();
-      const condition = (d: EnhancedContextData) => d.isMonorepo;
-      const section = builder.createSection('mono', 'content', 2, {
-        title: '### Monorepo',
+      const condition = () => true;
+      const section = builder.createSection('conditional', 'content', 2, {
+        title: '### Conditional',
         conditional: true,
         condition,
       });
 
-      expect(section.title).toBe('### Monorepo');
+      expect(section.title).toBe('### Conditional');
       expect(section.conditional).toBe(true);
       expect(section.condition).toBe(condition);
     });

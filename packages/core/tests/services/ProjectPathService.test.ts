@@ -105,7 +105,7 @@ describe('ProjectPathService', () => {
       // Subdirectory should be excluded (only files)
       await mkdir(join(slicesDir, 'subdir'));
 
-      const result = await service.listDirectory(tempDir, 'slices', false);
+      const result = await service.listDirectory(tempDir, 'slices');
       expect(result.error).toBeUndefined();
       expect(result.files).toHaveLength(2);
       expect(result.files).toContain('slice-a.md');
@@ -118,18 +118,6 @@ describe('ProjectPathService', () => {
       const result = await service.listDirectory(tempDir, 'nonexistent');
       expect(result.files).toHaveLength(0);
       expect(result.error).toContain('not found');
-    });
-  });
-
-  describe('listDirectory — monorepo path resolution', () => {
-    it('resolves from project-artifacts/ when isMonorepo=true', async () => {
-      const artifactsDir = join(tempDir, 'project-artifacts', 'slices');
-      await mkdir(artifactsDir, { recursive: true });
-      await writeFile(join(artifactsDir, 'mono-slice.md'), 'content');
-
-      const result = await service.listDirectory(tempDir, 'slices', true);
-      expect(result.error).toBeUndefined();
-      expect(result.files).toContain('mono-slice.md');
     });
   });
 

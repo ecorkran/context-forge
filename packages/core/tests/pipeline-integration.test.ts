@@ -44,7 +44,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
       name: 'test-project',
       template: 'default',
       fileSlice: 'auth',
-      isMonorepo: false,
+
       projectPath: fixtureProjectPath,
     });
 
@@ -73,7 +73,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
       name: 'crud-test',
       template: 'default',
       fileSlice: '',
-      isMonorepo: false,
+
     });
     expect(project.id).toMatch(/^project_/);
 
@@ -100,7 +100,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
       name: 'backup-test',
       template: '',
       fileSlice: '',
-      isMonorepo: false,
+
     });
 
     // Force a second write so .backup contains the project data

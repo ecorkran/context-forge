@@ -16,7 +16,6 @@ export function createTestContextData(overrides?: Partial<ContextData>): Context
     developmentPhase: 'Phase 6: Implementation',
     workType: 'start',
     dateProject: '2026-01-15',
-    isMonorepo: false,
     recentEvents: '',
     additionalNotes: '',
     ...overrides,
@@ -39,7 +38,6 @@ export function createTestEnhancedContextData(
     customData: {
       recentEvents: '',
       additionalNotes: '',
-      monorepoNote: '',
       availableTools: '',
     },
     ...overrides,
@@ -61,8 +59,6 @@ export function createTestProjectData(overrides?: Partial<ProjectData>): Project
     developmentPhase: 'Phase 6: Implementation',
     workType: 'start',
     dateProject: '2026-01-15',
-    isMonorepo: false,
-    isMonorepoEnabled: false,
     projectPath: '/tmp/test-project',
     fileHLD: undefined,
     fileArch: undefined,
@@ -71,7 +67,6 @@ export function createTestProjectData(overrides?: Partial<ProjectData>): Project
     customData: {
       recentEvents: '',
       additionalNotes: '',
-      monorepoNote: '',
       availableTools: '',
     },
     createdAt: '2026-01-15T00:00:00.000Z',
@@ -114,13 +109,11 @@ export function createMockPromptReader(
     getPromptForInstruction: vi.fn(async (instruction: string) =>
       createDefaultPrompt(instruction, instruction.toLowerCase(), `Instructions for ${instruction}.`),
     ),
-    getContextInitializationPrompt: vi.fn(async (isMonorepo?: boolean) =>
+    getContextInitializationPrompt: vi.fn(async () =>
       createDefaultPrompt(
         'Context Initialization',
         'context-initialization',
-        isMonorepo
-          ? 'You are working on {{projectName}} (monorepo).'
-          : 'You are working on {{projectName}}.',
+        'You are working on {{projectName}}.',
       ),
     ),
     ...overrides,
