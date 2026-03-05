@@ -25,10 +25,50 @@ function shortenPath(p: string): string {
 }
 
 
+/** Display the project schema grouped by category. */
+function displaySchema(): void {
+  const groupLabels: Record<FieldGroup, string> = {
+    identity: 'Identity',
+    artifacts: 'Artifacts',
+    workflow: 'Workflow',
+    metadata: 'Metadata',
+  };
+
+  console.log(label('\nProject Schema'));
+  console.log('══════════════');
+
+  for (const group of FIELD_GROUPS) {
+    const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
+    console.log(`\n${label(groupLabels[group])}`);
+
+    for (const f of groupFields) {
+      const flags: string[] = [];
+      if (f.required) flags.push('required');
+      if (f.readonly) flags.push('readonly');
+      const flagStr = flags.length > 0 ? `  (${flags.join(', ')})` : '';
+
+      console.log(`  ${f.field.padEnd(18)}${f.type.padEnd(10)}${flagStr}  ${f.description}`);
+
+      if (f.aliases.length > 0) {
+        console.log(`${''.padEnd(20)}Aliases: ${f.aliases.join(', ')}`);
+      }
+      if (f.enumValues) {
+        console.log(`${''.padEnd(20)}Values: ${f.enumValues.join(', ')}`);
+      }
+    }
+  }
+}
+
 export function registerProjectCommand(program: Command): void {
   const cmd = program
     .command('project')
-    .description('Manage Context Forge projects');
+    .description('Manage Context Forge projects')
+    .option('--schema', 'Display project field schema')
+    .action((opts: { schema?: boolean }) => {
+      if (opts.schema) {
+        displaySchema();
+      }
+    });
 
   cmd
     .command('list')

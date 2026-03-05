@@ -312,3 +312,42 @@ describe('cf project set', () => {
     );
   });
 });
+
+describe('cf project --schema', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('displays all group headers', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', '--schema']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    expect(joined).toContain('Identity');
+    expect(joined).toContain('Artifacts');
+    expect(joined).toContain('Workflow');
+    expect(joined).toContain('Metadata');
+  });
+
+  it('displays alias information for aliased fields', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', '--schema']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    expect(joined).toContain('Aliases: phase');
+    expect(joined).toContain('Aliases: arch');
+    expect(joined).toContain('Aliases: path');
+  });
+
+  it('displays enum values for enum fields', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', '--schema']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    expect(joined).toContain('Values: start, continue');
+  });
+});
