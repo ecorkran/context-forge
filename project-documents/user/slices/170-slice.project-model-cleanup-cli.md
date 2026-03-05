@@ -80,6 +80,7 @@ packages/core/src/services/
   SystemPromptParser.ts                ← Remove isMonorepo param from getContextInitializationPrompt
   ContextIntegrator.ts                 ← Remove isMonorepo from DEFAULT_TEMPLATE and data mapping
   ProjectPathService.ts                ← Remove isMonorepo param from listDirectory
+  constants.ts                         ← Remove monorepo-statement default entry
 packages/core/src/storage/
   FileProjectStore.ts                  ← Migration: strip monorepo fields on read
 
@@ -181,6 +182,10 @@ project-documents/user/content/statements/
   }
   ```
 - In `create()`: remove `isMonorepo: data.isMonorepo` and `isMonorepoEnabled: data.isMonorepoEnabled` (lines 116-117).
+
+#### Constants (`packages/core/src/services/constants.ts`)
+
+- Remove `'monorepo-statement'` entry from the default statements map (lines 38-44).
 
 #### Statements
 
