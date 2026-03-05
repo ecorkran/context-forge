@@ -26,6 +26,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
   - `1bacf96` feat(cli): add cf project rm command
   - `d306838` feat(electron): auto-refresh project list on external projects.json changes
   - `a24d1ed` fix(mcp): update server lifecycle test for 19 tools
+  - `5f7e301` fix(cli): accept positional name/ID argument for cf project rm
+  - `c1bfb3f` fix(cli): show help when cf project is run with no arguments
+  - `1cbe989` fix(cli): show concise usage hint for cf project, full help via --help
 
 ### Slice 170: Project Model Cleanup & CLI Init — Complete
 - Removed `isMonorepo`, `isMonorepoEnabled`, `monorepoNote` from entire stack (types, 5 core services, MCP schemas, CLI, 6 Electron files, 21 test files)
