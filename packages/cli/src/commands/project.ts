@@ -33,6 +33,7 @@ function displaySchema(): void {
     artifacts: 'Artifacts',
     workflow: 'Workflow',
     metadata: 'Metadata',
+    custom: 'Custom',
   };
 
   console.log(label('\nProject Schema'));
@@ -67,6 +68,7 @@ export function buildSettableFieldsHelp(): string {
     artifacts: 'Artifacts',
     workflow: 'Workflow',
     metadata: 'Metadata',
+    custom: 'Custom',
   };
 
   const lines: string[] = ['', 'Settable fields:'];
@@ -131,8 +133,18 @@ export async function projectSetAction(
     throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
   }
 
-  await store.update(id, { [resolvedField]: resolvedValue });
-  console.log(success(`Updated ${resolvedField} = ${resolvedValue} on project ${existing.name}`));
+  // customData fields use dot-notation; merge into the nested object
+  if (resolvedField.startsWith('customData.')) {
+    const subField = resolvedField.split('.')[1];
+    const merged = { ...existing.customData, [subField]: resolvedValue };
+    await store.update(id, { customData: merged });
+  } else {
+    await store.update(id, { [resolvedField]: resolvedValue });
+  }
+
+  // Show alias-friendly name in confirmation
+  const displayName = fieldDef?.aliases[0] ?? resolvedField;
+  console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
 }
 
 /** Shared action handler for `cf get` and `cf project get`. */
@@ -157,9 +169,11 @@ export async function projectGetAction(
     artifacts: 'Artifacts',
     workflow: 'Workflow',
     metadata: 'Metadata',
+    custom: 'Custom',
   };
 
   const projectRecord = project as unknown as Record<string, unknown>;
+  const customData = project.customData as Record<string, unknown> | undefined;
 
   for (const group of FIELD_GROUPS) {
     const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
@@ -167,26 +181,17 @@ export async function projectGetAction(
     console.log(`\n${label(groupLabels[group])}`);
 
     for (const f of groupFields) {
-      const v = projectRecord[f.field];
+      // Read from customData sub-object for dot-notation fields
+      let v: unknown;
+      if (f.field.startsWith('customData.')) {
+        const subField = f.field.split('.')[1];
+        v = customData?.[subField];
+      } else {
+        v = projectRecord[f.field];
+      }
       const hasValue = v !== undefined && v !== null && v !== '';
       const display = hasValue ? valueStyle(String(v)) : dim('—');
       console.log(`  ${label(`${f.label}:`.padEnd(16))}${display}`);
-    }
-  }
-
-  const custom = project.customData;
-  if (custom) {
-    const customEntries: [string, string][] = [
-      ['Recent Events', custom.recentEvents ?? ''],
-      ['Notes', custom.additionalNotes ?? ''],
-      ['Tools', custom.availableTools ?? ''],
-    ];
-    const populatedCustom = customEntries.filter(([, v]) => v);
-    if (populatedCustom.length > 0) {
-      console.log(`\n${label('Custom Data')}`);
-      for (const [k, v] of populatedCustom) {
-        console.log(`  ${label(`${k}:`.padEnd(16))}${valueStyle(v)}`);
-      }
     }
   }
 }

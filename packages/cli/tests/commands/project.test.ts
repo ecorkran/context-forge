@@ -216,7 +216,7 @@ describe('cf project set', () => {
     ]);
 
     const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
-    expect(output).toContain('Updated fileSlice');
+    expect(output).toContain('Updated slice');
   });
 
   it('resolves alias "phase" to developmentPhase', async () => {

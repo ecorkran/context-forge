@@ -74,6 +74,7 @@ describe('buildSettableFieldsHelp', () => {
     expect(help).toContain('Identity');
     expect(help).toContain('Artifacts');
     expect(help).toContain('Workflow');
+    expect(help).toContain('Custom');
     // Metadata fields are all readonly, should not appear
     expect(help).not.toContain('Metadata');
     // Check aliases are shown
@@ -81,6 +82,9 @@ describe('buildSettableFieldsHelp', () => {
     expect(help).toContain('(arch)');
     expect(help).toContain('(slice)');
     expect(help).toContain('(path)');
+    expect(help).toContain('(events)');
+    expect(help).toContain('(notes)');
+    expect(help).toContain('(tools)');
     // Check readonly fields are excluded
     expect(help).not.toContain('createdAt');
     expect(help).not.toContain('updatedAt');
@@ -125,6 +129,39 @@ describe('cf set (top-level shortcut)', () => {
       expect.stringContaining('Unknown field'),
     );
   });
+
+  it('sets customData.recentEvents via cf set events', async () => {
+    mockGetById.mockResolvedValue({ ...sampleProject, customData: { additionalNotes: 'keep me' } });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'events', 'state summary']);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      customData: { additionalNotes: 'keep me', recentEvents: 'state summary' },
+    });
+  });
+
+  it('sets customData.additionalNotes via cf set notes', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'notes', 'phase notes']);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      customData: { additionalNotes: 'phase notes' },
+    });
+  });
+
+  it('sets customData.availableTools via cf set tools', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'tools', 'electron, mcp']);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      customData: { availableTools: 'electron, mcp' },
+    });
+  });
 });
 
 describe('cf get (top-level shortcut)', () => {
@@ -147,6 +184,22 @@ describe('cf get (top-level shortcut)', () => {
     const joined = calls.join('\n');
     expect(joined).toContain('test-project');
     expect(joined).toContain('Identity');
+  });
+
+  it('displays Custom group with customData fields', async () => {
+    mockGetById.mockResolvedValue({
+      ...sampleProject,
+      customData: { recentEvents: 'slice 173 started', availableTools: 'electron, mcp' },
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'get']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const joined = calls.join('\n');
+    expect(joined).toContain('Custom');
+    expect(joined).toContain('slice 173 started');
+    expect(joined).toContain('electron, mcp');
   });
 
   it('outputs JSON via cf get --json', async () => {
