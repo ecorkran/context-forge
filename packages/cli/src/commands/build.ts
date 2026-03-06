@@ -46,7 +46,10 @@ export function registerBuildCommand(program: Command): void {
 
         // Apply overrides to a working copy
         const workingCopy: ProjectData = { ...project };
-        if (opts.phase) workingCopy.developmentPhase = opts.phase;
+        if (opts.phase) {
+          workingCopy.developmentPhase = opts.phase;
+          workingCopy.instruction = opts.phase;
+        }
         if (opts.slice) workingCopy.fileSlice = opts.slice;
         if (opts.instruction) workingCopy.instruction = opts.instruction;
         if (opts.tasks) workingCopy.fileTasks = opts.tasks;

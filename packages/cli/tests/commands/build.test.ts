@@ -81,6 +81,7 @@ describe('cf build', () => {
 
     const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
     expect(projectArg.developmentPhase).toBe('task-breakdown');
+    expect(projectArg.instruction).toBe('task-breakdown');
   });
 
   it('applies --slice override', async () => {
