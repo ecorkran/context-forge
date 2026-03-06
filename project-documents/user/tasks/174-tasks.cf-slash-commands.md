@@ -6,7 +6,7 @@ dependencies: [168-cli-foundation]
 projectState: Slice 173 complete. CLI has cf set/get/build/status/next/prompt/init/guides/config/project/future/check. 767 tests total (430 core, 124 CLI, 107 MCP, 106 Electron). All packages at 0.2.3.
 dateCreated: 20260306
 dateUpdated: 20260306
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -25,13 +25,13 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Create `packages/cli/commands/cf/status.md`**
-  - [ ] Create directory structure `packages/cli/commands/cf/`
-  - [ ] Add YAML frontmatter with `description`, `allowed-tools: Bash(cf:*)`
-  - [ ] Add command body that executes `!`\``cf status 2>/dev/null`\` and instructs Claude to summarize
-  - [ ] Match the specification in slice design section "Command Specifications > /cf:status"
+- [x] **Create `packages/cli/commands/cf/status.md`**
+  - [x] Create directory structure `packages/cli/commands/cf/`
+  - [x] Add YAML frontmatter with `description`, `allowed-tools: Bash(cf:*)`
+  - [x] Add command body that executes `!`\``cf status 2>/dev/null`\` and instructs Claude to summarize
+  - [x] Match the specification in slice design section "Command Specifications > /cf:status"
 
-- [ ] **Success**: File exists at `packages/cli/commands/cf/status.md` with valid YAML frontmatter
+- [x] **Success**: File exists at `packages/cli/commands/cf/status.md` with valid YAML frontmatter
 
 ---
 
@@ -39,13 +39,13 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Create `packages/cli/commands/cf/build.md`**
-  - [ ] Add YAML frontmatter with `description`, `argument-hint`, `allowed-tools: Bash(cf:*)`
-  - [ ] Add command body that executes `!`\``cf build $ARGUMENTS 2>/dev/null`\`
-  - [ ] `argument-hint` should indicate optional `--phase` and `--slice` flags
-  - [ ] Match the specification in slice design section "Command Specifications > /cf:build"
+- [x] **Create `packages/cli/commands/cf/build.md`**
+  - [x] Add YAML frontmatter with `description`, `argument-hint`, `allowed-tools: Bash(cf:*)`
+  - [x] Add command body that executes `!`\``cf build $ARGUMENTS 2>/dev/null`\`
+  - [x] `argument-hint` should indicate optional `--phase` and `--slice` flags
+  - [x] Match the specification in slice design section "Command Specifications > /cf:build"
 
-- [ ] **Success**: File exists at `packages/cli/commands/cf/build.md` with valid YAML frontmatter
+- [x] **Success**: File exists at `packages/cli/commands/cf/build.md` with valid YAML frontmatter
 
 ---
 
@@ -53,12 +53,12 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Create `packages/cli/commands/cf/next.md`**
-  - [ ] Add YAML frontmatter with `description`, `allowed-tools: Bash(cf:*)`
-  - [ ] Add command body that executes `!`\``cf next 2>/dev/null`\` and instructs Claude to suggest steps
-  - [ ] Match the specification in slice design section "Command Specifications > /cf:next"
+- [x] **Create `packages/cli/commands/cf/next.md`**
+  - [x] Add YAML frontmatter with `description`, `allowed-tools: Bash(cf:*)`
+  - [x] Add command body that executes `!`\``cf next 2>/dev/null`\` and instructs Claude to suggest steps
+  - [x] Match the specification in slice design section "Command Specifications > /cf:next"
 
-- [ ] **Success**: File exists at `packages/cli/commands/cf/next.md` with valid YAML frontmatter
+- [x] **Success**: File exists at `packages/cli/commands/cf/next.md` with valid YAML frontmatter
 
 ---
 
@@ -66,15 +66,15 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Create `packages/cli/commands/cf/prompt.md`**
-  - [ ] Add YAML frontmatter with `description`, `argument-hint`, `allowed-tools: Bash(cf:*)`
-  - [ ] Add command body that executes `!`\``cf prompt ${ARGUMENTS:-list} 2>/dev/null`\`
-  - [ ] Default to `list` when no arguments provided (via `${ARGUMENTS:-list}`)
-  - [ ] Match the specification in slice design section "Command Specifications > /cf:prompt"
+- [x] **Create `packages/cli/commands/cf/prompt.md`**
+  - [x] Add YAML frontmatter with `description`, `argument-hint`, `allowed-tools: Bash(cf:*)`
+  - [x] Add command body that executes `!`\``cf prompt ${ARGUMENTS:-list} 2>/dev/null`\`
+  - [x] Default to `list` when no arguments provided (via `${ARGUMENTS:-list}`)
+  - [x] Match the specification in slice design section "Command Specifications > /cf:prompt"
 
-- [ ] **Success**: File exists at `packages/cli/commands/cf/prompt.md` with valid YAML frontmatter
+- [x] **Success**: File exists at `packages/cli/commands/cf/prompt.md` with valid YAML frontmatter
 
-- [ ] **Commit**: `feat(cli): add Claude Code slash command files for cf wrapper`
+- [x] **Commit**: `feat(cli): add Claude Code slash command files for cf wrapper`
 
 ---
 
