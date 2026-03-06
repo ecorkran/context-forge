@@ -10,15 +10,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 ## 2026-03-06
 
 ### Slice 174: Claude Code Commands — Implementation Complete
-- Four slash commands: `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`
+- Seven slash commands: `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`, `/cf:get`, `/cf:set`, `/cf:project`
 - `cf install-commands` / `cf uninstall-commands` with `--target` override
-- Source: `packages/cli/commands/cf/` with namespace-based directory structure
+- Commands instruct Claude to present output without commentary
+- Improved `cf project --schema` readability (unified table, alias column, enum values at bottom)
 - 776 tests total (430 core, 133 CLI, 107 MCP, 106 Electron)
 - Commits:
-  - `7775b28` docs: add slice design for 174 Claude Code slash commands
   - `bd8b4fd` feat(cli): add Claude Code slash command files for cf wrapper
   - `27b0d8b` feat(cli): add install-commands and uninstall-commands for Claude Code
   - `9c8ecc1` test(cli): add install/uninstall command tests
+  - `4c2a517` fix(cli): cf:prompt command routes get/list subcommands correctly
+  - `229a30b` style(cli): slash commands present output without commentary
+  - `4769202` feat(cli): add cf:get, cf:set, cf:project slash commands
+  - `6818eb2` style(cli): improve cf project --schema readability
 
 ### Slice 173: Smart Field Setting — Implementation Complete
 - customData sub-fields (`events`, `notes`, `tools`) settable via `cf set` with merge semantics
