@@ -16,6 +16,9 @@ export * from './config/index.js';
 // Guides — guide lifecycle management (git/fs dependent)
 export * from './guides/index.js';
 
+// Schema — fs-dependent helpers (index-based file resolution)
+export { resolveFileByIndex } from './schema/resolveFileByIndex.js';
+
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector } from './introspection/ArtifactIntrospector.js';
 export { parseFrontmatter } from './introspection/parsers/frontmatterParser.js';
