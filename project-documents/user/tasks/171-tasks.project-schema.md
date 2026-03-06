@@ -6,7 +6,7 @@ dependencies: [project-model-cleanup-cli]
 projectState: Slice 170 complete. CLI has cf init, cf project list/get/set, three-step resolveProjectId. ProjectData has artifact reference fields (fileArch, fileSlicePlan, fileHLD, fileSpec) but cf project get omits them. cf project set requires exact field names and values. No schema introspection. No cf project rm. Electron loads projects once on startup — no external change detection. 632 tests passing.
 dateCreated: 20260305
 dateUpdated: 20260305
-status: complete
+status: in_progress
 ---
 
 ## Context Summary
@@ -260,3 +260,80 @@ status: complete
   - [x] Confirm CLI `--schema`, MCP `project_schema`, and CLI `set` alias resolution all derive from the same `packages/core/src/schema/projectSchema.ts` module
   - [x] No duplicated alias maps or phase maps exist elsewhere
   - [x] Success: grep confirms no duplicate definitions
+
+---
+
+## Task 11: Top-Level `cf set` / `cf get` Shortcuts
+
+**Effort: 1/5**
+
+- [x] **Extract shared action handlers from `project.ts`**
+  - [x] Extract `projectSetAction(field, val, opts)` — reusable by both `cf project set` and `cf set`
+  - [x] Extract `projectGetAction(opts)` — reusable by both `cf project get` and `cf get`
+  - [x] Update `cf project set` and `cf project get` subcommands to delegate to shared handlers
+  - [x] Export handlers from `commands/project.ts`
+
+- [x] **Register top-level `cf set` and `cf get` in `packages/cli/src/index.ts`**
+  - [x] `cf set <field> <value>` — delegates to `projectSetAction`
+  - [x] `cf get` — delegates to `projectGetAction`
+  - [x] Both support `--project <name|id>` option
+  - [x] `cf get` supports `--json` option
+  - [x] Success: `cf set phase 4` and `cf get` work from command line
+
+- [x] **Add tests for shortcuts in `packages/cli/tests/commands/shortcuts.test.ts`**
+  - [x] `cf set` resolves field and updates
+  - [x] `cf set phase 4` resolves phase shorthand
+  - [x] `cf set bogus val` shows error
+  - [x] `cf get` shows project details
+  - [x] `cf get --json` outputs JSON
+  - [x] Success: 5 tests passing
+
+- [x] **Commit**: `feat(cli): add top-level cf set/get shortcuts for project fields`
+
+---
+
+## Task 12: Discoverable Field Help on `cf set --help`
+
+**Effort: 2/5**
+
+- [x] **Add field listing to `cf set --help` output**
+  - [x] After standard Commander help, append a "Settable fields" section listing all non-readonly fields with their aliases
+  - [x] Group by category (identity, artifacts, workflow) matching `--schema` grouping
+  - [x] Show format: `field (alias)  description` for each
+  - [x] Use `.addHelpText('after', ...)` on the set command
+  - [x] Also added to `cf project set --help`
+  - [x] Success: `cf set --help` shows available fields and aliases
+
+- [x] **Add tests**
+  - [x] Test that help output contains field names, aliases, and excludes readonly/metadata
+  - [x] Success: `pnpm --filter @context-forge/cli test` passes
+
+---
+
+## Task 13: Show All Fields in `cf get` (Including Unset)
+
+**Effort: 1/5**
+
+- [x] **Update `projectGetAction` to show all fields**
+  - [x] For each group, show all fields (not just populated ones)
+  - [x] Unset fields display as dim `—` placeholder
+  - [x] This gives users a complete picture of what fields exist and what they can set
+  - [x] `--json` output is unchanged (only populated fields)
+  - [x] Success: `cf get` shows all field slots; unset fields visible with dim placeholder
+
+- [x] **Update tests**
+  - [x] Updated "omits empty groups" test → "shows all groups with unset fields as dim placeholder"
+  - [x] Test that `—` appears for unset fields and all groups are present
+  - [x] Success: `pnpm --filter @context-forge/cli test` passes
+
+---
+
+## Task 14: Version Bump, Build & Test, Publish
+
+**Effort: 1/5**
+
+- [ ] **Version bump to 0.2.3** (core, mcp, cli)
+- [ ] **Full build and test** — `pnpm build && pnpm test` all green
+- [ ] **Update DEVLOG** with summary and commit hashes
+- [ ] **Commit, merge to main, tag v0.2.3**
+- [ ] **Publish to npm**: `pnpm --filter @context-forge/core publish --access public && pnpm --filter @context-forge/mcp publish --access public`

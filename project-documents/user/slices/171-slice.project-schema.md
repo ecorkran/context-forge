@@ -7,7 +7,7 @@ dependencies: [170-project-model-cleanup]
 interfaces: []
 dateCreated: 20260305
 dateUpdated: 20260305
-status: complete
+status: in_progress
 ---
 
 # Slice Design: Project Schema Visibility & Smart Field Setting
@@ -33,6 +33,11 @@ This slice makes the project data model discoverable and ergonomic. Currently, u
 - **c)** Smart `cf project set` with field aliases, phase/instruction resolution, case-insensitive matching, enum validation
 - **d)** `cf project rm` command with confirmation prompt
 - **e)** Electron project list refresh on external `projects.json` changes
+
+- **f)** Top-level `cf set` / `cf get` shortcuts (shorthand for `cf project set` / `cf project get`)
+- **g)** `cf set --help` and `cf get --help` show available fields/aliases so users can discover what's settable
+- **h)** `cf get` shows all fields (including unset ones, displayed as empty/placeholder) so users know what exists
+- **i)** Smart value inference — short inputs resolve intelligently (phase numbers, short names already work; extend pattern where useful)
 
 ### Excluded
 

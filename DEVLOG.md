@@ -7,6 +7,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-06
+
+### CLI: Top-level `cf set` / `cf get` shortcuts
+- Added `cf set <field> <value>` as shortcut for `cf project set` — e.g. `cf set phase 4`
+- Added `cf get` as shortcut for `cf project get`
+- Extracted shared action handlers (`projectSetAction`, `projectGetAction`) from project command
+- 5 new tests (115 CLI total)
+- Tags: @context-forge/core@0.2.3, @context-forge/mcp@0.2.3, @context-forge/cli@0.2.3
+
 ## 2026-03-05
 
 ### Slice 172: Guide Management — Implementation Complete

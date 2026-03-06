@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
-import { registerProjectCommand } from './commands/project.js';
+import { registerProjectCommand, projectSetAction, projectGetAction, buildSettableFieldsHelp } from './commands/project.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerNextCommand } from './commands/next.js';
 import { registerBuildCommand } from './commands/build.js';
@@ -45,6 +45,33 @@ registerCheckCommand(program);
 registerPromptCommand(program);
 registerInitCommand(program);
 registerGuidesCommand(program);
+
+// Top-level shortcuts for project get/set
+program
+  .command('set <field> <value>')
+  .description('Set a field on the active project (shortcut for cf project set)')
+  .option('--project <name|id>', 'Project name or ID (overrides default)')
+  .addHelpText('after', buildSettableFieldsHelp)
+  .action(async (field: string, val: string, opts: { project?: string }) => {
+    try {
+      await projectSetAction(field, val, opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command('get')
+  .description('Show details for the active project (shortcut for cf project get)')
+  .option('--json', 'Output as JSON')
+  .option('--project <name|id>', 'Project name or ID (overrides default)')
+  .action(async (opts: { json?: boolean; project?: string }) => {
+    try {
+      await projectGetAction(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
 
 // Catch unhandled errors at top level
 process.on('uncaughtException', handleError);

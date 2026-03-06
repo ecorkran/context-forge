@@ -11,7 +11,7 @@ import {
   FIELD_GROUPS,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
-import { resolveProjectId, findByNameOrId } from '../utils/project.js';
+import { resolveProjectId, findByNameOrId, findProjectByCwd } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -60,6 +60,137 @@ function displaySchema(): void {
   }
 }
 
+/** Generate help text showing settable fields grouped by category. */
+export function buildSettableFieldsHelp(): string {
+  const groupLabels: Record<FieldGroup, string> = {
+    identity: 'Identity',
+    artifacts: 'Artifacts',
+    workflow: 'Workflow',
+    metadata: 'Metadata',
+  };
+
+  const lines: string[] = ['', 'Settable fields:'];
+
+  for (const group of FIELD_GROUPS) {
+    const groupFields = PROJECT_FIELDS.filter(
+      (f) => f.group === group && !f.readonly,
+    );
+    if (groupFields.length === 0) continue;
+
+    lines.push(`  ${groupLabels[group]}`);
+    for (const f of groupFields) {
+      const aliasStr = f.aliases.length > 0 ? ` (${f.aliases.join(', ')})` : '';
+      lines.push(`    ${(f.field + aliasStr).padEnd(30)} ${f.description}`);
+    }
+  }
+
+  lines.push('', "Run 'cf project --schema' for full details including allowed values.");
+  return lines.join('\n');
+}
+
+/** Shared action handler for `cf set` and `cf project set`. */
+export async function projectSetAction(
+  field: string,
+  val: string,
+  opts: { project?: string },
+): Promise<void> {
+  const resolvedField = resolveFieldName(field);
+  if (!resolvedField) {
+    throw new UserError(
+      `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
+    );
+  }
+
+  const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
+  if (fieldDef?.readonly) {
+    throw new UserError(`Field '${resolvedField}' is read-only and cannot be set.`);
+  }
+
+  let resolvedValue = val;
+  if (resolvedField === 'developmentPhase' || resolvedField === 'instruction') {
+    const phaseVal = resolvePhaseValue(val);
+    if (!phaseVal) {
+      const allowed = fieldDef?.enumValues?.join(', ') ?? '';
+      throw new UserError(
+        `Invalid value "${val}" for field "${resolvedField}". Allowed values: ${allowed}`,
+      );
+    }
+    resolvedValue = phaseVal;
+  }
+
+  const validation = validateFieldValue(resolvedField, resolvedValue);
+  if (!validation.valid) {
+    throw new UserError(validation.error!);
+  }
+
+  const store = new FileProjectStore();
+  const { id } = await resolveProjectId(opts.project, store);
+
+  const existing = await store.getById(id);
+  if (!existing) {
+    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+
+  await store.update(id, { [resolvedField]: resolvedValue });
+  console.log(success(`Updated ${resolvedField} = ${resolvedValue} on project ${existing.name}`));
+}
+
+/** Shared action handler for `cf get` and `cf project get`. */
+export async function projectGetAction(
+  opts: { json?: boolean; project?: string },
+): Promise<void> {
+  const store = new FileProjectStore();
+  const { id } = await resolveProjectId(opts.project, store);
+  const project = await store.getById(id);
+
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+
+  if (opts.json) {
+    printJson(project);
+    return;
+  }
+
+  const groupLabels: Record<FieldGroup, string> = {
+    identity: 'Identity',
+    artifacts: 'Artifacts',
+    workflow: 'Workflow',
+    metadata: 'Metadata',
+  };
+
+  const projectRecord = project as unknown as Record<string, unknown>;
+
+  for (const group of FIELD_GROUPS) {
+    const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
+
+    console.log(`\n${label(groupLabels[group])}`);
+
+    for (const f of groupFields) {
+      const v = projectRecord[f.field];
+      const hasValue = v !== undefined && v !== null && v !== '';
+      const display = hasValue ? valueStyle(String(v)) : dim('—');
+      console.log(`  ${label(`${f.label}:`.padEnd(16))}${display}`);
+    }
+  }
+
+  const custom = project.customData;
+  if (custom) {
+    const customEntries: [string, string][] = [
+      ['Recent Events', custom.recentEvents ?? ''],
+      ['Notes', custom.additionalNotes ?? ''],
+      ['Tools', custom.availableTools ?? ''],
+    ];
+    const populatedCustom = customEntries.filter(([, v]) => v);
+    if (populatedCustom.length > 0) {
+      console.log(`\n${label('Custom Data')}`);
+      for (const [k, v] of populatedCustom) {
+        console.log(`  ${label(`${k}:`.padEnd(16))}${valueStyle(v)}`);
+      }
+    }
+  }
+}
+
 export function registerProjectCommand(program: Command): void {
   const cmd = program
     .command('project')
@@ -90,24 +221,33 @@ export function registerProjectCommand(program: Command): void {
           defaultProject = await findByNameOrId(defaultRef, store);
         }
 
+        const cwdProject = await findProjectByCwd(store);
+        const activeId = cwdProject?.id ?? defaultProject?.id ?? null;
+
         if (opts.json) {
           printJson(projects.map((p) => ({
             id: p.id,
             name: p.name,
             projectPath: p.projectPath,
             fileSlice: p.fileSlice,
-            isDefault: defaultProject?.id === p.id,
+            isActive: p.id === activeId,
           })));
           return;
         }
 
-        const rows = projects.map((p) => [
-          p.name,
-          shortenPath(p.projectPath ?? ''),
-          p.fileSlice,
-          defaultProject?.id === p.id ? '●' : '',
-        ]);
-        console.log(renderTable(['Name', 'Path', 'Slice', 'Default'], rows));
+        const rows = projects.map((p) => {
+          const active = p.id === activeId;
+          const name = p.name;
+          const path = shortenPath(p.projectPath ?? '');
+          const slice = p.fileSlice ?? '';
+          return active
+            ? [success(name), success(path), success(slice)]
+            : [name, path, slice];
+        });
+        const prefixes = projects.map((p) =>
+          p.id === activeId ? success('* ') : '  ',
+        );
+        console.log(renderTable(['Name', 'Path', 'Slice'], rows, prefixes));
       } catch (err) {
         handleError(err);
       }
@@ -120,62 +260,7 @@ export function registerProjectCommand(program: Command): void {
     .option('--project <id>', 'Project ID (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
-        const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
-
-        if (!project) {
-          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
-        }
-
-        if (opts.json) {
-          printJson(project);
-          return;
-        }
-
-        // Grouped display — iterate by group, skip empty groups
-        const groupLabels: Record<FieldGroup, string> = {
-          identity: 'Identity',
-          artifacts: 'Artifacts',
-          workflow: 'Workflow',
-          metadata: 'Metadata',
-        };
-
-        const projectRecord = project as unknown as Record<string, unknown>;
-
-        for (const group of FIELD_GROUPS) {
-          const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
-          const populated = groupFields.filter((f) => {
-            const val = projectRecord[f.field];
-            return val !== undefined && val !== null && val !== '';
-          });
-
-          if (populated.length === 0) continue;
-
-          console.log(`\n${label(groupLabels[group])}`);
-
-          for (const f of populated) {
-            const val = String(projectRecord[f.field]);
-            console.log(`  ${label(`${f.label}:`.padEnd(16))}${valueStyle(val)}`);
-          }
-        }
-
-        // Display customData sub-fields if populated
-        const custom = project.customData;
-        if (custom) {
-          const customEntries: [string, string][] = [
-            ['Recent Events', custom.recentEvents ?? ''],
-            ['Notes', custom.additionalNotes ?? ''],
-            ['Tools', custom.availableTools ?? ''],
-          ];
-          const populated = customEntries.filter(([, v]) => v);
-          if (populated.length > 0) {
-            console.log(`\n${label('Custom Data')}`);
-            for (const [k, v] of populated) {
-              console.log(`  ${label(`${k}:`.padEnd(16))}${valueStyle(v)}`);
-            }
-          }
-        }
+        await projectGetAction(opts);
       } catch (err) {
         handleError(err);
       }
@@ -185,49 +270,10 @@ export function registerProjectCommand(program: Command): void {
     .command('set <field> <value>')
     .description('Update a field on the active project')
     .option('--project <id>', 'Project ID (overrides default)')
+    .addHelpText('after', buildSettableFieldsHelp)
     .action(async (field: string, val: string, opts: { project?: string }) => {
       try {
-        const resolvedField = resolveFieldName(field);
-        if (!resolvedField) {
-          throw new UserError(
-            `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
-          );
-        }
-
-        const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
-        if (fieldDef?.readonly) {
-          throw new UserError(`Field '${resolvedField}' is read-only and cannot be set.`);
-        }
-
-        // Resolve phase/instruction values (number, short name, or full string)
-        let resolvedValue = val;
-        if (resolvedField === 'developmentPhase' || resolvedField === 'instruction') {
-          const phaseVal = resolvePhaseValue(val);
-          if (!phaseVal) {
-            const allowed = fieldDef?.enumValues?.join(', ') ?? '';
-            throw new UserError(
-              `Invalid value "${val}" for field "${resolvedField}". Allowed values: ${allowed}`,
-            );
-          }
-          resolvedValue = phaseVal;
-        }
-
-        // Validate against enum constraints
-        const validation = validateFieldValue(resolvedField, resolvedValue);
-        if (!validation.valid) {
-          throw new UserError(validation.error!);
-        }
-
-        const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-
-        const existing = await store.getById(id);
-        if (!existing) {
-          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
-        }
-
-        await store.update(id, { [resolvedField]: resolvedValue });
-        console.log(success(`Updated ${resolvedField} = ${resolvedValue} on project ${existing.name}`));
+        await projectSetAction(field, val, opts);
       } catch (err) {
         handleError(err);
       }

@@ -4,7 +4,11 @@ import chalk from 'chalk';
  * Render a borderless table with bold/cyan headers and an underline separator.
  * Matches orchestration CLI style: no cell borders, column-aligned with padding.
  */
-export function renderTable(headers: string[], rows: string[][]): string {
+export function renderTable(
+  headers: string[],
+  rows: string[][],
+  rowPrefixes?: string[],
+): string {
   // Calculate column widths from headers and data
   const colWidths = headers.map((h, i) => {
     const dataMax = rows.reduce((max, row) => Math.max(max, stripAnsi(row[i] ?? '').length), 0);
@@ -12,22 +16,25 @@ export function renderTable(headers: string[], rows: string[][]): string {
   });
 
   const pad = 2; // spacing between columns
+  const indent = '  ';
   const lines: string[] = [];
 
   // Header row — bold cyan
   const headerLine = headers
     .map((h, i) => chalk.bold.cyan(h.padEnd(colWidths[i])))
     .join(' '.repeat(pad));
-  lines.push('  ' + headerLine);
+  lines.push(indent + headerLine);
 
   // Underline — thin dash under each column
   const underline = colWidths
     .map((w) => '─'.repeat(w))
     .join(' '.repeat(pad));
-  lines.push('  ' + chalk.dim(underline));
+  lines.push(indent + chalk.dim(underline));
 
   // Data rows
-  for (const row of rows) {
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const prefix = rowPrefixes ? rowPrefixes[r] : indent;
     const rowLine = row
       .map((cell, i) => {
         const visible = stripAnsi(cell ?? '');
@@ -35,7 +42,7 @@ export function renderTable(headers: string[], rows: string[][]): string {
         return (cell ?? '') + ' '.repeat(Math.max(0, padding));
       })
       .join(' '.repeat(pad));
-    lines.push('  ' + rowLine);
+    lines.push(prefix + rowLine);
   }
 
   return lines.join('\n');

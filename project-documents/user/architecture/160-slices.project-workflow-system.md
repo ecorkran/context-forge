@@ -171,7 +171,7 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — monorepo field removal touches all packages and many test files
    **Effort:** 3/5
 
-11. [x] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution. Also adds `cf project rm` and fixes Electron project list refresh.
+11. [ ] **(171) Project Schema Visibility & Smart Field Setting** — Expose the project data model to users, ensure all fields are visible in CLI/MCP output, and make `cf project set` ergonomic with aliases, validation, and value resolution. Also adds `cf project rm`, fixes Electron project list refresh, and provides top-level `cf set`/`cf get` shortcuts with discoverable field help.
 
    **a) `cf project --schema`** — Display the full project schema: field names, types, required/optional, allowed values (e.g. `workType: 'start' | 'continue'`), and brief descriptions. Derived from a single source of truth (the `ProjectData` type and Zod schemas in MCP). Also available as `project_schema` MCP tool returning structured JSON.
 
@@ -205,6 +205,10 @@ After this slice, a developer can type `cf status` to see where a project stands
    - `cf project rm` removes project from store with confirmation prompt
    - `cf project rm --yes` skips confirmation
    - Projects created via CLI appear in Electron without restart
+   - `cf set phase 4` works as shortcut for `cf project set phase 4`
+   - `cf get` works as shortcut for `cf project get`
+   - `cf set --help` shows available fields and aliases
+   - `cf get` shows all fields including unset ones (with placeholder)
    **Dependencies:** [170 — Project Model Cleanup] (schema changes must land first so we document the clean model)
    **Risk:** Low — display, aliases, and validation; no data model changes. Electron refresh is low-risk (file watch or manual button).
    **Effort:** 3/5
@@ -242,6 +246,18 @@ After this slice, a developer can type `cf status` to see where a project stands
 
    *Supersedes 780-slices items 781 and 782. The 780-slices.future document should be updated to reference this slice.*
 
+13. [ ] **(173) Claude Code Commands — cf Wrappers** — Markdown command files for ~/.claude/commands/ that expose Context Forge CLI capabilities as Claude Code slash commands. Commands: /cf:status, /cf:build, /cf:next, /cf:prompt. Commands shell out to the globally-installed `cf` CLI using ! prefix execution, passing $ARGUMENTS or positional $1/$2 parameters. `cf` is already CWD-aware, so commands work correctly in any project directory. YAML frontmatter with description fields for Claude Code auto-discovery. Includes an install mechanism: `cf install-commands [--target ~/.claude/commands/]` that copies command markdown files from the package's bundled commands/ directory into place. Uninstall via `cf uninstall-commands`. Command files maintained in the context-forge repo under packages/cli/commands/ as the source of truth.
+
+   **Value:** Claude Code users get slash-command access to Context Forge without remembering CLI syntax. Auto-discovery means Claude can suggest commands contextually.
+   **Success Criteria:**
+   - /cf:status, /cf:build, /cf:next, /cf:prompt all work from Claude Code via slash command
+   - `cf install-commands` copies command files to ~/.claude/commands/
+   - `cf uninstall-commands` removes them cleanly
+   - YAML frontmatter enables Claude Code auto-discovery
+   - Commands work correctly regardless of CWD
+   **Dependencies:** [168 — CLI Foundation] (complete)
+   **Risk:** Low — command files are markdown, no compilation or complex logic
+   **Effort:** 1/5
 
 
 
