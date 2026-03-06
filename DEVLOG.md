@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-06
 
+### Slice 174: Claude Code Commands — Slice Design
+- Designed `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt` slash commands
+- Install/uninstall via `cf install-commands` / `cf uninstall-commands`
+- Commands use `!` backtick execution and `allowed-tools: Bash(cf:*)` for pre-authorization
+- Source of truth: `packages/cli/commands/cf/` with namespace-based directory structure
+- Commits:
+  - `7775b28` docs: add slice design for 174 Claude Code slash commands
+
 ### Slice 173: Smart Field Setting — Implementation Complete
 - customData sub-fields (`events`, `notes`, `tools`) settable via `cf set` with merge semantics
 - Schema-driven `Custom` group in `cf get`, `cf set --help`, `cf project --schema`
