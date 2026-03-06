@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-06
 
+### Slice 173: Smart Field Setting — Design Complete
+- Slice design for customData sub-fields (`events`, `notes`, `tools`) and index-based file resolution (`cf set slice 171`)
+- Dot-notation schema fields (`customData.recentEvents`) with merge-write semantics
+- `resolveFileByIndex` helper in core for scanning project document directories
+- Commits:
+  - `064c9a8` feat(cli): add cf set/get shortcuts, field help, full get display, and git-branch-style project list
+  - `63a3e35` feat(cli): cf set no-args shows usage hint, add slice 173 to plan
+
 ### CLI: Top-level `cf set` / `cf get` shortcuts
 - Added `cf set <field> <value>` as shortcut for `cf project set` — e.g. `cf set phase 4`
 - Added `cf get` as shortcut for `cf project get`
