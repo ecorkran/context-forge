@@ -98,6 +98,32 @@ export class TemplateProcessor {
       }
     }
 
+    // Artifact aliases and index extraction
+    if (data.fileArch) {
+      enhanced['arch'] = data.fileArch;
+      const archMatch = data.fileArch.match(/^(\d+)-/);
+      if (archMatch) {
+        enhanced['archIndex'] = archMatch[1];
+      }
+    }
+    if (data.fileSlicePlan) {
+      enhanced['plan'] = data.fileSlicePlan;
+      const planMatch = data.fileSlicePlan.match(/^(\d+)-/);
+      if (planMatch) {
+        enhanced['planIndex'] = planMatch[1];
+      }
+    }
+    if (data.fileHLD) {
+      enhanced['hld'] = data.fileHLD;
+      const hldMatch = data.fileHLD.match(/^(\d+)-/);
+      if (hldMatch) {
+        enhanced['hldIndex'] = hldMatch[1];
+      }
+    }
+    if (data.fileSpec) {
+      enhanced['spec'] = data.fileSpec;
+    }
+
     // Add kebab-case alias for developmentPhase
     if (data.developmentPhase) {
       enhanced['development-phase'] = data.developmentPhase;

@@ -124,6 +124,53 @@ describe('TemplateProcessor', () => {
     });
   });
 
+  describe('processTemplate — artifact variables', () => {
+    it('resolves {fileArch} and {arch} to architecture file value', () => {
+      const data = createTestContextData({ fileArch: '160-arch.project-workflow-system' });
+      expect(processor.processTemplate('{fileArch}', data)).toBe('160-arch.project-workflow-system');
+      expect(processor.processTemplate('{arch}', data)).toBe('160-arch.project-workflow-system');
+    });
+
+    it('extracts {archIndex} from fileArch numeric prefix', () => {
+      const data = createTestContextData({ fileArch: '160-arch.project-workflow-system' });
+      expect(processor.processTemplate('{{archIndex}}', data)).toBe('160');
+    });
+
+    it('resolves {fileSlicePlan} and {plan} to slice plan value', () => {
+      const data = createTestContextData({ fileSlicePlan: '160-slices.project-workflow-system' });
+      expect(processor.processTemplate('{fileSlicePlan}', data)).toBe('160-slices.project-workflow-system');
+      expect(processor.processTemplate('{plan}', data)).toBe('160-slices.project-workflow-system');
+    });
+
+    it('extracts {planIndex} from fileSlicePlan numeric prefix', () => {
+      const data = createTestContextData({ fileSlicePlan: '160-slices.project-workflow-system' });
+      expect(processor.processTemplate('{{planIndex}}', data)).toBe('160');
+    });
+
+    it('resolves {fileHLD} and {hld} to HLD value', () => {
+      const data = createTestContextData({ fileHLD: '050-arch.hld-context-forge' });
+      expect(processor.processTemplate('{fileHLD}', data)).toBe('050-arch.hld-context-forge');
+      expect(processor.processTemplate('{hld}', data)).toBe('050-arch.hld-context-forge');
+    });
+
+    it('extracts {hldIndex} from fileHLD numeric prefix', () => {
+      const data = createTestContextData({ fileHLD: '050-arch.hld-context-forge' });
+      expect(processor.processTemplate('{{hldIndex}}', data)).toBe('050');
+    });
+
+    it('resolves {fileSpec} and {spec} to spec value', () => {
+      const data = createTestContextData({ fileSpec: '100-spec.api-design' });
+      expect(processor.processTemplate('{fileSpec}', data)).toBe('100-spec.api-design');
+      expect(processor.processTemplate('{spec}', data)).toBe('100-spec.api-design');
+    });
+
+    it('produces empty substitution for undefined artifact fields', () => {
+      const data = createTestContextData({ fileArch: undefined, fileSlicePlan: undefined });
+      expect(processor.processTemplate('{{fileArch}}', data)).toBe('');
+      expect(processor.processTemplate('{{fileSlicePlan}}', data)).toBe('');
+    });
+  });
+
   describe('processTemplate — edge cases', () => {
     it('returns empty string for empty template', () => {
       const data = createTestContextData();
