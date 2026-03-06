@@ -36,8 +36,9 @@ function createMockStatementService(
   overrides?: Partial<Record<keyof IStatementService, ReturnType<typeof vi.fn>>>,
 ): IStatementService {
   const statements: Record<string, string> = {
-    'start-project-statement': 'Starting work on {{projectName}}.',
-    'continue-project-statement': 'Continuing work on {{projectName}}.',
+    'project-statement': 'Working on {{projectName}}.',
+    'start-project-statement': 'Working on {{projectName}}.',
+    'continue-project-statement': 'Working on {{projectName}}.',
     'tool-intro-statement': 'Tools available:',
     'instruction-intro-statement': 'Instructions:',
     'current-events-header': '### Current State',
@@ -88,23 +89,18 @@ describe('ContextTemplateEngine', () => {
       expect(statementService.loadStatements).toHaveBeenCalled();
     });
 
-    it('includes project intro statement', async () => {
+    it('uses unified project-statement regardless of workType', async () => {
       const engine = createEngine();
-      const data = createTestEnhancedContextData({ workType: 'start', projectName: 'test-app' });
 
-      const result = await engine.generateContext(data);
-      expect(result).toContain('Starting work on test-app');
-    });
+      const startData = createTestEnhancedContextData({ workType: 'start', projectName: 'test-app' });
+      const startResult = await engine.generateContext(startData);
+      expect(startResult).toContain('Working on test-app');
+      expect(startResult).not.toContain('Starting work on');
 
-    it('uses continue statement for workType=continue', async () => {
-      const engine = createEngine();
-      const data = createTestEnhancedContextData({
-        workType: 'continue',
-        projectName: 'test-app',
-      });
-
-      const result = await engine.generateContext(data);
-      expect(result).toContain('Continuing work on test-app');
+      const continueData = createTestEnhancedContextData({ workType: 'continue', projectName: 'test-app' });
+      const continueResult = await engine.generateContext(continueData);
+      expect(continueResult).toContain('Working on test-app');
+      expect(continueResult).not.toContain('Continuing work on');
     });
   });
 

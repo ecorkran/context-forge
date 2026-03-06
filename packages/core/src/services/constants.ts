@@ -9,18 +9,26 @@ export const PROMPT_FILE_RELATIVE_PATH =
 
 /** Default statements used as fallback when the statements file is missing */
 export const DEFAULT_STATEMENTS: Record<string, TemplateStatement> = {
+  'project-statement': {
+    key: 'project-statement',
+    content:
+      'Working on {{projectName}}. Project information, environment context, instructions, and notes follow:',
+    description: 'Opening statement for project context',
+    editable: true
+  },
+  // Deprecated aliases — kept for backward compatibility with custom default-statements.md files
   'start-project-statement': {
     key: 'start-project-statement',
     content:
-      'Starting work on {{projectName}}. Project information, environment context, instructions, and notes follow:',
-    description: 'Opening statement for starting a new project',
+      'Working on {{projectName}}. Project information, environment context, instructions, and notes follow:',
+    description: 'Deprecated: use project-statement instead',
     editable: true
   },
   'continue-project-statement': {
     key: 'continue-project-statement',
     content:
-      'Continuing work on {{projectName}}. Project information, environment context, instructions, and notes follow:',
-    description: 'Opening statement for continuing project work',
+      'Working on {{projectName}}. Project information, environment context, instructions, and notes follow:',
+    description: 'Deprecated: use project-statement instead',
     editable: true
   },
   'tool-intro-statement': {
