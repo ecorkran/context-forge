@@ -5,8 +5,8 @@ lld: user/slices/173-slice.smart-field-setting.md
 dependencies: [171-project-schema]
 projectState: Slice 171 complete (tasks 11-13). CLI has cf set/get shortcuts, buildSettableFieldsHelp, projectSetAction/projectGetAction shared handlers, git-branch-style project list, cf set --help with field listing, cf get showing all fields. customData displayed via hardcoded block in projectGetAction. 116 CLI tests, 742 total.
 dateCreated: 20260306
-dateUpdated: 20260306
-status: not_started
+dateUpdated: 20260305
+status: complete
 ---
 
 ## Context Summary
@@ -24,24 +24,24 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Update `FieldGroup` type in `packages/core/src/schema/projectSchema.ts`**
-  - [ ] Add `'custom'` to the `FieldGroup` union: `'identity' | 'artifacts' | 'workflow' | 'metadata' | 'custom'`
+- [x] **Update `FieldGroup` type in `packages/core/src/schema/projectSchema.ts`**
+  - [x] Add `'custom'` to the `FieldGroup` union: `'identity' | 'artifacts' | 'workflow' | 'metadata' | 'custom'`
 
-- [ ] **Add three customData field definitions to `PROJECT_FIELDS` array**
-  - [ ] `customData.recentEvents` — alias: `events`, label: `Recent Events`, group: `custom`
-  - [ ] `customData.additionalNotes` — alias: `notes`, label: `Notes`, group: `custom`
-  - [ ] `customData.availableTools` — alias: `tools`, label: `Tools`, group: `custom`
-  - [ ] All three: `type: 'string'`, `required: false`, `readonly: false`
+- [x] **Add three customData field definitions to `PROJECT_FIELDS` array**
+  - [x] `customData.recentEvents` — alias: `events`, label: `Recent Events`, group: `custom`
+  - [x] `customData.additionalNotes` — alias: `notes`, label: `Notes`, group: `custom`
+  - [x] `customData.availableTools` — alias: `tools`, label: `Tools`, group: `custom`
+  - [x] All three: `type: 'string'`, `required: false`, `readonly: false`
 
-- [ ] **Add `'custom'` to `FIELD_GROUPS` array** (after `'metadata'`)
+- [x] **Add `'custom'` to `FIELD_GROUPS` array** (after `'metadata'`)
 
-- [ ] **Verify lookup maps build correctly**
-  - [ ] `resolveFieldName('events')` returns `'customData.recentEvents'`
-  - [ ] `resolveFieldName('notes')` returns `'customData.additionalNotes'`
-  - [ ] `resolveFieldName('tools')` returns `'customData.availableTools'`
-  - [ ] `resolveFieldName('customData.recentEvents')` returns itself (canonical passthrough)
+- [x] **Verify lookup maps build correctly**
+  - [x] `resolveFieldName('events')` returns `'customData.recentEvents'`
+  - [x] `resolveFieldName('notes')` returns `'customData.additionalNotes'`
+  - [x] `resolveFieldName('tools')` returns `'customData.availableTools'`
+  - [x] `resolveFieldName('customData.recentEvents')` returns itself (canonical passthrough)
 
-- [ ] **Success**: `pnpm --filter @context-forge/core typecheck` passes; existing schema tests pass
+- [x] **Success**: `pnpm --filter @context-forge/core typecheck` passes; existing schema tests pass
 
 ---
 
@@ -49,18 +49,18 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Add tests to `packages/core/tests/schema/projectSchema.test.ts`**
-  - [ ] `resolveFieldName('events')` → `'customData.recentEvents'`
-  - [ ] `resolveFieldName('notes')` → `'customData.additionalNotes'`
-  - [ ] `resolveFieldName('tools')` → `'customData.availableTools'`
-  - [ ] `resolveFieldName('Events')` → `'customData.recentEvents'` (case-insensitive)
-  - [ ] `getSchema().groups` includes `'custom'`
-  - [ ] `getSchema().fields` includes all three customData fields
-  - [ ] `getSchema().aliases` includes `events`, `notes`, `tools` mappings
+- [x] **Add tests to `packages/core/tests/schema/projectSchema.test.ts`**
+  - [x] `resolveFieldName('events')` → `'customData.recentEvents'`
+  - [x] `resolveFieldName('notes')` → `'customData.additionalNotes'`
+  - [x] `resolveFieldName('tools')` → `'customData.availableTools'`
+  - [x] `resolveFieldName('Events')` → `'customData.recentEvents'` (case-insensitive)
+  - [x] `getSchema().groups` includes `'custom'`
+  - [x] `getSchema().fields` includes all three customData fields
+  - [x] `getSchema().aliases` includes `events`, `notes`, `tools` mappings
 
-- [ ] **Success**: `pnpm --filter @context-forge/core test` passes
+- [x] **Success**: `pnpm --filter @context-forge/core test` passes
 
-- [ ] **Commit**: `feat(core): add customData sub-fields to project schema`
+- [x] **Commit**: `feat(core): add customData sub-fields to project schema`
 
 ---
 
@@ -68,15 +68,15 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Update `projectSetAction` in `packages/cli/src/commands/project.ts`**
-  - [ ] After resolving field and value, check if `resolvedField.startsWith('customData.')`
-  - [ ] If yes: extract sub-field name (`resolvedField.split('.')[1]`)
-  - [ ] Merge into existing customData: `{ ...existing.customData, [subField]: resolvedValue }`
-  - [ ] Call `store.update(id, { customData: merged })`
-  - [ ] If no: use existing behavior `store.update(id, { [resolvedField]: resolvedValue })`
-  - [ ] Print success message using the alias-friendly name (e.g. `Updated events = ... on project ...`)
+- [x] **Update `projectSetAction` in `packages/cli/src/commands/project.ts`**
+  - [x] After resolving field and value, check if `resolvedField.startsWith('customData.')`
+  - [x] If yes: extract sub-field name (`resolvedField.split('.')[1]`)
+  - [x] Merge into existing customData: `{ ...existing.customData, [subField]: resolvedValue }`
+  - [x] Call `store.update(id, { customData: merged })`
+  - [x] If no: use existing behavior `store.update(id, { [resolvedField]: resolvedValue })`
+  - [x] Print success message using the alias-friendly name (e.g. `Updated events = ... on project ...`)
 
-- [ ] **Success**: `cf set events "test"` updates `customData.recentEvents` in the store; `cf set notes "test"` and `cf set tools "test"` likewise
+- [x] **Success**: `cf set events "test"` updates `customData.recentEvents` in the store; `cf set notes "test"` and `cf set tools "test"` likewise
 
 ---
 
@@ -84,14 +84,14 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Replace hardcoded customData block in `projectGetAction`**
-  - [ ] Remove the `const custom = project.customData; if (custom) { ... }` block
-  - [ ] The `'custom'` group in `FIELD_GROUPS` will be iterated by the existing group loop
-  - [ ] For fields in the `'custom'` group, read value from `project.customData?.[subField]` instead of `project[field]`
-  - [ ] Detect `customData.` prefix in field name → extract sub-field, read from `customData` object
-  - [ ] Unset custom fields show `—` placeholder (same as other fields)
+- [x] **Replace hardcoded customData block in `projectGetAction`**
+  - [x] Remove the `const custom = project.customData; if (custom) { ... }` block
+  - [x] The `'custom'` group in `FIELD_GROUPS` will be iterated by the existing group loop
+  - [x] For fields in the `'custom'` group, read value from `project.customData?.[subField]` instead of `project[field]`
+  - [x] Detect `customData.` prefix in field name → extract sub-field, read from `customData` object
+  - [x] Unset custom fields show `—` placeholder (same as other fields)
 
-- [ ] **Success**: `cf get` shows Custom group with all three fields (populated or `—`); hardcoded block removed
+- [x] **Success**: `cf get` shows Custom group with all three fields (populated or `—`); hardcoded block removed
 
 ---
 
@@ -99,19 +99,19 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Add CLI tests in `packages/cli/tests/commands/shortcuts.test.ts` or `project.test.ts`**
-  - [ ] `cf set events "state summary"` → calls `store.update` with `{ customData: { recentEvents: 'state summary' } }`
-  - [ ] `cf set notes "phase notes"` → calls `store.update` with `{ customData: { additionalNotes: 'phase notes' } }`
-  - [ ] `cf set tools "electron, mcp"` → calls `store.update` with `{ customData: { availableTools: 'electron, mcp' } }`
-  - [ ] Merge semantics: setting `events` preserves existing `additionalNotes` and `availableTools`
-  - [ ] `cf get` output contains `Custom` group header
-  - [ ] `cf set --help` output contains `events`, `notes`, `tools`
+- [x] **Add CLI tests in `packages/cli/tests/commands/shortcuts.test.ts` or `project.test.ts`**
+  - [x] `cf set events "state summary"` → calls `store.update` with `{ customData: { recentEvents: 'state summary' } }`
+  - [x] `cf set notes "phase notes"` → calls `store.update` with `{ customData: { additionalNotes: 'phase notes' } }`
+  - [x] `cf set tools "electron, mcp"` → calls `store.update` with `{ customData: { availableTools: 'electron, mcp' } }`
+  - [x] Merge semantics: setting `events` preserves existing `additionalNotes` and `availableTools`
+  - [x] `cf get` output contains `Custom` group header
+  - [x] `cf set --help` output contains `events`, `notes`, `tools`
 
-- [ ] **Update `buildSettableFieldsHelp` test** to expect `Custom` group and aliases
+- [x] **Update `buildSettableFieldsHelp` test** to expect `Custom` group and aliases
 
-- [ ] **Success**: `pnpm --filter @context-forge/cli test` passes
+- [x] **Success**: `pnpm --filter @context-forge/cli test` passes
 
-- [ ] **Commit**: `feat(cli): settable customData fields via cf set events/notes/tools`
+- [x] **Commit**: `feat(cli): settable customData fields via cf set events/notes/tools`
 
 ---
 
@@ -119,24 +119,24 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Create `resolveFileByIndex` function in `packages/core/src/schema/projectSchema.ts`**
-  - [ ] Signature: `resolveFileByIndex(projectPath: string, field: string, index: string): string`
-  - [ ] Define field-to-directory mapping:
+- [x] **Create `resolveFileByIndex` function in `packages/core/src/schema/projectSchema.ts`**
+  - [x] Signature: `resolveFileByIndex(projectPath: string, field: string, index: string): string`
+  - [x] Define field-to-directory mapping:
     - `fileSlice` → `project-documents/user/slices/`, pattern `{index}-slice.`
     - `fileTasks` → `project-documents/user/tasks/`, pattern `{index}-tasks.`
     - `fileArch` → `project-documents/user/architecture/`, pattern `{index}-arch.`
     - `fileSlicePlan` → `project-documents/user/architecture/`, pattern `{index}-slices.`
     - `fileHLD` → `project-documents/user/architecture/`, pattern `{index}-hld.` (also check `{index}-arch.hld-`)
     - `fileSpec` → `project-documents/user/architecture/`, pattern `{index}-spec.`
-  - [ ] Scan directory with `readdirSync`, filter files starting with `{index}-{doctype}.`
-  - [ ] Return filename stem (without `.md` extension) if exactly one match
-  - [ ] Throw descriptive error if no match (include directory scanned)
-  - [ ] Throw descriptive error if multiple matches (list the options)
-  - [ ] If field is not an artifact field, return null (caller uses value as-is)
+  - [x] Scan directory with `readdirSync`, filter files starting with `{index}-{doctype}.`
+  - [x] Return filename stem (without `.md` extension) if exactly one match
+  - [x] Throw descriptive error if no match (include directory scanned)
+  - [x] Throw descriptive error if multiple matches (list the options)
+  - [x] If field is not an artifact field, return null (caller uses value as-is)
 
-- [ ] **Export from `packages/core/src/schema/projectSchema.ts`** and re-export from core index
+- [x] **Export from `packages/core/src/schema/projectSchema.ts`** and re-export from core index
 
-- [ ] **Success**: function compiles, handles match/no-match/multiple-match cases
+- [x] **Success**: function compiles, handles match/no-match/multiple-match cases
 
 ---
 
@@ -144,20 +144,20 @@ status: not_started
 
 **Effort: 2/5**
 
-- [ ] **Add tests in `packages/core/tests/schema/projectSchema.test.ts`** (or new file `resolveFileByIndex.test.ts`)
-  - [ ] Mock `readdirSync` to return controlled file lists
-  - [ ] Test: `resolveFileByIndex('/project', 'fileSlice', '171')` with `['171-slice.project-schema.md']` → returns `'171-slice.project-schema'`
-  - [ ] Test: `resolveFileByIndex('/project', 'fileTasks', '171')` with `['171-tasks.project-schema.md']` → returns `'171-tasks.project-schema'`
-  - [ ] Test: `resolveFileByIndex('/project', 'fileArch', '160')` with `['160-arch.project-workflow-system.md']` → returns `'160-arch.project-workflow-system'`
-  - [ ] Test: `resolveFileByIndex('/project', 'fileSlicePlan', '160')` with `['160-slices.project-workflow-system.md']` → returns `'160-slices.project-workflow-system'`
-  - [ ] Test: no match → throws error containing the index and directory
-  - [ ] Test: multiple matches → throws error listing the files
-  - [ ] Test: non-artifact field (e.g. `'name'`) → returns null
-  - [ ] Test: directory doesn't exist → throws error (or returns no match)
+- [x] **Add tests in `packages/core/tests/schema/projectSchema.test.ts`** (or new file `resolveFileByIndex.test.ts`)
+  - [x] Mock `readdirSync` to return controlled file lists
+  - [x] Test: `resolveFileByIndex('/project', 'fileSlice', '171')` with `['171-slice.project-schema.md']` → returns `'171-slice.project-schema'`
+  - [x] Test: `resolveFileByIndex('/project', 'fileTasks', '171')` with `['171-tasks.project-schema.md']` → returns `'171-tasks.project-schema'`
+  - [x] Test: `resolveFileByIndex('/project', 'fileArch', '160')` with `['160-arch.project-workflow-system.md']` → returns `'160-arch.project-workflow-system'`
+  - [x] Test: `resolveFileByIndex('/project', 'fileSlicePlan', '160')` with `['160-slices.project-workflow-system.md']` → returns `'160-slices.project-workflow-system'`
+  - [x] Test: no match → throws error containing the index and directory
+  - [x] Test: multiple matches → throws error listing the files
+  - [x] Test: non-artifact field (e.g. `'name'`) → returns null
+  - [x] Test: directory doesn't exist → throws error (or returns no match)
 
-- [ ] **Success**: `pnpm --filter @context-forge/core test` passes
+- [x] **Success**: `pnpm --filter @context-forge/core test` passes
 
-- [ ] **Commit**: `feat(core): add resolveFileByIndex for index-based artifact file resolution`
+- [x] **Commit**: `feat(core): add resolveFileByIndex for index-based artifact file resolution`
 
 ---
 
@@ -165,18 +165,18 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Update `projectSetAction` in `packages/cli/src/commands/project.ts`**
-  - [ ] Import `resolveFileByIndex` from `@context-forge/core`
-  - [ ] After resolving field name, check if:
+- [x] **Update `projectSetAction` in `packages/cli/src/commands/project.ts`**
+  - [x] Import `resolveFileByIndex` from `@context-forge/core`
+  - [x] After resolving field name, check if:
     1. Resolved field is in `'artifacts'` group (check `fieldDef?.group === 'artifacts'`)
     2. Value matches `/^\d+$/` (bare number)
     3. Project has `projectPath` set
-  - [ ] If all three: call `resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue)`
-  - [ ] If result is non-null, use it as `resolvedValue`
-  - [ ] If result is null (non-artifact field), use value as-is
-  - [ ] If `resolveFileByIndex` throws, re-throw as `UserError`
+  - [x] If all three: call `resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue)`
+  - [x] If result is non-null, use it as `resolvedValue`
+  - [x] If result is null (non-artifact field), use value as-is
+  - [x] If `resolveFileByIndex` throws, re-throw as `UserError`
 
-- [ ] **Success**: `cf set slice 171` resolves and sets the field; `cf set slice some-name` passes through unchanged
+- [x] **Success**: `cf set slice 171` resolves and sets the field; `cf set slice some-name` passes through unchanged
 
 ---
 
@@ -184,16 +184,16 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Add CLI integration tests**
-  - [ ] Mock `resolveFileByIndex` in CLI test context
-  - [ ] `cf set slice 171` with mock returning `'171-slice.project-schema'` → calls `store.update` with `{ fileSlice: '171-slice.project-schema' }`
-  - [ ] `cf set slice some-name` (non-numeric) → calls `store.update` with `{ fileSlice: 'some-name' }` (passthrough)
-  - [ ] `cf set slice 999` with mock throwing no-match error → prints error message
-  - [ ] `cf set name 42` (non-artifact field, numeric value) → does NOT trigger index resolution
+- [x] **Add CLI integration tests**
+  - [x] Mock `resolveFileByIndex` in CLI test context
+  - [x] `cf set slice 171` with mock returning `'171-slice.project-schema'` → calls `store.update` with `{ fileSlice: '171-slice.project-schema' }`
+  - [x] `cf set slice some-name` (non-numeric) → calls `store.update` with `{ fileSlice: 'some-name' }` (passthrough)
+  - [x] `cf set slice 999` with mock throwing no-match error → prints error message
+  - [x] `cf set name 42` (non-artifact field, numeric value) → does NOT trigger index resolution
 
-- [ ] **Success**: `pnpm --filter @context-forge/cli test` passes
+- [x] **Success**: `pnpm --filter @context-forge/cli test` passes
 
-- [ ] **Commit**: `feat(cli): index-based file resolution for cf set artifact fields`
+- [x] **Commit**: `feat(cli): index-based file resolution for cf set artifact fields`
 
 ---
 
@@ -201,11 +201,11 @@ status: not_started
 
 **Effort: 1/5**
 
-- [ ] **Full build**: `pnpm build` — all packages compile
-- [ ] **Full test**: `pnpm test` — all tests pass across all packages
-- [ ] **Manual verification**:
-  - [ ] `cf set events "testing events"` → `cf get` shows it under Custom
-  - [ ] `cf set slice 173` → resolves and sets correctly
-  - [ ] `cf set --help` shows Custom group with events, notes, tools
-  - [ ] `cf project --schema` includes custom fields
-- [ ] **Commit final state if any remaining changes**
+- [x] **Full build**: `pnpm build` — all packages compile
+- [x] **Full test**: `pnpm test` — all tests pass across all packages
+- [x] **Manual verification**:
+  - [x] `cf set events "testing events"` → `cf get` shows it under Custom
+  - [x] `cf set slice 173` → resolves and sets correctly
+  - [x] `cf set --help` shows Custom group with events, notes, tools
+  - [x] `cf project --schema` includes custom fields
+- [x] **Commit final state if any remaining changes**

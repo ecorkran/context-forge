@@ -246,7 +246,7 @@ After this slice, a developer can type `cf status` to see where a project stands
 
    *Supersedes 780-slices items 781 and 782. The 780-slices.future document should be updated to reference this slice.*
 
-13. [ ] **(173) Smart Field Setting — customData fields, index-based file resolution, no-args usage hints** — Extends the schema-driven `cf set` with three capabilities:
+13. [x] **(173) Smart Field Setting — customData fields, index-based file resolution, no-args usage hints** — Extends the schema-driven `cf set` with three capabilities:
 
    **a) customData sub-fields settable via CLI** — `cf set events "..."`, `cf set notes "..."`, `cf set tools "..."`. These map to `customData.recentEvents`, `customData.additionalNotes`, `customData.availableTools`. The schema module gains a new field group `custom` with these three fields. `projectSetAction` handles the nested write (`store.update(id, { customData: { ...existing.customData, [subField]: value } })`). `cf get` already displays customData — it continues to work as-is.
 

@@ -9,13 +9,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-06
 
-### Slice 173: Smart Field Setting — Design Complete
-- Slice design for customData sub-fields (`events`, `notes`, `tools`) and index-based file resolution (`cf set slice 171`)
-- Dot-notation schema fields (`customData.recentEvents`) with merge-write semantics
-- `resolveFileByIndex` helper in core for scanning project document directories
+### Slice 173: Smart Field Setting — Implementation Complete
+- customData sub-fields (`events`, `notes`, `tools`) settable via `cf set` with merge semantics
+- Schema-driven `Custom` group in `cf get`, `cf set --help`, `cf project --schema`
+- Index-based file resolution: `cf set slice 171` scans `project-documents/user/slices/` for matching file
+- `resolveFileByIndex` helper in core for all artifact fields (fileSlice, fileTasks, fileArch, fileSlicePlan, fileHLD, fileSpec)
+- 767 tests total (430 core, 124 CLI, 107 MCP, 106 Electron)
 - Commits:
-  - `064c9a8` feat(cli): add cf set/get shortcuts, field help, full get display, and git-branch-style project list
-  - `63a3e35` feat(cli): cf set no-args shows usage hint, add slice 173 to plan
+  - `87eacb3` fix(cli): cf build --phase now overrides instruction prompt
+  - `6cebac4` feat(core): add customData sub-fields to project schema
+  - `02451f0` feat(cli): settable customData fields via cf set events/notes/tools
+  - `ebdb601` feat(core): add resolveFileByIndex for index-based artifact file resolution
+  - `871139e` feat(cli): index-based file resolution for cf set artifact fields
 
 ### CLI: Top-level `cf set` / `cf get` shortcuts
 - Added `cf set <field> <value>` as shortcut for `cf project set` — e.g. `cf set phase 4`
