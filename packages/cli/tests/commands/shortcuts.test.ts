@@ -120,6 +120,7 @@ describe('cf set (top-level shortcut)', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
       developmentPhase: 'Phase 4: Slice Design',
+      instruction: 'Phase 4: Slice Design',
     });
   });
 
