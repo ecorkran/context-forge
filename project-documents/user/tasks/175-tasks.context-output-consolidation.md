@@ -14,7 +14,7 @@ status: not_started
 
 The generated context prompt repeats project information three times with inconsistent field names and missing artifact references. This task set adds artifact fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) to the template variable pipeline, consolidates the project info section, simplifies the opening statement, and documents system prompt file changes for the ai-project-guide maintainer.
 
-All changes are in `packages/core`. No MCP, CLI, or Electron changes required.
+Changes are primarily in `packages/core`, with one CLI behavior fix in `packages/cli`.
 
 ## Tasks
 
@@ -98,7 +98,25 @@ All changes are in `packages/core`. No MCP, CLI, or Electron changes required.
 
 **Success:** Opening statement is always `Working on {name}...` regardless of workType. Tests pass.
 
-### Task 6: Build, full test suite, and verify output
+### Task 6: Auto-set instruction when phase changes
+
+Setting `developmentPhase` via `cf set phase 6` should also update `instruction` to match. Currently the user must set both fields independently, which leads to stale instruction values (e.g., phase is "Phase 6: Implementation" but instruction is still "slice-design").
+
+- [ ] In `packages/cli/src/commands/project.ts`, update `projectSetAction()`:
+  - After resolving `developmentPhase` value, also write `instruction` to the same resolved value
+  - Apply this only when the field being set is `developmentPhase` (not when setting `instruction` directly)
+  - Log the auto-set: e.g., `Updated instruction = Phase 6: Implementation (auto-set from phase)`
+- [ ] In `packages/mcp-server/src/tools/projectTools.ts`, check if the same auto-set is needed in `project_update` tool:
+  - If `developmentPhase` is in the update payload but `instruction` is not, auto-set `instruction` to match
+  - If both are provided, respect the explicit `instruction` value
+- [ ] Add tests:
+  - `cf set phase 6` sets both `developmentPhase` and `instruction` to `Phase 6: Implementation`
+  - `cf set instruction slice-design` sets only `instruction`, does not touch `developmentPhase`
+  - MCP `project_update` with only `developmentPhase` also updates `instruction`
+
+**Success:** `cf set phase 6` updates both fields. `cf get` shows matching phase and instruction. Tests pass.
+
+### Task 7: Build, full test suite, and verify output
 
 - [ ] Run `pnpm build` — all packages compile
 - [ ] Run `pnpm test` — all tests pass across core, CLI, MCP, Electron
@@ -111,9 +129,11 @@ All changes are in `packages/core`. No MCP, CLI, or Electron changes required.
   - `context-initialization` prompt still renders (with template variables substituted, including artifact fields)
 - [ ] Verify `cf prompt get P4` and `cf prompt get P5` — confirm `{fileArch}` / `{fileSlicePlan}` / `{sliceindex}` substitutions work in phase prompts
 
-**Success:** Clean build, all tests pass, `cf build` output is visibly cleaner and shorter, phase prompt variables substitute correctly.
+- [ ] Verify `cf set phase 6` auto-sets instruction, then `cf get` shows matching values
 
-### Task 7: Write system prompt file change spec
+**Success:** Clean build, all tests pass, `cf build` output is visibly cleaner and shorter, phase prompt variables substitute correctly, phase auto-sets instruction.
+
+### Task 8: Write system prompt file change spec
 
 - [ ] Create a markdown section in the slice design document (or a standalone spec note) documenting exactly what changes are needed in `prompt.ai-project.system.md`:
   - Remove repeated "Current work context" bullet list from `context-initialization` prompt
@@ -125,7 +145,7 @@ All changes are in `packages/core`. No MCP, CLI, or Electron changes required.
 
 **Success:** Spec is documented and ready to hand off to the ai-project-guide maintainer.
 
-### Task 8: Commit and mark slice complete
+### Task 9: Commit and mark slice complete
 
 - [ ] Git add and commit all changes from root with semantic message
 - [ ] Update slice design status to `complete`

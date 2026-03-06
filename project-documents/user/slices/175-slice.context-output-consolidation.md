@@ -189,6 +189,20 @@ The `nnn` placeholder used in some prompts (e.g., P4's "nnn-slices.{name}.md") n
 
 This allows prompts to use `{archIndex}` where they currently use `nnn`.
 
+### Change 9: Auto-set instruction when phase changes
+
+Setting `developmentPhase` via `cf set phase 6` should also update `instruction` to match. These fields are directly coupled — phase determines which system prompt is used for context generation, and `instruction` is the key that selects that prompt. Currently the user must set both independently, leading to stale instruction values.
+
+**File:** `packages/cli/src/commands/project.ts` — `projectSetAction()`
+
+When `resolvedField === 'developmentPhase'`, also write `instruction` to the same resolved value in the same store update. Log the auto-set so the user sees both fields changed.
+
+**File:** `packages/mcp-server/src/tools/projectTools.ts` — `project_update` handler
+
+If the update payload includes `developmentPhase` but not `instruction`, auto-set `instruction` to the same value. If both are explicitly provided, respect the explicit `instruction` value.
+
+This does NOT apply when setting `instruction` directly — setting instruction alone is a valid use case (e.g., Custom Instruction).
+
 ## Data Flow
 
 ```
@@ -228,6 +242,8 @@ Generated context output  -- clean, non-redundant
 | `packages/core/tests/services/ContextTemplateEngine.test.ts` | Update opening statement tests |
 | `packages/core/tests/services/TemplateProcessor.test.ts` | Add artifact variable substitution tests |
 | `packages/core/tests/services/ContextIntegrator.test.ts` | Update context mapping tests |
+| `packages/cli/src/commands/project.ts` | Auto-set `instruction` when `developmentPhase` is set |
+| `packages/mcp-server/src/tools/projectTools.ts` | Auto-set `instruction` in `project_update` when phase changes |
 
 ## Cross-Slice Dependencies
 
@@ -245,6 +261,7 @@ Generated context output  -- clean, non-redundant
 - [ ] Schema field names used consistently in output (`fileSlice` not `slice`, `dateProject` not `currentDate`)
 - [ ] `template` omitted from project context block (or shown only when meaningful)
 - [ ] System prompt file changes documented as spec (not implemented)
+- [ ] `cf set phase N` auto-sets `instruction` to match; setting `instruction` directly does not touch phase
 - [ ] All existing tests pass with updates
 - [ ] `cf build` output is visibly cleaner and shorter
 
