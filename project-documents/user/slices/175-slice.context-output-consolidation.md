@@ -176,6 +176,8 @@ The `context-initialization` prompt should be updated to:
 
 **Interim behavior:** Until the system prompt file is updated, there will be some residual duplication between the consolidated `### Project Context` block and the `context-initialization` prompt. This is acceptable — the duplication is reduced (not tripled), and the new artifact fields will substitute correctly in both places.
 
+**User note — keeping project state current:** Template variable substitution is only as good as the stored project state. When moving between slices, the user (or agent) must update `fileSlice` and `fileTasks` before running `cf build` or using phase prompts — otherwise the old values substitute in. This is equivalent to updating fields in the Electron UI before copying context. The CLI workflow is `cf set slice {n} && cf set tasks {n}` before `cf build`. Workflow Navigator (slice 165) will eventually collapse this into a single "advance to next slice" operation. Until then, this is a training/habit item, not a code gap.
+
 ### Change 8: Phase-specific prompts get artifact variables too
 
 The template variable additions (Changes 2-3) automatically benefit all prompts, not just `context-initialization`. This means phase prompts like P4 and P5 that reference `{fileArch}`, `{fileSlicePlan}`, `{nnn}` etc. will get correct substitution.
