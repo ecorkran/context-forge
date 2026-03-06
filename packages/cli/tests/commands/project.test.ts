@@ -341,9 +341,10 @@ describe('cf project --schema', () => {
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const joined = calls.join('\n');
-    expect(joined).toContain('Aliases: phase');
-    expect(joined).toContain('Aliases: arch');
-    expect(joined).toContain('Aliases: path');
+    // Aliases appear as column values in the table
+    expect(joined).toContain('phase');
+    expect(joined).toContain('arch');
+    expect(joined).toContain('path');
   });
 
   it('displays enum values for enum fields', async () => {
@@ -352,7 +353,8 @@ describe('cf project --schema', () => {
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const joined = calls.join('\n');
-    expect(joined).toContain('Values: start, continue');
+    // Enum values appear in "Allowed values" section at bottom
+    expect(joined).toContain('start | continue');
   });
 });
 

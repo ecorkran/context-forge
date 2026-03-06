@@ -36,27 +36,40 @@ function displaySchema(): void {
     custom: 'Custom',
   };
 
-  console.log(label('\nProject Schema'));
-  console.log('══════════════');
+  const rows: string[][] = [];
+  const rowPrefixes: string[] = [];
+  const enumFields: { name: string; values: string[] }[] = [];
 
   for (const group of FIELD_GROUPS) {
     const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
-    console.log(`\n${label(groupLabels[group])}`);
+
+    // Group separator row
+    rows.push([label(groupLabels[group]), '', '']);
+    rowPrefixes.push('  ');
 
     for (const f of groupFields) {
+      const alias = f.aliases.length > 0 ? f.aliases.join(', ') : '';
       const flags: string[] = [];
       if (f.required) flags.push('required');
       if (f.readonly) flags.push('readonly');
-      const flagStr = flags.length > 0 ? `  (${flags.join(', ')})` : '';
+      const desc = flags.length > 0 ? `${f.description} ${dim(`(${flags.join(', ')})`)}` : f.description;
+      rows.push([f.field, alias, desc]);
+      rowPrefixes.push('    ');
 
-      console.log(`  ${f.field.padEnd(18)}${f.type.padEnd(10)}${flagStr}  ${f.description}`);
-
-      if (f.aliases.length > 0) {
-        console.log(`${''.padEnd(20)}Aliases: ${f.aliases.join(', ')}`);
-      }
       if (f.enumValues) {
-        console.log(`${''.padEnd(20)}Values: ${f.enumValues.join(', ')}`);
+        enumFields.push({ name: f.aliases[0] ?? f.field, values: f.enumValues });
       }
+    }
+  }
+
+  console.log(label('\nProject Schema') + dim('  (all fields are strings)'));
+  console.log('══════════════');
+  console.log(renderTable(['Field', 'Alias', 'Description'], rows, rowPrefixes));
+
+  if (enumFields.length > 0) {
+    console.log(dim('\n  Allowed values:'));
+    for (const { name, values } of enumFields) {
+      console.log(dim(`    ${name}: ${values.join(' | ')}`));
     }
   }
 }
