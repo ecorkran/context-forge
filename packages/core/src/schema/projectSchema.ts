@@ -3,7 +3,7 @@
  * aliases, phase maps, and enum definitions.
  */
 
-export type FieldGroup = 'identity' | 'artifacts' | 'workflow' | 'metadata';
+export type FieldGroup = 'identity' | 'artifacts' | 'workflow' | 'metadata' | 'custom';
 
 export interface FieldDefinition {
   field: string;
@@ -80,6 +80,11 @@ export const PROJECT_FIELDS: FieldDefinition[] = [
   // Metadata
   { field: 'createdAt', type: 'string', required: false, readonly: true, group: 'metadata', description: 'Timestamp of project creation', aliases: [], label: 'Created' },
   { field: 'updatedAt', type: 'string', required: false, readonly: true, group: 'metadata', description: 'Timestamp of last update', aliases: [], label: 'Updated' },
+
+  // Custom
+  { field: 'customData.recentEvents', type: 'string', required: false, readonly: false, group: 'custom', description: 'State summary and recent events', aliases: ['events'], label: 'Recent Events' },
+  { field: 'customData.additionalNotes', type: 'string', required: false, readonly: false, group: 'custom', description: 'Phase instructions and notes', aliases: ['notes'], label: 'Notes' },
+  { field: 'customData.availableTools', type: 'string', required: false, readonly: false, group: 'custom', description: 'Available tools for context', aliases: ['tools'], label: 'Tools' },
 ];
 
 /** Maps aliases to canonical field names, derived from PROJECT_FIELDS. */
@@ -151,7 +156,7 @@ export function validateFieldValue(
 }
 
 /** Field group display order. */
-export const FIELD_GROUPS: FieldGroup[] = ['identity', 'artifacts', 'workflow', 'metadata'];
+export const FIELD_GROUPS: FieldGroup[] = ['identity', 'artifacts', 'workflow', 'metadata', 'custom'];
 
 /**
  * Returns the full schema structure for external consumption (MCP, CLI --schema).

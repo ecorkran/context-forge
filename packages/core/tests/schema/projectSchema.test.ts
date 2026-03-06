@@ -152,12 +152,52 @@ describe('projectSchema', () => {
         hld: 'fileHLD',
         spec: 'fileSpec',
         path: 'projectPath',
+        events: 'customData.recentEvents',
+        notes: 'customData.additionalNotes',
+        tools: 'customData.availableTools',
       });
     });
 
     it('groups array has correct order', () => {
       const schema = getSchema();
-      expect(schema.groups).toEqual(['identity', 'artifacts', 'workflow', 'metadata']);
+      expect(schema.groups).toEqual(['identity', 'artifacts', 'workflow', 'metadata', 'custom']);
+    });
+  });
+
+  describe('customData fields', () => {
+    it('resolves customData aliases to dot-notation canonical names', () => {
+      expect(resolveFieldName('events')).toBe('customData.recentEvents');
+      expect(resolveFieldName('notes')).toBe('customData.additionalNotes');
+      expect(resolveFieldName('tools')).toBe('customData.availableTools');
+    });
+
+    it('resolves customData aliases case-insensitively', () => {
+      expect(resolveFieldName('Events')).toBe('customData.recentEvents');
+      expect(resolveFieldName('NOTES')).toBe('customData.additionalNotes');
+      expect(resolveFieldName('Tools')).toBe('customData.availableTools');
+    });
+
+    it('passes through canonical dot-notation names', () => {
+      expect(resolveFieldName('customData.recentEvents')).toBe('customData.recentEvents');
+      expect(resolveFieldName('customData.additionalNotes')).toBe('customData.additionalNotes');
+      expect(resolveFieldName('customData.availableTools')).toBe('customData.availableTools');
+    });
+
+    it('schema fields include all three customData entries', () => {
+      const schema = getSchema();
+      const fieldNames = schema.fields.map((f) => f.field);
+      expect(fieldNames).toContain('customData.recentEvents');
+      expect(fieldNames).toContain('customData.additionalNotes');
+      expect(fieldNames).toContain('customData.availableTools');
+    });
+
+    it('customData fields are in the custom group and not readonly', () => {
+      const customFields = PROJECT_FIELDS.filter((f) => f.group === 'custom');
+      expect(customFields).toHaveLength(3);
+      for (const f of customFields) {
+        expect(f.readonly).toBe(false);
+        expect(f.required).toBe(false);
+      }
     });
   });
 
