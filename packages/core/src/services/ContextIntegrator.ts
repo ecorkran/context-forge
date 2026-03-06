@@ -110,6 +110,10 @@ export class ContextIntegrator {
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
       dateProject: project.dateProject || new Date().toISOString().split('T')[0],
+      fileArch: project.fileArch || '',
+      fileSlicePlan: project.fileSlicePlan || '',
+      fileHLD: project.fileHLD || '',
+      fileSpec: project.fileSpec || '',
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
       availableTools,
@@ -135,6 +139,10 @@ export class ContextIntegrator {
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
       workType: project.workType || 'continue',
       dateProject: project.dateProject || new Date().toISOString().split('T')[0],
+      fileArch: project.fileArch || '',
+      fileSlicePlan: project.fileSlicePlan || '',
+      fileHLD: project.fileHLD || '',
+      fileSpec: project.fileSpec || '',
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || ''
     };

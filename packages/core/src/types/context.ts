@@ -10,6 +10,10 @@ export interface ContextData {
   fileTasks: string;
   instruction: string;
   developmentPhase?: string;
+  fileArch?: string;
+  fileSlicePlan?: string;
+  fileHLD?: string;
+  fileSpec?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;
   recentEvents: string;

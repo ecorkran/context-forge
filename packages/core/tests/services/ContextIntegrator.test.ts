@@ -145,6 +145,46 @@ describe('ContextIntegrator', () => {
     });
   });
 
+  describe('artifact field mapping', () => {
+    it('maps artifact fields from ProjectData to context', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        fileArch: '160-arch.project-workflow-system',
+        fileSlicePlan: '160-slices.project-workflow-system',
+        fileHLD: '050-arch.hld-context-forge',
+        fileSpec: '100-spec.api-design',
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.fileArch).toBe('160-arch.project-workflow-system');
+      expect(contextData.fileSlicePlan).toBe('160-slices.project-workflow-system');
+      expect(contextData.fileHLD).toBe('050-arch.hld-context-forge');
+      expect(contextData.fileSpec).toBe('100-spec.api-design');
+    });
+
+    it('defaults artifact fields to empty string when undefined', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        fileArch: undefined,
+        fileSlicePlan: undefined,
+        fileHLD: undefined,
+        fileSpec: undefined,
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.fileArch).toBe('');
+      expect(contextData.fileSlicePlan).toBe('');
+      expect(contextData.fileHLD).toBe('');
+      expect(contextData.fileSpec).toBe('');
+    });
+  });
+
   describe('getDefaultTemplate', () => {
     it('returns non-empty template string', () => {
       const integrator = new ContextIntegrator(createMockEngine());
