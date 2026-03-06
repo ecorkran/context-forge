@@ -4,6 +4,6 @@ argument-hint: [--phase <phase>] [--slice <slice>]
 allowed-tools: Bash(cf:*)
 ---
 
-**Context Forge — Build Context Prompt**
+Present the following context prompt exactly as shown, with no additional commentary or interpretation:
 
 !`cf build $ARGUMENTS`
