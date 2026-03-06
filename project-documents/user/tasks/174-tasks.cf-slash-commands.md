@@ -132,38 +132,38 @@ status: in_progress
 
 **Effort: 2/5**
 
-- [ ] **Create `packages/cli/tests/commands/commandInstaller.test.ts`**
-  - [ ] **Test: `getSourceCommandsDir` resolves to existing directory**
-    - [ ] Call the function and verify the returned path contains `commands` and the directory exists
-  - [ ] **Test: fresh install copies all four command files**
-    - [ ] Use a temp directory as target
-    - [ ] Call `installCommands(tempDir)`
-    - [ ] Verify `<tempDir>/cf/status.md`, `build.md`, `next.md`, `prompt.md` all exist
-    - [ ] Verify file contents match source files
-  - [ ] **Test: install is idempotent (overwrite)**
-    - [ ] Run `installCommands(tempDir)` twice
-    - [ ] Verify files still exist and match source
-  - [ ] **Test: uninstall removes command files**
-    - [ ] Install first, then call `uninstallCommands(tempDir)`
-    - [ ] Verify all four files are removed
-    - [ ] Verify `<tempDir>/cf/` directory is removed (was empty)
-  - [ ] **Test: uninstall preserves user-added files**
-    - [ ] Install, then add a custom file `<tempDir>/cf/custom.md`
-    - [ ] Call `uninstallCommands(tempDir)`
-    - [ ] Verify four cf files are removed but `custom.md` and `cf/` directory remain
-  - [ ] **Test: uninstall when not installed (idempotent)**
-    - [ ] Call `uninstallCommands(tempDir)` on empty temp directory
-    - [ ] Verify no error thrown
-  - [ ] **Test: custom target directory**
-    - [ ] Pass a non-default temp directory to both install and uninstall
-    - [ ] Verify files are placed in and removed from the custom location
-  - [ ] **Test: command files have valid YAML frontmatter**
-    - [ ] Read each installed `.md` file
-    - [ ] Verify it starts with `---` and contains `description:` and `allowed-tools:`
+- [x] **Create `packages/cli/tests/commands/commandInstaller.test.ts`**
+  - [x] **Test: `getSourceCommandsDir` resolves to existing directory**
+    - [x] Call the function and verify the returned path contains `commands` and the directory exists
+  - [x] **Test: fresh install copies all four command files**
+    - [x] Use a temp directory as target
+    - [x] Call `installCommands(tempDir)`
+    - [x] Verify `<tempDir>/cf/status.md`, `build.md`, `next.md`, `prompt.md` all exist
+    - [x] Verify file contents match source files
+  - [x] **Test: install is idempotent (overwrite)**
+    - [x] Run `installCommands(tempDir)` twice
+    - [x] Verify files still exist and match source
+  - [x] **Test: uninstall removes command files**
+    - [x] Install first, then call `uninstallCommands(tempDir)`
+    - [x] Verify all four files are removed
+    - [x] Verify `<tempDir>/cf/` directory is removed (was empty)
+  - [x] **Test: uninstall preserves user-added files**
+    - [x] Install, then add a custom file `<tempDir>/cf/custom.md`
+    - [x] Call `uninstallCommands(tempDir)`
+    - [x] Verify four cf files are removed but `custom.md` and `cf/` directory remain
+  - [x] **Test: uninstall when not installed (idempotent)**
+    - [x] Call `uninstallCommands(tempDir)` on empty temp directory
+    - [x] Verify no error thrown
+  - [x] **Test: custom target directory**
+    - [x] Pass a non-default temp directory to both install and uninstall
+    - [x] Verify files are placed in and removed from the custom location
+  - [x] **Test: command files have valid YAML frontmatter**
+    - [x] Read each installed `.md` file
+    - [x] Verify it starts with `---` and contains `description:` and `allowed-tools:`
 
-- [ ] **Success**: `pnpm --filter @context-forge/cli test` passes; all new tests pass
+- [x] **Success**: `pnpm --filter @context-forge/cli test` passes; all new tests pass
 
-- [ ] **Commit**: `test(cli): add install/uninstall command tests`
+- [x] **Commit**: `test(cli): add install/uninstall command tests`
 
 ---
 
