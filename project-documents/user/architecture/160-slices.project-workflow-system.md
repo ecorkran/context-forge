@@ -283,6 +283,26 @@ After this slice, a developer can type `cf status` to see where a project stands
 
 
 
+15. [ ] **(175) Context Output Consolidation & Template Variable Completion** — Streamline the generated context prompt by eliminating redundancy across the three introductory sections (project-info block, context-init prompt, resource-structure section), using canonical schema field names throughout, and ensuring all project fields — including `fileArch` and `fileSlicePlan` — are available as template variables in prompt rendering.
+
+   Currently the context output repeats project/slice/task information three times with inconsistent field names (`currentDate` vs `dateProject`, `slice` vs `fileSlice`, `taskFile` vs `fileTasks`). The `template` field is included despite being rarely meaningful (e.g., "templates/react" for a Python project). The `fileArch` and `fileSlicePlan` fields exist in `ProjectData` and the schema but are absent from both `ContextData`/`EnhancedContextData` and the template variable map — so system prompts that reference `{fileArch}` or `{fileSlicePlan}` get no substitution. The start/continue distinction in the opening statement adds no value.
+
+   This slice consolidates the three sections into a single clean project context block in core, adds the missing artifact fields to `ContextData`/`EnhancedContextData` and the `TemplateProcessor` variable map, and specifies (but does not implement) required changes to the system prompt file maintained in the ai-project-guide repository.
+
+   **Value:** Cleaner, non-redundant context output that includes all relevant project artifacts. System prompts can reference `{fileArch}`, `{fileSlicePlan}`, `{fileHLD}`, `{fileSpec}` and get correct substitution. Reduces token waste from repeated information. Simpler opening statement.
+   **Success Criteria:**
+   - Generated context contains project information exactly once (no triple repetition)
+   - All `ProjectData` artifact fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) available as template variables
+   - System prompts using `{fileArch}`, `{fileSlicePlan}` etc. get correct substitution
+   - `template` field omitted from context output (or included only when explicitly non-default and meaningful)
+   - Opening statement simplified: no start/continue distinction
+   - Schema field names used consistently (not aliases like `currentDate`, `taskFile`)
+   - Changes to system prompt file documented as a spec for the ai-project-guide maintainer (not implemented in this slice)
+   - All existing tests pass (updated as needed)
+   **Dependencies:** [161 — Schema Standardization] (complete), [171 — Project Schema] (complete)
+   **Risk:** Medium — touches the primary output pipeline; prompt file changes require coordination with ai-project-guide
+   **Effort:** 2/5
+
 ## Integration Work
 
 8. [ ] **(168) Integration Testing and Documentation** — MCP-level integration tests that exercise the new tools end-to-end via protocol, covering cross-slice interactions that unit tests within individual slices cannot reach. Fixture projects representing realistic multi-state scenarios: a project mid-way through a slice plan, a project with inconsistencies across artifact layers, a project with no methodology artifacts at all. Update `context-forge-mcp` README with new tool documentation. Update root monorepo README. If npm packages are published, version bump for new capabilities.
