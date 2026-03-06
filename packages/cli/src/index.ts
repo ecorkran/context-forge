@@ -13,6 +13,7 @@ import { registerCheckCommand } from './commands/check.js';
 import { registerPromptCommand } from './commands/prompt.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerGuidesCommand } from './commands/guides.js';
+import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -45,6 +46,8 @@ registerCheckCommand(program);
 registerPromptCommand(program);
 registerInitCommand(program);
 registerGuidesCommand(program);
+registerInstallCommandsCommand(program);
+registerUninstallCommandsCommand(program);
 
 // Top-level shortcuts for project get/set
 program

@@ -9,6 +9,7 @@
   },
   "files": [
     "dist",
+    "commands",
     "README.md"
   ],
   "scripts": {

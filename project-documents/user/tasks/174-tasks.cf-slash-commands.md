@@ -82,32 +82,32 @@ status: in_progress
 
 **Effort: 2/5**
 
-- [ ] **Create `packages/cli/src/commands/commandInstaller.ts`**
-  - [ ] Implement `getSourceCommandsDir(): string`
-    - [ ] Use `fileURLToPath(import.meta.url)` to locate the script
-    - [ ] Resolve `../../commands/` relative to the dist output directory (script is at `dist/commands/commandInstaller.js`)
-    - [ ] Throw descriptive error if resolved directory does not exist
-  - [ ] Implement `installCommands(targetDir: string): void`
-    - [ ] Create `<targetDir>/cf/` with `mkdirSync({ recursive: true })`
-    - [ ] Read command files from source `cf/` directory with `readdirSync`, filter to `.md` files
-    - [ ] Copy each `.md` file to `<targetDir>/cf/` using `copyFileSync`
-    - [ ] Return list of installed filenames for confirmation output
-  - [ ] Implement `uninstallCommands(targetDir: string): void`
-    - [ ] Define known command filenames: `['status.md', 'build.md', 'next.md', 'prompt.md']`
-    - [ ] Remove each file from `<targetDir>/cf/` if it exists (no error if missing)
-    - [ ] After removal, check if `<targetDir>/cf/` is empty; if so, remove the directory
-    - [ ] Do not remove user-added files in `<targetDir>/cf/`
-    - [ ] Return list of removed filenames for confirmation output
-  - [ ] Export `registerInstallCommandsCommand(program: Command): void`
-    - [ ] Register `install-commands` command with `--target <dir>` option
-    - [ ] Default target: `path.join(os.homedir(), '.claude', 'commands')`
-    - [ ] Call `installCommands(target)`, print success with list of commands
-  - [ ] Export `registerUninstallCommandsCommand(program: Command): void`
-    - [ ] Register `uninstall-commands` command with `--target <dir>` option
-    - [ ] Default target: same as install
-    - [ ] Call `uninstallCommands(target)`, print success with list of removed commands
+- [x] **Create `packages/cli/src/commands/commandInstaller.ts`**
+  - [x] Implement `getSourceCommandsDir(): string`
+    - [x] Use `fileURLToPath(import.meta.url)` to locate the script
+    - [x] Resolve `../../commands/` relative to the dist output directory (script is at `dist/commands/commandInstaller.js`)
+    - [x] Throw descriptive error if resolved directory does not exist
+  - [x] Implement `installCommands(targetDir: string): void`
+    - [x] Create `<targetDir>/cf/` with `mkdirSync({ recursive: true })`
+    - [x] Read command files from source `cf/` directory with `readdirSync`, filter to `.md` files
+    - [x] Copy each `.md` file to `<targetDir>/cf/` using `copyFileSync`
+    - [x] Return list of installed filenames for confirmation output
+  - [x] Implement `uninstallCommands(targetDir: string): void`
+    - [x] Define known command filenames: `['status.md', 'build.md', 'next.md', 'prompt.md']`
+    - [x] Remove each file from `<targetDir>/cf/` if it exists (no error if missing)
+    - [x] After removal, check if `<targetDir>/cf/` is empty; if so, remove the directory
+    - [x] Do not remove user-added files in `<targetDir>/cf/`
+    - [x] Return list of removed filenames for confirmation output
+  - [x] Export `registerInstallCommandsCommand(program: Command): void`
+    - [x] Register `install-commands` command with `--target <dir>` option
+    - [x] Default target: `path.join(os.homedir(), '.claude', 'commands')`
+    - [x] Call `installCommands(target)`, print success with list of commands
+  - [x] Export `registerUninstallCommandsCommand(program: Command): void`
+    - [x] Register `uninstall-commands` command with `--target <dir>` option
+    - [x] Default target: same as install
+    - [x] Call `uninstallCommands(target)`, print success with list of removed commands
 
-- [ ] **Success**: Module compiles; `pnpm --filter @context-forge/cli typecheck` passes
+- [x] **Success**: Module compiles; `pnpm --filter @context-forge/cli typecheck` passes
 
 ---
 
@@ -115,16 +115,16 @@ status: in_progress
 
 **Effort: 1/5**
 
-- [ ] **Update `packages/cli/src/index.ts`**
-  - [ ] Import `registerInstallCommandsCommand` and `registerUninstallCommandsCommand` from `./commands/commandInstaller.js`
-  - [ ] Call both registration functions with `program` (after existing command registrations)
+- [x] **Update `packages/cli/src/index.ts`**
+  - [x] Import `registerInstallCommandsCommand` and `registerUninstallCommandsCommand` from `./commands/commandInstaller.js`
+  - [x] Call both registration functions with `program` (after existing command registrations)
 
-- [ ] **Update `packages/cli/package.json`**
-  - [ ] Add `"commands"` to the `files` array: `["dist", "commands", "README.md"]`
+- [x] **Update `packages/cli/package.json`**
+  - [x] Add `"commands"` to the `files` array: `["dist", "commands", "README.md"]`
 
-- [ ] **Success**: `pnpm --filter @context-forge/cli build` succeeds; `cf --help` shows `install-commands` and `uninstall-commands`
+- [x] **Success**: `pnpm --filter @context-forge/cli build` succeeds; `cf --help` shows `install-commands` and `uninstall-commands`
 
-- [ ] **Commit**: `feat(cli): add install-commands and uninstall-commands for Claude Code`
+- [x] **Commit**: `feat(cli): add install-commands and uninstall-commands for Claude Code`
 
 ---
 
