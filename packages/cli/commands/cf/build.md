@@ -4,6 +4,6 @@ argument-hint: [--phase <phase>] [--slice <slice>]
 allowed-tools: Bash(cf:*)
 ---
 
-Build the context prompt for the current project.
+**Context Forge — Build Context Prompt**
 
-!`cf build $ARGUMENTS 2>/dev/null`
+!`cf build $ARGUMENTS`
