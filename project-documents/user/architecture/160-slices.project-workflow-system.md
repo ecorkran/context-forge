@@ -283,7 +283,7 @@ After this slice, a developer can type `cf status` to see where a project stands
 
 
 
-15. [ ] **(175) Context Output Consolidation & Template Variable Completion** — Streamline the generated context prompt by eliminating redundancy across the three introductory sections (project-info block, context-init prompt, resource-structure section), using canonical schema field names throughout, and ensuring all project fields — including `fileArch` and `fileSlicePlan` — are available as template variables in prompt rendering.
+15. [x] **(175) Context Output Consolidation & Template Variable Completion** — Streamline the generated context prompt by eliminating redundancy across the three introductory sections (project-info block, context-init prompt, resource-structure section), using canonical schema field names throughout, and ensuring all project fields — including `fileArch` and `fileSlicePlan` — are available as template variables in prompt rendering.
 
    Currently the context output repeats project/slice/task information three times with inconsistent field names (`currentDate` vs `dateProject`, `slice` vs `fileSlice`, `taskFile` vs `fileTasks`). The `template` field is included despite being rarely meaningful (e.g., "templates/react" for a Python project). The `fileArch` and `fileSlicePlan` fields exist in `ProjectData` and the schema but are absent from both `ContextData`/`EnhancedContextData` and the template variable map — so system prompts that reference `{fileArch}` or `{fileSlicePlan}` get no substitution. The start/continue distinction in the opening statement adds no value.
 

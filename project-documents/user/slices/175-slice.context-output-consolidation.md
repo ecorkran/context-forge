@@ -6,7 +6,7 @@ sliceIndex: 175
 sliceName: context-output-consolidation
 dateCreated: 20260306
 dateUpdated: 20260306
-status: design
+status: complete
 ---
 
 # Slice 175: Context Output Consolidation & Template Variable Completion
@@ -253,17 +253,17 @@ Generated context output  -- clean, non-redundant
 
 ## Success Criteria
 
-- [ ] Generated context contains project information exactly once (no triple repetition)
-- [ ] `fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec` available as template variables
-- [ ] System prompts using `{fileArch}`, `{fileSlicePlan}` etc. get correct substitution
-- [ ] `archIndex` and `planIndex` extracted and available as template variables
-- [ ] Opening statement simplified (single statement, no start/continue branch)
-- [ ] Schema field names used consistently in output (`fileSlice` not `slice`, `dateProject` not `currentDate`)
-- [ ] `template` omitted from project context block (or shown only when meaningful)
-- [ ] System prompt file changes documented as spec (not implemented)
-- [ ] `cf set phase N` auto-sets `instruction` to match; setting `instruction` directly does not touch phase
-- [ ] All existing tests pass with updates
-- [ ] `cf build` output is visibly cleaner and shorter
+- [x] Generated context contains project information exactly once (no triple repetition)
+- [x] `fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec` available as template variables
+- [x] System prompts using `{fileArch}`, `{fileSlicePlan}` etc. get correct substitution
+- [x] `archIndex` and `planIndex` extracted and available as template variables
+- [x] Opening statement simplified (single statement, no start/continue branch)
+- [x] Schema field names used consistently in output (`fileSlice` not `slice`, `dateProject` not `currentDate`)
+- [x] `template` omitted from project context block (or shown only when meaningful)
+- [x] System prompt file changes documented as spec (not implemented)
+- [x] `cf set phase N` auto-sets `instruction` to match; setting `instruction` directly does not touch phase
+- [x] All existing tests pass with updates
+- [x] `cf build` output is visibly cleaner and shorter
 
 ## Out of Scope
 
