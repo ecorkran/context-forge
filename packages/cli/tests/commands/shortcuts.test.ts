@@ -6,6 +6,7 @@ import { handleError } from '../../src/utils/errors.js';
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
+const mockResolveFileByIndex = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -16,6 +17,7 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
   })),
+  resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
 
 const sampleProject = {
@@ -211,5 +213,55 @@ describe('cf get (top-level shortcut)', () => {
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
     expect(parsed.id).toBe('proj_001');
+  });
+});
+
+describe('cf set index resolution', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('resolves numeric value for artifact field via resolveFileByIndex', async () => {
+    mockResolveFileByIndex.mockReturnValue('171-slice.project-schema');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'slice', '171']);
+
+    expect(mockResolveFileByIndex).toHaveBeenCalledWith('/tmp/test', 'fileSlice', '171');
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '171-slice.project-schema' });
+  });
+
+  it('passes through non-numeric values without index resolution', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'slice', 'some-name']);
+
+    expect(mockResolveFileByIndex).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: 'some-name' });
+  });
+
+  it('shows error when index resolution fails', async () => {
+    mockResolveFileByIndex.mockImplementation(() => {
+      throw new Error("No file matching index '999' for field 'fileSlice'");
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'slice', '999']);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('No file matching index'),
+    );
+  });
+
+  it('does not trigger index resolution for non-artifact fields with numeric values', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'set', 'name', '42']);
+
+    expect(mockResolveFileByIndex).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { name: '42' });
   });
 });

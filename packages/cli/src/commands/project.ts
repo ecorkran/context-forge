@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as readline from 'node:readline';
 import { Command } from 'commander';
-import { FileProjectStore, ConfigManager } from '@context-forge/core/node';
+import { FileProjectStore, ConfigManager, resolveFileByIndex } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -131,6 +131,18 @@ export async function projectSetAction(
   const existing = await store.getById(id);
   if (!existing) {
     throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+
+  // Index-based file resolution: cf set slice 171 → scans for matching file
+  if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && existing.projectPath) {
+    try {
+      const resolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
+      if (resolved !== null) {
+        resolvedValue = resolved;
+      }
+    } catch (err) {
+      throw new UserError((err as Error).message);
+    }
   }
 
   // customData fields use dot-notation; merge into the nested object
