@@ -129,44 +129,46 @@ export class SectionBuilder {
    */
   async buildProjectInfoSection(data: EnhancedContextData): Promise<string> {
     try {
-      const infoLines: string[] = [];
+      const lines: string[] = [];
 
-      // Always include project name
-      infoLines.push(`  project: ${data.projectName}`);
+      lines.push(`Project: ${data.projectName}`);
 
-      // Include template when non-default
-      if (data.template && data.template !== 'default') {
-        infoLines.push(`  template: ${data.template}`);
-      }
-
-      // Include current date if present (helps AI understand today's date)
-      if (data.dateProject) {
-        infoLines.push(`  currentDate: ${data.dateProject}`);
-      }
-
-      // Include slice if present, or null if empty
-      if (data.fileSlice && data.fileSlice.trim()) {
-        infoLines.push(`  slice: ${data.fileSlice}`);
-      } else {
-        infoLines.push(`  slice: null`);
-      }
-
-      // Include task file if present
-      if (data.fileTasks && data.fileTasks.trim()) {
-        infoLines.push(`  taskFile: ${data.fileTasks}`);
-      } else {
-        infoLines.push(`  taskFile: null`);
-      }
-
-      // Include development phase if present
       if (data.developmentPhase) {
-        infoLines.push(`  phase: ${data.developmentPhase}`);
+        lines.push(`Phase: ${data.developmentPhase}`);
       }
 
-      return `### Current Work Context\n[\n${infoLines.join(',\n')}\n]`;
+      if (data.dateProject) {
+        lines.push(`Date: ${data.dateProject}`);
+      }
+
+      if (data.fileSlice && data.fileSlice.trim()) {
+        lines.push(`Slice: ${data.fileSlice}`);
+      }
+
+      if (data.fileTasks && data.fileTasks.trim()) {
+        lines.push(`Tasks: ${data.fileTasks}`);
+      }
+
+      if (data.fileArch && data.fileArch.trim()) {
+        lines.push(`Architecture: ${data.fileArch}`);
+      }
+
+      if (data.fileSlicePlan && data.fileSlicePlan.trim()) {
+        lines.push(`Slice Plan: ${data.fileSlicePlan}`);
+      }
+
+      if (data.fileHLD && data.fileHLD.trim()) {
+        lines.push(`HLD: ${data.fileHLD}`);
+      }
+
+      if (data.fileSpec && data.fileSpec.trim()) {
+        lines.push(`Spec: ${data.fileSpec}`);
+      }
+
+      return `### Project Context\n${lines.join('\n')}`;
     } catch (error: unknown) {
       console.error('Error building project info section:', error);
-      return `### Current Work Context\n[\n  project: ${data.projectName || 'unknown'}\n]`;
+      return `### Project Context\nProject: ${data.projectName || 'unknown'}`;
     }
   }
 

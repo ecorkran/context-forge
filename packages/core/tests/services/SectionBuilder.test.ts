@@ -91,7 +91,16 @@ describe('SectionBuilder', () => {
   });
 
   describe('buildProjectInfoSection', () => {
-    it('includes project name and slice', async () => {
+    it('uses ### Project Context heading', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData();
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).toContain('### Project Context');
+      expect(result).not.toContain('### Current Work Context');
+    });
+
+    it('uses key-value format without brackets or commas', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({
         projectName: 'my-project',
@@ -99,52 +108,88 @@ describe('SectionBuilder', () => {
       });
 
       const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('project: my-project');
-      expect(result).toContain('slice: 100-slice.auth');
+      expect(result).toContain('Project: my-project');
+      expect(result).toContain('Slice: 100-slice.auth');
+      expect(result).not.toContain('[');
+      expect(result).not.toContain(']');
+      expect(result).not.toMatch(/,\n/);
     });
 
-    it('includes template when non-default', async () => {
+    it('does not include template field', async () => {
       const builder = createBuilder();
-      const data = createTestEnhancedContextData({
-        template: 'packages/core',
-      });
-
-      const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('template: packages/core');
-    });
-
-    it('omits template when default', async () => {
-      const builder = createBuilder();
-      const data = createTestEnhancedContextData({
-        template: 'default',
-      });
+      const data = createTestEnhancedContextData({ template: 'packages/core' });
 
       const result = await builder.buildProjectInfoSection(data);
       expect(result).not.toContain('template:');
+      expect(result).not.toContain('Template:');
     });
 
-    it('shows null for empty fileSlice', async () => {
+    it('omits Slice when fileSlice is empty', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({ fileSlice: '' });
 
       const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('slice: null');
+      expect(result).not.toContain('Slice:');
     });
 
-    it('includes development phase when present', async () => {
+    it('includes Phase when present', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({ developmentPhase: 'Phase 6: Implementation' });
 
       const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('phase: Phase 6: Implementation');
+      expect(result).toContain('Phase: Phase 6: Implementation');
     });
 
-    it('includes project date when present', async () => {
+    it('includes Date when present', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({ dateProject: '2026-02-22' });
 
       const result = await builder.buildProjectInfoSection(data);
-      expect(result).toContain('currentDate: 2026-02-22');
+      expect(result).toContain('Date: 2026-02-22');
+    });
+
+    it('includes Architecture when fileArch is populated', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({ fileArch: '160-arch.project-workflow-system' });
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).toContain('Architecture: 160-arch.project-workflow-system');
+    });
+
+    it('includes Slice Plan when fileSlicePlan is populated', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({ fileSlicePlan: '160-slices.project-workflow-system' });
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).toContain('Slice Plan: 160-slices.project-workflow-system');
+    });
+
+    it('omits Architecture when fileArch is empty', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({ fileArch: '' });
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).not.toContain('Architecture:');
+    });
+
+    it('omits Slice Plan when fileSlicePlan is empty', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({ fileSlicePlan: '' });
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).not.toContain('Slice Plan:');
+    });
+
+    it('includes HLD and Spec when populated', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({
+        fileHLD: '050-arch.hld-context-forge',
+        fileSpec: '100-spec.api-design',
+      });
+
+      const result = await builder.buildProjectInfoSection(data);
+      expect(result).toContain('HLD: 050-arch.hld-context-forge');
+      expect(result).toContain('Spec: 100-spec.api-design');
     });
   });
 
