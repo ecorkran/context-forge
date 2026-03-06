@@ -1,6 +1,6 @@
 {
   "name": "@context-forge/core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Core context generation engine for Context Forge — template processing, project state, prompt assembly",
   "type": "module",
   "main": "dist/index.js",

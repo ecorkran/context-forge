@@ -2,35 +2,55 @@
 
 Terminal interface for Context Forge — context assembly, project management, workflow navigation, and configuration.
 
+## How It Works
+
+`cf` works like `git` — install it globally and it automatically detects your project based on your current working directory. No configuration files to manage per-project; just `cd` into any registered project and run commands.
+
 ## Installation
 
-From the monorepo root:
-
 ```bash
-pnpm install
-pnpm --filter @context-forge/cli build
-```
-
-The `cf` binary is available via the workspace. For global install (future):
-
-```bash
+# Install globally
 npm install -g @context-forge/cli
+
+# Initialize a project (from the project root)
+cd ~/repos/my-project
+cf init
+
+# Install the ai-project-guide templates (recommended)
+cf guides install
+
+# Install Claude Code slash commands (recommended)
+cf install-commands
 ```
+
+`cf init` registers the current directory as a Context Forge project. `cf guides install` bootstraps the [ai-project-guide](https://github.com/ecorkran/ai-project-guide) prompt templates that Context Forge's context engine is designed around. `cf install-commands` adds `/cf:*` slash commands to Claude Code.
 
 ## Quick Start
 
 ```bash
-# Set your default project (by name or ID)
-cf config set default_project orchestration
+# All commands are discoverable
+cf --help
+cf project --help
+#etc. 
 
-# Check project status (auto-detects from CWD)
-cd ~/repos/orchestration && cf status
+# Check project status
+cf status
 
 # Generate a context prompt and copy to clipboard
 cf build | pbcopy
 
 # Generate with phase override
 cf build --phase task-breakdown
+
+# Set project fields
+cf set phase 6
+cf set slice 175
+
+# Confirm updates (if you like)
+cf status
+
+# Detailed information
+cf project get
 
 # View available prompt templates
 cf prompt list
@@ -39,25 +59,52 @@ cf prompt list
 cf prompt get P5
 ```
 
-## Commands
+## Claude Code Slash Commands
+
+When installed via `cf install-commands`, these slash commands are available directly in Claude Code sessions:
+
+| Command | Description |
+|---------|-------------|
+| `/cf:build` | Build a context prompt (accepts `--phase`, `--slice` flags) |
+| `/cf:status` | Show project workflow status |
+| `/cf:get` | Show all project fields |
+| `/cf:set` | Set a project field (e.g., `/cf:set phase 6`) |
+| `/cf:prompt` | Get or list prompt templates (e.g., `/cf:prompt P5` or `/cf:prompt list`) |
+| `/cf:project` | Manage projects (e.g., `/cf:project list`, `/cf:project --schema`) |
+| `/cf:next` | Show recommended next action |
+
+Each command runs `cf` under the hood — same CWD-based project resolution, same output.
+
+## Commands Reference
 
 | Command | Usage | Description |
 |---------|-------|-------------|
+| `cf init` | `cf init` | Register the current directory as a Context Forge project |
 | `cf status` | `cf status [--project <id>] [--json]` | Show workflow status for the active project |
 | `cf next` | `cf next [--project <id>] [--json]` | Show recommended next action |
 | `cf build` | `cf build [--project <id>] [--phase] [--slice] [--instruction] [--tasks] [--additional]` | Generate context prompt to stdout |
+| `cf set` | `cf set <field> <value>` | Set a project field (shortcut for `cf project set`) |
+| `cf get` | `cf get [--json]` | Show all project fields (shortcut for `cf project get`) |
 | `cf config` | `cf config list\|get\|set` | Manage configuration |
-| `cf project` | `cf project list\|get\|set` | Manage projects |
+| `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
 | `cf future` | `cf future [--project <id>] [--status <filter>] [--json]` | Show consolidated future work |
-| `cf check` | `cf check [--fix] [--json]` | Run consistency checks (stub — depends on slice 166) |
+| `cf check` | `cf check [--fix] [--json]` | Run consistency checks |
 | `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates with variable substitution |
-| `cf set` | `cf set <field> <value>` | Shortcut for `cf project set` |
-| `cf get` | `cf get [--json]` | Shortcut for `cf project get` |
+| `cf guides` | `cf guides install\|status\|update` | Manage ai-project-guide templates |
 
 ## Common Options
 
-- `--project <name|id>` — Override the default project by name or ID (available on most commands)
+- `--project <name|id>` — Override the active project by name or ID
 - `--json` — Output as JSON (not applicable to `build` and `prompt get`)
+
+## Project Resolution
+
+`cf` resolves which project to operate on using a priority chain:
+
+1. **`--project` flag** — highest priority. Accepts project name or ID.
+2. **CWD detection** — if the current directory is inside a registered project's path, that project is used automatically.
+
+This means you can manage multiple projects just by `cd`-ing between them — no switching commands needed.
 
 ## Phase Shorthands
 
@@ -75,31 +122,6 @@ cf prompt get P5
 
 Shorthands are derived at runtime from the project's prompt asset file.
 
-## Project Resolution
-
-`cf` resolves which project to operate on using a three-level chain:
-
-1. **`--project` flag** — highest priority. Accepts project name or ID.
-2. **CWD detection** — if the current directory is inside a registered project's path, that project is used automatically.
-3. **`default_project` config** — fallback when no flag or CWD match.
-
-`cf status` displays which method was used: `(--project flag)`, `(from CWD)`, or `(default)`.
-
-**Planned config key:** `default_additional_instruction` — not yet implemented. Will allow setting a default additional instruction appended to `cf build` output.
-
-## Architecture
-
-The CLI wraps `@context-forge/core` directly (no MCP layer), following the same pattern as the Electron package. All core services are imported from `@context-forge/core/node`.
-
-## Development
-
-```bash
-pnpm --filter @context-forge/cli build     # Compile TypeScript
-pnpm --filter @context-forge/cli dev       # Watch mode
-pnpm --filter @context-forge/cli test      # Run tests
-pnpm --filter @context-forge/cli typecheck # Type check
-```
-
 ## Phase / Instruction Auto-Set
 
 Setting the development phase automatically updates `instruction` to match:
@@ -111,6 +133,19 @@ cf set phase 6
 ```
 
 Setting `instruction` directly does not change `developmentPhase`.
+
+## Architecture
+
+The CLI wraps `@context-forge/core` directly (no MCP layer), following the same pattern as the Electron package. All core services are imported from `@context-forge/core/node`.
+
+## Development (monorepo)
+
+```bash
+pnpm --filter @context-forge/cli build     # Compile TypeScript
+pnpm --filter @context-forge/cli dev       # Watch mode
+pnpm --filter @context-forge/cli test      # Run tests
+pnpm --filter @context-forge/cli typecheck # Type check
+```
 
 ## Changelog
 
@@ -125,9 +160,9 @@ Setting `instruction` directly does not change `developmentPhase`.
 ### v0.2.0
 
 - **CWD-based project detection** — `cf` auto-detects the project from your current directory
-- **Name-based resolution** — use `--project orchestration` or `cf config set default_project orchestration` with project names instead of IDs
-- **Resolution indicators** — `cf status` shows how the project was resolved (`from CWD`, `default`, `--project flag`)
-- **Compact `cf project list`** — Name/Path/Slice/Default columns with `●` default indicator and `~` path shortening
+- **Name-based resolution** — use `--project orchestration` with project names instead of IDs
+- **Resolution indicators** — `cf status` shows how the project was resolved (`from CWD`, `--project flag`)
+- **Compact `cf project list`** — Name/Path/Slice columns with `*` active indicator and `~` path shortening
 - **Tighter output formatting** — consistent label alignment, suppressed empty fields, standardized error messages
 
 ### v0.1.0

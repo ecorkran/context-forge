@@ -1,117 +1,106 @@
 # Context Forge
 
-Context Forge generates structured context prompts for AI-assisted coding sessions. Instead of manually assembling project state, templates, and task context every time you start a session with Claude Code, Cursor, or similar tools, Context Forge builds it from your project configuration in seconds.
+Context Forge manages the full lifecycle of AI-assisted development projects — from concept through architecture, slice planning, task breakdown, implementation, and integration. It maintains traceable, hierarchical project state so that every AI session starts with full awareness of where things stand and what's next.
 
-> **This project is in active development.** The monorepo restructure is complete — the MCP server, core engine, and Electron app all work. Expect rough edges. Tested on macOS and Linux only.
+This is one project. Two weeks of work. The structure was created and tracked by Context Forge:
 
-## The Problem
+> [screenshot/image: the file explorer showing 175 slices and tasks]
 
-Every AI coding session benefits from structured context: what you're working on, what conventions to follow, what the current task is, where things are in your codebase. Building that context by hand is tedious and error-prone. Copy-pasting from multiple files, remembering to include the right template sections, keeping project state current — it adds up to several minutes per session, every session.
+Every slice has a design document. Every design has a task breakdown. Every task has completion state. Every session — whether it's you or an AI agent — picks up exactly where the last one left off, because the project state is real files with real structure, not a chat history that vanished.
 
-## What Context Forge Does
+## What It Looks Like
 
-Context Forge takes a template-driven approach to context generation:
+### Visualizer
+![Context Visualizer](assets/context-visualizer.png)
 
-- **Templates and statements** define the structure of your context prompt — sections for project state, work context, instructions, conventions, monorepo configuration, etc.
-- **Project configuration** captures what you're currently working on — active slice, task file, instruction mode, custom data fields.
-- **The context engine** assembles these into a formatted prompt you can paste into your AI coding tool.
+Visualizer is available separately at:  
+https://github.com/ecorkran/context-visualizer
 
-You configure your project once, update it as your work progresses, and generate a fresh context prompt whenever you start a new session.
+### CLI
+Everything is discoverable under the `cf` command.  Start with `cf --help`.  Easily manage multiple projects.  cf knows which one based on your current directory.  `cf init` to start a new one.  Ideally it will feel similar to git.
 
-### For CLI and Agent Users
+![cf project list output](assets/cf-project-list.png)
 
-If you use Claude Code, Cursor, or another MCP-compatible tool, you can access Context Forge directly from your AI assistant — no desktop app needed. See the [MCP server package](packages/mcp-server/README.md) for installation and configuration.
+Obtain brief status with `cf status`, detailed with `cf project get`. Use the MCP or slash-commands if you prefer.
+![cf status output](assets/cf-status.png)
 
-### Recommended: ai-project-guide
+Your AI assistant sees this too — through MCP tools, through slash commands, through the CLI. It knows the project structure, the methodology phase, the active slice, and (*very* soon) exactly which task to work on next. No "let me catch you up." No re-reading CLAUDE.md. No guessing.
 
-Context Forge works out of the box with a bundled prompt system — install the MCP server and you can start generating context immediately.
-
-For the full experience, install [ai-project-guide](https://github.com/ecorkran/ai-project-guide) into your project. The guide provides the structured development methodology that Context Forge's prompts are designed around: phase-based workflows, slice planning guides, task breakdown templates, code review rules, and IDE configuration. The generated prompts reference these guides directly, so having them available roughly doubles the value you get from the tool.
-
-```bash
-# Quick install (copies guide files into your project)
-curl -fsSL https://raw.githubusercontent.com/ecorkran/ai-project-guide/main/scripts/bootstrap.sh | bash
-```
-
-See the [ai-project-guide repo](https://github.com/ecorkran/ai-project-guide) for details on the methodology.
-
-## Quick Start
-
-### MCP Server (for Claude Code, Cursor, etc.)
+## Get Started
 
 ```bash
-# Add to Claude Code
+# Install globally
+npm install -g @context-forge/mcp @context-forge/cli
+
+# Install the methodology guides into your project
+cf guides install
+
+# Add the MCP server to Claude Code
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 
-# Or run directly
-npx @context-forge/mcp
+# Install Claude Code slash commands
+cf install-commands
 ```
 
-See the [MCP server README](packages/mcp-server/README.md) for full configuration details.
-
-### Desktop App (Electron)
-
-```bash
-git clone https://github.com/ecorkran/context-forge.git
-cd context-forge
-pnpm install
-pnpm setup-guides   # bootstrap ai-project-guide templates
-pnpm dev             # launches the Electron app with hot reload
-```
+That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context from a slash command.
 
 Requirements: Node.js 18+, pnpm 10+.
 
+## How It Works
+
+Context Forge is built around a structured development methodology called [ai-project-guide](https://github.com/ecorkran/ai-project-guide). Projects progress through phases:
+
+**Concept → Architecture → Slice Planning → Slice Design → Task Breakdown → Implementation → Integration**
+
+Each phase produces documents. Documents reference each other. Slices decompose into tasks. Tasks track completion. The whole thing is a hierarchy you can navigate, introspect, and hand off between humans and agents without losing state.
+
+Context Forge is the engine that:
+- **Knows where you are** — parses your project artifacts, reads completion states, understands methodology phase
+- **Knows what's next** — workflow navigation recommends the next action with rationale
+- **Generates session context** — assembles everything an AI agent needs into a structured prompt, automatically
+- **Tracks everything** — persistent project state, two-tier configuration, artifact introspection across all your projects
+
+It manages multiple projects simultaneously. Each one has its own slice plan, its own task state, its own methodology position.
+
+## Access Points
+
+Context Forge is available through four interfaces — use whichever fits your workflow:
+
+**MCP Server** (`@context-forge/mcp`) — [nn] tools for project management, context generation, artifact introspection, workflow navigation, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
+
+**CLI** (`@context-forge/cli`) — Terminal commands: `cf status`, `cf next`, `cf build`, `cf project`, `cf config`, `cf future`, `cf check`, `cf prompt`, `cf guides`. Pipeable output — `cf build | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
+
+**Claude Code Slash Commands** — `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`. Installed via `cf install-commands`. Your AI assistant can suggest these contextually.
+
+**Electron Desktop App** — Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.
+
 ## Architecture
 
-Context Forge is a pnpm monorepo with four packages:
+pnpm monorepo, four packages:
 
 ```
 packages/
-  core/           @context-forge/core — context engine, types, services
-  cli/            @context-forge/cli — terminal interface (`cf` command)
-  electron/       @context-forge/electron — desktop app (Electron + React)
-  mcp-server/     @context-forge/mcp — MCP server for Claude Code, Cursor, etc.
+  core/       @context-forge/core    — context engine, project state, introspection, workflow
+  mcp-server/ @context-forge/mcp     — MCP protocol server ([nn] tools)
+  cli/        @context-forge/cli     — terminal interface (cf command)
+  electron/   @context-forge/electron — desktop app
 ```
 
-**[`@context-forge/core`](packages/core/README.md)** contains the context generation pipeline: template processing, statement management, prompt parsing, section building, and project path resolution. It has no Electron dependency and can be used by any Node.js consumer.
+All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.
 
-**`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes.
+792 tests across all packages. TypeScript, strict mode, no `any`.
 
-**[`@context-forge/cli`](packages/cli/README.md)** is the terminal interface — `cf build`, `cf set`, `cf status`, `cf prompt`, and more. Direct integration with core, no MCP layer required.
+## Also
 
-**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 11+ tools for project management, context generation, template inspection, artifact introspection, session state tracking, and persistent configuration.
+**[context-visualizer](https://github.com/ecorkran/context-visualizer)** — React app that visualizes project structure through the MCP server. See your slice plans, task completion, and project hierarchy rendered visually.
 
-## Current State
+**[ai-project-guide](https://github.com/ecorkran/ai-project-guide)** — The methodology framework. Phases, guides, prompt templates, review rules, IDE configuration. This is what Context Forge's structure is built on. Install it with `cf guides install`.
 
-**What works:**
-- MCP server — 11+ tools for project management, context generation, template access, state tracking, artifact introspection, and persistent TOML configuration (109 tests)
-- CLI — terminal interface with project management, context build, prompt access, workflow navigation (133 tests)
-- Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow (106 tests)
-- Core context engine — template processing with artifact variables, statement management, prompt parsing, section building (444 tests)
-- Shared filesystem storage — both the MCP server and desktop app access the same project data
-- Two-tier TOML config — user-level and project-level config with `default_project` support (set once, omit `projectId` from all tool calls)
+## Published Packages
 
-**Published on npm:**
-- [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp) — MCP server, installable via `npx @context-forge/mcp`
-- [`@context-forge/core`](https://www.npmjs.com/package/@context-forge/core) — core engine
-
-**Planned:**
-- CI/CD pipeline for automated testing and publishing
-- Application packaging and distribution for the desktop app
-
-## Tech Stack
-
-- TypeScript (strict mode, no `any`)
-- Electron 37 + React 19 + Vite (via electron-vite)
-- Tailwind CSS 4 + Radix UI
-- pnpm workspaces
-- Vitest for testing
-
-## Contributing
-
-Issues and pull requests are welcome at [github.com/ecorkran/context-forge](https://github.com/ecorkran/context-forge). This is a personal project in active development — the codebase is changing frequently, and some areas are mid-refactor.
-
-If you're interested in the ai-project-guide methodology that Context Forge supports, that's at [github.com/ecorkran/ai-project-guide](https://github.com/ecorkran/ai-project-guide).
+- [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp)
+- [`@context-forge/cli`](https://www.npmjs.com/package/@context-forge/cli)
+- [`@context-forge/core`](https://www.npmjs.com/package/@context-forge/core)
 
 ## License
 
