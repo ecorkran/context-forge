@@ -8,11 +8,19 @@ import {
   uninstallCommands,
 } from '../../src/commands/commandInstaller.js';
 
+/** Read the source cf/ directory to determine expected command files. */
+function getExpectedFiles(): string[] {
+  const sourceDir = path.join(getSourceCommandsDir(), 'cf');
+  return fs.readdirSync(sourceDir).filter((f) => f.endsWith('.md')).sort();
+}
+
 describe('commandInstaller', () => {
   let tempDir: string;
+  let expectedFiles: string[];
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-cmd-test-'));
+    expectedFiles = getExpectedFiles();
   });
 
   afterEach(() => {
@@ -29,15 +37,11 @@ describe('commandInstaller', () => {
   });
 
   describe('installCommands', () => {
-    it('copies all four command files on fresh install', () => {
+    it('copies all command files on fresh install', () => {
       const installed = installCommands(tempDir);
 
-      expect(installed).toContain('status.md');
-      expect(installed).toContain('build.md');
-      expect(installed).toContain('next.md');
-      expect(installed).toContain('prompt.md');
-
-      for (const file of installed) {
+      for (const file of expectedFiles) {
+        expect(installed).toContain(file);
         expect(fs.existsSync(path.join(tempDir, 'cf', file))).toBe(true);
       }
     });
@@ -46,9 +50,8 @@ describe('commandInstaller', () => {
       installCommands(tempDir);
 
       const sourceDir = path.join(getSourceCommandsDir(), 'cf');
-      const files = ['status.md', 'build.md', 'next.md', 'prompt.md'];
 
-      for (const file of files) {
+      for (const file of expectedFiles) {
         const sourceContent = fs.readFileSync(path.join(sourceDir, file), 'utf8');
         const installedContent = fs.readFileSync(path.join(tempDir, 'cf', file), 'utf8');
         expect(installedContent).toBe(sourceContent);
@@ -60,7 +63,7 @@ describe('commandInstaller', () => {
       installCommands(tempDir);
 
       const files = fs.readdirSync(path.join(tempDir, 'cf'));
-      expect(files).toHaveLength(4);
+      expect(files).toHaveLength(expectedFiles.length);
     });
   });
 
@@ -69,10 +72,9 @@ describe('commandInstaller', () => {
       installCommands(tempDir);
       const removed = uninstallCommands(tempDir);
 
-      expect(removed).toContain('status.md');
-      expect(removed).toContain('build.md');
-      expect(removed).toContain('next.md');
-      expect(removed).toContain('prompt.md');
+      for (const file of expectedFiles) {
+        expect(removed).toContain(file);
+      }
 
       expect(fs.existsSync(path.join(tempDir, 'cf'))).toBe(false);
     });
@@ -85,7 +87,7 @@ describe('commandInstaller', () => {
 
       const removed = uninstallCommands(tempDir);
 
-      expect(removed).toHaveLength(4);
+      expect(removed).toHaveLength(expectedFiles.length);
       // cf/ directory still exists because custom.md remains
       expect(fs.existsSync(path.join(tempDir, 'cf'))).toBe(true);
       expect(fs.existsSync(path.join(tempDir, 'cf', 'custom.md'))).toBe(true);
@@ -102,11 +104,11 @@ describe('commandInstaller', () => {
       const customDir = path.join(tempDir, 'custom', 'location');
 
       const installed = installCommands(customDir);
-      expect(installed).toHaveLength(4);
+      expect(installed).toHaveLength(expectedFiles.length);
       expect(fs.existsSync(path.join(customDir, 'cf', 'status.md'))).toBe(true);
 
       const removed = uninstallCommands(customDir);
-      expect(removed).toHaveLength(4);
+      expect(removed).toHaveLength(expectedFiles.length);
       expect(fs.existsSync(path.join(customDir, 'cf'))).toBe(false);
     });
   });
@@ -115,9 +117,7 @@ describe('commandInstaller', () => {
     it('all command files have valid YAML frontmatter with required fields', () => {
       installCommands(tempDir);
 
-      const files = ['status.md', 'build.md', 'next.md', 'prompt.md'];
-
-      for (const file of files) {
+      for (const file of expectedFiles) {
         const content = fs.readFileSync(path.join(tempDir, 'cf', file), 'utf8');
         expect(content.startsWith('---\n')).toBe(true);
         expect(content).toContain('description:');

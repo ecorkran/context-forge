@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /** Known command files managed by install/uninstall. */
-const MANAGED_FILES = ['status.md', 'build.md', 'next.md', 'prompt.md'];
+const MANAGED_FILES = ['status.md', 'build.md', 'next.md', 'prompt.md', 'get.md', 'set.md', 'project.md'];
 
 /** Resolve the bundled commands/ directory relative to this script's location. */
 export function getSourceCommandsDir(): string {
