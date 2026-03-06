@@ -6,7 +6,7 @@ parent: user/architecture/160-slices.project-workflow-system.md
 dependencies: [168-cli-foundation]
 dateCreated: 20260306
 dateUpdated: 20260306
-status: in_progress
+status: complete
 ---
 
 # Slice Design: Claude Code Commands — cf Wrappers

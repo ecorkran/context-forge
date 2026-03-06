@@ -6,7 +6,7 @@ dependencies: [168-cli-foundation]
 projectState: Slice 173 complete. CLI has cf set/get/build/status/next/prompt/init/guides/config/project/future/check. 767 tests total (430 core, 124 CLI, 107 MCP, 106 Electron). All packages at 0.2.3.
 dateCreated: 20260306
 dateUpdated: 20260306
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -171,10 +171,10 @@ status: in_progress
 
 **Effort: 1/5**
 
-- [ ] **Full build**: `pnpm build` — all packages compile
-- [ ] **Full test**: `pnpm test` — all tests pass across all packages
-- [ ] **Manual verification** (if Claude Code is available):
-  - [ ] Run `cf install-commands` and verify files appear in `~/.claude/commands/cf/`
-  - [ ] Verify `/cf:status` appears in Claude Code (via `/help` or command palette)
-  - [ ] Run `cf uninstall-commands` and verify files are removed
-- [ ] **Commit final state if any remaining changes**
+- [x] **Full build**: `pnpm build` — all packages compile
+- [x] **Full test**: `pnpm test` — all tests pass across all packages
+- [x] **Manual verification** (if Claude Code is available):
+  - [x] Run `cf install-commands` and verify files appear in `~/.claude/commands/cf/`
+  - [x] Verify `/cf:status` appears in Claude Code (via `/help` or command palette)
+  - [x] Run `cf uninstall-commands` and verify files are removed
+- [x] **Commit final state if any remaining changes**
