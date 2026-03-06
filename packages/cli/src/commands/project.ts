@@ -163,6 +163,9 @@ export async function projectSetAction(
     const subField = resolvedField.split('.')[1];
     const merged = { ...existing.customData, [subField]: resolvedValue };
     await store.update(id, { customData: merged });
+  } else if (resolvedField === 'developmentPhase') {
+    // Auto-set instruction to match when phase changes
+    await store.update(id, { [resolvedField]: resolvedValue, instruction: resolvedValue });
   } else {
     await store.update(id, { [resolvedField]: resolvedValue });
   }
@@ -170,6 +173,9 @@ export async function projectSetAction(
   // Show alias-friendly name in confirmation
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
   console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
+  if (resolvedField === 'developmentPhase') {
+    console.log(success(`Updated instruction = ${resolvedValue} (auto-set from phase)`));
+  }
 }
 
 /** Shared action handler for `cf get` and `cf project get`. */

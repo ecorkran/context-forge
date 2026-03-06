@@ -164,6 +164,11 @@ export function registerProjectTools(server: McpServer): void {
           );
         }
 
+        // Auto-set instruction when developmentPhase changes (unless instruction is explicitly provided)
+        if ('developmentPhase' in updates && !('instruction' in updates)) {
+          (updates as Record<string, unknown>).instruction = updates.developmentPhase;
+        }
+
         await store.update(resolvedId, updates);
 
         // Read back updated project

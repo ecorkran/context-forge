@@ -219,7 +219,7 @@ describe('cf project set', () => {
     expect(output).toContain('Updated slice');
   });
 
-  it('resolves alias "phase" to developmentPhase', async () => {
+  it('resolves alias "phase" to developmentPhase and auto-sets instruction', async () => {
     mockGetById.mockResolvedValue(sampleProject);
 
     const program = createProgram();
@@ -230,35 +230,40 @@ describe('cf project set', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
       developmentPhase: 'Phase 4: Slice Design',
+      instruction: 'Phase 4: Slice Design',
     });
   });
 
-  it('resolves phase number to full phase string', async () => {
+  it('resolves phase number and auto-sets instruction', async () => {
     mockGetById.mockResolvedValue(sampleProject);
 
     const program = createProgram();
     await program.parseAsync([
-      'node', 'cf', 'project', 'set', 'phase', '4',
-      '--project', 'proj_001',
-    ]);
-
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
-      developmentPhase: 'Phase 4: Slice Design',
-    });
-  });
-
-  it('resolves phase short name', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
-
-    const program = createProgram();
-    await program.parseAsync([
-      'node', 'cf', 'project', 'set', 'phase', 'implementation',
+      'node', 'cf', 'project', 'set', 'phase', '6',
       '--project', 'proj_001',
     ]);
 
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
       developmentPhase: 'Phase 6: Implementation',
+      instruction: 'Phase 6: Implementation',
     });
+  });
+
+  it('setting instruction directly does not touch developmentPhase', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'instruction', 'slice-design',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      instruction: 'Phase 4: Slice Design',
+    });
+    // Should NOT include developmentPhase in the update
+    const updateArg = mockUpdate.mock.calls[0][1] as Record<string, unknown>;
+    expect(updateArg.developmentPhase).toBeUndefined();
   });
 
   it('resolves case-insensitive field names', async () => {
@@ -272,6 +277,7 @@ describe('cf project set', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
       developmentPhase: 'Phase 6: Implementation',
+      instruction: 'Phase 6: Implementation',
     });
   });
 

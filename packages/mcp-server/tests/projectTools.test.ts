@@ -248,6 +248,40 @@ describe('project_update', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
+  it('auto-sets instruction when developmentPhase is updated without explicit instruction', async () => {
+    const updatedProject = { ...MOCK_PROJECT, developmentPhase: 'Phase 4: Slice Design', instruction: 'Phase 4: Slice Design' };
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id, developmentPhase: 'Phase 4: Slice Design' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, {
+      developmentPhase: 'Phase 4: Slice Design',
+      instruction: 'Phase 4: Slice Design',
+    });
+  });
+
+  it('respects explicit instruction when both developmentPhase and instruction provided', async () => {
+    const updatedProject = { ...MOCK_PROJECT, developmentPhase: 'Phase 4: Slice Design', instruction: 'custom-instruction' };
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id, developmentPhase: 'Phase 4: Slice Design', instruction: 'custom-instruction' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, {
+      developmentPhase: 'Phase 4: Slice Design',
+      instruction: 'custom-instruction',
+    });
+  });
+
   it('returns isError when no update fields provided (only id)', async () => {
     const result = await client.callTool({
       name: 'project_update',
