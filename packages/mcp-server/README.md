@@ -71,7 +71,8 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 |------|-------------|
 | `project_list` | List all configured projects with summary fields |
 | `project_get` | Get full project details by ID (or default project) |
-| `project_update` | Update project configuration (slice, instruction, phase, etc.) |
+| `project_update` | Update project configuration (slice, instruction, phase, etc.). Setting `developmentPhase` auto-sets `instruction` unless explicitly provided. |
+| `project_schema` | Returns the full project data schema including field definitions, aliases, groups, and enum values |
 
 ### Context Generation
 

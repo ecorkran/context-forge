@@ -8,8 +8,8 @@ This package contains the core logic shared by both the [MCP server](../mcp-serv
 
 Key capabilities:
 - **Context pipeline** — assembles structured context prompts from project configuration, templates, and statements
-- **Template processing** — variable substitution (`{{projectName}}`, `{{fileSlice}}`, etc.) with conditional sections
-- **Statement management** — loads and resolves default statements (start/continue, tool intro, instruction blocks)
+- **Template processing** — variable substitution (`{{projectName}}`, `{{fileSlice}}`, `{fileArch}`, `{archIndex}`, etc.) with conditional sections and artifact aliases
+- **Statement management** — loads and resolves default statements (project intro, tool intro, instruction blocks)
 - **Prompt parsing** — reads `prompt.ai-project.system.md` files and extracts named template sections
 - **Project storage** — filesystem-backed CRUD for project configuration with backup and migration support
 
@@ -59,7 +59,7 @@ This entry point includes filesystem-dependent services. Use it in main processe
 | `SystemPromptParser` | `./node` | Parses `prompt.ai-project.system.md` into named template sections |
 | `ProjectPathService` | `./node` | Resolves file paths relative to a project root (task files, slice designs, guides) |
 | `ContextIntegrator` | `.` | Orchestrates full context generation from a `ProjectData` object |
-| `TemplateProcessor` | `.` | Handles `{{variable}}` substitution in template strings |
+| `TemplateProcessor` | `.` | Handles `{{variable}}` substitution in template strings, including artifact aliases (`{arch}`, `{plan}`, `{hld}`, `{spec}`) and index extraction (`{archIndex}`, `{planIndex}`) |
 | `SectionBuilder` | `.` | Assembles individual context sections (statements, instructions, tools) |
 | `ArtifactIntrospector` | `./node` | Parses methodology documents: slice plans, task files, frontmatter, future work, document detection |
 | `buildModel` | `./node` | Builds a full `ProjectModel` from a project root path — foundation, initiatives, slices, tasks, future work |

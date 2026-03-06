@@ -51,6 +51,8 @@ cf prompt get P5
 | `cf future` | `cf future [--project <id>] [--status <filter>] [--json]` | Show consolidated future work |
 | `cf check` | `cf check [--fix] [--json]` | Run consistency checks (stub — depends on slice 166) |
 | `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates with variable substitution |
+| `cf set` | `cf set <field> <value>` | Shortcut for `cf project set` |
+| `cf get` | `cf get [--json]` | Shortcut for `cf project get` |
 
 ## Common Options
 
@@ -98,7 +100,27 @@ pnpm --filter @context-forge/cli test      # Run tests
 pnpm --filter @context-forge/cli typecheck # Type check
 ```
 
+## Phase / Instruction Auto-Set
+
+Setting the development phase automatically updates `instruction` to match:
+
+```bash
+cf set phase 6
+# Updated phase = Phase 6: Implementation on project my-project
+# Updated instruction = Phase 6: Implementation (auto-set from phase)
+```
+
+Setting `instruction` directly does not change `developmentPhase`.
+
 ## Changelog
+
+### v0.3.0
+
+- **Template variable completion** — artifact fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) and aliases (`arch`, `plan`, `hld`, `spec`) available in prompt templates, with index extraction (`archIndex`, `planIndex`)
+- **Consolidated project context** — `cf build` output uses clean key-value `### Project Context` block instead of bracket-wrapped format; `template` field removed; schema field names used throughout
+- **Unified opening statement** — always "Working on {name}..." regardless of workType
+- **Phase auto-sets instruction** — `cf set phase N` also updates `instruction` to match
+- **Top-level shortcuts** — `cf set` and `cf get` work as shortcuts for `cf project set/get`
 
 ### v0.2.0
 

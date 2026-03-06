@@ -63,11 +63,12 @@ Requirements: Node.js 18+, pnpm 10+.
 
 ## Architecture
 
-Context Forge is a pnpm monorepo with three packages:
+Context Forge is a pnpm monorepo with four packages:
 
 ```
 packages/
   core/           @context-forge/core — context engine, types, services
+  cli/            @context-forge/cli — terminal interface (`cf` command)
   electron/       @context-forge/electron — desktop app (Electron + React)
   mcp-server/     @context-forge/mcp — MCP server for Claude Code, Cursor, etc.
 ```
@@ -76,14 +77,17 @@ packages/
 
 **`@context-forge/electron`** is the desktop app — React UI with Tailwind CSS and Radix UI components. Multi-project support, split-pane editor/preview, light/dark themes.
 
-**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 11 tools for project management, context generation, template inspection, session state tracking, and persistent configuration.
+**[`@context-forge/cli`](packages/cli/README.md)** is the terminal interface — `cf build`, `cf set`, `cf status`, `cf prompt`, and more. Direct integration with core, no MCP layer required.
+
+**[`@context-forge/mcp`](packages/mcp-server/README.md)** exposes the context engine via [Model Context Protocol](https://modelcontextprotocol.io/), letting Claude Code and Cursor access Context Forge directly without the desktop app. 11+ tools for project management, context generation, template inspection, artifact introspection, session state tracking, and persistent configuration.
 
 ## Current State
 
 **What works:**
-- MCP server — 11 tools for project management, context generation, template access, state tracking, and persistent TOML configuration (73 tests)
+- MCP server — 11+ tools for project management, context generation, template access, state tracking, artifact introspection, and persistent TOML configuration (109 tests)
+- CLI — terminal interface with project management, context build, prompt access, workflow navigation (133 tests)
 - Electron desktop app — multi-project management, template-driven context generation, copy-to-clipboard workflow (106 tests)
-- Core context engine — template processing, statement management, prompt parsing, section building (252 tests)
+- Core context engine — template processing with artifact variables, statement management, prompt parsing, section building (444 tests)
 - Shared filesystem storage — both the MCP server and desktop app access the same project data
 - Two-tier TOML config — user-level and project-level config with `default_project` support (set once, omit `projectId` from all tool calls)
 
