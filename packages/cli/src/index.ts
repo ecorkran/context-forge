@@ -48,11 +48,15 @@ registerGuidesCommand(program);
 
 // Top-level shortcuts for project get/set
 program
-  .command('set <field> <value>')
+  .command('set [field] [value]')
   .description('Set a field on the active project (shortcut for cf project set)')
   .option('--project <name|id>', 'Project name or ID (overrides default)')
   .addHelpText('after', buildSettableFieldsHelp)
-  .action(async (field: string, val: string, opts: { project?: string }) => {
+  .action(async (field: string | undefined, val: string | undefined, opts: { project?: string }) => {
+    if (!field || !val) {
+      console.log(`Usage: cf set [options] <field> <value>  —  run cf set --help for details`);
+      return;
+    }
     try {
       await projectSetAction(field, val, opts);
     } catch (err) {

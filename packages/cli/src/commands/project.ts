@@ -267,11 +267,15 @@ export function registerProjectCommand(program: Command): void {
     });
 
   cmd
-    .command('set <field> <value>')
+    .command('set [field] [value]')
     .description('Update a field on the active project')
     .option('--project <id>', 'Project ID (overrides default)')
     .addHelpText('after', buildSettableFieldsHelp)
-    .action(async (field: string, val: string, opts: { project?: string }) => {
+    .action(async (field: string | undefined, val: string | undefined, opts: { project?: string }) => {
+      if (!field || !val) {
+        console.log(`Usage: cf project set [options] <field> <value>  —  run cf project set --help for details`);
+        return;
+      }
       try {
         await projectSetAction(field, val, opts);
       } catch (err) {

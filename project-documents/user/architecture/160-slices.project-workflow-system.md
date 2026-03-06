@@ -246,7 +246,29 @@ After this slice, a developer can type `cf status` to see where a project stands
 
    *Supersedes 780-slices items 781 and 782. The 780-slices.future document should be updated to reference this slice.*
 
-13. [ ] **(173) Claude Code Commands — cf Wrappers** — Markdown command files for ~/.claude/commands/ that expose Context Forge CLI capabilities as Claude Code slash commands. Commands: /cf:status, /cf:build, /cf:next, /cf:prompt. Commands shell out to the globally-installed `cf` CLI using ! prefix execution, passing $ARGUMENTS or positional $1/$2 parameters. `cf` is already CWD-aware, so commands work correctly in any project directory. YAML frontmatter with description fields for Claude Code auto-discovery. Includes an install mechanism: `cf install-commands [--target ~/.claude/commands/]` that copies command markdown files from the package's bundled commands/ directory into place. Uninstall via `cf uninstall-commands`. Command files maintained in the context-forge repo under packages/cli/commands/ as the source of truth.
+13. [ ] **(173) Smart Field Setting — customData fields, index-based file resolution, no-args usage hints** — Extends the schema-driven `cf set` with three capabilities:
+
+   **a) customData sub-fields settable via CLI** — `cf set events "..."`, `cf set notes "..."`, `cf set tools "..."`. These map to `customData.recentEvents`, `customData.additionalNotes`, `customData.availableTools`. The schema module gains a new field group `custom` with these three fields. `projectSetAction` handles the nested write (`store.update(id, { customData: { ...existing.customData, [subField]: value } })`). `cf get` already displays customData — it continues to work as-is.
+
+   **b) Index-based file resolution** — `cf set slice 171` resolves to the matching `171-slice.*.md` file in `project-documents/user/slices/`. Same for `cf set tasks 171`, `cf set arch 160`, `cf set plan 160`. Scans the project's document directories for files matching `{index}-{doctype}.*.md`. If exactly one match, uses it. If zero matches, error with hint. If multiple matches (unlikely), error listing options. Only triggers when the value looks like a bare number (regex `/^\d+$/`).
+
+   **c) No-args usage hint** — `cf set` with no arguments shows a one-liner usage hint instead of Commander's error. `cf set --help` shows the full help with settable fields list. Already implemented.
+
+   **Value:** Users can set all project fields from CLI without switching to Electron. Index-based resolution eliminates typing long filenames — `cf set slice 171` instead of `cf set slice 171-slice.project-schema`.
+   **Success Criteria:**
+   - `cf set events "state summary here"` updates `customData.recentEvents`
+   - `cf set notes "on phase complete..."` updates `customData.additionalNotes`
+   - `cf set tools "electron, mcp"` updates `customData.availableTools`
+   - `cf set slice 171` resolves to `171-slice.project-schema` (or whatever the match is)
+   - `cf set arch 160` resolves to `160-arch.project-workflow-system`
+   - Index resolution only triggers for bare numeric values
+   - `cf set` (no args) shows usage hint, `cf set --help` shows full help
+   - All customData fields appear in `cf get` and `cf set --help`
+   **Dependencies:** [171 — Project Schema] (complete, provides schema module and set/get infrastructure)
+   **Risk:** Low — extends existing schema pattern, file scanning is straightforward
+   **Effort:** 2/5
+
+14. [ ] **(174) Claude Code Commands — cf Wrappers** — Markdown command files for ~/.claude/commands/ that expose Context Forge CLI capabilities as Claude Code slash commands. Commands: /cf:status, /cf:build, /cf:next, /cf:prompt. Commands shell out to the globally-installed `cf` CLI using ! prefix execution, passing $ARGUMENTS or positional $1/$2 parameters. `cf` is already CWD-aware, so commands work correctly in any project directory. YAML frontmatter with description fields for Claude Code auto-discovery. Includes an install mechanism: `cf install-commands [--target ~/.claude/commands/]` that copies command markdown files from the package's bundled commands/ directory into place. Uninstall via `cf uninstall-commands`. Command files maintained in the context-forge repo under packages/cli/commands/ as the source of truth.
 
    **Value:** Claude Code users get slash-command access to Context Forge without remembering CLI syntax. Auto-discovery means Claude can suggest commands contextually.
    **Success Criteria:**
