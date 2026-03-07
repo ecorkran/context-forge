@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
+import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProjectId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printRaw } from '../output/formatter.js';
@@ -47,8 +48,15 @@ export function registerBuildCommand(program: Command): void {
         // Apply overrides to a working copy
         const workingCopy: ProjectData = { ...project };
         if (opts.phase) {
-          workingCopy.developmentPhase = opts.phase;
-          workingCopy.instruction = opts.phase;
+          const resolved = resolvePhaseValue(opts.phase);
+          if (!resolved) {
+            process.stderr.write(
+              `Warning: '${opts.phase}' is not a recognized phase. Use a number (1-7), name (implementation), or shorthand (P6).\n`,
+            );
+          }
+          const phaseValue = resolved ?? opts.phase;
+          workingCopy.developmentPhase = phaseValue;
+          workingCopy.instruction = phaseValue;
         }
         if (opts.slice) workingCopy.fileSlice = opts.slice;
         if (opts.instruction) workingCopy.instruction = opts.instruction;

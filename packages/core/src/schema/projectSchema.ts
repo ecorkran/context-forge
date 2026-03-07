@@ -42,6 +42,14 @@ export const PHASE_MAP: Record<string, string> = {
   '5': 'Phase 5: Task Breakdown',
   '6': 'Phase 6: Implementation',
   '7': 'Phase 7: Integration',
+  // P-prefix shortcuts (P1–P7)
+  'p1': 'Phase 1: Concept',
+  'p2': 'Phase 2: Architecture',
+  'p3': 'Phase 3: Slice Planning',
+  'p4': 'Phase 4: Slice Design',
+  'p5': 'Phase 5: Task Breakdown',
+  'p6': 'Phase 6: Implementation',
+  'p7': 'Phase 7: Integration',
   // Short name shortcuts
   'concept': 'Phase 1: Concept',
   'architecture': 'Phase 2: Architecture',

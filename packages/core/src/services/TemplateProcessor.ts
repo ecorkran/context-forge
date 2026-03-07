@@ -145,33 +145,37 @@ export class TemplateProcessor {
   }
 
   /**
-   * Processes boolean conditional statements in template
-   * Supports: {{#if variableName}}true content{{else}}false content{{/if}}
-   * @param template Template string with conditional statements
-   * @param data Context data for boolean evaluation
-   * @returns Template with conditionals resolved
+   * Processes boolean conditional statements in template.
+   * Supports both forms:
+   *   {{#if variableName}}content{{else}}fallback{{/if}}
+   *   {{#if variableName}}content{{/if}}
    */
   private processBooleanConditionals(template: string, data: ContextData): string {
-    // Pattern: {{#if variableName}}true content{{else}}false content{{/if}}
-    const conditionalPattern = /\{\{#if\s+(\w+)\}\}(.*?)\{\{else\}\}(.*?)\{\{\/if\}\}/gs;
+    const enhancedData = this.createEnhancedData(data);
 
-    return template.replace(conditionalPattern, (_match, variableName: string, trueContent: string, falseContent: string) => {
-      try {
-        // Dynamic key lookup — variable names come from templates at runtime
-        const value = variableName in data
-          ? (data as unknown as TemplateVariableMap)[variableName]
-          : undefined;
-
-        // Evaluate as boolean
-        const isTrue = Boolean(value);
-
-        return isTrue ? trueContent : falseContent;
-      } catch (error: unknown) {
-        console.warn(`Error evaluating conditional for '${variableName}':`, error);
-        // Default to false content on error
-        return falseContent;
-      }
+    // First: if/else/endif (must match before the simpler pattern)
+    const withElse = /\{\{#if\s+(\w+)\}\}(.*?)\{\{else\}\}(.*?)\{\{\/if\}\}/gs;
+    let processed = template.replace(withElse, (_m, varName: string, ifTrue: string, ifFalse: string) => {
+      return this.evalConditional(varName, ifTrue, ifFalse, enhancedData);
     });
+
+    // Then: if/endif (no else clause)
+    const withoutElse = /\{\{#if\s+(\w+)\}\}(.*?)\{\{\/if\}\}/gs;
+    processed = processed.replace(withoutElse, (_m, varName: string, ifTrue: string) => {
+      return this.evalConditional(varName, ifTrue, '', enhancedData);
+    });
+
+    return processed;
+  }
+
+  private evalConditional(varName: string, ifTrue: string, ifFalse: string, data: TemplateVariableMap): string {
+    try {
+      const value = data[varName];
+      return Boolean(value) ? ifTrue : ifFalse;
+    } catch (error: unknown) {
+      console.warn(`Error evaluating conditional for '${varName}':`, error);
+      return ifFalse;
+    }
   }
 
   /**

@@ -87,6 +87,30 @@ describe('TemplateProcessor', () => {
       const template = '{{#if recentEvents}}line1\nline2{{else}}other{{/if}}';
       expect(processor.processTemplate(template, data)).toBe('line1\nline2');
     });
+
+    it('renders content when condition is truthy and no else clause', () => {
+      const data = createTestContextData({ fileArch: '160-arch.workflow' });
+      const template = '{{#if fileArch}}Architecture: {fileArch}{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('Architecture: 160-arch.workflow');
+    });
+
+    it('renders empty when condition is falsy and no else clause', () => {
+      const data = createTestContextData({ fileArch: undefined });
+      const template = '{{#if fileArch}}Architecture: {fileArch}{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('');
+    });
+
+    it('handles multiple else-less conditionals', () => {
+      const data = createTestContextData({ fileArch: '160-arch.workflow', fileSlicePlan: undefined });
+      const template = '{{#if fileArch}}Arch: {fileArch}{{/if}}\n{{#if fileSlicePlan}}Plan: {fileSlicePlan}{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('Arch: 160-arch.workflow\n');
+    });
+
+    it('mixes else and else-less conditionals', () => {
+      const data = createTestContextData({ recentEvents: 'update', fileArch: '160-arch.workflow' });
+      const template = '{{#if recentEvents}}Events: yes{{else}}Events: no{{/if}} | {{#if fileArch}}Arch: {fileArch}{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('Events: yes | Arch: 160-arch.workflow');
+    });
   });
 
   describe('processTemplate — slice parsing', () => {

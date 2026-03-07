@@ -53,6 +53,13 @@ describe('projectSchema', () => {
       expect(resolvePhaseValue('7')).toBe('Phase 7: Integration');
     });
 
+    it('resolves P-prefix shorthands', () => {
+      expect(resolvePhaseValue('P1')).toBe('Phase 1: Concept');
+      expect(resolvePhaseValue('P5')).toBe('Phase 5: Task Breakdown');
+      expect(resolvePhaseValue('P6')).toBe('Phase 6: Implementation');
+      expect(resolvePhaseValue('p3')).toBe('Phase 3: Slice Planning');
+    });
+
     it('resolves short names', () => {
       expect(resolvePhaseValue('concept')).toBe('Phase 1: Concept');
       expect(resolvePhaseValue('implementation')).toBe('Phase 6: Implementation');

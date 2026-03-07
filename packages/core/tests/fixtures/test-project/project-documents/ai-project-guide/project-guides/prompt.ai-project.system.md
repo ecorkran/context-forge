@@ -25,3 +25,6 @@ Create a detailed technical design for the specified feature or component.
 
 ##### review
 Review the code changes and provide feedback on quality, patterns, and potential issues.
+
+##### Task Breakdown (Phase 5)
+Break the slice design into granular, actionable tasks.

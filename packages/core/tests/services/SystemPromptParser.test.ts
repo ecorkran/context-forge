@@ -36,9 +36,9 @@ describe('SystemPromptParser', () => {
 
     it('parses all ##### sections from fixture', async () => {
       const parsed = await parser.parsePromptFile();
-      // Fixture has 6 sections: Context Initialization, Context Initialization Monorepo,
-      // Tool Use, implementation, design, review
-      expect(parsed.prompts.length).toBe(6);
+      // Fixture has 7 sections: Context Initialization, Context Initialization Monorepo,
+      // Tool Use, implementation, design, review, Task Breakdown (Phase 5)
+      expect(parsed.prompts.length).toBe(7);
       expect(parsed.errors).toHaveLength(0);
     });
 
@@ -92,6 +92,18 @@ describe('SystemPromptParser', () => {
       const prompt = await parser.getPromptForInstruction('nonexistent-instruction');
       expect(prompt).toBeNull();
     });
+
+    it('matches full phase string by extracting name', async () => {
+      const prompt = await parser.getPromptForInstruction('Phase 5: Task Breakdown');
+      expect(prompt).not.toBeNull();
+      expect(prompt!.name).toContain('Task Breakdown');
+    });
+
+    it('matches full phase string case-insensitively', async () => {
+      const prompt = await parser.getPromptForInstruction('phase 5: task breakdown');
+      expect(prompt).not.toBeNull();
+      expect(prompt!.name).toContain('Task Breakdown');
+    });
   });
 
   describe('getContextInitializationPrompt', () => {
@@ -134,7 +146,7 @@ describe('SystemPromptParser', () => {
     it('returns all prompts from fixture', async () => {
       const parser = new SystemPromptParser(FIXTURE_PROMPT_PATH);
       const prompts = await parser.getAllPrompts();
-      expect(prompts.length).toBe(6);
+      expect(prompts.length).toBe(7);
       expect(prompts.every((p) => p.name && p.key && p.content)).toBe(true);
     });
   });
@@ -158,14 +170,14 @@ describe('SystemPromptParser', () => {
       parser.setFilePath(FIXTURE_PROMPT_PATH);
       // Should re-parse (cache cleared)
       const result = await parser.parsePromptFile();
-      expect(result.prompts.length).toBe(6);
+      expect(result.prompts.length).toBe(7);
     });
 
     it('invalidates cache after clearCache', async () => {
       await parser.parsePromptFile();
       parser.clearCache();
       const result = await parser.parsePromptFile();
-      expect(result.prompts.length).toBe(6);
+      expect(result.prompts.length).toBe(7);
     });
 
     it('invalidates cache when file content changes', async () => {

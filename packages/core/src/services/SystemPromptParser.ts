@@ -173,18 +173,34 @@ export class SystemPromptParser {
   }
 
   /**
-   * Get prompt for specific instruction type
+   * Get prompt for specific instruction type.
+   * Matches against prompt section names and keys using multiple strategies:
+   *   1. Direct includes (e.g. 'task-breakdown' in key 'task-breakdown-phase-5')
+   *   2. Phase string extraction (e.g. 'Phase 5: Task Breakdown' → extract 'Task Breakdown')
    */
   async getPromptForInstruction(instruction: string): Promise<SystemPrompt | null> {
     const parsed = await this.parsePromptFile();
+    const instructionLower = instruction.toLowerCase();
 
-    // Find prompt by fuzzy matching instruction key against section headers
+    // Extract the name portion from full phase strings like 'Phase 5: Task Breakdown'
+    const phaseMatch = instruction.match(/^Phase\s+\d+:\s*(.+)$/i);
+    const extractedName = phaseMatch ? phaseMatch[1].toLowerCase() : null;
+
     const match = parsed.prompts.find(prompt => {
       const nameLower = prompt.name.toLowerCase();
-      const instructionLower = instruction.toLowerCase();
+      const keyLower = prompt.key.toLowerCase();
 
-      return nameLower.includes(instructionLower) ||
-             prompt.key.includes(instructionLower);
+      // Direct fuzzy match (existing behavior)
+      if (nameLower.includes(instructionLower) || keyLower.includes(instructionLower)) {
+        return true;
+      }
+
+      // Match extracted name from full phase string
+      if (extractedName && (nameLower.includes(extractedName) || keyLower.includes(extractedName))) {
+        return true;
+      }
+
+      return false;
     });
 
     return match || null;

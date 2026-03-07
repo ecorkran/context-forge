@@ -72,7 +72,7 @@ describe('cf build', () => {
     expect(stderrOutput).toContain('Building context');
   });
 
-  it('applies --phase override', async () => {
+  it('applies --phase override and resolves short name', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockGenerateContextFromProject.mockResolvedValue('context');
 
@@ -80,8 +80,34 @@ describe('cf build', () => {
     await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001', '--phase', 'task-breakdown']);
 
     const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
-    expect(projectArg.developmentPhase).toBe('task-breakdown');
-    expect(projectArg.instruction).toBe('task-breakdown');
+    expect(projectArg.developmentPhase).toBe('Phase 5: Task Breakdown');
+    expect(projectArg.instruction).toBe('Phase 5: Task Breakdown');
+  });
+
+  it('resolves P-prefix shorthand in --phase', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGenerateContextFromProject.mockResolvedValue('context');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001', '--phase', 'P5']);
+
+    const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
+    expect(projectArg.developmentPhase).toBe('Phase 5: Task Breakdown');
+    expect(projectArg.instruction).toBe('Phase 5: Task Breakdown');
+  });
+
+  it('warns on unrecognized --phase value', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGenerateContextFromProject.mockResolvedValue('context');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001', '--phase', 'bogus']);
+
+    const stderrOutput = vi.mocked(process.stderr.write).mock.calls.map((c) => c[0]).join('');
+    expect(stderrOutput).toContain('not a recognized phase');
+    // Still uses raw value as fallback
+    const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
+    expect(projectArg.developmentPhase).toBe('bogus');
   });
 
   it('applies --slice override', async () => {
