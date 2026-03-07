@@ -102,22 +102,22 @@ status: in_progress
 
 ### Task 6: Auto-Set fileTasks on fileSlice Change (CLI)
 
-- [ ] Modify `projectSetAction()` in `packages/cli/src/commands/project.ts`
-  - [ ] After the existing `store.update()` call for `fileSlice` (or any field resolving to `fileSlice`):
+- [x] Modify `projectSetAction()` in `packages/cli/src/commands/project.ts`
+  - [x] After the existing `store.update()` call for `fileSlice` (or any field resolving to `fileSlice`):
     1. Extract numeric index from resolved value (regex `/^(\d+)-/`)
     2. If index found and `existing.projectPath` exists, call `resolveFileByIndex(existing.projectPath, 'fileTasks', index)`
     3. If result is non-null, include `fileTasks: resolved` in the same or follow-up `store.update()` call
     4. Print: `Updated tasks = {resolved} (auto-set from slice)`
-  - [ ] If `resolveFileByIndex` throws or returns null, silently skip (no error)
-  - [ ] Does NOT trigger when `fileTasks` is set directly (one-way only)
+  - [x] If `resolveFileByIndex` throws or returns null, silently skip (no error)
+  - [x] Does NOT trigger when `fileTasks` is set directly (one-way only)
 
 ### Task 7: Test Auto-Set fileTasks (CLI)
 
-- [ ] Add tests to `packages/cli/tests/project.test.ts` (or create if needed)
-  - [ ] Test: setting fileSlice with matching task file → fileTasks auto-set, confirmation printed
-  - [ ] Test: setting fileSlice with no matching task file → fileTasks unchanged, no error
-  - [ ] Test: setting fileTasks directly → fileSlice NOT auto-set
-  - [ ] All tests pass: `pnpm --filter @context-forge/cli test`
+- [x] Add tests to `packages/cli/tests/project.test.ts` (or create if needed)
+  - [x] Test: setting fileSlice with matching task file → fileTasks auto-set, confirmation printed
+  - [x] Test: setting fileSlice with no matching task file → fileTasks unchanged, no error
+  - [x] Test: setting fileTasks directly → fileSlice NOT auto-set
+  - [x] All tests pass: `pnpm --filter @context-forge/cli test`
 
 **Commit checkpoint**
 

@@ -170,6 +170,22 @@ export async function projectSetAction(
     await store.update(id, { [resolvedField]: resolvedValue });
   }
 
+  // Auto-set fileTasks when fileSlice changes
+  if (resolvedField === 'fileSlice' && existing.projectPath) {
+    try {
+      const sliceIndex = /^(\d+)-/.exec(resolvedValue);
+      if (sliceIndex) {
+        const tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+        if (tasksResolved !== null) {
+          await store.update(id, { fileTasks: tasksResolved });
+          console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice)`));
+        }
+      }
+    } catch {
+      // Silently skip — auto-set is best-effort
+    }
+  }
+
   // Show alias-friendly name in confirmation
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
   console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));

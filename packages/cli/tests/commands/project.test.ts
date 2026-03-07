@@ -6,6 +6,7 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
+const mockResolveFileByIndex = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -17,6 +18,7 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
   })),
+  resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
 
 const sampleProject = {
@@ -361,6 +363,65 @@ describe('cf project --schema', () => {
     const joined = calls.join('\n');
     // Enum values appear in "Allowed values" section at bottom
     expect(joined).toContain('start | continue');
+  });
+});
+
+describe('cf project set — auto-set fileTasks from fileSlice', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('auto-sets fileTasks when setting fileSlice with matching task file', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    // Auto-set call: resolveFileByIndex(projectPath, 'fileTasks', '200')
+    mockResolveFileByIndex.mockReturnValue('200-tasks.new-feature.md');
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'fileSlice', '200-slice.new-feature.md',
+      '--project', 'proj_001',
+    ]);
+
+    // First update: fileSlice itself
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '200-slice.new-feature.md' });
+    // Second update: auto-set fileTasks
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new-feature.md' });
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('auto-set from slice');
+  });
+
+  it('does not auto-set fileTasks when no matching task file found', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockResolveFileByIndex.mockReturnValue(null);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'fileSlice', '999-slice.no-tasks.md',
+      '--project', 'proj_001',
+    ]);
+
+    // Only one update call (for fileSlice itself)
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '999-slice.no-tasks.md' });
+  });
+
+  it('does not auto-set fileSlice when setting fileTasks directly', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockResolveFileByIndex.mockReturnValue(null);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'fileTasks', '200-tasks.new.md',
+      '--project', 'proj_001',
+    ]);
+
+    // Only one update call (for fileTasks itself)
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new.md' });
   });
 });
 
