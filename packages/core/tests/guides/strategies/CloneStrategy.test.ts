@@ -8,14 +8,16 @@ vi.mock('fs', () => ({
 vi.mock('../../../src/guides/gitExec.js', () => ({
   gitExec: vi.fn(),
   isGitAvailable: vi.fn(),
+  isGitRepo: vi.fn(),
 }));
 
 import { existsSync } from 'fs';
-import { gitExec, isGitAvailable } from '../../../src/guides/gitExec.js';
+import { gitExec, isGitAvailable, isGitRepo } from '../../../src/guides/gitExec.js';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockGitExec = vi.mocked(gitExec);
 const mockIsGitAvailable = vi.mocked(isGitAvailable);
+const mockIsGitRepo = vi.mocked(isGitRepo);
 
 describe('CloneStrategy', () => {
   let strategy: CloneStrategy;
@@ -52,11 +54,14 @@ describe('CloneStrategy', () => {
   });
 
   describe('install()', () => {
-    it('calls git clone with correct source and target', async () => {
+    it('calls git clone and auto-commits when parent is a git repo', async () => {
       mockIsGitAvailable.mockResolvedValue(true);
+      mockIsGitRepo.mockResolvedValue(true);
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'clone') return { stdout: '', stderr: '' };
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'add') return { stdout: '', stderr: '' };
+        if (args[0] === 'commit') return { stdout: '', stderr: '' };
         throw new Error('unexpected');
       });
 
@@ -66,9 +71,31 @@ describe('CloneStrategy', () => {
         ['clone', source, targetDir],
         expect.any(String)
       );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['commit', '-m', 'docs: install ai-project-guide v0.13.2'],
+        projectPath
+      );
       expect(result.success).toBe(true);
       expect(result.version).toBe('v0.13.2');
       expect(result.method).toBe('clone');
+    });
+
+    it('skips commit when parent is not a git repo', async () => {
+      mockIsGitAvailable.mockResolvedValue(true);
+      mockIsGitRepo.mockResolvedValue(false);
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'clone') return { stdout: '', stderr: '' };
+        if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        throw new Error('unexpected');
+      });
+
+      const result = await strategy.install(projectPath, source, targetDir);
+
+      expect(mockGitExec).not.toHaveBeenCalledWith(
+        expect.arrayContaining(['commit']),
+        expect.anything()
+      );
+      expect(result.success).toBe(true);
     });
 
     it('errors when git is unavailable', async () => {
@@ -80,8 +107,9 @@ describe('CloneStrategy', () => {
   });
 
   describe('update()', () => {
-    it('fetches and pulls when on a branch', async () => {
+    it('fetches, pulls, and auto-commits when version changes', async () => {
       let describeCount = 0;
+      mockIsGitRepo.mockResolvedValue(true);
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') {
           describeCount++;
@@ -89,6 +117,8 @@ describe('CloneStrategy', () => {
         }
         if (args[0] === 'fetch') return { stdout: '', stderr: '' };
         if (args[0] === 'pull') return { stdout: '', stderr: '' };
+        if (args[0] === 'add') return { stdout: '', stderr: '' };
+        if (args[0] === 'commit') return { stdout: '', stderr: '' };
         throw new Error('unexpected');
       });
 
@@ -102,13 +132,37 @@ describe('CloneStrategy', () => {
         ['pull', '--ff-only'],
         targetDir
       );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['commit', '-m', 'docs: update ai-project-guide to v0.13.2'],
+        projectPath
+      );
       expect(result.previousVersion).toBe('v0.12.0');
       expect(result.newVersion).toBe('v0.13.2');
       expect(result.method).toBe('clone');
     });
 
+    it('skips commit when version is unchanged', async () => {
+      mockIsGitRepo.mockResolvedValue(true);
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'fetch') return { stdout: '', stderr: '' };
+        if (args[0] === 'pull') return { stdout: '', stderr: '' };
+        throw new Error('unexpected');
+      });
+
+      const result = await strategy.update(projectPath, targetDir);
+
+      expect(mockGitExec).not.toHaveBeenCalledWith(
+        expect.arrayContaining(['commit']),
+        expect.anything()
+      );
+      expect(result.previousVersion).toBe('v0.13.2');
+      expect(result.newVersion).toBe('v0.13.2');
+    });
+
     it('falls back to tag checkout on detached HEAD', async () => {
       let describeCount = 0;
+      mockIsGitRepo.mockResolvedValue(true);
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') {
           describeCount++;
@@ -118,6 +172,8 @@ describe('CloneStrategy', () => {
         if (args[0] === 'pull') throw new Error('not on a branch');
         if (args[0] === 'tag') return { stdout: 'v0.13.2\nv0.12.0\n', stderr: '' };
         if (args[0] === 'checkout') return { stdout: '', stderr: '' };
+        if (args[0] === 'add') return { stdout: '', stderr: '' };
+        if (args[0] === 'commit') return { stdout: '', stderr: '' };
         throw new Error('unexpected');
       });
 

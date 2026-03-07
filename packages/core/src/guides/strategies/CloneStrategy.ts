@@ -2,7 +2,8 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
-import { gitExec, isGitAvailable } from '../gitExec.js';
+import { GUIDE_RELATIVE_PATH } from '../types.js';
+import { gitExec, isGitAvailable, isGitRepo } from '../gitExec.js';
 
 export class CloneStrategy implements InstallStrategy {
   async detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
@@ -27,7 +28,7 @@ export class CloneStrategy implements InstallStrategy {
     return { method: 'clone', version, source };
   }
 
-  async install(_projectPath: string, source: string, targetDir: string): Promise<InstallResult> {
+  async install(projectPath: string, source: string, targetDir: string): Promise<InstallResult> {
     if (!(await isGitAvailable())) {
       throw new Error(
         'git is not available. Install git or use the "manual" strategy instead.'
@@ -44,10 +45,20 @@ export class CloneStrategy implements InstallStrategy {
       // No tags
     }
 
+    // Commit the cloned directory if the parent project is a git repo
+    if (await isGitRepo(projectPath)) {
+      await gitExec(['add', GUIDE_RELATIVE_PATH], projectPath);
+      const versionSuffix = version ? ` ${version}` : '';
+      await gitExec(
+        ['commit', '-m', `docs: install ai-project-guide${versionSuffix}`],
+        projectPath
+      );
+    }
+
     return { success: true, version, method: 'clone', path: targetDir };
   }
 
-  async update(_projectPath: string, targetDir: string): Promise<UpdateResult> {
+  async update(projectPath: string, targetDir: string): Promise<UpdateResult> {
     let previousVersion: string | null = null;
     try {
       const { stdout } = await gitExec(['describe', '--tags', '--abbrev=0'], targetDir);
@@ -85,6 +96,16 @@ export class CloneStrategy implements InstallStrategy {
       newVersion = stdout || null;
     } catch {
       // No new version
+    }
+
+    // Commit the updated files if the parent project is a git repo and version changed
+    if (previousVersion !== newVersion && (await isGitRepo(projectPath))) {
+      await gitExec(['add', GUIDE_RELATIVE_PATH], projectPath);
+      const versionSuffix = newVersion ? ` to ${newVersion}` : '';
+      await gitExec(
+        ['commit', '-m', `docs: update ai-project-guide${versionSuffix}`],
+        projectPath
+      );
     }
 
     return { success: true, previousVersion, newVersion, method: 'clone' };
