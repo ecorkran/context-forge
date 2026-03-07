@@ -180,6 +180,44 @@ export interface FutureWorkCollectorResult {
   markdown: string;
 }
 
+// --- WorkflowNavigator types ---
+
+/** Status of the currently active slice */
+export interface SliceStatus {
+  name: string;
+  index: number | null;
+  status: 'needs-design' | 'needs-tasks' | 'in-implementation' | 'complete' | 'no-active-slice';
+  taskProgress?: {
+    completed: number;
+    total: number;
+    inferredStatus: NormalizedStatus;
+  };
+}
+
+/** Full workflow status for a project */
+export interface WorkflowStatus {
+  project: string;
+  phase: string | null;
+  activeSlice: SliceStatus | null;
+  slicePlan: {
+    name: string;
+    completed: number;
+    total: number;
+    entries: SlicePlanEntry[];
+  } | null;
+  summary: string;
+}
+
+/** Recommended next action from the workflow navigator */
+export interface NextAction {
+  recommendation: string;
+  rationale: string;
+  suggestedCommand?: string;
+  slice?: string;
+  phase?: string;
+  summary: string;
+}
+
 /** Introspection summary suitable for enriching project_get */
 export interface IntrospectionSummary {
   slicePlan?: {
