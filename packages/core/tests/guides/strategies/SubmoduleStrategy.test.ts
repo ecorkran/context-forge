@@ -69,12 +69,14 @@ describe('SubmoduleStrategy', () => {
   });
 
   describe('install()', () => {
-    it('calls correct git commands in correct cwd', async () => {
+    it('calls submodule add, git add, and git commit', async () => {
       mockIsGitAvailable.mockResolvedValue(true);
       mockIsGitRepo.mockResolvedValue(true);
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'submodule') return { stdout: '', stderr: '' };
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'add') return { stdout: '', stderr: '' };
+        if (args[0] === 'commit') return { stdout: '', stderr: '' };
         throw new Error('unexpected');
       });
 
@@ -82,6 +84,14 @@ describe('SubmoduleStrategy', () => {
 
       expect(mockGitExec).toHaveBeenCalledWith(
         ['submodule', 'add', source, GUIDE_RELATIVE_PATH],
+        projectPath
+      );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['add', '.gitmodules', GUIDE_RELATIVE_PATH],
+        projectPath
+      );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['commit', '-m', 'docs: install ai-project-guide v0.13.2'],
         projectPath
       );
       expect(result.success).toBe(true);

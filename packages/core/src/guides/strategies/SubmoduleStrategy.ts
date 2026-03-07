@@ -56,6 +56,14 @@ export class SubmoduleStrategy implements InstallStrategy {
       // No tags available
     }
 
+    // Commit the submodule addition (.gitmodules + submodule pointer)
+    await gitExec(['add', '.gitmodules', GUIDE_RELATIVE_PATH], projectPath);
+    const versionSuffix = version ? ` ${version}` : '';
+    await gitExec(
+      ['commit', '-m', `docs: install ai-project-guide${versionSuffix}`],
+      projectPath
+    );
+
     return { success: true, version, method: 'submodule', path: targetDir };
   }
 
