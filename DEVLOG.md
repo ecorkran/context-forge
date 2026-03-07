@@ -7,6 +7,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-07
+
+### Slice 165: Workflow Navigator & Discovery — Design & Task Breakdown Complete
+- Slice design for WorkflowNavigator core service with `getStatus()` / `getNext()` state machine
+- MCP tools: `workflow_status`, `workflow_next`
+- CLI discovery commands: `cf slice list`, `cf task list`, `cf arch list`
+- Auto-set `fileTasks` when `fileSlice` changes (CLI and MCP, one-way)
+- Enhanced `cf status` and `cf next` wired to WorkflowNavigator
+- Updated 160-slices plan with expanded slice 165 scope
+- Task breakdown: 21 tasks across core, CLI, and MCP packages
+
 ## 2026-03-06
 
 ### Slice 175: Context Output Consolidation — Implementation Complete

@@ -77,17 +77,40 @@ dateUpdated: 20260228
    **Risk:** Low — wrapping existing internals, main work is API design and response shaping
    **Effort:** 2/5
 
-5. [ ] **(165) Workflow Navigator** — MCP tools that compute methodology position and recommend next actions. `workflow_status` returns structured state: current methodology phase, slice plan completion summary, active slice status (needs design / needs tasks / in implementation / complete), and overall project progression. `workflow_next` returns a recommended next action with rationale — implements the state machine: check current slice tasks → check slice plan for next unstarted slice → determine what that slice needs (design? tasks? implementation?) → check for undefined architecture components → report. Output is structured JSON (machine-consumable) with a human-readable `summary` field. Adds workflow-related config keys (e.g., `workflow.auto_advance` — whether completing a slice automatically advances to the next).
+5. [ ] **(165) Workflow Navigator & Discovery** — Core workflow navigation service with MCP tools and CLI commands for methodology position tracking, next-action recommendation, and artifact discovery.
 
-   **Value:** The capstone capability. Answers "where am I?" and "what should I do next?" for both humans resuming work after a break and agents that need to self-orient. Directly addresses the cognitive load and stall problems described in the architecture document.
+   **Core service:** `WorkflowNavigator` in `packages/core/src/introspection/` with `getStatus()` and `getNext()` methods. Consumes `ArtifactIntrospector` (slice 163) and `ProjectModelBuilder` (slice 164) for structured introspection.
+
+   **MCP tools:**
+   - `workflow_status` — returns structured state: current methodology phase, slice plan completion summary, active slice status (needs design / needs tasks / in implementation / complete), and overall project progression.
+   - `workflow_next` — returns a recommended next action with rationale. Implements the state machine: check current slice tasks → check slice plan for next unstarted slice → determine what that slice needs (design? tasks? implementation?) → check for undefined architecture components → report.
+
+   **CLI discovery commands:**
+   - `cf slice list` — parse the active `fileSlicePlan`, show slices with index, name, completion status, and file reference. Indicates the active slice and next candidate.
+   - `cf task list` — parse the active `fileTasks` (or auto-resolved task file), show tasks with completion checkboxes and progress summary.
+   - `cf arch list` — list all architectural initiatives in the project using `ProjectModelBuilder`. Shows initiative index range, architecture doc, slice plan, and completion summary. Project-wide view regardless of active slice.
+
+   **Auto-set tasks on slice change:** When `cf set slice <value>` resolves to a slice file, automatically resolve and set `fileTasks` to the matching `{index}-tasks.*` file in `project-documents/user/tasks/`. Only triggers when a matching task file exists. Does not set slice when tasks are set (one-way).
+
+   **Enhanced existing commands:**
+   - `cf status` — when an active slice plan exists, includes slice plan progress summary inline.
+   - `cf next` — wires to `WorkflowNavigator.getNext()` instead of the current provisional `ArtifactIntrospector` logic.
+
+   Output is structured JSON (machine-consumable) with a human-readable `summary` field. Adds workflow-related config keys (e.g., `workflow.auto_advance` — whether completing a slice automatically advances to the next).
+
+   **Value:** The capstone capability. Answers "where am I?" and "what should I do next?" for both humans resuming work after a break and agents that need to self-orient. Discovery commands (`cf slice list`, `cf task list`, `cf arch list`) eliminate the need to manually scan project-documents directories. Auto-set tasks removes a repetitive manual step. Directly addresses the cognitive load and stall problems described in the architecture document.
    **Success Criteria:**
    - `workflow_status` returns accurate methodology position for projects at various stages (no slices, partial completion, all complete)
    - `workflow_next` recommends correct next action across the full state machine (needs design → needs tasks → needs implementation → slice complete → next slice → plan complete → check architecture)
+   - `cf slice list` shows all slices from active plan with status indicators and file references
+   - `cf task list` shows tasks from active task file with completion counts
+   - `cf arch list` shows all initiatives with index ranges, arch docs, slice plans, and completion
+   - `cf set slice 165` auto-resolves and sets `fileTasks` to matching `165-tasks.*` file
    - Output is structured JSON with both machine-readable fields and human-readable summary
    - Handles edge cases: empty projects, projects with no slice plan, partially populated artifact references
    - Works correctly with `default_project` config (no project ID needed if default is set)
-   **Dependencies:** [163 — Artifact Introspection Engine]
-   **Interfaces:** Consumed by ADP (120-arch in orchestration) when available; consumed by humans/agents via MCP
+   **Dependencies:** [163 — Artifact Introspection Engine], [164 — MCP Introspection Tools] (for `ProjectModelBuilder` used by `cf arch list`)
+   **Interfaces:** Consumed by ADP (120-arch in orchestration) when available; consumed by humans/agents via MCP and CLI
    **Risk:** Medium — state machine logic must handle the full range of methodology states without false recommendations
    **Effort:** 3/5
 
