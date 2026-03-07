@@ -175,24 +175,24 @@ status: in_progress
 
 ### Task 12: Implement `cf task list`
 
-- [ ] Create `packages/cli/src/commands/task.ts`
-  - [ ] `registerTaskCommand(program: Command)` — registers `cf task` with `list` subcommand
-  - [ ] `cf task list` options: `--json`, `--project <id>`
-  - [ ] Resolve project, resolve `fileTasks` path against `projectPath`
-  - [ ] Parse via `new ArtifactIntrospector().parseTaskFile(resolvedPath)`
-  - [ ] Render header: `Tasks: {fileTasks filename}  (N/M complete)`
-  - [ ] Render each item: `✓` (green) or `○` prefix, then task name
-  - [ ] `--json` outputs `TaskFileResult` directly
-  - [ ] Error with helpful message if no fileTasks is set
+- [x] Create `packages/cli/src/commands/task.ts`
+  - [x] `registerTaskCommand(program: Command)` — registers `cf task` with `list` subcommand
+  - [x] `cf task list` options: `--json`, `--project <id>`
+  - [x] Resolve project, resolve `fileTasks` path against `projectPath`
+  - [x] Parse via `new ArtifactIntrospector().parseTaskFile(resolvedPath)`
+  - [x] Render header: `Tasks: {fileTasks filename}  (N/M complete)`
+  - [x] Render each item: `✓` (green) or `○` prefix, then task name
+  - [x] `--json` outputs `TaskFileResult` directly
+  - [x] Error with helpful message if no fileTasks is set
 
 ### Task 13: Test `cf task list`
 
-- [ ] Create `packages/cli/tests/task.test.ts`
-  - [ ] Mock `FileProjectStore`, `ArtifactIntrospector`, `resolveProjectId`
-  - [ ] Test: renders task list with completion indicators and progress header
-  - [ ] Test: `--json` outputs `TaskFileResult`
-  - [ ] Test: error when no fileTasks set
-  - [ ] All tests pass: `pnpm --filter @context-forge/cli test`
+- [x] Create `packages/cli/tests/task.test.ts`
+  - [x] Mock `FileProjectStore`, `ArtifactIntrospector`, `resolveProjectId`
+  - [x] Test: renders task list with completion indicators and progress header
+  - [x] Test: `--json` outputs `TaskFileResult`
+  - [x] Test: error when no fileTasks set
+  - [x] All tests pass: `pnpm --filter @context-forge/cli test`
 
 **Commit checkpoint**
 
