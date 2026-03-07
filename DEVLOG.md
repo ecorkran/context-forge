@@ -9,14 +9,27 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
-### Slice 165: Workflow Navigator & Discovery — Design & Task Breakdown Complete
-- Slice design for WorkflowNavigator core service with `getStatus()` / `getNext()` state machine
-- MCP tools: `workflow_status`, `workflow_next`
-- CLI discovery commands: `cf slice list`, `cf task list`, `cf arch list`
-- Auto-set `fileTasks` when `fileSlice` changes (CLI and MCP, one-way)
-- Enhanced `cf status` and `cf next` wired to WorkflowNavigator
-- Updated 160-slices plan with expanded slice 165 scope
-- Task breakdown: 21 tasks across core, CLI, and MCP packages
+### Slice 165: Workflow Navigator & Discovery — Implementation Complete
+- `WorkflowNavigator` core service: `getStatus()` derives slice status from filesystem, `getNext()` priority-ordered state machine with 7 levels
+- Core types: `SliceStatus`, `WorkflowStatus`, `NextAction` in introspection/types.ts
+- MCP tools: `workflow_status`, `workflow_next` (24 total MCP tools)
+- CLI discovery: `cf slice list` (plan entries with active/next markers), `cf task list` (items with progress), `cf arch list` (initiatives with progress)
+- Auto-set `fileTasks` on `fileSlice` change (CLI + MCP, best-effort, one-way)
+- `cf status` and `cf next` now use WorkflowNavigator (removed provisional `deriveRecommendation`)
+- `cf next` shows `suggestedCommand` when available
+- Config key `workflow.auto_advance` registered (behavior deferred)
+- 846 tests (475 core, 150 CLI, 115 MCP, 106 Electron)
+- Commits:
+  - `01248d4` feat(core): add SliceStatus, WorkflowStatus, NextAction types
+  - `665f163` feat(core): add WorkflowNavigator.getStatus() with tests
+  - `5c2e42c` feat(core): add WorkflowNavigator.getNext() with tests
+  - `fa634b9` feat(cli): auto-set fileTasks when fileSlice changes
+  - `4126c40` feat(mcp): auto-set fileTasks when fileSlice changes in project_update
+  - `8264498` feat(cli): add cf slice list command
+  - `a03ddbf` feat(cli): add cf task list command
+  - `7dff90a` feat(cli): add cf arch list command
+  - `9e1fe35` feat(mcp): add workflow_status and workflow_next MCP tools
+  - `f8c370c` refactor(cli): replace provisional deriveRecommendation with WorkflowNavigator
 
 ## 2026-03-06
 

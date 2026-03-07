@@ -6,7 +6,7 @@ dependencies: [163-artifact-introspection-engine, 164-mcp-introspection-tools]
 projectState: "Slices 161-164, 167, 172-175 complete. 805 tests passing. Core introspection engine and ProjectModelBuilder available. CLI has status, next, project commands. MCP has workflow_future tool."
 dateCreated: 20260307
 dateUpdated: 20260307
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -284,12 +284,12 @@ status: in_progress
 
 ### Task 21: Register Config Key and Final Verification
 
-- [ ] Add `workflow.auto_advance` to `CONFIG_KEYS` in `packages/core/src/config/ConfigKeys.ts`:
+- [x] Add `workflow.auto_advance` to `CONFIG_KEYS` in `packages/core/src/config/ConfigKeys.ts`:
   - Type: `boolean`, default: `false`
   - Description: "Auto-advance to next slice when current is complete"
-- [ ] Full build: `pnpm -r build` succeeds
-- [ ] Full test suite: `pnpm -r test` — all tests pass
-- [ ] Verify CLI commands work: `cf slice list`, `cf task list`, `cf arch list`, `cf status`, `cf next`
-- [ ] Verify `cf set slice <index>` auto-sets fileTasks
+- [x] Full build: `pnpm -r build` succeeds
+- [x] Full test suite: `pnpm -r test` — all tests pass (846 tests)
+- [x] Verify CLI commands work: `cf slice list`, `cf task list`, `cf arch list`, `cf status`, `cf next`
+- [x] Verify `cf set slice <index>` auto-sets fileTasks
 
 **Commit checkpoint**

@@ -28,4 +28,9 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     description: 'Strategy for managing the AI project guide via git',
     enum: ['submodule', 'clone', 'manual'],
   },
+  'workflow.auto_advance': {
+    type: 'boolean',
+    default: false,
+    description: 'Auto-advance to next slice when current is complete',
+  },
 };

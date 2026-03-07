@@ -77,7 +77,7 @@ dateUpdated: 20260228
    **Risk:** Low — wrapping existing internals, main work is API design and response shaping
    **Effort:** 2/5
 
-5. [ ] **(165) Workflow Navigator & Discovery** — Core workflow navigation service with MCP tools and CLI commands for methodology position tracking, next-action recommendation, and artifact discovery.
+5. [x] **(165) Workflow Navigator & Discovery** — Core workflow navigation service with MCP tools and CLI commands for methodology position tracking, next-action recommendation, and artifact discovery.
 
    **Core service:** `WorkflowNavigator` in `packages/core/src/introspection/` with `getStatus()` and `getNext()` methods. Consumes `ArtifactIntrospector` (slice 163) and `ProjectModelBuilder` (slice 164) for structured introspection.
 
