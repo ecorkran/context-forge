@@ -144,6 +144,8 @@ describe('Server Lifecycle', () => {
       'server_version',
       'template_preview',
       'workflow_future',
+      'workflow_next',
+      'workflow_status',
     ]);
 
     // Step 4: Close stdin and verify clean exit

@@ -14,6 +14,9 @@ import { registerPromptCommand } from './commands/prompt.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerGuidesCommand } from './commands/guides.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
+import { registerSliceCommand } from './commands/slice.js';
+import { registerTaskCommand } from './commands/task.js';
+import { registerArchCommand } from './commands/arch.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -46,6 +49,9 @@ registerCheckCommand(program);
 registerPromptCommand(program);
 registerInitCommand(program);
 registerGuidesCommand(program);
+registerSliceCommand(program);
+registerTaskCommand(program);
+registerArchCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 

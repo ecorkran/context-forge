@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, FutureWorkCollector } from '@context-forge/core/node';
+import { FileProjectStore, FutureWorkCollector, WorkflowNavigator } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -70,6 +70,84 @@ export function registerWorkflowTools(server: McpServer): void {
         }
 
         return jsonResult(result);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${msg}`);
+      }
+    },
+  );
+
+  // --- workflow_status ---
+  server.registerTool(
+    'workflow_status',
+    {
+      title: 'Workflow Status',
+      description:
+        'Get the current workflow status for a project. Returns project phase, active slice status ' +
+        '(needs-design, needs-tasks, in-implementation, complete), task progress, and slice plan overview. ' +
+        'Response shape: { project, phase, activeSlice: { name, index, status, taskProgress? }, slicePlan?, summary }.',
+      inputSchema: {
+        projectId: z
+          .string()
+          .optional()
+          .describe('Project ID. Omit to use default_project config.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        const resolvedId = await resolveProjectId(args.projectId);
+        const store = new FileProjectStore();
+        const project = await store.getById(resolvedId);
+
+        if (!project) {
+          return errorResult(
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
+          );
+        }
+
+        const nav = new WorkflowNavigator();
+        const status = await nav.getStatus(project);
+        return jsonResult(status);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${msg}`);
+      }
+    },
+  );
+
+  // --- workflow_next ---
+  server.registerTool(
+    'workflow_next',
+    {
+      title: 'Workflow Next Action',
+      description:
+        'Get the recommended next action for a project based on its current state. ' +
+        'Returns a prioritized recommendation with rationale and optional suggested CLI command. ' +
+        'Response shape: { recommendation, rationale, suggestedCommand?, slice?, phase?, summary }.',
+      inputSchema: {
+        projectId: z
+          .string()
+          .optional()
+          .describe('Project ID. Omit to use default_project config.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        const resolvedId = await resolveProjectId(args.projectId);
+        const store = new FileProjectStore();
+        const project = await store.getById(resolvedId);
+
+        if (!project) {
+          return errorResult(
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
+          );
+        }
+
+        const nav = new WorkflowNavigator();
+        const next = await nav.getNext(project);
+        return jsonResult(next);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);

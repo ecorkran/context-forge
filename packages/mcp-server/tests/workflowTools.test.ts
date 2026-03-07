@@ -10,6 +10,8 @@ import { registerWorkflowTools } from '../src/tools/workflowTools.js';
 const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockConfigGet = vi.fn();
 const mockCollect = vi.fn();
+const mockGetStatus = vi.fn();
+const mockGetNext = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -20,6 +22,10 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   FutureWorkCollector: vi.fn().mockImplementation(() => ({
     collect: mockCollect,
+  })),
+  WorkflowNavigator: vi.fn().mockImplementation(() => ({
+    getStatus: mockGetStatus,
+    getNext: mockGetNext,
   })),
 }));
 
@@ -200,5 +206,106 @@ describe('workflow_future', () => {
 
     expect(result.isError).toBeFalsy();
     expect(mockGetById).toHaveBeenCalled();
+  });
+});
+
+describe('workflow_status', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns WorkflowStatus for valid project', async () => {
+    const mockStatus = {
+      project: 'test-project',
+      phase: 'Phase 6: Implementation',
+      activeSlice: { name: 'test-feature', index: 100, status: 'in-implementation', taskProgress: { completed: 1, total: 2, inferredStatus: 'in-progress' } },
+      slicePlan: null,
+      summary: 'test-project — slice 100 in-implementation (1/2 tasks)',
+    };
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetStatus.mockResolvedValue(mockStatus);
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as typeof mockStatus;
+    expect(parsed.project).toBe('test-project');
+    expect(parsed.activeSlice?.status).toBe('in-implementation');
+    expect(parsed.summary).toContain('slice 100');
+  });
+
+  it('returns error for missing project', async () => {
+    mockGetById.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('not found');
+  });
+});
+
+describe('workflow_next', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns NextAction for valid project', async () => {
+    const mockNext = {
+      recommendation: 'Continue implementation — 2 tasks remaining',
+      rationale: 'Slice 100 is in progress with 2 tasks left.',
+      phase: 'Phase 6: Implementation',
+      slice: '100-slice.test-feature.md',
+      summary: 'Continue slice 100 — 2 tasks remaining',
+    };
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetNext.mockResolvedValue(mockNext);
+
+    const result = await client.callTool({
+      name: 'workflow_next',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as typeof mockNext;
+    expect(parsed.recommendation).toContain('Continue implementation');
+    expect(parsed.summary).toContain('slice 100');
+  });
+
+  it('returns error for missing project', async () => {
+    mockGetById.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'workflow_next',
+      arguments: { projectId: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('not found');
   });
 });

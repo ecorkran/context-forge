@@ -226,42 +226,42 @@ status: in_progress
 
 ### Task 16: Register CLI Commands
 
-- [ ] Modify `packages/cli/src/index.ts`
-  - [ ] Import and call `registerSliceCommand(program)`
-  - [ ] Import and call `registerTaskCommand(program)`
-  - [ ] Import and call `registerArchCommand(program)`
-  - [ ] Verify `cf slice list --help`, `cf task list --help`, `cf arch list --help` work
-  - [ ] Build succeeds: `pnpm --filter @context-forge/cli build`
+- [x] Modify `packages/cli/src/index.ts`
+  - [x] Import and call `registerSliceCommand(program)`
+  - [x] Import and call `registerTaskCommand(program)`
+  - [x] Import and call `registerArchCommand(program)`
+  - [x] Verify `cf slice list --help`, `cf task list --help`, `cf arch list --help` work
+  - [x] Build succeeds: `pnpm --filter @context-forge/cli build`
 
 ### Task 17: Add `workflow_status` MCP Tool
 
-- [ ] Add to `packages/mcp-server/src/tools/workflowTools.ts`
-  - [ ] Input: `projectId` (optional, string)
-  - [ ] Resolve project via `resolveProjectId`, get from store
-  - [ ] Call `new WorkflowNavigator().getStatus(project)`
-  - [ ] Return `jsonResult(status)`
-  - [ ] Handle missing project, missing projectPath with `errorResult()`
-  - [ ] Add `readOnlyHint: true` annotation
+- [x] Add to `packages/mcp-server/src/tools/workflowTools.ts`
+  - [x] Input: `projectId` (optional, string)
+  - [x] Resolve project via `resolveProjectId`, get from store
+  - [x] Call `new WorkflowNavigator().getStatus(project)`
+  - [x] Return `jsonResult(status)`
+  - [x] Handle missing project, missing projectPath with `errorResult()`
+  - [x] Add `readOnlyHint: true` annotation
 
 ### Task 18: Add `workflow_next` MCP Tool
 
-- [ ] Add to `packages/mcp-server/src/tools/workflowTools.ts`
-  - [ ] Input: `projectId` (optional, string)
-  - [ ] Resolve project, call `new WorkflowNavigator().getNext(project)`
-  - [ ] Return `jsonResult(nextAction)`
-  - [ ] Handle errors with `errorResult()`
-  - [ ] Add `readOnlyHint: true` annotation
+- [x] Add to `packages/mcp-server/src/tools/workflowTools.ts`
+  - [x] Input: `projectId` (optional, string)
+  - [x] Resolve project, call `new WorkflowNavigator().getNext(project)`
+  - [x] Return `jsonResult(nextAction)`
+  - [x] Handle errors with `errorResult()`
+  - [x] Add `readOnlyHint: true` annotation
 
 ### Task 19: Test MCP Workflow Tools
 
-- [ ] Add tests to `packages/mcp-server/tests/workflowTools.test.ts`
-  - [ ] Mock `WorkflowNavigator`, `FileProjectStore`
-  - [ ] Test `workflow_status`: returns WorkflowStatus for valid project
-  - [ ] Test `workflow_status`: error for missing project
-  - [ ] Test `workflow_next`: returns NextAction for valid project
-  - [ ] Test `workflow_next`: error for missing project
-  - [ ] Update lifecycle test for new tool count (current count + 2)
-  - [ ] All tests pass: `pnpm --filter context-forge-mcp test`
+- [x] Add tests to `packages/mcp-server/tests/workflowTools.test.ts`
+  - [x] Mock `WorkflowNavigator`, `FileProjectStore`
+  - [x] Test `workflow_status`: returns WorkflowStatus for valid project
+  - [x] Test `workflow_status`: error for missing project
+  - [x] Test `workflow_next`: returns NextAction for valid project
+  - [x] Test `workflow_next`: error for missing project
+  - [x] Update lifecycle test for new tool count (current count + 2)
+  - [x] All tests pass: `pnpm --filter @context-forge/mcp test`
 
 **Commit checkpoint**
 
