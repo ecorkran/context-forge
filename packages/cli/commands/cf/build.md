@@ -4,6 +4,6 @@ argument-hint: [--phase <phase>] [--slice <slice>]
 allowed-tools: Bash(cf:*)
 ---
 
-Present the following context prompt exactly as shown, with no additional commentary or interpretation:
+Use the following as your working context and immediately begin the work it describes. Confirm receipt with a one-line summary: "Context loaded: {project} | {phase} | {slice}" — then proceed.
 
 !`cf build $ARGUMENTS`

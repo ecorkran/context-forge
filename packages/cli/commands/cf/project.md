@@ -4,6 +4,6 @@ argument-hint: [list | get | set <field> <value> | rm | --schema]
 allowed-tools: Bash(cf:*)
 ---
 
-Present the following output exactly as shown, with no additional commentary or interpretation:
+Display this output without commentary:
 
 !`cf project $ARGUMENTS`
