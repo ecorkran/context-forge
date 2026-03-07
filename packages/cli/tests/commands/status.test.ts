@@ -4,15 +4,15 @@ import { registerStatusCommand } from '../../src/commands/status.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
-const mockSummarize = vi.fn();
+const mockGetStatus = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
-  ArtifactIntrospector: vi.fn().mockImplementation(() => ({
-    summarize: mockSummarize,
+  WorkflowNavigator: vi.fn().mockImplementation(() => ({
+    getStatus: mockGetStatus,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
@@ -29,10 +29,17 @@ const sampleProject = {
   projectPath: '/tmp/test',
 };
 
-const sampleIntrospection = {
-  slicePlan: { totalSlices: 10, completedSlices: 7, summary: '7 of 10 done' },
-  currentTasks: { totalTasks: 5, completedTasks: 3, inferredStatus: 'in_progress', summary: '' },
-  artifacts: { hasSlicePlan: true, hasHLD: false, hasArch: false, hasSpec: false, hasCurrentSliceDesign: true, hasCurrentTaskFile: true },
+const sampleStatus = {
+  project: 'test-project',
+  phase: 'Phase 6: Implementation',
+  activeSlice: {
+    name: 'auth',
+    index: 100,
+    status: 'in-implementation',
+    taskProgress: { completed: 3, total: 5, inferredStatus: 'in-progress' },
+  },
+  slicePlan: { name: '100-slices.test.md', completed: 7, total: 10, entries: [] },
+  summary: 'test-project — Phase 6 — slice 100 in-implementation (3/5 tasks)',
 };
 
 function createProgram(): Command {
@@ -54,7 +61,7 @@ describe('cf status', () => {
 
   it('displays project, phase, slice, and task progress', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockSummarize.mockResolvedValue(sampleIntrospection);
+    mockGetStatus.mockResolvedValue(sampleStatus);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
@@ -68,7 +75,7 @@ describe('cf status', () => {
 
   it('outputs valid JSON with --json flag', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockSummarize.mockResolvedValue(sampleIntrospection);
+    mockGetStatus.mockResolvedValue(sampleStatus);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001', '--json']);
@@ -76,12 +83,12 @@ describe('cf status', () => {
     const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw);
     expect(parsed.project).toBe('test-project');
-    expect(parsed.currentTasks.totalTasks).toBe(5);
+    expect(parsed.activeSlice.taskProgress.total).toBe(5);
   });
 
   it('shows slice plan summary when available', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockSummarize.mockResolvedValue(sampleIntrospection);
+    mockGetStatus.mockResolvedValue(sampleStatus);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
@@ -92,7 +99,7 @@ describe('cf status', () => {
 
   it('shows resolution source label in terminal output', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockSummarize.mockResolvedValue(sampleIntrospection);
+    mockGetStatus.mockResolvedValue(sampleStatus);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
@@ -103,7 +110,7 @@ describe('cf status', () => {
 
   it('includes resolutionSource in JSON output', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockSummarize.mockResolvedValue(sampleIntrospection);
+    mockGetStatus.mockResolvedValue(sampleStatus);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001', '--json']);

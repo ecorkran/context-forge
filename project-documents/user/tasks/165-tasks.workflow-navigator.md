@@ -267,18 +267,18 @@ status: in_progress
 
 ### Task 20: Enhance `cf status` and `cf next`
 
-- [ ] Modify `packages/cli/src/commands/status.ts`
-  - [ ] Replace direct `ArtifactIntrospector` usage with `WorkflowNavigator.getStatus()`
-  - [ ] Use `WorkflowStatus` fields for display (activeSlice.status, taskProgress, slicePlan)
-  - [ ] Preserve existing output format but use richer data
-  - [ ] Update `--json` output to include full `WorkflowStatus`
-- [ ] Modify `packages/cli/src/commands/next.ts`
-  - [ ] Remove provisional `deriveRecommendation()` function
-  - [ ] Replace with `new WorkflowNavigator().getNext(project)`
-  - [ ] Map `NextAction` fields to existing output format
-  - [ ] Show `suggestedCommand` in output when available
-- [ ] Update existing tests in `packages/cli/tests/status.test.ts` and `packages/cli/tests/next.test.ts` for new imports/behavior
-- [ ] All tests pass: `pnpm --filter @context-forge/cli test`
+- [x] Modify `packages/cli/src/commands/status.ts`
+  - [x] Replace direct `ArtifactIntrospector` usage with `WorkflowNavigator.getStatus()`
+  - [x] Use `WorkflowStatus` fields for display (activeSlice.status, taskProgress, slicePlan)
+  - [x] Preserve existing output format but use richer data
+  - [x] Update `--json` output to include full `WorkflowStatus`
+- [x] Modify `packages/cli/src/commands/next.ts`
+  - [x] Remove provisional `deriveRecommendation()` function
+  - [x] Replace with `new WorkflowNavigator().getNext(project)`
+  - [x] Map `NextAction` fields to existing output format
+  - [x] Show `suggestedCommand` in output when available
+- [x] Update existing tests in `packages/cli/tests/status.test.ts` and `packages/cli/tests/next.test.ts` for new imports/behavior
+- [x] All tests pass: `pnpm --filter @context-forge/cli test`
 
 **Commit checkpoint**
 
