@@ -6,7 +6,7 @@ dependencies: [163-artifact-introspection-engine, 164-mcp-introspection-tools]
 projectState: "Slices 161-164, 167, 172-175 complete. 805 tests passing. Core introspection engine and ProjectModelBuilder available. CLI has status, next, project commands. MCP has workflow_future tool."
 dateCreated: 20260307
 dateUpdated: 20260307
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -26,46 +26,46 @@ status: not_started
 
 ### Task 1: Add Core Types
 
-- [ ] Add `SliceStatus`, `WorkflowStatus`, and `NextAction` types to `packages/core/src/introspection/types.ts`
-  - [ ] `SliceStatus`: `{ name, index: number | null, status: 'needs-design' | 'needs-tasks' | 'in-implementation' | 'complete' | 'no-active-slice', taskProgress?: { completed, total, inferredStatus } }`
-  - [ ] `WorkflowStatus`: `{ project, phase, activeSlice: SliceStatus | null, slicePlan: { name, completed, total, entries: SlicePlanEntry[] } | null, summary }`
-  - [ ] `NextAction`: `{ recommendation, rationale, suggestedCommand?, slice?, phase?, summary }`
-  - [ ] Export new types from `packages/core/src/introspection/index.ts`
-  - [ ] Build succeeds: `pnpm -r build`
+- [x] Add `SliceStatus`, `WorkflowStatus`, and `NextAction` types to `packages/core/src/introspection/types.ts`
+  - [x] `SliceStatus`: `{ name, index: number | null, status: 'needs-design' | 'needs-tasks' | 'in-implementation' | 'complete' | 'no-active-slice', taskProgress?: { completed, total, inferredStatus } }`
+  - [x] `WorkflowStatus`: `{ project, phase, activeSlice: SliceStatus | null, slicePlan: { name, completed, total, entries: SlicePlanEntry[] } | null, summary }`
+  - [x] `NextAction`: `{ recommendation, rationale, suggestedCommand?, slice?, phase?, summary }`
+  - [x] Export new types from `packages/core/src/introspection/index.ts`
+  - [x] Build succeeds: `pnpm -r build`
 
 **Commit checkpoint**
 
 ### Task 2: Implement WorkflowNavigator.getStatus()
 
-- [ ] Create `packages/core/src/introspection/WorkflowNavigator.ts`
-  - [ ] Stateless class with `private introspector = new ArtifactIntrospector()`
-  - [ ] `async getStatus(project: ProjectData): Promise<WorkflowStatus>`
-  - [ ] Derive `activeSlice.status` by checking file existence via `detectDocuments()`:
+- [x] Create `packages/core/src/introspection/WorkflowNavigator.ts`
+  - [x] Stateless class with `private introspector = new ArtifactIntrospector()`
+  - [x] `async getStatus(project: ProjectData): Promise<WorkflowStatus>`
+  - [x] Derive `activeSlice.status` by checking file existence via `detectDocuments()`:
     1. No `fileSlice` → status `no-active-slice`
     2. No slice design file → `needs-design`
     3. Slice design exists, no task file → `needs-tasks`
     4. Task file exists, tasks incomplete → `in-implementation`
     5. Task file exists, all complete → `complete`
-  - [ ] Extract numeric index from `fileSlice` (regex `/^(\d+)-/`)
-  - [ ] Parse `fileSlicePlan` if set → populate `slicePlan` field with entries
-  - [ ] Parse `fileTasks` if set → populate `activeSlice.taskProgress`
-  - [ ] Generate human-readable `summary` string (e.g., "Phase 6 — slice 165 in-implementation (7/12 tasks)")
-  - [ ] Handle edge cases: no projectPath, no fileSlice, no fileSlicePlan, missing files
-  - [ ] Export from `packages/core/src/node.ts`
+  - [x] Extract numeric index from `fileSlice` (regex `/^(\d+)-/`)
+  - [x] Parse `fileSlicePlan` if set → populate `slicePlan` field with entries
+  - [x] Parse `fileTasks` if set → populate `activeSlice.taskProgress`
+  - [x] Generate human-readable `summary` string (e.g., "Phase 6 — slice 165 in-implementation (7/12 tasks)")
+  - [x] Handle edge cases: no projectPath, no fileSlice, no fileSlicePlan, missing files
+  - [x] Export from `packages/core/src/node.ts`
 
 ### Task 3: Test WorkflowNavigator.getStatus()
 
-- [ ] Create `packages/core/tests/introspection/WorkflowNavigator.test.ts`
-  - [ ] Mock `ArtifactIntrospector` (all parser methods)
-  - [ ] Test: no projectPath → returns basic status with null activeSlice
-  - [ ] Test: no fileSlice → `activeSlice.status` is `no-active-slice`
-  - [ ] Test: slice set but no design file → `needs-design`
-  - [ ] Test: design exists, no task file → `needs-tasks`
-  - [ ] Test: tasks incomplete → `in-implementation` with taskProgress
-  - [ ] Test: all tasks complete → `complete`
-  - [ ] Test: fileSlicePlan set → slicePlan populated with entries
-  - [ ] Test: summary string is non-empty and contains relevant info
-  - [ ] All tests pass: `pnpm --filter @context-forge/core test`
+- [x] Create `packages/core/tests/introspection/WorkflowNavigator.test.ts`
+  - [x] Mock `ArtifactIntrospector` (all parser methods)
+  - [x] Test: no projectPath → returns basic status with null activeSlice
+  - [x] Test: no fileSlice → `activeSlice.status` is `no-active-slice`
+  - [x] Test: slice set but no design file → `needs-design`
+  - [x] Test: design exists, no task file → `needs-tasks`
+  - [x] Test: tasks incomplete → `in-implementation` with taskProgress
+  - [x] Test: all tasks complete → `complete`
+  - [x] Test: fileSlicePlan set → slicePlan populated with entries
+  - [x] Test: summary string is non-empty and contains relevant info
+  - [x] All tests pass: `pnpm --filter @context-forge/core test`
 
 **Commit checkpoint**
 

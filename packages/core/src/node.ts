@@ -21,6 +21,7 @@ export { resolveFileByIndex } from './schema/resolveFileByIndex.js';
 
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector } from './introspection/ArtifactIntrospector.js';
+export { WorkflowNavigator, extractSliceIndex } from './introspection/WorkflowNavigator.js';
 export { parseFrontmatter } from './introspection/parsers/frontmatterParser.js';
 export { parseSlicePlan } from './introspection/parsers/slicePlanParser.js';
 export { parseTaskItems, parseTaskFile } from './introspection/parsers/taskFileParser.js';
