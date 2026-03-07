@@ -1,0 +1,107 @@
+import { Command } from 'commander';
+import { FileProjectStore, buildModel } from '@context-forge/core/node';
+import { extractSliceIndex } from '@context-forge/core/node';
+import { resolveProjectId } from '../utils/project.js';
+import { handleError, UserError } from '../utils/errors.js';
+import { printJson } from '../output/formatter.js';
+import { renderTable } from '../output/tables.js';
+import { label, success, dim } from '../output/styles.js';
+
+export function registerArchCommand(program: Command): void {
+  const cmd = program
+    .command('arch')
+    .description('Manage architecture');
+
+  cmd
+    .command('list')
+    .description('List architecture initiatives from the project')
+    .option('--json', 'Output as JSON')
+    .option('--project <name|id>', 'Project name or ID (overrides default)')
+    .action(async (opts: { json?: boolean; project?: string }) => {
+      try {
+        const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
+        const project = await store.getById(id);
+
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'.`);
+        }
+
+        if (!project.projectPath) {
+          throw new UserError(
+            'No projectPath configured. Set one with: cf set projectPath /path/to/project',
+          );
+        }
+
+        const model = await buildModel(project.projectPath);
+        const initiativeKeys = Object.keys(model.initiatives).sort(
+          (a, b) => parseInt(a, 10) - parseInt(b, 10),
+        );
+
+        if (initiativeKeys.length === 0) {
+          console.log(dim('No initiatives found in project.'));
+          return;
+        }
+
+        const activeIndex = extractSliceIndex(project.fileSlice);
+
+        const entries = initiativeKeys.map((key) => {
+          const init = model.initiatives[key];
+          const baseIndex = parseInt(key, 10);
+
+          const archName = init.arch?.name ?? '—';
+          const planName = init.slicePlan?.name ?? '—';
+
+          const completedSlices = init.slices.filter(
+            (s) => s.status === 'complete',
+          ).length;
+          const totalSlices = init.slices.length;
+          const progress = totalSlices > 0
+            ? `${completedSlices}/${totalSlices}`
+            : '—';
+
+          // Determine if this initiative contains the active slice
+          const isActive = activeIndex !== null && init.slices.some(
+            (s) => parseInt(s.index, 10) === activeIndex,
+          );
+
+          return {
+            index: key,
+            baseIndex,
+            name: init.name,
+            archDoc: archName,
+            slicePlan: planName,
+            progress,
+            completedSlices,
+            totalSlices,
+            isActive,
+          };
+        });
+
+        if (opts.json) {
+          printJson(entries);
+          return;
+        }
+
+        console.log(label('\nArchitecture Initiatives'));
+
+        const rows = entries.map((e) => {
+          const indicator = e.isActive ? success(' ← active') : '';
+          return [
+            e.index,
+            e.name,
+            dim(e.archDoc),
+            dim(e.slicePlan),
+            e.progress + indicator,
+          ];
+        });
+
+        console.log(renderTable(
+          ['Index', 'Initiative', 'Arch Doc', 'Slice Plan', 'Progress'],
+          rows,
+        ));
+      } catch (err) {
+        handleError(err);
+      }
+    });
+}

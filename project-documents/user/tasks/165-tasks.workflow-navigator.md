@@ -198,29 +198,29 @@ status: in_progress
 
 ### Task 14: Implement `cf arch list`
 
-- [ ] Create `packages/cli/src/commands/arch.ts`
-  - [ ] `registerArchCommand(program: Command)` — registers `cf arch` with `list` subcommand
-  - [ ] `cf arch list` options: `--json`, `--project <id>`
-  - [ ] Resolve project, require `projectPath`
-  - [ ] Build model via `new ProjectModelBuilder().buildModel(projectPath)`
-  - [ ] Iterate `model.initiatives` (keyed by base index string)
-  - [ ] For each initiative: extract index range (base index, or min-max of slices), arch doc name, slice plan name, completion (completed/total slices)
-  - [ ] Determine active initiative: match `project.fileSlice` index against initiative slice index ranges
-  - [ ] Render borderless table using `renderTable()`:
+- [x] Create `packages/cli/src/commands/arch.ts`
+  - [x] `registerArchCommand(program: Command)` — registers `cf arch` with `list` subcommand
+  - [x] `cf arch list` options: `--json`, `--project <id>`
+  - [x] Resolve project, require `projectPath`
+  - [x] Build model via `buildModel(projectPath)`
+  - [x] Iterate `model.initiatives` (keyed by base index string)
+  - [x] For each initiative: extract index range (base index, or min-max of slices), arch doc name, slice plan name, completion (completed/total slices)
+  - [x] Determine active initiative: match `project.fileSlice` index against initiative slice index ranges
+  - [x] Render borderless table using `renderTable()`:
     - Columns: `Index`, `Initiative`, `Arch Doc`, `Slice Plan`, `Progress`
     - Active indicator: `← active` on matching initiative
-  - [ ] `--json` outputs structured initiative data
-  - [ ] Handle empty model gracefully (no initiatives found message)
+  - [x] `--json` outputs structured initiative data
+  - [x] Handle empty model gracefully (no initiatives found message)
 
 ### Task 15: Test `cf arch list`
 
-- [ ] Create `packages/cli/tests/arch.test.ts`
-  - [ ] Mock `FileProjectStore`, `ProjectModelBuilder`, `resolveProjectId`
-  - [ ] Test: renders table with initiative data and progress counts
-  - [ ] Test: active initiative marked
-  - [ ] Test: `--json` outputs structured data
-  - [ ] Test: handles empty model (no initiatives)
-  - [ ] All tests pass: `pnpm --filter @context-forge/cli test`
+- [x] Create `packages/cli/tests/arch.test.ts`
+  - [x] Mock `FileProjectStore`, `ProjectModelBuilder`, `resolveProjectId`
+  - [x] Test: renders table with initiative data and progress counts
+  - [x] Test: active initiative marked
+  - [x] Test: `--json` outputs structured data
+  - [x] Test: handles empty model (no initiatives)
+  - [x] All tests pass: `pnpm --filter @context-forge/cli test`
 
 **Commit checkpoint**
 
