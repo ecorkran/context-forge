@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, ArtifactIntrospector } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData } from '@context-forge/core';
 import { getSchema } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
@@ -169,11 +169,32 @@ export function registerProjectTools(server: McpServer): void {
           (updates as Record<string, unknown>).instruction = updates.developmentPhase;
         }
 
+        // Auto-set fileTasks when fileSlice changes (unless fileTasks is explicitly provided)
+        let autoSetTasks: string | null = null;
+        if ('fileSlice' in updates && !('fileTasks' in updates) && existing.projectPath) {
+          try {
+            const sliceIndex = /^(\d+)-/.exec(updates.fileSlice!);
+            if (sliceIndex) {
+              const resolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+              if (resolved !== null) {
+                (updates as Record<string, unknown>).fileTasks = resolved;
+                autoSetTasks = resolved;
+              }
+            }
+          } catch {
+            // Silently skip — auto-set is best-effort
+          }
+        }
+
         await store.update(resolvedId, updates);
 
         // Read back updated project
         const updated = await store.getById(resolvedId);
-        return jsonResult(updated);
+        const result: Record<string, unknown> = { ...updated };
+        if (autoSetTasks) {
+          result._autoSet = { fileTasks: autoSetTasks };
+        }
+        return jsonResult(result);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${message}`);

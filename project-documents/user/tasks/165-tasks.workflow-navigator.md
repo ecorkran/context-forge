@@ -123,20 +123,20 @@ status: in_progress
 
 ### Task 8: Auto-Set fileTasks on fileSlice Change (MCP)
 
-- [ ] Modify `project_update` handler in `packages/mcp-server/src/tools/projectTools.ts`
-  - [ ] When update includes `fileSlice`, apply same auto-set logic:
+- [x] Modify `project_update` handler in `packages/mcp-server/src/tools/projectTools.ts`
+  - [x] When update includes `fileSlice`, apply same auto-set logic:
     1. Extract index from the fileSlice value
     2. Call `resolveFileByIndex` for `fileTasks`
     3. If match found, include `fileTasks` in the update
-  - [ ] Silently skip on error or no match
-  - [ ] Return response should note auto-set if it occurred
+  - [x] Silently skip on error or no match
+  - [x] Return response should note auto-set if it occurred
 
 ### Task 9: Test Auto-Set fileTasks (MCP)
 
-- [ ] Add tests to `packages/mcp-server/tests/projectTools.test.ts`
-  - [ ] Test: updating fileSlice with matching task file → fileTasks auto-set in response
-  - [ ] Test: updating fileSlice with no match → fileTasks unchanged
-  - [ ] All tests pass: `pnpm --filter context-forge-mcp test`
+- [x] Add tests to `packages/mcp-server/tests/projectTools.test.ts`
+  - [x] Test: updating fileSlice with matching task file → fileTasks auto-set in response
+  - [x] Test: updating fileSlice with no match → fileTasks unchanged
+  - [x] All tests pass: `pnpm --filter @context-forge/mcp test`
 
 **Commit checkpoint**
 

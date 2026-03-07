@@ -12,6 +12,7 @@ const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
 const mockConfigGet = vi.fn();
 const mockSummarize = vi.fn();
+const mockResolveFileByIndex = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -25,6 +26,7 @@ vi.mock('@context-forge/core/node', () => ({
   ArtifactIntrospector: vi.fn().mockImplementation(() => ({
     summarize: mockSummarize,
   })),
+  resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
 
 // --- Fixtures ---
@@ -280,6 +282,49 @@ describe('project_update', () => {
       developmentPhase: 'Phase 4: Slice Design',
       instruction: 'custom-instruction',
     });
+  });
+
+  it('auto-sets fileTasks when updating fileSlice with matching task file', async () => {
+    const updatedProject = { ...MOCK_PROJECT, fileSlice: '200-slice.new.md', fileTasks: '200-tasks.new.md' };
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+    mockResolveFileByIndex.mockReturnValue('200-tasks.new.md');
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id, fileSlice: '200-slice.new.md' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // Update should include both fileSlice and auto-set fileTasks
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, {
+      fileSlice: '200-slice.new.md',
+      fileTasks: '200-tasks.new.md',
+    });
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed._autoSet).toEqual({ fileTasks: '200-tasks.new.md' });
+  });
+
+  it('does not auto-set fileTasks when no matching task file found', async () => {
+    const updatedProject = { ...MOCK_PROJECT, fileSlice: '999-slice.no-tasks.md' };
+    mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
+    mockUpdate.mockResolvedValue(undefined);
+    mockResolveFileByIndex.mockReturnValue(null);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: { id: MOCK_PROJECT.id, fileSlice: '999-slice.no-tasks.md' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // Update should only include fileSlice, not fileTasks
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, {
+      fileSlice: '999-slice.no-tasks.md',
+    });
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed._autoSet).toBeUndefined();
   });
 
   it('returns isError when no update fields provided (only id)', async () => {
