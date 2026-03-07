@@ -17,6 +17,7 @@ import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from
 import { registerSliceCommand } from './commands/slice.js';
 import { registerTaskCommand } from './commands/task.js';
 import { registerArchCommand } from './commands/arch.js';
+import { registerPlanCommand } from './commands/plan.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -52,6 +53,7 @@ registerGuidesCommand(program);
 registerSliceCommand(program);
 registerTaskCommand(program);
 registerArchCommand(program);
+registerPlanCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 

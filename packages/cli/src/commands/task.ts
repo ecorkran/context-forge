@@ -20,11 +20,10 @@ export function registerTaskCommand(program: Command): void {
 
   cmd
     .command('list')
-    .description('List tasks from the active task file, or all task files with --all')
+    .description('List task files from the slice plan')
     .option('--json', 'Output as JSON')
-    .option('--all', 'Show all task files from the slice plan')
     .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { json?: boolean; all?: boolean; project?: string }) => {
+    .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
         const { id } = await resolveProjectId(opts.project, store);
@@ -40,18 +39,41 @@ export function registerTaskCommand(program: Command): void {
           );
         }
 
-        if (opts.all) {
-          await listAllTasks(project, opts.json);
-        } else {
-          await listCurrentTasks(project, opts.json);
+        await listTaskFiles(project, opts.json);
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+  cmd
+    .command('items')
+    .description('Show individual task items from the active task file')
+    .option('--json', 'Output as JSON')
+    .option('--project <name|id>', 'Project name or ID (overrides default)')
+    .action(async (opts: { json?: boolean; project?: string }) => {
+      try {
+        const store = new FileProjectStore();
+        const { id } = await resolveProjectId(opts.project, store);
+        const project = await store.getById(id);
+
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'.`);
         }
+
+        if (!project.projectPath) {
+          throw new UserError(
+            'No projectPath configured. Set one with: cf set projectPath /path/to/project',
+          );
+        }
+
+        await listTaskItems(project, opts.json);
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-async function listCurrentTasks(
+async function listTaskItems(
   project: { fileTasks?: string; projectPath?: string; fileSlice?: string },
   json?: boolean,
 ): Promise<void> {
@@ -106,12 +128,12 @@ async function listCurrentTasks(
   }
 }
 
-async function listAllTasks(
+async function listTaskFiles(
   project: { fileSlicePlan?: string; fileSlice?: string; projectPath?: string },
   json?: boolean,
 ): Promise<void> {
   if (!project.fileSlicePlan) {
-    throw new UserError('No slice plan configured. Use --all with a slice plan, or omit --all to show current tasks.');
+    throw new UserError('No slice plan configured. Set one with: cf set slicePlan <path>');
   }
 
   const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);

@@ -63,7 +63,7 @@ function createProgram(): Command {
   return program;
 }
 
-describe('cf task list', () => {
+describe('cf task items', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
@@ -73,12 +73,12 @@ describe('cf task list', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('renders task list with completion indicators and progress header', async () => {
+  it('renders task items with completion indicators and progress header', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockParseTaskFile.mockResolvedValue(sampleTaskResult);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'list', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'task', 'items', '--project', 'proj_001']);
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const output = calls.join('\n');
@@ -93,7 +93,7 @@ describe('cf task list', () => {
     mockParseTaskFile.mockResolvedValue(sampleTaskResult);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'list', '--json', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'task', 'items', '--json', '--project', 'proj_001']);
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
@@ -107,10 +107,33 @@ describe('cf task list', () => {
     mockGetById.mockResolvedValue(projectNoTasks);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'list', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'task', 'items', '--project', 'proj_001']);
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('task file'),
+    );
+  });
+});
+
+describe('cf task list', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('errors when no slice plan configured', async () => {
+    const projectNoPlan = { ...sampleProject, fileSlicePlan: undefined };
+    mockGetById.mockResolvedValue(projectNoPlan);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'task', 'list', '--project', 'proj_001']);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('slice plan'),
     );
   });
 });
