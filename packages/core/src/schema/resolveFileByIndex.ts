@@ -72,6 +72,33 @@ export function resolveFileByIndex(
  *
  * @returns The relative path including directory and .md extension, or null if the field is unknown.
  */
+/**
+ * Slugify a human-readable name for use in artifact filenames.
+ * "Consistency Checker" → "consistency-checker"
+ */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Derive an artifact stem from a numeric index and a human-readable name.
+ * Uses the field's first prefix from ARTIFACT_DIR_MAP.
+ *
+ * Example: deriveArtifactStem('fileSlice', '166', 'Consistency Checker')
+ *   → "166-slice.consistency-checker"
+ *
+ * @returns The derived stem, or null if the field is unknown.
+ */
+export function deriveArtifactStem(field: string, index: string, name: string): string | null {
+  const mapping = ARTIFACT_DIR_MAP[field];
+  if (!mapping) return null;
+  const prefix = mapping.prefixes[0];
+  return `${index}-${prefix}${slugify(name)}`;
+}
+
 export function resolveArtifactPath(field: string, stem: string): string | null {
   const mapping = ARTIFACT_DIR_MAP[field];
   if (!mapping) return null;

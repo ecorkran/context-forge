@@ -1,7 +1,8 @@
 import * as os from 'node:os';
 import * as readline from 'node:readline';
+import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, ConfigManager, resolveFileByIndex } from '@context-forge/core/node';
+import { FileProjectStore, ConfigManager, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -16,6 +17,29 @@ import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, value as valueStyle, success, dim } from '../output/styles.js';
+
+/**
+ * When a numeric index doesn't match an existing file, try to derive the stem
+ * from the slice plan. Only works for fileSlice and fileTasks fields.
+ */
+async function deriveFromSlicePlan(
+  project: ProjectData,
+  field: string,
+  index: string,
+): Promise<string | null> {
+  if (!project.fileSlicePlan || !project.projectPath) return null;
+  if (field !== 'fileSlice' && field !== 'fileTasks') return null;
+
+  const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+  if (!planRelPath) return null;
+
+  const planPath = join(project.projectPath, planRelPath);
+  const plan = await parseSlicePlan(planPath);
+  const entry = plan.entries.find((e) => e.index === parseInt(index, 10));
+  if (!entry) return null;
+
+  return deriveArtifactStem(field, index, entry.name);
+}
 
 /** Shorten an absolute path by replacing the home directory with ~. */
 function shortenPath(p: string): string {
@@ -147,14 +171,23 @@ export async function projectSetAction(
   }
 
   // Index-based file resolution: cf set slice 171 → scans for matching file
+  // Falls back to slice plan entry name if file doesn't exist on disk
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && existing.projectPath) {
     try {
       const resolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
       if (resolved !== null) {
         resolvedValue = resolved;
       }
-    } catch (err) {
-      throw new UserError((err as Error).message);
+    } catch {
+      // File doesn't exist — try deriving from slice plan
+      const derived = await deriveFromSlicePlan(existing, resolvedField, resolvedValue);
+      if (derived) {
+        resolvedValue = derived;
+      } else {
+        throw new UserError(
+          `No file matching index '${resolvedValue}' for field '${resolvedField}', and no slice plan entry found to derive from.`,
+        );
+      }
     }
   }
 
