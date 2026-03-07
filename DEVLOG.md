@@ -9,13 +9,23 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
-### Post-165: Workflow fixes and enhancements
-- Fix artifact path resolution: added `resolveArtifactPath()` utility — artifact stems (e.g. `160-slices.project-workflow-system`) now correctly resolve to full paths with directory prefix and `.md` extension
-- Fixed `slicePlan` being null in `WorkflowNavigator`, `ArtifactIntrospector`, and `cf slice list` (all were joining stem directly without directory)
-- Auto-set `fileTasks` now derives from slice name when task file doesn't exist on disk (CLI + MCP)
-- `cf task list --all` shows all task files from slice plan with progress summaries
+### Post-165: Workflow fixes, discovery commands, and UX enhancements
+- Fix artifact path resolution: added `resolveArtifactPath()` — stems now correctly resolve to full paths with directory prefix and `.md`
+- Fixed `slicePlan` being null in `WorkflowNavigator`, `ArtifactIntrospector`, and `cf slice list`
+- Smart index resolution: `cf set slice 166` derives filename from slice plan when no file exists on disk (`deriveArtifactStem`)
+- Auto-set `fileTasks` derives from slice name even when task file doesn't exist yet (CLI + MCP)
+- Discovery commands: `cf arch list`, `cf plan list`, `cf slice list`, `cf task list`, `cf task items`
 - `cf status` now shows Date, Arch, and Plan fields
-- 846 tests passing
+- Slash command optimization: `cf:build` and `cf:prompt get` internalize context instead of echoing (~800 tokens saved)
+- READMEs updated with discovery commands, smart index resolution, changelog
+- 847 tests (475 core, 151 CLI, 115 MCP, 106 Electron)
+- Tags: @context-forge/core@0.3.4, @context-forge/cli@0.3.4, @context-forge/mcp@0.3.4
+- Commits:
+  - `8d67963` fix: resolve artifact paths correctly, enhance status and task commands
+  - `042b364` feat(cli): derive artifact stem from slice plan when file doesn't exist
+  - `3772464` feat(cli): restructure task commands, add cf plan list
+  - `2f5e276` docs: update READMEs with discovery commands and smart index resolution
+  - `d3f2ff5` style(cli): optimize slash command prompts for token efficiency
 
 ### Slice 165: Workflow Navigator & Discovery — Implementation Complete
 - `WorkflowNavigator` core service: `getStatus()` derives slice status from filesystem, `getNext()` priority-ordered state machine with 7 levels
