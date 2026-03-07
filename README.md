@@ -68,7 +68,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 **MCP Server** (`@context-forge/mcp`) — [nn] tools for project management, context generation, artifact introspection, workflow navigation, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
 
-**CLI** (`@context-forge/cli`) — Terminal commands: `cf status`, `cf next`, `cf build`, `cf project`, `cf config`, `cf future`, `cf check`, `cf prompt`, `cf guides`. Pipeable output — `cf build | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
+**CLI** (`@context-forge/cli`) — Terminal commands: `cf status`, `cf next`, `cf build`, `cf set`, `cf project`, `cf arch list`, `cf plan list`, `cf slice list`, `cf task list`, `cf config`, `cf future`, `cf check`, `cf prompt`, `cf guides`. Pipeable output — `cf build | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
 
 **Claude Code Slash Commands** — `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`. Installed via `cf install-commands`. Your AI assistant can suggest these contextually.
 

@@ -49,6 +49,14 @@ cf set slice 175
 # Confirm updates (if you like)
 cf status
 
+# Browse project artifacts
+cf arch list        # Architecture initiatives
+cf slice list       # Slices in the active plan
+cf task list        # Task files with progress
+
+# What should I do next?
+cf next
+
 # Detailed information
 cf project get
 
@@ -85,6 +93,11 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf build` | `cf build [--project <id>] [--phase] [--slice] [--instruction] [--tasks] [--additional]` | Generate context prompt to stdout |
 | `cf set` | `cf set <field> <value>` | Set a project field (shortcut for `cf project set`) |
 | `cf get` | `cf get [--json]` | Show all project fields (shortcut for `cf project get`) |
+| `cf arch` | `cf arch list [--json]` | List architecture initiatives with progress |
+| `cf plan` | `cf plan list [--json]` | List slice plan files with progress |
+| `cf slice` | `cf slice list [--json]` | List slices from the active plan with status |
+| `cf task` | `cf task list [--json]` | List task files from the plan with progress |
+| `cf task items` | `cf task items [--json]` | Show individual tasks from the active task file |
 | `cf config` | `cf config list\|get\|set` | Manage configuration |
 | `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
 | `cf future` | `cf future [--project <id>] [--status <filter>] [--json]` | Show consolidated future work |
@@ -134,6 +147,41 @@ cf set phase 6
 
 Setting `instruction` directly does not change `developmentPhase`.
 
+## Smart Index Resolution
+
+Setting artifact fields by numeric index resolves to the matching file on disk:
+
+```bash
+cf set slice 175
+# Updated slice = 175-slice.context-output-consolidation on project my-project
+# Updated tasks = 175-tasks.context-output-consolidation (auto-set from slice)
+```
+
+When no file exists yet, the CLI derives the stem from the slice plan entry:
+
+```bash
+cf set slice 166
+# (no 166-slice.*.md on disk — derives from plan entry "Consistency Checker")
+# Updated slice = 166-slice.consistency-checker on project my-project
+# Updated tasks = 166-tasks.consistency-checker (auto-set from slice)
+```
+
+Setting `fileSlice` always auto-sets `fileTasks` to match.
+
+## Discovery Commands
+
+Browse project artifacts at every level:
+
+```bash
+cf arch list       # Architecture initiatives with slice counts
+cf plan list       # Slice plan files with completion progress
+cf slice list      # Slices from the active plan with status markers
+cf task list       # Task files from the plan with completion counts
+cf task items      # Individual task items from the active task file
+```
+
+All accept `--json` and `--project <name|id>`.
+
 ## Architecture
 
 The CLI wraps `@context-forge/core` directly (no MCP layer), following the same pattern as the Electron package. All core services are imported from `@context-forge/core/node`.
@@ -148,6 +196,14 @@ pnpm --filter @context-forge/cli typecheck # Type check
 ```
 
 ## Changelog
+
+### v0.4.0
+
+- **Discovery commands** — `cf arch list`, `cf plan list`, `cf slice list`, `cf task list`, `cf task items` for browsing project artifacts at every level
+- **Smart index resolution** — `cf set slice 166` derives the filename from the slice plan when no file exists on disk
+- **Auto-set fileTasks** — setting `fileSlice` always auto-sets `fileTasks`, even when the task file doesn't exist yet
+- **Enhanced `cf status`** — now shows Date, Arch, and Plan fields
+- **Workflow navigation** — `cf status` and `cf next` powered by `WorkflowNavigator` with slice status derivation and priority-ordered next-action recommendations
 
 ### v0.3.0
 
