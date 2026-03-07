@@ -142,34 +142,34 @@ status: in_progress
 
 ### Task 10: Implement `cf slice list`
 
-- [ ] Create `packages/cli/src/commands/slice.ts`
-  - [ ] `registerSliceCommand(program: Command)` — registers `cf slice` with `list` subcommand
-  - [ ] `cf slice list` options: `--json`, `--project <id>`
-  - [ ] Resolve project via `resolveProjectId`
-  - [ ] Resolve `fileSlicePlan` path against `projectPath` (error if neither set)
-  - [ ] Parse slice plan via `new ArtifactIntrospector().parseSlicePlan(resolvedPath)`
-  - [ ] For each entry, check if slice design file exists via `detectDocuments(projectPath, entry.index)` — populate File column
-  - [ ] Determine active slice: match `project.fileSlice` index against entries
-  - [ ] If no active match, mark first unchecked entry as `next`
-  - [ ] Render header: `Slice Plan: {fileSlicePlan filename}`
-  - [ ] Render borderless table using `renderTable()`:
+- [x] Create `packages/cli/src/commands/slice.ts`
+  - [x] `registerSliceCommand(program: Command)` — registers `cf slice` with `list` subcommand
+  - [x] `cf slice list` options: `--json`, `--project <id>`
+  - [x] Resolve project via `resolveProjectId`
+  - [x] Resolve `fileSlicePlan` path against `projectPath` (error if neither set)
+  - [x] Parse slice plan via `new ArtifactIntrospector().parseSlicePlan(resolvedPath)`
+  - [x] For each entry, check if slice design file exists via `detectDocuments(projectPath, entry.index)` — populate File column
+  - [x] Determine active slice: match `project.fileSlice` index against entries
+  - [x] If no active match, mark first unchecked entry as `next`
+  - [x] Render header: `Slice Plan: {fileSlicePlan filename}`
+  - [x] Render borderless table using `renderTable()`:
     - Columns: `#`, `Slice`, `Status`, `File`
     - Status: green `✓ complete` for checked, `○ not started` for unchecked
     - File: truncated design filename or `—`
     - Active/next indicator appended to row
-  - [ ] `--json` outputs `{ slicePlan, entries[] }` with all fields
-  - [ ] Error with helpful message if no fileSlicePlan is set
+  - [x] `--json` outputs `{ slicePlan, entries[] }` with all fields
+  - [x] Error with helpful message if no fileSlicePlan is set
 
 ### Task 11: Test `cf slice list`
 
-- [ ] Create `packages/cli/tests/slice.test.ts`
-  - [ ] Mock `FileProjectStore`, `ArtifactIntrospector`, `resolveProjectId`
-  - [ ] Test: renders table with correct columns, status indicators, and file references
-  - [ ] Test: active slice marked with `← active`
-  - [ ] Test: next candidate marked with `← next` when no active match
-  - [ ] Test: `--json` outputs structured data
-  - [ ] Test: error when no fileSlicePlan set
-  - [ ] All tests pass: `pnpm --filter @context-forge/cli test`
+- [x] Create `packages/cli/tests/slice.test.ts`
+  - [x] Mock `FileProjectStore`, `ArtifactIntrospector`, `resolveProjectId`
+  - [x] Test: renders table with correct columns, status indicators, and file references
+  - [x] Test: active slice marked with `← active`
+  - [x] Test: next candidate marked with `← next` when no active match
+  - [x] Test: `--json` outputs structured data
+  - [x] Test: error when no fileSlicePlan set
+  - [x] All tests pass: `pnpm --filter @context-forge/cli test`
 
 **Commit checkpoint**
 
