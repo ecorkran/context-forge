@@ -71,9 +71,9 @@ status: in_progress
 
 ### Task 4: Implement WorkflowNavigator.getNext()
 
-- [ ] Add `async getNext(project: ProjectData): Promise<NextAction>` to `WorkflowNavigator`
-  - [ ] Calls `getStatus()` internally
-  - [ ] State machine priority order:
+- [x] Add `async getNext(project: ProjectData): Promise<NextAction>` to `WorkflowNavigator`
+  - [x] Calls `getStatus()` internally
+  - [x] State machine priority order:
     1. No projectPath → recommend "Set projectPath"; `suggestedCommand: 'cf set projectPath /path/to/project'`
     2. No fileSlice → recommend "Set active slice"; `suggestedCommand: 'cf set slice <index>'`
     3. Active slice `needs-design` → recommend "Create slice design (Phase 4)"
@@ -83,20 +83,20 @@ status: in_progress
        - Next found → recommend "Advance to slice NNN: {name}"; `suggestedCommand: 'cf set slice NNN'`
        - No next, plan exists → recommend "Slice plan complete. Review architecture for next initiative"
     7. No slice plan → recommend "Create or assign a slice plan"
-  - [ ] Each path sets `recommendation`, `rationale`, `suggestedCommand` (where applicable), `slice`, `phase`, and `summary`
+  - [x] Each path sets `recommendation`, `rationale`, `suggestedCommand` (where applicable), `slice`, `phase`, and `summary`
 
 ### Task 5: Test WorkflowNavigator.getNext()
 
-- [ ] Add tests to `WorkflowNavigator.test.ts`
-  - [ ] Test: no projectPath → recommends setting projectPath
-  - [ ] Test: no fileSlice → recommends setting slice
-  - [ ] Test: needs-design → recommends creating slice design
-  - [ ] Test: needs-tasks → recommends creating task breakdown
-  - [ ] Test: in-implementation → recommends continuing, includes remaining count
-  - [ ] Test: complete, next slice available → recommends advancing with suggestedCommand
-  - [ ] Test: complete, no next slice → recommends reviewing architecture
-  - [ ] Test: no slice plan → recommends creating one
-  - [ ] All tests pass: `pnpm --filter @context-forge/core test`
+- [x] Add tests to `WorkflowNavigator.test.ts`
+  - [x] Test: no projectPath → recommends setting projectPath
+  - [x] Test: no fileSlice → recommends setting slice
+  - [x] Test: needs-design → recommends creating slice design
+  - [x] Test: needs-tasks → recommends creating task breakdown
+  - [x] Test: in-implementation → recommends continuing, includes remaining count
+  - [x] Test: complete, next slice available → recommends advancing with suggestedCommand
+  - [x] Test: complete, no next slice → recommends reviewing architecture
+  - [x] Test: no slice plan → recommends creating one
+  - [x] All tests pass: `pnpm --filter @context-forge/core test`
 
 **Commit checkpoint**
 

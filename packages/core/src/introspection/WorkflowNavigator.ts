@@ -3,6 +3,7 @@ import type { ProjectData } from '../types/project.js';
 import type {
   SliceStatus,
   WorkflowStatus,
+  NextAction,
   SlicePlanResult,
   TaskFileResult,
 } from './types.js';
@@ -63,6 +64,118 @@ export class WorkflowNavigator {
     status.summary = this.buildSummary(status);
 
     return status;
+  }
+
+  /**
+   * Determine the recommended next action for a project.
+   * Uses a priority-ordered state machine based on getStatus().
+   */
+  async getNext(project: ProjectData): Promise<NextAction> {
+    // Priority 1: No projectPath
+    if (!project.projectPath) {
+      return {
+        recommendation: 'Set projectPath',
+        rationale: 'A project path is required for workflow navigation and artifact detection.',
+        suggestedCommand: 'cf set projectPath /path/to/project',
+        summary: 'Set projectPath to enable workflow navigation',
+      };
+    }
+
+    const status = await this.getStatus(project);
+    const slice = status.activeSlice;
+
+    // Priority 2: No fileSlice
+    if (!slice || slice.status === 'no-active-slice') {
+      // Priority 7: No slice plan either
+      if (!status.slicePlan) {
+        return {
+          recommendation: 'Create or assign a slice plan',
+          rationale: 'No slice plan is configured. A slice plan organizes work into deliverable increments.',
+          suggestedCommand: 'cf set slicePlan <path>',
+          summary: 'Create or assign a slice plan to organize work',
+        };
+      }
+      return {
+        recommendation: 'Set active slice',
+        rationale: 'No active slice is set. Choose a slice from the plan to work on.',
+        suggestedCommand: 'cf set slice <index>',
+        summary: 'Set an active slice to begin work',
+      };
+    }
+
+    // Priority 3: needs-design
+    if (slice.status === 'needs-design') {
+      return {
+        recommendation: 'Create slice design (Phase 4)',
+        rationale: `Slice ${slice.index ?? slice.name} has no design document. Create a slice design before proceeding.`,
+        slice: project.fileSlice,
+        phase: 'Phase 4: Slice Design',
+        summary: `Create design for slice ${slice.index ?? slice.name}`,
+      };
+    }
+
+    // Priority 4: needs-tasks
+    if (slice.status === 'needs-tasks') {
+      return {
+        recommendation: 'Create task breakdown (Phase 5)',
+        rationale: `Slice ${slice.index ?? slice.name} has a design but no task file. Break the design into actionable tasks.`,
+        slice: project.fileSlice,
+        phase: 'Phase 5: Task Breakdown',
+        summary: `Create task breakdown for slice ${slice.index ?? slice.name}`,
+      };
+    }
+
+    // Priority 5: in-implementation
+    if (slice.status === 'in-implementation') {
+      const remaining = slice.taskProgress
+        ? slice.taskProgress.total - slice.taskProgress.completed
+        : 0;
+      return {
+        recommendation: `Continue implementation — ${remaining} task${remaining !== 1 ? 's' : ''} remaining`,
+        rationale: `Slice ${slice.index ?? slice.name} is in progress with ${remaining} task${remaining !== 1 ? 's' : ''} left to complete.`,
+        slice: project.fileSlice,
+        phase: 'Phase 6: Implementation',
+        summary: `Continue slice ${slice.index ?? slice.name} — ${remaining} tasks remaining`,
+      };
+    }
+
+    // Priority 6: complete → check for next slice in plan
+    if (slice.status === 'complete' && status.slicePlan) {
+      const nextEntry = status.slicePlan.entries.find((e) => !e.isChecked);
+      if (nextEntry) {
+        return {
+          recommendation: `Advance to slice ${nextEntry.index}: ${nextEntry.name}`,
+          rationale: `Current slice is complete. The next unstarted slice in the plan is ${nextEntry.index}: ${nextEntry.name}.`,
+          suggestedCommand: `cf set slice ${nextEntry.index}`,
+          slice: project.fileSlice,
+          summary: `Advance to slice ${nextEntry.index}: ${nextEntry.name}`,
+        };
+      }
+      return {
+        recommendation: 'Slice plan complete. Review architecture for next initiative',
+        rationale: 'All slices in the current plan are complete. Review the architecture for the next body of work.',
+        slice: project.fileSlice,
+        summary: 'Slice plan complete — review architecture for next initiative',
+      };
+    }
+
+    // Priority 7 (fallback): complete but no plan
+    if (slice.status === 'complete') {
+      return {
+        recommendation: 'Create or assign a slice plan',
+        rationale: 'Current slice is complete but no slice plan is configured to determine next steps.',
+        suggestedCommand: 'cf set slicePlan <path>',
+        slice: project.fileSlice,
+        summary: 'Slice complete — create or assign a slice plan',
+      };
+    }
+
+    // Should not reach here, but provide a safe fallback
+    return {
+      recommendation: 'Review project status',
+      rationale: 'Unable to determine next action from current project state.',
+      summary: 'Review project status',
+    };
   }
 
   /**
