@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, ArtifactIntrospector } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -40,7 +40,11 @@ export function registerSliceCommand(program: Command): void {
           );
         }
 
-        const planPath = join(project.projectPath, project.fileSlicePlan);
+        const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+        if (!planRelPath) {
+          throw new UserError('Could not resolve slice plan path.');
+        }
+        const planPath = join(project.projectPath, planRelPath);
         const introspector = new ArtifactIntrospector();
         const planResult = await introspector.parseSlicePlan(planPath);
 

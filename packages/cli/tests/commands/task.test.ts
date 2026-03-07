@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerTaskCommand } from '../../src/commands/task.js';
 
-const mockGetAll = vi.fn();
-const mockGetById = vi.fn();
-const mockParseTaskFile = vi.fn();
+const { mockGetAll, mockGetById, mockParseTaskFile } = vi.hoisted(() => ({
+  mockGetAll: vi.fn(),
+  mockGetById: vi.fn(),
+  mockParseTaskFile: vi.fn(),
+}));
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -14,17 +16,28 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
   })),
-  ArtifactIntrospector: vi.fn().mockImplementation(() => ({
-    parseTaskFile: mockParseTaskFile,
-  })),
+  resolveArtifactPath: vi.fn((field: string, stem: string) => {
+    const dirs: Record<string, string> = {
+      fileTasks: 'project-documents/user/tasks',
+      fileSlicePlan: 'project-documents/user/architecture',
+    };
+    const dir = dirs[field];
+    return dir ? `${dir}/${stem}.md` : null;
+  }),
+  extractSliceIndex: vi.fn((v: string) => {
+    const m = /^(\d+)-/.exec(v ?? '');
+    return m ? parseInt(m[1], 10) : null;
+  }),
+  parseSlicePlan: vi.fn(),
+  parseTaskFile: (...args: unknown[]) => mockParseTaskFile(...args),
 }));
 
 const sampleProject = {
   id: 'proj_001',
   name: 'test-project',
   template: 'default',
-  fileSlice: '100-slice.auth.md',
-  fileTasks: '100-tasks.auth.md',
+  fileSlice: '100-slice.auth',
+  fileTasks: '100-tasks.auth',
   instruction: 'implementation',
   projectPath: '/tmp/test',
   createdAt: '2026-01-01T00:00:00Z',

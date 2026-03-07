@@ -306,11 +306,13 @@ describe('project_update', () => {
     expect(parsed._autoSet).toEqual({ fileTasks: '200-tasks.new.md' });
   });
 
-  it('does not auto-set fileTasks when no matching task file found', async () => {
-    const updatedProject = { ...MOCK_PROJECT, fileSlice: '999-slice.no-tasks.md' };
+  it('derives fileTasks from slice name when task file does not exist on disk', async () => {
+    const updatedProject = { ...MOCK_PROJECT, fileSlice: '999-slice.no-tasks.md', fileTasks: '999-tasks.no-tasks.md' };
     mockGetById.mockResolvedValueOnce(MOCK_PROJECT).mockResolvedValueOnce(updatedProject);
     mockUpdate.mockResolvedValue(undefined);
-    mockResolveFileByIndex.mockReturnValue(null);
+    mockResolveFileByIndex.mockImplementation(() => {
+      throw new Error('No file matching index');
+    });
 
     const result = await client.callTool({
       name: 'project_update',
@@ -318,13 +320,14 @@ describe('project_update', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    // Update should only include fileSlice, not fileTasks
+    // Update should include both fileSlice and derived fileTasks
     expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, {
       fileSlice: '999-slice.no-tasks.md',
+      fileTasks: '999-tasks.no-tasks.md',
     });
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
-    expect(parsed._autoSet).toBeUndefined();
+    expect(parsed._autoSet).toEqual({ fileTasks: '999-tasks.no-tasks.md' });
   });
 
   it('returns isError when no update fields provided (only id)', async () => {

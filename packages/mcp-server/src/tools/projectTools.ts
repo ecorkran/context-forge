@@ -172,17 +172,20 @@ export function registerProjectTools(server: McpServer): void {
         // Auto-set fileTasks when fileSlice changes (unless fileTasks is explicitly provided)
         let autoSetTasks: string | null = null;
         if ('fileSlice' in updates && !('fileTasks' in updates) && existing.projectPath) {
-          try {
-            const sliceIndex = /^(\d+)-/.exec(updates.fileSlice!);
-            if (sliceIndex) {
-              const resolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
-              if (resolved !== null) {
-                (updates as Record<string, unknown>).fileTasks = resolved;
-                autoSetTasks = resolved;
+          const sliceIndex = /^(\d+)-/.exec(updates.fileSlice!);
+          if (sliceIndex) {
+            try {
+              autoSetTasks = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+            } catch {
+              // File doesn't exist yet — derive stem from slice value
+              const derived = updates.fileSlice!.replace(/^(\d+)-slice\./, '$1-tasks.');
+              if (derived !== updates.fileSlice) {
+                autoSetTasks = derived;
               }
             }
-          } catch {
-            // Silently skip — auto-set is best-effort
+            if (autoSetTasks !== null) {
+              (updates as Record<string, unknown>).fileTasks = autoSetTasks;
+            }
           }
         }
 

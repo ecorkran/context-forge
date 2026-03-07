@@ -394,9 +394,11 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
     expect(output).toContain('auto-set from slice');
   });
 
-  it('does not auto-set fileTasks when no matching task file found', async () => {
+  it('derives fileTasks from slice name when task file does not exist on disk', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockResolveFileByIndex.mockReturnValue(null);
+    mockResolveFileByIndex.mockImplementation(() => {
+      throw new Error('No file matching index');
+    });
 
     const program = createProgram();
     await program.parseAsync([
@@ -404,9 +406,10 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // Only one update call (for fileSlice itself)
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    // Two updates: fileSlice + derived fileTasks
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '999-slice.no-tasks.md' });
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '999-tasks.no-tasks.md' });
   });
 
   it('does not auto-set fileSlice when setting fileTasks directly', async () => {

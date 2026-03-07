@@ -65,3 +65,15 @@ export function resolveFileByIndex(
   // Return stem without .md extension
   return matches[0].replace(/\.md$/, '');
 }
+
+/**
+ * Resolve an artifact stem (e.g. "160-slices.project-workflow-system") to its
+ * full relative path within the project (e.g. "project-documents/user/architecture/160-slices.project-workflow-system.md").
+ *
+ * @returns The relative path including directory and .md extension, or null if the field is unknown.
+ */
+export function resolveArtifactPath(field: string, stem: string): string | null {
+  const mapping = ARTIFACT_DIR_MAP[field];
+  if (!mapping) return null;
+  return join(mapping.dir, `${stem}.md`);
+}

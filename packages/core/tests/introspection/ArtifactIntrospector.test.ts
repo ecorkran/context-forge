@@ -81,8 +81,8 @@ describe('ArtifactIntrospector', () => {
     it('returns full summary for fully populated project', async () => {
       const project = makeProject({
         projectPath: PROJECT_ROOT,
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
-        fileArch: 'project-documents/user/architecture/100-arch.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
+        fileArch: '100-arch.test-system',
       });
 
       const summary = await introspector.summarize(project);

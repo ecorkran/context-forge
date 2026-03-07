@@ -10,6 +10,7 @@ import type {
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
+import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -249,7 +250,9 @@ export class WorkflowNavigator {
     if (!project.fileSlicePlan) return null;
 
     try {
-      const planPath = join(projectPath, project.fileSlicePlan);
+      const relativePath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+      if (!relativePath) return null;
+      const planPath = join(projectPath, relativePath);
       const result: SlicePlanResult = await parseSlicePlan(planPath);
 
       if (result.totalSlices === 0) return null;

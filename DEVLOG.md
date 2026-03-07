@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
+### Post-165: Workflow fixes and enhancements
+- Fix artifact path resolution: added `resolveArtifactPath()` utility — artifact stems (e.g. `160-slices.project-workflow-system`) now correctly resolve to full paths with directory prefix and `.md` extension
+- Fixed `slicePlan` being null in `WorkflowNavigator`, `ArtifactIntrospector`, and `cf slice list` (all were joining stem directly without directory)
+- Auto-set `fileTasks` now derives from slice name when task file doesn't exist on disk (CLI + MCP)
+- `cf task list --all` shows all task files from slice plan with progress summaries
+- `cf status` now shows Date, Arch, and Plan fields
+- 846 tests passing
+
 ### Slice 165: Workflow Navigator & Discovery — Implementation Complete
 - `WorkflowNavigator` core service: `getStatus()` derives slice status from filesystem, `getNext()` priority-ordered state machine with 7 levels
 - Core types: `SliceStatus`, `WorkflowStatus`, `NextAction` in introspection/types.ts

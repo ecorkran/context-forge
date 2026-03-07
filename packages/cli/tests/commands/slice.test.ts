@@ -23,6 +23,13 @@ vi.mock('@context-forge/core/node', () => ({
     const m = /^(\d+)-/.exec(v ?? '');
     return m ? parseInt(m[1], 10) : null;
   }),
+  resolveArtifactPath: vi.fn((field: string, stem: string) => {
+    const dirs: Record<string, string> = {
+      fileSlicePlan: 'project-documents/user/architecture',
+    };
+    const dir = dirs[field];
+    return dir ? `${dir}/${stem}.md` : null;
+  }),
 }));
 
 const sampleProject = {
@@ -33,7 +40,7 @@ const sampleProject = {
   fileTasks: '100-tasks.auth.md',
   instruction: 'implementation',
   projectPath: '/tmp/test',
-  fileSlicePlan: 'project-documents/user/architecture/100-slices.test.md',
+  fileSlicePlan: '100-slices.test',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-03-04T00:00:00Z',
 };
@@ -119,7 +126,7 @@ describe('cf slice list', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
-    expect(parsed.slicePlan).toBe('100-slices.test.md');
+    expect(parsed.slicePlan).toBe('100-slices.test');
     expect(parsed.total).toBe(3);
     expect(parsed.completed).toBe(1);
     expect(parsed.entries).toHaveLength(3);

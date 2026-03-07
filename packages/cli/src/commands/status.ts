@@ -41,7 +41,10 @@ export function registerStatusCommand(program: Command): void {
           ? `${valueStyle(status.project)}  ${dim(sourceLabel)}`
           : valueStyle(status.project);
         console.log(label('Project:  ') + projectLine);
+        console.log(label('Date:     ') + valueStyle(project.dateProject || 'Not set'));
         console.log(label('Phase:    ') + valueStyle(status.phase ?? 'Not set'));
+        console.log(label('Arch:     ') + valueStyle(project.fileArch || 'Not set'));
+        console.log(label('Plan:     ') + valueStyle(project.fileSlicePlan || 'Not set'));
         console.log(label('Slice:    ') + valueStyle(project.fileSlice || 'Not set'));
         console.log(label('Tasks:    ') + valueStyle(project.fileTasks || 'Not set'));
 

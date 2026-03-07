@@ -172,17 +172,22 @@ export async function projectSetAction(
 
   // Auto-set fileTasks when fileSlice changes
   if (resolvedField === 'fileSlice' && existing.projectPath) {
-    try {
-      const sliceIndex = /^(\d+)-/.exec(resolvedValue);
-      if (sliceIndex) {
-        const tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
-        if (tasksResolved !== null) {
-          await store.update(id, { fileTasks: tasksResolved });
-          console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice)`));
+    const sliceIndex = /^(\d+)-/.exec(resolvedValue);
+    if (sliceIndex) {
+      let tasksResolved: string | null = null;
+      try {
+        tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+      } catch {
+        // File doesn't exist yet — derive stem from slice value
+        const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
+        if (derived !== resolvedValue) {
+          tasksResolved = derived;
         }
       }
-    } catch {
-      // Silently skip — auto-set is best-effort
+      if (tasksResolved !== null) {
+        await store.update(id, { fileTasks: tasksResolved });
+        console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice)`));
+      }
     }
   }
 

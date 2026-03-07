@@ -14,6 +14,7 @@ import { parseTaskFile } from './parsers/taskFileParser.js';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
+import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 
 /**
  * Orchestrator that delegates to individual parser functions.
@@ -62,9 +63,10 @@ export class ArtifactIntrospector implements IArtifactIntrospector {
     // Parse slice plan if available
     try {
       if (project.fileSlicePlan) {
-        const planPath = join(projectPath, project.fileSlicePlan);
-        const planResult = await parseSlicePlan(planPath);
-        if (planResult.totalSlices > 0) {
+        const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+        const planPath = planRelPath ? join(projectPath, planRelPath) : null;
+        const planResult = planPath ? await parseSlicePlan(planPath) : null;
+        if (planResult && planResult.totalSlices > 0) {
           summary.slicePlan = {
             totalSlices: planResult.totalSlices,
             completedSlices: planResult.completedSlices,
@@ -109,30 +111,18 @@ export class ArtifactIntrospector implements IArtifactIntrospector {
       // Task parsing failed — continue with other operations
     }
 
-    // Check artifact existence
-    try {
-      if (project.fileSlicePlan) {
-        summary.artifacts.hasSlicePlan = await checkFileExists(projectPath, project.fileSlicePlan);
-      }
-    } catch { /* continue */ }
+    // Check artifact existence (resolve stems to full relative paths)
+    const checkArtifact = async (field: string, stem: string | undefined): Promise<boolean> => {
+      if (!stem) return false;
+      const relPath = resolveArtifactPath(field, stem);
+      if (!relPath) return false;
+      return checkFileExists(projectPath, relPath);
+    };
 
-    try {
-      if (project.fileHLD) {
-        summary.artifacts.hasHLD = await checkFileExists(projectPath, project.fileHLD);
-      }
-    } catch { /* continue */ }
-
-    try {
-      if (project.fileArch) {
-        summary.artifacts.hasArch = await checkFileExists(projectPath, project.fileArch);
-      }
-    } catch { /* continue */ }
-
-    try {
-      if (project.fileSpec) {
-        summary.artifacts.hasSpec = await checkFileExists(projectPath, project.fileSpec);
-      }
-    } catch { /* continue */ }
+    try { summary.artifacts.hasSlicePlan = await checkArtifact('fileSlicePlan', project.fileSlicePlan); } catch { /* continue */ }
+    try { summary.artifacts.hasHLD = await checkArtifact('fileHLD', project.fileHLD); } catch { /* continue */ }
+    try { summary.artifacts.hasArch = await checkArtifact('fileArch', project.fileArch); } catch { /* continue */ }
+    try { summary.artifacts.hasSpec = await checkArtifact('fileSpec', project.fileSpec); } catch { /* continue */ }
 
     // Check current slice design and task file existence
     try {

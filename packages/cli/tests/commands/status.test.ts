@@ -24,6 +24,9 @@ const sampleProject = {
   name: 'test-project',
   fileSlice: '100-slice.auth',
   fileTasks: '100-tasks.auth',
+  fileArch: '100-arch.test-system',
+  fileSlicePlan: '100-slices.test',
+  dateProject: '20260307',
   developmentPhase: 'Phase 6: Implementation',
   workType: 'continue',
   projectPath: '/tmp/test',
@@ -68,7 +71,10 @@ describe('cf status', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('test-project');
+    expect(output).toContain('20260307');
     expect(output).toContain('Phase 6');
+    expect(output).toContain('100-arch.test-system');
+    expect(output).toContain('100-slices.test');
     expect(output).toContain('100-slice.auth');
     expect(output).toContain('3/5 tasks');
   });

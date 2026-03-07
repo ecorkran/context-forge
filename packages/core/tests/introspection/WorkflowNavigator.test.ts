@@ -74,7 +74,7 @@ describe('WorkflowNavigator', () => {
       // Fixture 100 has split task files: 2+2 tasks, 2 complete → in-implementation
       const project = makeProject({
         fileSlice: '100-slice.test-feature.md',
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
         developmentPhase: 'Phase 6: Implementation',
       });
       const status = await nav.getStatus(project);
@@ -88,7 +88,7 @@ describe('WorkflowNavigator', () => {
 
     it('populates slicePlan from fileSlicePlan', async () => {
       const project = makeProject({
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
       });
       const status = await nav.getStatus(project);
 
@@ -96,7 +96,7 @@ describe('WorkflowNavigator', () => {
       expect(status.slicePlan!.total).toBe(2);
       expect(status.slicePlan!.completed).toBe(1);
       expect(status.slicePlan!.entries).toHaveLength(2);
-      expect(status.slicePlan!.name).toBe('100-slices.test-system.md');
+      expect(status.slicePlan!.name).toBe('100-slices.test-system');
     });
 
     it('returns null slicePlan when fileSlicePlan is not set', async () => {
@@ -108,7 +108,7 @@ describe('WorkflowNavigator', () => {
     it('builds non-empty summary with relevant info', async () => {
       const project = makeProject({
         developmentPhase: 'Phase 6: Implementation',
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
       });
       const status = await nav.getStatus(project);
 
@@ -147,7 +147,7 @@ describe('WorkflowNavigator', () => {
     it('recommends setting slice when no fileSlice but plan exists', async () => {
       const project = makeProject({
         fileSlice: '',
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
       });
       const next = await nav.getNext(project);
 
@@ -186,7 +186,7 @@ describe('WorkflowNavigator', () => {
       // Fixture: slice 300 is complete, plan has entry 101 unchecked
       const project = makeProject({
         fileSlice: '300-slice.all-done.md',
-        fileSlicePlan: 'project-documents/user/architecture/100-slices.test-system.md',
+        fileSlicePlan: '100-slices.test-system',
       });
       const next = await nav.getNext(project);
 
