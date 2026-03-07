@@ -78,6 +78,16 @@ export class SubmoduleStrategy implements InstallStrategy {
       // No new version
     }
 
+    // Stage and commit the submodule pointer change (skip if no version change)
+    if (previousVersion !== newVersion) {
+      await gitExec(['add', GUIDE_RELATIVE_PATH], projectPath);
+      const versionSuffix = newVersion ? ` to ${newVersion}` : '';
+      await gitExec(
+        ['commit', '-m', `docs: update ai-project-guide${versionSuffix}`],
+        projectPath
+      );
+    }
+
     return { success: true, previousVersion, newVersion, method: 'submodule' };
   }
 }

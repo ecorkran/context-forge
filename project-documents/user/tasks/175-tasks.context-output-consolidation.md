@@ -151,3 +151,21 @@ Setting `developmentPhase` via `cf set phase 6` should also update `instruction`
 - [x] Git add and commit all changes from root with semantic message
 - [x] Update slice design status to `complete`
 - [x] Check off slice 175 in `160-slices.project-workflow-system.md`
+
+### Task 10: Post-slice bugfixes (follow-up)
+
+- [x] Add P1-P7 shorthand entries to `PHASE_MAP` in `projectSchema.ts`
+- [x] Resolve `--phase` input in `cf build` via `resolvePhaseValue`; warn on unrecognized values
+- [x] Fix `getPromptForInstruction` to match full phase strings (e.g. `Phase 5: Task Breakdown`) by extracting name portion
+- [x] Support `{{#if var}}content{{/if}}` without requiring `{{else}}` in TemplateProcessor
+- [x] Use enhanced data (artifact aliases) in conditional evaluation
+- [x] Add tests for all fixes (projectSchema, TemplateProcessor, SystemPromptParser, build command)
+- [x] 801 tests passing
+
+### Task 11: README overhaul and packaging
+
+- [x] Root README rewritten with screenshots, structure, and updated architecture
+- [x] CLI README restructured: git-like CWD model, npm install, slash commands section
+- [x] Core and MCP READMEs updated
+- [x] Version bump to 0.3.1, then 0.3.2
+- [x] Git tags v0.3.1, v0.3.2

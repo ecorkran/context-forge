@@ -9,6 +9,32 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-06
 
+### Slice 175: Context Output Consolidation — Implementation Complete
+- Artifact fields (`fileArch`, `fileSlicePlan`, `fileHLD`, `fileSpec`) added to ContextData, mapped through pipeline, with template aliases (`arch`, `plan`, `hld`, `spec`) and index extraction (`archIndex`, `planIndex`, `hldIndex`)
+- Consolidated `### Project Context` section with clean key-value format, conditional artifact lines
+- Unified opening statement (`project-statement`) — no more start/continue branching
+- Phase→instruction auto-set: `cf set phase 6` also updates `instruction` (CLI + MCP)
+- Template conditionals: support `{{#if var}}content{{/if}}` without requiring `{{else}}`
+- Phase resolution in `cf build --phase`: accepts P1-P7 shorthands, numbers, short names; warns on unrecognized values
+- Instruction matcher (`getPromptForInstruction`) handles full phase strings like `Phase 5: Task Breakdown`
+- README overhaul: root (screenshots, structure), CLI (git-like model, slash commands section), core, MCP
+- Updated ai-project-guide to v0.13.3
+- 801 tests (451 core, 135 CLI, 109 MCP, 106 Electron)
+- Tags: @context-forge/core@0.3.2, @context-forge/cli@0.3.2, @context-forge/mcp@0.3.2
+- Commits:
+  - `469d22c` docs: add slice 175 design
+  - `61c2ef2` docs: add task breakdown
+  - `ec3967c` feat(core): add artifact fields to ContextData and ContextIntegrator
+  - `e66b318` feat(core): add artifact variables and index extraction to TemplateProcessor
+  - `d3b9261` feat(core): consolidate project info section in SectionBuilder
+  - `b7986fe` feat(core): simplify opening statement to unified project-statement
+  - `eb3dbe7` feat(cli,mcp): auto-set instruction when developmentPhase changes
+  - `c595dc4` fix(cli): update shortcuts test for phase→instruction auto-set
+  - `1e57417` docs: update READMEs for slice 175 changes
+  - `a4044f3` package: bump core, cli, mcp to 0.3.1; update READMEs and add assets
+  - `0111087` docs: update ai-project-guide to v0.13.3
+  - `cc059f9` fix(core,cli): phase resolution, instruction matching, and template conditionals
+
 ### Slice 174: Claude Code Commands — Implementation Complete
 - Seven slash commands: `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`, `/cf:get`, `/cf:set`, `/cf:project`
 - `cf install-commands` / `cf uninstall-commands` with `--target` override
