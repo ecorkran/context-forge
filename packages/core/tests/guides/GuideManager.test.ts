@@ -3,6 +3,11 @@ import { GuideManager } from '../../src/guides/GuideManager.js';
 import { DEFAULT_SOURCE_GIT } from '../../src/guides/types.js';
 import type { GuideInfo } from '../../src/guides/types.js';
 
+// Mock fs for mkdirSync
+vi.mock('fs', () => ({
+  mkdirSync: vi.fn(),
+}));
+
 // Mock dependencies
 vi.mock('../../src/guides/GuideDetector.js', () => ({
   GuideDetector: vi.fn().mockImplementation(() => ({
@@ -31,6 +36,7 @@ vi.mock('../../src/guides/strategies/TarballStrategy.js', () => ({
   })),
 }));
 
+import { mkdirSync } from 'fs';
 import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
@@ -141,6 +147,24 @@ describe('GuideManager', () => {
         'https://custom.example.com/guide.git',
         expect.any(String)
       );
+    });
+
+    it('creates user artifact directories after install', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn().mockResolvedValue({ success: true, version: 'v0.13.2', method: 'submodule', path: '/test/path' }),
+        update: vi.fn(),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      await manager.install();
+
+      const calls = vi.mocked(mkdirSync).mock.calls.map((c) => c[0]);
+      expect(calls).toContain('/test/project/project-documents/user');
+      expect(calls).toContain('/test/project/project-documents/user/architecture');
+      expect(calls).toContain('/test/project/project-documents/user/slices');
+      expect(calls).toContain('/test/project/project-documents/user/tasks');
+      expect(calls).toContain('/test/project/project-documents/user/project-guides');
     });
 
     it('errors when guide already installed', async () => {

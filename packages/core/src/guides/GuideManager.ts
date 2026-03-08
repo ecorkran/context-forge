@@ -1,5 +1,6 @@
 // Orchestration layer for guide lifecycle management
 import { join } from 'path';
+import { mkdirSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, InstallStrategy } from './types.js';
 import { DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from './types.js';
@@ -40,7 +41,12 @@ export class GuideManager {
     }
 
     const strategy = this.getStrategy(method);
-    return strategy.install(this.projectPath, source, targetDir);
+    const result = await strategy.install(this.projectPath, source, targetDir);
+
+    // Create user artifact directories so the project is ready to use
+    this.createUserDirectories();
+
+    return result;
   }
 
   /** Update an existing guide installation */
@@ -87,6 +93,20 @@ export class GuideManager {
       }
     }
     return 'submodule';
+  }
+
+  /** Create user artifact directories alongside the guide */
+  private createUserDirectories(): void {
+    const userDirs = [
+      'project-documents/user',
+      'project-documents/user/architecture',
+      'project-documents/user/slices',
+      'project-documents/user/tasks',
+      'project-documents/user/project-guides',
+    ];
+    for (const dir of userDirs) {
+      mkdirSync(join(this.projectPath, dir), { recursive: true });
+    }
   }
 
   /** Map method name to strategy instance */
