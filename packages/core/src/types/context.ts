@@ -14,6 +14,7 @@ export interface ContextData {
   fileSlicePlan?: string;
   fileHLD?: string;
   fileSpec?: string;
+  fileConcept?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;
   recentEvents: string;

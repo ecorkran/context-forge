@@ -74,6 +74,7 @@ export const PROJECT_FIELDS: FieldDefinition[] = [
   // Artifacts — ordered by methodology progression: spec → hld → arch → plan → slice → tasks
   { field: 'fileSpec', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Project specification path', aliases: ['spec'], label: 'Spec' },
   { field: 'fileHLD', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'High-level design document path', aliases: ['hld'], label: 'HLD' },
+  { field: 'fileConcept', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Concept document path (relative)', aliases: ['concept'], label: 'Concept' },
   { field: 'fileArch', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Architecture document path (relative)', aliases: ['arch'], label: 'Architecture' },
   { field: 'fileSlicePlan', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Slice plan document path (relative)', aliases: ['plan'], label: 'Slice Plan' },
   { field: 'fileSlice', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current slice design path (relative)', aliases: ['slice'], label: 'Slice' },

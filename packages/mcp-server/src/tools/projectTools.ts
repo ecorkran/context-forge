@@ -125,6 +125,7 @@ export function registerProjectTools(server: McpServer): void {
         fileArch: z.string().optional().describe('Path to architecture document (relative to project root)'),
         fileSlicePlan: z.string().optional().describe('Path to slice plan (relative to project root)'),
         fileSpec: z.string().optional().describe('Path to project spec (relative to project root)'),
+        fileConcept: z.string().optional().describe('Path to concept document (relative to project root)'),
         customData: z
           .object({
             recentEvents: z.string().optional(),

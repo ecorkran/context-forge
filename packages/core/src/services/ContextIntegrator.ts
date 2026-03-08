@@ -114,6 +114,7 @@ export class ContextIntegrator {
       fileSlicePlan: project.fileSlicePlan || '',
       fileHLD: project.fileHLD || '',
       fileSpec: project.fileSpec || '',
+      fileConcept: project.fileConcept || '',
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
       availableTools,
@@ -143,6 +144,7 @@ export class ContextIntegrator {
       fileSlicePlan: project.fileSlicePlan || '',
       fileHLD: project.fileHLD || '',
       fileSpec: project.fileSpec || '',
+      fileConcept: project.fileConcept || '',
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || ''
     };

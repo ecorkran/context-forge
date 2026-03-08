@@ -21,6 +21,8 @@ export interface ProjectData {
   fileSlicePlan?: string;
   /** Path to project specification (relative to project root) */
   fileSpec?: string;
+  /** Path to concept document (relative to project root) */
+  fileConcept?: string;
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
@@ -69,6 +71,7 @@ export type UpdateProjectData = Partial<
     | 'fileArch'
     | 'fileSlicePlan'
     | 'fileSpec'
+    | 'fileConcept'
     | 'customData'
   >
 >;

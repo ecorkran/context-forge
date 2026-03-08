@@ -123,6 +123,9 @@ export class TemplateProcessor {
     if (data.fileSpec) {
       enhanced['spec'] = data.fileSpec;
     }
+    if (data.fileConcept) {
+      enhanced['concept'] = data.fileConcept;
+    }
 
     // Add kebab-case alias for developmentPhase
     if (data.developmentPhase) {
