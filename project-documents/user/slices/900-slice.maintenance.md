@@ -125,3 +125,20 @@ Add new `isMonorepoEnabled` field to separate feature visibility from project mo
 - Form checkbox controls project mode independently
 - Bonus: Monorepo Structure textarea height matched to Recent Events (6 rows)
 
+### 3. Guide Install Should Create User Directories
+
+**Priority:** P2 (Developer experience)
+**Status:** Open
+
+**Description:**
+`cf guides install` (and `guide_install` MCP tool) sets up `project-documents/ai-project-guide/` but does not create the user artifact directories. After installing guides, users must manually create these before they can start working.
+
+**Expected:** Guide install should also create:
+- `project-documents/user/`
+- `project-documents/user/architecture/`
+- `project-documents/user/slices/`
+- `project-documents/user/tasks/`
+- `project-documents/user/project-guides/`
+
+**Location:** `packages/core/src/guides/GuideManager.ts` — add `mkdirSync` calls after successful `strategy.install()` in the `install()` method.
+
