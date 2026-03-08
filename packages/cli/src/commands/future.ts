@@ -10,7 +10,7 @@ export function registerFutureCommand(program: Command): void {
     .command('future')
     .description('Show consolidated future work across slice plans')
     .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--status <filter>', 'Filter by status: all, pending, completed', 'all')
     .action(async (opts: { json?: boolean; project?: string; status: string }) => {
       try {

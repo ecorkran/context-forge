@@ -48,7 +48,7 @@ export function registerCheckCommand(program: Command): void {
     .command('check')
     .description('Run consistency checks on project artifacts')
     .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--fix', 'Apply non-destructive corrections (when available)')
     .action(async (opts: { json?: boolean; project?: string; fix?: boolean }) => {
       try {

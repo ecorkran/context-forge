@@ -347,7 +347,7 @@ export function registerProjectCommand(program: Command): void {
     .command('get')
     .description('Get details for the active project')
     .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         await projectGetAction(opts);
@@ -359,7 +359,7 @@ export function registerProjectCommand(program: Command): void {
   cmd
     .command('set [field] [value]')
     .description('Update a field on the active project')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .addHelpText('after', buildSettableFieldsHelp)
     .action(async (field: string | undefined, val: string | undefined, opts: { project?: string }) => {
       if (!field || !val) {
@@ -376,7 +376,7 @@ export function registerProjectCommand(program: Command): void {
   cmd
     .command('rm [nameOrId]')
     .description('Remove a project from Context Forge (files on disk are not deleted)')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--yes', 'Skip confirmation prompt')
     .action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
       try {

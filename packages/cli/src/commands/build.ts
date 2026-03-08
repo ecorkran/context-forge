@@ -19,7 +19,7 @@ export function registerBuildCommand(program: Command): void {
   program
     .command('build')
     .description('Generate and output a context prompt to stdout (--json not applicable)')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--phase <phase>', 'Override development phase')
     .option('--slice <slice>', 'Override slice name')
     .option('--instruction <instruction>', 'Override instruction type')

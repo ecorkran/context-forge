@@ -10,7 +10,7 @@ export function registerStatusCommand(program: Command): void {
     .command('status')
     .description('Show workflow status for the active project')
     .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();

@@ -39,7 +39,7 @@ export function registerPromptCommand(program: Command): void {
     .command('list')
     .description('List available prompt templates')
     .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
@@ -92,7 +92,7 @@ export function registerPromptCommand(program: Command): void {
   cmd
     .command('get <phase>')
     .description('Get a prompt template with project variables substituted')
-    .option('--project <id>', 'Project ID (overrides default)')
+    .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--raw', 'Output raw template without variable substitution')
     .action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
       try {
