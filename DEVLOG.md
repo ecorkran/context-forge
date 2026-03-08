@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
+### Slice 166: Consistency Checker — Slice Design Complete
+- Created `166-slice.consistency-checker.md` — detection rules, fix capabilities, MCP tool, CLI command design
+- Four detection rules: task-vs-plan, frontmatter-vs-computed, missing artifacts, plan-vs-frontmatter
+- `MarkdownWriter` utility for non-destructive write-back (checkbox + frontmatter updates)
+- `workflow.auto_fix` config key, `workflow_check` MCP tool, `cf check` CLI command
+
 ### Post-165: Workflow fixes, discovery commands, and UX enhancements
 - Fix artifact path resolution: added `resolveArtifactPath()` — stems now correctly resolve to full paths with directory prefix and `.md`
 - Fixed `slicePlan` being null in `WorkflowNavigator`, `ArtifactIntrospector`, and `cf slice list`
