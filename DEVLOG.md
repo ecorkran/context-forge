@@ -9,9 +9,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-08
 
+### Slice 176: Context-Profile-Aware Assembly — Phase 5 (Task Breakdown)
+- Created `176-tasks.context-profile-aware-assembly-update.md` (15 tasks, 150 lines)
+- Tasks cover: `fileConcept` type/schema/pipeline wiring, `ContextProfileParser` new service + tests, profile filtering in `ContextIntegrator` + tests, `--instruction-type` CLI flag + tests, `instructionType` MCP param + tests, full build/smoke validation
+
 ### Slice 176: Context-Profile-Aware Assembly — Phase 4 (Slice Design)
 - Created `176-slice.context-profile-aware-assembly-update.md`
 - Design: context profiles YAML block in prompt asset; `ContextProfileParser`; `fileConcept` field; profile-filtered variable injection; `--instruction-type` CLI flag; `instructionType` MCP parameter
+- Also: schema field ordering (spec→hld→arch→plan→slice→tasks), auto-set fileSlicePlan on fileArch change, cf next arch-not-found check
+- Commits: `5d16bdb` docs: add slice 176 design, `f8c12b2` feat: schema ordering + auto-set plan on arch + cf next arch check, `3ba6ef9` fix(core): null-safety in arch file existence check
 
 ## 2026-03-07
 
