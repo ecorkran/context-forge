@@ -89,8 +89,9 @@ export class WorkflowNavigator {
     // Priority 2: No fileSlice
     if (!slice || slice.status === 'no-active-slice') {
       // Determine whether the arch file actually exists on disk
-      const archFileExists = project.fileArch && project.projectPath
-        ? existsSync(join(project.projectPath, resolveArtifactPath('fileArch', project.fileArch)))
+      const archRelPath = project.fileArch ? resolveArtifactPath('fileArch', project.fileArch) : null;
+      const archFileExists = archRelPath !== null && project.projectPath
+        ? existsSync(join(project.projectPath, archRelPath))
         : false;
 
       // No architecture (or arch set but file not yet created) → recommend creating architecture first
