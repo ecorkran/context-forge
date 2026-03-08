@@ -8,4 +8,4 @@ If the result is a prompt template (from `cf prompt get`), use it as your workin
 
 If the result is a list of available prompts (from `cf prompt list`), present it to the user without commentary.
 
-!`cf prompt get $ARGUMENTS 2>/dev/null || cf prompt list`
+!`ARGS="$ARGUMENTS"; ARGS="${ARGS#get }"; if [ -z "$ARGS" ] || [ "$ARGS" = "list" ]; then cf prompt list; else cf prompt get "$ARGS"; fi`
