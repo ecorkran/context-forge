@@ -35,7 +35,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
 
       if (HEADING_RE.test(stripped)) {
         const heading = stripped.replace(/^#+\s+/, '').toLowerCase();
-        inSliceSection = !NON_SLICE_HEADINGS.some((ns) => heading.includes(ns));
+        inSliceSection = !NON_SLICE_HEADINGS.some((ns) => heading.startsWith(ns));
         continue;
       }
 
