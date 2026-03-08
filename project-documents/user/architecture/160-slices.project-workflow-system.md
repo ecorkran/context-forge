@@ -372,4 +372,4 @@ Integration (after all features):
 
 ## Future Work
 
-- [ ] (169) Consistency Checker Enhancements — Extend consistency checking beyond the active slice to cover plan-level and architecture-level status. Includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, `workflow_check_all` variant that iterates across all managed projects. Depends on 166.
+- [ ] (169) Consistency Checker: All-Slices Mode (priority) — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete. Depends on 166.
