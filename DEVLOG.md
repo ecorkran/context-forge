@@ -9,8 +9,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
-### Slice 166: Consistency Checker — Implementation Complete
-- `ConsistencyChecker` core service with 4 detection rules: task-vs-plan, frontmatter-vs-computed, missing artifacts, plan-vs-frontmatter
+### v0.3.5 — Slice 166: Consistency Checker
+- `ConsistencyChecker` core service with 5 detection rules (added Rule 5: task-file-status after initial release)
+- Rule 5 catches task file frontmatter status drift (e.g., `status: in_progress` when all tasks complete)
 - `MarkdownWriter` utility for non-destructive write-back (checkbox toggling + frontmatter field updates)
 - Fix mode with `FixLogEntry` before/after tracing for each applied correction
 - `workflow.auto_fix` config key, `workflow_check` MCP tool (25 total), `cf check` CLI command
@@ -22,6 +23,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
   - `134b1e9` test(core): add fix mode tests for ConsistencyChecker
   - `4ba79b4` feat(mcp): add workflow_check tool for consistency checking
   - `b030219` feat(cli): replace cf check stub with consistency checker implementation
+  - `46148fb` feat(core): add Rule 5 — task file frontmatter status vs computed completion
+  - `b97156d` style(cli): clarify --project help text accepts name or ID
+  - `1b29836` fix(cli): cf:prompt slash command correctly routes get vs list subcommands
+- Tags: @context-forge/core@0.3.5, @context-forge/cli@0.3.5, @context-forge/mcp@0.3.5
 
 ### Post-165: Workflow fixes, discovery commands, and UX enhancements
 - Fix artifact path resolution: added `resolveArtifactPath()` — stems now correctly resolve to full paths with directory prefix and `.md`

@@ -12,6 +12,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 20260307
+
+### Added
+- `ConsistencyChecker` core service with 5 detection rules: task-vs-plan, frontmatter-vs-computed, missing artifacts, plan-vs-frontmatter, task-file-status
+- `MarkdownWriter` utility for non-destructive write-back (checkbox toggling + frontmatter field updates)
+- Fix mode with `FixLogEntry` before/after tracing for each applied correction
+- `workflow.auto_fix` config key for automatic corrections during consistency checks
+- `workflow_check` MCP tool (25 total MCP tools)
+- `cf check` CLI command replaces stub with full implementation (`--fix`, `--json`, `--project`)
+
+### Fixed
+- `/cf:prompt get P5` slash command no longer doubles the `get` subcommand
+- `--project` help text across all CLI commands clarifies name or ID accepted
+
+### Changed
+- Integration testing slice (168) demoted to maintenance — most deliverables completed incrementally
+- Future work item (169) added: all-slices consistency checking mode, duplicate index detection
+
+## [0.3.4] - 20260307
+
+### Added
+- `WorkflowNavigator` core service: `getStatus()` derives slice status from filesystem, `getNext()` priority-ordered state machine
+- MCP tools: `workflow_status`, `workflow_next`
+- CLI discovery commands: `cf arch list`, `cf plan list`, `cf slice list`, `cf task list`, `cf task items`
+- Smart index resolution: `cf set slice 166` derives filename from slice plan
+- Auto-set `fileTasks` from slice name
+- `workflow.auto_advance` config key
+
+### Fixed
+- Artifact path resolution: `resolveArtifactPath()` correctly resolves stems to full paths
+- `slicePlan` null handling in `WorkflowNavigator`, `ArtifactIntrospector`, `cf slice list`
+
+### Changed
+- Slash command prompts optimized for token efficiency (~800 tokens saved)
+
+## [0.3.3] - 20260307
+
+### Added
+- Auto-commit after `cf guides install` and `cf guides update` (submodule and clone strategies)
+
 ## [0.3.2] - 20260306
 
 ### Fixed
