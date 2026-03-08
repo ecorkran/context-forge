@@ -87,13 +87,22 @@ export class WorkflowNavigator {
 
     // Priority 2: No fileSlice
     if (!slice || slice.status === 'no-active-slice') {
-      // Priority 7: No slice plan either
+      // No architecture → recommend creating architecture first
+      if (!project.fileArch && !status.slicePlan) {
+        return {
+          recommendation: 'Create architecture document',
+          rationale: 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
+          suggestedCommand: 'cf set arch <index>',
+          summary: 'Create an architecture document to define project structure',
+        };
+      }
+      // Architecture exists but no slice plan
       if (!status.slicePlan) {
         return {
           recommendation: 'Create or assign a slice plan',
-          rationale: 'No slice plan is configured. A slice plan organizes work into deliverable increments.',
+          rationale: 'Architecture is set but no slice plan is configured. A slice plan breaks the architecture into deliverable increments.',
           suggestedCommand: 'cf set slicePlan <path>',
-          summary: 'Create or assign a slice plan to organize work',
+          summary: 'Create a slice plan from the architecture',
         };
       }
       return {

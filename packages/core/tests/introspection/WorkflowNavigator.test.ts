@@ -213,10 +213,22 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
-    it('recommends creating slice plan when no slice and no plan', async () => {
+    it('recommends creating architecture when no arch, no slice, and no plan', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
+        fileArch: undefined,
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create architecture');
+    });
+
+    it('recommends creating slice plan when arch exists but no plan', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '160-arch.project-workflow-system',
       });
       const next = await nav.getNext(project);
 
