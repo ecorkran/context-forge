@@ -94,6 +94,15 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
   onProjectDelete,
   onProjectNameUpdate
 }) => {
+  // Normalize YYYYMMDD → YYYY-MM-DD for HTML date input compatibility
+  const normalizeDateForInput = (date: string | undefined): string => {
+    if (!date) return new Date().toISOString().split('T')[0];
+    if (/^\d{8}$/.test(date)) {
+      return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+    }
+    return date;
+  };
+
   // Helper function to generate task file name from slice
   const generateTaskFileName = (slice: string): string => {
     if (!slice) return '';
@@ -120,7 +129,7 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
     instruction: initialData?.instruction || 'implementation',
     developmentPhase: initialData?.developmentPhase,
     workType: initialData?.workType || 'continue',
-    dateProject: initialData?.dateProject || new Date().toISOString().split('T')[0],
+    dateProject: normalizeDateForInput(initialData?.dateProject),
     customData: {
       recentEvents: initialData?.customData?.recentEvents || '',
       additionalNotes: initialData?.customData?.additionalNotes || '',
@@ -250,7 +259,7 @@ export const ProjectConfigForm: React.FC<ProjectConfigFormProps> = ({
             id="dateProject"
             name="dateProject"
             type="date"
-            value={formData.dateProject || new Date().toISOString().split('T')[0]}
+            value={normalizeDateForInput(formData.dateProject)}
             onChange={(e) => handleInputChange('dateProject', e.target.value)}
             className="w-full px-3 py-2 border border-accent-7 rounded-md bg-neutral-1 text-neutral-12 focus:outline-none focus:ring-2 focus:ring-accent-8 focus:border-transparent [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50"
           />
