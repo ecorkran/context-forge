@@ -203,6 +203,27 @@ export async function projectSetAction(
     await store.update(id, { [resolvedField]: resolvedValue });
   }
 
+  // Auto-set fileSlicePlan when fileArch changes
+  if (resolvedField === 'fileArch' && existing.projectPath) {
+    const archIndex = /^(\d+)-/.exec(resolvedValue);
+    if (archIndex) {
+      let planResolved: string | null = null;
+      try {
+        planResolved = resolveFileByIndex(existing.projectPath, 'fileSlicePlan', archIndex[1]);
+      } catch {
+        // File doesn't exist yet — derive stem from arch value
+        const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
+        if (derived !== resolvedValue) {
+          planResolved = derived;
+        }
+      }
+      if (planResolved !== null) {
+        await store.update(id, { fileSlicePlan: planResolved });
+        console.log(success(`Updated plan = ${planResolved} (auto-set from arch)`));
+      }
+    }
+  }
+
   // Auto-set fileTasks when fileSlice changes
   if (resolvedField === 'fileSlice' && existing.projectPath) {
     const sliceIndex = /^(\d+)-/.exec(resolvedValue);

@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import type { ProjectData } from '../types/project.js';
 import type {
   SliceStatus,
@@ -87,11 +88,18 @@ export class WorkflowNavigator {
 
     // Priority 2: No fileSlice
     if (!slice || slice.status === 'no-active-slice') {
-      // No architecture → recommend creating architecture first
-      if (!project.fileArch && !status.slicePlan) {
+      // Determine whether the arch file actually exists on disk
+      const archFileExists = project.fileArch && project.projectPath
+        ? existsSync(join(project.projectPath, resolveArtifactPath('fileArch', project.fileArch)))
+        : false;
+
+      // No architecture (or arch set but file not yet created) → recommend creating architecture first
+      if (!archFileExists && !status.slicePlan) {
         return {
           recommendation: 'Create architecture document',
-          rationale: 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
+          rationale: project.fileArch
+            ? `Architecture is set to '${project.fileArch}' but the file does not exist yet. Create the architecture document before planning slices.`
+            : 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
           suggestedCommand: 'cf set arch <index>',
           summary: 'Create an architecture document to define project structure',
         };

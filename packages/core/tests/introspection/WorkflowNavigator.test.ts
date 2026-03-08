@@ -225,14 +225,27 @@ describe('WorkflowNavigator', () => {
     });
 
     it('recommends creating slice plan when arch exists but no plan', async () => {
+      // Uses a fixture arch file that actually exists on disk (stem without .md)
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
-        fileArch: '160-arch.project-workflow-system',
+        fileArch: '100-arch.test-system',
       });
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Create or assign a slice plan');
+    });
+
+    it('recommends creating architecture when arch is set but file does not exist', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '999-arch.nonexistent.md',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create architecture');
+      expect(next.rationale).toContain('does not exist yet');
     });
   });
 });

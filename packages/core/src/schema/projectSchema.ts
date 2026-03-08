@@ -71,11 +71,11 @@ export const PROJECT_FIELDS: FieldDefinition[] = [
   { field: 'projectPath', type: 'string', required: true, readonly: false, group: 'identity', description: 'Absolute path to project directory', aliases: ['path'], label: 'Path' },
   { field: 'template', type: 'string', required: false, readonly: false, group: 'identity', description: 'Context template name', aliases: [], label: 'Template' },
 
-  // Artifacts
+  // Artifacts — ordered by methodology progression: spec → hld → arch → plan → slice → tasks
+  { field: 'fileSpec', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Project specification path', aliases: ['spec'], label: 'Spec' },
+  { field: 'fileHLD', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'High-level design document path', aliases: ['hld'], label: 'HLD' },
   { field: 'fileArch', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Architecture document path (relative)', aliases: ['arch'], label: 'Architecture' },
   { field: 'fileSlicePlan', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Slice plan document path (relative)', aliases: ['plan'], label: 'Slice Plan' },
-  { field: 'fileHLD', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'High-level design document path', aliases: ['hld'], label: 'HLD' },
-  { field: 'fileSpec', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Project specification path', aliases: ['spec'], label: 'Spec' },
   { field: 'fileSlice', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current slice design path (relative)', aliases: ['slice'], label: 'Slice' },
   { field: 'fileTasks', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current tasks file path (relative)', aliases: ['tasks'], label: 'Tasks' },
 
