@@ -11,6 +11,8 @@ interface BuildOpts {
   phase?: string;
   slice?: string;
   instruction?: string;
+  instructionType?: string;
+  it?: string;
   tasks?: string;
   additional?: string;
 }
@@ -23,6 +25,8 @@ export function registerBuildCommand(program: Command): void {
     .option('--phase <phase>', 'Override development phase')
     .option('--slice <slice>', 'Override slice name')
     .option('--instruction <instruction>', 'Override instruction type')
+    .option('--instruction-type <type>', 'Override instruction type for profile lookup (without persisting)')
+    .option('--it <type>', 'Shorthand for --instruction-type')
     .option('--tasks <tasks>', 'Override task file name')
     .option('--additional <text>', 'Additional instructions to append')
     .action(async (opts: BuildOpts) => {
@@ -60,6 +64,8 @@ export function registerBuildCommand(program: Command): void {
         }
         if (opts.slice) workingCopy.fileSlice = opts.slice;
         if (opts.instruction) workingCopy.instruction = opts.instruction;
+        const instructionTypeOverride = opts.instructionType ?? opts.it;
+        if (instructionTypeOverride) workingCopy.instruction = instructionTypeOverride;
         if (opts.tasks) workingCopy.fileTasks = opts.tasks;
 
         const { integrator } = createContextPipeline(workingCopy.projectPath!);

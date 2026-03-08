@@ -167,4 +167,46 @@ describe('cf build', () => {
 
     expect(createContextPipeline).toHaveBeenCalledWith('/tmp/test');
   });
+
+  it('applies --instruction-type override to instruction field', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGenerateContextFromProject.mockResolvedValue('context');
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'build', '--project', 'proj_001', '--instruction-type', 'maintenance',
+    ]);
+
+    const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
+    expect(projectArg.instruction).toBe('maintenance');
+  });
+
+  it('--it shorthand sets instruction same as --instruction-type', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGenerateContextFromProject.mockResolvedValue('context');
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'build', '--project', 'proj_001', '--it', 'implementation',
+    ]);
+
+    const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
+    expect(projectArg.instruction).toBe('implementation');
+  });
+
+  it('--instruction-type uses working copy only; stored project instruction is unchanged', async () => {
+    mockGetById.mockResolvedValue({ ...sampleProject, instruction: 'implementation' });
+    mockGenerateContextFromProject.mockResolvedValue('context');
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'build', '--project', 'proj_001', '--instruction-type', 'maintenance',
+    ]);
+
+    // generateContextFromProject receives overridden instruction
+    const projectArg = mockGenerateContextFromProject.mock.calls[0]?.[0];
+    expect(projectArg.instruction).toBe('maintenance');
+    // But store.getById was only called once (no update call pattern)
+    expect(mockGetById).toHaveBeenCalledTimes(1);
+  });
 });
