@@ -326,22 +326,6 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — touches the primary output pipeline; prompt file changes require coordination with ai-project-guide
    **Effort:** 2/5
 
-## Integration Work
-
-8. [ ] **(168) Integration Testing and Documentation** — MCP-level integration tests that exercise the new tools end-to-end via protocol, covering cross-slice interactions that unit tests within individual slices cannot reach. Fixture projects representing realistic multi-state scenarios: a project mid-way through a slice plan, a project with inconsistencies across artifact layers, a project with no methodology artifacts at all. Update `context-forge-mcp` README with new tool documentation. Update root monorepo README. If npm packages are published, version bump for new capabilities.
-
-   *Note: Unit tests for each module (ConfigManager, ArtifactIntrospector, WorkflowNavigator, ConsistencyChecker, FutureWorkCollector) are created during their respective slices, not deferred to this slice. This slice covers integration-level and end-to-end testing only.*
-
-   **Value:** Confidence that the workflow system behaves correctly as an integrated whole, and that the MCP protocol layer correctly exposes all new capabilities. Documentation enables adoption.
-   **Success Criteria:**
-   - MCP integration tests exercise each new tool via protocol (not just internal API)
-   - Cross-slice scenarios tested: workflow_status reflects introspection results, consistency checker findings align with workflow_next recommendations, config defaults flow through to all tools
-   - Fixture projects cover realistic edge cases that span multiple slices
-   - README documents all new MCP tools with usage examples
-   - All tests pass in CI
-   **Dependencies:** [164, 165, 166 — all feature slices complete]
-   **Effort:** 2/5
-
 ## Implementation Order
 
 ```
@@ -356,9 +340,6 @@ Feature (163 first, then 164-166 can parallelize):
   165. Workflow Navigator  ─┐
   166. Consistency Checker  ├─ parallel after 163
   167. Future Work Collector┘
-
-Integration (after all features):
-  168. Testing and Documentation
 ```
 
 ## Notes
@@ -372,4 +353,4 @@ Integration (after all features):
 
 ## Future Work
 
-- [ ] (169) Consistency Checker: All-Slices Mode (priority) — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete. Depends on 166.
+- [ ] (169) Consistency Checker: All-Slices Mode (priority) — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.

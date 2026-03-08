@@ -125,7 +125,17 @@ Add new `isMonorepoEnabled` field to separate feature visibility from project mo
 - Form checkbox controls project mode independently
 - Bonus: Monorepo Structure textarea height matched to Recent Events (6 rows)
 
-### 3. Guide Install Should Create User Directories
+### 3. Cross-Slice Integration Test Fixtures
+
+**Priority:** P3 (Quality)
+**Status:** Open
+
+**Description:**
+Most integration testing from the original (168) slice plan entry has been delivered incrementally — unit tests in each slice, MCP integration tests (25 tests in `mcpIntegration.test.ts`), READMEs updated, version bumps done. What remains is cross-slice scenario coverage: fixture projects representing realistic multi-state scenarios (mid-plan project, project with inconsistencies, project with no methodology artifacts). These would exercise interactions like workflow_status reflecting introspection results or consistency findings aligning with workflow_next recommendations.
+
+**Location:** `packages/mcp-server/tests/integration/` and `packages/core/tests/fixtures/`
+
+### 4. Guide Install Should Create User Directories
 
 **Priority:** P2 (Developer experience)
 **Status:** Open
