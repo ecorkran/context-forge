@@ -193,4 +193,116 @@ describe('ContextIntegrator', () => {
       expect(template).toContain('{{projectName}}');
     });
   });
+
+  describe('profile-aware filtering', () => {
+    const PROFILES_CONTENT = `## Prompts
+\`\`\`yaml type: context-profiles
+context-profiles:
+  maintenance:
+    variables: [fileTasks]
+  implementation:
+    variables: [fileSlicePlan, fileSlice, fileTasks]
+  _default:
+    variables: [fileArch, fileSlicePlan, fileSlice, fileTasks]
+\`\`\`
+`;
+
+    function createIntegratorWithProfiles(): { integrator: ContextIntegrator; generateSpy: ReturnType<typeof vi.spyOn> } {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const readFileFn = (_path: string) => PROFILES_CONTENT;
+      const integrator = new ContextIntegrator(engine, true, readFileFn);
+      return { integrator, generateSpy };
+    }
+
+    it('zeros non-profile artifact fields for maintenance instruction', async () => {
+      const { integrator, generateSpy } = createIntegratorWithProfiles();
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'Maintenance Task',
+        fileArch: '160-arch.system',
+        fileSlicePlan: '160-slices.system',
+        fileTasks: '176-tasks.current',
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+
+      expect(contextData.fileTasks).toBe('176-tasks.current');
+      expect(contextData.fileArch).toBe('');
+      expect(contextData.fileSlicePlan).toBe('');
+    });
+
+    it('passes allowed artifact fields for implementation instruction', async () => {
+      const { integrator, generateSpy } = createIntegratorWithProfiles();
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'Phase 6: Implementation',
+        fileArch: '160-arch.system',
+        fileSlicePlan: '160-slices.system',
+        fileSlice: '176-slice.current',
+        fileTasks: '176-tasks.current',
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+
+      expect(contextData.fileSlicePlan).toBe('160-slices.system');
+      expect(contextData.fileSlice).toBe('176-slice.current');
+      expect(contextData.fileTasks).toBe('176-tasks.current');
+      expect(contextData.fileArch).toBe('');
+    });
+
+    it('skips filtering when profiles block is absent', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const readFileFn = (_path: string) => 'No profiles here.';
+      const integrator = new ContextIntegrator(engine, true, readFileFn);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'maintenance',
+        fileArch: '160-arch.system',
+        fileTasks: '176-tasks.current',
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+
+      // All artifact fields pass through unchanged when no profiles block
+      expect(contextData.fileArch).toBe('160-arch.system');
+      expect(contextData.fileTasks).toBe('176-tasks.current');
+    });
+
+    it('skips filtering when readFileFn is not provided', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'maintenance',
+        fileArch: '160-arch.system',
+        fileTasks: '176-tasks.current',
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+
+      expect(contextData.fileArch).toBe('160-arch.system');
+    });
+
+    it('does not affect non-artifact fields regardless of profile', async () => {
+      const { integrator, generateSpy } = createIntegratorWithProfiles();
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'maintenance',
+        customData: { recentEvents: 'some events', additionalNotes: 'some notes' },
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+
+      expect(contextData.recentEvents).toBe('some events');
+      expect(contextData.additionalNotes).toBe('some notes');
+    });
+  });
 });

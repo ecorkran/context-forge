@@ -48,7 +48,8 @@ export function createContextPipeline(projectPath: string): {
   const statementManager = new StatementManager(statementFilePath);
 
   const engine = new ContextTemplateEngine(promptParser, statementManager);
-  const integrator = new ContextIntegrator(engine);
+  const readFileFn = (filePath: string): string => fs.readFileSync(filePath, 'utf-8');
+  const integrator = new ContextIntegrator(engine, true, readFileFn);
 
   return { engine, integrator };
 }

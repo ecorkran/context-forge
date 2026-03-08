@@ -2,7 +2,12 @@ import type { ProjectData } from '../types/project.js';
 import type { ContextData, EnhancedContextData } from '../types/context.js';
 import { TemplateProcessor } from './TemplateProcessor.js';
 import { ContextTemplateEngine } from './ContextTemplateEngine.js';
+import { ContextProfileParser } from './ContextProfileParser.js';
+import type { ProfileMap } from './ContextProfileParser.js';
 import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
+
+/** Artifact fields subject to profile-aware filtering */
+const ARTIFACT_FIELDS = ['fileArch', 'fileSlicePlan', 'fileHLD', 'fileSpec', 'fileSlice', 'fileTasks', 'fileConcept'] as const;
 
 /**
  * Default template for context generation
@@ -30,11 +35,26 @@ export class ContextIntegrator {
   private templateProcessor: TemplateProcessor;
   private templateEngine: ContextTemplateEngine;
   private enableNewEngine: boolean;
+  private profileParser: ContextProfileParser;
+  private cachedProfiles: ProfileMap | null = null;
+  private cachedPromptPath: string | null = null;
+  private readFileFn: ((path: string) => string) | null;
 
-  constructor(engine: ContextTemplateEngine, enableNewEngine: boolean = true) {
+  /**
+   * @param engine Template engine for context generation
+   * @param enableNewEngine Toggle between new and legacy template systems
+   * @param readFileFn Optional file reader for profile loading (Node.js only)
+   */
+  constructor(
+    engine: ContextTemplateEngine,
+    enableNewEngine: boolean = true,
+    readFileFn: ((path: string) => string) | null = null,
+  ) {
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
+    this.profileParser = new ContextProfileParser();
+    this.readFileFn = readFileFn;
   }
 
   /**
@@ -63,10 +83,9 @@ export class ContextIntegrator {
     // Resolve absolute file paths from project root before service calls
     if (project.projectPath) {
       const base = project.projectPath.replace(/\/+$/, '');
-      this.templateEngine.updateServicePaths(
-        `${base}/${PROMPT_FILE_RELATIVE_PATH}`,
-        `${base}/${STATEMENTS_FILE_RELATIVE_PATH}`
-      );
+      const promptPath = `${base}/${PROMPT_FILE_RELATIVE_PATH}`;
+      this.cachedPromptPath = promptPath;
+      this.templateEngine.updateServicePaths(promptPath, `${base}/${STATEMENTS_FILE_RELATIVE_PATH}`);
     }
 
     // Map project data to enhanced context data
@@ -101,7 +120,7 @@ export class ContextIntegrator {
     const availableTools = await this.detectAvailableTools();
     const mcpServers = await this.detectMCPServers();
 
-    return {
+    const enhanced: EnhancedContextData = {
       projectName: project.name || 'Unknown Project',
       template: project.template || '',
       fileSlice: project.fileSlice || 'Unknown Slice',
@@ -122,6 +141,39 @@ export class ContextIntegrator {
       templateVersion: '1.0.0',
       customData: project.customData
     };
+
+    // Apply profile-aware filtering if profiles are available
+    this.applyProfileFiltering(enhanced, project.instruction || 'implementation');
+
+    return enhanced;
+  }
+
+  /**
+   * Zeros out artifact fields not in the active instruction's profile.
+   * Skips filtering if readFileFn is not set or profiles block is absent.
+   */
+  private applyProfileFiltering(data: EnhancedContextData, instruction: string): void {
+    if (!this.readFileFn || !this.cachedPromptPath) return;
+
+    // Lazy-load and cache profiles
+    if (this.cachedProfiles === null) {
+      try {
+        const content = this.readFileFn(this.cachedPromptPath);
+        this.cachedProfiles = this.profileParser.parseProfiles(content);
+      } catch {
+        this.cachedProfiles = {};
+      }
+    }
+
+    const profiles = this.cachedProfiles;
+    if (Object.keys(profiles).length === 0) return;
+
+    const allowedVars = this.profileParser.getProfileForInstruction(instruction, profiles);
+    for (const field of ARTIFACT_FIELDS) {
+      if (!allowedVars.includes(field)) {
+        (data as unknown as Record<string, unknown>)[field] = '';
+      }
+    }
   }
 
   /**
