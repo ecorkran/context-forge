@@ -9,11 +9,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
-### Slice 166: Consistency Checker — Slice Design Complete
-- Created `166-slice.consistency-checker.md` — detection rules, fix capabilities, MCP tool, CLI command design
-- Four detection rules: task-vs-plan, frontmatter-vs-computed, missing artifacts, plan-vs-frontmatter
-- `MarkdownWriter` utility for non-destructive write-back (checkbox + frontmatter updates)
-- `workflow.auto_fix` config key, `workflow_check` MCP tool, `cf check` CLI command
+### Slice 166: Consistency Checker — Implementation Complete
+- `ConsistencyChecker` core service with 4 detection rules: task-vs-plan, frontmatter-vs-computed, missing artifacts, plan-vs-frontmatter
+- `MarkdownWriter` utility for non-destructive write-back (checkbox toggling + frontmatter field updates)
+- Fix mode with `FixLogEntry` before/after tracing for each applied correction
+- `workflow.auto_fix` config key, `workflow_check` MCP tool (25 total), `cf check` CLI command
+- 506 core tests, 119 MCP tests, 154 CLI tests — all passing
+- Commits:
+  - `8b748ed` feat(core): add consistency checker types and workflow.auto_fix config key
+  - `d66abc9` feat(core): add MarkdownWriter utility for checkbox and frontmatter updates
+  - `55335ee` feat(core): add ConsistencyChecker with 4 detection rules
+  - `134b1e9` test(core): add fix mode tests for ConsistencyChecker
+  - `4ba79b4` feat(mcp): add workflow_check tool for consistency checking
+  - `b030219` feat(cli): replace cf check stub with consistency checker implementation
 
 ### Post-165: Workflow fixes, discovery commands, and UX enhancements
 - Fix artifact path resolution: added `resolveArtifactPath()` — stems now correctly resolve to full paths with directory prefix and `.md`
