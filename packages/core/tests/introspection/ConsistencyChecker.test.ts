@@ -9,6 +9,25 @@ import type {
   DocumentDetectionResult,
 } from '../../src/introspection/types.js';
 
+// Mock the markdownWriter module for fix mode tests
+vi.mock('../../src/introspection/writers/markdownWriter.js', () => ({
+  updateCheckbox: vi.fn().mockResolvedValue({
+    rule: '',
+    action: 'update-checkbox',
+    filePath: '/fake/plan.md',
+    before: '[ ]',
+    after: '[x]',
+  }),
+  updateFrontmatterField: vi.fn().mockResolvedValue({
+    rule: '',
+    action: 'update-frontmatter',
+    filePath: '/fake/slice.md',
+    field: 'status',
+    before: 'in-progress',
+    after: 'complete',
+  }),
+}));
+
 function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
   return {
     id: 'test-1',
@@ -325,6 +344,100 @@ describe('ConsistencyChecker', () => {
       expect(result.totalFindings).toBeGreaterThan(0);
       expect(result.summary).toMatch(/\d+ finding/);
       expect(result.errors + result.warnings + result.infos).toBe(result.totalFindings);
+    });
+  });
+
+  describe('fix()', () => {
+    it('applies checkbox fix and populates fixLog', async () => {
+      // Default mock: tasks complete, plan unchecked → fixable warning
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.fix(makeProject());
+
+      expect(result.fixed).toBeGreaterThan(0);
+      expect(result.fixLog.length).toBeGreaterThan(0);
+
+      const checkboxFix = result.fixLog.find((e) => e.action === 'update-checkbox');
+      expect(checkboxFix).toBeDefined();
+      expect(checkboxFix!.before).toBe('[ ]');
+      expect(checkboxFix!.after).toBe('[x]');
+    });
+
+    it('applies frontmatter fix and populates fixLog', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.fix(makeProject());
+
+      const fmFix = result.fixLog.find((e) => e.action === 'update-frontmatter');
+      expect(fmFix).toBeDefined();
+      expect(fmFix!.field).toBe('status');
+      expect(fmFix!.before).toBe('in-progress');
+      expect(fmFix!.after).toBe('complete');
+    });
+
+    it('skips non-fixable findings', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 999, name: 'other', status: 'not-started', isChecked: false },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [{ name: 'Task 1', done: false }],
+          totalTasks: 1,
+          completedTasks: 0,
+          inferredStatus: 'not-started',
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'not-started' },
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.fix(makeProject());
+
+      // Only info-level non-fixable findings (missing-artifact)
+      const infoFindings = result.findings.filter((f) => !f.fixable);
+      expect(infoFindings.length).toBeGreaterThan(0);
+      // fixLog should be empty since no fixable findings
+      expect(result.fixLog.length).toBe(0);
+      expect(result.fixed).toBe(0);
+    });
+
+    it('captures fix errors without aborting other fixes', async () => {
+      const { updateCheckbox } = await import('../../src/introspection/writers/markdownWriter.js');
+      // Make checkbox update fail
+      vi.mocked(updateCheckbox).mockRejectedValueOnce(new Error('Permission denied'));
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.fix(makeProject());
+
+      // Should have at least one fix error
+      expect(result.fixErrors.length).toBeGreaterThan(0);
+      expect(result.fixErrors[0]).toContain('Permission denied');
+      // Frontmatter fix should still succeed
+      const fmFix = result.fixLog.find((e) => e.action === 'update-frontmatter');
+      expect(fmFix).toBeDefined();
+    });
+
+    it('fixed count matches applied fixes', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.fix(makeProject());
+
+      expect(result.fixed).toBe(result.fixLog.length);
+    });
+
+    it('fixLog entries have rule populated from finding', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.fix(makeProject());
+
+      for (const entry of result.fixLog) {
+        expect(entry.rule).not.toBe('');
+        expect(typeof entry.rule).toBe('string');
+      }
     });
   });
 });
