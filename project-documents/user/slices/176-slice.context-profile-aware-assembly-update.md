@@ -6,7 +6,7 @@ sliceIndex: 176
 sliceName: context-profile-aware-assembly-update
 dateCreated: 20260308
 dateUpdated: 20260308
-status: not_started
+status: complete
 dependencies:
   - 161-schema-standardization
   - 175-context-output-consolidation
@@ -234,18 +234,18 @@ Parser locates the block by searching for the literal string ` ```yaml type: con
 
 ## Success Criteria
 
-- [ ] `fileConcept` field exists in `ProjectData`, settable via `cf set concept {path}` / `project_update`, available as `{fileConcept}` and `{concept}` template variables
-- [ ] Schema migration: existing projects load without error; `fileConcept` defaults to `undefined`
-- [ ] Context profiles YAML block present in `packages/core/assets/prompt.ai-project.system.md`
-- [ ] `ContextProfileParser` correctly parses the profiles block and resolves instruction strings to variable lists
-- [ ] `cf build` with instruction = "Maintenance Task" produces context with only `fileTasks` in artifact section (no arch doc, no slice plan)
-- [ ] `cf build` with instruction = "Phase 6: Implementation" produces context with `fileSlicePlan`, `fileSlice`, `fileTasks`
-- [ ] `cf build --instruction-type maintenance` overrides without writing to store
-- [ ] `context_build` with `instructionType: "maintenance"` parameter produces filtered output
-- [ ] Variables not in active profile are absent from generated context (not empty lines)
-- [ ] Profile lookup falls back to `_default` for unknown instruction types
-- [ ] If profile block is absent/unparseable, full variable set is used (no crash)
-- [ ] All existing tests pass with updates
+- [x] `fileConcept` field exists in `ProjectData`, settable via `cf set concept {path}` / `project_update`, available as `{fileConcept}` and `{concept}` template variables
+- [x] Schema migration: existing projects load without error; `fileConcept` defaults to `undefined`
+- [x] Context profiles YAML block present in `packages/core/assets/prompt.ai-project.system.md`
+- [x] `ContextProfileParser` correctly parses the profiles block and resolves instruction strings to variable lists
+- [x] `cf build` with instruction = "Maintenance Task" produces context with only `fileTasks` in artifact section (no arch doc, no slice plan)
+- [x] `cf build` with instruction = "Phase 6: Implementation" produces context with `fileSlicePlan`, `fileSlice`, `fileTasks`
+- [x] `cf build --instruction-type maintenance` overrides without writing to store
+- [x] `context_build` with `instructionType: "maintenance"` parameter produces filtered output
+- [x] Variables not in active profile are absent from generated context (not empty lines)
+- [x] Profile lookup falls back to `_default` for unknown instruction types
+- [x] If profile block is absent/unparseable, full variable set is used (no crash)
+- [x] All existing tests pass with updates
 
 ## Out of Scope
 

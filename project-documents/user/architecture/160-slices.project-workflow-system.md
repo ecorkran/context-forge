@@ -326,29 +326,31 @@ After this slice, a developer can type `cf status` to see where a project stands
    **Risk:** Medium — touches the primary output pipeline; prompt file changes require coordination with ai-project-guide
    **Effort:** 2/5
 
-16. [ ] **(176) Context-Profile-Aware Assembly — Update** `cf build` and `context_build` to consult the context profiles table when assembling context, so that only the document variables relevant to the active prompt type are populated and injected. Add `fileConcept` to `ProjectData` schema (with schema migration), the MCP `project_update` input schema, and the template variable map. Parse the context profiles table from the prompt asset file at runtime (same principle as phase shorthand parsing — read from source, don't hardcode). When building context: resolve the active instruction type → look up its context profile → populate only the listed variables → assemble. Variables not in the profile are omitted from the assembled output entirely (not included as empty strings).
+16. [x] **(176) Context-Profile-Aware Assembly — Update** `cf build` and `context_build` to consult the context profiles table when assembling context, so that only the document variables relevant to the active prompt type are populated and injected. Add `fileConcept` to `ProjectData` schema (with schema migration), the MCP `project_update` input schema, and the template variable map. Parse the context profiles table from the prompt asset file at runtime (same principle as phase shorthand parsing — read from source, don't hardcode). When building context: resolve the active instruction type → look up its context profile → populate only the listed variables → assemble. Variables not in the profile are omitted from the assembled output entirely (not included as empty strings).
 
 The context profiles table is maintained in the prompt asset file (`packages/core/assets/prompt.ai-project.system.md`) as a YAML block in the document header. The assembler parses this table alongside existing prompt metadata. Adding or modifying profiles requires only a prompt file edit, not a code change.
 
 Maintenance prompts (`Maintenance Task`, `Perform Maintenance`) are the immediate motivation: they currently receive the full initiative document stack (arch doc, slice plan) which misdirects agents toward architectural framing that doesn't apply to operational work. This slice eliminates that class of context noise for all prompt types.
+
 Value: Reduces irrelevant context injection across all prompt types, most notably for maintenance and analysis work. Tighter context means less noise for agents, lower token cost, and fewer misdirected responses. Makes the prompt file the single source of truth for what context each workflow phase needs.
 
 Success Criteria:
-* fileConcept field exists in ProjectData, is settable via project_update, and is available as a template variable {fileConcept}
-* Schema migration adds fileConcept to existing stored projects (null/undefined default)
-* Context profiles table is parsed from the prompt asset file at runtime
-cf build and context_build filter injected documents based on the active instruction type's profile
-*Variables not listed in the active profile are omitted from assembled output
-* A maintenance instruction type (Maintenance Task) produces context with only fileTasks — no arch doc, no slice plan
-* An implementation instruction type produces context with fileSlicePlan, fileSlice, fileTasks — no arch doc
-* Profiles table changes in the prompt file take effect without code changes
-* All existing tests pass (updated to account for filtered output)
-* cf build --instruction-type <type> respects the profile for the specified type
+- [x] fileConcept field exists in ProjectData, is settable via project_update, and is available as a template variable {fileConcept}
+- [x] Schema migration adds fileConcept to existing stored projects (null/undefined default)
+- [x] Context profiles table is parsed from the prompt asset file at runtime
+- [x] cf build and context_build filter injected documents based on the active instruction type's profile
+- [x] Variables not listed in the active profile are omitted from assembled output
+- [x] A maintenance instruction type (Maintenance Task) produces context with only fileTasks — no arch doc, no slice plan
+- [x] An implementation instruction type produces context with fileSlicePlan, fileSlice, fileTasks — no arch doc
+- [x] Profiles table changes in the prompt file take effect without code changes
+- [x] All existing tests pass (updated to account for filtered output)
+- [x] cf build --instruction-type <type> respects the profile for the specified type
 
-Dependencies: [161 — Schema Standardization] (complete), [175 — Context Output Consolidation] (complete or in progress — provides the clean variable map this slice filters against)
+Dependencies: [161 — Schema Standardization] (complete), [175 — Context Output Consolidation] (complete)
 
 Risk: Low — well-defined behavioral change with clear test matrix; prompt file parsing follows established patterns from phase shorthand extraction
-**Effort: 2/5**
+
+Effort: 2/5
 
 
 ## Implementation Order

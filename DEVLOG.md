@@ -9,6 +9,21 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-08
 
+### Slice 176: Context-Profile-Aware Assembly — Phase 6 (Implementation) ✓
+- `fileConcept` field added to `ProjectData`, `ContextData`, `projectSchema`, `ContextIntegrator`, `TemplateProcessor`, and MCP `project_update`
+- `ContextProfileParser` new service: parses `yaml type: context-profiles` block from prompt asset; normalises instruction strings (phase names, "Maintenance Task", etc.); falls back to `_default`
+- Context profiles YAML block added to `packages/core/assets/prompt.ai-project.system.md` (10 profiles)
+- Profile-aware filtering in `ContextIntegrator.mapProjectToEnhancedContext()`: zeros artifact fields not in active profile; skips if profiles absent (safe fallback); injected `readFileFn` preserves browser-safety
+- `cf build --instruction-type <type>` / `--it <type>` flag: overrides instruction for profile lookup without persisting
+- `context_build` MCP tool: `instructionType` param maps to `instruction` override, takes precedence over `instruction`
+- 529 core tests, 157 CLI tests, 122 MCP tests — all passing
+- Commits:
+  - `4e3628c` feat(core): add fileConcept field to types, schema, integrator, and MCP update tool
+  - `dce96a0` feat(core): add context-profiles YAML block and ContextProfileParser service
+  - `b6b9456` feat(core): add profile-aware artifact filtering to ContextIntegrator
+  - `b37647e` feat(cli): add --instruction-type / --it flag to cf build
+  - `5c7aa18` feat(mcp): add instructionType param to context_build and fileConcept to project_update
+
 ### Slice 176: Context-Profile-Aware Assembly — Phase 5 (Task Breakdown)
 - Created `176-tasks.context-profile-aware-assembly-update.md` (15 tasks, 150 lines)
 - Tasks cover: `fileConcept` type/schema/pipeline wiring, `ContextProfileParser` new service + tests, profile filtering in `ContextIntegrator` + tests, `--instruction-type` CLI flag + tests, `instructionType` MCP param + tests, full build/smoke validation
