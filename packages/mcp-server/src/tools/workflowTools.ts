@@ -1,6 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, FutureWorkCollector, WorkflowNavigator } from '@context-forge/core/node';
+import {
+  FileProjectStore,
+  FutureWorkCollector,
+  WorkflowNavigator,
+  ArtifactIntrospector,
+  ConsistencyChecker,
+  ConfigManager,
+} from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -148,6 +155,71 @@ export function registerWorkflowTools(server: McpServer): void {
         const nav = new WorkflowNavigator();
         const next = await nav.getNext(project);
         return jsonResult(next);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${msg}`);
+      }
+    },
+  );
+
+  // --- workflow_check ---
+  server.registerTool(
+    'workflow_check',
+    {
+      title: 'Consistency Check',
+      description:
+        'Run consistency checks on a project to detect mismatches between related artifacts. ' +
+        'Detects: task completion vs. slice plan checkbox, frontmatter status vs. computed state, ' +
+        'missing artifact cross-references, plan checkbox vs. frontmatter status. ' +
+        'With fix=true, applies non-destructive corrections to fixable findings. ' +
+        'Response shape: { projectPath, findings[], totalFindings, errors, warnings, infos, summary, ' +
+        'fixed?, fixLog?, fixErrors? }.',
+      inputSchema: {
+        projectId: z
+          .string()
+          .optional()
+          .describe('Project ID. Omit to use default_project config.'),
+        fix: z
+          .boolean()
+          .optional()
+          .describe('Apply non-destructive corrections to fixable findings. Default: false (or workflow.auto_fix config).'),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        const resolvedId = await resolveProjectId(args.projectId);
+        const store = new FileProjectStore();
+        const project = await store.getById(resolvedId);
+
+        if (!project) {
+          return errorResult(
+            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
+          );
+        }
+
+        const introspector = new ArtifactIntrospector();
+        const checker = new ConsistencyChecker(introspector);
+
+        // Determine fix mode: explicit arg > config key > false
+        let fixMode = args.fix ?? false;
+        if (!fixMode) {
+          try {
+            const cm = new ConfigManager(project.projectPath);
+            const autoFixResult = await cm.get('workflow.auto_fix');
+            if (autoFixResult.value === true) {
+              fixMode = true;
+            }
+          } catch {
+            // Config read failed — default to check-only
+          }
+        }
+
+        const result = fixMode
+          ? await checker.fix(project)
+          : await checker.check(project);
+
+        return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);

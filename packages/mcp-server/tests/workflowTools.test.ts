@@ -12,6 +12,8 @@ const mockConfigGet = vi.fn();
 const mockCollect = vi.fn();
 const mockGetStatus = vi.fn();
 const mockGetNext = vi.fn();
+const mockCheck = vi.fn();
+const mockFix = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -26,6 +28,11 @@ vi.mock('@context-forge/core/node', () => ({
   WorkflowNavigator: vi.fn().mockImplementation(() => ({
     getStatus: mockGetStatus,
     getNext: mockGetNext,
+  })),
+  ArtifactIntrospector: vi.fn(),
+  ConsistencyChecker: vi.fn().mockImplementation(() => ({
+    check: mockCheck,
+    fix: mockFix,
   })),
 }));
 
@@ -302,6 +309,111 @@ describe('workflow_next', () => {
 
     const result = await client.callTool({
       name: 'workflow_next',
+      arguments: { projectId: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('not found');
+  });
+});
+
+describe('workflow_check', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  const MOCK_CHECK_RESULT = {
+    projectPath: '/home/user/projects/test-project',
+    findings: [
+      {
+        rule: 'task-vs-plan',
+        severity: 'warning',
+        location: '/fake/plan.md',
+        description: 'Tasks complete but slice unchecked',
+        suggestedFix: 'Check the slice plan entry',
+        fixable: true,
+      },
+    ],
+    totalFindings: 1,
+    errors: 0,
+    warnings: 1,
+    infos: 0,
+    summary: '1 finding: 1 warning',
+  };
+
+  const MOCK_FIX_RESULT = {
+    ...MOCK_CHECK_RESULT,
+    fixed: 1,
+    fixLog: [
+      { rule: 'task-vs-plan', action: 'update-checkbox', filePath: '/fake/plan.md', before: '[ ]', after: '[x]' },
+    ],
+    fixErrors: [],
+  };
+
+  it('returns check result for valid project', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheck.mockResolvedValue(MOCK_CHECK_RESULT);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as typeof MOCK_CHECK_RESULT;
+    expect(parsed.totalFindings).toBe(1);
+    expect(parsed.findings).toHaveLength(1);
+    expect(parsed.summary).toContain('1 warning');
+  });
+
+  it('returns fix result when fix=true', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockFix.mockResolvedValue(MOCK_FIX_RESULT);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id, fix: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as typeof MOCK_FIX_RESULT;
+    expect(parsed.fixed).toBe(1);
+    expect(parsed.fixLog).toHaveLength(1);
+    expect(parsed.fixLog[0].before).toBe('[ ]');
+    expect(parsed.fixLog[0].after).toBe('[x]');
+  });
+
+  it('uses auto_fix config when fix not specified', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: true, source: 'user' });
+    mockFix.mockResolvedValue(MOCK_FIX_RESULT);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as typeof MOCK_FIX_RESULT;
+    expect(parsed.fixed).toBe(1);
+  });
+
+  it('returns error for missing project', async () => {
+    mockGetById.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
       arguments: { projectId: 'nonexistent' },
     });
 

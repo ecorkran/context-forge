@@ -143,6 +143,7 @@ describe('Server Lifecycle', () => {
       'prompt_list',
       'server_version',
       'template_preview',
+      'workflow_check',
       'workflow_future',
       'workflow_next',
       'workflow_status',
