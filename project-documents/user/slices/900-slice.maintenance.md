@@ -39,7 +39,7 @@ Most integration testing from the original (168) slice plan entry has been deliv
 ### 3. Guide Install Should Create User Directories
 
 **Priority:** P2 (Developer experience)
-**Status:** Open
+**Status:** Complete
 
 **Description:**
 `cf guides install` (and `guide_install` MCP tool) sets up `project-documents/ai-project-guide/` but does not create the user artifact directories. After installing guides, users must manually create these before they can start working.
