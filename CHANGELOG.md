@@ -20,9 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `cf next` recommends creating architecture before slice plan when neither exists
 - Electron date picker displays correctly for dates set via CLI as YYYYMMDD (normalized to YYYY-MM-DD)
+- Slice plan parser supports unindexed entries (`**Name**` without `(NNN)` prefix)
+- Slice plan heading exclusion no longer falsely skips sections like "Feature Slices (in implementation order)"
 
 ### Changed
-- Removed obsolete test infrastructure task file (all 888 tests now pass)
+- Removed obsolete test infrastructure task file (all 891 tests now pass)
 - Cleaned up maintenance file: removed completed items, condensed descriptions
 
 ## [0.3.5] - 20260307
