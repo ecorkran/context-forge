@@ -157,6 +157,7 @@ describe('projectSchema', () => {
         tasks: 'fileTasks',
         plan: 'fileSlicePlan',
         hld: 'fileHLD',
+        concept: 'fileConcept',
         spec: 'fileSpec',
         path: 'projectPath',
         events: 'customData.recentEvents',

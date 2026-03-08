@@ -7,6 +7,8 @@ export { DEFAULT_STATEMENTS, STATEMENTS_FILE_RELATIVE_PATH, PROMPT_FILE_RELATIVE
 // Browser-safe services (no fs/path dependency)
 export { TemplateProcessor } from './TemplateProcessor.js';
 export { SectionBuilder } from './SectionBuilder.js';
+export { ContextProfileParser } from './ContextProfileParser.js';
+export type { ProfileMap } from './ContextProfileParser.js';
 
 // Orchestrators (browser-safe — use interfaces, not concrete Node.js services)
 export { ContextGenerator } from './ContextGenerator.js';

@@ -12,6 +12,31 @@ npmScriptsAiSupport: "!include ../snippets/npm-scripts.ai-support.json"
 ---
 ## Prompts
 This document contains prepared prompts useful in applying the `guide.ai-project.000-process` and performing additional supplemental tasks.
+
+```yaml type: context-profiles
+context-profiles:
+  implementation:
+    variables: [fileSlicePlan, fileSlice, fileTasks]
+  task-breakdown:
+    variables: [fileSlicePlan, fileSlice, fileTasks]
+  slice-design:
+    variables: [fileArch, fileSlicePlan]
+  slice-planning:
+    variables: [fileArch, fileHLD, fileSpec]
+  architecture:
+    variables: [fileHLD, fileSpec]
+  concept:
+    variables: [fileConcept, fileSpec]
+  maintenance:
+    variables: [fileTasks]
+  analysis-processing:
+    variables: [fileSlice, fileTasks]
+  integration:
+    variables: [fileSlicePlan, fileSlice, fileTasks]
+  _default:
+    variables: [fileArch, fileSlicePlan, fileSlice, fileTasks]
+```
+
 ##### Project Object Model and Parameters
 ```python
 # input keys
