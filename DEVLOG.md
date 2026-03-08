@@ -7,6 +7,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-08
+
+### Slice 176: Context-Profile-Aware Assembly — Phase 4 (Slice Design)
+- Created `176-slice.context-profile-aware-assembly-update.md`
+- Design: context profiles YAML block in prompt asset; `ContextProfileParser`; `fileConcept` field; profile-filtered variable injection; `--instruction-type` CLI flag; `instructionType` MCP parameter
+
 ## 2026-03-07
 
 ### v0.3.6 — Maintenance
