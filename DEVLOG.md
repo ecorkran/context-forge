@@ -9,6 +9,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-07
 
+### v0.3.6 — Maintenance
+- Guide install creates user directories (`user/`, `architecture/`, `slices/`, `tasks/`, `project-guides/`)
+- `cf next` recommends architecture before slice plan when neither exists
+- Electron date picker normalizes YYYYMMDD → YYYY-MM-DD
+- Removed obsolete `900-tasks.test-infrastructure-deferred.md`, cleaned up maintenance file
+- Tags: @context-forge/core@0.3.6, @context-forge/cli@0.3.6, @context-forge/mcp@0.3.6
+- Commits:
+  - `3507628` chore: remove obsolete test infrastructure tasks, clean up maintenance file
+  - `13abc2b` feat(core): create user artifact directories on guide install
+  - `7a472b3` fix(electron): normalize YYYYMMDD dates for HTML date input
+  - `50a9dbb` fix(core): cf next recommends architecture before slice plan
+
 ### v0.3.5 — Slice 166: Consistency Checker
 - `ConsistencyChecker` core service with 5 detection rules (added Rule 5: task-file-status after initial release)
 - Rule 5 catches task file frontmatter status drift (e.g., `status: in_progress` when all tasks complete)

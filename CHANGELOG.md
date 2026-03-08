@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 20260307
+
+### Added
+- Guide install (`cf guides install`) now creates user artifact directories (`user/`, `architecture/`, `slices/`, `tasks/`, `project-guides/`)
+
+### Fixed
+- `cf next` recommends creating architecture before slice plan when neither exists
+- Electron date picker displays correctly for dates set via CLI as YYYYMMDD (normalized to YYYY-MM-DD)
+
+### Changed
+- Removed obsolete test infrastructure task file (all 888 tests now pass)
+- Cleaned up maintenance file: removed completed items, condensed descriptions
+
 ## [0.3.5] - 20260307
 
 ### Added
