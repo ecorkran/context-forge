@@ -33,4 +33,9 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     default: false,
     description: 'Auto-advance to next slice when current is complete',
   },
+  'workflow.auto_fix': {
+    type: 'boolean',
+    default: false,
+    description: 'Automatically apply non-destructive corrections when running consistency checks',
+  },
 };

@@ -180,6 +180,54 @@ export interface FutureWorkCollectorResult {
   markdown: string;
 }
 
+// --- ConsistencyChecker types ---
+
+/** Severity level for consistency findings */
+export type ConsistencySeverity = 'info' | 'warning' | 'error';
+
+/** A single consistency finding from a detection rule */
+export interface ConsistencyFinding {
+  rule: string;
+  severity: ConsistencySeverity;
+  location: string;
+  description: string;
+  suggestedFix: string;
+  fixable: boolean;
+  fixAction?: {
+    type: 'update-checkbox' | 'update-frontmatter';
+    filePath: string;
+    detail: Record<string, unknown>;
+  };
+}
+
+/** Result of running all consistency checks on a project */
+export interface ConsistencyCheckResult {
+  projectPath: string;
+  findings: ConsistencyFinding[];
+  totalFindings: number;
+  errors: number;
+  warnings: number;
+  infos: number;
+  summary: string;
+}
+
+/** Log entry for a single applied fix */
+export interface FixLogEntry {
+  rule: string;
+  action: 'update-checkbox' | 'update-frontmatter';
+  filePath: string;
+  field?: string;
+  before: string;
+  after: string;
+}
+
+/** Result of running consistency checks with fix mode enabled */
+export interface ConsistencyFixResult extends ConsistencyCheckResult {
+  fixed: number;
+  fixLog: FixLogEntry[];
+  fixErrors: string[];
+}
+
 // --- WorkflowNavigator types ---
 
 /** Status of the currently active slice */
