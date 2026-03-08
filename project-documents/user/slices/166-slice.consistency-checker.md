@@ -106,8 +106,18 @@ interface ConsistencyCheckResult {
   summary: string;        // e.g., "3 findings: 1 error, 2 warnings"
 }
 
+interface FixLogEntry {
+  rule: string;              // which detection rule triggered the fix
+  action: 'update-checkbox' | 'update-frontmatter';
+  filePath: string;          // file that was modified
+  field?: string;            // frontmatter key, if applicable
+  before: string;            // previous value (e.g., '[ ]', 'in-progress')
+  after: string;             // new value (e.g., '[x]', 'complete')
+}
+
 interface ConsistencyFixResult extends ConsistencyCheckResult {
   fixed: number;          // count of successfully applied fixes
+  fixLog: FixLogEntry[];  // structured log of each applied fix with before/after
   fixErrors: string[];    // any fix operations that failed
 }
 ```
@@ -150,7 +160,7 @@ With `--fix`:
 ```
 Consistency Check: my-project (fix mode)
   ⚠ Task file 165-tasks complete (12/12) but slice unchecked in plan
-    → Fixed: checked entry (165) in 160-slices.project-workflow-system.md
+    → Fixed: [ ] → [x] in 160-slices.project-workflow-system.md
   ℹ Slice plan entry (168) has no task file yet (not fixable)
 
 Fixed 1 of 2 findings
