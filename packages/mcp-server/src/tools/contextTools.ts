@@ -70,6 +70,7 @@ const contextOverridesSchema = {
   fileSlice: z.string().optional().describe('Override the current slice name'),
   fileTasks: z.string().optional().describe('Override the task file name'),
   instruction: z.string().optional().describe('Override the instruction type (e.g., implementation, design, review)'),
+  instructionType: z.string().optional().describe('Override instruction type for profile-aware filtering (ephemeral — does not write to store). Takes precedence over instruction if both are provided.'),
   developmentPhase: z.string().optional().describe('Override the current development phase'),
   workType: z.enum(['start', 'continue']).optional().describe('Override whether starting or continuing work'),
   additionalInstructions: z.string().optional().describe('Additional instructions to append to the generated context'),
@@ -88,15 +89,18 @@ export function registerContextTools(server: McpServer): void {
       inputSchema: contextOverridesSchema,
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ projectId, additionalInstructions, ...overrideFields }) => {
+    async ({ projectId, additionalInstructions, instructionType, ...overrideFields }) => {
       try {
         const resolvedId = await resolveProjectId(projectId);
-        // Collect defined overrides
+        // Collect defined overrides; instructionType maps to instruction and takes precedence
         const overrides: Partial<ProjectData> = {};
         for (const [key, value] of Object.entries(overrideFields)) {
           if (value !== undefined) {
             (overrides as unknown as Record<string, unknown>)[key] = value;
           }
+        }
+        if (instructionType !== undefined) {
+          overrides.instruction = instructionType;
         }
 
         const contextString = await generateContext(

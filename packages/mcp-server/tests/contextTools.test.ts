@@ -220,6 +220,52 @@ describe('context_build', () => {
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('Template parse error');
   });
+
+  it('passes instructionType as instruction override', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    await client.callTool({
+      name: 'context_build',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        instructionType: 'maintenance',
+      },
+    });
+
+    const calledWith = mockGenerateContextFromProject.mock.calls[0][0];
+    expect(calledWith.instruction).toBe('maintenance');
+  });
+
+  it('instructionType takes precedence over instruction when both provided', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    await client.callTool({
+      name: 'context_build',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        instruction: 'design',
+        instructionType: 'maintenance',
+      },
+    });
+
+    const calledWith = mockGenerateContextFromProject.mock.calls[0][0];
+    expect(calledWith.instruction).toBe('maintenance');
+  });
+
+  it('omitting instructionType uses stored project instruction', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const calledWith = mockGenerateContextFromProject.mock.calls[0][0];
+    expect(calledWith.instruction).toBe(MOCK_PROJECT.instruction);
+  });
 });
 
 describe('template_preview', () => {
