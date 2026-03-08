@@ -82,4 +82,27 @@ describe('parseSlicePlan', () => {
     const result = await parseSlicePlan(path);
     expect(result.filePath).toBe(path);
   });
+
+  it('parses unindexed format using sequential numbering', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'unindexed-slice-plan.md'));
+    expect(result.totalSlices).toBe(6);
+    expect(result.completedSlices).toBe(0);
+
+    expect(result.entries[0]).toEqual({
+      index: 1,
+      name: 'Backend API Scaffold',
+      status: 'not-started',
+      isChecked: false,
+    });
+
+    expect(result.entries[3]).toEqual({
+      index: 4,
+      name: 'Chat Frontend',
+      status: 'not-started',
+      isChecked: false,
+    });
+
+    // Integration Work entry is also parsed (not in excluded headings)
+    expect(result.entries[5].name).toBe('Operational Hardening');
+  });
 });
