@@ -328,12 +328,3 @@ status: in_progress
 
 ---
 
-## Task 14: Version Bump, Build & Test, Publish
-
-**Effort: 1/5**
-
-- [ ] **Version bump to 0.2.3** (core, mcp, cli)
-- [ ] **Full build and test** — `pnpm build && pnpm test` all green
-- [ ] **Update DEVLOG** with summary and commit hashes
-- [ ] **Commit, merge to main, tag v0.2.3**
-- [ ] **Publish to npm**: `pnpm --filter @context-forge/core publish --access public && pnpm --filter @context-forge/mcp publish --access public`
