@@ -91,6 +91,12 @@ export class ConsistencyChecker {
       ),
     );
 
+    // Rule 5: task file frontmatter status vs. computed task completion
+    const taskFileFrontmatter = await this.safeParseTaskFileFrontmatter(docs?.taskFile, projectPath);
+    findings.push(
+      ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter),
+    );
+
     return this.buildResult(projectPath, findings);
   }
 
@@ -329,6 +335,56 @@ export class ConsistencyChecker {
     return findings;
   }
 
+  /** Rule 5: Task file frontmatter status vs. computed task completion */
+  private ruleTaskFileStatus(
+    taskResult: TaskFileResult | null,
+    taskFrontmatter: FrontmatterResult | null,
+  ): ConsistencyFinding[] {
+    const findings: ConsistencyFinding[] = [];
+
+    if (!taskResult || !taskFrontmatter?.found || !taskFrontmatter.data.status) return findings;
+
+    const fmStatus = taskFrontmatter.data.status.toLowerCase().replace(/_/g, '-');
+    const computed = taskResult.inferredStatus; // 'complete' | 'in-progress' | 'not-started'
+    const taskFilePath = taskFrontmatter.filePath;
+
+    // Map task file status values to normalized form for comparison
+    // Task files use not_started/in_progress/complete in frontmatter
+    if (fmStatus === 'complete' && computed !== 'complete') {
+      findings.push({
+        rule: 'task-file-status',
+        severity: 'error',
+        location: taskFilePath,
+        description: `Task file status is "complete" but tasks are incomplete (${taskResult.completedTasks}/${taskResult.totalTasks})`,
+        suggestedFix: 'Update task file status to "in_progress"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: taskFilePath,
+          detail: { key: 'status', value: 'in_progress' },
+        },
+      });
+    }
+
+    if (fmStatus !== 'complete' && computed === 'complete') {
+      findings.push({
+        rule: 'task-file-status',
+        severity: 'warning',
+        location: taskFilePath,
+        description: `Task file status is "${taskFrontmatter.data.status}" but all tasks are complete (${taskResult.completedTasks}/${taskResult.totalTasks})`,
+        suggestedFix: 'Update task file status to "complete"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: taskFilePath,
+          detail: { key: 'status', value: 'complete' },
+        },
+      });
+    }
+
+    return findings;
+  }
+
   // --- Helper methods ---
 
   private emptyResult(projectPath: string): ConsistencyCheckResult {
@@ -414,6 +470,19 @@ export class ConsistencyChecker {
     if (!sliceDesignRelPath) return null;
     try {
       return await this.introspector.parseFrontmatter(join(projectPath, sliceDesignRelPath));
+    } catch {
+      return null;
+    }
+  }
+
+  private async safeParseTaskFileFrontmatter(
+    taskFilePaths: string[] | null | undefined,
+    projectPath: string,
+  ): Promise<FrontmatterResult | null> {
+    if (!taskFilePaths || taskFilePaths.length === 0) return null;
+    // Parse frontmatter from the first task file (primary file has the frontmatter)
+    try {
+      return await this.introspector.parseFrontmatter(join(projectPath, taskFilePaths[0]));
     } catch {
       return null;
     }

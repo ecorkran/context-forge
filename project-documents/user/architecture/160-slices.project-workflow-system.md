@@ -369,3 +369,7 @@ Integration (after all features):
 - **Introspection parsing depth.** Slice 163 should start with the cheapest reliable parsing: checkbox regex for slice plans, YAML frontmatter parsing, file existence checks. If more sophisticated markdown parsing is needed (e.g., understanding nested list structure in future work sections), it can be added incrementally. Avoid pulling in a full markdown AST library unless clearly justified.
 - **Parallel execution of 164-166.** These three slices are independent consumers of the introspection API. They can be worked in any order or in parallel. The listed order (navigator → checker → collector) reflects value priority, not dependency.
 - **ADP compatibility.** The workflow navigator (164) is designed to be consumable by the Automated Development Pipeline (120-arch, orchestration project). The structured JSON output and state machine model should align with ADP's pipeline executor expectations. However, ADP integration is not in scope for this initiative — it's a consumer, not a dependency.
+
+## Future Work
+
+- [ ] (169) Consistency Checker Enhancements — Extend consistency checking beyond the active slice to cover plan-level and architecture-level status. Includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, `workflow_check_all` variant that iterates across all managed projects. Depends on 166.

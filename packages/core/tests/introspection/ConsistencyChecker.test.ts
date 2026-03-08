@@ -334,6 +334,70 @@ describe('ConsistencyChecker', () => {
       expect(finding!.fixAction?.type).toBe('update-checkbox');
     });
 
+    // --- Rule 5: Task file frontmatter status vs. computed completion ---
+
+    it('Rule 5: warns when task file status is not complete but all tasks done', async () => {
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('tasks')) {
+            return { filePath: path, found: true, data: { status: 'in_progress' } };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'task-file-status');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('all tasks are complete');
+      expect(finding!.fixable).toBe(true);
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'complete' });
+    });
+
+    it('Rule 5: errors when task file status is complete but tasks incomplete', async () => {
+      const mock = makeMockIntrospector({
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [{ name: 'Task 1', done: false }],
+          totalTasks: 1,
+          completedTasks: 0,
+          inferredStatus: 'not-started',
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('tasks')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'not-started' } };
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'task-file-status');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('error');
+      expect(finding!.description).toContain('incomplete');
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in_progress' });
+    });
+
+    it('Rule 5: no finding when task file status matches computed state', async () => {
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('tasks')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'task-file-status');
+      expect(finding).toBeUndefined();
+    });
+
     // --- Summary format ---
 
     it('formats summary string correctly', async () => {
