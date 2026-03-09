@@ -170,7 +170,9 @@ export function registerWorkflowTools(server: McpServer): void {
       description:
         'Run consistency checks on a project to detect mismatches between related artifacts. ' +
         'Detects: task completion vs. slice plan checkbox, frontmatter status vs. computed state, ' +
-        'missing artifact cross-references, plan checkbox vs. frontmatter status. ' +
+        'missing artifact cross-references, plan checkbox vs. frontmatter status, ' +
+        'duplicate slice indices, plan status vs. entries, architecture status vs. plans. ' +
+        'Defaults to all-slices mode; provide sliceIndex to narrow to one slice. ' +
         'With fix=true, applies non-destructive corrections to fixable findings. ' +
         'Response shape: { projectPath, findings[], totalFindings, errors, warnings, infos, summary, ' +
         'fixed?, fixLog?, fixErrors? }.',
@@ -179,6 +181,10 @@ export function registerWorkflowTools(server: McpServer): void {
           .string()
           .optional()
           .describe('Project ID. Omit to use default_project config.'),
+        sliceIndex: z
+          .number()
+          .optional()
+          .describe('Check only a specific slice by index. Omit for all-slices mode.'),
         fix: z
           .boolean()
           .optional()
@@ -215,9 +221,19 @@ export function registerWorkflowTools(server: McpServer): void {
           }
         }
 
-        const result = fixMode
-          ? await checker.fix(project)
-          : await checker.check(project);
+        let result;
+        if (args.sliceIndex !== undefined) {
+          // Single-slice mode
+          const sliceProject = { ...project, fileSlice: `${args.sliceIndex}-slice` };
+          result = fixMode
+            ? await checker.fix(sliceProject)
+            : await checker.check(sliceProject);
+        } else {
+          // All-slices mode (no confirmation prompt in MCP)
+          result = fixMode
+            ? await checker.fixAll(project)
+            : await checker.checkAll(project);
+        }
 
         return jsonResult(result);
       } catch (error: unknown) {

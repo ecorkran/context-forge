@@ -132,12 +132,12 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 5: Update MCP tool `workflow_check`
 
-- [ ] **5.1 Add `sliceIndex` parameter to input schema**
-  - [ ] Add `sliceIndex: { type: 'number', description: '...' }` to the tool's input schema (optional)
-  - [ ] Update handler: if `sliceIndex` provided, set `project.fileSlice` and call `check()` / `fix()`
-  - [ ] If `sliceIndex` omitted, call `checkAll()` / `fixAll()`
-  - [ ] No confirmation prompt in MCP mode
-  - [ ] Success: MCP tool defaults to all-slices; providing `sliceIndex` narrows scope
+- [x] **5.1 Add `sliceIndex` parameter to input schema**
+  - [x] Add `sliceIndex: { type: 'number', description: '...' }` to the tool's input schema (optional)
+  - [x] Update handler: if `sliceIndex` provided, set `project.fileSlice` and call `check()` / `fix()`
+  - [x] If `sliceIndex` omitted, call `checkAll()` / `fixAll()`
+  - [x] No confirmation prompt in MCP mode
+  - [x] Success: MCP tool defaults to all-slices; providing `sliceIndex` narrows scope
 
 **Commit after Task 5.**
 

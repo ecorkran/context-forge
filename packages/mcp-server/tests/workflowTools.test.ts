@@ -14,6 +14,8 @@ const mockGetStatus = vi.fn();
 const mockGetNext = vi.fn();
 const mockCheck = vi.fn();
 const mockFix = vi.fn();
+const mockCheckAll = vi.fn();
+const mockFixAll = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -33,6 +35,8 @@ vi.mock('@context-forge/core/node', () => ({
   ConsistencyChecker: vi.fn().mockImplementation(() => ({
     check: mockCheck,
     fix: mockFix,
+    checkAll: mockCheckAll,
+    fixAll: mockFixAll,
   })),
 }));
 
@@ -360,10 +364,10 @@ describe('workflow_check', () => {
     fixErrors: [],
   };
 
-  it('returns check result for valid project', async () => {
+  it('defaults to all-slices mode (calls checkAll)', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
-    mockCheck.mockResolvedValue(MOCK_CHECK_RESULT);
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT);
 
     const result = await client.callTool({
       name: 'workflow_check',
@@ -375,11 +379,28 @@ describe('workflow_check', () => {
     expect(parsed.totalFindings).toBe(1);
     expect(parsed.findings).toHaveLength(1);
     expect(parsed.summary).toContain('1 warning');
+    expect(mockCheckAll).toHaveBeenCalled();
+    expect(mockCheck).not.toHaveBeenCalled();
   });
 
-  it('returns fix result when fix=true', async () => {
+  it('narrows to single slice with sliceIndex', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
-    mockFix.mockResolvedValue(MOCK_FIX_RESULT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheck.mockResolvedValue(MOCK_CHECK_RESULT);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id, sliceIndex: 175 },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockCheck).toHaveBeenCalled();
+    expect(mockCheckAll).not.toHaveBeenCalled();
+  });
+
+  it('returns fix result when fix=true (all-slices)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockFixAll.mockResolvedValue(MOCK_FIX_RESULT);
 
     const result = await client.callTool({
       name: 'workflow_check',
@@ -392,12 +413,13 @@ describe('workflow_check', () => {
     expect(parsed.fixLog).toHaveLength(1);
     expect(parsed.fixLog[0].before).toBe('[ ]');
     expect(parsed.fixLog[0].after).toBe('[x]');
+    expect(mockFixAll).toHaveBeenCalled();
   });
 
   it('uses auto_fix config when fix not specified', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockConfigGet.mockResolvedValue({ value: true, source: 'user' });
-    mockFix.mockResolvedValue(MOCK_FIX_RESULT);
+    mockFixAll.mockResolvedValue(MOCK_FIX_RESULT);
 
     const result = await client.callTool({
       name: 'workflow_check',
