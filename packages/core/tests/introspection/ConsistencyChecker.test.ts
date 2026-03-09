@@ -49,7 +49,7 @@ function makeMockIntrospector(overrides: Partial<IArtifactIntrospector> = {}): I
     parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockResolvedValue({
       filePath: '/fake/plan.md',
       entries: [
-        { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false },
+        { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0 },
       ],
       totalSlices: 1,
       completedSlices: 0,
@@ -135,7 +135,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'complete', isChecked: true },
+            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -195,7 +195,7 @@ describe('ConsistencyChecker', () => {
         }),
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
-          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true }],
+          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 }],
           totalSlices: 1,
           completedSlices: 1,
         }),
@@ -247,7 +247,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other-feature', status: 'not-started', isChecked: false },
+            { index: 999, name: 'other-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -291,7 +291,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'complete', isChecked: true },
+            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -442,7 +442,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other', status: 'not-started', isChecked: false },
+            { index: 999, name: 'other', status: 'not-started', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -540,9 +540,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false },
-            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false },
-            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false },
+            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -573,9 +573,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false },
-            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false },
-            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false },
+            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -606,8 +606,8 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: true },
-            { index: 171, name: 'b', status: 'in-progress', isChecked: false },
+            { index: 170, name: 'a', status: 'in-progress', isChecked: true, lineIndex: 0 },
+            { index: 171, name: 'b', status: 'in-progress', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 2,
           completedSlices: 1,
@@ -635,8 +635,8 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'complete', isChecked: true },
-            { index: 171, name: 'b', status: 'complete', isChecked: true },
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
+            { index: 171, name: 'b', status: 'complete', isChecked: true, lineIndex: 0 },
           ],
           totalSlices: 2,
           completedSlices: 2,
@@ -664,7 +664,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: false },
+            { index: 170, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -696,7 +696,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'complete', isChecked: true },
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -727,7 +727,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false },
+            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0 },
           ],
           totalSlices: 1,
           completedSlices: 0,

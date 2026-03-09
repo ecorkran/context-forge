@@ -14,6 +14,7 @@ describe('parseSlicePlan', () => {
       name: 'Schema Setup',
       status: 'complete',
       isChecked: true,
+      lineIndex: 15,
     });
 
     expect(result.entries[2]).toEqual({
@@ -21,6 +22,7 @@ describe('parseSlicePlan', () => {
       name: 'Feature Alpha',
       status: 'not-started',
       isChecked: false,
+      lineIndex: 21,
     });
   });
 
@@ -93,6 +95,7 @@ describe('parseSlicePlan', () => {
       name: 'Backend API Scaffold',
       status: 'not-started',
       isChecked: false,
+      lineIndex: 12,
     });
 
     expect(result.entries[3]).toEqual({
@@ -100,6 +103,7 @@ describe('parseSlicePlan', () => {
       name: 'Chat Frontend',
       status: 'not-started',
       isChecked: false,
+      lineIndex: 20,
     });
 
     // Integration Work entry is also parsed (not in excluded headings)

@@ -211,8 +211,6 @@ export class ConsistencyChecker {
     const sliceChecked = planEntry.isChecked;
 
     if (tasksComplete && !sliceChecked) {
-      // Find the line index of this entry in the plan file for fixing
-      const entryIdx = slicePlanResult.entries.findIndex((e) => e.index === sliceIndex);
       findings.push({
         rule: 'task-vs-plan',
         severity: 'warning',
@@ -223,13 +221,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-checkbox',
           filePath: slicePlanPath,
-          detail: { lineIndex: entryIdx, checked: true, entryIndex: sliceIndex },
+          detail: { lineIndex: planEntry.lineIndex, checked: true, entryIndex: sliceIndex },
         },
       });
     }
 
     if (sliceChecked && !tasksComplete) {
-      const entryIdx = slicePlanResult.entries.findIndex((e) => e.index === sliceIndex);
       findings.push({
         rule: 'task-vs-plan',
         severity: 'error',
@@ -240,7 +237,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-checkbox',
           filePath: slicePlanPath,
-          detail: { lineIndex: entryIdx, checked: false, entryIndex: sliceIndex },
+          detail: { lineIndex: planEntry.lineIndex, checked: false, entryIndex: sliceIndex },
         },
       });
     }
@@ -382,7 +379,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-checkbox',
           filePath: slicePlanPath,
-          detail: { lineIndex: -1, checked: true },
+          detail: { lineIndex: planEntry.lineIndex, checked: true },
         },
       });
     }

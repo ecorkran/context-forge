@@ -30,8 +30,9 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
     let inSliceSection = true;
     let unindexedCounter = 0;
 
-    for (const line of content.split('\n')) {
-      const stripped = line.trim();
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const stripped = lines[i].trim();
 
       if (HEADING_RE.test(stripped)) {
         const heading = stripped.replace(/^#+\s+/, '').toLowerCase();
@@ -50,6 +51,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           name: indexed[4].trim(),
           status: isChecked ? 'complete' : 'not-started',
           isChecked,
+          lineIndex: i,
         });
         continue;
       }
@@ -64,6 +66,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           name: unindexed[3].trim(),
           status: isChecked ? 'complete' : 'not-started',
           isChecked,
+          lineIndex: i,
         });
       }
     }

@@ -48,9 +48,9 @@ const sampleProject = {
 const samplePlanResult = {
   filePath: '/tmp/test/project-documents/user/architecture/100-slices.test.md',
   entries: [
-    { index: 100, name: 'Auth Feature', status: 'complete', isChecked: true },
-    { index: 101, name: 'Billing Feature', status: 'not-started', isChecked: false },
-    { index: 102, name: 'Dashboard', status: 'not-started', isChecked: false },
+    { index: 100, name: 'Auth Feature', status: 'complete', isChecked: true, lineIndex: 0 },
+    { index: 101, name: 'Billing Feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+    { index: 102, name: 'Dashboard', status: 'not-started', isChecked: false, lineIndex: 0 },
   ],
   totalSlices: 3,
   completedSlices: 1,

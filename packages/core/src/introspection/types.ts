@@ -7,6 +7,8 @@ export interface SlicePlanEntry {
   name: string;
   status: NormalizedStatus;
   isChecked: boolean;
+  /** Zero-based line number in the source file (for checkbox fix operations) */
+  lineIndex: number;
 }
 
 /** Result of parsing a slice plan document */

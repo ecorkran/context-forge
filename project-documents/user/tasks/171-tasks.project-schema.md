@@ -6,7 +6,7 @@ dependencies: [project-model-cleanup-cli]
 projectState: Slice 170 complete. CLI has cf init, cf project list/get/set, three-step resolveProjectId. ProjectData has artifact reference fields (fileArch, fileSlicePlan, fileHLD, fileSpec) but cf project get omits them. cf project set requires exact field names and values. No schema introspection. No cf project rm. Electron loads projects once on startup — no external change detection. 632 tests passing.
 dateCreated: 20260305
 dateUpdated: 20260305
-status: in_progress
+status: complete
 ---
 
 ## Context Summary

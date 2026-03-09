@@ -98,7 +98,7 @@ describe('introspection_slice_plan', () => {
   it('returns SlicePlanResult for valid filePath', async () => {
     const mockResult = {
       filePath: '/tmp/plan.md',
-      entries: [{ index: 100, name: 'test', status: 'complete', isChecked: true }],
+      entries: [{ index: 100, name: 'test', status: 'complete', isChecked: true, lineIndex: 0 }],
       totalSlices: 1,
       completedSlices: 1,
     };
