@@ -114,10 +114,11 @@ export class ConsistencyChecker {
       );
     }
 
-    // Rule 8: arch status vs the configured plan (only the active one)
-    if (slicePlanPath) {
+    // Rule 8: arch status vs plan — for all discovered arch-plan pairs
+    const archPlanPairs = await this.discoverArchPlanPairs(project, projectPath, allPlanPaths);
+    for (const { archPath, planResult } of archPlanPairs) {
       allFindings.push(
-        ...await this.ruleArchStatusVsPlans(project, projectPath, slicePlanResult),
+        ...await this.ruleArchStatusVsPlans(archPath, planResult),
       );
     }
 
@@ -567,18 +568,10 @@ export class ConsistencyChecker {
 
   /** Rule 8: Architecture status vs. all-plans-complete */
   private async ruleArchStatusVsPlans(
-    project: ProjectData,
-    projectPath: string,
+    archPath: string,
     slicePlanResult: SlicePlanResult,
   ): Promise<ConsistencyFinding[]> {
     const findings: ConsistencyFinding[] = [];
-
-    if (!project.fileArch) return findings;
-
-    const archRelPath = resolveArtifactPath('fileArch', project.fileArch);
-    if (!archRelPath) return findings;
-
-    const archPath = join(projectPath, archRelPath);
 
     let archFrontmatter: FrontmatterResult;
     try {
@@ -673,6 +666,77 @@ export class ConsistencyChecker {
     } catch {
       return [];
     }
+  }
+
+  /** Discover all architecture files in the architecture directory. */
+  private async discoverAllArchFiles(projectPath: string): Promise<string[]> {
+    const archDir = join(projectPath, 'project-documents/user/architecture');
+    try {
+      const files = await readdir(archDir);
+      return files
+        .filter((f) => /^\d+-arch\..*\.md$/i.test(f))
+        .sort()
+        .map((f) => join(archDir, f));
+    } catch {
+      return [];
+    }
+  }
+
+  /** Extract numeric index prefix from a filename like "140-arch.foo.md" → 140. */
+  private static extractFileIndex(filePath: string): number | null {
+    const basename = filePath.split('/').pop() ?? '';
+    const match = /^(\d+)-/.exec(basename);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  /**
+   * Match discovered arch files to their slice plans by shared index prefix.
+   * Also includes the project's configured fileArch as fallback (for tests / minimal setups).
+   */
+  private async discoverArchPlanPairs(
+    project: ProjectData,
+    projectPath: string,
+    knownPlanPaths: Set<string>,
+  ): Promise<{ archPath: string; planResult: SlicePlanResult }[]> {
+    const archFiles = await this.discoverAllArchFiles(projectPath);
+
+    // Merge configured arch into discovered set (dedup by full path)
+    const allArchPaths = new Set(archFiles);
+    if (project.fileArch) {
+      const configuredArchRel = resolveArtifactPath('fileArch', project.fileArch);
+      if (configuredArchRel) allArchPaths.add(join(projectPath, configuredArchRel));
+    }
+
+    // Build index → plan path map from discovered + known plans
+    const plansByIndex = new Map<number, string>();
+    const allPlanFiles = await this.discoverAllSlicePlans(projectPath);
+    for (const planPath of allPlanFiles) {
+      const idx = ConsistencyChecker.extractFileIndex(planPath);
+      if (idx !== null) plansByIndex.set(idx, planPath);
+    }
+    for (const pp of knownPlanPaths) {
+      const idx = ConsistencyChecker.extractFileIndex(pp);
+      if (idx !== null && !plansByIndex.has(idx)) plansByIndex.set(idx, pp);
+    }
+
+    const pairs: { archPath: string; planResult: SlicePlanResult }[] = [];
+
+    for (const archPath of allArchPaths) {
+      const archIdx = ConsistencyChecker.extractFileIndex(archPath);
+      if (archIdx === null) continue;
+
+      const planPath = plansByIndex.get(archIdx);
+      if (!planPath) continue;
+
+      try {
+        const planResult = await this.introspector.parseSlicePlan(planPath);
+        pairs.push({ archPath, planResult });
+      } catch {
+        // Skip unparseable plans
+      }
+    }
+
+    return pairs;
   }
 
   private resolveSlicePlanPath(project: ProjectData, projectPath: string): string | null {
