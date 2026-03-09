@@ -50,33 +50,33 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 2: Implement new detection rules
 
-- [ ] **2.1 Rule 6: Duplicate slice index detection**
-  - [ ] Add private method `ruleDuplicateIndex(entries: SlicePlanEntry[], slicePlanPath: string): ConsistencyFinding[]`
-  - [ ] Build a `Map<number, string[]>` of index → entry names
-  - [ ] For each index with >1 entry, emit finding: rule `duplicate-index`, severity `error`, `fixable: false`
-  - [ ] Description: `"Duplicate slice index {N}: '{Name1}' and '{Name2}'"`
-  - [ ] Call from `checkAll()` after the per-slice loop
-  - [ ] Success: test with mock data containing two entries with index 168 produces an error finding
+- [x] **2.1 Rule 6: Duplicate slice index detection**
+  - [x] Add private method `ruleDuplicateIndex(entries: SlicePlanEntry[], slicePlanPath: string): ConsistencyFinding[]`
+  - [x] Build a `Map<number, string[]>` of index → entry names
+  - [x] For each index with >1 entry, emit finding: rule `duplicate-index`, severity `error`, `fixable: false`
+  - [x] Description: `"Duplicate slice index {N}: '{Name1}' and '{Name2}'"`
+  - [x] Call from `checkAll()` after the per-slice loop
+  - [x] Success: test with mock data containing two entries with index 168 produces an error finding
 
-- [ ] **2.2 Rule 7: Plan status vs. all-entries-complete**
-  - [ ] Add private method `rulePlanStatusVsEntries(slicePlanPath, slicePlanResult, projectPath): ConsistencyFinding[]`
-  - [ ] Parse frontmatter of the slice plan file via `safeParseFrontmatter(slicePlanPath)`
-  - [ ] Note: `safeParseFrontmatter` takes a relative path — will need the slice plan's relative path or adjust to accept absolute. Use `this.introspector.parseFrontmatter(slicePlanPath)` directly (slice plan path is already absolute from `resolveSlicePlanPath`)
-  - [ ] Compare: if frontmatter `status: complete` but `completedSlices < totalSlices` → warning
-  - [ ] Compare: if frontmatter status is not `complete` but `completedSlices === totalSlices` → warning
-  - [ ] Fixable via `update-frontmatter` on the slice plan file
-  - [ ] Call from `checkAll()` after per-slice loop
-  - [ ] Success: test with plan frontmatter "complete" but 2/5 entries checked produces a warning
+- [x] **2.2 Rule 7: Plan status vs. all-entries-complete**
+  - [x] Add private method `rulePlanStatusVsEntries(slicePlanPath, slicePlanResult, projectPath): ConsistencyFinding[]`
+  - [x] Parse frontmatter of the slice plan file via `safeParseFrontmatter(slicePlanPath)`
+  - [x] Note: `safeParseFrontmatter` takes a relative path — will need the slice plan's relative path or adjust to accept absolute. Use `this.introspector.parseFrontmatter(slicePlanPath)` directly (slice plan path is already absolute from `resolveSlicePlanPath`)
+  - [x] Compare: if frontmatter `status: complete` but `completedSlices < totalSlices` → warning
+  - [x] Compare: if frontmatter status is not `complete` but `completedSlices === totalSlices` → warning
+  - [x] Fixable via `update-frontmatter` on the slice plan file
+  - [x] Call from `checkAll()` after per-slice loop
+  - [x] Success: test with plan frontmatter "complete" but 2/5 entries checked produces a warning
 
-- [ ] **2.3 Rule 8: Architecture status vs. all-plans-complete**
-  - [ ] Add private method `ruleArchStatusVsPlans(project, projectPath, slicePlanResult): ConsistencyFinding[]`
-  - [ ] Resolve architecture file path from `project.fileArch` using `resolveArtifactPath('fileArch', ...)`
-  - [ ] Parse architecture frontmatter via `this.introspector.parseFrontmatter(archPath)`
-  - [ ] Compare: if arch `status: complete` but plan has unchecked entries → warning
-  - [ ] Compare: if arch status not `complete` but all plan entries are checked → warning
-  - [ ] Fixable via `update-frontmatter` on the architecture file
-  - [ ] Call from `checkAll()` after per-slice loop
-  - [ ] Success: test with arch frontmatter "complete" but plan has unchecked entries produces a warning
+- [x] **2.3 Rule 8: Architecture status vs. all-plans-complete**
+  - [x] Add private method `ruleArchStatusVsPlans(project, projectPath, slicePlanResult): ConsistencyFinding[]`
+  - [x] Resolve architecture file path from `project.fileArch` using `resolveArtifactPath('fileArch', ...)`
+  - [x] Parse architecture frontmatter via `this.introspector.parseFrontmatter(archPath)`
+  - [x] Compare: if arch `status: complete` but plan has unchecked entries → warning
+  - [x] Compare: if arch status not `complete` but all plan entries are checked → warning
+  - [x] Fixable via `update-frontmatter` on the architecture file
+  - [x] Call from `checkAll()` after per-slice loop
+  - [x] Success: test with arch frontmatter "complete" but plan has unchecked entries produces a warning
 
 **Commit after Task 2.**
 

@@ -86,7 +86,18 @@ export class ConsistencyChecker {
       allFindings.push(...sliceFindings);
     }
 
-    // Run aggregate rules (6-8) — added in Task 2
+    // Run aggregate rules (6-8) across all entries
+    if (slicePlanPath) {
+      allFindings.push(
+        ...this.ruleDuplicateIndex(slicePlanResult.entries, slicePlanPath),
+      );
+      allFindings.push(
+        ...await this.rulePlanStatusVsEntries(slicePlanPath, slicePlanResult),
+      );
+      allFindings.push(
+        ...await this.ruleArchStatusVsPlans(project, projectPath, slicePlanResult),
+      );
+    }
 
     return this.buildResult(projectPath, allFindings);
   }
@@ -407,6 +418,154 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: taskFilePath,
+          detail: { key: 'status', value: 'complete' },
+        },
+      });
+    }
+
+    return findings;
+  }
+
+  // --- Aggregate Rules (checkAll only) ---
+
+  /** Rule 6: Duplicate slice index detection */
+  private ruleDuplicateIndex(
+    entries: SlicePlanEntry[],
+    slicePlanPath: string,
+  ): ConsistencyFinding[] {
+    const findings: ConsistencyFinding[] = [];
+    const indexMap = new Map<number, string[]>();
+
+    for (const entry of entries) {
+      const names = indexMap.get(entry.index) ?? [];
+      names.push(entry.name);
+      indexMap.set(entry.index, names);
+    }
+
+    for (const [index, names] of indexMap) {
+      if (names.length > 1) {
+        findings.push({
+          rule: 'duplicate-index',
+          severity: 'error',
+          location: slicePlanPath,
+          description: `Duplicate slice index ${index}: '${names.join("' and '")}'`,
+          suggestedFix: 'Renumber one of the entries',
+          fixable: false,
+        });
+      }
+    }
+
+    return findings;
+  }
+
+  /** Rule 7: Plan status vs. all-entries-complete */
+  private async rulePlanStatusVsEntries(
+    slicePlanPath: string,
+    slicePlanResult: SlicePlanResult,
+  ): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+
+    let planFrontmatter: FrontmatterResult;
+    try {
+      planFrontmatter = await this.introspector.parseFrontmatter(slicePlanPath);
+    } catch {
+      return findings;
+    }
+
+    if (!planFrontmatter.found || !planFrontmatter.data.status) return findings;
+
+    const planStatus = planFrontmatter.data.status.toLowerCase();
+    const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
+
+    if (planStatus === 'complete' && !allComplete) {
+      findings.push({
+        rule: 'plan-status-vs-entries',
+        severity: 'warning',
+        location: slicePlanPath,
+        description: `Plan status is "complete" but only ${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices} entries are checked`,
+        suggestedFix: 'Update plan frontmatter status to "in-progress"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: slicePlanPath,
+          detail: { key: 'status', value: 'in-progress' },
+        },
+      });
+    }
+
+    if (planStatus !== 'complete' && allComplete && slicePlanResult.totalSlices > 0) {
+      findings.push({
+        rule: 'plan-status-vs-entries',
+        severity: 'warning',
+        location: slicePlanPath,
+        description: `All ${slicePlanResult.totalSlices} entries are checked but plan status is "${planStatus}"`,
+        suggestedFix: 'Update plan frontmatter status to "complete"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: slicePlanPath,
+          detail: { key: 'status', value: 'complete' },
+        },
+      });
+    }
+
+    return findings;
+  }
+
+  /** Rule 8: Architecture status vs. all-plans-complete */
+  private async ruleArchStatusVsPlans(
+    project: ProjectData,
+    projectPath: string,
+    slicePlanResult: SlicePlanResult,
+  ): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+
+    if (!project.fileArch) return findings;
+
+    const archRelPath = resolveArtifactPath('fileArch', project.fileArch);
+    if (!archRelPath) return findings;
+
+    const archPath = join(projectPath, archRelPath);
+
+    let archFrontmatter: FrontmatterResult;
+    try {
+      archFrontmatter = await this.introspector.parseFrontmatter(archPath);
+    } catch {
+      return findings;
+    }
+
+    if (!archFrontmatter.found || !archFrontmatter.data.status) return findings;
+
+    const archStatus = archFrontmatter.data.status.toLowerCase();
+    const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
+
+    if (archStatus === 'complete' && !allComplete) {
+      findings.push({
+        rule: 'arch-status-vs-plans',
+        severity: 'warning',
+        location: archPath,
+        description: `Architecture status is "complete" but plan has unchecked entries (${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices})`,
+        suggestedFix: 'Update architecture frontmatter status to "in-progress"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: archPath,
+          detail: { key: 'status', value: 'in-progress' },
+        },
+      });
+    }
+
+    if (archStatus !== 'complete' && allComplete && slicePlanResult.totalSlices > 0) {
+      findings.push({
+        rule: 'arch-status-vs-plans',
+        severity: 'warning',
+        location: archPath,
+        description: `All ${slicePlanResult.totalSlices} plan entries are checked but architecture status is "${archStatus}"`,
+        suggestedFix: 'Update architecture frontmatter status to "complete"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: archPath,
           detail: { key: 'status', value: 'complete' },
         },
       });
