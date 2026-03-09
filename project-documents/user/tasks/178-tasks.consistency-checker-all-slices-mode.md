@@ -186,17 +186,17 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 7: CLI tests
 
-- [ ] **7.1 Test `cf check` defaults to all-slices mode**
-  - [ ] Mock `ConsistencyChecker.checkAll` and verify it's called (not `check`)
-  - [ ] Success: test passes
+- [x] **7.1 Test `cf check` defaults to all-slices mode**
+  - [x] Mock `ConsistencyChecker.checkAll` and verify it's called (not `check`)
+  - [x] Success: test passes
 
-- [ ] **7.2 Test `cf check --slice 175` narrows to single slice**
-  - [ ] Verify `check()` is called instead of `checkAll()`
-  - [ ] Success: test passes
+- [x] **7.2 Test `cf check --slice 175` narrows to single slice**
+  - [x] Verify `check()` is called instead of `checkAll()`
+  - [x] Success: test passes
 
-- [ ] **7.3 Test `cf check --fix` prompts for confirmation**
-  - [ ] Mock readline to simulate user declining → verify no fixes applied
-  - [ ] Success: test passes
+- [x] **7.3 Test `cf check --fix` prompts for confirmation**
+  - [x] Mock readline to simulate user declining → verify no fixes applied
+  - [x] Success: test passes
 
 **Commit after Task 7.**
 

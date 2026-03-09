@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerCheckCommand } from '../../src/commands/check.js';
 
+const mockQuestion = vi.fn();
+const mockClose = vi.fn();
+vi.mock('node:readline', () => ({
+  createInterface: vi.fn(() => ({
+    question: mockQuestion,
+    close: mockClose,
+  })),
+}));
+
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockCheck = vi.fn();
@@ -182,5 +191,23 @@ describe('cf check', () => {
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);
 
     expect(mockGetById).toHaveBeenCalledWith('proj_001');
+  });
+
+  it('prompts for confirmation on --fix without --yes, aborts on decline', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCheckAll.mockResolvedValue(findingsResult);
+
+    // Simulate user declining
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix']);
+
+    // Should have called checkAll for dry run but NOT fixAll
+    expect(mockCheckAll).toHaveBeenCalled();
+    expect(mockFixAll).not.toHaveBeenCalled();
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Aborted');
   });
 });
