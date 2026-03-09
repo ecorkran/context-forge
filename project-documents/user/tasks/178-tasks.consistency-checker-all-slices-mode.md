@@ -6,7 +6,7 @@ dependencies: [166-slice.consistency-checker, 163-slice.artifact-introspection-e
 projectState: "Phase 5 task breakdown for 178. Dependencies complete. ConsistencyChecker, MarkdownWriter, rules 1-5, and IArtifactIntrospector all in place."
 dateCreated: 20260309
 dateUpdated: 20260309
-status: not_started
+status: in_progress
 ---
 
 # Tasks: Consistency Checker — All-Slices Mode
@@ -22,27 +22,27 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 1: Implement `checkAll()` method
 
-- [ ] **1.1 Add `checkAll(project)` public method to `ConsistencyChecker`**
-  - [ ] Method signature: `async checkAll(project: ProjectData): Promise<ConsistencyCheckResult>`
-  - [ ] Return `emptyResult` if `projectPath` is missing
-  - [ ] Parse slice plan via existing `safeParseSlicePlan(project, projectPath)`
-  - [ ] If no slice plan or empty entries, return `emptyResult`
-  - [ ] Success: method exists, compiles, returns empty result for projects without slice plans
+- [x] **1.1 Add `checkAll(project)` public method to `ConsistencyChecker`**
+  - [x] Method signature: `async checkAll(project: ProjectData): Promise<ConsistencyCheckResult>`
+  - [x] Return `emptyResult` if `projectPath` is missing
+  - [x] Parse slice plan via existing `safeParseSlicePlan(project, projectPath)`
+  - [x] If no slice plan or empty entries, return `emptyResult`
+  - [x] Success: method exists, compiles, returns empty result for projects without slice plans
 
-- [ ] **1.2 Implement per-slice iteration loop in `checkAll()`**
-  - [ ] For each entry in `slicePlanResult.entries`, call `safeDetectDocuments(projectPath, entry.index)`
-  - [ ] For each entry, call `safeParseTaskFile()` and `safeParseFrontmatter()` using detected documents
-  - [ ] Call `safeParseTaskFileFrontmatter()` for each entry's task file
-  - [ ] Run existing rules 1-5 against each entry's data (reuse private rule methods)
-  - [ ] Prefix each finding's `description` with `[{sliceIndex}]` for attribution
-  - [ ] Aggregate all findings into a single array
-  - [ ] Return via `buildResult(projectPath, allFindings)`
-  - [ ] Success: `checkAll()` returns findings across multiple slices in a test scenario
+- [x] **1.2 Implement per-slice iteration loop in `checkAll()`**
+  - [x] For each entry in `slicePlanResult.entries`, call `safeDetectDocuments(projectPath, entry.index)`
+  - [x] For each entry, call `safeParseTaskFile()` and `safeParseFrontmatter()` using detected documents
+  - [x] Call `safeParseTaskFileFrontmatter()` for each entry's task file
+  - [x] Run existing rules 1-5 against each entry's data (reuse private rule methods)
+  - [x] Prefix each finding's `description` with `[{sliceIndex}]` for attribution
+  - [x] Aggregate all findings into a single array
+  - [x] Return via `buildResult(projectPath, allFindings)`
+  - [x] Success: `checkAll()` returns findings across multiple slices in a test scenario
 
-- [ ] **1.3 Extract shared per-slice check logic**
-  - [ ] The code that gathers data + runs rules 1-5 for a single slice exists in `check()`. Extract into a private method like `checkSlice(projectPath, sliceIndex, slicePlanResult, slicePlanPath)` that both `check()` and `checkAll()` can call
-  - [ ] Update `check()` to delegate to `checkSlice()` — no behavior change
-  - [ ] Success: existing tests still pass after refactor; `check()` behavior unchanged
+- [x] **1.3 Extract shared per-slice check logic**
+  - [x] The code that gathers data + runs rules 1-5 for a single slice exists in `check()`. Extract into a private method like `checkSlice(projectPath, sliceIndex, slicePlanResult, slicePlanPath)` that both `check()` and `checkAll()` can call
+  - [x] Update `check()` to delegate to `checkSlice()` — no behavior change
+  - [x] Success: existing tests still pass after refactor; `check()` behavior unchanged
 
 **Commit after Task 1.**
 

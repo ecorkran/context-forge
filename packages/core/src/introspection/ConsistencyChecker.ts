@@ -6,6 +6,7 @@ import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
   SlicePlanEntry,
+  SlicePlanResult,
   TaskFileResult,
   FrontmatterResult,
 } from './types.js';
@@ -33,7 +34,7 @@ export class ConsistencyChecker {
   }
 
   /**
-   * Run all detection rules against a project and return structured findings.
+   * Run detection rules against the active slice and return structured findings.
    */
   async check(project: ProjectData): Promise<ConsistencyCheckResult> {
     const projectPath = project.projectPath;
@@ -46,58 +47,48 @@ export class ConsistencyChecker {
       return this.emptyResult(projectPath);
     }
 
-    // Gather data from introspector — each call individually try/caught
-    const docs = await this.safeDetectDocuments(projectPath, sliceIndex);
     const slicePlanResult = await this.safeParseSlicePlan(project, projectPath);
-    const taskResult = await this.safeParseTaskFile(docs?.taskFile, projectPath);
-    const sliceFrontmatter = await this.safeParseFrontmatter(docs?.sliceDesign, projectPath);
-
-    // Find the matching slice plan entry
-    const planEntry = slicePlanResult?.entries.find((e) => e.index === sliceIndex) ?? null;
     const slicePlanPath = this.resolveSlicePlanPath(project, projectPath);
 
-    const findings: ConsistencyFinding[] = [];
-
-    // Rule 1: task completion vs. slice plan checkbox
-    findings.push(
-      ...this.ruleTaskVsPlan(taskResult, planEntry, slicePlanPath, slicePlanResult, sliceIndex),
-    );
-
-    const sliceDesignRel = docs?.sliceDesign ?? null;
-
-    // Rule 2: frontmatter status vs. computed state
-    findings.push(
-      ...this.ruleFrontmatterVsComputed(
-        sliceFrontmatter,
-        taskResult,
-        sliceDesignRel,
-        projectPath,
-      ),
-    );
-
-    // Rule 3: missing artifact cross-references
-    findings.push(
-      ...this.ruleMissingArtifacts(docs, planEntry, sliceIndex),
-    );
-
-    // Rule 4: plan checkbox vs. slice frontmatter status
-    findings.push(
-      ...this.rulePlanVsFrontmatter(
-        planEntry,
-        sliceFrontmatter,
-        slicePlanPath,
-        sliceDesignRel,
-        projectPath,
-      ),
-    );
-
-    // Rule 5: task file frontmatter status vs. computed task completion
-    const taskFileFrontmatter = await this.safeParseTaskFileFrontmatter(docs?.taskFile, projectPath);
-    findings.push(
-      ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter),
+    const findings = await this.checkSlice(
+      projectPath, sliceIndex, slicePlanResult, slicePlanPath,
     );
 
     return this.buildResult(projectPath, findings);
+  }
+
+  /**
+   * Run detection rules against all slices in the plan and return aggregated findings.
+   */
+  async checkAll(project: ProjectData): Promise<ConsistencyCheckResult> {
+    const projectPath = project.projectPath;
+    if (!projectPath) {
+      return this.emptyResult('');
+    }
+
+    const slicePlanResult = await this.safeParseSlicePlan(project, projectPath);
+    if (!slicePlanResult || slicePlanResult.entries.length === 0) {
+      return this.emptyResult(projectPath);
+    }
+
+    const slicePlanPath = this.resolveSlicePlanPath(project, projectPath);
+    const allFindings: ConsistencyFinding[] = [];
+
+    // Run rules 1-5 for each slice entry
+    for (const entry of slicePlanResult.entries) {
+      const sliceFindings = await this.checkSlice(
+        projectPath, entry.index, slicePlanResult, slicePlanPath,
+      );
+      // Prefix each finding's description with [sliceIndex] for attribution
+      for (const finding of sliceFindings) {
+        finding.description = `[${entry.index}] ${finding.description}`;
+      }
+      allFindings.push(...sliceFindings);
+    }
+
+    // Run aggregate rules (6-8) — added in Task 2
+
+    return this.buildResult(projectPath, allFindings);
   }
 
   /**
@@ -136,6 +127,45 @@ export class ConsistencyChecker {
     }
 
     return { ...checkResult, fixed, fixLog, fixErrors };
+  }
+
+  // --- Per-slice check logic ---
+
+  /** Run rules 1-5 against a single slice, returning raw findings (no prefix). */
+  private async checkSlice(
+    projectPath: string,
+    sliceIndex: number,
+    slicePlanResult: { entries: SlicePlanEntry[] } | null,
+    slicePlanPath: string | null,
+  ): Promise<ConsistencyFinding[]> {
+    const docs = await this.safeDetectDocuments(projectPath, sliceIndex);
+    const taskResult = await this.safeParseTaskFile(docs?.taskFile, projectPath);
+    const sliceFrontmatter = await this.safeParseFrontmatter(docs?.sliceDesign, projectPath);
+
+    const planEntry = slicePlanResult?.entries.find((e) => e.index === sliceIndex) ?? null;
+    const sliceDesignRel = docs?.sliceDesign ?? null;
+
+    const findings: ConsistencyFinding[] = [];
+
+    findings.push(
+      ...this.ruleTaskVsPlan(taskResult, planEntry, slicePlanPath, slicePlanResult, sliceIndex),
+    );
+    findings.push(
+      ...this.ruleFrontmatterVsComputed(sliceFrontmatter, taskResult, sliceDesignRel, projectPath),
+    );
+    findings.push(
+      ...this.ruleMissingArtifacts(docs, planEntry, sliceIndex),
+    );
+    findings.push(
+      ...this.rulePlanVsFrontmatter(planEntry, sliceFrontmatter, slicePlanPath, sliceDesignRel, projectPath),
+    );
+
+    const taskFileFrontmatter = await this.safeParseTaskFileFrontmatter(docs?.taskFile, projectPath);
+    findings.push(
+      ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter),
+    );
+
+    return findings;
   }
 
   // --- Detection Rules ---
@@ -440,7 +470,7 @@ export class ConsistencyChecker {
   private async safeParseSlicePlan(
     project: ProjectData,
     projectPath: string,
-  ): Promise<{ entries: SlicePlanEntry[] } | null> {
+  ): Promise<SlicePlanResult | null> {
     const planPath = this.resolveSlicePlanPath(project, projectPath);
     if (!planPath) return null;
     try {
