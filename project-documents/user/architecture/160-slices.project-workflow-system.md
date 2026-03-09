@@ -378,7 +378,7 @@ Feature (163 first, then 164-166 can parallelize):
 - **Parallel execution of 164-166.** These three slices are independent consumers of the introspection API. They can be worked in any order or in parallel. The listed order (navigator → checker → collector) reflects value priority, not dependency.
 - **ADP compatibility.** The workflow navigator (164) is designed to be consumable by the Automated Development Pipeline (120-arch, orchestration project). The structured JSON output and state machine model should align with ADP's pipeline executor expectations. However, ADP integration is not in scope for this initiative — it's a consumer, not a dependency.
 
-17. [ ] **(177) IDE Setup Command** — `cf setup-ide --claude` CLI command that configures Claude Code integration for the current project. Wraps the existing `setup-ide` script from `ai-project-guide/scripts/` with safety guardrails for user-owned files.
+17. [x] **(177) IDE Setup Command** — `cf setup-ide --claude` CLI command that configures Claude Code integration for the current project. Wraps the existing `setup-ide` script from `ai-project-guide/scripts/` with safety guardrails for user-owned files.
 
    **Behavior:**
    - Locates the `setup-ide` script via the installed ai-project-guide directory

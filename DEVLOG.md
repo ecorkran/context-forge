@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-08
 
+### Slice 177: IDE Setup Command — Phase 6 (Implementation) ✓
+- `cf setup-ide claude` command: project resolution, guide detection, CLAUDE.md backup + y/N prompt, script invocation via `execFileSync`
+- 6 unit tests covering invalid target, guides not installed, script not found, no CLAUDE.md, --yes backup, non-zero exit
+- Smoke tested end-to-end: backup created, script ran successfully
+- Commits:
+  - `6154b52` feat(cli): add cf setup-ide command
+  - `0321b77` test(cli): add unit tests for cf setup-ide command
+
 ### Slice 177: IDE Setup Command — Phase 5 (Task Breakdown)
 - Created `177-tasks.ide-setup-command.md` (6 tasks, 175 lines)
 - Tasks: command skeleton + registration, project/guide resolution, CLAUDE.md safety checks, script invocation, unit tests, build verification
