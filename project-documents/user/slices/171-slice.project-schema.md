@@ -7,7 +7,7 @@ dependencies: [170-project-model-cleanup]
 interfaces: []
 dateCreated: 20260305
 dateUpdated: 20260305
-status: in_progress
+status: complete
 ---
 
 # Slice Design: Project Schema Visibility & Smart Field Setting
