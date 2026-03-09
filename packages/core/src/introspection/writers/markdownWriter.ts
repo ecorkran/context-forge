@@ -98,7 +98,17 @@ export async function updateFrontmatterField(
   }
 
   if (keyLineIndex === -1) {
-    throw new Error(`Frontmatter key "${key}" not found in: ${filePath}`);
+    // Key doesn't exist — insert before closing ---
+    lines.splice(closingIndex, 0, `${key}: ${value}`);
+    await writeFile(filePath, lines.join('\n'), 'utf-8');
+    return {
+      rule: '',
+      action: 'update-frontmatter',
+      filePath,
+      field: key,
+      before: '',
+      after: value,
+    };
   }
 
   // Replace the value, preserving the key and any leading whitespace

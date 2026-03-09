@@ -96,12 +96,16 @@ describe('updateFrontmatterField', () => {
     );
   });
 
-  it('throws when key is not found', async () => {
-    const content = '---\nstatus: in-progress\n---\n# Content\n';
+  it('inserts new key when not found in frontmatter', async () => {
+    const content = '---\nproject: test\n---\n# Content\n';
     const filePath = await writeTempFile('slice.md', content);
-    await expect(updateFrontmatterField(filePath, 'nonexistent', 'value')).rejects.toThrow(
-      'not found'
-    );
+    const entry = await updateFrontmatterField(filePath, 'status', 'in-progress');
+
+    const result = await readFile(filePath, 'utf-8');
+    expect(result).toBe('---\nproject: test\nstatus: in-progress\n---\n# Content\n');
+    expect(entry.before).toBe('');
+    expect(entry.after).toBe('in-progress');
+    expect(entry.field).toBe('status');
   });
 
   it('preserves rest of file', async () => {
