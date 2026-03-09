@@ -11,7 +11,7 @@ relatedSlices: []
 riskLevel: medium
 ---
 
-# Architecture: Initiative Contexts
+# Architecture: Initiative Contexts (Worktrees)
 
 ## Overview
 

@@ -2,7 +2,7 @@
 docType: slice-plan
 parent: user/architecture/140-arch.context-forge-restructure.md
 project: context-forge
-status: superseded
+status: complete
 dateCreated: 20260226
 dateUpdated: 20260304
 ---
