@@ -1,0 +1,217 @@
+---
+slice: 178-slice.consistency-checker-all-slices-mode
+project: context-forge
+lld: user/slices/178-slice.consistency-checker-all-slices-mode.md
+dependencies: [166-slice.consistency-checker, 163-slice.artifact-introspection-engine]
+projectState: "Phase 5 task breakdown for 178. Dependencies complete. ConsistencyChecker, MarkdownWriter, rules 1-5, and IArtifactIntrospector all in place."
+dateCreated: 20260309
+dateUpdated: 20260309
+status: not_started
+---
+
+# Tasks: Consistency Checker — All-Slices Mode
+
+## Context
+
+Working on slice 178 in project context-forge. This slice extends `ConsistencyChecker` to iterate all entries in a slice plan instead of only the active slice. Adds 3 new detection rules (duplicate index, plan status vs entries, arch status vs plans). Adds CLI confirmation safety for fix-all mode.
+
+**Delivers:** `checkAll()` / `fixAll()` methods, 3 new rules, `--slice` and `--yes` CLI flags, MCP `sliceIndex` parameter.
+**Dependencies:** `ConsistencyChecker` (166), `IArtifactIntrospector` (163), `MarkdownWriter` (166).
+
+---
+
+## Task 1: Implement `checkAll()` method
+
+- [ ] **1.1 Add `checkAll(project)` public method to `ConsistencyChecker`**
+  - [ ] Method signature: `async checkAll(project: ProjectData): Promise<ConsistencyCheckResult>`
+  - [ ] Return `emptyResult` if `projectPath` is missing
+  - [ ] Parse slice plan via existing `safeParseSlicePlan(project, projectPath)`
+  - [ ] If no slice plan or empty entries, return `emptyResult`
+  - [ ] Success: method exists, compiles, returns empty result for projects without slice plans
+
+- [ ] **1.2 Implement per-slice iteration loop in `checkAll()`**
+  - [ ] For each entry in `slicePlanResult.entries`, call `safeDetectDocuments(projectPath, entry.index)`
+  - [ ] For each entry, call `safeParseTaskFile()` and `safeParseFrontmatter()` using detected documents
+  - [ ] Call `safeParseTaskFileFrontmatter()` for each entry's task file
+  - [ ] Run existing rules 1-5 against each entry's data (reuse private rule methods)
+  - [ ] Prefix each finding's `description` with `[{sliceIndex}]` for attribution
+  - [ ] Aggregate all findings into a single array
+  - [ ] Return via `buildResult(projectPath, allFindings)`
+  - [ ] Success: `checkAll()` returns findings across multiple slices in a test scenario
+
+- [ ] **1.3 Extract shared per-slice check logic**
+  - [ ] The code that gathers data + runs rules 1-5 for a single slice exists in `check()`. Extract into a private method like `checkSlice(projectPath, sliceIndex, slicePlanResult, slicePlanPath)` that both `check()` and `checkAll()` can call
+  - [ ] Update `check()` to delegate to `checkSlice()` — no behavior change
+  - [ ] Success: existing tests still pass after refactor; `check()` behavior unchanged
+
+**Commit after Task 1.**
+
+---
+
+## Task 2: Implement new detection rules
+
+- [ ] **2.1 Rule 6: Duplicate slice index detection**
+  - [ ] Add private method `ruleDuplicateIndex(entries: SlicePlanEntry[], slicePlanPath: string): ConsistencyFinding[]`
+  - [ ] Build a `Map<number, string[]>` of index → entry names
+  - [ ] For each index with >1 entry, emit finding: rule `duplicate-index`, severity `error`, `fixable: false`
+  - [ ] Description: `"Duplicate slice index {N}: '{Name1}' and '{Name2}'"`
+  - [ ] Call from `checkAll()` after the per-slice loop
+  - [ ] Success: test with mock data containing two entries with index 168 produces an error finding
+
+- [ ] **2.2 Rule 7: Plan status vs. all-entries-complete**
+  - [ ] Add private method `rulePlanStatusVsEntries(slicePlanPath, slicePlanResult, projectPath): ConsistencyFinding[]`
+  - [ ] Parse frontmatter of the slice plan file via `safeParseFrontmatter(slicePlanPath)`
+  - [ ] Note: `safeParseFrontmatter` takes a relative path — will need the slice plan's relative path or adjust to accept absolute. Use `this.introspector.parseFrontmatter(slicePlanPath)` directly (slice plan path is already absolute from `resolveSlicePlanPath`)
+  - [ ] Compare: if frontmatter `status: complete` but `completedSlices < totalSlices` → warning
+  - [ ] Compare: if frontmatter status is not `complete` but `completedSlices === totalSlices` → warning
+  - [ ] Fixable via `update-frontmatter` on the slice plan file
+  - [ ] Call from `checkAll()` after per-slice loop
+  - [ ] Success: test with plan frontmatter "complete" but 2/5 entries checked produces a warning
+
+- [ ] **2.3 Rule 8: Architecture status vs. all-plans-complete**
+  - [ ] Add private method `ruleArchStatusVsPlans(project, projectPath, slicePlanResult): ConsistencyFinding[]`
+  - [ ] Resolve architecture file path from `project.fileArch` using `resolveArtifactPath('fileArch', ...)`
+  - [ ] Parse architecture frontmatter via `this.introspector.parseFrontmatter(archPath)`
+  - [ ] Compare: if arch `status: complete` but plan has unchecked entries → warning
+  - [ ] Compare: if arch status not `complete` but all plan entries are checked → warning
+  - [ ] Fixable via `update-frontmatter` on the architecture file
+  - [ ] Call from `checkAll()` after per-slice loop
+  - [ ] Success: test with arch frontmatter "complete" but plan has unchecked entries produces a warning
+
+**Commit after Task 2.**
+
+---
+
+## Task 3: Implement `fixAll()` method
+
+- [ ] **3.1 Add `fixAll(project)` public method**
+  - [ ] Method signature: `async fixAll(project: ProjectData): Promise<ConsistencyFixResult>`
+  - [ ] Call `checkAll(project)` to get findings
+  - [ ] Iterate fixable findings and apply fixes — same pattern as existing `fix()` method
+  - [ ] Single pass only — no re-checking after fixes
+  - [ ] Return `ConsistencyFixResult` with `fixed` count, `fixLog`, and `fixErrors`
+  - [ ] Success: `fixAll()` applies corrections and returns log entries with before/after
+
+**Commit after Task 3.**
+
+---
+
+## Task 4: Update CLI `cf check`
+
+- [ ] **4.1 Add `--slice` and `--yes` flags**
+  - [ ] Add `.option('--slice <index>', 'Check only a specific slice by index')` to the command
+  - [ ] Add `.option('--yes', 'Skip confirmation prompt in fix mode')`
+  - [ ] Parse `opts.slice` as number if provided
+  - [ ] Success: `cf check --help` shows both new flags
+
+- [ ] **4.2 Route to `checkAll` / `check` based on `--slice` flag**
+  - [ ] If `--slice` provided: temporarily set `project.fileSlice` to the matching slice stem (resolve via slice plan entries or use `{index}-slice.*` pattern), then call existing `checker.check(project)` / `checker.fix(project)`
+  - [ ] If no `--slice`: call `checker.checkAll(project)` / `checker.fixAll(project)`
+  - [ ] Success: `cf check` runs all-slices mode; `cf check --slice 175` narrows to one slice
+
+- [ ] **4.3 Add confirmation prompt for fix-all mode**
+  - [ ] When `--fix` is used without `--slice` and without `--yes`:
+    - [ ] First run `checkAll()` (dry run) to get findings
+    - [ ] Print summary: `"Found N fixable findings across M slices. Apply fixes?"`
+    - [ ] Prompt `y/N` using `readline.createInterface` (reuse pattern from `setup-ide.ts`)
+    - [ ] If declined, print "Aborted." and exit cleanly
+    - [ ] If confirmed, run `fixAll()`
+  - [ ] When `--yes` is set, skip prompt and run `fixAll()` directly
+  - [ ] Success: `cf check --fix` prompts; `cf check --fix --yes` doesn't
+
+- [ ] **4.4 Update terminal output for all-slices mode**
+  - [ ] Group findings by slice index in output (extract index from `[NNN]` prefix in description)
+  - [ ] Print header per slice group: e.g., `"Slice 175: context-output-consolidation"`
+  - [ ] Print aggregate summary at the end: `"Checked N slices: X errors, Y warnings, Z info"`
+  - [ ] Aggregate rules (6-8) displayed in a separate "Project-level" group
+  - [ ] Success: terminal output is grouped and readable with multiple slices
+
+**Commit after Task 4.**
+
+---
+
+## Task 5: Update MCP tool `workflow_check`
+
+- [ ] **5.1 Add `sliceIndex` parameter to input schema**
+  - [ ] Add `sliceIndex: { type: 'number', description: '...' }` to the tool's input schema (optional)
+  - [ ] Update handler: if `sliceIndex` provided, set `project.fileSlice` and call `check()` / `fix()`
+  - [ ] If `sliceIndex` omitted, call `checkAll()` / `fixAll()`
+  - [ ] No confirmation prompt in MCP mode
+  - [ ] Success: MCP tool defaults to all-slices; providing `sliceIndex` narrows scope
+
+**Commit after Task 5.**
+
+---
+
+## Task 6: Unit tests
+
+- [ ] **6.1 Test `checkAll()` iterates all slices**
+  - [ ] Mock introspector with a slice plan containing 3 entries (indices 170, 171, 172)
+  - [ ] Mock documents and task files for each
+  - [ ] Verify findings reference multiple slice indices
+  - [ ] Success: test passes
+
+- [ ] **6.2 Test Rule 6: duplicate index detection**
+  - [ ] Mock slice plan with two entries both having index 168
+  - [ ] Verify an error finding with rule `duplicate-index` is returned
+  - [ ] Verify finding is `fixable: false`
+  - [ ] Success: test passes
+
+- [ ] **6.3 Test Rule 7: plan status vs entries-complete**
+  - [ ] Mock slice plan frontmatter `status: complete` with 3/5 entries checked
+  - [ ] Verify warning finding with rule `plan-status-vs-entries`
+  - [ ] Test reverse: all entries checked but status `in-progress` → warning
+  - [ ] Success: both directions tested and passing
+
+- [ ] **6.4 Test Rule 8: arch status vs plans-complete**
+  - [ ] Mock arch file frontmatter `status: complete` with plan having unchecked entries
+  - [ ] Verify warning finding with rule `arch-status-vs-plans`
+  - [ ] Test reverse: all plan entries checked but arch status `in-progress` → warning
+  - [ ] Success: both directions tested and passing
+
+- [ ] **6.5 Test `fixAll()` applies fixes and returns log**
+  - [ ] Mock scenario with fixable findings across multiple slices
+  - [ ] Verify `fixLog` entries have correct before/after values
+  - [ ] Verify `fixed` count matches number of fixable findings
+  - [ ] Success: test passes
+
+- [ ] **6.6 Test `checkAll()` returns empty result gracefully**
+  - [ ] Test with project that has no slice plan → empty result
+  - [ ] Test with project that has no `projectPath` → empty result
+  - [ ] Success: no errors thrown, empty results returned
+
+**Commit after Task 6.**
+
+---
+
+## Task 7: CLI tests
+
+- [ ] **7.1 Test `cf check` defaults to all-slices mode**
+  - [ ] Mock `ConsistencyChecker.checkAll` and verify it's called (not `check`)
+  - [ ] Success: test passes
+
+- [ ] **7.2 Test `cf check --slice 175` narrows to single slice**
+  - [ ] Verify `check()` is called instead of `checkAll()`
+  - [ ] Success: test passes
+
+- [ ] **7.3 Test `cf check --fix` prompts for confirmation**
+  - [ ] Mock readline to simulate user declining → verify no fixes applied
+  - [ ] Success: test passes
+
+**Commit after Task 7.**
+
+---
+
+## Task 8: Build verification and cleanup
+
+- [ ] **8.1 Run full test suite**
+  - [ ] `pnpm test` — all packages pass
+  - [ ] `pnpm build` — no compilation errors
+  - [ ] Success: all tests pass, build succeeds
+
+- [ ] **8.2 Update slice and plan status**
+  - [ ] Set `178-slice.consistency-checker-all-slices-mode.md` frontmatter `status: complete`
+  - [ ] Check off slice plan entry 18 in `160-slices.project-workflow-system.md`
+  - [ ] Update DEVLOG with implementation summary and commit hashes
+
+**Final commit after Task 8.**

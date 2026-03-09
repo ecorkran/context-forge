@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-09
 
+### Slice 178: Consistency Checker All-Slices Mode — Phase 5 (Task Breakdown)
+- Created `178-tasks.consistency-checker-all-slices-mode.md` (8 tasks)
+- Tasks: checkAll method + refactor, 3 new rules, fixAll, CLI flags + confirmation, MCP sliceIndex, core tests, CLI tests, verification
+
+### Slice 178: Consistency Checker All-Slices Mode — Phase 4 (Slice Design)
+- Designed all-slices iteration for `ConsistencyChecker` (`checkAll`/`fixAll` methods)
+- 3 new rules: duplicate index detection, plan status vs entries-complete, arch status vs plans-complete
+- Safety: single-pass (no cascading), CLI `y/N` confirmation for fix-all, `--slice` flag to narrow scope
+- CLI default switches to all-slices; MCP adds optional `sliceIndex` parameter
+
 ### Release v0.4.0
 - Minor version bump: @context-forge/core, @context-forge/cli, @context-forge/mcp all → 0.4.0
 - Key additions: `cf setup-ide claude`, context-profile-aware assembly, `fileConcept` field, slash command fixes
