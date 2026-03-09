@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
@@ -86,14 +87,35 @@ export class ConsistencyChecker {
       allFindings.push(...sliceFindings);
     }
 
-    // Run aggregate rules (6-9) across all entries
+    // Run aggregate rules (6-9) across all discovered slice plans
+    const discoveredPlans = await this.discoverAllSlicePlans(projectPath);
+    // Merge configured plan with discovered plans (deduplicated)
+    const allPlanPaths = new Set(discoveredPlans);
+    if (slicePlanPath) allPlanPaths.add(slicePlanPath);
+
+    for (const planPath of allPlanPaths) {
+      // Reuse already-parsed result for the configured plan
+      let planResult: SlicePlanResult;
+      if (planPath === slicePlanPath) {
+        planResult = slicePlanResult;
+      } else {
+        try {
+          planResult = await this.introspector.parseSlicePlan(planPath);
+        } catch {
+          continue;
+        }
+      }
+
+      allFindings.push(
+        ...this.ruleDuplicateIndex(planResult.entries, planPath),
+      );
+      allFindings.push(
+        ...await this.rulePlanStatusVsEntries(planPath, planResult),
+      );
+    }
+
+    // Rule 8: arch status vs the configured plan (only the active one)
     if (slicePlanPath) {
-      allFindings.push(
-        ...this.ruleDuplicateIndex(slicePlanResult.entries, slicePlanPath),
-      );
-      allFindings.push(
-        ...await this.rulePlanStatusVsEntries(slicePlanPath, slicePlanResult),
-      );
       allFindings.push(
         ...await this.ruleArchStatusVsPlans(project, projectPath, slicePlanResult),
       );
@@ -637,6 +659,20 @@ export class ConsistencyChecker {
     }
 
     return { projectPath, findings, totalFindings: total, errors, warnings, infos, summary };
+  }
+
+  /** Discover all slice plan files in the architecture directory. */
+  private async discoverAllSlicePlans(projectPath: string): Promise<string[]> {
+    const archDir = join(projectPath, 'project-documents/user/architecture');
+    try {
+      const files = await readdir(archDir);
+      return files
+        .filter((f) => /^\d+-slices\..*\.md$/i.test(f))
+        .sort()
+        .map((f) => join(archDir, f));
+    } catch {
+      return [];
+    }
   }
 
   private resolveSlicePlanPath(project: ProjectData, projectPath: string): string | null {
