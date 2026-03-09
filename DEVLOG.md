@@ -9,6 +9,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-08
 
+### Slice 177: IDE Setup Command — Phase 5 (Task Breakdown)
+- Created `177-tasks.ide-setup-command.md` (6 tasks, 175 lines)
+- Tasks: command skeleton + registration, project/guide resolution, CLAUDE.md safety checks, script invocation, unit tests, build verification
+
 ### Slice 177: IDE Setup Command — Phase 4 (Slice Design)
 - Designed `cf setup-ide claude` CLI command wrapping ai-project-guide's `setup-ide` script
 - Safety guardrails: detects existing `CLAUDE.md`, prompts y/N, creates `.bak` before overwrite

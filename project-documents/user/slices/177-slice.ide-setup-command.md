@@ -7,7 +7,7 @@ dependencies: [172-slice.guide-management]
 interfaces: []
 dateCreated: 20260308
 dateUpdated: 20260308
-status: not_started
+status: in_progress
 ---
 
 # Slice Design: IDE Setup Command
