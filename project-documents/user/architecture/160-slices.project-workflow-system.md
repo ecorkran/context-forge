@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/160-arch.project-workflow-system.md
 project: context-forge
 dateCreated: 20260226
-dateUpdated: 20260228
+dateUpdated: 20260308
 ---
 
 # Slice Plan: Project Workflow System
@@ -378,6 +378,27 @@ Feature (163 first, then 164-166 can parallelize):
 - **Parallel execution of 164-166.** These three slices are independent consumers of the introspection API. They can be worked in any order or in parallel. The listed order (navigator → checker → collector) reflects value priority, not dependency.
 - **ADP compatibility.** The workflow navigator (164) is designed to be consumable by the Automated Development Pipeline (120-arch, orchestration project). The structured JSON output and state machine model should align with ADP's pipeline executor expectations. However, ADP integration is not in scope for this initiative — it's a consumer, not a dependency.
 
+17. [ ] **(177) IDE Setup Command** — `cf setup-ide --claude` CLI command that configures Claude Code integration for the current project. Wraps the existing `setup-ide` script from `ai-project-guide/scripts/` with safety guardrails for user-owned files.
+
+   **Behavior:**
+   - Locates the `setup-ide` script via the installed ai-project-guide directory
+   - Runs in `--claude` mode: copies rules, generates `.claude/CLAUDE.md`, and related config
+   - If `CLAUDE.md` already exists: warns the user, prompts for y/N confirmation, creates a `.bak` backup before overwriting
+   - If `CLAUDE.md` does not exist: proceeds without warning
+   - CLI-only — no MCP tool or slash command needed (one-time terminal operation)
+
+   **Value:** Closes the last gap in the "guides are almost transparent" experience. After `cf guides install`, users still need to manually find and run `setup-ide` from the correct directory with the right flags. This wraps that into a single discoverable CLI command with file-safety guardrails.
+   **Success Criteria:**
+   - `cf setup-ide --claude` runs the guide's setup-ide script in claude mode
+   - Existing `CLAUDE.md` triggers warning + y/N prompt + `.bak` creation
+   - Missing `CLAUDE.md` proceeds silently
+   - Errors if guides are not installed (with hint to run `cf guides install`)
+   - Works from any CWD within a registered project
+   **Dependencies:** [172 — Guide Management] (complete)
+   **Risk:** Low — thin wrapper around existing script with file-safety checks
+   **Effort:** 1/5
+
 ## Future Work
 
-- [ ] (177) Consistency Checker: All-Slices Mode (priority) — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
+18. [ ] (178) Consistency Checker: All-Slices Mode (priority) — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
+19. [ ] (179) Remove bundled prompt asset (`packages/core/assets/prompt.ai-project.system.md`) — The bundled fallback is a maintenance liability: it drifts from the live guide, requires manual sync, and the parser already handles the no-profiles case gracefully (filtering skipped, all artifacts pass through). Users without guides installed should use another tool. Remove the asset, the fallback path in `CoreServiceFactory.resolvePromptFilePath`, and all related sync notes.

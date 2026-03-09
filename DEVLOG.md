@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-08
 
+### Slice 177: IDE Setup Command — Phase 4 (Slice Design)
+- Designed `cf setup-ide claude` CLI command wrapping ai-project-guide's `setup-ide` script
+- Safety guardrails: detects existing `CLAUDE.md`, prompts y/N, creates `.bak` before overwrite
+- Added slice plan entry (177) in 160-slices, renumbered future work to 178-179
+- Positional target argument (`cf setup-ide claude`) for future IDE extensibility
+
 ### Slice 176: Context-Profile-Aware Assembly — Phase 6 (Implementation) ✓
 - `fileConcept` field added to `ProjectData`, `ContextData`, `projectSchema`, `ContextIntegrator`, `TemplateProcessor`, and MCP `project_update`
 - `ContextProfileParser` new service: parses `yaml type: context-profiles` block from prompt asset; normalises instruction strings (phase names, "Maintenance Task", etc.); falls back to `_default`
