@@ -372,7 +372,7 @@ Effort: 2/5
    **Risk:** Low — thin wrapper around existing script with file-safety checks
    **Effort:** 1/5
 
-18. [ ] **(178) Consistency Checker: All-Slices Mode (priority)** — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
+18. [x] **(178) Consistency Checker: All-Slices Mode (priority)** — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
 
 
 ## Implementation Order

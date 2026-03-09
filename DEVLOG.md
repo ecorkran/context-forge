@@ -9,6 +9,22 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-09
 
+### Slice 178: Consistency Checker All-Slices Mode — Phase 6 (Implementation) ✓
+- `checkAll()`/`fixAll()` methods iterate all slice plan entries with `[sliceIndex]` prefix attribution
+- Extracted `checkSlice()` shared logic; extracted `applyFixes()` shared by `fix()`/`fixAll()`
+- 3 new rules: duplicate-index (R6), plan-status-vs-entries (R7), arch-status-vs-plans (R8)
+- CLI: `--slice <index>` narrows, `--yes` skips confirmation, grouped output by slice
+- MCP: `sliceIndex` optional param, defaults to all-slices, no confirmation prompt
+- 11 new core tests, 1 new CLI confirmation prompt test, 2 new MCP routing tests
+- Commits:
+  - `3908e21` feat(core): add checkAll() method and extract checkSlice() shared logic
+  - `a424a02` feat(core): add rules 6-8 for duplicate index, plan status, arch status
+  - `a933941` feat(core): add fixAll() method and extract shared applyFixes() logic
+  - `8503d17` feat(cli): add --slice and --yes flags, all-slices default for cf check
+  - `928fa2a` feat(mcp): add sliceIndex param to workflow_check, default to all-slices
+  - `7300922` test(core): add unit tests for checkAll, fixAll, and rules 6-8
+  - `f3749c4` test(cli): add confirmation prompt test for cf check --fix
+
 ### Slice 178: Consistency Checker All-Slices Mode — Phase 5 (Task Breakdown)
 - Created `178-tasks.consistency-checker-all-slices-mode.md` (8 tasks)
 - Tasks: checkAll method + refactor, 3 new rules, fixAll, CLI flags + confirmation, MCP sliceIndex, core tests, CLI tests, verification

@@ -6,7 +6,7 @@ dependencies: [166-slice.consistency-checker, 163-slice.artifact-introspection-e
 projectState: "Phase 5 task breakdown for 178. Dependencies complete. ConsistencyChecker, MarkdownWriter, rules 1-5, and IArtifactIntrospector all in place."
 dateCreated: 20260309
 dateUpdated: 20260309
-status: in_progress
+status: complete
 ---
 
 # Tasks: Consistency Checker — All-Slices Mode
@@ -204,14 +204,14 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 8: Build verification and cleanup
 
-- [ ] **8.1 Run full test suite**
-  - [ ] `pnpm test` — all packages pass
-  - [ ] `pnpm build` — no compilation errors
-  - [ ] Success: all tests pass, build succeeds
+- [x] **8.1 Run full test suite**
+  - [x] `pnpm test` — all packages pass
+  - [x] `pnpm build` — no compilation errors
+  - [x] Success: all tests pass, build succeeds
 
-- [ ] **8.2 Update slice and plan status**
-  - [ ] Set `178-slice.consistency-checker-all-slices-mode.md` frontmatter `status: complete`
-  - [ ] Check off slice plan entry 18 in `160-slices.project-workflow-system.md`
-  - [ ] Update DEVLOG with implementation summary and commit hashes
+- [x] **8.2 Update slice and plan status**
+  - [x] Set `178-slice.consistency-checker-all-slices-mode.md` frontmatter `status: complete`
+  - [x] Check off slice plan entry 18 in `160-slices.project-workflow-system.md`
+  - [x] Update DEVLOG with implementation summary and commit hashes
 
 **Final commit after Task 8.**
