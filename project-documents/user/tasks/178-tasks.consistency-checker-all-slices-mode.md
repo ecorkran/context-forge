@@ -145,40 +145,40 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 6: Unit tests
 
-- [ ] **6.1 Test `checkAll()` iterates all slices**
-  - [ ] Mock introspector with a slice plan containing 3 entries (indices 170, 171, 172)
-  - [ ] Mock documents and task files for each
-  - [ ] Verify findings reference multiple slice indices
-  - [ ] Success: test passes
+- [x] **6.1 Test `checkAll()` iterates all slices**
+  - [x] Mock introspector with a slice plan containing 3 entries (indices 170, 171, 172)
+  - [x] Mock documents and task files for each
+  - [x] Verify findings reference multiple slice indices
+  - [x] Success: test passes
 
-- [ ] **6.2 Test Rule 6: duplicate index detection**
-  - [ ] Mock slice plan with two entries both having index 168
-  - [ ] Verify an error finding with rule `duplicate-index` is returned
-  - [ ] Verify finding is `fixable: false`
-  - [ ] Success: test passes
+- [x] **6.2 Test Rule 6: duplicate index detection**
+  - [x] Mock slice plan with two entries both having index 168
+  - [x] Verify an error finding with rule `duplicate-index` is returned
+  - [x] Verify finding is `fixable: false`
+  - [x] Success: test passes
 
-- [ ] **6.3 Test Rule 7: plan status vs entries-complete**
-  - [ ] Mock slice plan frontmatter `status: complete` with 3/5 entries checked
-  - [ ] Verify warning finding with rule `plan-status-vs-entries`
-  - [ ] Test reverse: all entries checked but status `in-progress` → warning
-  - [ ] Success: both directions tested and passing
+- [x] **6.3 Test Rule 7: plan status vs entries-complete**
+  - [x] Mock slice plan frontmatter `status: complete` with 3/5 entries checked
+  - [x] Verify warning finding with rule `plan-status-vs-entries`
+  - [x] Test reverse: all entries checked but status `in-progress` → warning
+  - [x] Success: both directions tested and passing
 
-- [ ] **6.4 Test Rule 8: arch status vs plans-complete**
-  - [ ] Mock arch file frontmatter `status: complete` with plan having unchecked entries
-  - [ ] Verify warning finding with rule `arch-status-vs-plans`
-  - [ ] Test reverse: all plan entries checked but arch status `in-progress` → warning
-  - [ ] Success: both directions tested and passing
+- [x] **6.4 Test Rule 8: arch status vs plans-complete**
+  - [x] Mock arch file frontmatter `status: complete` with plan having unchecked entries
+  - [x] Verify warning finding with rule `arch-status-vs-plans`
+  - [x] Test reverse: all plan entries checked but arch status `in-progress` → warning
+  - [x] Success: both directions tested and passing
 
-- [ ] **6.5 Test `fixAll()` applies fixes and returns log**
-  - [ ] Mock scenario with fixable findings across multiple slices
-  - [ ] Verify `fixLog` entries have correct before/after values
-  - [ ] Verify `fixed` count matches number of fixable findings
-  - [ ] Success: test passes
+- [x] **6.5 Test `fixAll()` applies fixes and returns log**
+  - [x] Mock scenario with fixable findings across multiple slices
+  - [x] Verify `fixLog` entries have correct before/after values
+  - [x] Verify `fixed` count matches number of fixable findings
+  - [x] Success: test passes
 
-- [ ] **6.6 Test `checkAll()` returns empty result gracefully**
-  - [ ] Test with project that has no slice plan → empty result
-  - [ ] Test with project that has no `projectPath` → empty result
-  - [ ] Success: no errors thrown, empty results returned
+- [x] **6.6 Test `checkAll()` returns empty result gracefully**
+  - [x] Test with project that has no slice plan → empty result
+  - [x] Test with project that has no `projectPath` → empty result
+  - [x] Success: no errors thrown, empty results returned
 
 **Commit after Task 6.**
 

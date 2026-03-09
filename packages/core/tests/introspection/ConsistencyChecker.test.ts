@@ -504,4 +504,262 @@ describe('ConsistencyChecker', () => {
       }
     });
   });
+
+  describe('checkAll()', () => {
+    it('returns empty result when projectPath is missing', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({ projectPath: undefined }));
+      expect(result.totalFindings).toBe(0);
+    });
+
+    it('returns empty result when no slice plan', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+      expect(result.totalFindings).toBe(0);
+    });
+
+    it('returns empty result when slice plan has no entries', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [],
+          totalSlices: 0,
+          completedSlices: 0,
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+      expect(result.totalFindings).toBe(0);
+    });
+
+    it('iterates all slices and prefixes findings with slice index', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false },
+            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false },
+            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false },
+          ],
+          totalSlices: 3,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      // Each slice produces findings with [index] prefix
+      const prefixed170 = result.findings.filter((f) => f.description.startsWith('[170]'));
+      const prefixed171 = result.findings.filter((f) => f.description.startsWith('[171]'));
+      const prefixed172 = result.findings.filter((f) => f.description.startsWith('[172]'));
+      expect(prefixed170.length).toBeGreaterThan(0);
+      expect(prefixed171.length).toBeGreaterThan(0);
+      expect(prefixed172.length).toBeGreaterThan(0);
+    });
+
+    // --- Rule 6: Duplicate slice index ---
+
+    it('Rule 6: detects duplicate slice indices', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false },
+            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false },
+            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false },
+          ],
+          totalSlices: 3,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const dupFinding = result.findings.find((f) => f.rule === 'duplicate-index');
+      expect(dupFinding).toBeDefined();
+      expect(dupFinding!.severity).toBe('error');
+      expect(dupFinding!.fixable).toBe(false);
+      expect(dupFinding!.description).toContain('168');
+      expect(dupFinding!.description).toContain('slice-foo');
+      expect(dupFinding!.description).toContain('slice-bar');
+    });
+
+    // --- Rule 7: Plan status vs entries ---
+
+    it('Rule 7: warns when plan "complete" but entries unchecked', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'in-progress', isChecked: true },
+            { index: 171, name: 'b', status: 'in-progress', isChecked: false },
+          ],
+          totalSlices: 2,
+          completedSlices: 1,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'plan-status-vs-entries');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('1/2');
+      expect(finding!.fixable).toBe(true);
+    });
+
+    it('Rule 7: warns when all entries checked but plan not complete', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true },
+            { index: 171, name: 'b', status: 'complete', isChecked: true },
+          ],
+          totalSlices: 2,
+          completedSlices: 2,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'in-progress' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'plan-status-vs-entries');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('All 2 entries');
+    });
+
+    // --- Rule 8: Arch status vs plans ---
+
+    it('Rule 8: warns when arch "complete" but plan has unchecked entries', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'in-progress', isChecked: false },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'in-progress' } };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('complete');
+      expect(finding!.description).toContain('unchecked');
+      expect(finding!.fixable).toBe(true);
+    });
+
+    it('Rule 8: warns when all plans complete but arch not complete', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true },
+          ],
+          totalSlices: 1,
+          completedSlices: 1,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: { status: 'in-progress' } };
+          }
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('All 1 plan entries');
+    });
+  });
+
+  describe('fixAll()', () => {
+    it('applies fixes across multiple slices and returns log', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      }));
+
+      const result = await checker.fixAll(makeProject());
+
+      expect(result.fixed).toBeGreaterThan(0);
+      expect(result.fixLog.length).toBe(result.fixed);
+      for (const entry of result.fixLog) {
+        expect(entry.rule).not.toBe('');
+        expect(entry.before).toBeDefined();
+        expect(entry.after).toBeDefined();
+      }
+    });
+
+    it('returns empty result for project with no slice plan', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.fixAll(makeProject());
+
+      expect(result.fixed).toBe(0);
+      expect(result.fixLog).toHaveLength(0);
+      expect(result.fixErrors).toHaveLength(0);
+    });
+  });
 });
