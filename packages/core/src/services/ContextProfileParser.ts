@@ -6,8 +6,8 @@
 
 export type ProfileMap = Record<string, { variables: string[] }>;
 
-/** Fence annotation identifying the context-profiles block */
-const PROFILE_FENCE = '```yaml type: context-profiles';
+/** Key identifying the context-profiles block; works with any yaml fence annotation */
+const PROFILE_KEY = 'context_profiles:\n';
 
 /**
  * Inline YAML parser for the flat context-profiles block.
@@ -25,8 +25,8 @@ function parseProfilesYaml(yaml: string): ProfileMap {
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
 
-    // Top-level key: context-profiles (skip)
-    if (line === 'context-profiles:') continue;
+    // Top-level key: context_profiles or context-profiles (skip)
+    if (line === 'context_profiles:' || line === 'context-profiles:') continue;
 
     // Profile name (2-space indent, ends with colon)
     const profileMatch = line.match(/^  ([\w-]+):$/);
@@ -86,7 +86,12 @@ export class ContextProfileParser {
    */
   parseProfiles(fileContent: string): ProfileMap {
     try {
-      const fenceStart = fileContent.indexOf(PROFILE_FENCE);
+      // Find the context_profiles key inside any yaml fence
+      const keyStart = fileContent.indexOf(PROFILE_KEY);
+      if (keyStart === -1) return {};
+
+      // Walk back to the opening fence
+      const fenceStart = fileContent.lastIndexOf('\n```', keyStart);
       if (fenceStart === -1) return {};
 
       const contentStart = fileContent.indexOf('\n', fenceStart) + 1;

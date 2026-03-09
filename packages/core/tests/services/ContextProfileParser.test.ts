@@ -7,8 +7,8 @@ frontmatter: here
 ## Prompts
 Some intro text.
 
-\`\`\`yaml type: context-profiles
-context-profiles:
+\`\`\`yaml
+context_profiles:
   implementation:
     variables: [fileSlicePlan, fileSlice, fileTasks]
   task-breakdown:

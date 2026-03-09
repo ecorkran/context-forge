@@ -196,8 +196,8 @@ describe('ContextIntegrator', () => {
 
   describe('profile-aware filtering', () => {
     const PROFILES_CONTENT = `## Prompts
-\`\`\`yaml type: context-profiles
-context-profiles:
+\`\`\`yaml
+context_profiles:
   maintenance:
     variables: [fileTasks]
   implementation:
