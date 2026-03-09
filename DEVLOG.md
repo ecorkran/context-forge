@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-09
 
+### Initiative 180: Initiative Contexts (Worktrees) — Phase 3 (Slice Planning)
+- Created slice plan `180-slices.initiative-context-worktree.md` (7 slices, 181-187)
+- Foundation: WorktreeContext data model & storage (nested on ProjectData)
+- Features: worktree discovery & CWD resolution, `cf worktree` CLI commands, status/display updates, worktree-aware context assembly, MCP worktree tools
+- Integration: validation, edge cases & polish
+- Naming decision: "worktree" as user-facing term (avoids overloading "context" and "initiative")
+- MCP included (slice 186) for context-visualizer support, despite architecture doc deferral
+- Commits:
+  - `bff4d17` docs: add slice plan for initiative contexts (worktrees)
+
 ### Slice 178: Consistency Checker All-Slices Mode — Phase 6 (Implementation) ✓
 - `checkAll()`/`fixAll()` methods iterate all slice plan entries with `[sliceIndex]` prefix attribution
 - Extracted `checkSlice()` shared logic; extracted `applyFixes()` shared by `fix()`/`fixAll()`
