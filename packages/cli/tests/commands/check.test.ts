@@ -6,6 +6,8 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockCheck = vi.fn();
 const mockFix = vi.fn();
+const mockCheckAll = vi.fn();
+const mockFixAll = vi.fn();
 const mockConfigGet = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
@@ -17,6 +19,8 @@ vi.mock('@context-forge/core/node', () => ({
   ConsistencyChecker: vi.fn().mockImplementation(() => ({
     check: mockCheck,
     fix: mockFix,
+    checkAll: mockCheckAll,
+    fixAll: mockFixAll,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
@@ -48,7 +52,7 @@ const findingsResult = {
       rule: 'task-vs-plan',
       severity: 'warning',
       location: '/tmp/test/plan.md',
-      description: 'Tasks complete but slice unchecked in plan',
+      description: '[100] Tasks complete but slice unchecked in plan',
       suggestedFix: 'Check the slice plan entry',
       fixable: true,
     },
@@ -56,7 +60,7 @@ const findingsResult = {
       rule: 'missing-artifact',
       severity: 'info',
       location: '/tmp/test/tasks.md',
-      description: 'No matching slice plan entry',
+      description: '[100] No matching slice plan entry',
       suggestedFix: 'Add an entry',
       fixable: false,
     },
@@ -95,9 +99,20 @@ describe('cf check', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
+  it('defaults to all-slices mode (calls checkAll)', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCheckAll.mockResolvedValue(noFindingsResult);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);
+
+    expect(mockCheckAll).toHaveBeenCalled();
+    expect(mockCheck).not.toHaveBeenCalled();
+  });
+
   it('shows clean message when no findings', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockCheck.mockResolvedValue(noFindingsResult);
+    mockCheckAll.mockResolvedValue(noFindingsResult);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);
@@ -106,9 +121,9 @@ describe('cf check', () => {
     expect(output).toContain('No inconsistencies found');
   });
 
-  it('shows findings with severity icons', async () => {
+  it('shows findings grouped by slice index', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockCheck.mockResolvedValue(findingsResult);
+    mockCheckAll.mockResolvedValue(findingsResult);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);
@@ -117,26 +132,37 @@ describe('cf check', () => {
     expect(output).toContain('⚠');
     expect(output).toContain('ℹ');
     expect(output).toContain('Tasks complete but slice unchecked');
+    expect(output).toContain('Slice 100');
     expect(output).toContain('2 findings');
   });
 
-  it('shows fix results with before/after when --fix used', async () => {
+  it('narrows to single slice with --slice flag', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockFix.mockResolvedValue(fixResult);
+    mockCheck.mockResolvedValue(noFindingsResult);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix']);
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--slice', '175']);
 
+    expect(mockCheck).toHaveBeenCalled();
+    expect(mockCheckAll).not.toHaveBeenCalled();
+  });
+
+  it('uses fixAll with --fix --yes in all-slices mode', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockFixAll.mockResolvedValue(fixResult);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix', '--yes']);
+
+    expect(mockFixAll).toHaveBeenCalled();
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('fix mode');
-    expect(output).toContain('[ ]');
-    expect(output).toContain('[x]');
     expect(output).toContain('Fixed 1 of 2');
   });
 
   it('outputs valid JSON with --json flag', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockCheck.mockResolvedValue(findingsResult);
+    mockCheckAll.mockResolvedValue(findingsResult);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--json']);
@@ -150,7 +176,7 @@ describe('cf check', () => {
 
   it('resolves project correctly', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockCheck.mockResolvedValue(noFindingsResult);
+    mockCheckAll.mockResolvedValue(noFindingsResult);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);

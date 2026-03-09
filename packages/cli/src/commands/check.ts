@@ -1,3 +1,4 @@
+import * as readline from 'node:readline';
 import { Command } from 'commander';
 import {
   FileProjectStore,
@@ -21,6 +22,17 @@ const SEVERITY_ICON: Record<string, string> = {
   info: 'ℹ',
 };
 
+/** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
+function askConfirmation(prompt: string): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'y');
+    });
+  });
+}
+
 function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
   return 'fixLog' in result;
 }
@@ -43,6 +55,33 @@ function formatFinding(finding: ConsistencyFinding, fixResult?: ConsistencyFixRe
   return lines.join('\n');
 }
 
+/** Extract slice index prefix from a finding description like "[175] ..." */
+function extractFindingSliceIndex(description: string): string | null {
+  const match = /^\[(\d+)\]\s/.exec(description);
+  return match ? match[1] : null;
+}
+
+/** Group findings by slice index prefix, with non-prefixed in a "Project-level" group */
+function groupFindings(findings: ConsistencyFinding[]): Map<string, ConsistencyFinding[]> {
+  const groups = new Map<string, ConsistencyFinding[]>();
+  for (const finding of findings) {
+    const idx = extractFindingSliceIndex(finding.description);
+    const key = idx ?? 'project';
+    const group = groups.get(key) ?? [];
+    group.push(finding);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+interface CheckOpts {
+  json?: boolean;
+  project?: string;
+  fix?: boolean;
+  slice?: string;
+  yes?: boolean;
+}
+
 export function registerCheckCommand(program: Command): void {
   program
     .command('check')
@@ -50,7 +89,9 @@ export function registerCheckCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--fix', 'Apply non-destructive corrections (when available)')
-    .action(async (opts: { json?: boolean; project?: string; fix?: boolean }) => {
+    .option('--slice <index>', 'Check only a specific slice by index')
+    .option('--yes', 'Skip confirmation prompt in fix mode')
+    .action(async (opts: CheckOpts) => {
       try {
         const store = new FileProjectStore();
         const { id } = await resolveProjectId(opts.project, store);
@@ -77,45 +118,93 @@ export function registerCheckCommand(program: Command): void {
           }
         }
 
-        const result = fixMode
-          ? await checker.fix(project)
-          : await checker.check(project);
+        // Determine scope: --slice narrows to single slice, otherwise all-slices
+        const singleSlice = opts.slice ? parseInt(opts.slice, 10) : null;
+        if (singleSlice !== null && isNaN(singleSlice)) {
+          throw new UserError(`Invalid slice index: '${opts.slice}'`);
+        }
+
+        let result: ConsistencyCheckResult;
+
+        if (singleSlice !== null) {
+          // Narrow to single slice — set fileSlice temporarily and use check()/fix()
+          const sliceProject = { ...project, fileSlice: `${singleSlice}-slice` };
+          result = fixMode
+            ? await checker.fix(sliceProject)
+            : await checker.check(sliceProject);
+        } else if (fixMode) {
+          // All-slices fix mode — prompt for confirmation unless --yes
+          if (!opts.yes) {
+            const dryRun = await checker.checkAll(project);
+            const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
+
+            if (fixableCount === 0) {
+              result = dryRun;
+            } else {
+              printCheckOutput(dryRun, project.name, false);
+              const confirmed = await askConfirmation(
+                `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `,
+              );
+              if (!confirmed) {
+                console.log('Aborted.');
+                return;
+              }
+              result = await checker.fixAll(project);
+            }
+          } else {
+            result = await checker.fixAll(project);
+          }
+        } else {
+          result = await checker.checkAll(project);
+        }
 
         if (opts.json) {
           printJson(result);
           return;
         }
 
-        // Terminal output
-        const modeLabel = fixMode ? ' (fix mode)' : '';
-        console.log(label(`Consistency Check: ${project.name}${modeLabel}`));
-        console.log('');
-
-        if (result.totalFindings === 0) {
-          console.log('  No inconsistencies found');
-          return;
-        }
-
-        const fixRes = isFixResult(result) ? result : undefined;
-
-        for (const finding of result.findings) {
-          console.log(formatFinding(finding, fixRes));
-        }
-
-        console.log('');
-
-        if (fixRes) {
-          console.log(label(`Fixed ${fixRes.fixed} of ${result.totalFindings} findings`));
-          if (fixRes.fixErrors.length > 0) {
-            for (const err of fixRes.fixErrors) {
-              console.log(errorStyle(`  Fix error: ${err}`));
-            }
-          }
-        } else {
-          console.log(dim(result.summary));
-        }
+        printCheckOutput(result, project.name, fixMode);
       } catch (err) {
         handleError(err);
       }
     });
+}
+
+function printCheckOutput(
+  result: ConsistencyCheckResult,
+  projectName: string,
+  fixMode: boolean,
+): void {
+  const modeLabel = fixMode ? ' (fix mode)' : '';
+  console.log(label(`Consistency Check: ${projectName}${modeLabel}`));
+  console.log('');
+
+  if (result.totalFindings === 0) {
+    console.log('  No inconsistencies found');
+    return;
+  }
+
+  const fixRes = isFixResult(result) ? result : undefined;
+  const groups = groupFindings(result.findings);
+
+  for (const [key, findings] of groups) {
+    const groupLabel = key === 'project' ? 'Project-level' : `Slice ${key}`;
+    console.log(label(`  ${groupLabel}`));
+
+    for (const finding of findings) {
+      console.log(formatFinding(finding, fixRes));
+    }
+    console.log('');
+  }
+
+  if (fixRes) {
+    console.log(label(`Fixed ${fixRes.fixed} of ${result.totalFindings} findings`));
+    if (fixRes.fixErrors.length > 0) {
+      for (const err of fixRes.fixErrors) {
+        console.log(errorStyle(`  Fix error: ${err}`));
+      }
+    }
+  } else {
+    console.log(dim(result.summary));
+  }
 }

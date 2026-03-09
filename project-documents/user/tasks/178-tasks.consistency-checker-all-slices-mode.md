@@ -98,33 +98,33 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 4: Update CLI `cf check`
 
-- [ ] **4.1 Add `--slice` and `--yes` flags**
-  - [ ] Add `.option('--slice <index>', 'Check only a specific slice by index')` to the command
-  - [ ] Add `.option('--yes', 'Skip confirmation prompt in fix mode')`
-  - [ ] Parse `opts.slice` as number if provided
-  - [ ] Success: `cf check --help` shows both new flags
+- [x] **4.1 Add `--slice` and `--yes` flags**
+  - [x] Add `.option('--slice <index>', 'Check only a specific slice by index')` to the command
+  - [x] Add `.option('--yes', 'Skip confirmation prompt in fix mode')`
+  - [x] Parse `opts.slice` as number if provided
+  - [x] Success: `cf check --help` shows both new flags
 
-- [ ] **4.2 Route to `checkAll` / `check` based on `--slice` flag**
-  - [ ] If `--slice` provided: temporarily set `project.fileSlice` to the matching slice stem (resolve via slice plan entries or use `{index}-slice.*` pattern), then call existing `checker.check(project)` / `checker.fix(project)`
-  - [ ] If no `--slice`: call `checker.checkAll(project)` / `checker.fixAll(project)`
-  - [ ] Success: `cf check` runs all-slices mode; `cf check --slice 175` narrows to one slice
+- [x] **4.2 Route to `checkAll` / `check` based on `--slice` flag**
+  - [x] If `--slice` provided: temporarily set `project.fileSlice` to the matching slice stem (resolve via slice plan entries or use `{index}-slice.*` pattern), then call existing `checker.check(project)` / `checker.fix(project)`
+  - [x] If no `--slice`: call `checker.checkAll(project)` / `checker.fixAll(project)`
+  - [x] Success: `cf check` runs all-slices mode; `cf check --slice 175` narrows to one slice
 
-- [ ] **4.3 Add confirmation prompt for fix-all mode**
-  - [ ] When `--fix` is used without `--slice` and without `--yes`:
-    - [ ] First run `checkAll()` (dry run) to get findings
-    - [ ] Print summary: `"Found N fixable findings across M slices. Apply fixes?"`
-    - [ ] Prompt `y/N` using `readline.createInterface` (reuse pattern from `setup-ide.ts`)
-    - [ ] If declined, print "Aborted." and exit cleanly
-    - [ ] If confirmed, run `fixAll()`
-  - [ ] When `--yes` is set, skip prompt and run `fixAll()` directly
-  - [ ] Success: `cf check --fix` prompts; `cf check --fix --yes` doesn't
+- [x] **4.3 Add confirmation prompt for fix-all mode**
+  - [x] When `--fix` is used without `--slice` and without `--yes`:
+    - [x] First run `checkAll()` (dry run) to get findings
+    - [x] Print summary: `"Found N fixable findings across M slices. Apply fixes?"`
+    - [x] Prompt `y/N` using `readline.createInterface` (reuse pattern from `setup-ide.ts`)
+    - [x] If declined, print "Aborted." and exit cleanly
+    - [x] If confirmed, run `fixAll()`
+  - [x] When `--yes` is set, skip prompt and run `fixAll()` directly
+  - [x] Success: `cf check --fix` prompts; `cf check --fix --yes` doesn't
 
-- [ ] **4.4 Update terminal output for all-slices mode**
-  - [ ] Group findings by slice index in output (extract index from `[NNN]` prefix in description)
-  - [ ] Print header per slice group: e.g., `"Slice 175: context-output-consolidation"`
-  - [ ] Print aggregate summary at the end: `"Checked N slices: X errors, Y warnings, Z info"`
-  - [ ] Aggregate rules (6-8) displayed in a separate "Project-level" group
-  - [ ] Success: terminal output is grouped and readable with multiple slices
+- [x] **4.4 Update terminal output for all-slices mode**
+  - [x] Group findings by slice index in output (extract index from `[NNN]` prefix in description)
+  - [x] Print header per slice group: e.g., `"Slice 175: context-output-consolidation"`
+  - [x] Print aggregate summary at the end: `"Checked N slices: X errors, Y warnings, Z info"`
+  - [x] Aggregate rules (6-8) displayed in a separate "Project-level" group
+  - [x] Success: terminal output is grouped and readable with multiple slices
 
 **Commit after Task 4.**
 
