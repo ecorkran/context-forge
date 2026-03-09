@@ -102,6 +102,7 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
 | `cf future` | `cf future [--project <id>] [--status <filter>] [--json]` | Show consolidated future work |
 | `cf check` | `cf check [--fix] [--json]` | Run consistency checks |
+| `cf backup` | `cf backup` | Create versioned backup of project data (keeps last 10) |
 | `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates with variable substitution |
 | `cf guides` | `cf guides install\|status\|update` | Manage ai-project-guide templates |
 

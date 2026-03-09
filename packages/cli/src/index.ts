@@ -19,6 +19,7 @@ import { registerTaskCommand } from './commands/task.js';
 import { registerArchCommand } from './commands/arch.js';
 import { registerPlanCommand } from './commands/plan.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
+import { registerBackupCommand } from './commands/backup.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -56,6 +57,7 @@ registerTaskCommand(program);
 registerArchCommand(program);
 registerPlanCommand(program);
 registerSetupIdeCommand(program);
+registerBackupCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 

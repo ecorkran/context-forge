@@ -7,6 +7,8 @@ import {
   ArtifactIntrospector,
   ConsistencyChecker,
   ConfigManager,
+  getStoragePath,
+  createVersionedBackup,
 } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 
@@ -236,6 +238,35 @@ export function registerWorkflowTools(server: McpServer): void {
         }
 
         return jsonResult(result);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${msg}`);
+      }
+    },
+  );
+
+  // --- storage_backup ---
+  server.registerTool(
+    'storage_backup',
+    {
+      title: 'Create Versioned Backup',
+      description:
+        'Create a versioned timestamped backup of the projects.json data file. ' +
+        'Keeps the last 10 backups, automatically pruning older ones. ' +
+        'Response shape: { storagePath, backedUp: string[] }.',
+      inputSchema: {},
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async () => {
+      try {
+        const storagePath = getStoragePath();
+        const files = ['projects.json'];
+
+        for (const file of files) {
+          await createVersionedBackup(storagePath, file);
+        }
+
+        return jsonResult({ storagePath, backedUp: files });
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);

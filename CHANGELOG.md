@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cf backup` CLI command — creates versioned timestamped backup of project data (keeps last 10, auto-prunes)
+- `storage_backup` MCP tool — same backup functionality accessible to AI agents
+
 ## [0.4.0] - 20260309
 
 ### Added

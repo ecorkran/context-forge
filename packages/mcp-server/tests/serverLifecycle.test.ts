@@ -87,7 +87,7 @@ describe('Server Lifecycle', () => {
     }
   });
 
-  it('starts, completes MCP handshake, lists all 22 tools, and exits cleanly', async () => {
+  it('starts, completes MCP handshake, lists all 26 tools, and exits cleanly', async () => {
     // Setup isolated temp data dir
     tempDir = await mkdtemp(join(tmpdir(), 'cf-mcp-test-'));
     await writeFile(join(tempDir, 'projects.json'), '[]');
@@ -142,6 +142,7 @@ describe('Server Lifecycle', () => {
       'prompt_get',
       'prompt_list',
       'server_version',
+      'storage_backup',
       'template_preview',
       'workflow_check',
       'workflow_future',
