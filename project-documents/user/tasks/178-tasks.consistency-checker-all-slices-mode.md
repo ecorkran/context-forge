@@ -84,13 +84,13 @@ Working on slice 178 in project context-forge. This slice extends `ConsistencyCh
 
 ## Task 3: Implement `fixAll()` method
 
-- [ ] **3.1 Add `fixAll(project)` public method**
-  - [ ] Method signature: `async fixAll(project: ProjectData): Promise<ConsistencyFixResult>`
-  - [ ] Call `checkAll(project)` to get findings
-  - [ ] Iterate fixable findings and apply fixes — same pattern as existing `fix()` method
-  - [ ] Single pass only — no re-checking after fixes
-  - [ ] Return `ConsistencyFixResult` with `fixed` count, `fixLog`, and `fixErrors`
-  - [ ] Success: `fixAll()` applies corrections and returns log entries with before/after
+- [x] **3.1 Add `fixAll(project)` public method**
+  - [x] Method signature: `async fixAll(project: ProjectData): Promise<ConsistencyFixResult>`
+  - [x] Call `checkAll(project)` to get findings
+  - [x] Iterate fixable findings and apply fixes — same pattern as existing `fix()` method
+  - [x] Single pass only — no re-checking after fixes
+  - [x] Return `ConsistencyFixResult` with `fixed` count, `fixLog`, and `fixErrors`
+  - [x] Success: `fixAll()` applies corrections and returns log entries with before/after
 
 **Commit after Task 3.**
 

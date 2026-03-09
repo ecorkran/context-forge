@@ -107,6 +107,20 @@ export class ConsistencyChecker {
    */
   async fix(project: ProjectData): Promise<ConsistencyFixResult> {
     const checkResult = await this.check(project);
+    return this.applyFixes(checkResult);
+  }
+
+  /**
+   * Run checkAll(), then apply non-destructive corrections to fixable findings.
+   * Single pass only — no re-checking after fixes.
+   */
+  async fixAll(project: ProjectData): Promise<ConsistencyFixResult> {
+    const checkResult = await this.checkAll(project);
+    return this.applyFixes(checkResult);
+  }
+
+  /** Apply fixes to a check result — shared by fix() and fixAll(). */
+  private async applyFixes(checkResult: ConsistencyCheckResult): Promise<ConsistencyFixResult> {
     const fixLog: ConsistencyFixResult['fixLog'] = [];
     const fixErrors: string[] = [];
     let fixed = 0;
