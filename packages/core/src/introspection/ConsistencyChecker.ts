@@ -86,7 +86,7 @@ export class ConsistencyChecker {
       allFindings.push(...sliceFindings);
     }
 
-    // Run aggregate rules (6-8) across all entries
+    // Run aggregate rules (6-9) across all entries
     if (slicePlanPath) {
       allFindings.push(
         ...this.ruleDuplicateIndex(slicePlanResult.entries, slicePlanPath),
@@ -483,10 +483,30 @@ export class ConsistencyChecker {
       return findings;
     }
 
-    if (!planFrontmatter.found || !planFrontmatter.data.status) return findings;
+    if (!planFrontmatter.found) return findings;
+
+    const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
+
+    // Rule 9: Missing status field — infer from entry completion
+    if (!planFrontmatter.data.status) {
+      const inferredStatus = allComplete && slicePlanResult.totalSlices > 0 ? 'complete' : 'in-progress';
+      findings.push({
+        rule: 'missing-plan-status',
+        severity: 'warning',
+        location: slicePlanPath,
+        description: `Slice plan frontmatter has no "status" field (inferred: "${inferredStatus}")`,
+        suggestedFix: `Add status: ${inferredStatus} to slice plan frontmatter`,
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: slicePlanPath,
+          detail: { key: 'status', value: inferredStatus },
+        },
+      });
+      return findings;
+    }
 
     const planStatus = planFrontmatter.data.status.toLowerCase();
-    const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
 
     if (planStatus === 'complete' && !allComplete) {
       findings.push({

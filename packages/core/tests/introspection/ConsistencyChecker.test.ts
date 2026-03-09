@@ -657,6 +657,63 @@ describe('ConsistencyChecker', () => {
       expect(finding!.description).toContain('All 2 entries');
     });
 
+    // --- Rule 9: Missing plan status ---
+
+    it('Rule 9: warns when plan frontmatter has no status field, infers in-progress', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { docType: 'slice-plan' } };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'missing-plan-status');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('no "status" field');
+      expect(finding!.description).toContain('in-progress');
+      expect(finding!.fixable).toBe(true);
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+    });
+
+    it('Rule 9: infers complete when all entries are checked', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 1,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { docType: 'slice-plan' } };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'missing-plan-status');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('complete');
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'complete' });
+    });
+
     // --- Rule 8: Arch status vs plans ---
 
     it('Rule 8: warns when arch "complete" but plan has unchecked entries', async () => {
