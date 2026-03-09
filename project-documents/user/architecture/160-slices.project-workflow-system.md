@@ -4,6 +4,7 @@ parent: user/architecture/160-arch.project-workflow-system.md
 project: context-forge
 dateCreated: 20260226
 dateUpdated: 20260308
+status: complete
 ---
 
 # Slice Plan: Project Workflow System
