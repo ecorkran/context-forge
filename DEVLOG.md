@@ -7,6 +7,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-09
+
+### Release v0.4.0
+- Minor version bump: @context-forge/core, @context-forge/cli, @context-forge/mcp all → 0.4.0
+- Key additions: `cf setup-ide claude`, context-profile-aware assembly, `fileConcept` field, slash command fixes
+- Tags: @context-forge/core@0.4.0, @context-forge/cli@0.4.0, @context-forge/mcp@0.4.0
+
 ## 2026-03-08
 
 ### Slice 177: IDE Setup Command — Phase 6 (Implementation) ✓

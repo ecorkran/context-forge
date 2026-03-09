@@ -12,18 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 20260309
+
 ### Added
-* Added rule to avoid overly restrictive regex when creating parsers
-* Added Prompt filtering (supported in cf:build) to avoid bloated input
-* Added cf setup-ide (currently supports claude)
+- `cf setup-ide claude` command — configures Claude Code integration with CLAUDE.md backup safety and y/N confirmation
+- Context-profile-aware assembly — `ContextProfileParser` filters artifacts per instruction phase, reducing context bloat
+- `cf build --instruction-type` / `--it` flag for profile override without persisting
+- `instructionType` param on `context_build` MCP tool
+- `fileConcept` field on project schema for concept document tracking
+- Rule: avoid overly restrictive regex when creating parsers
 
 ### Fixed
-* /cf:prompt works with or without get and avoids the 2x get when specified
-* on set architecture, slice plan is alo set (like slice -> tasks)
-* cf:next when arch specified but nonexistent suggests creating architecture design
-* cf:fileConcept added to schema and project items listed in general->specific order
-
-
+- `/cf:prompt` works with or without `get` subcommand (no double-dispatch)
+- `cf set architecture` also sets slice plan (like slice → tasks)
+- `cf next` suggests creating architecture when arch is specified but nonexistent
+- `fileConcept` added to schema; project fields listed in general→specific order
 
 ## [0.3.6] - 20260307
 
