@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+* Added rule to avoid overly restrictive regex when creating parsers
+* Added Prompt filtering (supported in cf:build) to avoid bloated input
+* Added cf setup-ide (currently supports claude)
+
+### Fixed
+* /cf:prompt works with or without get and avoids the 2x get when specified
+* on set architecture, slice plan is alo set (like slice -> tasks)
+* cf:next when arch specified but nonexistent suggests creating architecture design
+* cf:fileConcept added to schema and project items listed in general->specific order
+
+
+
 ## [0.3.6] - 20260307
 
 ### Added

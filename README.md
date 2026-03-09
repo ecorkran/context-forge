@@ -35,6 +35,10 @@ npm install -g @context-forge/mcp @context-forge/cli
 # Install the methodology guides into your project
 cf guides install
 
+# Install Claude rules and create CLAUDE.md.  It will warn before any overwrite, and 
+# create CLAUDE.md.bak as well.  Only Claude is currently supported.
+cf setup-ide claude
+
 # Add the MCP server to Claude Code
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 

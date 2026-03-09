@@ -171,20 +171,20 @@ Nothing consumed by other slices. This is a leaf command.
 
 ### Functional
 
-- [ ] `cf setup-ide claude` in a project with guides installed runs the setup-ide script and produces Claude Code config files
-- [ ] `cf setup-ide claude` in a project without guides errors with install hint
-- [ ] Existing `CLAUDE.md` triggers warning, y/N prompt, and `.bak` creation on confirm
-- [ ] `--yes` flag skips the confirmation prompt
-- [ ] Missing `CLAUDE.md` proceeds without warning or prompt
-- [ ] Invalid target (e.g., `cf setup-ide vim`) produces a clear error listing valid targets
-- [ ] Works from any CWD within a registered project (uses project resolution chain)
+- [x] `cf setup-ide claude` in a project with guides installed runs the setup-ide script and produces Claude Code config files
+- [x] `cf setup-ide claude` in a project without guides errors with install hint
+- [x] Existing `CLAUDE.md` triggers warning, y/N prompt, and `.bak` creation on confirm
+- [x] `--yes` flag skips the confirmation prompt
+- [x] Missing `CLAUDE.md` proceeds without warning or prompt
+- [x] Invalid target (e.g., `cf setup-ide vim`) produces a clear error listing valid targets
+- [x] Works from any CWD within a registered project (uses project resolution chain)
 
 ### Technical
 
-- [ ] Script output streams directly to the terminal (no buffering/capturing)
-- [ ] Non-zero script exit code produces a clear error message
-- [ ] `.bak` file is created before the script runs (not after)
-- [ ] Command is registered and appears in `cf --help`
+- [x] Script output streams directly to the terminal (no buffering/capturing)
+- [x] Non-zero script exit code produces a clear error message
+- [x] `.bak` file is created before the script runs (not after)
+- [x] Command is registered and appears in `cf --help`
 
 ## Implementation Notes
 
