@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ProjectData, CreateProjectData, UpdateProjectData } from '../../src/types/project.js';
 import type { IProjectStore } from '../../src/storage/interfaces.js';
 import { WorktreeService } from '../../src/services/WorktreeService.js';
@@ -255,6 +255,182 @@ describe('WorktreeService', () => {
       await expect(
         service.removeWorktree('proj_1', 'wt_nonexistent'),
       ).rejects.toThrow('Worktree not found');
+    });
+  });
+
+  describe('forward migration', () => {
+    beforeEach(() => {
+      // Replace the empty project with one that has workflow fields
+      store.projects = [createProjectWithWorkflowFields()];
+    });
+
+    it('creates Default worktree with mapped fields on first addWorktree', async () => {
+      const result = await service.addWorktree('proj_1', {
+        name: 'API',
+        indexRange: [100, 199],
+      });
+
+      expect(result.migrated).toBe(true);
+      const worktrees = await service.listWorktrees('proj_1');
+      expect(worktrees).toHaveLength(2);
+
+      const defaultWt = worktrees[0];
+      expect(defaultWt.name).toBe('Default');
+      expect(defaultWt.indexRange).toEqual([0, 99]);
+      expect(defaultWt.worktreePath).toBe('/projects/my-app');
+      expect(defaultWt.activeSlice).toBe('100-slice.auth');
+      expect(defaultWt.activeTaskFile).toBe('100-tasks.auth');
+      expect(defaultWt.instruction).toBe('implementation');
+      expect(defaultWt.workType).toBe('start');
+      expect(defaultWt.developmentPhase).toBe('Phase 6: Implementation');
+      expect(defaultWt.archDoc).toBe('arch/100-arch.api.md');
+      expect(defaultWt.slicePlan).toBe('slices/100-slices.api.md');
+    });
+
+    it('clears project workflow fields after forward migration', async () => {
+      await service.addWorktree('proj_1', { name: 'API', indexRange: [100, 199] });
+
+      const project = await store.getById('proj_1');
+      expect(project!.developmentPhase).toBe('');
+      expect(project!.fileSlice).toBe('');
+      expect(project!.fileTasks).toBe('');
+      expect(project!.instruction).toBe('');
+      expect(project!.fileArch).toBe('');
+      expect(project!.fileSlicePlan).toBe('');
+    });
+
+    it('does NOT create Default when project has no workflow fields', async () => {
+      store.projects = [createEmptyProject()];
+      const result = await service.addWorktree('proj_1', {
+        name: 'API',
+        indexRange: [100, 199],
+      });
+
+      expect(result.migrated).toBe(false);
+      const worktrees = await service.listWorktrees('proj_1');
+      expect(worktrees).toHaveLength(1);
+      expect(worktrees[0].name).toBe('API');
+    });
+
+    it('creates Default with only populated fields mapped for partially-set project', async () => {
+      store.projects = [createTestProjectData({
+        id: 'proj_1',
+        developmentPhase: 'Phase 4',
+        fileSlice: '150-slice.design',
+        fileTasks: '',
+        instruction: '',
+        workType: undefined,
+        fileArch: '',
+        fileSlicePlan: '',
+        projectPath: '/projects/partial',
+      })];
+
+      const result = await service.addWorktree('proj_1', {
+        name: 'UX',
+        indexRange: [200, 299],
+      });
+
+      expect(result.migrated).toBe(true);
+      const worktrees = await service.listWorktrees('proj_1');
+      const defaultWt = worktrees[0];
+      expect(defaultWt.developmentPhase).toBe('Phase 4');
+      expect(defaultWt.activeSlice).toBe('150-slice.design');
+      expect(defaultWt.activeTaskFile).toBeUndefined();
+      expect(defaultWt.instruction).toBeUndefined();
+    });
+
+    it('second addWorktree does not trigger migration', async () => {
+      await service.addWorktree('proj_1', { name: 'First', indexRange: [100, 199] });
+      const result = await service.addWorktree('proj_1', { name: 'Second', indexRange: [200, 299] });
+
+      expect(result.migrated).toBe(false);
+      const worktrees = await service.listWorktrees('proj_1');
+      // Default + First + Second = 3
+      expect(worktrees).toHaveLength(3);
+    });
+  });
+
+  describe('reverse migration', () => {
+    it('restores worktree fields to project when last worktree removed', async () => {
+      store.projects = [createEmptyProject()];
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'API',
+        indexRange: [100, 199],
+      });
+      // Set some workflow fields on the worktree
+      await service.updateWorktree('proj_1', worktree.id, {
+        activeSlice: '105-slice.endpoints',
+        activeTaskFile: '105-tasks.endpoints',
+        developmentPhase: 'Phase 6',
+        instruction: 'implementation',
+      });
+
+      const result = await service.removeWorktree('proj_1', worktree.id);
+      expect(result.migrated).toBe(true);
+
+      const project = await store.getById('proj_1');
+      expect(project!.fileSlice).toBe('105-slice.endpoints');
+      expect(project!.fileTasks).toBe('105-tasks.endpoints');
+      expect(project!.developmentPhase).toBe('Phase 6');
+      expect(project!.instruction).toBe('implementation');
+      expect(project!.worktrees).toBeUndefined();
+    });
+
+    it('does NOT trigger reverse migration when other worktrees remain', async () => {
+      store.projects = [createEmptyProject()];
+      const { worktree: wt1 } = await service.addWorktree('proj_1', {
+        name: 'A',
+        indexRange: [100, 199],
+      });
+      await service.addWorktree('proj_1', { name: 'B', indexRange: [200, 299] });
+
+      const result = await service.removeWorktree('proj_1', wt1.id);
+      expect(result.migrated).toBe(false);
+
+      const worktrees = await service.listWorktrees('proj_1');
+      expect(worktrees).toHaveLength(1);
+      expect(worktrees[0].name).toBe('B');
+    });
+
+    it('reverse migration with empty workflow fields leaves project fields empty', async () => {
+      store.projects = [createEmptyProject()];
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'Empty',
+        indexRange: [100, 199],
+      });
+      // Don't set any workflow fields — leave them undefined
+
+      const result = await service.removeWorktree('proj_1', worktree.id);
+      expect(result.migrated).toBe(true);
+
+      const project = await store.getById('proj_1');
+      expect(project!.fileSlice).toBe('');
+      expect(project!.worktrees).toBeUndefined();
+    });
+  });
+
+  describe('migration atomicity', () => {
+    it('calls store.update exactly once for addWorktree with migration', async () => {
+      store.projects = [createProjectWithWorkflowFields()];
+      const spy = vi.spyOn(store, 'update');
+
+      await service.addWorktree('proj_1', { name: 'API', indexRange: [100, 199] });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls store.update exactly once for removeWorktree with migration', async () => {
+      store.projects = [createEmptyProject()];
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'API',
+        indexRange: [100, 199],
+      });
+      const spy = vi.spyOn(store, 'update');
+      spy.mockClear();
+
+      await service.removeWorktree('proj_1', worktree.id);
+
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 });
