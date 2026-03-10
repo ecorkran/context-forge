@@ -7,6 +7,26 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-11
+
+### Slice 181: WorktreeContext Data Model & Storage — Phase 6 (Implementation) ✓
+- `WorktreeContext`, `CreateWorktreeInput`, `UpdateWorktreeInput`, `IndexRangeOverlap` types in `worktree.ts`
+- `ProjectData.worktrees?: WorktreeContext[]` extension with `UpdateProjectData` support
+- `WorktreeService` with CRUD, forward/reverse migration, index range overlap detection
+- Forward migration creates "Default" worktree from existing workflow fields on first `addWorktree`
+- Reverse migration restores fields to project on last `removeWorktree`, sets `worktrees: undefined`
+- Both migrations atomic (single `store.update()` call)
+- `migrateProjectFields()` updated to preserve `worktrees` array
+- 36 unit tests, 578 total tests pass (0 regressions)
+- Commits:
+  - `7c1aefd` feat(core): add WorktreeContext types and extend ProjectData
+  - `752d4a3` feat(core): add WorktreeService with CRUD operations
+  - `02e05b1` test(core): add WorktreeService CRUD tests
+  - `33a856a` feat(core): add forward and reverse migration to WorktreeService
+  - `ef9969a` test(core): add forward/reverse migration and atomicity tests
+  - `7c66e10` feat(core): add index range overlap detection to WorktreeService
+  - `4ea224a` feat(core): preserve worktrees field in migrateProjectFields
+
 ## 2026-03-10
 
 ### Slice 181: WorktreeContext Data Model & Storage — Phase 5 (Task Breakdown)

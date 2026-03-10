@@ -6,8 +6,8 @@ parent: user/architecture/180-slices.initiative-context-worktree.md
 dependencies: []
 interfaces: [182-worktree-discovery-cwd-resolution, 183-worktree-cli-commands, 184-status-display-updates, 185-worktree-aware-context-assembly, 186-mcp-worktree-tools]
 dateCreated: 20260310
-dateUpdated: 20260310
-status: not_started
+dateUpdated: 20260311
+status: complete
 ---
 
 # Slice 181: WorktreeContext Data Model & Storage
@@ -338,95 +338,84 @@ This ensures that projects with worktree contexts survive the field migration pa
 
 This is a data layer slice — verification is programmatic rather than user-facing. The walkthrough describes what unit tests prove and what a developer can confirm by inspecting stored data.
 
+**Verification command:** `cd packages/core && npx vitest run tests/services/WorktreeService.test.ts --reporter=verbose`
+
+**Full test suite:** `cd packages/core && npm test` (578 tests, 0 regressions)
+
 **1. CRUD — create and retrieve a worktree context:**
 
-After implementation, running the unit test suite confirms:
+Verified by 19 unit tests covering all CRUD methods:
 ```
-WorktreeService
-  addWorktree
-    ✓ creates a worktree context with auto-generated wt_ ID
-    ✓ stores name, indexRange, and worktreePath correctly
-    ✓ leaves workflow fields undefined on creation
-    ✓ returns overlap warnings when range overlaps existing
-  getWorktree
-    ✓ returns worktree context by ID
-    ✓ returns undefined for unknown ID
-  getWorktreeByName
-    ✓ matches case-insensitively
-    ✓ returns undefined for unknown name
-  listWorktrees
-    ✓ returns all worktree contexts for a project
-    ✓ returns empty array for project with no worktree contexts
-  updateWorktree
-    ✓ applies partial updates to name, range, path, workflow fields
-    ✓ revalidates index range on range change
-    ✓ throws for unknown worktree ID
-  removeWorktree
-    ✓ removes worktree context by ID
-    ✓ throws for unknown worktree ID
+WorktreeService > addWorktree > creates worktree with wt_ prefixed ID ✓
+WorktreeService > addWorktree > stores name, indexRange, and worktreePath correctly ✓
+WorktreeService > addWorktree > leaves workflow fields undefined on creation ✓
+WorktreeService > addWorktree > throws for negative range values ✓
+WorktreeService > addWorktree > throws for start > end ✓
+WorktreeService > addWorktree > throws for non-integer range values ✓
+WorktreeService > addWorktree > second addWorktree appends to existing array ✓
+WorktreeService > getWorktree > returns worktree by ID ✓
+WorktreeService > getWorktree > returns undefined for unknown ID ✓
+WorktreeService > getWorktreeByName > matches case-insensitively ✓
+WorktreeService > getWorktreeByName > returns undefined for unknown name ✓
+WorktreeService > listWorktrees > returns all worktrees ✓
+WorktreeService > listWorktrees > returns empty array for project with no worktrees ✓
+WorktreeService > updateWorktree > applies partial updates ✓
+WorktreeService > updateWorktree > preserves id even if updates object has id-like changes ✓
+WorktreeService > updateWorktree > revalidates index range on range change ✓
+WorktreeService > updateWorktree > throws for unknown worktree ID ✓
+WorktreeService > removeWorktree > removes worktree by ID ✓
+WorktreeService > removeWorktree > throws for unknown worktree ID ✓
 ```
 
 **2. Forward migration — first worktree context creation preserves existing state:**
 
-Given a project with:
-```json
-{
-  "developmentPhase": "implementation",
-  "fileSlice": "103-slice.cli-foundation",
-  "fileTasks": "103-tasks.cli-foundation",
-  "fileArch": "100-arch.api-foundation.md",
-  "fileSlicePlan": "100-slices.api-foundation.md",
-  "instruction": "implementation",
-  "workType": "continue"
-}
+Verified by 5 unit tests:
+```
+WorktreeService > forward migration > creates Default worktree with mapped fields on first addWorktree ✓
+WorktreeService > forward migration > clears project workflow fields after forward migration ✓
+WorktreeService > forward migration > does NOT create Default when project has no workflow fields ✓
+WorktreeService > forward migration > creates Default with only populated fields mapped for partially-set project ✓
+WorktreeService > forward migration > second addWorktree does not trigger migration ✓
 ```
 
-After `addWorktree(projectId, { name: "API Foundation", indexRange: [100, 199] })`:
-- Project's workflow fields are cleared (empty strings)
-- `project.worktrees` has **two** entries:
-  1. `Default` worktree context with `indexRange: [0, 99]`, `activeSlice: "103-slice.cli-foundation"`, etc.
-  2. `API Foundation` worktree context with `indexRange: [100, 199]`, no workflow fields set
-
-A developer can verify by reading `projects.json` from the storage directory after the operation.
+Confirmed: first `addWorktree` on a project with workflow fields creates 2 worktrees (Default + user's), clears project fields, and sets `migrated: true`. On a project with empty fields, only 1 worktree is created, no Default.
 
 **3. Reverse migration — last removal restores project fields:**
 
-Given a project with one remaining worktree context (`API Foundation`, `activeSlice: "105-slice.features"`):
+Verified by 3 unit tests:
+```
+WorktreeService > reverse migration > restores worktree fields to project when last worktree removed ✓
+WorktreeService > reverse migration > does NOT trigger reverse migration when other worktrees remain ✓
+WorktreeService > reverse migration > reverse migration with empty workflow fields leaves project fields empty ✓
+```
 
-After `removeWorktree(projectId, worktreeId)`:
-- `project.worktrees` is `undefined` (field absent from JSON)
-- `project.fileSlice` is `"105-slice.features"`
-- `project.developmentPhase`, `instruction`, etc. restored from the removed worktree context
+Confirmed: removing last worktree sets `worktrees: undefined`, restores `activeSlice` → `fileSlice` etc., returns `migrated: true`. Removing non-last worktree does not trigger migration.
 
 **4. Backwards compatibility — existing projects unchanged:**
 
-A project created before this slice (no `worktrees` field in stored JSON):
-- `store.getById()` returns project with `worktrees: undefined`
-- All existing code reading `project.developmentPhase`, `project.fileSlice`, etc. works exactly as before
-- `listWorktrees()` returns `[]`
-- No migration is triggered until explicit `addWorktree()` call
+Verified by full test suite: 578 tests pass (0 regressions). Projects without `worktrees` field behave identically — `listWorktrees()` returns `[]`, no migration triggered until explicit `addWorktree()`.
 
 **5. Index range overlap — warning, not error:**
 
+Verified by 7 unit tests:
 ```
-addWorktree(projectId, { name: "Overlap", indexRange: [150, 249] })
-  with existing worktree context "API Foundation" [100, 199]
-
-→ returns:
-  {
-    worktree: { id: "wt_...", name: "Overlap", indexRange: [150, 249], ... },
-    migrated: false,
-    overlaps: [{
-      existingWorktreeId: "wt_...",
-      existingWorktreeName: "API Foundation",
-      existingRange: [100, 199],
-      overlapStart: 150,
-      overlapEnd: 199
-    }]
-  }
+WorktreeService > findOverlaps > no overlap for adjacent ranges ✓
+WorktreeService > findOverlaps > overlap for touching ranges ✓
+WorktreeService > findOverlaps > overlap for fully contained range ✓
+WorktreeService > findOverlaps > overlap for partial overlap ✓
+WorktreeService > findOverlaps > excludeId correctly excludes the worktree being updated ✓
+WorktreeService > findOverlaps > addWorktree returns overlaps array in result ✓
+WorktreeService > findOverlaps > addWorktree still succeeds when overlaps exist ✓
 ```
 
-The worktree context is created successfully. The caller decides whether/how to warn.
+Confirmed: overlapping worktrees are created successfully with overlap info in the return value. Adjacent ranges (e.g. `[100,199]` and `[200,299]`) produce no overlap.
+
+**6. Migration atomicity:**
+
+```
+WorktreeService > migration atomicity > calls store.update exactly once for addWorktree with migration ✓
+WorktreeService > migration atomicity > calls store.update exactly once for removeWorktree with migration ✓
+```
 
 ## Implementation Notes
 
