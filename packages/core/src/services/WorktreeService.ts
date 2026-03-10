@@ -159,7 +159,8 @@ export class WorktreeService {
       await this.store.update(projectId, { worktrees });
     }
 
-    return { worktree: newWorktree, migrated, overlaps: [] };
+    const overlaps = await this.findOverlaps(projectId, input.indexRange, newWorktree.id);
+    return { worktree: newWorktree, migrated, overlaps };
   }
 
   /**
@@ -220,5 +221,35 @@ export class WorktreeService {
 
     await this.store.update(projectId, { worktrees: remaining });
     return { removed: target, migrated: false };
+  }
+
+  /**
+   * Find index range overlaps between a given range and existing worktrees.
+   * Optionally exclude a worktree by ID (useful when updating a worktree's range).
+   */
+  async findOverlaps(
+    projectId: string,
+    range: [number, number],
+    excludeId?: string,
+  ): Promise<IndexRangeOverlap[]> {
+    const worktrees = await this.listWorktrees(projectId);
+    const overlaps: IndexRangeOverlap[] = [];
+
+    for (const wt of worktrees) {
+      if (excludeId && wt.id === excludeId) continue;
+
+      // Ranges overlap when a[0] <= b[1] && b[0] <= a[1]
+      if (range[0] <= wt.indexRange[1] && wt.indexRange[0] <= range[1]) {
+        overlaps.push({
+          existingWorktreeId: wt.id,
+          existingWorktreeName: wt.name,
+          existingRange: wt.indexRange,
+          overlapStart: Math.max(range[0], wt.indexRange[0]),
+          overlapEnd: Math.min(range[1], wt.indexRange[1]),
+        });
+      }
+    }
+
+    return overlaps;
   }
 }

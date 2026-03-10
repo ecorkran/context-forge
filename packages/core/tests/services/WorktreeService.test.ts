@@ -433,4 +433,60 @@ describe('WorktreeService', () => {
       expect(spy).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('findOverlaps', () => {
+    it('no overlap for adjacent ranges', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const overlaps = await service.findOverlaps('proj_1', [200, 299]);
+      expect(overlaps).toEqual([]);
+    });
+
+    it('overlap for touching ranges', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const overlaps = await service.findOverlaps('proj_1', [199, 299]);
+      expect(overlaps).toHaveLength(1);
+      expect(overlaps[0].overlapStart).toBe(199);
+      expect(overlaps[0].overlapEnd).toBe(199);
+    });
+
+    it('overlap for fully contained range', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const overlaps = await service.findOverlaps('proj_1', [120, 150]);
+      expect(overlaps).toHaveLength(1);
+      expect(overlaps[0].overlapStart).toBe(120);
+      expect(overlaps[0].overlapEnd).toBe(150);
+    });
+
+    it('overlap for partial overlap', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const overlaps = await service.findOverlaps('proj_1', [150, 249]);
+      expect(overlaps).toHaveLength(1);
+      expect(overlaps[0].overlapStart).toBe(150);
+      expect(overlaps[0].overlapEnd).toBe(199);
+      expect(overlaps[0].existingWorktreeName).toBe('A');
+    });
+
+    it('excludeId correctly excludes the worktree being updated', async () => {
+      const { worktree } = await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const overlaps = await service.findOverlaps('proj_1', [100, 199], worktree.id);
+      expect(overlaps).toEqual([]);
+    });
+
+    it('addWorktree returns overlaps array in result', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const result = await service.addWorktree('proj_1', { name: 'B', indexRange: [150, 249] });
+      expect(result.overlaps).toHaveLength(1);
+      expect(result.overlaps[0].overlapStart).toBe(150);
+      expect(result.overlaps[0].overlapEnd).toBe(199);
+    });
+
+    it('addWorktree still succeeds when overlaps exist', async () => {
+      await service.addWorktree('proj_1', { name: 'A', indexRange: [100, 199] });
+      const result = await service.addWorktree('proj_1', { name: 'B', indexRange: [150, 249] });
+      expect(result.worktree.name).toBe('B');
+
+      const list = await service.listWorktrees('proj_1');
+      expect(list).toHaveLength(2);
+    });
+  });
 });
