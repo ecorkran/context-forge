@@ -6,6 +6,7 @@ import type {
   CreateProjectData,
   UpdateProjectData,
 } from '../types/project.js';
+import type { WorktreeContext } from '../types/worktree.js';
 import type { IProjectStore } from './interfaces.js';
 import { FileStorageService } from './FileStorageService.js';
 import { getStoragePath, getLegacyElectronPath } from './storagePaths.js';
@@ -38,6 +39,8 @@ function migrateProjectFields(project: Record<string, unknown>): ProjectData {
       project.customData && typeof project.customData === 'object'
         ? base.customData
         : {},
+    // Worktree contexts: preserve if present
+    worktrees: project.worktrees as WorktreeContext[] | undefined,
   };
 
   // Strip legacy monorepo fields
