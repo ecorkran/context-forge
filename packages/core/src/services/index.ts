@@ -15,5 +15,8 @@ export { ContextGenerator } from './ContextGenerator.js';
 export { ContextTemplateEngine } from './ContextTemplateEngine.js';
 export { ContextIntegrator } from './ContextIntegrator.js';
 
+// Worktree management
+export { WorktreeService } from './WorktreeService.js';
+
 // Node.js-dependent services moved to @context-forge/core/node:
 // StatementManager, SystemPromptParser, ProjectPathService, createContextPipeline
