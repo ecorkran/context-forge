@@ -1,3 +1,5 @@
+import type { WorktreeContext } from './worktree.js';
+
 /**
  * Core data structure for project information
  */
@@ -28,6 +30,8 @@ export interface ProjectData {
     additionalNotes?: string;
     availableTools?: string;
   };
+  /** Per-initiative worktree contexts; undefined when not using worktrees */
+  worktrees?: WorktreeContext[];
   createdAt: string;
   updatedAt: string;
 }
@@ -73,5 +77,6 @@ export type UpdateProjectData = Partial<
     | 'fileSpec'
     | 'fileConcept'
     | 'customData'
+    | 'worktrees'
   >
 >;
