@@ -46,6 +46,7 @@ class MockProjectStore implements IProjectStore {
   }
 }
 
+/** Project with workflow fields populated — triggers forward migration on first addWorktree. */
 function createProjectWithWorkflowFields(overrides?: Partial<ProjectData>): ProjectData {
   return createTestProjectData({
     id: 'proj_1',
@@ -61,6 +62,22 @@ function createProjectWithWorkflowFields(overrides?: Partial<ProjectData>): Proj
   });
 }
 
+/** Project with empty workflow fields — no migration triggered. */
+function createEmptyProject(overrides?: Partial<ProjectData>): ProjectData {
+  return createTestProjectData({
+    id: 'proj_1',
+    developmentPhase: '',
+    fileSlice: '',
+    fileTasks: '',
+    instruction: '',
+    workType: undefined,
+    fileArch: '',
+    fileSlicePlan: '',
+    projectPath: '/projects/my-app',
+    ...overrides,
+  });
+}
+
 describe('WorktreeService', () => {
   let store: MockProjectStore;
   let service: WorktreeService;
@@ -68,7 +85,8 @@ describe('WorktreeService', () => {
   beforeEach(() => {
     store = new MockProjectStore();
     service = new WorktreeService(store);
-    store.projects.push(createProjectWithWorkflowFields());
+    // Use empty project for CRUD tests to avoid triggering forward migration
+    store.projects.push(createEmptyProject());
   });
 
   describe('addWorktree', () => {

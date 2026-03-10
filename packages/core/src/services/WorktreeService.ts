@@ -12,6 +12,51 @@ function generateWorktreeId(): string {
   return `wt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
+/** The workflow fields on ProjectData that get migrated to/from WorktreeContext. */
+const WORKFLOW_FIELDS = [
+  'developmentPhase',
+  'fileSlice',
+  'fileTasks',
+  'instruction',
+  'workType',
+  'fileArch',
+  'fileSlicePlan',
+] as const;
+
+/** Check if a project has any non-empty workflow fields worth migrating. */
+function hasWorkflowFields(project: ProjectData): boolean {
+  return WORKFLOW_FIELDS.some((field) => {
+    const value = project[field as keyof ProjectData];
+    return value !== undefined && value !== '';
+  });
+}
+
+/** Map ProjectData workflow fields to WorktreeContext fields. */
+function mapProjectToWorktree(project: ProjectData): Partial<WorktreeContext> {
+  return {
+    developmentPhase: project.developmentPhase || undefined,
+    activeSlice: project.fileSlice || undefined,
+    activeTaskFile: project.fileTasks || undefined,
+    instruction: project.instruction || undefined,
+    workType: project.workType,
+    archDoc: project.fileArch || undefined,
+    slicePlan: project.fileSlicePlan || undefined,
+  };
+}
+
+/** Map WorktreeContext fields back to ProjectData update fields. */
+function mapWorktreeToProject(wt: WorktreeContext): Partial<ProjectData> {
+  return {
+    developmentPhase: wt.developmentPhase ?? '',
+    fileSlice: wt.activeSlice ?? '',
+    fileTasks: wt.activeTaskFile ?? '',
+    instruction: wt.instruction ?? '',
+    workType: wt.workType,
+    fileArch: wt.archDoc ?? '',
+    fileSlicePlan: wt.slicePlan ?? '',
+  };
+}
+
 /** Validate that an index range has non-negative integers with start <= end. */
 function validateIndexRange(range: [number, number]): void {
   const [start, end] = range;
@@ -82,10 +127,39 @@ export class WorktreeService {
       slicePlan: input.slicePlan,
     };
 
-    const worktrees = [...(project.worktrees ?? []), newWorktree];
-    await this.store.update(projectId, { worktrees });
+    const isFirstWorktree = !project.worktrees || project.worktrees.length === 0;
+    let migrated = false;
 
-    return { worktree: newWorktree, migrated: false, overlaps: [] };
+    if (isFirstWorktree && hasWorkflowFields(project)) {
+      // Forward migration: move existing workflow fields into a "Default" worktree
+      const defaultWorktree: WorktreeContext = {
+        id: generateWorktreeId(),
+        name: 'Default',
+        indexRange: [0, 99],
+        worktreePath: project.projectPath,
+        ...mapProjectToWorktree(project),
+      };
+
+      const worktrees = [defaultWorktree, newWorktree];
+      const clearedFields = {
+        developmentPhase: '',
+        fileSlice: '',
+        fileTasks: '',
+        instruction: '',
+        workType: undefined as 'start' | 'continue' | undefined,
+        fileArch: '',
+        fileSlicePlan: '',
+      };
+
+      await this.store.update(projectId, { ...clearedFields, worktrees });
+      migrated = true;
+    } else {
+      // No migration needed: just append
+      const worktrees = [...(project.worktrees ?? []), newWorktree];
+      await this.store.update(projectId, { worktrees });
+    }
+
+    return { worktree: newWorktree, migrated, overlaps: [] };
   }
 
   /**
@@ -133,8 +207,18 @@ export class WorktreeService {
     }
 
     const remaining = worktrees.filter((wt) => wt.id !== worktreeId);
-    await this.store.update(projectId, { worktrees: remaining });
 
+    if (remaining.length === 0) {
+      // Reverse migration: restore workflow fields to project, remove worktrees
+      const restoredFields = mapWorktreeToProject(target);
+      await this.store.update(projectId, {
+        ...restoredFields,
+        worktrees: undefined,
+      });
+      return { removed: target, migrated: true };
+    }
+
+    await this.store.update(projectId, { worktrees: remaining });
     return { removed: target, migrated: false };
   }
 }
