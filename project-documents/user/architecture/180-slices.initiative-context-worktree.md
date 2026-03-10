@@ -4,7 +4,7 @@ parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
 dateUpdated: 20260309
-status: not_started
+status: in_progress
 ---
 
 # Slice Plan: Initiative Contexts (Worktrees)
@@ -17,9 +17,9 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
 
 ## Foundation Work
 
-1. [ ] **(181) WorktreeContext Data Model & Storage** — Define the `WorktreeContext` type, implement storage as nested objects within `ProjectData.worktrees[]`, and provide CRUD operations. Includes the one-time migration that moves workflow fields (`developmentPhase`, `fileSlice`, `fileTasks`, `instruction`, `workType`, `fileArch`, `fileSlicePlan`) from `ProjectData` to an explicit `WorktreeContext` when the first worktree context is created, and the reverse migration when the last one is removed. Adds `conceptDoc` field to `ProjectData` for project-level phase 1 reference (replacing `fileConcept` in the split).
+1. [ ] **(181) WorktreeContext Data Model & Storage** — Define the `WorktreeContext` type, implement storage as nested objects within `ProjectData.worktrees[]`, and provide CRUD operations via a `WorktreeService`. Includes the one-time migration that moves workflow fields (`developmentPhase`, `fileSlice`, `fileTasks`, `instruction`, `workType`, `fileArch`, `fileSlicePlan`) from `ProjectData` to an explicit `WorktreeContext` when the first worktree context is created, and the reverse migration when the last one is removed. Uses existing `fileConcept` field for project-level phase 1 reference.
 
-   **Storage decision: nested objects.** Worktree contexts are stored as `worktrees: WorktreeContext[]` within the existing `ProjectData` JSON. Rationale: the `FileProjectStore` already performs read-modify-write on the full project; separate files would add filesystem coordination complexity with no practical benefit at the expected scale (1-10 worktree contexts per project). The store gains worktree-specific CRUD methods: `addWorktree(projectId, worktree)`, `updateWorktree(projectId, worktreeId, updates)`, `removeWorktree(projectId, worktreeId)`, `getWorktree(projectId, worktreeId)`.
+   **Storage decision: nested objects.** Worktree contexts are stored as `worktrees: WorktreeContext[]` within the existing `ProjectData` JSON. Rationale: the `FileProjectStore` already performs read-modify-write on the full project; separate files would add filesystem coordination complexity with no practical benefit at the expected scale (1-10 worktree contexts per project). A `WorktreeService` (in `packages/core/src/services/`) encapsulates CRUD and migration logic, keeping `FileProjectStore` as a pure serialization layer.
 
    **WorktreeContext type:**
    ```

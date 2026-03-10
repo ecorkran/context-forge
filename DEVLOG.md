@@ -7,6 +7,22 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-10
+
+### Slice 181: WorktreeContext Data Model & Storage — Phase 5 (Task Breakdown)
+- Created `181-tasks.worktreecontext-data-model-storage.md` (8 tasks, 264 lines)
+- Tasks: types → CRUD → CRUD tests → migration → migration tests → overlap detection → migrateProjectFields update → final verification
+- Test-with pattern: test tasks follow implementation tasks (3 after 2, 5 after 4, 6.3 after 6.1-6.2)
+
+### Slice 181: WorktreeContext Data Model & Storage — Phase 4 (Slice Design)
+- Created slice design `181-slice.worktreecontext-data-model-storage.md`
+- Key decision: `WorktreeService` in `packages/core/src/services/` owns CRUD + migration logic (keeps `FileProjectStore` as pure serialization layer)
+- Types: `WorktreeContext`, `CreateWorktreeInput`, `UpdateWorktreeInput`, `IndexRangeOverlap` in `packages/core/src/types/worktree.ts`
+- Forward migration creates "default" worktree context from existing workflow fields; reverse migration restores them
+- `fileConcept` already covers project-level concept doc reference — no new field needed
+- Verification walkthrough covers CRUD, forward/reverse migration, backwards compatibility, overlap detection
+- Updated slice plan status to `in_progress`
+
 ## 2026-03-09
 
 ### Initiative 180: Initiative Contexts (Worktrees) — Phase 3 (Slice Planning)
