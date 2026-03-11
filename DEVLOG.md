@@ -9,6 +9,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 187: Validation, Edge Cases & Polish — Complete
+- **What works**: Build clean, all tests pass (600 core, 269 CLI, 106 electron, 23 MCP worktree)
+- **Delivered**: `cf worktree update` CLI, stale path detection in list commands, `stale-worktree-path` cf check rule, first-run worktree suggestion in cf status, MCP overlap detection on worktree_update
+- **Initiative complete**: All 7 slices of the worktree initiative (180) delivered. Slice plan and arch marked complete.
+- Commits:
+  - `672e6c2` feat(core): add validateWorktreePaths to WorktreeService
+  - `4072c9d` feat(cli): add cf worktree update command
+  - `6f32ce3` feat: add stale worktree path detection to list commands
+  - `b2872dc` feat(core): add stale-worktree-path rule to ConsistencyChecker
+  - `10b8759` feat(cli): add first-run worktree suggestion in cf status
+  - `b038fb1` feat(mcp): add overlap detection to worktree_update
+  - `0816cfb` feat: complete slice 187 validation, edge cases & polish
+
 ### Slice 187: Validation, Edge Cases & Polish — Phase 5 (Task Breakdown)
 - Created `187-tasks.validation-edge-cases-polish.md` — 16 tasks covering: type + service method, CLI update command, stale path detection (CLI + MCP), cf check rule, first-run messaging, MCP overlap detection, edge case verification
 - Test-with ordering: each implementation task followed by its test task
