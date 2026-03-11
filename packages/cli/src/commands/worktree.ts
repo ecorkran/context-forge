@@ -201,6 +201,119 @@ export function registerWorktreeCommand(program: Command): void {
       }
     });
 
+  // ── cf worktree update ─────────────────────────────────────────────────────
+  worktree
+    .command('update [nameOrId]')
+    .description('Update a worktree context (rename, change range or path)')
+    .option('--name <name>', 'New display name')
+    .option('--range <start-end>', 'New slice index range, e.g. 150-249')
+    .option('--path <path>', 'New worktree directory path')
+    .option('--project <name|id>', 'Project name or ID (overrides default)')
+    .action(
+      async (
+        nameOrId: string | undefined,
+        opts: { name?: string; range?: string; path?: string; project?: string },
+      ) => {
+        try {
+          if (!opts.name && !opts.range && !opts.path) {
+            throw new UserError(
+              `At least one update option is required: --name, --range, or --path`,
+            );
+          }
+
+          const store = new FileProjectStore();
+          const resolved = await resolveProjectWorktree({ project: opts.project }, store);
+          const projectId = resolved.id;
+
+          const project = await store.getById(projectId);
+          if (!project) {
+            throw new UserError(`Project not found: '${projectId}'.`);
+          }
+
+          // Resolve target worktree
+          let targetId: string | undefined;
+
+          if (nameOrId) {
+            const found = await findWorktreeByNameOrId(projectId, nameOrId, store);
+            if (!found) {
+              throw new UserError(
+                `Worktree '${nameOrId}' not found on project '${project.name}'.\n` +
+                  `  Run 'cf worktree list' to see available worktrees.`,
+              );
+            }
+            targetId = found.id;
+          } else if (resolved.worktreeId) {
+            targetId = resolved.worktreeId;
+          } else {
+            throw new UserError(
+              `No worktree specified and none resolved from CWD.\n` +
+                `  Run 'cf worktree list' to see available worktrees, then:\n` +
+                `  cf worktree update <name|id> --name <new-name>`,
+            );
+          }
+
+          // Build updates object
+          const updates: Record<string, unknown> = {};
+
+          if (opts.name) {
+            updates.name = opts.name;
+          }
+
+          let indexRange: [number, number] | undefined;
+          if (opts.range) {
+            indexRange = parseRange(opts.range);
+            updates.indexRange = indexRange;
+          }
+
+          if (opts.path) {
+            // Validate path against git worktree list (same as init)
+            if (project.projectPath) {
+              const gitWorktrees = await new GitWorktreeDiscovery().listWorktrees(
+                project.projectPath,
+              );
+              if (gitWorktrees.length === 0) {
+                console.error(
+                  warn(
+                    `Warning: could not verify path is a git worktree (git unavailable or not a git repo). Proceeding anyway.`,
+                  ),
+                );
+              } else {
+                const known = gitWorktrees.map((wt: WorktreeInfo) => wt.path);
+                const normalizedPath = opts.path.endsWith('/') ? opts.path.slice(0, -1) : opts.path;
+                if (!known.includes(normalizedPath)) {
+                  throw new UserError(
+                    `Path '${opts.path}' is not a registered git worktree.\n` +
+                      `  Run 'git worktree list' to see available worktrees.\n` +
+                      `  Use 'git worktree add <path>' to create a new one first.`,
+                  );
+                }
+              }
+            }
+            updates.worktreePath = opts.path;
+          }
+
+          const svc = new WorktreeService(store);
+          const updated = await svc.updateWorktree(projectId, targetId, updates);
+
+          // Check for overlaps when range changed
+          if (indexRange) {
+            const overlaps = await svc.findOverlaps(projectId, indexRange, targetId);
+            for (const o of overlaps) {
+              console.log(
+                warn(
+                  `Warning: Range ${indexRange[0]}-${indexRange[1]} overlaps with worktree '${o.existingWorktreeName}' (${o.existingRange[0]}-${o.existingRange[1]}) at ${o.overlapStart}-${o.overlapEnd}.`,
+                ),
+              );
+            }
+          }
+
+          console.log(success(`Worktree context '${updated.name}' updated.`));
+        } catch (err) {
+          handleError(err);
+        }
+      },
+    );
+
   // ── cf worktree rm ──────────────────────────────────────────────────────────
   worktree
     .command('rm [nameOrId]')

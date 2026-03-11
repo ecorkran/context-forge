@@ -8,6 +8,8 @@ const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
 const mockAddWorktree = vi.fn();
 const mockRemoveWorktree = vi.fn();
+const mockUpdateWorktree = vi.fn();
+const mockFindOverlaps = vi.fn().mockResolvedValue([]);
 const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 const mockResolveFileByIndex = vi.fn().mockImplementation(() => { throw new Error('not found'); });
 
@@ -20,6 +22,8 @@ vi.mock('@context-forge/core/node', () => ({
   WorktreeService: vi.fn().mockImplementation(() => ({
     addWorktree: mockAddWorktree,
     removeWorktree: mockRemoveWorktree,
+    updateWorktree: mockUpdateWorktree,
+    findOverlaps: mockFindOverlaps,
   })),
   GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
     listWorktrees: mockListGitWorktrees,
@@ -207,6 +211,78 @@ describe('cf worktree list', () => {
     await program.parseAsync(['node', 'cf', 'worktree', 'list', '--json']);
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('"worktrees"'));
     stdoutSpy.mockRestore();
+  });
+});
+
+// ── cf worktree update ────────────────────────────────────────────────────────
+
+describe('cf worktree update', () => {
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({ id: 'project_001', source: 'cwd' });
+    mockGetById.mockResolvedValue({ ...baseProject, worktrees: [sampleWorktree] });
+    mockUpdateWorktree.mockResolvedValue({ ...sampleWorktree, name: 'Renamed' });
+    mockFindOverlaps.mockResolvedValue([]);
+  });
+
+  it('renames worktree by name', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'Feature A', '--name', 'Renamed']);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('project_001', 'wt_001', { name: 'Renamed' });
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('updated'));
+  });
+
+  it('changes range and shows overlap warning', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    mockFindOverlaps.mockResolvedValue([{
+      existingWorktreeId: 'wt_002',
+      existingWorktreeName: 'Other',
+      existingRange: [150, 249],
+      overlapStart: 150,
+      overlapEnd: 199,
+    }]);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'Feature A', '--range', '150-249']);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('project_001', 'wt_001', { indexRange: [150, 249] });
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('overlap'));
+  });
+
+  it('changes path and validates against git worktree list', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    mockListGitWorktrees.mockResolvedValue([
+      { path: '/repos/new-path', head: 'abc', branch: 'feature', bare: false },
+    ]);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'Feature A', '--path', '/repos/new-path']);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('project_001', 'wt_001', { worktreePath: '/repos/new-path' });
+  });
+
+  it('uses CWD-resolved worktreeId when nameOrId omitted', async () => {
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({ id: 'project_001', source: 'worktree', worktreeId: 'wt_001' });
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', '--name', 'New Name']);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('project_001', 'wt_001', { name: 'New Name' });
+  });
+
+  it('errors when no update options provided', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'Feature A']);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('At least one update option'));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('errors when worktree not found', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(undefined);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'nonexistent', '--name', 'X']);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('not found'));
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
 
