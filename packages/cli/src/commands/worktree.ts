@@ -6,7 +6,7 @@ import {
   GitWorktreeDiscovery,
   resolveFileByIndex,
 } from '@context-forge/core/node';
-import type { WorktreeInfo } from '@context-forge/core';
+import type { WorktreeInfo, WorktreePathStatus } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
@@ -164,8 +164,21 @@ export function registerWorktreeCommand(program: Command): void {
 
         const worktrees = project.worktrees ?? [];
 
+        // Validate worktree paths against git worktree list
+        let pathStatuses: WorktreePathStatus[] = [];
+        if (worktrees.length > 0 && project.projectPath) {
+          try {
+            const gitWorktrees = await new GitWorktreeDiscovery().listWorktrees(project.projectPath);
+            const svc = new WorktreeService(store);
+            pathStatuses = await svc.validateWorktreePaths(projectId, gitWorktrees);
+          } catch {
+            // Git discovery failure — proceed without status indicators
+          }
+        }
+        const statusMap = new Map(pathStatuses.map((s) => [s.worktreeId, s.status]));
+
         if (opts.json) {
-          printJson({ worktrees, activeWorktreeId });
+          printJson({ worktrees, activeWorktreeId, pathStatuses: pathStatuses.length > 0 ? pathStatuses : undefined });
           return;
         }
 
@@ -182,7 +195,16 @@ export function registerWorktreeCommand(program: Command): void {
         for (const wt of worktrees) {
           const isActive = wt.id === activeWorktreeId;
           const rangeStr = `[${wt.indexRange[0]}-${wt.indexRange[1]}]`;
-          const pathStr = wt.worktreePath ? shortenPath(wt.worktreePath) : dim('—');
+          let pathStr = wt.worktreePath ? shortenPath(wt.worktreePath) : dim('—');
+
+          // Append stale path indicator
+          const pathStatus = statusMap.get(wt.id);
+          if (pathStatus === 'missing') {
+            pathStr += ' ' + warn('(removed)');
+          } else if (pathStatus === 'not-a-worktree') {
+            pathStr += ' ' + warn('(not a git worktree)');
+          }
+
           const archStr = wt.archDoc ?? dim('—');
           const planStr = wt.slicePlan ?? dim('—');
 

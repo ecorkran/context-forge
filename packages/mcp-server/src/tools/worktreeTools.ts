@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, WorktreeService } from '@context-forge/core/node';
+import { FileProjectStore, WorktreeService, GitWorktreeDiscovery } from '@context-forge/core/node';
 import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 import { errorResult, jsonResult } from './contextTools.js';
@@ -75,7 +75,20 @@ export function registerWorktreeTools(server: McpServer): void {
         const store = new FileProjectStore();
         const service = new WorktreeService(store);
         const worktrees = await service.listWorktrees(resolvedId);
-        return jsonResult({ worktrees, count: worktrees.length });
+
+        // Validate worktree paths if project has a projectPath
+        const project = await store.getById(resolvedId);
+        let pathStatuses;
+        if (project?.projectPath && worktrees.length > 0) {
+          try {
+            const gitWorktrees = await new GitWorktreeDiscovery().listWorktrees(project.projectPath);
+            pathStatuses = await service.validateWorktreePaths(resolvedId, gitWorktrees);
+          } catch {
+            // Git discovery failure — omit pathStatuses
+          }
+        }
+
+        return jsonResult({ worktrees, count: worktrees.length, ...(pathStatuses ? { pathStatuses } : {}) });
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);

@@ -10,6 +10,7 @@ const mockAddWorktree = vi.fn();
 const mockRemoveWorktree = vi.fn();
 const mockUpdateWorktree = vi.fn();
 const mockFindOverlaps = vi.fn().mockResolvedValue([]);
+const mockValidateWorktreePaths = vi.fn().mockResolvedValue([]);
 const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 const mockResolveFileByIndex = vi.fn().mockImplementation(() => { throw new Error('not found'); });
 
@@ -24,6 +25,7 @@ vi.mock('@context-forge/core/node', () => ({
     removeWorktree: mockRemoveWorktree,
     updateWorktree: mockUpdateWorktree,
     findOverlaps: mockFindOverlaps,
+    validateWorktreePaths: mockValidateWorktreePaths,
   })),
   GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
     listWorktrees: mockListGitWorktrees,
@@ -211,6 +213,44 @@ describe('cf worktree list', () => {
     await program.parseAsync(['node', 'cf', 'worktree', 'list', '--json']);
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('"worktrees"'));
     stdoutSpy.mockRestore();
+  });
+
+  it('shows (removed) suffix for stale worktree path', async () => {
+    mockGetById.mockResolvedValue({ ...baseProject, worktrees: [sampleWorktree] });
+    mockListGitWorktrees.mockResolvedValue([{ path: '/repos/test', head: 'abc', bare: false }]);
+    mockValidateWorktreePaths.mockResolvedValue([{
+      worktreeId: 'wt_001',
+      worktreeName: 'Feature A',
+      worktreePath: '/repos/test-feature',
+      status: 'missing',
+    }]);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'list']);
+    const logCalls = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+    expect(logCalls.some((s) => s.includes('(removed)'))).toBe(true);
+  });
+
+  it('shows no suffix for valid worktree paths', async () => {
+    mockGetById.mockResolvedValue({ ...baseProject, worktrees: [sampleWorktree] });
+    mockListGitWorktrees.mockResolvedValue([{ path: '/repos/test-feature', head: 'abc', bare: false }]);
+    mockValidateWorktreePaths.mockResolvedValue([{
+      worktreeId: 'wt_001',
+      worktreeName: 'Feature A',
+      worktreePath: '/repos/test-feature',
+      status: 'valid',
+    }]);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'list']);
+    const logCalls = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+    expect(logCalls.every((s) => !s.includes('(removed)'))).toBe(true);
+  });
+
+  it('works when git discovery fails (no suffix, no crash)', async () => {
+    mockGetById.mockResolvedValue({ ...baseProject, worktrees: [sampleWorktree] });
+    mockListGitWorktrees.mockRejectedValue(new Error('git not found'));
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'list']);
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Feature A'));
   });
 });
 

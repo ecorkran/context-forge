@@ -15,6 +15,9 @@ const mockGetWorktreeByName = vi.fn();
 const mockAddWorktree = vi.fn();
 const mockUpdateWorktree = vi.fn();
 const mockRemoveWorktree = vi.fn();
+const mockValidateWorktreePaths = vi.fn().mockResolvedValue([]);
+const mockFindOverlaps = vi.fn().mockResolvedValue([]);
+const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -28,6 +31,11 @@ vi.mock('@context-forge/core/node', () => ({
     addWorktree: mockAddWorktree,
     updateWorktree: mockUpdateWorktree,
     removeWorktree: mockRemoveWorktree,
+    validateWorktreePaths: mockValidateWorktreePaths,
+    findOverlaps: mockFindOverlaps,
+  })),
+  GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
+    listWorktrees: mockListGitWorktrees,
   })),
 }));
 
@@ -151,6 +159,42 @@ describe('worktree_list', () => {
 
     expect(result.isError).toBe(true);
     expect(getErrorText(result)).toContain('Project not found');
+  });
+
+  it('includes pathStatuses when project has projectPath', async () => {
+    mockListWorktrees.mockResolvedValue([MOCK_WORKTREE]);
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockListGitWorktrees.mockResolvedValue([{ path: '/home/user/projects/test-project', head: 'abc', bare: false }]);
+    mockValidateWorktreePaths.mockResolvedValue([{
+      worktreeId: 'wt_test_001',
+      worktreeName: 'Feature Branch',
+      worktreePath: '/home/user/projects/test-project-feature',
+      status: 'missing',
+    }]);
+
+    const result = await client.callTool({
+      name: 'worktree_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { pathStatuses: unknown[] };
+    expect(parsed.pathStatuses).toBeDefined();
+    expect(parsed.pathStatuses).toHaveLength(1);
+  });
+
+  it('omits pathStatuses when project has no projectPath', async () => {
+    mockListWorktrees.mockResolvedValue([MOCK_WORKTREE]);
+    mockGetById.mockResolvedValue({ ...MOCK_PROJECT, projectPath: undefined });
+
+    const result = await client.callTool({
+      name: 'worktree_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { pathStatuses?: unknown };
+    expect(parsed.pathStatuses).toBeUndefined();
   });
 });
 
