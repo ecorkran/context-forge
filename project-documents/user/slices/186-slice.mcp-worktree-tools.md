@@ -257,20 +257,40 @@ MCP Client
 ← Error: Worktree 'wt_missing' not found for project '...'.
 ```
 
+### Verification Results
+
+All walkthrough scenarios verified via unit tests (157 MCP tests pass, 34 new):
+- CRUD tools: list/get/init/update/rm all delegate correctly to WorktreeService
+- worktree_get resolves by ID (exact) and name (case-insensitive fallback)
+- worktree_init parses indexRange string → [number, number], validates format
+- workflow_status/workflow_next with worktreeId: overlay applied, worktree field in response
+- context_build with worktree: overlay applied first, explicit overrides win
+- project_update with worktreeId: field routing splits worktree-scoped vs project fields, auto-sets instruction/tasks
+- Error cases: missing project, missing worktree, malformed indexRange all return proper errorResult
+- Build: clean across all 4 packages (core, cli, mcp-server, electron)
+- Full test suite: 520 tests pass (257 cli + 157 mcp + 106 electron)
+
 ## Implementation Notes
 
 ### File changes
-- **New:** `packages/mcp-server/src/tools/worktreeTools.ts` — 5 CRUD tools
-- **Move:** `packages/cli/src/utils/worktree-overlay.ts` → `packages/core/src/utils/worktree-overlay.ts` (or duplicate in MCP)
-- **Modify:** `packages/mcp-server/src/index.ts` — register new tools
-- **Modify:** `packages/mcp-server/src/tools/workflowTools.ts` — add `worktreeId` to status/next
-- **Modify:** `packages/mcp-server/src/tools/contextTools.ts` — add `worktree` to context_build
-- **Modify:** `packages/mcp-server/src/tools/projectTools.ts` — add `worktreeId` to project_update
+- **New:** `packages/mcp-server/src/tools/worktreeTools.ts` — 5 CRUD tools + resolveWorktree helper
+- **New:** `packages/core/src/utils/worktree-overlay.ts` — moved from CLI to core (browser-safe)
+- **New:** `packages/mcp-server/tests/worktreeTools.test.ts` — 17 unit tests
+- **Modified:** `packages/cli/src/utils/worktree-overlay.ts` — now re-exports from `@context-forge/core`
+- **Modified:** `packages/core/src/index.ts` — exports applyWorktreeOverlay
+- **Modified:** `packages/mcp-server/src/index.ts` — registers worktreeTools
+- **Modified:** `packages/mcp-server/src/tools/workflowTools.ts` — worktreeId on status/next
+- **Modified:** `packages/mcp-server/src/tools/contextTools.ts` — worktree param on context_build/template_preview
+- **Modified:** `packages/mcp-server/src/tools/projectTools.ts` — worktreeId field routing on project_update
+- **Modified:** `packages/mcp-server/tests/workflowTools.test.ts` — 5 new worktree tests
+- **Modified:** `packages/mcp-server/tests/contextTools.test.ts` — 4 new worktree tests
+- **Modified:** `packages/mcp-server/tests/projectTools.test.ts` — 7 new worktree tests
+- **Modified:** `packages/mcp-server/tests/serverLifecycle.test.ts` — updated tool list
 
 ### Testing strategy
 - Unit tests for each new tool (mock `WorktreeService` and `FileProjectStore`)
 - Unit tests for extended tools with and without `worktreeId`
-- Verify existing tests pass unchanged (backwards compatibility)
+- Existing tests pass unchanged (backwards compatibility verified)
 
 ### Effort
 3/5 — Primarily wrapping existing `WorktreeService` operations in MCP handlers. The field routing in `project_update` is the most complex piece but has a direct CLI reference implementation.

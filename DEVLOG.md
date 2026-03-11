@@ -9,6 +9,20 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 186: MCP Worktree Tools — Complete
+- 5 new CRUD tools: `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm`
+- 4 extended tools with worktree params: `workflow_status`, `workflow_next`, `context_build`, `project_update`
+- `applyWorktreeOverlay` moved from CLI to `@context-forge/core` (CLI re-exports)
+- `project_update` field routing: worktree-scoped fields → `WorktreeService`, project fields → `store.update()`
+- Build: clean, 520 tests pass (34 new MCP tests)
+- Commits:
+  - `c28b21c` refactor(core): move applyWorktreeOverlay from CLI to core
+  - `0e93c90` feat(mcp): add worktree CRUD tools (list, get, init, update, rm)
+  - `92fed29` test(mcp): add unit tests for worktree CRUD tools
+  - `d51c378` feat(mcp): add worktreeId to workflow_status and workflow_next
+  - `ad8d047` feat(mcp): add worktree param to context_build
+  - `294612b` feat(mcp): add worktreeId field routing to project_update
+
 ### Slice 186: MCP Worktree Tools — Phase 5 (Task Breakdown) ✓
 - Created `186-tasks.mcp-worktree-tools.md` — 16 tasks covering CRUD tools, extended tools, overlay extraction, and tests
 - Test-with ordering: each implementation task immediately followed by its test task
