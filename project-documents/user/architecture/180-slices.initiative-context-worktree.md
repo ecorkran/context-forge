@@ -4,7 +4,7 @@ parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
 dateUpdated: 20260311
-status: in_progress
+status: complete
 ---
 
 # Slice Plan: Initiative Contexts (Worktrees)
@@ -276,7 +276,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
 
 ## Integration Work
 
-7. [ ] **(187) Validation, Edge Cases & Polish** — Worktree path validation, stale worktree context detection, helpful first-run messaging, and cross-cutting quality concerns.
+7. [x] **(187) Validation, Edge Cases & Polish** — Worktree path validation, stale worktree context detection, helpful first-run messaging, and cross-cutting quality concerns.
 
    **Worktree path validation:**
    - On worktree context read/display: check that `worktreePath` still exists on disk
