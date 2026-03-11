@@ -50,6 +50,22 @@ function shortenPath(p: string): string {
 }
 
 
+/** Overlay worktree-scoped fields onto a project copy. */
+function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
+  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+  if (!wt) return project;
+  return {
+    ...project,
+    developmentPhase: wt.developmentPhase || project.developmentPhase,
+    instruction: wt.instruction || project.instruction,
+    workType: wt.workType || project.workType,
+    fileArch: wt.archDoc || project.fileArch,
+    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
+    fileSlice: wt.activeSlice || project.fileSlice,
+    fileTasks: wt.activeTaskFile || project.fileTasks,
+  };
+}
+
 /** Fields that are routed to WorktreeContext when a worktree is active. */
 const WORKTREE_SCOPED_FIELDS = new Set([
   'developmentPhase',
@@ -201,6 +217,9 @@ export async function projectSetAction(
   // Index-based file resolution: cf set slice 171 → scans for matching file
   // Falls back to slice plan entry name if file doesn't exist on disk
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && existing.projectPath) {
+    // Use worktree-overlaid project for slice plan lookup (project-level fields
+    // may be cleared after migration, but the worktree context has the values)
+    const overlaid = worktreeId ? applyWorktreeOverlay(existing, worktreeId) : existing;
     try {
       const fileResolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
       if (fileResolved !== null) {
@@ -208,7 +227,7 @@ export async function projectSetAction(
       }
     } catch {
       // File doesn't exist — try deriving from slice plan
-      const derived = await deriveFromSlicePlan(existing, resolvedField, resolvedValue);
+      const derived = await deriveFromSlicePlan(overlaid, resolvedField, resolvedValue);
       if (derived) {
         resolvedValue = derived;
       } else {
