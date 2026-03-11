@@ -51,6 +51,19 @@ const sampleWorktree = {
   slicePlan: '180-slices.initiative-context-worktree',
 };
 
+const maintenanceWorktree = {
+  id: 'wt_002',
+  name: 'maintenance',
+  indexRange: [900, 999] as [number, number],
+  worktreePath: '/repos/test-maintenance',
+  developmentPhase: 'Phase 4: Slice Design',
+  instruction: 'Phase 4: Slice Design',
+  activeSlice: '900-slice.hotfix',
+  activeTaskFile: '900-tasks.hotfix',
+  archDoc: '900-arch.maintenance',
+  slicePlan: '900-slices.maintenance',
+};
+
 /**
  * The project fixture reflects the post-migration state: project-level workflow
  * fields are cleared and all workflow context lives on the worktree.
@@ -368,6 +381,77 @@ describe('cf build — no worktree resolved', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
     expect(output).toBe('project context output');
+  });
+});
+
+// ── cf status --worktree flag ──────────────────────────────────────────────────
+
+describe('cf status --worktree flag', () => {
+  const projectWithMultipleWorktrees = {
+    ...sampleProject,
+    worktrees: [sampleWorktree, maintenanceWorktree],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+    // CWD resolves to Feature A, but --worktree flag should override
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({
+      id: 'proj_001',
+      source: 'worktree',
+      worktreeId: 'wt_001',
+    });
+    mockGetById.mockResolvedValue({ ...projectWithMultipleWorktrees });
+    mockGetStatus.mockResolvedValue({
+      ...sampleStatus,
+      phase: 'Phase 4: Slice Design',
+    });
+  });
+
+  it('resolves worktree by name and shows its overlaid status', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktree', 'maintenance']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Worktree:');
+    expect(output).toContain('maintenance');
+    expect(output).toContain('[900-999]');
+  });
+
+  it('resolves worktree by id', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktree', 'wt_002']);
+
+    const projectArg = mockGetStatus.mock.calls[0]?.[0];
+    expect(projectArg.fileSlice).toBe('900-slice.hotfix');
+    expect(projectArg.developmentPhase).toBe('Phase 4: Slice Design');
+  });
+
+  it('throws UserError for unknown worktree name', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktree', 'nonexistent']);
+
+    const errorOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errorOutput).toContain("Worktree 'nonexistent' not found");
+    expect(errorOutput).toContain('cf worktree list');
+  });
+
+  it('combined with --project resolves project first, then worktree', async () => {
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({
+      id: 'proj_001',
+      source: 'flag',
+    });
+
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--project', 'test-project', '--worktree', 'maintenance']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('maintenance');
+    expect(output).toContain('[900-999]');
   });
 });
 
