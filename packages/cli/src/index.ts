@@ -20,6 +20,7 @@ import { registerArchCommand } from './commands/arch.js';
 import { registerPlanCommand } from './commands/plan.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
 import { registerBackupCommand } from './commands/backup.js';
+import { registerWorktreeCommand } from './commands/worktree.js';
 import { handleError } from './utils/errors.js';
 
 const require = createRequire(import.meta.url);
@@ -60,6 +61,7 @@ registerSetupIdeCommand(program);
 registerBackupCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
+registerWorktreeCommand(program);
 
 // Top-level shortcuts for project get/set
 program

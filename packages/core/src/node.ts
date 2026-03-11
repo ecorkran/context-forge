@@ -31,3 +31,9 @@ export { buildModel, scanDirectory } from './introspection/ProjectModelBuilder.j
 export { FutureWorkCollector } from './introspection/FutureWorkCollector.js';
 export { ConsistencyChecker } from './introspection/ConsistencyChecker.js';
 export { updateCheckbox, updateFrontmatterField } from './introspection/writers/markdownWriter.js';
+
+// Git utilities — spawns git subprocess (fs/process dependent)
+export { GitWorktreeDiscovery } from './git/index.js';
+
+// Worktree management — uses IProjectStore (Node.js-backed)
+export { WorktreeService } from './services/WorktreeService.js';
