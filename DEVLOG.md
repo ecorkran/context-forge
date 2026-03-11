@@ -29,6 +29,20 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-10
 
+### Slice 183: Worktree CLI Commands — Phase 4 (Slice Design)
+- Created slice design `183-slice.worktree-cli-commands.md`
+- Key decisions: options-object signature for `resolveProjectWorktree({ project?, worktree? }, store)`, narrow `--worktree` flag scope (worktree subcommands only), git path validation warns when git unavailable / hard-errors when path not in known list, `--project-level` escape hatch on `cf set`/`cf get`
+- `cf worktree list` table format follows `cf project list` exactly (same `renderTable`, `success()`, `'* '` prefix pattern)
+- `WORKTREE_SCOPED_FIELDS` set drives routing in `projectSetAction`; auto-set logic targets whichever context is active
+
+### Slice 182: Worktree Discovery & CWD Resolution — Phase 6 (Implementation) ✓
+- `GitWorktreeDiscovery` service in `packages/core/src/git/` — parses `git worktree list --porcelain` into `WorktreeInfo[]`
+- `WorktreeInfo` type; extended `findProjectByCwd` → `CwdMatch | null` with worktree path matching
+- `resolveProjectWorktree()` — worktree-aware resolution returning optional `worktreeId`; `resolveProjectId` refactored as backwards-compatible wrapper
+- `ResolutionSource` extended with `'worktree'`; fixed real-world edge case: `prunable <reason>` not just `prunable`
+- 996 tests pass across all packages (0 regressions)
+- Commits: `1413fcb` feat(core): add GitWorktreeDiscovery service and WorktreeInfo type · `3083fff` feat(cli): extend CWD resolution to be worktree-aware
+
 ### Slice 181: WorktreeContext Data Model & Storage — Phase 5 (Task Breakdown)
 - Created `181-tasks.worktreecontext-data-model-storage.md` (8 tasks, 264 lines)
 - Tasks: types → CRUD → CRUD tests → migration → migration tests → overlap detection → migrateProjectFields update → final verification
