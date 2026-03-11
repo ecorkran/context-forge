@@ -181,22 +181,31 @@ cf worktree init --name <name> --range <start>-<end> [--path <path>] [--project 
 cf worktree list [--project <name|id>] [--json]
 ```
 
-**Output (table):**
-```
-  Name              Range     Path                              Arch             Plan
-* API Foundation   [100-199]  ~/repos/project-api               100-arch.api     100-slices.api
-  UX Layer         [200-299]  ~/repos/project-ux                —                —
-```
+**Output format** — follows the `cf project list` pattern exactly:
+- `renderTable(['Name', 'Range', 'Path', 'Arch', 'Plan'], rows, prefixes)` — bold cyan headers, dim underline separator, 2-space indent, 2-space column padding
+- Active worktree row: all cells wrapped in `success()` (green)
+- Active prefix: `success('* ')` — non-active prefix: `'  '` (two spaces, matching `renderTable`'s indent)
+- Path shortened via `shortenPath()`
+- Range formatted as `[start-end]` string
 
-The `*` prefix marks the currently resolved worktree (if CWD matches one).
+Example output:
+```
+  Name              Range     Path                    Arch                Plan
+  ────────────────  ────────  ──────────────────────  ──────────────────  ──────────────────
+* API Foundation    [100-199] ~/repos/project-api      100-arch.api.md     100-slices.api.md
+  UX Layer          [200-299] ~/repos/project-ux       —                   —
+```
 
 **Steps:**
 1. Resolve project via `resolveProjectWorktree({ project: opts.project }, store)`
-2. Load worktree contexts via `store.getById(id)` → `project.worktrees ?? []`
-3. Determine active worktree from `resolvedProject.worktreeId` (if CWD matched)
-4. For each worktree: shorten path with `shortenPath()`, format range as `[start-end]`
-5. Render table; `*` prefix on active row (using `success()` style)
-6. If no worktree contexts: `'No worktree contexts registered for project <name>. Run cf worktree init to create one.'`
+2. Load project from store; extract `project.worktrees ?? []`
+3. Determine active worktree ID from `resolvedProject.worktreeId` (set when CWD matched a worktree path)
+4. Build `rows` and `prefixes` arrays in parallel, same pattern as `project list`:
+   - Active row: `[success(name), success(range), success(path), success(arch), success(plan)]`
+   - Inactive row: `[name, range, path, arch || '—', plan || '—']`
+   - Active prefix: `success('* ')`, inactive: `'  '`
+5. `console.log(renderTable(['Name', 'Range', 'Path', 'Arch', 'Plan'], rows, prefixes))`
+6. If no worktree contexts: `console.log('  No worktree contexts registered for project <name>. Run cf worktree init to create one.')`
 
 #### `cf worktree rm`
 
