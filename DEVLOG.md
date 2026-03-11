@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 187: Validation, Edge Cases & Polish — Phase 5 (Task Breakdown)
+- Created `187-tasks.validation-edge-cases-polish.md` — 16 tasks covering: type + service method, CLI update command, stale path detection (CLI + MCP), cf check rule, first-run messaging, MCP overlap detection, edge case verification
+- Test-with ordering: each implementation task followed by its test task
+- Commits:
+  - `4f3f006` docs: add task breakdown for slice 187 validation, edge cases & polish
+
 ### Slice 187: Validation, Edge Cases & Polish — Design Complete
 - Created `user/slices/187-slice.validation-edge-cases-polish.md`
 - Scope: `cf worktree update` CLI command, stale path detection via `WorktreeService.validateWorktreePaths()`, `cf check` rule `stale-worktree-path`, first-run messaging in `cf status`, overlap detection on MCP `worktree_update`
