@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, ConfigManager, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan } from '@context-forge/core/node';
+import { FileProjectStore, ConfigManager, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -11,7 +11,7 @@ import {
   FIELD_GROUPS,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
-import { resolveProjectId, findByNameOrId, findProjectByCwd } from '../utils/project.js';
+import { resolveProjectId, resolveProjectWorktree, findByNameOrId, findProjectByCwd } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -49,6 +49,32 @@ function shortenPath(p: string): string {
   return p;
 }
 
+
+/** Fields that are routed to WorktreeContext when a worktree is active. */
+const WORKTREE_SCOPED_FIELDS = new Set([
+  'developmentPhase',
+  'instruction',
+  'workType',
+  'fileArch',
+  'fileSlicePlan',
+  'fileSlice',
+  'fileTasks',
+]);
+
+/** Map ProjectData field names to their WorktreeContext counterparts. */
+const PROJECT_TO_WORKTREE_FIELD: Record<string, string> = {
+  fileSlice: 'activeSlice',
+  fileTasks: 'activeTaskFile',
+  fileArch: 'archDoc',
+  fileSlicePlan: 'slicePlan',
+  developmentPhase: 'developmentPhase',
+  instruction: 'instruction',
+  workType: 'workType',
+};
+
+function isWorktreeField(field: string): boolean {
+  return WORKTREE_SCOPED_FIELDS.has(field);
+}
 
 /** Display the project schema grouped by category. */
 function displaySchema(): void {
@@ -131,7 +157,7 @@ export function buildSettableFieldsHelp(): string {
 export async function projectSetAction(
   field: string,
   val: string,
-  opts: { project?: string },
+  opts: { project?: string; projectLevel?: boolean },
 ): Promise<void> {
   const resolvedField = resolveFieldName(field);
   if (!resolvedField) {
@@ -163,7 +189,9 @@ export async function projectSetAction(
   }
 
   const store = new FileProjectStore();
-  const { id } = await resolveProjectId(opts.project, store);
+  const resolved = await resolveProjectWorktree({ project: opts.project }, store);
+  const id = resolved.id;
+  const worktreeId = resolved.worktreeId;
 
   const existing = await store.getById(id);
   if (!existing) {
@@ -174,9 +202,9 @@ export async function projectSetAction(
   // Falls back to slice plan entry name if file doesn't exist on disk
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && existing.projectPath) {
     try {
-      const resolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
-      if (resolved !== null) {
-        resolvedValue = resolved;
+      const fileResolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
+      if (fileResolved !== null) {
+        resolvedValue = fileResolved;
       }
     } catch {
       // File doesn't exist — try deriving from slice plan
@@ -191,19 +219,79 @@ export async function projectSetAction(
     }
   }
 
-  // customData fields use dot-notation; merge into the nested object
+  // Determine worktree context name for display
+  const worktreeName = worktreeId
+    ? (existing.worktrees ?? []).find((wt) => wt.id === worktreeId)?.name
+    : undefined;
+
+  // Route worktree-scoped fields to WorktreeService when worktree is resolved
+  if (worktreeId && isWorktreeField(resolvedField) && !opts.projectLevel) {
+    const svc = new WorktreeService(store);
+    const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
+
+    if (resolvedField === 'developmentPhase') {
+      // Auto-set instruction on worktree context
+      await svc.updateWorktree(id, worktreeId, { [wtField]: resolvedValue, instruction: resolvedValue });
+    } else {
+      await svc.updateWorktree(id, worktreeId, { [wtField]: resolvedValue });
+    }
+
+    // Auto-set slicePlan when archDoc changes on worktree
+    if (resolvedField === 'fileArch' && existing.projectPath) {
+      const archIndex = /^(\d+)-/.exec(resolvedValue);
+      if (archIndex) {
+        let planResolved: string | null = null;
+        try {
+          planResolved = resolveFileByIndex(existing.projectPath, 'fileSlicePlan', archIndex[1]);
+        } catch {
+          const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
+          if (derived !== resolvedValue) planResolved = derived;
+        }
+        if (planResolved !== null) {
+          await svc.updateWorktree(id, worktreeId, { slicePlan: planResolved });
+          console.log(success(`Updated plan = ${planResolved} (auto-set from arch) on worktree context "${worktreeName}"`));
+        }
+      }
+    }
+
+    // Auto-set activeTaskFile when activeSlice changes on worktree
+    if (resolvedField === 'fileSlice' && existing.projectPath) {
+      const sliceIndex = /^(\d+)-/.exec(resolvedValue);
+      if (sliceIndex) {
+        let tasksResolved: string | null = null;
+        try {
+          tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+        } catch {
+          const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
+          if (derived !== resolvedValue) tasksResolved = derived;
+        }
+        if (tasksResolved !== null) {
+          await svc.updateWorktree(id, worktreeId, { activeTaskFile: tasksResolved });
+          console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice) on worktree context "${worktreeName}"`));
+        }
+      }
+    }
+
+    const displayName = fieldDef?.aliases[0] ?? resolvedField;
+    console.log(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`));
+    if (resolvedField === 'developmentPhase') {
+      console.log(success(`Updated instruction = ${resolvedValue} (auto-set from phase) on worktree context "${worktreeName}"`));
+    }
+    return;
+  }
+
+  // Project-level update (no worktree, or --project-level, or non-worktree field)
   if (resolvedField.startsWith('customData.')) {
     const subField = resolvedField.split('.')[1];
     const merged = { ...existing.customData, [subField]: resolvedValue };
     await store.update(id, { customData: merged });
   } else if (resolvedField === 'developmentPhase') {
-    // Auto-set instruction to match when phase changes
     await store.update(id, { [resolvedField]: resolvedValue, instruction: resolvedValue });
   } else {
     await store.update(id, { [resolvedField]: resolvedValue });
   }
 
-  // Auto-set fileSlicePlan when fileArch changes
+  // Auto-set fileSlicePlan when fileArch changes (project-level)
   if (resolvedField === 'fileArch' && existing.projectPath) {
     const archIndex = /^(\d+)-/.exec(resolvedValue);
     if (archIndex) {
@@ -211,11 +299,8 @@ export async function projectSetAction(
       try {
         planResolved = resolveFileByIndex(existing.projectPath, 'fileSlicePlan', archIndex[1]);
       } catch {
-        // File doesn't exist yet — derive stem from arch value
         const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
-        if (derived !== resolvedValue) {
-          planResolved = derived;
-        }
+        if (derived !== resolvedValue) planResolved = derived;
       }
       if (planResolved !== null) {
         await store.update(id, { fileSlicePlan: planResolved });
@@ -224,7 +309,7 @@ export async function projectSetAction(
     }
   }
 
-  // Auto-set fileTasks when fileSlice changes
+  // Auto-set fileTasks when fileSlice changes (project-level)
   if (resolvedField === 'fileSlice' && existing.projectPath) {
     const sliceIndex = /^(\d+)-/.exec(resolvedValue);
     if (sliceIndex) {
@@ -232,11 +317,8 @@ export async function projectSetAction(
       try {
         tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
       } catch {
-        // File doesn't exist yet — derive stem from slice value
         const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
-        if (derived !== resolvedValue) {
-          tasksResolved = derived;
-        }
+        if (derived !== resolvedValue) tasksResolved = derived;
       }
       if (tasksResolved !== null) {
         await store.update(id, { fileTasks: tasksResolved });
@@ -245,7 +327,6 @@ export async function projectSetAction(
     }
   }
 
-  // Show alias-friendly name in confirmation
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
   console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
   if (resolvedField === 'developmentPhase') {
@@ -255,18 +336,27 @@ export async function projectSetAction(
 
 /** Shared action handler for `cf get` and `cf project get`. */
 export async function projectGetAction(
-  opts: { json?: boolean; project?: string },
+  opts: { json?: boolean; project?: string; projectLevel?: boolean },
 ): Promise<void> {
   const store = new FileProjectStore();
-  const { id } = await resolveProjectId(opts.project, store);
-  const project = await store.getById(id);
+  const resolved = await resolveProjectWorktree({ project: opts.project }, store);
+  const project = await store.getById(resolved.id);
 
   if (!project) {
-    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+    throw new UserError(`Project not found: '${resolved.id}'. Run cf project list to see available projects.`);
   }
 
+  const worktreeId = resolved.worktreeId;
+  const worktree = worktreeId && !opts.projectLevel
+    ? (project.worktrees ?? []).find((wt) => wt.id === worktreeId)
+    : undefined;
+
   if (opts.json) {
-    printJson(project);
+    if (worktree) {
+      printJson({ ...project, worktree });
+    } else {
+      printJson(project);
+    }
     return;
   }
 
@@ -278,6 +368,28 @@ export async function projectGetAction(
     custom: 'Custom',
   };
 
+  // Show worktree header when active
+  if (worktree) {
+    console.log(`\n${label('Worktree')}`);
+    console.log(`  ${label('Name:'.padEnd(16))}${valueStyle(worktree.name)}`);
+    console.log(`  ${label('Range:'.padEnd(16))}${valueStyle(`${worktree.indexRange[0]}-${worktree.indexRange[1]}`)}`);
+    if (worktree.worktreePath) {
+      console.log(`  ${label('Path:'.padEnd(16))}${valueStyle(worktree.worktreePath)}`);
+    }
+  }
+
+  // Build a worktree overlay map for worktree-scoped fields
+  const wtOverlay: Record<string, string | undefined> = {};
+  if (worktree) {
+    wtOverlay['developmentPhase'] = worktree.developmentPhase;
+    wtOverlay['instruction'] = worktree.instruction;
+    wtOverlay['workType'] = worktree.workType;
+    wtOverlay['fileArch'] = worktree.archDoc;
+    wtOverlay['fileSlicePlan'] = worktree.slicePlan;
+    wtOverlay['fileSlice'] = worktree.activeSlice;
+    wtOverlay['fileTasks'] = worktree.activeTaskFile;
+  }
+
   const projectRecord = project as unknown as Record<string, unknown>;
   const customData = project.customData as Record<string, unknown> | undefined;
 
@@ -287,11 +399,14 @@ export async function projectGetAction(
     console.log(`\n${label(groupLabels[group])}`);
 
     for (const f of groupFields) {
-      // Read from customData sub-object for dot-notation fields
       let v: unknown;
       if (f.field.startsWith('customData.')) {
         const subField = f.field.split('.')[1];
         v = customData?.[subField];
+      } else if (worktree && isWorktreeField(f.field)) {
+        // Worktree overlay: use worktree value if set, fall back to project
+        const wtVal = wtOverlay[f.field];
+        v = (wtVal !== undefined && wtVal !== '') ? wtVal : projectRecord[f.field];
       } else {
         v = projectRecord[f.field];
       }
@@ -369,7 +484,8 @@ export function registerProjectCommand(program: Command): void {
     .description('Get details for the active project')
     .option('--json', 'Output as JSON')
     .option('--project <id>', 'Project ID or name (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .option('--project-level', 'Show project-level fields only (skip worktree overlay)')
+    .action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
       try {
         await projectGetAction(opts);
       } catch (err) {
@@ -381,8 +497,9 @@ export function registerProjectCommand(program: Command): void {
     .command('set [field] [value]')
     .description('Update a field on the active project')
     .option('--project <id>', 'Project ID or name (overrides default)')
+    .option('--project-level', 'Force update at project level (skip worktree routing)')
     .addHelpText('after', buildSettableFieldsHelp)
-    .action(async (field: string | undefined, val: string | undefined, opts: { project?: string }) => {
+    .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
       if (!field || !val) {
         console.log(`Usage: cf project set [options] <field> <value>  —  run cf project set --help for details`);
         return;

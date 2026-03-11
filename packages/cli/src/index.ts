@@ -68,8 +68,9 @@ program
   .command('set [field] [value]')
   .description('Set a field on the active project (shortcut for cf project set)')
   .option('--project <name|id>', 'Project name or ID (overrides default)')
+  .option('--project-level', 'Force update at project level (skip worktree routing)')
   .addHelpText('after', buildSettableFieldsHelp)
-  .action(async (field: string | undefined, val: string | undefined, opts: { project?: string }) => {
+  .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
     if (!field || !val) {
       console.log(`Usage: cf set [options] <field> <value>  —  run cf set --help for details`);
       return;
@@ -86,7 +87,8 @@ program
   .description('Show details for the active project (shortcut for cf project get)')
   .option('--json', 'Output as JSON')
   .option('--project <name|id>', 'Project name or ID (overrides default)')
-  .action(async (opts: { json?: boolean; project?: string }) => {
+  .option('--project-level', 'Show project-level fields only (skip worktree overlay)')
+  .action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
     try {
       await projectGetAction(opts);
     } catch (err) {
