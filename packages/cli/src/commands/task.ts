@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { readdir } from 'node:fs/promises';
 import { Command } from 'commander';
+import type { ProjectData } from '@context-forge/core';
 import {
   FileProjectStore,
   resolveArtifactPath,
@@ -8,10 +9,26 @@ import {
   parseSlicePlan,
   parseTaskFile,
 } from '@context-forge/core/node';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
+
+/** Overlay worktree-scoped fields onto a project copy. */
+function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
+  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+  if (!wt) return project;
+  return {
+    ...project,
+    developmentPhase: wt.developmentPhase || project.developmentPhase,
+    instruction: wt.instruction || project.instruction,
+    workType: wt.workType || project.workType,
+    fileArch: wt.archDoc || project.fileArch,
+    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
+    fileSlice: wt.activeSlice || project.fileSlice,
+    fileTasks: wt.activeTaskFile || project.fileTasks,
+  };
+}
 
 export function registerTaskCommand(program: Command): void {
   const cmd = program
@@ -26,12 +43,14 @@ export function registerTaskCommand(program: Command): void {
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+        const rawProject = await store.getById(id);
 
-        if (!project) {
+        if (!rawProject) {
           throw new UserError(`Project not found: '${id}'.`);
         }
+
+        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
 
         if (!project.projectPath) {
           throw new UserError(
@@ -53,12 +72,14 @@ export function registerTaskCommand(program: Command): void {
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+        const rawProject = await store.getById(id);
 
-        if (!project) {
+        if (!rawProject) {
           throw new UserError(`Project not found: '${id}'.`);
         }
+
+        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
 
         if (!project.projectPath) {
           throw new UserError(
