@@ -140,21 +140,29 @@ describe('cf status — worktree overlay', () => {
     expect(archLine).not.toContain('Not set');
   });
 
-  it('shows source label with worktree name in terminal output', async () => {
+  it('shows dedicated Worktree line with name and range', async () => {
     const program = createStatusProgram();
     await program.parseAsync(['node', 'cf', 'status']);
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('from worktree "Feature A"');
+    expect(output).toContain('Worktree:');
+    expect(output).toContain('Feature A');
+    expect(output).toContain('[100-199]');
+    // Project line should NOT contain worktree parenthetical
+    expect(output).not.toContain('from worktree "Feature A"');
   });
 
-  it('includes worktree name in JSON output', async () => {
+  it('includes full worktree object in JSON output', async () => {
     const program = createStatusProgram();
     await program.parseAsync(['node', 'cf', 'status', '--json']);
 
     const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw);
-    expect(parsed.worktree).toBe('Feature A');
+    expect(parsed.worktree).toEqual(expect.objectContaining({
+      id: 'wt_001',
+      name: 'Feature A',
+      indexRange: [100, 199],
+    }));
   });
 
   it('includes resolutionSource "worktree" in JSON output', async () => {
