@@ -9,6 +9,20 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 186: MCP Worktree Tools — Phase 4 (Slice Design) ✓
+- Designed 5 new CRUD tools (`worktree_init/list/get/update/rm`) wrapping `WorktreeService`
+- Extended 4 existing tools with optional `worktreeId`: `workflow_status`, `workflow_next`, `context_build`, `project_update`
+- Field routing in `project_update` mirrors CLI `cf set` behavior (workflow fields → worktree, project fields → project)
+- `applyWorktreeOverlay` to be moved from CLI to core for shared use
+- Commits:
+  - `9945d5c` docs: mark slice 185 complete (delivered in 182-184)
+  - `9b0b9a7` docs: add slice design for 186 MCP Worktree Tools
+
+### Slice 185: Worktree-Aware Context Assembly — Marked Complete
+- Core functionality delivered in slices 182-184 (`applyWorktreeOverlay` in `cf build`)
+- MCP `context_build` worktree param deferred to slice 186
+- `--worktree` flag on build deferred pending global `--worktree` across all commands
+
 ### Slice 184: Status & Display Updates — Phase 6 (Implementation) ✓
 - Extracted `applyWorktreeOverlay` to shared utility (`packages/cli/src/utils/worktree-overlay.ts`), replaced 8 inline copies
 - `cf status` shows dedicated `Worktree:` line with name and index range when resolved from worktree
