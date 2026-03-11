@@ -499,6 +499,27 @@ cf status
 
 **Post-implementation fix:** `cf status` was not originally worktree-aware (it read raw project fields, which are cleared after migration). Fixed by switching from `resolveProjectId` to `resolveProjectWorktree` and applying worktree overlay before display. Also fixed CWD tiebreaker: when `projectPath` and `worktreePath` match the same directory, worktree match now takes priority.
 
+### Worktree-aware build
+
+```bash
+cd ~/source/repos/manta/context-forge
+cf build 2>&1 | head -10
+# Output: Building context for context-forge...
+#         ...
+#         Phase: Phase 6: Implementation
+#         Slice: 183-slice.worktree-cli-commands
+#         (uses worktree-scoped fields, not cleared project-level fields)
+```
+
+### Other worktree-aware commands
+
+All commands that read workflow-scoped fields now apply worktree overlay:
+- `cf arch list` — uses worktree's `archDoc`
+- `cf plan list` — uses worktree's `slicePlan`
+- `cf slice list` — uses worktree's `activeSlice`
+- `cf task list` / `cf task items` — uses worktree's `activeTaskFile`
+- `cf next` — uses worktree's workflow fields via WorkflowNavigator
+
 ### Remove worktree context
 
 ```bash
@@ -512,7 +533,7 @@ cf worktree rm maintenance --yes
 
 ### Known gaps (documented for future slices)
 
-- **MCP `workflow_status` tool** does not apply worktree overlay — uses `resolveProjectId` (explicit IDs only, no CWD). Needs `worktreeId` parameter or similar mechanism. Tracked under slice 186.
+- **MCP tools** (`workflow_status`, `workflow_next`, `context_build`, etc.) do not apply worktree overlay — they use `resolveProjectId` (explicit IDs only, no CWD). Needs `worktreeId` parameter or similar mechanism. Tracked under slice 186.
 - **`cf worktree update`** command not yet implemented — range/name changes require direct WorktreeService calls.
 
 ## Implementation Notes
