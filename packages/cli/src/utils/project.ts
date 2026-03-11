@@ -91,6 +91,14 @@ export interface ResolvedProjectWorktree {
 // to packages/core if MCP server needs CWD-like resolution. Currently CLI-only since MCP uses
 // explicit IDs. See 180-slices.initiative-context-worktree.md for context.
 
+/** Options for resolveProjectWorktree. */
+export interface ResolveProjectWorktreeOptions {
+  /** Explicit --project flag value (name or id). */
+  project?: string;
+  /** Explicit --worktree flag value (name or id) — overrides CWD-derived worktreeId. */
+  worktree?: string;
+}
+
 /**
  * Resolves which project and (optionally) worktree to use via a four-step chain:
  *
@@ -98,11 +106,16 @@ export interface ResolvedProjectWorktree {
  * 2. CWD detection → findProjectByCwd (worktree-aware)
  * 3. default_project config → findByNameOrId
  * 4. Throw UserError with guidance
+ *
+ * When opts.worktree is provided and a project was resolved, also resolves the
+ * worktreeId via findWorktreeByNameOrId.
  */
 export async function resolveProjectWorktree(
-  explicit: string | undefined,
+  opts: ResolveProjectWorktreeOptions,
   store: FileProjectStore,
 ): Promise<ResolvedProjectWorktree> {
+  const explicit = opts.project;
+
   // Step 1: explicit --project flag
   if (explicit) {
     const project = await findByNameOrId(explicit, store);
@@ -112,8 +125,12 @@ export async function resolveProjectWorktree(
           '  Check the spelling, or run cf project list to see available projects.',
       );
     }
-    return { id: project.id, source: 'flag' };
-    // Note: --worktree flag override handled in slice 183
+    const resolved: ResolvedProjectWorktree = { id: project.id, source: 'flag' };
+    if (opts.worktree) {
+      const wt = await findWorktreeByNameOrId(project.id, opts.worktree, store);
+      if (wt) resolved.worktreeId = wt.id;
+    }
+    return resolved;
   }
 
   // Step 2: CWD detection (worktree-aware)
@@ -164,6 +181,29 @@ export async function resolveProjectId(
   explicit: string | undefined,
   store: FileProjectStore,
 ): Promise<ResolvedProject> {
-  const result = await resolveProjectWorktree(explicit, store);
+  const result = await resolveProjectWorktree({ project: explicit }, store);
   return { id: result.id, source: result.source };
+}
+
+/**
+ * Find a worktree within a project by exact ID or case-insensitive name.
+ * ID match takes priority over name match. Returns undefined if not found.
+ */
+export async function findWorktreeByNameOrId(
+  projectId: string,
+  nameOrId: string,
+  store: FileProjectStore,
+): Promise<import('@context-forge/core').WorktreeContext | undefined> {
+  const project = await store.getById(projectId);
+  if (!project) return undefined;
+
+  const worktrees = project.worktrees ?? [];
+
+  // Exact ID match first
+  const byId = worktrees.find((wt) => wt.id === nameOrId);
+  if (byId) return byId;
+
+  // Case-insensitive name match
+  const lower = nameOrId.toLowerCase();
+  return worktrees.find((wt) => wt.name.toLowerCase() === lower);
 }

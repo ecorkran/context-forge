@@ -4,6 +4,7 @@ import {
   resolveProjectWorktree,
   findByNameOrId,
   findProjectByCwd,
+  findWorktreeByNameOrId,
 } from '../../src/utils/project.js';
 import { UserError } from '../../src/utils/errors.js';
 
@@ -209,7 +210,7 @@ describe('resolveProjectWorktree', () => {
 
   it('resolves explicit flag with source "flag", no worktreeId', async () => {
     const store = mockStore(projects);
-    const result = await resolveProjectWorktree('orchestration', store);
+    const result = await resolveProjectWorktree({ project: 'orchestration' }, store);
     expect(result).toEqual({ id: 'project_002', source: 'flag' });
     expect(result.worktreeId).toBeUndefined();
   });
@@ -217,7 +218,7 @@ describe('resolveProjectWorktree', () => {
   it('resolves CWD project path match with source "cwd", no worktreeId', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/cf/src');
     const store = mockStore(projects);
-    const result = await resolveProjectWorktree(undefined, store);
+    const result = await resolveProjectWorktree({}, store);
     expect(result).toEqual({ id: 'project_001', source: 'cwd' });
     expect(result.worktreeId).toBeUndefined();
   });
@@ -225,7 +226,7 @@ describe('resolveProjectWorktree', () => {
   it('resolves CWD worktree path match with source "worktree" and worktreeId', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/orch-feature/src');
     const store = mockStore(projects);
-    const result = await resolveProjectWorktree(undefined, store);
+    const result = await resolveProjectWorktree({}, store);
     expect(result).toEqual({ id: 'project_002', source: 'worktree', worktreeId: 'wt_001' });
   });
 
@@ -237,7 +238,7 @@ describe('resolveProjectWorktree', () => {
       () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
     );
     const store = mockStore(projects);
-    const result = await resolveProjectWorktree(undefined, store);
+    const result = await resolveProjectWorktree({}, store);
     expect(result).toEqual({ id: 'project_001', source: 'default' });
     expect(result.worktreeId).toBeUndefined();
     stderrSpy.mockRestore();
@@ -250,8 +251,45 @@ describe('resolveProjectWorktree', () => {
       () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
     );
     const store = mockStore(projects);
-    await expect(resolveProjectWorktree(undefined, store)).rejects.toThrow(UserError);
-    await expect(resolveProjectWorktree(undefined, store)).rejects.toThrow('cf init');
+    await expect(resolveProjectWorktree({}, store)).rejects.toThrow(UserError);
+    await expect(resolveProjectWorktree({}, store)).rejects.toThrow('cf init');
+  });
+
+  it('resolves --worktree option when --project is explicit', async () => {
+    const projectsWithWorktrees = [
+      {
+        id: 'project_002',
+        name: 'orchestration',
+        projectPath: '/repos/orch',
+        worktrees: [
+          { id: 'wt_001', name: 'feature', worktreePath: '/repos/orch-feature' },
+        ],
+      },
+    ];
+    const store = mockStore(projectsWithWorktrees);
+    store.getById = vi.fn().mockResolvedValue(projectsWithWorktrees[0]);
+    const result = await resolveProjectWorktree({ project: 'orchestration', worktree: 'feature' }, store);
+    expect(result.id).toBe('project_002');
+    expect(result.worktreeId).toBe('wt_001');
+    expect(result.source).toBe('flag');
+  });
+
+  it('unknown --worktree returns worktreeId undefined (does not error)', async () => {
+    const projectsWithWorktrees = [
+      {
+        id: 'project_002',
+        name: 'orchestration',
+        projectPath: '/repos/orch',
+        worktrees: [
+          { id: 'wt_001', name: 'feature', worktreePath: '/repos/orch-feature' },
+        ],
+      },
+    ];
+    const store = mockStore(projectsWithWorktrees);
+    store.getById = vi.fn().mockResolvedValue(projectsWithWorktrees[0]);
+    const result = await resolveProjectWorktree({ project: 'orchestration', worktree: 'nonexistent' }, store);
+    expect(result.id).toBe('project_002');
+    expect(result.worktreeId).toBeUndefined();
   });
 });
 
@@ -355,5 +393,60 @@ describe('resolveProjectId', () => {
     const store = mockStore(projects);
     const result = await resolveProjectId(undefined, store);
     expect('worktreeId' in result).toBe(false);
+  });
+});
+
+describe('findWorktreeByNameOrId', () => {
+  const worktrees = [
+    { id: 'wt_001', name: 'Feature A', indexRange: [100, 199] },
+    { id: 'wt_002', name: 'feature-b', indexRange: [200, 299] },
+  ];
+  const project = { id: 'project_001', name: 'test', projectPath: '/repos/test', worktrees };
+
+  function storeWithProject(p: typeof project | null) {
+    return {
+      getAll: vi.fn(),
+      getById: vi.fn().mockResolvedValue(p),
+    } as unknown as FileProjectStore;
+  }
+
+  it('returns worktree by exact ID match', async () => {
+    const store = storeWithProject(project);
+    const result = await findWorktreeByNameOrId('project_001', 'wt_001', store);
+    expect(result?.id).toBe('wt_001');
+  });
+
+  it('returns worktree by case-insensitive name match', async () => {
+    const store = storeWithProject(project);
+    const result = await findWorktreeByNameOrId('project_001', 'feature a', store);
+    expect(result?.id).toBe('wt_001');
+  });
+
+  it('returns worktree by case-insensitive name (mixed case)', async () => {
+    const store = storeWithProject(project);
+    const result = await findWorktreeByNameOrId('project_001', 'FEATURE-B', store);
+    expect(result?.id).toBe('wt_002');
+  });
+
+  it('ID takes priority over name when both could match different entries', async () => {
+    const ambiguous = [
+      { id: 'feature-b', name: 'something-else', indexRange: [100, 199] },
+      { id: 'wt_999', name: 'feature-b', indexRange: [200, 299] },
+    ];
+    const store = storeWithProject({ ...project, worktrees: ambiguous });
+    const result = await findWorktreeByNameOrId('project_001', 'feature-b', store);
+    expect(result?.id).toBe('feature-b');
+  });
+
+  it('returns undefined when not found', async () => {
+    const store = storeWithProject(project);
+    const result = await findWorktreeByNameOrId('project_001', 'nonexistent', store);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when project not found', async () => {
+    const store = storeWithProject(null);
+    const result = await findWorktreeByNameOrId('project_999', 'wt_001', store);
+    expect(result).toBeUndefined();
   });
 });
