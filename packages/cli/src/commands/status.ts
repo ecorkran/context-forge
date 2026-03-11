@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
-import { resolveProjectWorktree, type ResolutionSource } from '../utils/project.js';
+import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -12,20 +12,31 @@ export function registerStatusCommand(program: Command): void {
     .description('Show workflow status for the active project')
     .option('--json', 'Output as JSON')
     .option('--project <id>', 'Project ID or name (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .option('--worktree <name>', 'Show status for a specific worktree')
+    .action(async (opts: { json?: boolean; project?: string; worktree?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id, source, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+        const { id, source, worktreeId: cwdWorktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const rawProject = await store.getById(id);
 
         if (!rawProject) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
 
+        // Resolve worktree: explicit --worktree flag takes priority over CWD resolution
+        let resolvedWorktreeId = cwdWorktreeId;
+        if (opts.worktree) {
+          const wt = await findWorktreeByNameOrId(id, opts.worktree, store);
+          if (!wt) {
+            throw new UserError(`Worktree '${opts.worktree}' not found. Run cf worktree list to see available worktrees.`);
+          }
+          resolvedWorktreeId = wt.id;
+        }
+
         // Apply worktree overlay so navigator and display use correct fields
-        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
-        const worktreeCtx = worktreeId
-          ? (rawProject.worktrees ?? []).find((w) => w.id === worktreeId)
+        const project = resolvedWorktreeId ? applyWorktreeOverlay(rawProject, resolvedWorktreeId) : rawProject;
+        const worktreeCtx = resolvedWorktreeId
+          ? (rawProject.worktrees ?? []).find((w) => w.id === resolvedWorktreeId)
           : undefined;
 
         const nav = new WorkflowNavigator();
