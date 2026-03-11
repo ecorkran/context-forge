@@ -13,3 +13,6 @@ export type { GuideInfo, GuideMethod, InstallResult, UpdateResult } from './guid
 
 // Project schema (field metadata, aliases, phase maps)
 export * from './schema/projectSchema.js';
+
+// Git utilities
+export { GitWorktreeDiscovery, parseWorktreeListOutput } from './git/index.js';
