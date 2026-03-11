@@ -243,7 +243,14 @@ export function registerWorktreeTools(server: McpServer): void {
 
         const service = new WorktreeService(store);
         const updated = await service.updateWorktree(resolvedId, resolved.worktree.id, updates);
-        return jsonResult(updated);
+
+        // Check for overlaps when range changed
+        let overlaps;
+        if (indexRange) {
+          overlaps = await service.findOverlaps(resolvedId, indexRange, resolved.worktree.id);
+        }
+
+        return jsonResult({ worktree: updated, ...(overlaps ? { overlaps } : {}) });
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);
