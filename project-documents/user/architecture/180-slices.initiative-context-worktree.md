@@ -149,7 +149,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Risk:** Medium — field routing (worktree context vs. project) must be correct for every field; migration trigger points must be tested thoroughly
    **Effort:** 3/5
 
-4. [ ] **(184) Status & Display Updates** — Update `cf status`, `cf project list`, and related display commands to show worktree context information.
+4. [x] **(184) Status & Display Updates** — Update `cf status`, `cf project list`, and related display commands to show worktree context information.
 
    **`cf status` from a worktree:**
    ```

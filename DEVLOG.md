@@ -9,6 +9,26 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 184: Status & Display Updates — Phase 6 (Implementation) ✓
+- Extracted `applyWorktreeOverlay` to shared utility (`packages/cli/src/utils/worktree-overlay.ts`), replaced 8 inline copies
+- `cf status` shows dedicated `Worktree:` line with name and index range when resolved from worktree
+- `--worktree <name|id>` flag on `cf status` for cross-directory worktree status
+- `--worktrees` flag on `cf status` for dashboard view of all worktrees with phase/slice/progress
+- `--json` output includes full `WorktreeContext` object (not just name string)
+- `--worktrees --json` outputs array of worktree summaries
+- Mutual exclusion check for `--worktree` and `--worktrees`
+- 257 CLI tests pass (16 new), full build clean
+- Commits:
+  - `70b22c9` refactor(cli): extract applyWorktreeOverlay to shared utility
+  - `49d80d6` refactor(cli): replace 8 inline applyWorktreeOverlay copies with shared import
+  - `1fb7bc8` test(cli): add unit tests for shared applyWorktreeOverlay
+  - `84bc7ae` feat(cli): add Worktree display line to cf status
+  - `09142a5` test(cli): add Worktree line display tests
+  - `e0eacf3` feat(cli): add --worktree flag to cf status
+  - `5559bd4` test(cli): add --worktree flag tests for cf status
+  - `ee38700` feat(cli): add --worktrees dashboard flag to cf status
+  - `d90a0db` test(cli): add --worktrees dashboard tests
+
 ### Slice 183: Worktree CLI Commands — Phase 6 (Implementation) ✓
 - `cf worktree init/list/rm` command group in `packages/cli/src/commands/worktree.ts`
 - `resolveProjectWorktree` refactored to options-object `({ project?, worktree? }, store)` — backwards-compatible via `resolveProjectId` wrapper

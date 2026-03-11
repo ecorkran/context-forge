@@ -7,7 +7,7 @@ dependencies: [182-worktree-discovery-cwd-resolution, 183-worktree-cli-commands]
 interfaces: [185-worktree-aware-context-assembly, 186-mcp-worktree-tools]
 dateCreated: 20260311
 dateUpdated: 20260311
-status: not_started
+status: complete
 ---
 
 # Slice 184: Status & Display Updates
@@ -212,52 +212,76 @@ For `--worktrees --json`, output array of all worktree summaries.
 
 ## Verification Walkthrough
 
-> Draft walkthrough — will be refined during implementation.
+Verified 2026-03-11 — all steps pass.
 
 ### 1. Worktree line in status
 ```bash
-# From project root (Default worktree)
-cd ~/source/repos/manta/context-forge
 cf status
-# Expected: Shows "Worktree: Default [100-499]" line, no "(from worktree)" on Project line
+# Output:
+# Project:  context-forge  (from CWD)
+# Worktree: Default [100-499]
+# Date:     20260307
+# Phase:    Phase 6: Implementation
+# Arch:     180-arch.initiative-context-worktree
+# Plan:     180-slices.initiative-context-worktree
+# Slice:    184-slice.status-display-updates
+# Tasks:    184-tasks.status-display-updates
+# Progress: 0/79 tasks (not-started)
+# Status:   in-implementation
+#
+# Slice Plan
+#   3/7 slices complete
 ```
+Note: Project line shows `(from CWD)`, not `(from worktree "Default")`. Worktree info is on its own line.
 
 ### 2. Cross-directory worktree status
 ```bash
-# From any directory
 cf status --worktree maintenance
-# Expected: Shows maintenance worktree's status (phase, slice, etc.)
+# Output:
+# Project:  context-forge  (from CWD)
+# Worktree: maintenance [900-999]
+# Date:     20260307
+# Phase:    Phase 5: Task Breakdown
+# Arch:     Not set
+# Plan:     Not set
+# Slice:    Not set
+# Tasks:    Not set
 
 cf status --worktree nonexistent
-# Expected: Error "Worktree 'nonexistent' not found..."
+# Output: Worktree 'nonexistent' not found. Run cf worktree list to see available worktrees.
 ```
 
 ### 3. Worktrees dashboard
 ```bash
 cf status --worktrees
-# Expected: Table with Default and maintenance worktrees, showing phase/slice/progress
+# Output:
+# Project:  context-forge
+#
+# Worktrees
+#   Name              Range    Phase                    Slice                             Progress
+#   Default ← active  100-499  Phase 6: Implementation  184-slice.status-display-updates  3/7 slices
+#   maintenance       900-999  Phase 5: Task Breakdown  —                                 —
 ```
 
 ### 4. Mutual exclusion
 ```bash
 cf status --worktree default --worktrees
-# Expected: Error about mutually exclusive flags
+# Output: --worktree and --worktrees are mutually exclusive.
 ```
 
 ### 5. JSON enrichment
 ```bash
 cf status --json | jq '.worktree'
-# Expected: Full WorktreeContext object with id, name, indexRange, etc.
+# Output: Full WorktreeContext object with id, name, indexRange, worktreePath, etc.
 
 cf status --worktrees --json
-# Expected: Array of worktree summaries
+# Output: Array of 2 worktree summary objects with name, range, phase, slice, progress
 ```
 
 ### 6. No worktrees
 ```bash
-# On a project with no worktrees configured
-cf status --worktrees
-# Expected: "No worktrees configured."
+# Tested via unit test (project with empty worktrees array)
+# Output: "No worktrees configured."
 ```
 
 ## Implementation Notes
