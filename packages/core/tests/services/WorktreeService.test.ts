@@ -489,4 +489,91 @@ describe('WorktreeService', () => {
       expect(list).toHaveLength(2);
     });
   });
+
+  describe('validateWorktreePaths', () => {
+    const gitWorktrees = [
+      { path: '/projects/my-app', head: 'abc123', bare: false },
+      { path: '/projects/my-app-api', head: 'def456', bare: false },
+    ];
+
+    it('returns no-path for worktree without worktreePath', async () => {
+      await service.addWorktree('proj_1', {
+        name: 'Design Only',
+        indexRange: [300, 399],
+        // no worktreePath
+      });
+
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, () => true);
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0].status).toBe('no-path');
+      expect(statuses[0].worktreeName).toBe('Design Only');
+      expect(statuses[0].worktreePath).toBeUndefined();
+    });
+
+    it('returns missing for worktree with non-existent path', async () => {
+      await service.addWorktree('proj_1', {
+        name: 'Stale',
+        indexRange: [200, 299],
+        worktreePath: '/projects/deleted-branch',
+      });
+
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, () => false);
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0].status).toBe('missing');
+      expect(statuses[0].worktreePath).toBe('/projects/deleted-branch');
+    });
+
+    it('returns not-a-worktree for path that exists but is not in git list', async () => {
+      await service.addWorktree('proj_1', {
+        name: 'Not Git',
+        indexRange: [200, 299],
+        worktreePath: '/projects/some-other-dir',
+      });
+
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, () => true);
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0].status).toBe('not-a-worktree');
+    });
+
+    it('returns valid for path that exists and is in git list', async () => {
+      await service.addWorktree('proj_1', {
+        name: 'API',
+        indexRange: [100, 199],
+        worktreePath: '/projects/my-app-api',
+      });
+
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, () => true);
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0].status).toBe('valid');
+    });
+
+    it('returns correct mixed statuses for multiple worktrees', async () => {
+      await service.addWorktree('proj_1', {
+        name: 'Valid',
+        indexRange: [100, 199],
+        worktreePath: '/projects/my-app',
+      });
+      await service.addWorktree('proj_1', {
+        name: 'Missing',
+        indexRange: [200, 299],
+        worktreePath: '/projects/deleted',
+      });
+      await service.addWorktree('proj_1', {
+        name: 'No Path',
+        indexRange: [300, 399],
+      });
+
+      const pathExistsFn = (p: string) => p !== '/projects/deleted';
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, pathExistsFn);
+      expect(statuses).toHaveLength(3);
+      expect(statuses[0].status).toBe('valid');
+      expect(statuses[1].status).toBe('missing');
+      expect(statuses[2].status).toBe('no-path');
+    });
+
+    it('returns empty array for project with no worktrees', async () => {
+      const statuses = await service.validateWorktreePaths('proj_1', gitWorktrees, () => true);
+      expect(statuses).toEqual([]);
+    });
+  });
 });

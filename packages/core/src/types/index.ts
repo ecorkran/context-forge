@@ -16,7 +16,7 @@ export { SpecialPromptKeys } from './prompts.js';
 export type { ProjectData, CreateProjectData, UpdateProjectData } from './project.js';
 
 // Worktree types
-export type { WorktreeContext, CreateWorktreeInput, UpdateWorktreeInput, IndexRangeOverlap } from './worktree.js';
+export type { WorktreeContext, CreateWorktreeInput, UpdateWorktreeInput, IndexRangeOverlap, WorktreePathStatus } from './worktree.js';
 
 // Path types
 export type { PathValidationResult, DirectoryListResult } from './paths.js';
