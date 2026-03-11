@@ -1,10 +1,12 @@
+import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
+import { FileProjectStore, WorkflowNavigator, parseSlicePlan, resolveArtifactPath } from '@context-forge/core/node';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
-import { label, value as valueStyle, dim } from '../output/styles.js';
+import { renderTable } from '../output/tables.js';
+import { label, value as valueStyle, success, dim } from '../output/styles.js';
 
 export function registerStatusCommand(program: Command): void {
   program
@@ -13,8 +15,13 @@ export function registerStatusCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--worktree <name>', 'Show status for a specific worktree')
-    .action(async (opts: { json?: boolean; project?: string; worktree?: string }) => {
+    .option('--worktrees', 'Show summary of all worktrees')
+    .action(async (opts: { json?: boolean; project?: string; worktree?: string; worktrees?: boolean }) => {
       try {
+        if (opts.worktree && opts.worktrees) {
+          throw new UserError('--worktree and --worktrees are mutually exclusive.');
+        }
+
         const store = new FileProjectStore();
         const { id, source, worktreeId: cwdWorktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const rawProject = await store.getById(id);
@@ -22,6 +29,69 @@ export function registerStatusCommand(program: Command): void {
         if (!rawProject) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
+
+        // ── --worktrees dashboard ──────────────────────────────────────────
+        if (opts.worktrees) {
+          const worktrees = rawProject.worktrees ?? [];
+          if (worktrees.length === 0) {
+            if (opts.json) {
+              printJson([]);
+            } else {
+              console.log(dim('No worktrees configured.'));
+            }
+            return;
+          }
+
+          const summaries = await Promise.all(
+            worktrees.map(async (wt) => {
+              const overlaid = applyWorktreeOverlay(rawProject, wt.id);
+              let sliceProgress = '—';
+
+              if (overlaid.fileSlicePlan && rawProject.projectPath) {
+                const planRelPath = resolveArtifactPath('fileSlicePlan', overlaid.fileSlicePlan);
+                if (planRelPath) {
+                  try {
+                    const planPath = join(rawProject.projectPath, planRelPath);
+                    const plan = await parseSlicePlan(planPath);
+                    sliceProgress = `${plan.completedSlices}/${plan.totalSlices} slices`;
+                  } catch {
+                    // Plan file may not exist on disk
+                  }
+                }
+              }
+
+              const isActive = wt.id === cwdWorktreeId;
+              return {
+                id: wt.id,
+                name: wt.name,
+                range: wt.indexRange ? `${wt.indexRange[0]}-${wt.indexRange[1]}` : '—',
+                phase: overlaid.developmentPhase || '—',
+                slice: overlaid.fileSlice || '—',
+                progress: sliceProgress,
+                isActive,
+              };
+            }),
+          );
+
+          if (opts.json) {
+            printJson(summaries);
+            return;
+          }
+
+          console.log(label('Project:  ') + valueStyle(rawProject.name));
+          console.log('');
+
+          const rows = summaries.map((s) => {
+            const activeSuffix = s.isActive ? success(' ← active') : '';
+            return [s.name + activeSuffix, s.range, s.phase, s.slice, s.progress];
+          });
+
+          console.log(label('Worktrees'));
+          console.log(renderTable(['Name', 'Range', 'Phase', 'Slice', 'Progress'], rows));
+          return;
+        }
+
+        // ── Single worktree / default status ───────────────────────────────
 
         // Resolve worktree: explicit --worktree flag takes priority over CWD resolution
         let resolvedWorktreeId = cwdWorktreeId;
