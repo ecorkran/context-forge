@@ -1,12 +1,12 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, WorkflowNavigator, parseSlicePlan, resolveArtifactPath } from '@context-forge/core/node';
+import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath } from '@context-forge/core/node';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
-import { label, value as valueStyle, success, dim } from '../output/styles.js';
+import { label, value as valueStyle, success, dim, warn } from '../output/styles.js';
 
 export function registerStatusCommand(program: Command): void {
   program
@@ -162,7 +162,64 @@ export function registerStatusCommand(program: Command): void {
           console.log(dim(`  ${status.slicePlan.completed}/${status.slicePlan.total} slices complete`));
         }
       } catch (err) {
+        // First-run messaging: suggest cf worktree init if CWD is a git worktree of a known project
+        if (err instanceof UserError) {
+          const shown = await showWorktreeSuggestion();
+          if (shown) return;
+        }
         handleError(err);
       }
     });
+}
+
+/**
+ * When project resolution fails, check if CWD is a git worktree of a known project.
+ * If so, display a helpful suggestion to create a worktree context.
+ * Returns true if a suggestion was displayed.
+ */
+async function showWorktreeSuggestion(): Promise<boolean> {
+  try {
+    const discovery = new GitWorktreeDiscovery();
+    const gitWorktrees = await discovery.listWorktrees(process.cwd());
+    if (gitWorktrees.length === 0) return false;
+
+    // Main worktree is the first entry from git worktree list
+    const mainWorktreePath = gitWorktrees[0].path;
+
+    // Check if main worktree path matches a registered project
+    const store = new FileProjectStore();
+    const projects = await store.getAll();
+    const matchingProject = projects.find((p) => p.projectPath === mainWorktreePath);
+    if (!matchingProject) return false;
+
+    // Derive suggested name from current git branch
+    const currentBranch = gitWorktrees.find((wt) => {
+      const cwd = process.cwd();
+      return wt.path === cwd || cwd.startsWith(wt.path + '/');
+    })?.branch;
+    let suggestedName = 'my-worktree';
+    if (currentBranch) {
+      // Strip refs/heads/ and common prefixes like feature/, bugfix/
+      suggestedName = currentBranch
+        .replace(/^refs\/heads\//, '')
+        .replace(/^(feature|bugfix|hotfix|fix|chore|refactor)\//, '');
+    }
+
+    // Suggest next available 100-block range
+    const existingWorktrees = matchingProject.worktrees ?? [];
+    let maxEnd = 99;
+    for (const wt of existingWorktrees) {
+      if (wt.indexRange[1] > maxEnd) maxEnd = wt.indexRange[1];
+    }
+    const rangeStart = Math.ceil((maxEnd + 1) / 100) * 100;
+    const rangeEnd = rangeStart + 99;
+
+    console.log('');
+    console.log(warn(`This directory appears to be a git worktree of project '${matchingProject.name}'.`));
+    console.log(`Create a worktree context: ${dim(`cf worktree init --name '${suggestedName}' --range ${rangeStart}-${rangeEnd}`)}`);
+    console.log('');
+    return true;
+  } catch {
+    return false;
+  }
 }

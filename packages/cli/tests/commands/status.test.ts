@@ -5,6 +5,7 @@ import { registerStatusCommand } from '../../src/commands/status.js';
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGetStatus = vi.fn();
+const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -17,6 +18,11 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
+  GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
+    listWorktrees: mockListGitWorktrees,
+  })),
+  parseSlicePlan: vi.fn(),
+  resolveArtifactPath: vi.fn(),
 }));
 
 const sampleProject = {
@@ -124,5 +130,62 @@ describe('cf status', () => {
     const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw);
     expect(parsed.resolutionSource).toBe('flag');
+  });
+});
+
+describe('cf status first-run suggestion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    // No project matches CWD and no default project → resolution fails
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(undefined);
+  });
+
+  it('suggests cf worktree init when CWD is a git worktree of a known project', async () => {
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/tmp/test-feature');
+    mockListGitWorktrees.mockResolvedValue([
+      { path: '/tmp/test', head: 'abc', branch: 'refs/heads/main', bare: false },
+      { path: '/tmp/test-feature', head: 'def', branch: 'refs/heads/feature/auth', bare: false },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('appears to be a git worktree');
+    expect(output).toContain('cf worktree init');
+    expect(output).toContain('auth'); // derived name from feature/auth branch
+    cwdSpy.mockRestore();
+  });
+
+  it('shows standard error when CWD is not a git worktree', async () => {
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/some/random/dir');
+    mockListGitWorktrees.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status']);
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(errOutput).toContain('No project specified');
+    cwdSpy.mockRestore();
+  });
+
+  it('shows standard error when CWD is a worktree of an unknown project', async () => {
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/other/worktree');
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockListGitWorktrees.mockResolvedValue([
+      { path: '/other/main', head: 'abc', branch: 'refs/heads/main', bare: false },
+      { path: '/other/worktree', head: 'def', branch: 'refs/heads/feat', bare: false },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status']);
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(errOutput).toContain('No project specified');
+    cwdSpy.mockRestore();
   });
 });
