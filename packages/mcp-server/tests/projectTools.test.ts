@@ -13,6 +13,9 @@ const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
 const mockConfigGet = vi.fn();
 const mockSummarize = vi.fn();
 const mockResolveFileByIndex = vi.fn();
+const mockWtGetWorktree = vi.fn();
+const mockWtGetWorktreeByName = vi.fn();
+const mockWtUpdateWorktree = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -27,6 +30,11 @@ vi.mock('@context-forge/core/node', () => ({
     summarize: mockSummarize,
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
+  WorktreeService: vi.fn().mockImplementation(() => ({
+    getWorktree: mockWtGetWorktree,
+    getWorktreeByName: mockWtGetWorktreeByName,
+    updateWorktree: mockWtUpdateWorktree,
+  })),
 }));
 
 // --- Fixtures ---
@@ -517,5 +525,194 @@ describe('project_schema', () => {
     expect(parsed.aliases.phase).toBe('developmentPhase');
     expect(parsed.aliases.arch).toBe('fileArch');
     expect(parsed.aliases.path).toBe('projectPath');
+  });
+});
+
+// --- Worktree-aware project_update tests ---
+
+const MOCK_WORKTREE = {
+  id: 'wt_test_001',
+  name: 'Feature Branch',
+  indexRange: [100, 199] as [number, number],
+  developmentPhase: 'implementation',
+  activeSlice: '100-slice.feature',
+  activeTaskFile: '100-tasks.feature',
+  instruction: 'implementation',
+};
+
+const MOCK_PROJECT_WITH_WT: ProjectData = {
+  ...MOCK_PROJECT,
+  worktrees: [MOCK_WORKTREE],
+};
+
+describe('project_update with worktreeId', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('routes workflow field to worktree and auto-sets instruction', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockWtUpdateWorktree.mockResolvedValue({});
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: MOCK_WORKTREE.id,
+        developmentPhase: 'review',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // developmentPhase is worktree-scoped → routed to updateWorktree with auto-set instruction
+    expect(mockWtUpdateWorktree).toHaveBeenCalledWith(
+      MOCK_PROJECT.id,
+      MOCK_WORKTREE.id,
+      expect.objectContaining({
+        developmentPhase: 'review',
+        instruction: 'review',
+      }),
+    );
+    // No project-level update should happen (only worktree fields)
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('routes project field to project store', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: MOCK_WORKTREE.id,
+        name: 'New Name',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // name is project-level → routed to store.update
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, { name: 'New Name' });
+    // No worktree update
+    expect(mockWtUpdateWorktree).not.toHaveBeenCalled();
+  });
+
+  it('splits mixed fields between worktree and project', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockWtUpdateWorktree.mockResolvedValue({});
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: MOCK_WORKTREE.id,
+        name: 'Updated Name',
+        developmentPhase: 'design',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(MOCK_PROJECT.id, { name: 'Updated Name' });
+    expect(mockWtUpdateWorktree).toHaveBeenCalledWith(
+      MOCK_PROJECT.id,
+      MOCK_WORKTREE.id,
+      expect.objectContaining({ developmentPhase: 'design', instruction: 'design' }),
+    );
+  });
+
+  it('maps fileSlice to activeSlice and auto-sets activeTaskFile', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockWtUpdateWorktree.mockResolvedValue({});
+    mockResolveFileByIndex.mockReturnValue('150-tasks.new-feature');
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: MOCK_WORKTREE.id,
+        fileSlice: '150-slice.new-feature',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockWtUpdateWorktree).toHaveBeenCalledWith(
+      MOCK_PROJECT.id,
+      MOCK_WORKTREE.id,
+      expect.objectContaining({
+        activeSlice: '150-slice.new-feature',
+        activeTaskFile: '150-tasks.new-feature',
+      }),
+    );
+  });
+
+  it('existing behavior unchanged without worktreeId', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        developmentPhase: 'review',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(
+      MOCK_PROJECT.id,
+      expect.objectContaining({ developmentPhase: 'review', instruction: 'review' }),
+    );
+    expect(mockWtUpdateWorktree).not.toHaveBeenCalled();
+  });
+
+  it('returns error when worktreeId not found', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(undefined);
+    mockWtGetWorktreeByName.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: 'nonexistent',
+        developmentPhase: 'review',
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('not found');
+  });
+
+  it('includes _worktreeUpdated indicator in response', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockWtUpdateWorktree.mockResolvedValue({});
+
+    const result = await client.callTool({
+      name: 'project_update',
+      arguments: {
+        id: MOCK_PROJECT.id,
+        worktreeId: MOCK_WORKTREE.id,
+        instruction: 'review',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed._worktreeUpdated).toBe(MOCK_WORKTREE.id);
   });
 });
