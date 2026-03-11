@@ -1,5 +1,4 @@
 import * as os from 'node:os';
-import * as readline from 'node:readline';
 import { join } from 'node:path';
 import { Command } from 'commander';
 import { FileProjectStore, ConfigManager, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan } from '@context-forge/core/node';
@@ -14,6 +13,7 @@ import {
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, findByNameOrId, findProjectByCwd } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, value as valueStyle, success, dim } from '../output/styles.js';
@@ -427,13 +427,3 @@ export function registerProjectCommand(program: Command): void {
     });
 }
 
-/** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
-function askConfirmation(prompt: string): Promise<boolean> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === 'y');
-    });
-  });
-}
