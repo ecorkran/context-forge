@@ -2,9 +2,25 @@ import { Command } from 'commander';
 import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printRaw } from '../output/formatter.js';
+
+/** Overlay worktree-scoped fields onto a project copy. */
+function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
+  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+  if (!wt) return project;
+  return {
+    ...project,
+    developmentPhase: wt.developmentPhase || project.developmentPhase,
+    instruction: wt.instruction || project.instruction,
+    workType: wt.workType || project.workType,
+    fileArch: wt.archDoc || project.fileArch,
+    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
+    fileSlice: wt.activeSlice || project.fileSlice,
+    fileTasks: wt.activeTaskFile || project.fileTasks,
+  };
+}
 
 interface BuildOpts {
   project?: string;
@@ -32,19 +48,22 @@ export function registerBuildCommand(program: Command): void {
     .action(async (opts: BuildOpts) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+        const rawProject = await store.getById(id);
 
-        if (!project) {
+        if (!rawProject) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
 
-        if (!project.projectPath) {
+        if (!rawProject.projectPath) {
           throw new UserError(
-            `Project '${project.name}' has no projectPath configured.\n` +
+            `Project '${rawProject.name}' has no projectPath configured.\n` +
               '  cf project set projectPath /path/to/project',
           );
         }
+
+        // Apply worktree overlay so build uses correct fields
+        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
 
         // Status message goes to stderr so stdout stays clean for piping
         process.stderr.write(`Building context for ${project.name}...\n`);
