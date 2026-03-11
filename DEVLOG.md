@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 186: MCP Worktree Tools — Phase 5 (Task Breakdown) ✓
+- Created `186-tasks.mcp-worktree-tools.md` — 16 tasks covering CRUD tools, extended tools, overlay extraction, and tests
+- Test-with ordering: each implementation task immediately followed by its test task
+- `applyWorktreeOverlay` move from CLI→core scoped as task 1 (shared dependency)
+
+### Maintenance: MCP prompt fallback fix
+- `prompt_list`/`prompt_get` now fall back to bundled prompts when no `default_project` configured
+- Exported `resolvePromptFilePath` from `@context-forge/core/node`; added `resolvePromptFileForTools` helper in MCP
+- Commit: `191fde6` fix(mcp): prompt_list and prompt_get fall back to bundled prompts when no project resolved
+
 ### Slice 186: MCP Worktree Tools — Phase 4 (Slice Design) ✓
 - Designed 5 new CRUD tools (`worktree_init/list/get/update/rm`) wrapping `WorktreeService`
 - Extended 4 existing tools with optional `worktreeId`: `workflow_status`, `workflow_next`, `context_build`, `project_update`
