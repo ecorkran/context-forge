@@ -102,7 +102,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Risk:** Medium — git CLI output parsing must handle edge cases (bare repos, detached HEAD, pruned worktrees)
    **Effort:** 3/5
 
-3. [ ] **(183) Worktree CLI Commands** — The `cf worktree` command group for managing worktree contexts, plus worktree-aware `cf set` behavior. **Note:** Also includes the `--worktree <name|id>` shared CLI flag for explicit worktree override (deferred from slice 182 to keep resolution and CLI concerns separate).
+3. [x] **(183) Worktree CLI Commands** — The `cf worktree` command group for managing worktree contexts, plus worktree-aware `cf set` behavior. **Note:** Also includes the `--worktree <name|id>` shared CLI flag for explicit worktree override (deferred from slice 182 to keep resolution and CLI concerns separate).
 
    **`cf worktree init`** — Creates a new worktree context for the current project.
    - From a worktree directory: `cf worktree init --name "API Foundation" --range 100-199` (worktree path derived from CWD, project resolved via git worktree list)
