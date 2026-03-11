@@ -9,6 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 187: Validation, Edge Cases & Polish — Design Complete
+- Created `user/slices/187-slice.validation-edge-cases-polish.md`
+- Scope: `cf worktree update` CLI command, stale path detection via `WorktreeService.validateWorktreePaths()`, `cf check` rule `stale-worktree-path`, first-run messaging in `cf status`, overlap detection on MCP `worktree_update`
+- Key decisions: validation method on WorktreeService with injected `pathExists` for testability; `--range` option takes unquoted `start-end` string; stricter validation (effort bumped to 3/5)
+- Commits:
+  - `250e495` docs: add slice 187 design for validation, edge cases & polish
+
 ### Slice 186: MCP Worktree Tools — Complete
 - 5 new CRUD tools: `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm`
 - 4 extended tools with worktree params: `workflow_status`, `workflow_next`, `context_build`, `project_update`
