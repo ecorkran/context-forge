@@ -418,72 +418,102 @@ Output: 'Updated slice = 103-slice.api-cli-foundation.md on worktree context "AP
 
 ## Verification Walkthrough
 
-_Draft — to be updated with actual commands and output during Phase 6 implementation._
+_Updated during acceptance testing (2026-03-11). Commands verified against live worktree setup._
 
 ### Setup
 
 ```bash
-# Start from a project with a worktree registered
-cd ~/repos/orchestration
-git worktree add ../orchestration-api feature/100-api
-
-cf init  # registers orchestration at current directory if not already registered
+# From main repo with project already registered
+cd ~/source/repos/manta/context-forge
+git worktree add -b maintenance ../context-forge-maintenance main
+cf worktree init --name maintenance --range 900-999 --path ~/source/repos/manta/context-forge-maintenance
+# Output: Note: Existing workflow fields were migrated to a 'Default' worktree context (range 0-99).
+#         Worktree context 'maintenance' created (900-999) on project 'context-forge'.
 ```
 
-### Create a worktree context
-
+**Caveat:** The auto-created Default worktree gets range [0-99]. Adjust if needed:
 ```bash
-cd ~/repos/orchestration-api
-cf worktree init --name "API Foundation" --range 100-199
-# Expected: 'Created worktree context "API Foundation" [100-199] on project orchestration.'
-# If 100-arch.*.md exists: 'Auto-discovered archDoc: 100-arch.api-foundation.md'
+# No `cf worktree update` command yet — use WorktreeService directly via node script
+node -e "const { FileProjectStore, WorktreeService } = require('./packages/core/dist/node.js'); ..."
 ```
 
 ### List worktree contexts
 
 ```bash
-cd ~/repos/orchestration-api
 cf worktree list
-# Expected: table with "API Foundation" marked with * (currently resolved)
+# Output:
+#   Name         Range      Path                                            Arch                                  Plan
+#   Default      [100-499]  ~/source/repos/manta/context-forge              180-arch.initiative-context-worktree  180-slices.initiative-context-worktree
+#   maintenance  [900-999]  ~/source/repos/manta/context-forge-maintenance  —                                     —
+
+cd ~/source/repos/manta/context-forge-maintenance
+cf worktree list
+# Same table, but maintenance row prefixed with * (active worktree)
 ```
 
 ### Worktree-aware set
 
 ```bash
-cd ~/repos/orchestration-api
-cf set phase 6
-# Expected: 'Updated phase = 6 on worktree context "API Foundation"'
+cd ~/source/repos/manta/context-forge-maintenance
+cf set phase 5
+# Output: Updated phase = Phase 5: Task Breakdown on worktree context "maintenance"
+#         Updated instruction = Phase 5: Task Breakdown (auto-set from phase) on worktree context "maintenance"
 
 cf set --project-level phase 3
-# Expected: 'Updated phase = 3 on project orchestration'
+# Output: Updated phase = Phase 3: ... on project context-forge
 
-cd ~/repos/orchestration
-cf set phase 5
-# Expected: 'Updated phase = 5 on project orchestration' (no worktree resolved)
+cd ~/source/repos/manta/context-forge
+cf set phase 6
+# Output: Updated phase = Phase 6: Implementation on worktree context "Default"
+# Note: CWD resolution prefers worktree match over project root when paths are identical
 ```
 
 ### Worktree-aware get
 
 ```bash
-cd ~/repos/orchestration-api
+cd ~/source/repos/manta/context-forge-maintenance
 cf get
-# Expected: shows worktree context header and worktree-scoped fields
+# Output: shows worktree header (Name, Range, Path) then project fields with worktree overlay
 
 cf get --project-level
-# Expected: shows project-level fields
+# Output: shows project-level fields only (no worktree header, no overlay)
 ```
+
+### Worktree-aware status
+
+```bash
+cd ~/source/repos/manta/context-forge
+cf status
+# Output: Project:  context-forge  (from worktree "Default")
+#         Phase:    Phase 6: Implementation
+#         Arch:     180-arch.initiative-context-worktree
+#         ...
+
+cd ~/source/repos/manta/context-forge-maintenance
+cf status
+# Output: Project:  context-forge  (from worktree "maintenance")
+#         Phase:    Phase 5: Task Breakdown
+#         Arch:     Not set
+#         ...
+```
+
+**Post-implementation fix:** `cf status` was not originally worktree-aware (it read raw project fields, which are cleared after migration). Fixed by switching from `resolveProjectId` to `resolveProjectWorktree` and applying worktree overlay before display. Also fixed CWD tiebreaker: when `projectPath` and `worktreePath` match the same directory, worktree match now takes priority.
 
 ### Remove worktree context
 
 ```bash
-cd ~/repos/orchestration
-cf worktree rm "API Foundation"
-# Expected: confirmation prompt, then 'Removed worktree context "API Foundation" from project orchestration.'
-# If last worktree: 'Note: workflow fields restored to project level.'
+cf worktree rm maintenance
+# Expected: confirmation prompt, then 'Removed worktree context "maintenance"...'
 
-cf worktree rm "API Foundation" --yes
+cf worktree rm maintenance --yes
 # Expected: no prompt, immediate removal
+# If last worktree: 'Note: workflow fields restored to project level.'
 ```
+
+### Known gaps (documented for future slices)
+
+- **MCP `workflow_status` tool** does not apply worktree overlay — uses `resolveProjectId` (explicit IDs only, no CWD). Needs `worktreeId` parameter or similar mechanism. Tracked under slice 186.
+- **`cf worktree update`** command not yet implemented — range/name changes require direct WorktreeService calls.
 
 ## Implementation Notes
 

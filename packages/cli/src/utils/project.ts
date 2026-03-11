@@ -67,7 +67,14 @@ export async function findProjectByCwd(
       const path = c.path.endsWith('/') ? c.path.slice(0, -1) : c.path;
       return cwd === path || cwd.startsWith(path + '/');
     })
-    .sort((a, b) => b.path.length - a.path.length);
+    .sort((a, b) => {
+      // Longest path wins; on tie, prefer worktree match over project root
+      const lenDiff = b.path.length - a.path.length;
+      if (lenDiff !== 0) return lenDiff;
+      if (a.worktreeId && !b.worktreeId) return -1;
+      if (!a.worktreeId && b.worktreeId) return 1;
+      return 0;
+    });
 
   if (matches.length === 0) return null;
   return { project: matches[0].project, worktreeId: matches[0].worktreeId };

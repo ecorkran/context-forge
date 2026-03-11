@@ -1,9 +1,26 @@
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
-import { resolveProjectId, type ResolutionSource } from '../utils/project.js';
+import type { ProjectData } from '@context-forge/core';
+import { resolveProjectWorktree, type ResolutionSource } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim } from '../output/styles.js';
+
+/** Overlay worktree-scoped fields onto a project copy. */
+function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
+  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+  if (!wt) return project;
+  return {
+    ...project,
+    developmentPhase: wt.developmentPhase || project.developmentPhase,
+    instruction: wt.instruction || project.instruction,
+    workType: wt.workType || project.workType,
+    fileArch: wt.archDoc || project.fileArch,
+    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
+    fileSlice: wt.activeSlice || project.fileSlice,
+    fileTasks: wt.activeTaskFile || project.fileTasks,
+  };
+}
 
 export function registerStatusCommand(program: Command): void {
   program
@@ -14,18 +31,24 @@ export function registerStatusCommand(program: Command): void {
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id, source } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
+        const { id, source, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+        const rawProject = await store.getById(id);
 
-        if (!project) {
+        if (!rawProject) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
+
+        // Apply worktree overlay so navigator and display use correct fields
+        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
+        const worktreeName = worktreeId
+          ? (rawProject.worktrees ?? []).find((w) => w.id === worktreeId)?.name
+          : undefined;
 
         const nav = new WorkflowNavigator();
         const status = await nav.getStatus(project);
 
         if (opts.json) {
-          printJson({ ...status, resolutionSource: source });
+          printJson({ ...status, resolutionSource: source, ...(worktreeName ? { worktree: worktreeName } : {}) });
           return;
         }
 
@@ -37,7 +60,9 @@ export function registerStatusCommand(program: Command): void {
           none: '',
         };
 
-        const sourceLabel = sourceLabels[source];
+        const sourceLabel = worktreeName
+          ? `(from worktree "${worktreeName}")`
+          : sourceLabels[source];
         const projectLine = sourceLabel
           ? `${valueStyle(status.project)}  ${dim(sourceLabel)}`
           : valueStyle(status.project);
