@@ -9,6 +9,8 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGetStatus = vi.fn();
 const mockGenerateContextFromProject = vi.fn();
+const mockParseSlicePlan = vi.fn();
+const mockResolveArtifactPath = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -24,6 +26,8 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
+  parseSlicePlan: (...args: unknown[]) => mockParseSlicePlan(...args),
+  resolveArtifactPath: (...args: unknown[]) => mockResolveArtifactPath(...args),
 }));
 
 vi.mock('../../src/utils/project.js', async () => {
@@ -452,6 +456,112 @@ describe('cf status --worktree flag', () => {
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('maintenance');
     expect(output).toContain('[900-999]');
+  });
+});
+
+// ── cf status --worktrees dashboard ────────────────────────────────────────────
+
+describe('cf status --worktrees dashboard', () => {
+  const projectWithMultipleWorktrees = {
+    ...sampleProject,
+    worktrees: [sampleWorktree, maintenanceWorktree],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({
+      id: 'proj_001',
+      source: 'worktree',
+      worktreeId: 'wt_001',
+    });
+    mockGetById.mockResolvedValue({ ...projectWithMultipleWorktrees });
+    mockResolveArtifactPath.mockReturnValue('project-documents/user/architecture/180-slices.initiative-context-worktree.md');
+    mockParseSlicePlan.mockResolvedValue({ completedSlices: 3, totalSlices: 7, entries: [] });
+  });
+
+  it('renders table with correct columns for multiple worktrees', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktrees']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Worktrees');
+    expect(output).toContain('Feature A');
+    expect(output).toContain('maintenance');
+    expect(output).toContain('100-199');
+    expect(output).toContain('900-999');
+  });
+
+  it('marks active worktree with ← active', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktrees']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('← active');
+  });
+
+  it('prints "No worktrees configured." for project with no worktrees', async () => {
+    mockGetById.mockResolvedValue({ ...sampleProject, worktrees: [] });
+
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktrees']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('No worktrees configured.');
+  });
+
+  it('shows — for worktree with no slice/phase', async () => {
+    const emptyWorktree = {
+      id: 'wt_empty',
+      name: 'empty',
+      indexRange: [500, 599] as [number, number],
+      worktreePath: '/repos/empty',
+      developmentPhase: '',
+      activeSlice: '',
+      activeTaskFile: '',
+      archDoc: '',
+      slicePlan: '',
+    };
+    mockGetById.mockResolvedValue({
+      ...sampleProject,
+      worktrees: [emptyWorktree],
+    });
+    vi.mocked(resolveProjectWorktree).mockResolvedValue({
+      id: 'proj_001',
+      source: 'cwd',
+    });
+
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktrees']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('—');
+  });
+
+  it('--worktree and --worktrees together produces mutual exclusion error', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktree', 'default', '--worktrees']);
+
+    const errorOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errorOutput).toContain('--worktree and --worktrees are mutually exclusive');
+  });
+
+  it('--worktrees --json outputs array of summaries', async () => {
+    const program = createStatusProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--worktrees', '--json']);
+
+    const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed.length).toBe(2);
+    expect(parsed[0]).toHaveProperty('name');
+    expect(parsed[0]).toHaveProperty('range');
+    expect(parsed[0]).toHaveProperty('phase');
+    expect(parsed[0]).toHaveProperty('progress');
   });
 });
 
