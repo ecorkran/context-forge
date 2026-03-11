@@ -12,6 +12,7 @@ import {
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findByNameOrId, findProjectByCwd } from '../utils/project.js';
+import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -49,22 +50,6 @@ function shortenPath(p: string): string {
   return p;
 }
 
-
-/** Overlay worktree-scoped fields onto a project copy. */
-function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
-  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
-  if (!wt) return project;
-  return {
-    ...project,
-    developmentPhase: wt.developmentPhase || project.developmentPhase,
-    instruction: wt.instruction || project.instruction,
-    workType: wt.workType || project.workType,
-    fileArch: wt.archDoc || project.fileArch,
-    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
-    fileSlice: wt.activeSlice || project.fileSlice,
-    fileTasks: wt.activeTaskFile || project.fileTasks,
-  };
-}
 
 /** Fields that are routed to WorktreeContext when a worktree is active. */
 const WORKTREE_SCOPED_FIELDS = new Set([

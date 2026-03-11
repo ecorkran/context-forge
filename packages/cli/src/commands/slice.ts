@@ -1,29 +1,13 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
-import type { ProjectData } from '@context-forge/core';
 import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, success, dim } from '../output/styles.js';
-
-/** Overlay worktree-scoped fields onto a project copy. */
-function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
-  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
-  if (!wt) return project;
-  return {
-    ...project,
-    developmentPhase: wt.developmentPhase || project.developmentPhase,
-    instruction: wt.instruction || project.instruction,
-    workType: wt.workType || project.workType,
-    fileArch: wt.archDoc || project.fileArch,
-    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
-    fileSlice: wt.activeSlice || project.fileSlice,
-    fileTasks: wt.activeTaskFile || project.fileTasks,
-  };
-}
 
 export function registerSliceCommand(program: Command): void {
   const cmd = program
