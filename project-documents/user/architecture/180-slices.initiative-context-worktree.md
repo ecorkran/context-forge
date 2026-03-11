@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
-dateUpdated: 20260309
+dateUpdated: 20260311
 status: in_progress
 ---
 
@@ -204,7 +204,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Risk:** Low — primarily display logic; WorkflowNavigator integration is a natural extension
    **Effort:** 2/5
 
-5. [ ] **(185) Worktree-Aware Context Assembly** — Update `cf build` and `context_build` MCP tool to source artifact references from the resolved worktree context when building from a worktree.
+5. [x] **(185) Worktree-Aware Context Assembly** — Update `cf build` and `context_build` MCP tool to source artifact references from the resolved worktree context when building from a worktree. *(Delivered as part of slices 182-184: `applyWorktreeOverlay` in `cf build` already sources artifacts from resolved worktree. MCP `context_build` worktree param deferred to slice 186. `--worktree` flag on build deferred pending global `--worktree` across all commands.)*
 
    **Current behavior:** `cf build` creates a working copy of `ProjectData` and passes it to `integrator.generateContextFromProject()`. The integrator reads `fileArch`, `fileSlicePlan`, `fileSlice`, `fileTasks` from the project.
 
