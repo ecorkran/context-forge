@@ -32,6 +32,7 @@ export function registerStatusCommand(program: Command): void {
         const sourceLabels: Record<ResolutionSource, string> = {
           flag: '(--project flag)',
           cwd: '(from CWD)',
+          worktree: '(from worktree)',
           default: '(default)',
           none: '',
         };

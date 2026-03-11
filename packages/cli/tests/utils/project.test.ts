@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolveProjectId, findByNameOrId, findProjectByCwd } from '../../src/utils/project.js';
+import {
+  resolveProjectId,
+  resolveProjectWorktree,
+  findByNameOrId,
+  findProjectByCwd,
+} from '../../src/utils/project.js';
 import { UserError } from '../../src/utils/errors.js';
 
 // Mock ConfigManager and FileProjectStore
@@ -13,7 +18,7 @@ vi.mock('@context-forge/core/node', () => ({
 import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
 
 /** Helper to create a mock store with predefined projects. */
-function mockStore(projects: Array<{ id: string; name: string; projectPath?: string }>) {
+function mockStore(projects: Array<Record<string, unknown>>) {
   return {
     getAll: vi.fn().mockResolvedValue(projects),
     getById: vi.fn(),
@@ -52,14 +57,12 @@ describe('findByNameOrId', () => {
   });
 
   it('ID match takes priority over name match', async () => {
-    // Create a scenario where an ID could also be a name
     const ambiguous = [
       { id: 'orchestration', name: 'id-is-also-a-name', projectPath: '/a' },
       { id: 'project_999', name: 'orchestration', projectPath: '/b' },
     ];
     const store = mockStore(ambiguous);
     const result = await findByNameOrId('orchestration', store);
-    // Should match the first project by ID, not the second by name
     expect(result).toEqual(ambiguous[0]);
   });
 });
@@ -72,19 +75,21 @@ describe('findProjectByCwd', () => {
     { id: 'p4', name: 'no-path' },
   ];
 
-  it('returns exact path match', async () => {
+  it('returns CwdMatch with project on exact path match', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/other');
     const store = mockStore(projects);
     const result = await findProjectByCwd(store);
-    expect(result).toEqual(projects[2]);
+    expect(result?.project).toEqual(projects[2]);
+    expect(result?.worktreeId).toBeUndefined();
     vi.restoreAllMocks();
   });
 
-  it('returns subdirectory match', async () => {
+  it('returns CwdMatch with project on subdirectory match', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/other/src/components');
     const store = mockStore(projects);
     const result = await findProjectByCwd(store);
-    expect(result).toEqual(projects[2]);
+    expect(result?.project).toEqual(projects[2]);
+    expect(result?.worktreeId).toBeUndefined();
     vi.restoreAllMocks();
   });
 
@@ -92,8 +97,7 @@ describe('findProjectByCwd', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/outer/packages/inner/src');
     const store = mockStore(projects);
     const result = await findProjectByCwd(store);
-    // inner (/repos/outer/packages/inner) is longer than outer (/repos/outer)
-    expect(result).toEqual(projects[1]);
+    expect(result?.project).toEqual(projects[1]);
     vi.restoreAllMocks();
   });
 
@@ -117,8 +121,137 @@ describe('findProjectByCwd', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/trailing/src');
     const store = mockStore([{ id: 'p5', name: 'trailing', projectPath: '/repos/trailing/' }]);
     const result = await findProjectByCwd(store);
-    expect(result).toEqual({ id: 'p5', name: 'trailing', projectPath: '/repos/trailing/' });
+    expect(result?.project.id).toBe('p5');
+    expect(result?.worktreeId).toBeUndefined();
     vi.restoreAllMocks();
+  });
+
+  it('matches via worktreePath and returns worktreeId', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/project-api/src');
+    const projectWithWorktrees = [
+      {
+        id: 'p1',
+        name: 'project',
+        projectPath: '/repos/project',
+        worktrees: [
+          { id: 'wt_001', name: 'api-worktree', worktreePath: '/repos/project-api' },
+        ],
+      },
+    ];
+    const store = mockStore(projectWithWorktrees);
+    const result = await findProjectByCwd(store);
+    expect(result?.project.id).toBe('p1');
+    expect(result?.worktreeId).toBe('wt_001');
+    vi.restoreAllMocks();
+  });
+
+  it('matches via projectPath when CWD is in project root (no worktrees)', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/project/src');
+    const projectNoWorktrees = [
+      { id: 'p1', name: 'project', projectPath: '/repos/project' },
+    ];
+    const store = mockStore(projectNoWorktrees);
+    const result = await findProjectByCwd(store);
+    expect(result?.project.id).toBe('p1');
+    expect(result?.worktreeId).toBeUndefined();
+    vi.restoreAllMocks();
+  });
+
+  it('longest path wins: worktree path beats project path when more specific', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/project-api/nested/src');
+    const twoWorktrees = [
+      {
+        id: 'p1',
+        name: 'project',
+        projectPath: '/repos/project',
+        worktrees: [
+          { id: 'wt_001', name: 'api', worktreePath: '/repos/project-api' },
+          { id: 'wt_002', name: 'nested', worktreePath: '/repos/project-api/nested' },
+        ],
+      },
+    ];
+    const store = mockStore(twoWorktrees);
+    const result = await findProjectByCwd(store);
+    expect(result?.worktreeId).toBe('wt_002');
+    vi.restoreAllMocks();
+  });
+
+  it('project with empty worktrees array behaves as before', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/project/src');
+    const projectEmptyWorktrees = [
+      { id: 'p1', name: 'project', projectPath: '/repos/project', worktrees: [] },
+    ];
+    const store = mockStore(projectEmptyWorktrees);
+    const result = await findProjectByCwd(store);
+    expect(result?.project.id).toBe('p1');
+    expect(result?.worktreeId).toBeUndefined();
+    vi.restoreAllMocks();
+  });
+});
+
+describe('resolveProjectWorktree', () => {
+  const projects = [
+    { id: 'project_001', name: 'context-forge', projectPath: '/repos/cf' },
+    {
+      id: 'project_002',
+      name: 'orchestration',
+      projectPath: '/repos/orch',
+      worktrees: [
+        { id: 'wt_001', name: 'feature', worktreePath: '/repos/orch-feature' },
+      ],
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it('resolves explicit flag with source "flag", no worktreeId', async () => {
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree('orchestration', store);
+    expect(result).toEqual({ id: 'project_002', source: 'flag' });
+    expect(result.worktreeId).toBeUndefined();
+  });
+
+  it('resolves CWD project path match with source "cwd", no worktreeId', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/cf/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree(undefined, store);
+    expect(result).toEqual({ id: 'project_001', source: 'cwd' });
+    expect(result.worktreeId).toBeUndefined();
+  });
+
+  it('resolves CWD worktree path match with source "worktree" and worktreeId', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/orch-feature/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree(undefined, store);
+    expect(result).toEqual({ id: 'project_002', source: 'worktree', worktreeId: 'wt_001' });
+  });
+
+  it('resolves via default_project config with source "default"', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
+    vi.mocked(ConfigManager).mockImplementation(
+      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
+    );
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree(undefined, store);
+    expect(result).toEqual({ id: 'project_001', source: 'default' });
+    expect(result.worktreeId).toBeUndefined();
+    stderrSpy.mockRestore();
+  });
+
+  it('throws UserError when no resolution available', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const mockGet = vi.fn().mockResolvedValue({ value: '' });
+    vi.mocked(ConfigManager).mockImplementation(
+      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
+    );
+    const store = mockStore(projects);
+    await expect(resolveProjectWorktree(undefined, store)).rejects.toThrow(UserError);
+    await expect(resolveProjectWorktree(undefined, store)).rejects.toThrow('cf init');
   });
 });
 
@@ -215,5 +348,12 @@ describe('resolveProjectId', () => {
     const store = mockStore(projects);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow('cf init');
+  });
+
+  it('does not expose worktreeId (backwards compatibility)', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/cf/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectId(undefined, store);
+    expect('worktreeId' in result).toBe(false);
   });
 });

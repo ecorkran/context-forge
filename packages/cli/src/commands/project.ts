@@ -332,8 +332,8 @@ export function registerProjectCommand(program: Command): void {
           defaultProject = await findByNameOrId(defaultRef, store);
         }
 
-        const cwdProject = await findProjectByCwd(store);
-        const activeId = cwdProject?.id ?? defaultProject?.id ?? null;
+        const cwdMatch = await findProjectByCwd(store);
+        const activeId = cwdMatch?.project.id ?? defaultProject?.id ?? null;
 
         if (opts.json) {
           printJson(projects.map((p) => ({

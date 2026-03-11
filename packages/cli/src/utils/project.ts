@@ -22,47 +22,87 @@ export async function findByNameOrId(
   return byName ?? null;
 }
 
+/** Result of a CWD-based project match, including optional worktree context. */
+export interface CwdMatch {
+  project: ProjectData;
+  /** Set when the match was via a worktree's worktreePath rather than projectPath. */
+  worktreeId?: string;
+}
+
 /**
- * Find the project whose projectPath best matches the current working directory.
- * When multiple projects match (nested paths), the longest projectPath wins.
- * Projects without a projectPath are skipped.
+ * Find the project whose projectPath or worktreePath best matches the current
+ * working directory. When multiple paths match (nested paths), the longest wins.
+ * Projects without a projectPath are skipped; worktrees without a worktreePath
+ * are also skipped.
  */
 export async function findProjectByCwd(
   store: FileProjectStore,
-): Promise<ProjectData | null> {
+): Promise<CwdMatch | null> {
   const projects = await store.getAll();
   const cwd = process.cwd();
 
-  const matches = projects
-    .filter((p) => {
-      if (!p.projectPath) return false;
-      const path = p.projectPath.endsWith('/') ? p.projectPath.slice(0, -1) : p.projectPath;
+  interface PathCandidate {
+    project: ProjectData;
+    path: string;
+    worktreeId?: string;
+  }
+
+  const candidates: PathCandidate[] = [];
+
+  for (const p of projects) {
+    // Existing: project root path
+    if (p.projectPath) {
+      candidates.push({ project: p, path: p.projectPath });
+    }
+    // New: worktree paths
+    for (const wt of p.worktrees ?? []) {
+      if (wt.worktreePath) {
+        candidates.push({ project: p, path: wt.worktreePath, worktreeId: wt.id });
+      }
+    }
+  }
+
+  const matches = candidates
+    .filter((c) => {
+      const path = c.path.endsWith('/') ? c.path.slice(0, -1) : c.path;
       return cwd === path || cwd.startsWith(path + '/');
     })
-    .sort((a, b) => (b.projectPath?.length ?? 0) - (a.projectPath?.length ?? 0));
+    .sort((a, b) => b.path.length - a.path.length);
 
-  return matches[0] ?? null;
+  if (matches.length === 0) return null;
+  return { project: matches[0].project, worktreeId: matches[0].worktreeId };
 }
 
-export type ResolutionSource = 'flag' | 'cwd' | 'default' | 'none';
+export type ResolutionSource = 'flag' | 'cwd' | 'worktree' | 'default' | 'none';
 
 export interface ResolvedProject {
   id: string;
   source: ResolutionSource;
 }
 
+export interface ResolvedProjectWorktree {
+  id: string;
+  source: ResolutionSource;
+  /** Set when CWD matched a worktree's worktreePath. */
+  worktreeId?: string;
+}
+
+// TODO(slice-186): Consider extracting core resolution logic (path matching, worktree matching)
+// to packages/core if MCP server needs CWD-like resolution. Currently CLI-only since MCP uses
+// explicit IDs. See 180-slices.initiative-context-worktree.md for context.
+
 /**
- * Resolves which project to use via a three-step chain:
+ * Resolves which project and (optionally) worktree to use via a four-step chain:
  *
  * 1. explicit --project flag → findByNameOrId
- * 2. CWD detection → findProjectByCwd
+ * 2. CWD detection → findProjectByCwd (worktree-aware)
  * 3. default_project config → findByNameOrId
  * 4. Throw UserError with guidance
  */
-export async function resolveProjectId(
+export async function resolveProjectWorktree(
   explicit: string | undefined,
   store: FileProjectStore,
-): Promise<ResolvedProject> {
+): Promise<ResolvedProjectWorktree> {
   // Step 1: explicit --project flag
   if (explicit) {
     const project = await findByNameOrId(explicit, store);
@@ -73,12 +113,16 @@ export async function resolveProjectId(
       );
     }
     return { id: project.id, source: 'flag' };
+    // Note: --worktree flag override handled in slice 183
   }
 
-  // Step 2: CWD detection
-  const cwdProject = await findProjectByCwd(store);
-  if (cwdProject) {
-    return { id: cwdProject.id, source: 'cwd' };
+  // Step 2: CWD detection (worktree-aware)
+  const cwdMatch = await findProjectByCwd(store);
+  if (cwdMatch) {
+    if (cwdMatch.worktreeId) {
+      return { id: cwdMatch.project.id, worktreeId: cwdMatch.worktreeId, source: 'worktree' };
+    }
+    return { id: cwdMatch.project.id, source: 'cwd' };
   }
 
   // Step 3: default_project config
@@ -110,4 +154,16 @@ export async function resolveProjectId(
       '  --project <name>           # specify a project explicitly\n' +
       '  cf project list            # see registered projects',
   );
+}
+
+/**
+ * Resolves which project to use via a three-step chain.
+ * Backwards-compatible wrapper around resolveProjectWorktree — drops worktreeId.
+ */
+export async function resolveProjectId(
+  explicit: string | undefined,
+  store: FileProjectStore,
+): Promise<ResolvedProject> {
+  const result = await resolveProjectWorktree(explicit, store);
+  return { id: result.id, source: result.source };
 }

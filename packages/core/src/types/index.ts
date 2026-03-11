@@ -20,3 +20,6 @@ export type { WorktreeContext, CreateWorktreeInput, UpdateWorktreeInput, IndexRa
 
 // Path types
 export type { PathValidationResult, DirectoryListResult } from './paths.js';
+
+// Git types
+export type { WorktreeInfo } from './git.js';
