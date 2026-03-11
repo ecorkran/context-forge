@@ -9,6 +9,20 @@ import type {
   DocumentDetectionResult,
 } from '../../src/introspection/types.js';
 
+// Mock GitWorktreeDiscovery for stale-worktree-path rule tests
+const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
+vi.mock('../../src/git/index.js', () => ({
+  GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
+    listWorktrees: mockListGitWorktrees,
+  })),
+}));
+
+// Mock existsSync for stale-worktree-path rule tests
+const mockExistsSync = vi.fn().mockReturnValue(true);
+vi.mock('node:fs', () => ({
+  existsSync: (...args: unknown[]) => mockExistsSync(...args),
+}));
+
 // Mock the markdownWriter module for fix mode tests
 vi.mock('../../src/introspection/writers/markdownWriter.js', () => ({
   updateCheckbox: vi.fn().mockResolvedValue({
@@ -817,6 +831,105 @@ describe('ConsistencyChecker', () => {
       expect(result.fixed).toBe(0);
       expect(result.fixLog).toHaveLength(0);
       expect(result.fixErrors).toHaveLength(0);
+    });
+  });
+
+  describe('stale-worktree-path rule', () => {
+    it('flags worktree with missing path', async () => {
+      mockExistsSync.mockReturnValue(false);
+      mockListGitWorktrees.mockResolvedValue([
+        { path: '/fake/project', head: 'abc', bare: false },
+      ]);
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({
+        worktrees: [{
+          id: 'wt_1', name: 'Stale', indexRange: [200, 299],
+          worktreePath: '/fake/deleted-worktree',
+        }],
+      }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(1);
+      expect(staleFindings[0].severity).toBe('warning');
+      expect(staleFindings[0].description).toContain('no longer exists on disk');
+      expect(staleFindings[0].fixable).toBe(false);
+    });
+
+    it('flags worktree path not in git worktree list', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockListGitWorktrees.mockResolvedValue([
+        { path: '/fake/project', head: 'abc', bare: false },
+      ]);
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({
+        worktrees: [{
+          id: 'wt_1', name: 'Not Git', indexRange: [200, 299],
+          worktreePath: '/fake/not-a-worktree',
+        }],
+      }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(1);
+      expect(staleFindings[0].description).toContain('not a registered git worktree');
+    });
+
+    it('does not flag valid worktree paths', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockListGitWorktrees.mockResolvedValue([
+        { path: '/fake/project', head: 'abc', bare: false },
+        { path: '/fake/worktree', head: 'def', bare: false },
+      ]);
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({
+        worktrees: [{
+          id: 'wt_1', name: 'Valid', indexRange: [200, 299],
+          worktreePath: '/fake/worktree',
+        }],
+      }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(0);
+    });
+
+    it('does not flag worktrees with no path', async () => {
+      mockListGitWorktrees.mockResolvedValue([]);
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({
+        worktrees: [{
+          id: 'wt_1', name: 'Design Only', indexRange: [300, 399],
+          // no worktreePath
+        }],
+      }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(0);
+    });
+
+    it('produces no findings when project has no worktrees', async () => {
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({ worktrees: undefined }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(0);
+    });
+
+    it('degrades gracefully when git discovery fails', async () => {
+      mockListGitWorktrees.mockRejectedValue(new Error('git not found'));
+
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const result = await checker.checkAll(makeProject({
+        worktrees: [{
+          id: 'wt_1', name: 'Some', indexRange: [200, 299],
+          worktreePath: '/fake/worktree',
+        }],
+      }));
+
+      const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
+      expect(staleFindings).toHaveLength(0);
     });
   });
 });

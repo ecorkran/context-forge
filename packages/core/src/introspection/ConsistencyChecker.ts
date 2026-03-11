@@ -1,6 +1,8 @@
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
+import type { WorktreeInfo } from '../types/git.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
   ConsistencyFinding,
@@ -121,6 +123,11 @@ export class ConsistencyChecker {
         ...await this.ruleArchStatusVsPlans(archPath, planResult),
       );
     }
+
+    // Rule 10: stale worktree paths
+    allFindings.push(
+      ...await this.ruleStaleWorktreePath(project, projectPath),
+    );
 
     return this.buildResult(projectPath, allFindings);
   }
@@ -615,6 +622,58 @@ export class ConsistencyChecker {
           detail: { key: 'status', value: 'complete' },
         },
       });
+    }
+
+    return findings;
+  }
+
+  /** Rule 10: Stale worktree paths — worktree path missing or not a git worktree */
+  private async ruleStaleWorktreePath(
+    project: ProjectData,
+    projectPath: string,
+    listWorktreesFn?: (repoPath: string) => Promise<WorktreeInfo[]>,
+    pathExistsFn: (p: string) => boolean = existsSync,
+  ): Promise<ConsistencyFinding[]> {
+    if (!project.worktrees || project.worktrees.length === 0) return [];
+
+    let gitWorktrees: WorktreeInfo[];
+    try {
+      if (listWorktreesFn) {
+        gitWorktrees = await listWorktreesFn(projectPath);
+      } else {
+        // Dynamic import to avoid hard dependency on GitWorktreeDiscovery at module level
+        const { GitWorktreeDiscovery } = await import('../git/index.js');
+        gitWorktrees = await new GitWorktreeDiscovery().listWorktrees(projectPath);
+      }
+    } catch {
+      return [];
+    }
+
+    const gitPaths = new Set(gitWorktrees.map((wt) => wt.path));
+    const findings: ConsistencyFinding[] = [];
+
+    for (const wt of project.worktrees) {
+      if (!wt.worktreePath) continue;
+
+      if (!pathExistsFn(wt.worktreePath)) {
+        findings.push({
+          rule: 'stale-worktree-path',
+          severity: 'warning',
+          location: projectPath,
+          description: `Worktree '${wt.name}' path '${wt.worktreePath}' no longer exists on disk`,
+          suggestedFix: `Run 'cf worktree update "${wt.name}" --path <new-path>' or 'cf worktree rm "${wt.name}"'`,
+          fixable: false,
+        });
+      } else if (!gitPaths.has(wt.worktreePath)) {
+        findings.push({
+          rule: 'stale-worktree-path',
+          severity: 'warning',
+          location: projectPath,
+          description: `Worktree '${wt.name}' path '${wt.worktreePath}' is not a registered git worktree`,
+          suggestedFix: `Run 'cf worktree update "${wt.name}" --path <new-path>' or 'cf worktree rm "${wt.name}"'`,
+          fixable: false,
+        });
+      }
     }
 
     return findings;
