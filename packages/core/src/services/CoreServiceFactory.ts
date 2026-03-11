@@ -18,11 +18,14 @@ const BUNDLED_PROMPT_PATH = path.join(
 /**
  * Resolve the system prompt file path.
  * Prefers the project-local ai-project-guide copy; falls back to the bundled asset.
+ * When called without a projectPath, returns the bundled asset directly.
  */
-function resolvePromptFilePath(projectPath: string): string {
-  const projectLocalPath = path.join(projectPath, PROMPT_FILE_RELATIVE_PATH);
-  if (fs.existsSync(projectLocalPath)) {
-    return projectLocalPath;
+export function resolvePromptFilePath(projectPath?: string): string {
+  if (projectPath) {
+    const projectLocalPath = path.join(projectPath, PROMPT_FILE_RELATIVE_PATH);
+    if (fs.existsSync(projectLocalPath)) {
+      return projectLocalPath;
+    }
   }
   return BUNDLED_PROMPT_PATH;
 }

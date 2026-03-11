@@ -1,9 +1,7 @@
-import * as path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, createContextPipeline, SystemPromptParser } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
-import { PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
 
 // --- Shared helpers ---
@@ -75,6 +73,25 @@ const contextOverridesSchema = {
   workType: z.enum(['start', 'continue']).optional().describe('Override whether starting or continuing work'),
   additionalInstructions: z.string().optional().describe('Additional instructions to append to the generated context'),
 };
+
+/**
+ * Resolve the prompt file path for prompt_list/prompt_get.
+ * Tries project-local first; falls back to bundled prompt when no project is available.
+ */
+async function resolvePromptFileForTools(projectId?: string): Promise<string> {
+  try {
+    const resolvedId = await resolveProjectId(projectId);
+    const store = new FileProjectStore();
+    const project = await store.getById(resolvedId);
+    if (project?.projectPath) {
+      return resolvePromptFilePath(project.projectPath);
+    }
+  } catch {
+    // No project resolved — fall through to bundled
+  }
+  // Fall back to bundled prompt
+  return resolvePromptFilePath();
+}
 
 // --- Tool registration ---
 
@@ -155,31 +172,15 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'List Prompts',
       description:
-        'List available prompt templates for a Context Forge project. Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
+        'List available prompt templates. When a project is resolved, prefers the project-local prompt file; otherwise falls back to the bundled prompt shipped with @context-forge/core. Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config. If no project can be resolved, bundled prompts are returned.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ projectId }) => {
       try {
-        const resolvedId = await resolveProjectId(projectId);
-        const store = new FileProjectStore();
-        const project = await store.getById(resolvedId);
-
-        if (!project) {
-          return errorResult(
-            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
-          );
-        }
-
-        if (!project.projectPath) {
-          return errorResult(
-            `Project '${project.name}' has no configured project path. Set a project path before listing prompts.`,
-          );
-        }
-
-        const promptFilePath = path.join(project.projectPath, PROMPT_FILE_RELATIVE_PATH);
+        const promptFilePath = await resolvePromptFileForTools(projectId);
         const parser = new SystemPromptParser(promptFilePath);
         const prompts = await parser.getAllPrompts();
 
@@ -203,32 +204,16 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'Get Prompt',
       description:
-        'Get the full content of a specific prompt template. Returns the raw template text. Useful for inspecting what a template contains before building context with it.',
+        'Get the full content of a specific prompt template. When a project is resolved, prefers the project-local prompt file; otherwise falls back to the bundled prompt. Returns the raw template text.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config. If no project can be resolved, bundled prompts are used.'),
         templateName: z.string().describe('Template name or key to match. Use prompt_list to see available templates.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ projectId, templateName }) => {
       try {
-        const resolvedId = await resolveProjectId(projectId);
-        const store = new FileProjectStore();
-        const project = await store.getById(resolvedId);
-
-        if (!project) {
-          return errorResult(
-            `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
-          );
-        }
-
-        if (!project.projectPath) {
-          return errorResult(
-            `Project '${project.name}' has no configured project path. Set a project path before retrieving prompts.`,
-          );
-        }
-
-        const promptFilePath = path.join(project.projectPath, PROMPT_FILE_RELATIVE_PATH);
+        const promptFilePath = await resolvePromptFileForTools(projectId);
         const parser = new SystemPromptParser(promptFilePath);
         const prompts = await parser.getAllPrompts();
 
@@ -240,7 +225,7 @@ export function registerContextTools(server: McpServer): void {
 
         if (!match) {
           return errorResult(
-            `Template not found: '${templateName}'. Use the prompt_list tool to see available templates for this project.`,
+            `Template not found: '${templateName}'. Use the prompt_list tool to see available templates.`,
           );
         }
 

@@ -30,6 +30,7 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
   })),
+  resolvePromptFilePath: vi.fn().mockReturnValue('/mocked/prompt/prompt.ai-project.system.md'),
 }));
 
 // --- Fixtures ---
@@ -350,30 +351,34 @@ describe('prompt_list', () => {
     expect(parsed.promptFile).toContain('prompt.ai-project.system.md');
   });
 
-  it('returns isError for non-existent project', async () => {
+  it('falls back to bundled prompts for non-existent project', async () => {
     mockGetById.mockResolvedValue(undefined);
+    mockGetAllPrompts.mockResolvedValue(MOCK_PROMPTS);
 
     const result = await client.callTool({
       name: 'prompt_list',
       arguments: { projectId: 'project_nonexistent' },
     });
 
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
-    expect(content[0].text).toContain('Project not found');
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.count).toBeGreaterThan(0);
   });
 
-  it('returns isError when project has no projectPath', async () => {
+  it('falls back to bundled prompts when project has no projectPath', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT_NO_PATH);
+    mockGetAllPrompts.mockResolvedValue(MOCK_PROMPTS);
 
     const result = await client.callTool({
       name: 'prompt_list',
       arguments: { projectId: MOCK_PROJECT_NO_PATH.id },
     });
 
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
-    expect(content[0].text).toContain('no configured project path');
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.count).toBeGreaterThan(0);
   });
 
   it('handles parse errors gracefully', async () => {
@@ -452,17 +457,19 @@ describe('prompt_get', () => {
     expect(content[0].text).toContain('prompt_list');
   });
 
-  it('returns isError for non-existent project', async () => {
+  it('falls back to bundled prompts for non-existent project', async () => {
     mockGetById.mockResolvedValue(undefined);
+    mockGetAllPrompts.mockResolvedValue(MOCK_PROMPTS);
 
     const result = await client.callTool({
       name: 'prompt_get',
-      arguments: { projectId: 'project_nonexistent', templateName: 'implementation' },
+      arguments: { projectId: 'project_nonexistent', templateName: 'context initialization' },
     });
 
-    expect(result.isError).toBe(true);
+    // Falls back to bundled prompts instead of erroring
+    expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
-    expect(content[0].text).toContain('Project not found');
+    expect(content[0].text).toContain('Context Initialization');
   });
 });
 
