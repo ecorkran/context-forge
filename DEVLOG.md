@@ -9,6 +9,24 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Slice 183: Worktree CLI Commands — Phase 6 (Implementation) ✓
+- `cf worktree init/list/rm` command group in `packages/cli/src/commands/worktree.ts`
+- `resolveProjectWorktree` refactored to options-object `({ project?, worktree? }, store)` — backwards-compatible via `resolveProjectId` wrapper
+- `findWorktreeByNameOrId` utility (exact ID first, then case-insensitive name)
+- `askConfirmation` extracted to shared `utils/confirm.ts`
+- Worktree-aware `projectSetAction`: `WORKTREE_SCOPED_FIELDS` set routes `fileSlice→activeSlice`, `fileArch→archDoc` etc. to `WorktreeService.updateWorktree`; auto-set logic (phase→instruction, arch→plan, slice→tasks) also targets worktree context
+- Worktree-aware `projectGetAction`: worktree header + field overlay from `WorktreeContext`, `--project-level` flag escapes
+- `--project-level` flag on `cf set`, `cf get`, `cf project set`, `cf project get`
+- `GitWorktreeDiscovery` and `WorktreeService` exported from `@context-forge/core/node`
+- 1039 tests pass across all packages (0 regressions); 35 new tests (21 worktree commands + 14 worktree set/get)
+- Commits:
+  - `48dc80a` refactor(cli): options-object signature for resolveProjectWorktree, add findWorktreeByNameOrId
+  - `2aa39c4` refactor(cli): extract askConfirmation to shared utils/confirm.ts
+  - `e3ea169` feat(cli): add cf worktree init/list/rm commands and register in CLI
+  - `d6a026b` test(cli): add unit tests for cf worktree init/list/rm commands
+  - `480b0cb` feat(cli): worktree-aware projectSetAction and projectGetAction with --project-level flag
+  - `f7a6b55` test(cli): add worktree-aware projectSetAction and projectGetAction tests
+
 ### Slice 181: WorktreeContext Data Model & Storage — Phase 6 (Implementation) ✓
 - `WorktreeContext`, `CreateWorktreeInput`, `UpdateWorktreeInput`, `IndexRangeOverlap` types in `worktree.ts`
 - `ProjectData.worktrees?: WorktreeContext[]` extension with `UpdateProjectData` support
