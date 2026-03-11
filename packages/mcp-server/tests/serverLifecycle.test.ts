@@ -148,6 +148,11 @@ describe('Server Lifecycle', () => {
       'workflow_future',
       'workflow_next',
       'workflow_status',
+      'worktree_get',
+      'worktree_init',
+      'worktree_list',
+      'worktree_rm',
+      'worktree_update',
     ]);
 
     // Step 4: Close stdin and verify clean exit

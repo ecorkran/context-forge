@@ -11,6 +11,7 @@ import { registerStateTools } from './tools/stateTools.js';
 import { registerConfigTools } from './tools/configTools.js';
 import { registerIntrospectionTools } from './tools/introspectionTools.js';
 import { registerWorkflowTools } from './tools/workflowTools.js';
+import { registerWorktreeTools } from './tools/worktreeTools.js';
 import { registerVersionTool } from './tools/versionTool.js';
 import { registerGuideTools } from './tools/guideTools.js';
 
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   registerConfigTools(server);
   registerIntrospectionTools(server);
   registerWorkflowTools(server);
+  registerWorktreeTools(server);
   registerGuideTools(server);
   registerVersionTool(server, SERVER_NAME, SERVER_VERSION);
 

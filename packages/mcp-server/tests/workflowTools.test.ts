@@ -16,6 +16,8 @@ const mockCheck = vi.fn();
 const mockFix = vi.fn();
 const mockCheckAll = vi.fn();
 const mockFixAll = vi.fn();
+const mockWtGetWorktree = vi.fn();
+const mockWtGetWorktreeByName = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -38,9 +40,43 @@ vi.mock('@context-forge/core/node', () => ({
     checkAll: mockCheckAll,
     fixAll: mockFixAll,
   })),
+  WorktreeService: vi.fn().mockImplementation(() => ({
+    getWorktree: mockWtGetWorktree,
+    getWorktreeByName: mockWtGetWorktreeByName,
+  })),
 }));
 
+vi.mock('@context-forge/core', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    applyWorktreeOverlay: vi.fn().mockImplementation((project: ProjectData, _worktreeId: string) => {
+      // Return project with overlaid worktree fields
+      const wt = (project.worktrees ?? []).find((w) => w.id === _worktreeId);
+      if (!wt) return project;
+      return {
+        ...project,
+        fileSlice: wt.activeSlice || project.fileSlice,
+        fileTasks: wt.activeTaskFile || project.fileTasks,
+        developmentPhase: wt.developmentPhase || project.developmentPhase,
+        instruction: wt.instruction || project.instruction,
+      };
+    }),
+  };
+});
+
 // --- Fixtures ---
+
+const MOCK_WORKTREE = {
+  id: 'wt_test_001',
+  name: 'Feature Branch',
+  indexRange: [100, 199] as [number, number],
+  worktreePath: '/home/user/projects/test-project-feature',
+  developmentPhase: 'design',
+  activeSlice: '150-slice.wt-feature.md',
+  activeTaskFile: '150-tasks.wt-feature.md',
+  instruction: 'design',
+};
 
 const MOCK_PROJECT: ProjectData = {
   id: 'project_test_001',
@@ -52,6 +88,11 @@ const MOCK_PROJECT: ProjectData = {
   projectPath: '/home/user/projects/test-project',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-03-01T00:00:00.000Z',
+};
+
+const MOCK_PROJECT_WITH_WORKTREES: ProjectData = {
+  ...MOCK_PROJECT,
+  worktrees: [MOCK_WORKTREE],
 };
 
 const MOCK_RESULT = {
@@ -437,6 +478,113 @@ describe('workflow_check', () => {
     const result = await client.callTool({
       name: 'workflow_check',
       arguments: { projectId: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('not found');
+  });
+});
+
+describe('workflow_status with worktreeId', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('applies overlay and includes worktree field when worktreeId provided', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WORKTREES);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockGetStatus.mockResolvedValue({ phase: 'design', summary: 'In design' });
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: MOCK_PROJECT.id, worktreeId: MOCK_WORKTREE.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as Record<string, unknown>;
+    expect(parsed.worktree).toEqual({ id: MOCK_WORKTREE.id, name: MOCK_WORKTREE.name });
+    expect(parsed.phase).toBe('design');
+  });
+
+  it('existing behavior unchanged without worktreeId', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetStatus.mockResolvedValue({ phase: 'implementation', summary: 'In progress' });
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as Record<string, unknown>;
+    expect(parsed.worktree).toBeUndefined();
+    expect(parsed.phase).toBe('implementation');
+  });
+
+  it('returns error when worktreeId not found', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WORKTREES);
+    mockWtGetWorktree.mockResolvedValue(undefined);
+    mockWtGetWorktreeByName.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: MOCK_PROJECT.id, worktreeId: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('not found');
+  });
+});
+
+describe('workflow_next with worktreeId', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('applies overlay and includes worktree field when worktreeId provided', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WORKTREES);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockGetNext.mockResolvedValue({ recommendation: 'Design slice', rationale: 'In design phase' });
+
+    const result = await client.callTool({
+      name: 'workflow_next',
+      arguments: { projectId: MOCK_PROJECT.id, worktreeId: MOCK_WORKTREE.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as Record<string, unknown>;
+    expect(parsed.worktree).toEqual({ id: MOCK_WORKTREE.id, name: MOCK_WORKTREE.name });
+    expect(parsed.recommendation).toBe('Design slice');
+  });
+
+  it('returns error when worktreeId not found', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WORKTREES);
+    mockWtGetWorktree.mockResolvedValue(undefined);
+    mockWtGetWorktreeByName.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'workflow_next',
+      arguments: { projectId: MOCK_PROJECT.id, worktreeId: 'bad_id' },
     });
 
     expect(result.isError).toBe(true);

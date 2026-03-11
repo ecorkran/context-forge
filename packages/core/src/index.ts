@@ -16,3 +16,6 @@ export * from './schema/projectSchema.js';
 
 // Git utilities
 export { GitWorktreeDiscovery, parseWorktreeListOutput } from './git/index.js';
+
+// Worktree overlay (browser-safe — pure object mapping, no fs/path)
+export { applyWorktreeOverlay } from './utils/worktree-overlay.js';

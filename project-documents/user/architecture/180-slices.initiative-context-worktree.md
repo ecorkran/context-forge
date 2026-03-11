@@ -236,7 +236,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Risk:** Low — overlay pattern is simple; no changes to the core assembly pipeline
    **Effort:** 2/5
 
-6. [ ] **(186) MCP Worktree Tools** — Expose worktree context management and worktree information via MCP tools. Enables the context-visualizer to display per-worktree state and associations.
+6. [x] **(186) MCP Worktree Tools** — Expose worktree context management and worktree information via MCP tools. Enables the context-visualizer to display per-worktree state and associations.
 
    **New MCP tools:**
    - `worktree_init` — Create a worktree context. Parameters: `projectId`, `name`, `indexRange` (e.g., "100-199"), `worktreePath?`. Returns the created worktree context. Triggers forward migration on first creation.

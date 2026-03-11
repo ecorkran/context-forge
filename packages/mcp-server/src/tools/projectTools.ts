@@ -1,9 +1,31 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex } from '@context-forge/core/node';
-import type { ProjectData, UpdateProjectData } from '@context-forge/core';
+import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
+import type { ProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
 import { getSchema } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
+
+/** Fields that are routed to the worktree context when worktreeId is provided. */
+const WORKTREE_SCOPED_FIELDS = new Set([
+  'developmentPhase',
+  'instruction',
+  'workType',
+  'fileArch',
+  'fileSlicePlan',
+  'fileSlice',
+  'fileTasks',
+]);
+
+/** Map ProjectData field names to their WorktreeContext counterparts. */
+const PROJECT_TO_WORKTREE_FIELD: Record<string, string> = {
+  fileSlice: 'activeSlice',
+  fileTasks: 'activeTaskFile',
+  fileArch: 'archDoc',
+  fileSlicePlan: 'slicePlan',
+  developmentPhase: 'developmentPhase',
+  instruction: 'instruction',
+  workType: 'workType',
+};
 
 /** Summary fields returned by project_list */
 interface ProjectSummary {
@@ -112,6 +134,7 @@ export function registerProjectTools(server: McpServer): void {
         'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., fileSlice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
       inputSchema: {
         id: z.string().optional().describe('Project ID to update. Omit to use default_project config.'),
+        worktreeId: z.string().optional().describe('Worktree ID or name. When provided, workflow fields (fileSlice, instruction, etc.) are routed to the worktree context instead of the project.'),
         name: z.string().optional().describe('Project display name'),
         template: z.string().optional().describe('Template name'),
         fileSlice: z.string().optional().describe('Current slice name'),
@@ -137,19 +160,19 @@ export function registerProjectTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ id, ...fields }) => {
+    async ({ id, worktreeId, ...fields }) => {
       try {
         const resolvedId = await resolveProjectId(id);
 
         // Collect defined update fields (exclude undefined values)
-        const updates: UpdateProjectData = {};
+        const allUpdates: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(fields)) {
           if (value !== undefined) {
-            (updates as Record<string, unknown>)[key] = value;
+            allUpdates[key] = value;
           }
         }
 
-        if (Object.keys(updates).length === 0) {
+        if (Object.keys(allUpdates).length === 0) {
           return errorResult(
             'No update fields provided. Specify at least one field to update (e.g., fileSlice, instruction, name).',
           );
@@ -164,6 +187,71 @@ export function registerProjectTools(server: McpServer): void {
             `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
         }
+
+        // --- Worktree-aware field routing ---
+        if (worktreeId) {
+          const service = new WorktreeService(store);
+          let wt = await service.getWorktree(resolvedId, worktreeId);
+          if (!wt) {
+            wt = await service.getWorktreeByName(resolvedId, worktreeId);
+          }
+          if (!wt) {
+            return errorResult(
+              `Worktree '${worktreeId}' not found. Use worktree_list to see available worktrees.`,
+            );
+          }
+
+          // Split fields into worktree-scoped and project-level
+          const worktreeUpdates: UpdateWorktreeInput = {};
+          const projectUpdates: UpdateProjectData = {};
+
+          for (const [key, value] of Object.entries(allUpdates)) {
+            if (WORKTREE_SCOPED_FIELDS.has(key)) {
+              const wtKey = PROJECT_TO_WORKTREE_FIELD[key] ?? key;
+              (worktreeUpdates as Record<string, unknown>)[wtKey] = value;
+            } else {
+              (projectUpdates as Record<string, unknown>)[key] = value;
+            }
+          }
+
+          // Auto-set instruction when developmentPhase changes on worktree
+          if ('developmentPhase' in worktreeUpdates && !('instruction' in worktreeUpdates)) {
+            worktreeUpdates.instruction = worktreeUpdates.developmentPhase;
+          }
+
+          // Auto-set activeTaskFile when activeSlice changes on worktree
+          if ('activeSlice' in worktreeUpdates && !('activeTaskFile' in worktreeUpdates) && existing.projectPath) {
+            const sliceValue = worktreeUpdates.activeSlice as string;
+            const sliceIndex = /^(\d+)-/.exec(sliceValue);
+            if (sliceIndex) {
+              try {
+                const resolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+                (worktreeUpdates as Record<string, unknown>).activeTaskFile = resolved;
+              } catch {
+                const derived = sliceValue.replace(/^(\d+)-slice\./, '$1-tasks.');
+                if (derived !== sliceValue) {
+                  (worktreeUpdates as Record<string, unknown>).activeTaskFile = derived;
+                }
+              }
+            }
+          }
+
+          // Apply worktree updates
+          if (Object.keys(worktreeUpdates).length > 0) {
+            await service.updateWorktree(resolvedId, wt.id, worktreeUpdates);
+          }
+
+          // Apply project-level updates
+          if (Object.keys(projectUpdates).length > 0) {
+            await store.update(resolvedId, projectUpdates);
+          }
+
+          const updated = await store.getById(resolvedId);
+          return jsonResult({ ...updated, _worktreeUpdated: wt.id });
+        }
+
+        // --- Standard (non-worktree) path ---
+        const updates: UpdateProjectData = allUpdates as UpdateProjectData;
 
         // Auto-set instruction when developmentPhase changes (unless instruction is explicitly provided)
         if ('developmentPhase' in updates && !('instruction' in updates)) {

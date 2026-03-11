@@ -14,6 +14,8 @@ const mockGenerateContextFromProject = vi.fn<(project: ProjectData) => Promise<s
 const mockGetAllPrompts = vi.fn();
 
 const mockConfigGet = vi.fn();
+const mockWtGetWorktree = vi.fn();
+const mockWtGetWorktreeByName = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -31,7 +33,29 @@ vi.mock('@context-forge/core/node', () => ({
     get: mockConfigGet,
   })),
   resolvePromptFilePath: vi.fn().mockReturnValue('/mocked/prompt/prompt.ai-project.system.md'),
+  WorktreeService: vi.fn().mockImplementation(() => ({
+    getWorktree: mockWtGetWorktree,
+    getWorktreeByName: mockWtGetWorktreeByName,
+  })),
 }));
+
+vi.mock('@context-forge/core', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    applyWorktreeOverlay: vi.fn().mockImplementation((project: ProjectData, worktreeId: string) => {
+      const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+      if (!wt) return project;
+      return {
+        ...project,
+        fileSlice: wt.activeSlice || project.fileSlice,
+        fileTasks: wt.activeTaskFile || project.fileTasks,
+        developmentPhase: wt.developmentPhase || project.developmentPhase,
+        instruction: wt.instruction || project.instruction,
+      };
+    }),
+  };
+});
 
 // --- Fixtures ---
 
@@ -516,5 +540,109 @@ describe('default_project fallback (context tools)', () => {
 
     expect(result.isError).toBeFalsy();
     expect(mockGetById).toHaveBeenCalledWith(MOCK_PROJECT.id);
+  });
+});
+
+// --- Worktree-aware context_build tests ---
+
+const MOCK_WORKTREE = {
+  id: 'wt_ctx_001',
+  name: 'Feature WT',
+  indexRange: [100, 199] as [number, number],
+  activeSlice: '150-slice.wt-feature',
+  activeTaskFile: '150-tasks.wt-feature',
+  developmentPhase: 'design',
+  instruction: 'design',
+};
+
+const MOCK_PROJECT_WITH_WT: ProjectData = {
+  ...MOCK_PROJECT,
+  worktrees: [MOCK_WORKTREE],
+};
+
+describe('context_build with worktree', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('applies worktree overlay when worktree param provided', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockGenerateContextFromProject.mockResolvedValue('context with overlay');
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id, worktree: MOCK_WORKTREE.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // The generateContextFromProject should receive an overlaid project
+    expect(mockGenerateContextFromProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileSlice: '150-slice.wt-feature',
+        instruction: 'design',
+      }),
+    );
+  });
+
+  it('explicit overrides win over worktree overlay', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockGenerateContextFromProject.mockResolvedValue('context with explicit');
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        worktree: MOCK_WORKTREE.id,
+        fileSlice: 'explicit-slice',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // Explicit fileSlice should override worktree overlay
+    expect(mockGenerateContextFromProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileSlice: 'explicit-slice',
+      }),
+    );
+  });
+
+  it('existing behavior unchanged without worktree', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue('standard context');
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockWtGetWorktree).not.toHaveBeenCalled();
+  });
+
+  it('returns error when worktree not found', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_WITH_WT);
+    mockWtGetWorktree.mockResolvedValue(undefined);
+    mockWtGetWorktreeByName.mockResolvedValue(undefined);
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id, worktree: 'nonexistent' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('not found');
   });
 });

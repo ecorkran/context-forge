@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, WorktreeService } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
+import { applyWorktreeOverlay } from '@context-forge/core';
 
 // --- Shared helpers ---
 
@@ -71,6 +72,7 @@ const contextOverridesSchema = {
   instructionType: z.string().optional().describe('Override instruction type for profile-aware filtering (ephemeral — does not write to store). Takes precedence over instruction if both are provided.'),
   developmentPhase: z.string().optional().describe('Override the current development phase'),
   workType: z.enum(['start', 'continue']).optional().describe('Override whether starting or continuing work'),
+  worktree: z.string().optional().describe('Worktree ID or name. When provided, overlays worktree fields onto the project before applying explicit overrides.'),
   additionalInstructions: z.string().optional().describe('Additional instructions to append to the generated context'),
 };
 
@@ -106,23 +108,63 @@ export function registerContextTools(server: McpServer): void {
       inputSchema: contextOverridesSchema,
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ projectId, additionalInstructions, instructionType, ...overrideFields }) => {
+    async ({ projectId, additionalInstructions, instructionType, worktree: worktreeIdOrName, ...overrideFields }) => {
       try {
         const resolvedId = await resolveProjectId(projectId);
-        // Collect defined overrides; instructionType maps to instruction and takes precedence
-        const overrides: Partial<ProjectData> = {};
+
+        // When worktree is specified, apply overlay before explicit overrides
+        let worktreeOverrides: Partial<ProjectData> | undefined;
+        if (worktreeIdOrName) {
+          const store = new FileProjectStore();
+          const project = await store.getById(resolvedId);
+          if (!project) {
+            return errorResult(
+              `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
+            );
+          }
+          const service = new WorktreeService(store);
+          let wt = await service.getWorktree(resolvedId, worktreeIdOrName);
+          if (!wt) {
+            wt = await service.getWorktreeByName(resolvedId, worktreeIdOrName);
+          }
+          if (!wt) {
+            return errorResult(
+              `Worktree '${worktreeIdOrName}' not found. Use worktree_list to see available worktrees.`,
+            );
+          }
+          // Build overlay as overrides — generateContext will apply them
+          const overlaid = applyWorktreeOverlay(project, wt.id);
+          worktreeOverrides = {
+            fileSlice: overlaid.fileSlice,
+            fileTasks: overlaid.fileTasks,
+            instruction: overlaid.instruction,
+            developmentPhase: overlaid.developmentPhase,
+            workType: overlaid.workType,
+            fileArch: overlaid.fileArch,
+            fileSlicePlan: overlaid.fileSlicePlan,
+          };
+        }
+
+        // Collect defined explicit overrides (these win over worktree overlay)
+        const explicitOverrides: Partial<ProjectData> = {};
         for (const [key, value] of Object.entries(overrideFields)) {
           if (value !== undefined) {
-            (overrides as unknown as Record<string, unknown>)[key] = value;
+            (explicitOverrides as unknown as Record<string, unknown>)[key] = value;
           }
         }
         if (instructionType !== undefined) {
-          overrides.instruction = instructionType;
+          explicitOverrides.instruction = instructionType;
         }
+
+        // Merge: worktree overlay first, then explicit overrides win
+        const mergedOverrides: Partial<ProjectData> = {
+          ...worktreeOverrides,
+          ...explicitOverrides,
+        };
 
         const contextString = await generateContext(
           resolvedId,
-          Object.keys(overrides).length > 0 ? overrides : undefined,
+          Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
         );
         return textResult(contextString);
@@ -143,19 +185,49 @@ export function registerContextTools(server: McpServer): void {
       inputSchema: contextOverridesSchema,
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ projectId, additionalInstructions, ...overrideFields }) => {
+    async ({ projectId, additionalInstructions, worktree: wtIdOrName, instructionType, ...overrideFields }) => {
       try {
         const resolvedId = await resolveProjectId(projectId);
-        const overrides: Partial<ProjectData> = {};
-        for (const [key, value] of Object.entries(overrideFields)) {
-          if (value !== undefined) {
-            (overrides as unknown as Record<string, unknown>)[key] = value;
+
+        // Worktree overlay (same logic as context_build)
+        let worktreeOverrides: Partial<ProjectData> | undefined;
+        if (wtIdOrName) {
+          const store = new FileProjectStore();
+          const project = await store.getById(resolvedId);
+          if (project) {
+            const service = new WorktreeService(store);
+            let wt = await service.getWorktree(resolvedId, wtIdOrName);
+            if (!wt) wt = await service.getWorktreeByName(resolvedId, wtIdOrName);
+            if (wt) {
+              const overlaid = applyWorktreeOverlay(project, wt.id);
+              worktreeOverrides = {
+                fileSlice: overlaid.fileSlice,
+                fileTasks: overlaid.fileTasks,
+                instruction: overlaid.instruction,
+                developmentPhase: overlaid.developmentPhase,
+                workType: overlaid.workType,
+                fileArch: overlaid.fileArch,
+                fileSlicePlan: overlaid.fileSlicePlan,
+              };
+            }
           }
         }
 
+        const explicitOverrides: Partial<ProjectData> = {};
+        for (const [key, value] of Object.entries(overrideFields)) {
+          if (value !== undefined) {
+            (explicitOverrides as unknown as Record<string, unknown>)[key] = value;
+          }
+        }
+        if (instructionType !== undefined) {
+          explicitOverrides.instruction = instructionType;
+        }
+
+        const mergedOverrides: Partial<ProjectData> = { ...worktreeOverrides, ...explicitOverrides };
+
         const contextString = await generateContext(
           resolvedId,
-          Object.keys(overrides).length > 0 ? overrides : undefined,
+          Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
         );
         return textResult(contextString);
