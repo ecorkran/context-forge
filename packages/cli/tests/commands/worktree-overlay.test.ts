@@ -231,13 +231,14 @@ describe('cf status — no worktree resolved', () => {
     expect(output).toContain('050-slices.core');
   });
 
-  it('shows CWD source label, not a worktree label', async () => {
+  it('shows CWD source label and no Worktree line', async () => {
     const program = createStatusProgram();
     await program.parseAsync(['node', 'cf', 'status']);
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('from CWD');
     expect(output).not.toContain('from worktree');
+    expect(output).not.toContain('Worktree:');
   });
 
   it('does not include worktree key in JSON output', async () => {
