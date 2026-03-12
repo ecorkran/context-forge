@@ -74,6 +74,32 @@ function validateIndexRange(range: [number, number]): void {
   }
 }
 
+/** Extract the leading numeric prefix from a filename (e.g. '200-arch.foo.md' → 200). */
+function extractIndexFromFilename(filename: string): number | null {
+  const match = /^(\d+)-/.exec(filename);
+  if (!match) return null;
+  return parseInt(match[1], 10);
+}
+
+/** Artifact fields on WorktreeContext that carry index-bearing filenames. */
+const ARTIFACT_FIELDS = ['archDoc', 'slicePlan', 'activeSlice', 'activeTaskFile'] as const;
+
+/** Get parsed indices from a worktree's artifact reference fields. */
+function getWorktreeArtifactIndices(
+  wt: WorktreeContext,
+): { field: string; filename: string; index: number }[] {
+  const results: { field: string; filename: string; index: number }[] = [];
+  for (const field of ARTIFACT_FIELDS) {
+    const value = wt[field];
+    if (!value) continue;
+    const index = extractIndexFromFilename(value);
+    if (index !== null) {
+      results.push({ field, filename: value, index });
+    }
+  }
+  return results;
+}
+
 /**
  * Service for managing worktree contexts within a project.
  * Encapsulates CRUD operations and migration logic, using IProjectStore
@@ -117,7 +143,7 @@ export class WorktreeService {
   async addWorktree(
     projectId: string,
     input: CreateWorktreeInput,
-  ): Promise<{ worktree: WorktreeContext; migrated: boolean; overlaps: IndexRangeOverlap[] }> {
+  ): Promise<{ worktree: WorktreeContext; migrated: boolean; overlaps: IndexRangeOverlap[]; chopWarning?: string }> {
     validateIndexRange(input.indexRange);
     const project = await this.getProjectOrThrow(projectId);
 
@@ -132,18 +158,20 @@ export class WorktreeService {
 
     const isFirstWorktree = !project.worktrees || project.worktrees.length === 0;
     let migrated = false;
+    let chopWarning: string | undefined;
 
     if (isFirstWorktree && hasWorkflowFields(project)) {
-      // Forward migration: move existing workflow fields into a "Default" worktree
+      // Forward migration: move existing workflow fields into a "default" worktree
       const defaultWorktree: WorktreeContext = {
         id: generateWorktreeId(),
-        name: 'Default',
-        indexRange: [0, 99],
+        name: 'default',
+        indexRange: [100, 799],
         worktreePath: project.projectPath,
         ...mapProjectToWorktree(project),
       };
 
       const worktrees = [defaultWorktree, newWorktree];
+      const chopResult = this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
       const clearedFields = {
         developmentPhase: '',
         fileSlice: '',
@@ -156,14 +184,17 @@ export class WorktreeService {
 
       await this.store.update(projectId, { ...clearedFields, worktrees });
       migrated = true;
+      chopWarning = chopResult.warning;
     } else {
       // No migration needed: just append
       const worktrees = [...(project.worktrees ?? []), newWorktree];
+      const chopResult = this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
       await this.store.update(projectId, { worktrees });
+      chopWarning = chopResult.warning;
     }
 
     const overlaps = await this.findOverlaps(projectId, input.indexRange, newWorktree.id);
-    return { worktree: newWorktree, migrated, overlaps };
+    return { worktree: newWorktree, migrated, overlaps, chopWarning };
   }
 
   /**
@@ -174,7 +205,7 @@ export class WorktreeService {
     projectId: string,
     worktreeId: string,
     updates: UpdateWorktreeInput,
-  ): Promise<WorktreeContext> {
+  ): Promise<WorktreeContext & { chopWarning?: string }> {
     if (updates.indexRange) {
       validateIndexRange(updates.indexRange);
     }
@@ -190,8 +221,14 @@ export class WorktreeService {
     const updated: WorktreeContext = { ...worktrees[index], ...updates, id: worktreeId };
     worktrees[index] = updated;
 
+    let chopWarning: string | undefined;
+    if (updates.indexRange) {
+      const chopResult = this.chopDefaultRange(worktrees, updates.indexRange, worktreeId);
+      chopWarning = chopResult.warning;
+    }
+
     await this.store.update(projectId, { worktrees });
-    return updated;
+    return { ...updated, chopWarning };
   }
 
   /**
@@ -224,6 +261,76 @@ export class WorktreeService {
 
     await this.store.update(projectId, { worktrees: remaining });
     return { removed: target, migrated: false };
+  }
+
+  /**
+   * Shrink the default worktree's range when a new/updated range overlaps it.
+   * Mutates the worktrees array in place. Returns whether chopping occurred and any warning.
+   */
+  private chopDefaultRange(
+    worktrees: WorktreeContext[],
+    newRange: [number, number],
+    excludeId?: string,
+  ): { chopped: boolean; warning?: string } {
+    const defaultWt = worktrees.find(
+      (wt) => wt.name.toLowerCase() === 'default' && wt.id !== excludeId,
+    );
+    if (!defaultWt) return { chopped: false };
+
+    const [dStart, dEnd] = defaultWt.indexRange;
+    const [nStart, nEnd] = newRange;
+
+    // No overlap → nothing to chop
+    if (nStart > dEnd || nEnd < dStart) return { chopped: false };
+
+    // Compute candidate blocks within default's current range, excluding newRange
+    const lowerValid = nStart > dStart;
+    const upperValid = nEnd < dEnd;
+    const lowerBlock: [number, number] | null = lowerValid ? [dStart, nStart - 1] : null;
+    const upperBlock: [number, number] | null = upperValid ? [nEnd + 1, dEnd] : null;
+
+    // Select candidate: prefer lower block per design
+    let candidate: [number, number] | null = null;
+    if (lowerBlock) {
+      candidate = lowerBlock;
+    } else if (upperBlock) {
+      candidate = upperBlock;
+    }
+
+    if (!candidate) {
+      // New range covers entire default — check collisions first
+      const artifacts = getWorktreeArtifactIndices(defaultWt);
+      for (const art of artifacts) {
+        // Any artifact would fall outside [0,0] sentinel
+        if (art.index >= dStart && art.index <= dEnd) {
+          throw new Error(
+            `Cannot shrink default worktree range — artifact '${art.filename}' (index ${art.index}) ` +
+              `would fall outside the new range [0, 0]. Move the artifact to another worktree first.`,
+          );
+        }
+      }
+      defaultWt.indexRange = [0, 0];
+      return {
+        chopped: true,
+        warning:
+          'Default worktree has no remaining index range. Consider removing it or assigning a new range.',
+      };
+    }
+
+    // Check artifact collisions: artifacts in default's current range that won't be in candidate
+    const artifacts = getWorktreeArtifactIndices(defaultWt);
+    for (const art of artifacts) {
+      if (art.index < candidate[0] || art.index > candidate[1]) {
+        throw new Error(
+          `Cannot shrink default worktree range — artifact '${art.filename}' (index ${art.index}) ` +
+            `would fall outside the new range [${candidate[0]}, ${candidate[1]}]. ` +
+            `Move the artifact to another worktree first.`,
+        );
+      }
+    }
+
+    defaultWt.indexRange = candidate;
+    return { chopped: true };
   }
 
   /**
