@@ -1,4 +1,4 @@
-import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { UserError } from './errors.js';
 
@@ -147,6 +147,22 @@ export async function resolveProjectWorktree(
       return { id: cwdMatch.project.id, worktreeId: cwdMatch.worktreeId, source: 'worktree' };
     }
     return { id: cwdMatch.project.id, source: 'cwd' };
+  }
+
+  // Step 2b: CWD is a git worktree of a known project (not yet registered as a cf worktree)
+  try {
+    const discovery = new GitWorktreeDiscovery();
+    const gitWorktrees = await discovery.listWorktrees(process.cwd());
+    if (gitWorktrees.length > 0) {
+      const mainWorktreePath = gitWorktrees[0].path;
+      const projects = await store.getAll();
+      const matchingProject = projects.find((p) => p.projectPath === mainWorktreePath);
+      if (matchingProject) {
+        return { id: matchingProject.id, source: 'cwd' };
+      }
+    }
+  } catch {
+    // Git unavailable or not a git repo — fall through
   }
 
   // Step 3: default_project config
