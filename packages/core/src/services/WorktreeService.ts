@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import type { IProjectStore } from '../storage/interfaces.js';
 import type { ProjectData } from '../types/project.js';
 import type {
@@ -5,7 +6,9 @@ import type {
   CreateWorktreeInput,
   UpdateWorktreeInput,
   IndexRangeOverlap,
+  WorktreePathStatus,
 } from '../types/worktree.js';
+import type { WorktreeInfo } from '../types/git.js';
 
 /** Generate a unique worktree ID. */
 function generateWorktreeId(): string {
@@ -251,5 +254,37 @@ export class WorktreeService {
     }
 
     return overlaps;
+  }
+
+  /**
+   * Validate filesystem paths for all worktree contexts in a project.
+   * Checks each worktree's path against both the filesystem and git worktree list.
+   *
+   * @param projectId - Project to validate
+   * @param gitWorktrees - Current git worktrees from GitWorktreeDiscovery
+   * @param pathExists - Filesystem check callback (defaults to fs.existsSync for testability)
+   */
+  async validateWorktreePaths(
+    projectId: string,
+    gitWorktrees: WorktreeInfo[],
+    pathExists: (p: string) => boolean = existsSync,
+  ): Promise<WorktreePathStatus[]> {
+    const worktrees = await this.listWorktrees(projectId);
+    const gitPaths = new Set(gitWorktrees.map((wt) => wt.path));
+
+    return worktrees.map((wt) => {
+      const base = { worktreeId: wt.id, worktreeName: wt.name, worktreePath: wt.worktreePath };
+
+      if (wt.worktreePath === undefined) {
+        return { ...base, status: 'no-path' as const };
+      }
+      if (!pathExists(wt.worktreePath)) {
+        return { ...base, status: 'missing' as const };
+      }
+      if (!gitPaths.has(wt.worktreePath)) {
+        return { ...base, status: 'not-a-worktree' as const };
+      }
+      return { ...base, status: 'valid' as const };
+    });
   }
 }

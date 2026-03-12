@@ -8,15 +8,19 @@ import {
 } from '../../src/utils/project.js';
 import { UserError } from '../../src/utils/errors.js';
 
-// Mock ConfigManager and FileProjectStore
+// Mock ConfigManager, FileProjectStore, and GitWorktreeDiscovery
+const mockListGitWorktrees = vi.fn().mockRejectedValue(new Error('not a git repo'));
 vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn(),
   })),
   FileProjectStore: vi.fn(),
+  GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
+    listWorktrees: mockListGitWorktrees,
+  })),
 }));
 
-import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
 
 /** Helper to create a mock store with predefined projects. */
 function mockStore(projects: Array<Record<string, unknown>>) {
@@ -206,6 +210,14 @@ describe('resolveProjectWorktree', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
+    // restoreAllMocks wipes factory implementations — re-establish defaults
+    mockListGitWorktrees.mockRejectedValue(new Error('not a git repo'));
+    vi.mocked(GitWorktreeDiscovery).mockImplementation(() => ({
+      listWorktrees: mockListGitWorktrees,
+    }) as unknown as InstanceType<typeof GitWorktreeDiscovery>);
+    vi.mocked(ConfigManager).mockImplementation(() => ({
+      get: vi.fn().mockResolvedValue({ value: '' }),
+    }) as unknown as InstanceType<typeof ConfigManager>);
   });
 
   it('resolves explicit flag with source "flag", no worktreeId', async () => {
@@ -228,6 +240,31 @@ describe('resolveProjectWorktree', () => {
     const store = mockStore(projects);
     const result = await resolveProjectWorktree({}, store);
     expect(result).toEqual({ id: 'project_002', source: 'worktree', worktreeId: 'wt_001' });
+  });
+
+  it('resolves via git worktree discovery when CWD is unregistered worktree of known project', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/cf-feature');
+    mockListGitWorktrees.mockResolvedValueOnce([
+      { path: '/repos/cf', branch: 'refs/heads/main', head: 'abc', bare: false },
+      { path: '/repos/cf-feature', branch: 'refs/heads/feature', head: 'def', bare: false },
+    ]);
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree({}, store);
+    expect(result).toEqual({ id: 'project_001', source: 'cwd' });
+  });
+
+  it('falls through when git worktree main path does not match any project', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/unknown-wt');
+    mockListGitWorktrees.mockResolvedValueOnce([
+      { path: '/repos/unknown', branch: 'refs/heads/main', head: 'abc', bare: false },
+      { path: '/repos/unknown-wt', branch: 'refs/heads/feature', head: 'def', bare: false },
+    ]);
+    const mockGet = vi.fn().mockResolvedValue({ value: '' });
+    vi.mocked(ConfigManager).mockImplementation(
+      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
+    );
+    const store = mockStore(projects);
+    await expect(resolveProjectWorktree({}, store)).rejects.toThrow(UserError);
   });
 
   it('resolves via default_project config with source "default"', async () => {

@@ -15,6 +15,9 @@ const mockGetWorktreeByName = vi.fn();
 const mockAddWorktree = vi.fn();
 const mockUpdateWorktree = vi.fn();
 const mockRemoveWorktree = vi.fn();
+const mockValidateWorktreePaths = vi.fn().mockResolvedValue([]);
+const mockFindOverlaps = vi.fn().mockResolvedValue([]);
+const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -28,6 +31,11 @@ vi.mock('@context-forge/core/node', () => ({
     addWorktree: mockAddWorktree,
     updateWorktree: mockUpdateWorktree,
     removeWorktree: mockRemoveWorktree,
+    validateWorktreePaths: mockValidateWorktreePaths,
+    findOverlaps: mockFindOverlaps,
+  })),
+  GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
+    listWorktrees: mockListGitWorktrees,
   })),
 }));
 
@@ -151,6 +159,42 @@ describe('worktree_list', () => {
 
     expect(result.isError).toBe(true);
     expect(getErrorText(result)).toContain('Project not found');
+  });
+
+  it('includes pathStatuses when project has projectPath', async () => {
+    mockListWorktrees.mockResolvedValue([MOCK_WORKTREE]);
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockListGitWorktrees.mockResolvedValue([{ path: '/home/user/projects/test-project', head: 'abc', bare: false }]);
+    mockValidateWorktreePaths.mockResolvedValue([{
+      worktreeId: 'wt_test_001',
+      worktreeName: 'Feature Branch',
+      worktreePath: '/home/user/projects/test-project-feature',
+      status: 'missing',
+    }]);
+
+    const result = await client.callTool({
+      name: 'worktree_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { pathStatuses: unknown[] };
+    expect(parsed.pathStatuses).toBeDefined();
+    expect(parsed.pathStatuses).toHaveLength(1);
+  });
+
+  it('omits pathStatuses when project has no projectPath', async () => {
+    mockListWorktrees.mockResolvedValue([MOCK_WORKTREE]);
+    mockGetById.mockResolvedValue({ ...MOCK_PROJECT, projectPath: undefined });
+
+    const result = await client.callTool({
+      name: 'worktree_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { pathStatuses?: unknown };
+    expect(parsed.pathStatuses).toBeUndefined();
   });
 });
 
@@ -336,8 +380,8 @@ describe('worktree_update', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const parsed = parseResult(result) as WorktreeContext;
-    expect(parsed.developmentPhase).toBe('review');
+    const parsed = parseResult(result) as { worktree: WorktreeContext };
+    expect(parsed.worktree.developmentPhase).toBe('review');
     expect(mockUpdateWorktree).toHaveBeenCalledWith(
       MOCK_PROJECT.id,
       MOCK_WORKTREE.id,
@@ -382,6 +426,72 @@ describe('worktree_update', () => {
 
     expect(result.isError).toBe(true);
     expect(getErrorText(result)).toContain('Invalid indexRange');
+  });
+
+  it('includes overlaps when indexRange changed and overlaps exist', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockUpdateWorktree.mockResolvedValue({ ...MOCK_WORKTREE, indexRange: [150, 249] });
+    mockFindOverlaps.mockResolvedValue([{
+      existingWorktreeId: 'wt_test_002',
+      existingWorktreeName: 'Bugfix Branch',
+      existingRange: [200, 299],
+      overlapStart: 200,
+      overlapEnd: 249,
+    }]);
+
+    const result = await client.callTool({
+      name: 'worktree_update',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        worktree: MOCK_WORKTREE.id,
+        indexRange: '150-249',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { worktree: WorktreeContext; overlaps: unknown[] };
+    expect(parsed.overlaps).toHaveLength(1);
+  });
+
+  it('includes empty overlaps when indexRange changed with no overlaps', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockUpdateWorktree.mockResolvedValue({ ...MOCK_WORKTREE, indexRange: [500, 599] });
+    mockFindOverlaps.mockResolvedValue([]);
+
+    const result = await client.callTool({
+      name: 'worktree_update',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        worktree: MOCK_WORKTREE.id,
+        indexRange: '500-599',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { worktree: WorktreeContext; overlaps: unknown[] };
+    expect(parsed.overlaps).toEqual([]);
+  });
+
+  it('omits overlaps when indexRange not changed', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    mockUpdateWorktree.mockResolvedValue({ ...MOCK_WORKTREE, name: 'Renamed' });
+
+    const result = await client.callTool({
+      name: 'worktree_update',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        worktree: MOCK_WORKTREE.id,
+        name: 'Renamed',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { worktree: WorktreeContext; overlaps?: unknown };
+    expect(parsed.overlaps).toBeUndefined();
+    expect(mockFindOverlaps).not.toHaveBeenCalled();
   });
 });
 

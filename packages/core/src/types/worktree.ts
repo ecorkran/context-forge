@@ -52,6 +52,21 @@ export interface CreateWorktreeInput {
 export type UpdateWorktreeInput = Partial<Omit<WorktreeContext, 'id'>>;
 
 /**
+ * Validation status for a worktree's filesystem path.
+ * Used by stale path detection in list commands and consistency checks.
+ */
+export interface WorktreePathStatus {
+  /** ID of the worktree context */
+  worktreeId: string;
+  /** Display name of the worktree context */
+  worktreeName: string;
+  /** Filesystem path (may be undefined for path-less worktrees) */
+  worktreePath: string | undefined;
+  /** Validation result */
+  status: 'valid' | 'missing' | 'not-a-worktree' | 'no-path';
+}
+
+/**
  * Describes an overlap between two worktree index ranges.
  * Returned as advisory information — overlaps do not block operations.
  */
