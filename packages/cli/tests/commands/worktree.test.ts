@@ -144,7 +144,7 @@ describe('cf worktree init', () => {
       migrated: false,
       overlaps: [{
         existingWorktreeId: 'wt_000',
-        existingWorktreeName: 'Default',
+        existingWorktreeName: 'default',
         existingRange: [0, 199],
         overlapStart: 100,
         overlapEnd: 199,

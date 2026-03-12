@@ -7,6 +7,29 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-12
+
+Tags: v0.5.1
+
+### Slice 188: Default Worktree Improvements — Complete
+- **Rename**: Default worktree name `'Default'` → `'default'` (lowercase)
+- **Range**: Default range `[0, 99]` → `[100, 799]` (working range instead of system range)
+- **Dynamic chopping**: `chopDefaultRange` method automatically shrinks default's range when new worktrees claim overlapping sub-ranges (prefers lower contiguous block)
+- **Collision detection**: Blocks range shrinking when default holds artifact references (archDoc, slicePlan, activeSlice, activeTaskFile) that would fall outside the new range
+- **Surface updates**: CLI and MCP both surface `chopWarning` on add/update; updated migration message and tool descriptions
+- **Tests**: 54 WorktreeService tests (12 new for chop/collision), 612 core total, all packages pass
+- **Initiative 180 complete**: All 8 slices + integration slice delivered. Slice plan marked complete.
+- Commits:
+  - `87d8aaa` feat(core): improve default worktree name, range, and dynamic chopping
+  - `ce6da81` docs: add slice 188 design, tasks, and planning artifacts
+
+### Architecture: Event-Driven Pipeline (200-arch)
+- Created concept architecture document for persistent MCP server with Streamable HTTP transport, state-change events, and server-initiated notifications
+- Scope: daemon lifecycle, dual transport (stdio + HTTP), storage event emission, Squadron integration
+- Status: concept (no slices yet)
+
+---
+
 ## 2026-03-11
 
 ### Post-187 Polish & Fixes

@@ -12,8 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 20260312
+
 ### Added
-- **Worktree initiative** (7 slices, 180–187): full git worktree support for parallel multi-initiative development
+- Default worktree improvements (slice 188):
+  - Default worktree renamed from `"Default"` to `"default"` (lowercase)
+  - Default range changed from `[0, 99]` to `[100, 799]` (working range instead of system range)
+  - Dynamic range chopping: default worktree automatically shrinks when new worktrees claim overlapping sub-ranges
+  - Artifact collision detection blocks range shrinking when default holds references outside the new range
+  - CLI and MCP surface `chopWarning` on worktree add/update
+
+## [0.5.0] - 20260312
+
+### Added
+- **Worktree initiative** (8 slices, 180–188): full git worktree support for parallel multi-initiative development
   - `WorktreeService` core service — CRUD for `WorktreeContext` records on `ProjectData`
   - `applyWorktreeOverlay` moved to `@context-forge/core` (CLI re-exports); shared by CLI and MCP
   - `cf worktree init/list/get/update/rm` CLI command group

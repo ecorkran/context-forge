@@ -51,9 +51,7 @@ status: complete
 ## Future Work
 This section is intended to be moved to a separate architectural component and addressed in later revisions.  It is intended to grow as new needs are discovered during the course of implementing the slices in the plan described in this document.  Uses separate index restarting at 1.
 
-1. [ ] MCP Server Streamable HTTP Transport — Add a Streamable HTTP endpoint to the MCP server alongside the existing stdio transport. Same tool registrations, second transport binding. Enables multi-client access (Electron + Claude Code against one server instance), long-lived agent sessions that survive individual agent spawns, and remote/team server deployments. Configuration: port selection, optional auth token. The hybrid launch model from the architecture doc (Electron connects to already-running server) becomes fully functional with this slice. Dependencies: [MCP Server — State Update Tools]. Risk: Low (SDK supports both transports with same API surface). Effort: 2/5
-
-Note: Primary near-term driver is orchestration integration — a persistent MCP server that agent systems connect to across spawn cycles. Multi-client Electron and team/remote scenarios are secondary triggers. Stdio remains the default transport for single-developer Claude Code usage.
+1. [x] ~~MCP Server Streamable HTTP Transport~~ — **Promoted to initiative:** `200-arch.event-driven-pipeline.md`. Scope expanded beyond a single transport slice to include daemon lifecycle, event model, server-initiated notifications, and Squadron integration. See 200-arch for full design.
 
 ## Implementation Order
 

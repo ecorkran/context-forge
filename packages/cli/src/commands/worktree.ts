@@ -106,7 +106,7 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         const svc = new WorktreeService(store);
-        const { worktree: created, migrated, overlaps } = await svc.addWorktree(projectId, {
+        const { worktree: created, migrated, overlaps, chopWarning } = await svc.addWorktree(projectId, {
           name: opts.name,
           indexRange,
           worktreePath,
@@ -117,9 +117,13 @@ export function registerWorktreeCommand(program: Command): void {
         if (migrated) {
           console.log(
             dim(
-              `Note: Existing workflow fields were migrated to a 'Default' worktree context (range 0-99).`,
+              `Note: Existing workflow fields were migrated to a 'default' worktree context (range 100-799).`,
             ),
           );
+        }
+
+        if (chopWarning) {
+          console.log(warn(`Warning: ${chopWarning}`));
         }
 
         if (overlaps.length > 0) {
@@ -316,6 +320,10 @@ export function registerWorktreeCommand(program: Command): void {
 
           const svc = new WorktreeService(store);
           const updated = await svc.updateWorktree(projectId, targetId, updates);
+
+          if (updated.chopWarning) {
+            console.log(warn(`Warning: ${updated.chopWarning}`));
+          }
 
           // Check for overlaps when range changed
           if (indexRange) {

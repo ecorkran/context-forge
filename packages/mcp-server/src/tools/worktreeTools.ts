@@ -131,7 +131,7 @@ export function registerWorktreeTools(server: McpServer): void {
       title: 'Initialize Worktree',
       description:
         'Create a new worktree context for a project. The first worktree triggers forward migration, ' +
-        'moving existing workflow fields into a "Default" worktree. Returns the created worktree, ' +
+        'moving existing workflow fields into a "default" worktree (range 100-799). Returns the created worktree, ' +
         'whether migration occurred, and any index range overlaps.',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
