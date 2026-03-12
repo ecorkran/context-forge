@@ -113,22 +113,22 @@ The default worktree created during forward migration has three problems: capita
 
 ### 7. Collision Detection Tests
 
-- [ ] **7.1** Test: default has `archDoc: '180-arch.something.md'` (index 180), new worktree claims `[100, 199]`. Default would shrink to `[200, 799]`. Index 180 is NOT in `[200, 799]` → error thrown with descriptive message
-- [ ] **7.2** Test: default has `archDoc: '180-arch.something.md'` (index 180), new worktree claims `[300, 399]`. Default shrinks to `[100, 299]`. Index 180 IS in `[100, 299]` → no collision, chop succeeds
-- [ ] **7.3** Test: default has `activeSlice: '250-slice.foo'` (index 250), new worktree claims `[200, 299]`. Default shrinks to `[100, 199]`. Index 250 NOT in `[100, 199]` → error thrown
-- [ ] **7.4** Test: default has no artifact references set → chop always succeeds regardless of range
+- [x] **7.1** Test: default has `archDoc: '180-arch.something.md'` (index 180), new worktree claims `[100, 199]`. Default would shrink to `[200, 799]`. Index 180 is NOT in `[200, 799]` → error thrown with descriptive message
+- [x] **7.2** Test: default has `archDoc: '180-arch.something.md'` (index 180), new worktree claims `[300, 399]`. Default shrinks to `[100, 299]`. Index 180 IS in `[100, 299]` → no collision, chop succeeds
+- [x] **7.3** Test: default has `activeSlice: '250-slice.foo'` (index 250), new worktree claims `[200, 299]`. Default shrinks to `[100, 199]`. Index 250 NOT in `[100, 199]` → error thrown
+- [x] **7.4** Test: default has no artifact references set → chop always succeeds regardless of range
 
 ### 8. CLI and MCP Surface Updates
 
-- [ ] **8.1** In `packages/cli/src/commands/worktree.ts`, after `addWorktree` returns, check for `chopWarning` and display it via `warn()` style if present
-- [ ] **8.2** In `packages/mcp-server/src/tools/worktreeTools.ts`, after `addWorktree` returns, include `chopWarning` in the response text if present
-- [ ] **8.3** Same for `updateWorktree` in both CLI and MCP — check for chop warning when range is updated
+- [x] **8.1** In `packages/cli/src/commands/worktree.ts`, after `addWorktree` returns, check for `chopWarning` and display it via `warn()` style if present
+- [x] **8.2** In `packages/mcp-server/src/tools/worktreeTools.ts`, after `addWorktree` returns, include `chopWarning` in the response text if present
+- [x] **8.3** Same for `updateWorktree` in both CLI and MCP — check for chop warning when range is updated
 
 ### 9. Integration Verification
 
-- [ ] **9.1** Run full test suite: `npm test` from project root — all packages must pass
-- [ ] **9.2** Build check: `npm run build` from project root — no TypeScript errors
-- [ ] **9.3** Manual smoke test: `cf worktree init --name "test" --range 200-299` on a project without worktrees — verify default is `"default"` with chopped range in `cf worktree list` output
+- [x] **9.1** Run full test suite: `npm test` from project root — all packages must pass
+- [x] **9.2** Build check: `npm run build` from project root — no TypeScript errors
+- [x] **9.3** Manual smoke test: `cf worktree init --name "test" --range 200-299` on a project without worktrees — verify default is `"default"` with chopped range in `cf worktree list` output
 
 ### 10. Commit and Wrap-Up
 
