@@ -9,6 +9,8 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-12
 
+Tags: v0.5.1
+
 ### Slice 188: Default Worktree Improvements — Complete
 - **Rename**: Default worktree name `'Default'` → `'default'` (lowercase)
 - **Range**: Default range `[0, 99]` → `[100, 799]` (working range instead of system range)
