@@ -17,6 +17,7 @@ const mockCheck = vi.fn();
 const mockFix = vi.fn();
 const mockCheckAll = vi.fn();
 const mockFixAll = vi.fn();
+const mockApplyFixes = vi.fn();
 const mockConfigGet = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
@@ -30,6 +31,7 @@ vi.mock('@context-forge/core/node', () => ({
     fix: mockFix,
     checkAll: mockCheckAll,
     fixAll: mockFixAll,
+    applyFixes: mockApplyFixes,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
@@ -156,14 +158,15 @@ describe('cf check', () => {
     expect(mockCheckAll).not.toHaveBeenCalled();
   });
 
-  it('uses fixAll with --fix --yes in all-slices mode', async () => {
+  it('uses applyFixes with --fix --yes in all-slices mode', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockFixAll.mockResolvedValue(fixResult);
+    mockCheckAll.mockResolvedValue(findingsResult);
+    mockApplyFixes.mockResolvedValue(fixResult);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix', '--yes']);
 
-    expect(mockFixAll).toHaveBeenCalled();
+    expect(mockApplyFixes).toHaveBeenCalled();
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('fix mode');
     expect(output).toContain('Fixed 1 of 2');

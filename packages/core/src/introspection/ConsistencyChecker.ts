@@ -150,7 +150,7 @@ export class ConsistencyChecker {
   }
 
   /** Apply fixes to a check result — shared by fix() and fixAll(). */
-  private async applyFixes(checkResult: ConsistencyCheckResult): Promise<ConsistencyFixResult> {
+  async applyFixes(checkResult: ConsistencyCheckResult): Promise<ConsistencyFixResult> {
     const fixLog: ConsistencyFixResult['fixLog'] = [];
     const fixErrors: string[] = [];
     let fixed = 0;

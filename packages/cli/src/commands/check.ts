@@ -12,6 +12,7 @@ import type {
   ConsistencyFinding,
 } from '@context-forge/core';
 import { resolveProjectId } from '../utils/project.js';
+import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
@@ -35,6 +36,33 @@ function askConfirmation(prompt: string): Promise<boolean> {
 
 function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
   return 'fixLog' in result;
+}
+
+/** Merge findings from multiple checkAll runs, deduplicating by rule+location+description. */
+function mergeCheckResults(results: ConsistencyCheckResult[]): ConsistencyCheckResult {
+  if (results.length === 1) return results[0];
+  const seen = new Set<string>();
+  const allFindings: ConsistencyFinding[] = [];
+  for (const result of results) {
+    for (const finding of result.findings) {
+      const key = `${finding.rule}|${finding.location}|${finding.description}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        allFindings.push(finding);
+      }
+    }
+  }
+  const projectPath = results[0].projectPath;
+  const errors = allFindings.filter((f) => f.severity === 'error').length;
+  const warnings = allFindings.filter((f) => f.severity === 'warning').length;
+  const infos = allFindings.filter((f) => f.severity === 'info').length;
+  const total = allFindings.length;
+  const parts: string[] = [];
+  if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`);
+  if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
+  if (infos > 0) parts.push(`${infos} info${infos !== 1 ? 's' : ''}`);
+  const summary = total === 0 ? 'No inconsistencies found' : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
+  return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
 }
 
 function formatFinding(finding: ConsistencyFinding, fixResult?: ConsistencyFixResult): string {
@@ -124,38 +152,46 @@ export function registerCheckCommand(program: Command): void {
           throw new UserError(`Invalid slice index: '${opts.slice}'`);
         }
 
+        // Build project views: one per worktree overlay so all workflow fields are visible.
+        // Findings are merged and deduplicated — aggregate rules (filesystem scan) run per
+        // view but produce the same results, so deduplication collapses them correctly.
+        const worktrees = project.worktrees ?? [];
+        const projectViews = worktrees.length > 0
+          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
+          : [project];
+
         let result: ConsistencyCheckResult;
 
         if (singleSlice !== null) {
-          // Narrow to single slice — set fileSlice temporarily and use check()/fix()
-          const sliceProject = { ...project, fileSlice: `${singleSlice}-slice` };
-          result = fixMode
-            ? await checker.fix(sliceProject)
-            : await checker.check(sliceProject);
+          // Narrow to single slice — set fileSlice temporarily and use check()
+          const sliceViews = projectViews.map((v) => ({ ...v, fileSlice: `${singleSlice}-slice` }));
+          const checkResults = await Promise.all(sliceViews.map((v) => checker.check(v)));
+          const merged = mergeCheckResults(checkResults);
+          result = fixMode ? await checker.applyFixes(merged) : merged;
         } else if (fixMode) {
           // All-slices fix mode — prompt for confirmation unless --yes
-          if (!opts.yes) {
-            const dryRun = await checker.checkAll(project);
-            const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
+          const dryRunResults = await Promise.all(projectViews.map((v) => checker.checkAll(v)));
+          const dryRun = mergeCheckResults(dryRunResults);
+          const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
 
-            if (fixableCount === 0) {
-              result = dryRun;
-            } else {
-              printCheckOutput(dryRun, project.name, false);
-              const confirmed = await askConfirmation(
-                `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `,
-              );
-              if (!confirmed) {
-                console.log('Aborted.');
-                return;
-              }
-              result = await checker.fixAll(project);
+          if (fixableCount === 0) {
+            result = dryRun;
+          } else if (!opts.yes) {
+            printCheckOutput(dryRun, project.name, false);
+            const confirmed = await askConfirmation(
+              `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `,
+            );
+            if (!confirmed) {
+              console.log('Aborted.');
+              return;
             }
+            result = await checker.applyFixes(dryRun);
           } else {
-            result = await checker.fixAll(project);
+            result = await checker.applyFixes(dryRun);
           }
         } else {
-          result = await checker.checkAll(project);
+          const checkResults = await Promise.all(projectViews.map((v) => checker.checkAll(v)));
+          result = mergeCheckResults(checkResults);
         }
 
         if (opts.json) {
