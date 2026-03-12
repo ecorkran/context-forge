@@ -132,7 +132,7 @@ The default worktree created during forward migration has three problems: capita
 
 ### 10. Commit and Wrap-Up
 
-- [ ] **10.1** Stage and commit all changes with message: `feat(core): improve default worktree name, range, and dynamic chopping`
-- [ ] **10.2** Update slice status to `complete` in `188-slice.default-worktree-improvements.md` frontmatter
-- [ ] **10.3** Check off slice 188 in `180-slices.initiative-context-worktree.md`
-- [ ] **10.4** Update DEVLOG with slice 188 completion entry
+- [x] **10.1** Stage and commit all changes with message: `feat(core): improve default worktree name, range, and dynamic chopping`
+- [x] **10.2** Update slice status to `complete` in `188-slice.default-worktree-improvements.md` frontmatter
+- [x] **10.3** Check off slice 188 in `180-slices.initiative-context-worktree.md`
+- [x] **10.4** Update DEVLOG with slice 188 completion entry
