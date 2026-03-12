@@ -7,7 +7,7 @@ dependencies: [181-worktreecontext-data-model-storage, 182-worktree-discovery-cw
 interfaces: [184-status-display-updates, 185-worktree-aware-context-assembly, 186-mcp-worktree-tools]
 dateCreated: 20260310
 dateUpdated: 20260310
-status: not_started
+status: complete
 ---
 
 # Slice 183: Worktree CLI Commands

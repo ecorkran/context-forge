@@ -7,7 +7,7 @@ dependencies: [181-worktree-context-data-model-storage, 182-worktree-discovery-c
 interfaces: [187-validation-edge-cases-polish]
 dateCreated: 20260311
 dateUpdated: 20260311
-status: not_started
+status: complete
 ---
 
 # Slice 186: MCP Worktree Tools
