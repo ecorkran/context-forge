@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
-dateUpdated: 20260311
-status: in-progress
+dateUpdated: 20260312
+status: complete
 ---
 
 # Slice Plan: Initiative Contexts (Worktrees)
@@ -274,7 +274,7 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Risk:** Low — wrapping existing core operations in MCP tool handlers; follows established patterns
    **Effort:** 3/5
 
-8. [ ] **(188) Default Worktree Improvements** — Rename "Default" to "default", use working range [100-799] instead of system range [0-99], and implement dynamic range chopping: when a new worktree is created, shrink default's range to the largest contiguous block below the new range's start. Block (not warn) if default holds artifacts in the carved-out range. Dependencies: [181]. Risk: Low. Effort: 2/5
+8. [x] **(188) Default Worktree Improvements** — Rename "Default" to "default", use working range [100-799] instead of system range [0-99], and implement dynamic range chopping: when a new worktree is created, shrink default's range to the largest contiguous block below the new range's start. Block (not warn) if default holds artifacts in the carved-out range. Dependencies: [181]. Risk: Low. Effort: 2/5
 
 ## Integration Work
 

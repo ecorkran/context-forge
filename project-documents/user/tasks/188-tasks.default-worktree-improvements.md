@@ -5,7 +5,7 @@ project: context-forge
 parent: user/slices/188-slice.default-worktree-improvements.md
 slicePlan: user/architecture/180-slices.initiative-context-worktree.md
 sliceIndex: 188
-status: not_started
+status: complete
 dateCreated: 20260312
 dateUpdated: 20260312
 dependencies:
@@ -28,39 +28,39 @@ The default worktree created during forward migration has three problems: capita
 
 ### 1. Rename and Range Constants
 
-- [ ] **1.1** In `WorktreeService.addWorktree` (line ~140), change the default worktree name from `'Default'` to `'default'`
-- [ ] **1.2** In `WorktreeService.addWorktree` (line ~141), change `indexRange: [0, 99]` to `indexRange: [100, 799]`
-- [ ] **1.3** In `packages/cli/src/commands/worktree.ts` (line ~120), update the migration message from `'Default' worktree context (range 0-99)` to `'default' worktree context (range 100-799)`
-- [ ] **1.4** In `packages/mcp-server/src/tools/worktreeTools.ts`, update the `worktree_init` tool description string that references `"Default"` to use `"default"`
+- [x] **1.1** In `WorktreeService.addWorktree` (line ~140), change the default worktree name from `'Default'` to `'default'`
+- [x] **1.2** In `WorktreeService.addWorktree` (line ~141), change `indexRange: [0, 99]` to `indexRange: [100, 799]`
+- [x] **1.3** In `packages/cli/src/commands/worktree.ts` (line ~120), update the migration message from `'Default' worktree context (range 0-99)` to `'default' worktree context (range 100-799)`
+- [x] **1.4** In `packages/mcp-server/src/tools/worktreeTools.ts`, update the `worktree_init` tool description string that references `"Default"` to use `"default"`
 
 ### 2. Update Existing Tests for Rename/Range
 
-- [ ] **2.1** In `packages/core/tests/services/WorktreeService.test.ts`, update the migration test (`creates Default worktree with mapped fields on first addWorktree`, line ~267) to expect `name: 'default'` and `indexRange: [100, 799]`
-- [ ] **2.2** Update `expect(defaultWt.name).toBe('Default')` → `toBe('default')` and `expect(defaultWt.indexRange).toEqual([0, 99])` → `toEqual([100, 799])`
-- [ ] **2.3** Update the test `does NOT create Default when project has no workflow fields` (line ~302) — update any name references
-- [ ] **2.4** Update `creates Default with only populated fields mapped for partially-set project` test (line ~315) — update name/range assertions
-- [ ] **2.5** In `packages/cli/tests/commands/worktree.test.ts`, update migration overlap test fixture referencing `existingWorktreeName: 'Default'` (line ~147) to `'default'`
-- [ ] **2.6** Run `npm test` across all packages to confirm rename/range changes pass. Fix any remaining assertions that reference the old name or range.
+- [x] **2.1** In `packages/core/tests/services/WorktreeService.test.ts`, update the migration test (`creates Default worktree with mapped fields on first addWorktree`, line ~267) to expect `name: 'default'` and `indexRange: [100, 799]`
+- [x] **2.2** Update `expect(defaultWt.name).toBe('Default')` → `toBe('default')` and `expect(defaultWt.indexRange).toEqual([0, 99])` → `toEqual([100, 799])`
+- [x] **2.3** Update the test `does NOT create Default when project has no workflow fields` (line ~302) — update any name references
+- [x] **2.4** Update `creates Default with only populated fields mapped for partially-set project` test (line ~315) — update name/range assertions
+- [x] **2.5** In `packages/cli/tests/commands/worktree.test.ts`, update migration overlap test fixture referencing `existingWorktreeName: 'Default'` (line ~147) to `'default'`
+- [x] **2.6** Run `npm test` across all packages to confirm rename/range changes pass. Fix any remaining assertions that reference the old name or range.
 
 ### 3. Index Extraction Utility
 
-- [ ] **3.1** Add a private helper function `extractIndexFromFilename(filename: string): number | null` to `WorktreeService.ts`. Uses regex `/^(\d+)-/` to extract the leading numeric prefix. Returns `null` if no match. Place it alongside the existing module-level helper functions (near `validateIndexRange`).
-- [ ] **3.2** Add a private method `getWorktreeArtifactIndices(wt: WorktreeContext): { field: string; filename: string; index: number }[]` that checks `archDoc`, `slicePlan`, `activeSlice`, and `activeTaskFile` fields. For each non-empty field, extracts the index via `extractIndexFromFilename`. Returns an array of `{ field, filename, index }` entries for fields that have a parseable index.
+- [x] **3.1** Add a private helper function `extractIndexFromFilename(filename: string): number | null` to `WorktreeService.ts`. Uses regex `/^(\d+)-/` to extract the leading numeric prefix. Returns `null` if no match. Place it alongside the existing module-level helper functions (near `validateIndexRange`).
+- [x] **3.2** Add a private method `getWorktreeArtifactIndices(wt: WorktreeContext): { field: string; filename: string; index: number }[]` that checks `archDoc`, `slicePlan`, `activeSlice`, and `activeTaskFile` fields. For each non-empty field, extracts the index via `extractIndexFromFilename`. Returns an array of `{ field, filename, index }` entries for fields that have a parseable index.
 
 ### 4. Index Extraction Tests
 
-- [ ] **4.1** Add unit tests for `extractIndexFromFilename`:
+- [x] **4.1** Add unit tests for `extractIndexFromFilename`:
   - `'200-arch.event-driven-pipeline.md'` → `200`
   - `'180-slices.initiative-context-worktree.md'` → `180`
   - `'187-slice.validation-edge-cases-polish'` → `187`
   - `''` → `null`
   - `'no-index-file.md'` → `null`
   - `'abc-arch.foo.md'` → `null`
-- [ ] **4.2** Since `extractIndexFromFilename` is module-private, test it indirectly through `chopDefaultRange` behavior (collision detection tests in task 7). Alternatively, export it as a named export for testing if the team prefers direct testing. Decision: test indirectly via collision behavior.
+- [x] **4.2** Since `extractIndexFromFilename` is module-private, test it indirectly through `chopDefaultRange` behavior (collision detection tests in task 7). Alternatively, export it as a named export for testing if the team prefers direct testing. Decision: test indirectly via collision behavior.
 
 ### 5. Chop Default Range Logic
 
-- [ ] **5.1** Add a private method `chopDefaultRange` to `WorktreeService` with signature:
+- [x] **5.1** Add a private method `chopDefaultRange` to `WorktreeService` with signature:
   ```
   private chopDefaultRange(
     worktrees: WorktreeContext[],
@@ -70,7 +70,7 @@ The default worktree created during forward migration has three problems: capita
   ```
   This method mutates the default worktree's `indexRange` in the `worktrees` array in place (before the array is persisted).
 
-- [ ] **5.2** Implement the core algorithm in `chopDefaultRange`:
+- [x] **5.2** Implement the core algorithm in `chopDefaultRange`:
   1. Find the worktree named `"default"` (case-insensitive match)
   2. If not found or no overlap with `newRange` → return `{ chopped: false }`
   3. Compute candidate contiguous blocks within default's current range, excluding `newRange`:
@@ -81,35 +81,35 @@ The default worktree created during forward migration has three problems: capita
   6. Update default's `indexRange` to the selected block
   7. Return `{ chopped: true, warning? }`
 
-- [ ] **5.3** Add artifact collision detection before chopping:
+- [x] **5.3** Add artifact collision detection before chopping:
   1. Call `getWorktreeArtifactIndices` on the default worktree
   2. For each artifact index, check if it falls within the range being carved away (i.e., it's in default's current range but NOT in the candidate new range)
   3. If any collision found → throw an `Error` with message listing the conflicting artifacts:
      `"Cannot shrink default worktree range — artifact '{filename}' (index {n}) would fall outside the new range [{start}, {end}]. Move the artifact to another worktree first."`
 
-- [ ] **5.4** Call `chopDefaultRange` from `addWorktree`:
+- [x] **5.4** Call `chopDefaultRange` from `addWorktree`:
   - After building the worktrees array (line ~146 or ~161) but before `store.update`
   - Pass the full worktrees array and the new worktree's `indexRange`
   - If `chopped` is true, the array already reflects the change (mutated in place)
   - If a `warning` is returned, include it in the return value (extend the return type to include `chopWarning?: string`)
 
-- [ ] **5.5** Call `chopDefaultRange` from `updateWorktree`:
+- [x] **5.5** Call `chopDefaultRange` from `updateWorktree`:
   - Only when `updates.indexRange` is provided
   - Pass the worktrees array and the updated range, excluding the worktree being updated (`excludeId`)
   - Same mutation-before-persist pattern
 
-- [ ] **5.6** Update the `addWorktree` return type to include `chopWarning?: string`. Update `removeWorktree` if needed (no chop on remove — removing a worktree does NOT expand default's range back).
+- [x] **5.6** Update the `addWorktree` return type to include `chopWarning?: string`. Update `removeWorktree` if needed (no chop on remove — removing a worktree does NOT expand default's range back).
 
 ### 6. Chop Logic Tests
 
-- [ ] **6.1** Test: new worktree `[300, 399]` with default `[100, 799]` → default shrinks to `[100, 299]`
-- [ ] **6.2** Test: new worktree `[100, 199]` with default `[100, 799]` → default shrinks to `[200, 799]` (no lower block, upper wins)
-- [ ] **6.3** Test: new worktree `[400, 599]` with default `[100, 799]` → default shrinks to `[100, 399]` (prefer lower)
-- [ ] **6.4** Test: new worktree `[100, 799]` covers entire default → default becomes `[0, 0]` sentinel with warning
-- [ ] **6.5** Test: new worktree `[500, 599]` with default already at `[100, 299]` → no overlap, no chop
-- [ ] **6.6** Test: second chop — default `[100, 299]`, new `[200, 299]` → default shrinks to `[100, 199]`
-- [ ] **6.7** Test: `updateWorktree` with new range triggers chop on default
-- [ ] **6.8** Test: non-default worktrees are never chopped (only default is affected)
+- [x] **6.1** Test: new worktree `[300, 399]` with default `[100, 799]` → default shrinks to `[100, 299]`
+- [x] **6.2** Test: new worktree `[100, 199]` with default `[100, 799]` → default shrinks to `[200, 799]` (no lower block, upper wins)
+- [x] **6.3** Test: new worktree `[400, 599]` with default `[100, 799]` → default shrinks to `[100, 399]` (prefer lower)
+- [x] **6.4** Test: new worktree `[100, 799]` covers entire default → default becomes `[0, 0]` sentinel with warning
+- [x] **6.5** Test: new worktree `[500, 599]` with default already at `[100, 299]` → no overlap, no chop
+- [x] **6.6** Test: second chop — default `[100, 299]`, new `[200, 299]` → default shrinks to `[100, 199]`
+- [x] **6.7** Test: `updateWorktree` with new range triggers chop on default
+- [x] **6.8** Test: non-default worktrees are never chopped (only default is affected)
 
 ### 7. Collision Detection Tests
 
