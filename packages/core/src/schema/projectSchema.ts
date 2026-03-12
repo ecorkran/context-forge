@@ -78,7 +78,7 @@ export const PROJECT_FIELDS: FieldDefinition[] = [
   { field: 'fileArch', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Architecture document path (relative)', aliases: ['arch'], label: 'Architecture' },
   { field: 'fileSlicePlan', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Slice plan document path (relative)', aliases: ['plan'], label: 'Slice Plan' },
   { field: 'fileSlice', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current slice design path (relative)', aliases: ['slice'], label: 'Slice' },
-  { field: 'fileTasks', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current tasks file path (relative)', aliases: ['task'], label: 'Tasks' },
+  { field: 'fileTasks', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current tasks file path (relative)', aliases: ['tasks'], label: 'Tasks' },
 
   // Workflow
   { field: 'developmentPhase', type: 'string', required: false, readonly: false, group: 'workflow', description: 'Current methodology phase', aliases: ['phase'], label: 'Phase', enumValues: ALL_PHASE_VALUES },

@@ -16,7 +16,7 @@ import { label, success, dim } from '../output/styles.js';
 
 export function registerTaskCommand(program: Command): void {
   const cmd = program
-    .command('task')
+    .command('tasks')
     .description('Manage tasks');
 
   cmd

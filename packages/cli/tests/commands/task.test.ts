@@ -78,7 +78,7 @@ describe('cf task items', () => {
     mockParseTaskFile.mockResolvedValue(sampleTaskResult);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'items', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'tasks', 'items', '--project', 'proj_001']);
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const output = calls.join('\n');
@@ -93,7 +93,7 @@ describe('cf task items', () => {
     mockParseTaskFile.mockResolvedValue(sampleTaskResult);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'items', '--json', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'tasks', 'items', '--json', '--project', 'proj_001']);
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
@@ -107,7 +107,7 @@ describe('cf task items', () => {
     mockGetById.mockResolvedValue(projectNoTasks);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'items', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'tasks', 'items', '--project', 'proj_001']);
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('task file'),
@@ -130,7 +130,7 @@ describe('cf task list', () => {
     mockGetById.mockResolvedValue(projectNoPlan);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'task', 'list', '--project', 'proj_001']);
+    await program.parseAsync(['node', 'cf', 'tasks', 'list', '--project', 'proj_001']);
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('slice plan'),
