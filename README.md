@@ -66,17 +66,72 @@ Context Forge is the engine that:
 
 It manages multiple projects simultaneously. Each one has its own slice plan, its own task state, its own methodology position.
 
+For larger projects with parallel initiatives — running architecture and a feature slice at the same time, for example — worktrees let you run multiple AI sessions in separate git worktrees, each with its own phase/slice/task context, without conflicts.
+
 ## Access Points
 
 Context Forge is available through four interfaces — use whichever fits your workflow:
 
-**MCP Server** (`@context-forge/mcp`) — [nn] tools for project management, context generation, artifact introspection, workflow navigation, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
+### MCP Server (`@context-forge/mcp`)
 
-**CLI** (`@context-forge/cli`) — Terminal commands: `cf status`, `cf next`, `cf build`, `cf set`, `cf project`, `cf arch list`, `cf plan list`, `cf slice list`, `cf task list`, `cf config`, `cf future`, `cf check`, `cf prompt`, `cf guides`. Pipeable output — `cf build | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
+32 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
 
-**Claude Code Slash Commands** — `/cf:status`, `/cf:build`, `/cf:next`, `/cf:prompt`. Installed via `cf install-commands`. Your AI assistant can suggest these contextually.
+| Category | Tools |
+|----------|-------|
+| Project | `project_list`, `project_get`, `project_update`, `project_schema`, `project_structure` |
+| Context | `context_build`, `context_summarize`, `template_preview`, `prompt_list`, `prompt_get` |
+| Workflow | `workflow_status`, `workflow_next`, `workflow_check`, `workflow_future` |
+| Worktrees | `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm` |
+| Introspection | `introspection_documents`, `introspection_frontmatter`, `introspection_slice_plan`, `introspection_tasks`, `introspection_future_work` |
+| Configuration | `config_list`, `config_get`, `config_set` |
+| Guides | `guide_install`, `guide_status`, `guide_update` |
+| Storage | `storage_backup` |
+| Meta | `server_version` |
 
-**Electron Desktop App** — Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.
+### CLI (`@context-forge/cli`)
+
+`cf` works like `git` — install it globally and it detects your project from the current directory. Pipeable output: `cf build | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
+
+| Command | Description |
+|---------|-------------|
+| `cf init` | Register current directory as a project |
+| `cf status` | Workflow status (phase, slice, task progress) |
+| `cf next` | Recommended next action with rationale |
+| `cf build` | Assemble context prompt for AI session |
+| `cf set <field> <value>` | Set a project field |
+| `cf get` | Show all project fields |
+| `cf check` | Run consistency checks (`--fix`, `--slice`) |
+| `cf project list\|get\|set\|rm` | Manage projects |
+| `cf worktree init\|list\|get\|update\|rm` | Manage git worktree contexts |
+| `cf arch list` | Architecture initiatives with slice counts |
+| `cf plan list` | Slice plan files with progress |
+| `cf slice list` | Slices from the active plan with status |
+| `cf tasks list` | Task files with completion counts |
+| `cf tasks items` | Individual tasks from the active task file |
+| `cf config list\|get\|set` | Two-tier configuration |
+| `cf future` | Consolidated future work across all plans |
+| `cf prompt list\|get <phase>` | Prompt templates with variable substitution |
+| `cf guides install\|status\|update` | ai-project-guide template management |
+| `cf setup-ide claude` | Configure Claude Code integration |
+| `cf backup` | Versioned project data backup (keeps last 10) |
+
+### Claude Code Slash Commands
+
+Installed via `cf install-commands`. Available directly in Claude Code sessions:
+
+| Command | Description |
+|---------|-------------|
+| `/cf:build` | Build context prompt (accepts `--phase`, `--slice`) |
+| `/cf:status` | Show workflow status |
+| `/cf:get` | Show all project fields |
+| `/cf:set` | Set a project field |
+| `/cf:next` | Recommended next action |
+| `/cf:prompt` | Get or list prompt templates |
+| `/cf:project` | Manage projects |
+
+### Electron Desktop App
+
+Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.
 
 ## Architecture
 
@@ -92,7 +147,7 @@ packages/
 
 All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.
 
-792 tests across all packages. TypeScript, strict mode, no `any`.
+1139 tests across all packages. TypeScript, strict mode, no `any`.
 
 ## Also
 

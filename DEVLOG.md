@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-11
 
+### Post-187 Polish & Fixes
+- **cf check worktree fix**: consistency checker now runs across all worktree overlays so worktree-scoped fields (phase, slice, tasks, arch, plan) are visible — previously saw empty fields after worktree migration
+- **cf worktree init CWD fix**: `resolveProjectWorktree` gains step 2b — if CWD is a git worktree of a known project but not yet registered as a cf worktree, auto-resolves to that project (no `--project` flag needed during `cf worktree init`)
+- **cf tasks rename**: `cf task` → `cf tasks` for consistency with `cf set tasks`; `fileTasks` alias stays `tasks`
+- **GitHub issue #42**: logged `createPrs` project field enhancement for future implementation
+- **Tests**: 1139 total (600 core, 271 CLI, 106 electron, 162 MCP)
+- Commits: `added39` `fix(cli): run cf check across all worktree overlays`, `7285237` `fix(cli): rename 'task' to 'tasks'`, `8798891` `fix(core): rename fileTasks alias`
+
 ### Slice 187: Validation, Edge Cases & Polish — Complete
 - **What works**: Build clean, all tests pass (600 core, 269 CLI, 106 electron, 23 MCP worktree)
 - **Delivered**: `cf worktree update` CLI, stale path detection in list commands, `stale-worktree-path` cf check rule, first-run worktree suggestion in cf status, MCP overlap detection on worktree_update

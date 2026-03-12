@@ -13,8 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Worktree initiative** (7 slices, 180–187): full git worktree support for parallel multi-initiative development
+  - `WorktreeService` core service — CRUD for `WorktreeContext` records on `ProjectData`
+  - `applyWorktreeOverlay` moved to `@context-forge/core` (CLI re-exports); shared by CLI and MCP
+  - `cf worktree init/list/get/update/rm` CLI command group
+  - `cf status` shows dedicated `Worktree:` line; `--worktree` and `--worktrees` flags for cross-directory access
+  - `cf set` routes worktree-scoped fields (phase, slice, tasks, arch, plan) to `WorktreeContext`
+  - `cf check` runs across all worktree overlays — worktree-scoped fields are visible in all checks
+  - `stale-worktree-path` consistency rule detects registered worktrees whose paths no longer exist
+  - `cf status` shows first-run hint when CWD is an unregistered git worktree of a known project
+  - CWD resolution step 2b: auto-resolves project from git worktree even before `cf worktree init`
+  - MCP tools: `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm` (5 new)
+  - MCP extended: `workflow_status`, `workflow_next`, `context_build`, `project_update` accept `worktreeId`
+  - MCP `worktree_update` overlap detection — rejects duplicate slice ranges across worktrees
+- `cf tasks` command (renamed from `cf task`) with `list` and `items` subcommands
+
+### Fixed
+- `cf check` was blind to worktree-scoped fields after worktree migration; now checks all views
+- `cf worktree init` required `--project` flag from unregistered git worktree directories; resolved automatically
+
+## [0.4.2] - 20260311
+
+### Added
 - `cf backup` CLI command — creates versioned timestamped backup of project data (keeps last 10, auto-prunes)
 - `storage_backup` MCP tool — same backup functionality accessible to AI agents
+
+## [0.4.1] - 20260310
+
+### Added
+- `cf check --slice <index>` — narrow consistency checks to a single slice
+- `cf check --yes` — skip confirmation prompt in fix mode
+- `cf check` default scope is now all-slices (previously single-slice)
+- `workflow_check` MCP tool: `sliceIndex` param to target specific slices
+- ConsistencyChecker rules 6–9: architecture-plan linkage, missing-plan-status, all-arch-plan pairs, filesystem discovery
+- `updateFrontmatterField` supports inserting new keys (not just updating existing ones)
 
 ## [0.4.0] - 20260309
 
