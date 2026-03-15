@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 203: Enhanced cf next First-Run Guidance — Slice Design
+- Created `user/slices/203-slice.enhanced-cf-next-first-run-guidance.md`
+- Design: add `detectFirstRunContext()` + `isFirstRunState()` private methods to `WorkflowNavigator`; 5 first-run sub-conditions (FR-1: no phase, FR-2: Phase 1 no artifacts, FR-3: Phase 2 no arch, FR-4: Phase 3 no slice plan, FR-5: has plan no active slice)
+- Each condition returns enriched `NextAction` with context and concrete `cf` command; standard recommendations unchanged for established projects
+- No type changes, no CLI/MCP changes — purely additive logic in `WorkflowNavigator.ts`
+
 ### Slice 202: Post-merge fix — cf init project defaults
 - `cf init` now sets `developmentPhase: 'Phase 1: Concept'` and `dateProject: YYYYMMDD` to match `project_create` MCP tool defaults
 - Commits:
