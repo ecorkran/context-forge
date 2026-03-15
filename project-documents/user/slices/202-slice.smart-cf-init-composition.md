@@ -176,8 +176,11 @@ Wrapped in try/catch — if git is not available or not a git repo, returns fals
 10. Each step prints a status line (success or skip)
 11. Final output includes `cf next` nudge
 12. Guides/command/IDE failures are non-fatal warnings; project creation failure is fatal
-13. All existing `init.test.ts` tests pass unchanged
-14. New unit tests cover: git-init detection, already-registered detection, worktree detection, --lite flag, --no-ide flag, --ide flag, guides-skip detection, step failure handling
+13. CLAUDE.md with managed marker: overwritten silently, no backup
+14. CLAUDE.md without marker, no `.bak`: backed up to `.bak` with printed notice
+15. CLAUDE.md without marker, `.bak` exists: backup skipped, "existing backup preserved" notice printed
+16. All existing `init.test.ts` tests pass unchanged
+17. New unit tests cover: git-init detection, already-registered detection, worktree detection, --lite flag, --no-ide flag, --ide flag, guides-skip detection, step failure handling, all three CLAUDE.md backup cases
 
 ## Verification Walkthrough
 
@@ -242,6 +245,27 @@ The extraction of `guidesInstallAction` and `setupIdeAction` from their inline h
 ### Non-Interactive Constraint
 
 `cf init` must not block on interactive prompts during the guide/command/IDE steps. The `setup-ide` CLAUDE.md safety check uses `--yes` when called from `cf init` (i.e., `setupIdeAction(projectPath, target, { yes: true })`). Users who want the interactive check can still run `cf setup-ide claude` directly.
+
+### CLAUDE.md Backup Strategy
+
+The `setupIdeAction` extraction replaces the current simple backup logic with a three-case strategy based on a managed-file marker.
+
+**Marker:** The setup-ide bash script (in the guide repo) writes `[//]: # (context-forge:managed)` as the first line of CLAUDE.md. This is an invisible markdown comment — it renders as nothing and does not appear as an instruction to Claude Code.
+
+**Detection:** `setupIdeAction` reads the first line of an existing CLAUDE.md and checks `line.trim() === '[//]: # (context-forge:managed)'`.
+
+**Three cases:**
+
+| Condition | Behavior |
+|---|---|
+| No existing CLAUDE.md | Proceed silently |
+| CLAUDE.md starts with managed marker | CF-owned — skip backup, proceed silently |
+| CLAUDE.md exists, no marker, no `.bak` | User-owned, first run — back up to `CLAUDE.md.bak`, print notice |
+| CLAUDE.md exists, no marker, `.bak` exists | User-owned, re-run — skip backup, print "existing backup preserved at CLAUDE.md.bak" |
+
+The `--yes` flag (used when called from `cf init`) only bypasses the interactive confirmation prompt. The backup logic above runs regardless of `--yes`.
+
+**Guide repo dependency:** This strategy requires the setup-ide bash script to write the marker as the first line of CLAUDE.md. This is a coordinated change: the script update and this slice can ship independently (the backup logic degrades gracefully to the old behavior when the marker is absent), but full benefit requires both.
 
 ### Error Handling
 
