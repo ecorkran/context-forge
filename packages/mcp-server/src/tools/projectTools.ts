@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import * as path from 'node:path';
 import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
 import { getSchema } from '@context-forge/core';
@@ -75,6 +76,73 @@ export function registerProjectTools(server: McpServer): void {
         const allProjects = await store.getAll();
         const projects = allProjects.map(toSummary);
         return jsonResult({ projects, count: projects.length });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return errorResult(`Error: ${message}`);
+      }
+    },
+  );
+
+  // --- project_create ---
+  server.registerTool(
+    'project_create',
+    {
+      title: 'Create Project',
+      description:
+        'Create a new Context Forge project entry with sensible defaults. Returns the same shape as project_get (full ProjectData plus introspection when projectPath is provided). Does NOT install guides, commands, or configure the IDE — those are separate operations.',
+      inputSchema: {
+        name: z.string().describe('Project display name (required)'),
+        projectPath: z.string().optional().describe('Absolute path to the project root. When omitted, the project is created without a path (can be set later via project_update).'),
+        developmentPhase: z.string().optional().describe('Initial development phase. Defaults to "Phase 1: Concept".'),
+      },
+      annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async ({ name, projectPath, developmentPhase }) => {
+      try {
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+          return errorResult('Project name is required.');
+        }
+
+        const normalizedPath = projectPath ? path.resolve(projectPath.trim()) : undefined;
+
+        const store = new FileProjectStore();
+
+        if (normalizedPath) {
+          const existing = await store.getAll();
+          const duplicate = existing.find((p) => p.projectPath === normalizedPath);
+          if (duplicate) {
+            return errorResult(
+              `A project is already registered at this path: '${duplicate.name}' (ID: ${duplicate.id}). Use project_get to retrieve it.`,
+            );
+          }
+        }
+
+        const today = new Date();
+        const dateProject = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+
+        const project = await store.create({
+          name: trimmedName,
+          projectPath: normalizedPath,
+          template: 'default',
+          fileSlice: '',
+          instruction: 'implementation',
+          developmentPhase: developmentPhase || 'Phase 1: Concept',
+          dateProject,
+        });
+
+        if (project.projectPath) {
+          try {
+            const introspector = new ArtifactIntrospector();
+            const introspection = await introspector.summarize(project);
+            return jsonResult({ ...project, introspection });
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`Introspection failed for new project ${project.id}: ${msg}`);
+          }
+        }
+
+        return jsonResult(project);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${message}`);

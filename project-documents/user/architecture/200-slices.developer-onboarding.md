@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
-dateUpdated: 20260314
-status: not_started
+dateUpdated: 20260315
+status: in_progress
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -14,7 +14,7 @@ status: not_started
 
 ## Foundation Work
 
-1. [ ] **(201) project_create MCP Tool** — New atomic MCP tool for creating a Context Forge project via MCP. Wraps the existing `FileProjectStore.create()` with input validation and duplicate-path detection. Returns full project object (same shape as `project_get`). Does not install guides, commands, or configure IDE — those are separate operations, consistent with the MCP server's atomic tool philosophy.
+1. [x] **(201) project_create MCP Tool** — New atomic MCP tool for creating a Context Forge project via MCP. Wraps the existing `FileProjectStore.create()` with input validation and duplicate-path detection. Returns full project object (same shape as `project_get`). Does not install guides, commands, or configure IDE — those are separate operations, consistent with the MCP server's atomic tool philosophy.
 
    **Parameters:**
    - `name` (string, required) — project display name

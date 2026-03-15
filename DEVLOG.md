@@ -7,6 +7,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-15
+
+### Slice 201: project_create MCP Tool — Complete
+- Added `project_create` tool to `registerProjectTools()` in `packages/mcp-server/src/tools/projectTools.ts`
+- Thin wrapper over `FileProjectStore.create()` with name validation, path normalization, duplicate-path detection, and sensible defaults
+- Response matches `project_get` shape: full `ProjectData` + optional introspection (graceful degradation)
+- 6 new unit tests covering: success with all params, name-only defaults, duplicate path error, empty name error, introspection enrichment, introspection failure degradation
+- 168 mcp-server tests, all packages pass
+- Commits:
+  - `5c1c529` feat(mcp-server): add project_create MCP tool
+
+---
+
 ## 2026-03-14
 
 Tags: v0.5.2
