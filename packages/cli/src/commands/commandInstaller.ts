@@ -79,6 +79,16 @@ function defaultTarget(): string {
   return path.join(os.homedir(), '.claude', 'commands');
 }
 
+/** Install commands to the target directory (defaults to ~/.claude/commands). Errors propagate. */
+export function installCommandsAction(targetDir?: string): void {
+  const target = targetDir ?? defaultTarget();
+  const installed = installCommands(target);
+  console.log(success(`Installed ${installed.length} commands to ${target}/cf/`));
+  for (const file of installed) {
+    console.log(`  ${dim('/cf:' + file.replace('.md', ''))}`);
+  }
+}
+
 export function registerInstallCommandsCommand(program: Command): void {
   program
     .command('install-commands')
