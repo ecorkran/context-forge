@@ -146,11 +146,11 @@ Extend `cf init` into a full onboarding sequencer: git init, project creation, g
 - [x] **6.2** Run full test suite
   - [x] `pnpm test` from repo root — all packages pass
 
-- [ ] **6.3** Smoke test (manual)
-  - [ ] `mkdir /tmp/cf-init-202-test && cd /tmp/cf-init-202-test`
-  - [ ] `cf init --lite --name "Smoke Test"` — confirms project created, no guides/commands/IDE
-  - [ ] `cf status` — confirms project registered at path
-  - [ ] Unregister or skip if full-flow test not desired (guides install requires network)
+- [x] **6.3** Smoke test (manual)
+  - [x] `mkdir /tmp/cf-init-202-test && cd /tmp/cf-init-202-test`
+  - [x] `cf init --lite --name "Smoke Test"` — confirms project created, no guides/commands/IDE
+  - [x] `cf status` — confirms project registered at path
+  - [x] Unregister or skip if full-flow test not desired (guides install requires network)
 
 **Commit:** `chore: verify build and tests for slice 202`
 
@@ -162,11 +162,11 @@ Extend `cf init` into a full onboarding sequencer: git init, project creation, g
   - [x] `202-slice.smart-cf-init-composition.md` → `status: complete`, `dateUpdated: today`
   - [x] `200-slices.developer-onboarding.md` → check off slice 202 entry, `dateUpdated: today`
 
-- [ ] **7.2** Write DEVLOG entry (format: `## YYYY-MM-DD` → brief notes + commit hashes)
+- [x] **7.2** Write DEVLOG entry (format: `## YYYY-MM-DD` → brief notes + commit hashes)
 
-- [ ] **7.3** Final commit
-  - [ ] `git add` all changed doc files
-  - [ ] `git commit -m "docs: complete slice 202 smart cf init composition"`
+- [x] **7.3** Final commit
+  - [x] `git add` all changed doc files
+  - [x] `git commit -m "docs: complete slice 202 smart cf init composition"`
 
-- [ ] **7.4** Merge to main
-  - [ ] `git checkout main && git merge 202-slice.smart-cf-init-composition --no-ff`
+- [x] **7.4** Merge to main
+  - [x] `git checkout main && git merge 202-slice.smart-cf-init-composition --no-ff`
