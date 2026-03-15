@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
-import { registerGuidesCommand } from '../../src/commands/guides.js';
+import { registerGuidesCommand, guidesInstallAction } from '../../src/commands/guides.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
@@ -148,6 +148,33 @@ describe('cf guides install', () => {
 
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('already installed');
+  });
+});
+
+describe('guidesInstallAction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('prints version and method on successful install', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'submodule', path: '/tmp/test/project-documents/ai-project-guide',
+    });
+
+    await guidesInstallAction('/tmp/test');
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('installed successfully');
+    expect(output).toContain('v0.13.2');
+    expect(output).toContain('submodule');
+  });
+
+  it('propagates errors thrown by manager.install', async () => {
+    mockInstall.mockRejectedValue(new Error('Guide is already installed.'));
+
+    await expect(guidesInstallAction('/tmp/test')).rejects.toThrow('Guide is already installed.');
   });
 });
 

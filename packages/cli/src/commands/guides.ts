@@ -54,6 +54,22 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   }
 }
 
+/** Install guides for a project. Errors propagate to the caller. */
+export async function guidesInstallAction(
+  projectPath: string,
+  opts?: { strategy?: GuideMethod; source?: string }
+): Promise<void> {
+  const cm = new ConfigManager(projectPath);
+  const manager = new GuideManager(projectPath, cm);
+
+  const result = await manager.install(opts?.strategy, opts?.source);
+
+  console.log(success('Guide installed successfully.'));
+  console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
+  console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+  console.log(`  ${label('Path:')}     ${dim(result.path)}`);
+}
+
 export function registerGuidesCommand(program: Command): void {
   const cmd = program
     .command('guides')
@@ -84,16 +100,7 @@ export function registerGuidesCommand(program: Command): void {
     .action(async (opts: { strategy?: string; source?: string; project?: string }) => {
       try {
         const projectPath = await getProjectPath(opts.project);
-        const cm = new ConfigManager(projectPath);
-        const manager = new GuideManager(projectPath, cm);
-
-        const strategy = opts.strategy as GuideMethod | undefined;
-        const result = await manager.install(strategy, opts.source);
-
-        console.log(success('Guide installed successfully.'));
-        console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
-        console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
-        console.log(`  ${label('Path:')}     ${dim(result.path)}`);
+        await guidesInstallAction(projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
       } catch (err) {
         handleError(err);
       }
