@@ -792,6 +792,98 @@ describe('ConsistencyChecker', () => {
     });
   });
 
+    // --- Rule 11: missing-arch-status ---
+
+    it('Rule 11: warns when arch file has no status field, infers not_started when no plan', async () => {
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: {} as Record<string, string> };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      // fileArch without a matching plan index so no pair is formed
+      const result = await checker.checkAll(makeProject({ fileArch: '999-arch.orphan' }));
+
+      const finding = result.findings.find((f) => f.rule === 'missing-arch-status');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('not_started');
+      expect(finding!.fixable).toBe(true);
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'not_started' });
+    });
+
+    it('Rule 11: infers in-progress when paired plan has unchecked entries', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 160, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: {} as Record<string, string> };
+          }
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'missing-arch-status');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('in-progress');
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+    });
+
+    it('Rule 11: infers complete when paired plan is fully checked', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 160, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 1,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: {} as Record<string, string> };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'missing-arch-status');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('complete');
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'complete' });
+    });
+
+    it('Rule 11: no finding when arch status already present', async () => {
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'missing-arch-status');
+      expect(finding).toBeUndefined();
+    });
+
   describe('fixAll()', () => {
     it('applies fixes across multiple slices and returns log', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector({
