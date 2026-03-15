@@ -118,7 +118,7 @@ export class WorkflowNavigator {
         return {
           recommendation: 'Create or assign a slice plan',
           rationale: 'Architecture is set but no slice plan is configured. A slice plan breaks the architecture into deliverable increments.',
-          suggestedCommand: 'cf set slicePlan <path>',
+          suggestedCommand: 'cf set plan <stem>',
           summary: 'Create a slice plan from the architecture',
         };
       }
@@ -191,7 +191,7 @@ export class WorkflowNavigator {
       return {
         recommendation: 'Create or assign a slice plan',
         rationale: 'Current slice is complete but no slice plan is configured to determine next steps.',
-        suggestedCommand: 'cf set slicePlan <path>',
+        suggestedCommand: 'cf set plan <stem>',
         slice: project.fileSlice,
         summary: 'Slice complete — create or assign a slice plan',
       };
@@ -288,9 +288,9 @@ export class WorkflowNavigator {
       return {
         recommendation: 'Your project is in Phase 3 (Slice Planning). Create a slice plan from your architecture.',
         rationale:
-          'A slice plan breaks the architecture into deliverable increments. Use a slice-planning prompt to guide the conversation.',
-        suggestedCommand: 'cf build --phase slice-planning',
-        summary: 'Start Phase 3 — generate a slice-planning prompt with cf build --phase slice-planning',
+          'A slice plan breaks the architecture into deliverable increments. Use a slice-planning prompt to guide the conversation. After creating the file, register it: cf set plan <stem>',
+        suggestedCommand: 'cf build',
+        summary: 'Start Phase 3 — generate a slice-planning prompt with cf build',
       };
     }
 

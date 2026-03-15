@@ -348,7 +348,7 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
-    it('FR-4: Phase 3, no slice plan → cf build --phase slice-planning', async () => {
+    it('FR-4: Phase 3, no slice plan → cf build', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
@@ -358,7 +358,7 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Phase 3 (Slice Planning)');
-      expect(next.suggestedCommand).toBe('cf build --phase slice-planning');
+      expect(next.suggestedCommand).toBe('cf build');
     });
 
     it('FR-4 does not fire when slice plan is set', async () => {
