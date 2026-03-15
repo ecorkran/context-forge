@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 203: Enhanced cf next First-Run Guidance — Task Breakdown
+- Created `user/tasks/203-tasks.enhanced-cf-next-first-run-guidance.md` (6 sections, 180 lines)
+- Sections: Setup → isFirstRunState helper → FR-1+FR-2 → FR-3+FR-4+FR-5 → build/verify → wrap-up
+- Test-with pattern: each FR implementation task immediately followed by its tests; existing FR-5 test update flagged explicitly
+
 ### Slice 203: Enhanced cf next First-Run Guidance — Slice Design
 - Created `user/slices/203-slice.enhanced-cf-next-first-run-guidance.md`
 - Design: add `detectFirstRunContext()` + `isFirstRunState()` private methods to `WorkflowNavigator`; 5 first-run sub-conditions (FR-1: no phase, FR-2: Phase 1 no artifacts, FR-3: Phase 2 no arch, FR-4: Phase 3 no slice plan, FR-5: has plan no active slice)
