@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 202: Smart cf init Composition — Task Breakdown
+- Created `user/tasks/202-tasks.smart-cf-init-composition.md` (7 sections, 172 lines)
+- Sections: Setup → extract guidesInstallAction → extract setupIdeAction + backup logic → installCommandsAction wrapper → enhance cf init → build/verify → wrap-up
+- Test-with pattern applied throughout; each extraction task immediately followed by its tests
+
 ### Slice 202: Smart cf init Composition — Slice Design
 - Created `user/slices/202-slice.smart-cf-init-composition.md`
 - Key design decisions: extract `guidesInstallAction` and `setupIdeAction` from inline handlers before composing in `cf init`; `installCommandsAction` is a thin wrapper over existing `installCommands()`; `cf init` becomes a sequencer with detection (git, existing project, worktree) and step-level output
