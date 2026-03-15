@@ -250,9 +250,18 @@ The extraction of `guidesInstallAction` and `setupIdeAction` from their inline h
 
 The `setupIdeAction` extraction replaces the current simple backup logic with a three-case strategy based on a managed-file marker.
 
-**Marker:** The setup-ide bash script (in the guide repo) writes `[//]: # (context-forge:managed)` as the first line of CLAUDE.md. This is an invisible markdown comment — it renders as nothing and does not appear as an instruction to Claude Code.
+**Marker:** The setup-ide bash script (in the guide repo) writes `[//]: # (context-forge:managed)` immediately after the opening `#` heading in CLAUDE.md. Placement after the heading (not on line 1) avoids interference with tools that treat line 1 specially (parsers, `head`-based detection). The comment is invisible in rendered markdown and carries no semantic weight to an LLM.
 
-**Detection:** `setupIdeAction` reads the first line of an existing CLAUDE.md and checks `line.trim() === '[//]: # (context-forge:managed)'`.
+Example structure written by the script:
+```markdown
+# Project Guidelines for Claude
+
+[//]: # (context-forge:managed)
+
+...content...
+```
+
+**Detection:** `setupIdeAction` reads the first 20 lines of an existing CLAUDE.md and checks whether any line matches `line.trim() === '[//]: # (context-forge:managed)'`.
 
 **Three cases:**
 
