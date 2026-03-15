@@ -296,11 +296,14 @@ export class WorkflowNavigator {
 
     // FR-5: Has slice plan, no active slice
     if (status.slicePlan !== null) {
+      const firstEntry = status.slicePlan.entries.find((e) => !e.isChecked);
+      const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
+      const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
       return {
-        recommendation: 'You have a slice plan but no active slice. Pick your first slice to begin.',
-        rationale: 'Choose the first foundation slice from your plan. Usually this is the first unchecked entry. Then advance your phase: cf set phase 4',
-        suggestedCommand: 'cf set slice <index>',
-        summary: 'Pick your first slice — cf set slice <index>',
+        recommendation: `You have a slice plan but no active slice. Pick your first slice to begin.`,
+        rationale: `Choose the first foundation slice from your plan. Then advance your phase: cf set phase 4`,
+        suggestedCommand: sliceCmd,
+        summary: `Pick ${sliceLabel} — then cf set phase 4`,
       };
     }
 

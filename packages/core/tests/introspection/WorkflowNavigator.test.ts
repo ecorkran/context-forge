@@ -374,7 +374,7 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('slice plan but no active slice');
     });
 
-    it('FR-5: slice plan exists but no active slice → pick first slice guidance', async () => {
+    it('FR-5: slice plan exists but no active slice → suggests first unchecked slice by index', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: '100-slices.test-system',
@@ -383,7 +383,8 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('slice plan but no active slice');
-      expect(next.suggestedCommand).toContain('cf set slice');
+      // Fixture plan: entry 100 checked, 101 unchecked — expects specific index
+      expect(next.suggestedCommand).toBe('cf set slice 101');
     });
 
     it('fallthrough: active slice set → first-run logic not entered, standard path used', async () => {
