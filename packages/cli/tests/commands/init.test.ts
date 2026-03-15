@@ -84,7 +84,7 @@ describe('cf init', () => {
         projectPath: process.cwd(),
         template: 'default',
         fileSlice: '',
-        instruction: 'implementation',
+        instruction: 'Phase 1: Concept',
       }),
     );
     expect(console.log).toHaveBeenCalledWith(

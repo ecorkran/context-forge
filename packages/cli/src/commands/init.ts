@@ -82,7 +82,7 @@ export function registerInitCommand(program: Command): void {
           projectPath: cwd,
           template: 'default',
           fileSlice: '',
-          instruction: 'implementation',
+          instruction: 'Phase 1: Concept',
           developmentPhase: 'Phase 1: Concept',
           dateProject,
         });

@@ -123,7 +123,7 @@ export class ContextIntegrator {
     const enhanced: EnhancedContextData = {
       projectName: project.name || 'Unknown Project',
       template: project.template || '',
-      fileSlice: project.fileSlice || 'Unknown Slice',
+      fileSlice: project.fileSlice || '',
       fileTasks: project.fileTasks || '',
       instruction: project.instruction || 'implementation',
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
@@ -186,7 +186,7 @@ export class ContextIntegrator {
     return {
       projectName: project.name || 'Unknown Project',
       template: project.template || 'Unknown Template',
-      fileSlice: project.fileSlice || 'Unknown Slice',
+      fileSlice: project.fileSlice || '',
       fileTasks: project.fileTasks || '',
       instruction: project.instruction || 'implementation',
       developmentPhase: project.developmentPhase || 'WARNING: MISSING DEVELOPMENT PHASE',
