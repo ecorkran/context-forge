@@ -9,6 +9,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 202: Smart cf init Composition — Implementation Complete
+- Extracted `guidesInstallAction` from `guides.ts`, `setupIdeAction` from `setup-ide.ts`, added `installCommandsAction` wrapper in `commandInstaller.ts`
+- Enhanced `cf init` with `--lite`, `--no-ide`, `--ide <target>` flags; detection phase (no .git → git init, already-registered → exit, worktree → suggest cf worktree init); step sequence with non-fatal warnings
+- New CLAUDE.md backup strategy in `setupIdeAction`: 4-case logic (no file / managed marker / unmanaged + no .bak / unmanaged + .bak exists)
+- 286 CLI tests pass (10 new init tests, 4 new setup-ide tests, 2 new guides tests, 2 new commandInstaller tests)
+- Commits:
+  - `e9b99c8` refactor(cli): extract guidesInstallAction from guides install handler
+  - `f6b1750` refactor(cli): extract setupIdeAction with managed CLAUDE.md backup strategy
+  - `4202d19` refactor(cli): add installCommandsAction wrapper to commandInstaller
+  - `3e99ee5` feat(cli): enhance cf init with full onboarding sequence and detection
+  - `01964ed` docs: complete slice 202 smart cf init composition
+  - `51e5717` feat(cli): slice 202 — smart cf init composition (merge)
+
 ### Slice 202: Smart cf init Composition — Task Breakdown
 - Created `user/tasks/202-tasks.smart-cf-init-composition.md` (7 sections, 172 lines)
 - Sections: Setup → extract guidesInstallAction → extract setupIdeAction + backup logic → installCommandsAction wrapper → enhance cf init → build/verify → wrap-up
