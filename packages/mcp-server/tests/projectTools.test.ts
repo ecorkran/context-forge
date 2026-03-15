@@ -10,6 +10,7 @@ import { registerProjectTools } from '../src/tools/projectTools.js';
 const mockGetAll = vi.fn<() => Promise<ProjectData[]>>();
 const mockGetById = vi.fn<(id: string) => Promise<ProjectData | undefined>>();
 const mockUpdate = vi.fn<(id: string, updates: unknown) => Promise<void>>();
+const mockCreate = vi.fn<(data: unknown) => Promise<ProjectData>>();
 const mockConfigGet = vi.fn();
 const mockSummarize = vi.fn();
 const mockResolveFileByIndex = vi.fn();
@@ -22,6 +23,7 @@ vi.mock('@context-forge/core/node', () => ({
     getAll: mockGetAll,
     getById: mockGetById,
     update: mockUpdate,
+    create: mockCreate,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
@@ -714,5 +716,159 @@ describe('project_update with worktreeId', () => {
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
     expect(parsed._worktreeUpdated).toBe(MOCK_WORKTREE.id);
+  });
+});
+
+// ─── project_create ───────────────────────────────────────────────────────────
+
+describe('project_create', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  const CREATED_PROJECT: ProjectData = {
+    id: 'project_99990001',
+    name: 'Test Project',
+    template: 'default',
+    fileSlice: '',
+    fileTasks: '',
+    instruction: 'implementation',
+    developmentPhase: 'Phase 2: Specification',
+    dateProject: '20260315',
+    projectPath: '/tmp/test-project',
+    createdAt: '2026-03-15T00:00:00.000Z',
+    updatedAt: '2026-03-15T00:00:00.000Z',
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  // 2.3 — successful creation with all parameters
+  it('creates project with all parameters and returns full project data', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockCreate.mockResolvedValue(CREATED_PROJECT);
+    mockSummarize.mockRejectedValue(new Error('no path'));
+
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: 'Test Project', projectPath: '/tmp/test-project', developmentPhase: 'Phase 2: Specification' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockCreate).toHaveBeenCalledOnce();
+    const createArg = mockCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(createArg.name).toBe('Test Project');
+    expect(createArg.projectPath).toBe('/tmp/test-project');
+    expect(createArg.developmentPhase).toBe('Phase 2: Specification');
+    expect(createArg.template).toBe('default');
+    expect(createArg.instruction).toBe('implementation');
+    expect(createArg.fileSlice).toBe('');
+    expect(createArg.dateProject).toMatch(/^\d{8}$/);
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.id).toBe(CREATED_PROJECT.id);
+    expect(parsed.name).toBe('Test Project');
+  });
+
+  // 2.4 — creation with name only (defaults applied)
+  it('creates project with name only and applies defaults', async () => {
+    const minimalProject: ProjectData = {
+      ...CREATED_PROJECT,
+      id: 'project_99990002',
+      name: 'Minimal Project',
+      projectPath: undefined,
+      developmentPhase: 'Phase 1: Concept',
+    };
+    mockGetAll.mockResolvedValue([]);
+    mockCreate.mockResolvedValue(minimalProject);
+
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: 'Minimal Project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const createArg = mockCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(createArg.developmentPhase).toBe('Phase 1: Concept');
+    expect(createArg.projectPath).toBeUndefined();
+    // No introspection attempted when projectPath absent
+    expect(mockSummarize).not.toHaveBeenCalled();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.name).toBe('Minimal Project');
+  });
+
+  // 2.5 — duplicate path detection
+  it('returns error when a project already exists at the given path', async () => {
+    mockGetAll.mockResolvedValue([
+      { ...MOCK_PROJECT, id: 'project_existing', name: 'Original Project', projectPath: '/existing/path' },
+    ]);
+
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: 'Dup Project', projectPath: '/existing/path' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('Original Project');
+    expect(content[0].text).toContain('project_existing');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // 2.6 — missing name validation
+  it('returns error when name is empty', async () => {
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: '' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('required');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // 2.7 — introspection enrichment
+  it('enriches response with introspection when projectPath is set', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockCreate.mockResolvedValue(CREATED_PROJECT);
+    mockSummarize.mockResolvedValue({ slicePlan: { totalSlices: 0 } });
+
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: 'Intro Project', projectPath: '/tmp/intro' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.introspection).toBeDefined();
+    expect(parsed.introspection.slicePlan.totalSlices).toBe(0);
+  });
+
+  // 2.8 — introspection failure graceful degradation
+  it('succeeds and returns project data even when introspection throws', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockCreate.mockResolvedValue(CREATED_PROJECT);
+    mockSummarize.mockRejectedValue(new Error('introspection failed'));
+
+    const result = await client.callTool({
+      name: 'project_create',
+      arguments: { name: 'Intro Project', projectPath: '/tmp/intro' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.id).toBe(CREATED_PROJECT.id);
+    expect(parsed.introspection).toBeUndefined();
   });
 });
