@@ -17,6 +17,11 @@ Tags: v0.5.2
 - 4 new tests (616 core total, all pass)
 - Renamed `200-arch.event-driven-pipeline.md` → `220-arch.event-driven-pipeline.md`; index 200 reserved for new initiative
 
+### Initiative 200: Developer Onboarding & First-Run Experience
+- Architecture document created and refined (`200-arch.developer-onboarding.md`)
+- Slice plan created (`200-slices.developer-onboarding.md`) — 4 slices: project_create MCP tool, smart cf init, enhanced cf next, onboarding skill
+- Low-risk initiative — all composition over existing infrastructure
+
 ---
 
 ## 2026-03-12
