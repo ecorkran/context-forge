@@ -94,8 +94,7 @@ export class WorkflowNavigator {
         ? existsSync(join(project.projectPath, archRelPath))
         : false;
 
-      // First-run detection: check for sparse project state before generic recommendations
-      // No gate needed — detectFirstRunContext returns null when no condition matches
+      // First-run guidance: enriched recommendations for sparse/fresh project states (FR-1–FR-4)
       const firstRunAction = this.detectFirstRunContext(project, archFileExists, status);
       if (firstRunAction !== null) {
         return firstRunAction;
@@ -121,11 +120,15 @@ export class WorkflowNavigator {
           summary: 'Create a slice plan from the architecture',
         };
       }
+      // Slice plan exists but no active slice — suggest first unchecked entry
+      const firstEntry = status.slicePlan.entries.find((e) => !e.isChecked);
+      const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
+      const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
       return {
-        recommendation: 'Set active slice',
-        rationale: 'No active slice is set. Choose a slice from the plan to work on.',
-        suggestedCommand: 'cf set slice <index>',
-        summary: 'Set an active slice to begin work',
+        recommendation: 'You have a slice plan but no active slice. Pick your first slice to begin.',
+        rationale: 'Choose the first unchecked slice from your plan. Then advance your phase: cf set phase 4',
+        suggestedCommand: sliceCmd,
+        summary: `Pick ${sliceLabel} — then cf set phase 4`,
       };
     }
 
@@ -218,14 +221,18 @@ export class WorkflowNavigator {
   }
 
   /**
-   * Checks FR-1 through FR-5 in order and returns the first matching NextAction,
-   * or null if no first-run condition matches.
+   * Returns enriched guidance for sparse/fresh project states (FR-1–FR-4).
+   * Only called when no active slice is set AND the project lacks established artifacts.
+   * Returns null if no first-run condition matches (falls through to standard Priority 2 logic).
    */
   private detectFirstRunContext(
     project: ProjectData,
     archFileExists: boolean,
     status: WorkflowStatus,
   ): NextAction | null {
+    // Only applies to projects without both arch and slice plan
+    if (archFileExists && status.slicePlan !== null) return null;
+
     const phase = project.developmentPhase?.trim() ?? '';
 
     // FR-1: No phase set
@@ -274,19 +281,6 @@ export class WorkflowNavigator {
           'A slice plan breaks the architecture into deliverable increments. Use a slice-planning prompt to guide the conversation. After creating the file, register it: cf set plan <stem>',
         suggestedCommand: 'cf build',
         summary: 'Start Phase 3 — generate a slice-planning prompt with cf build',
-      };
-    }
-
-    // FR-5: Has slice plan, no active slice
-    if (status.slicePlan !== null) {
-      const firstEntry = status.slicePlan.entries.find((e) => !e.isChecked);
-      const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
-      const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
-      return {
-        recommendation: `You have a slice plan but no active slice. Pick your first slice to begin.`,
-        rationale: `Choose the first foundation slice from your plan. Then advance your phase: cf set phase 4`,
-        suggestedCommand: sliceCmd,
-        summary: `Pick ${sliceLabel} — then cf set phase 4`,
       };
     }
 
