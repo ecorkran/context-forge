@@ -298,7 +298,7 @@ export class WorkflowNavigator {
     if (status.slicePlan !== null) {
       return {
         recommendation: 'You have a slice plan but no active slice. Pick your first slice to begin.',
-        rationale: 'Choose the first foundation slice from your plan. Usually this is the first unchecked entry.',
+        rationale: 'Choose the first foundation slice from your plan. Usually this is the first unchecked entry. Then advance your phase: cf set phase 4',
         suggestedCommand: 'cf set slice <index>',
         summary: 'Pick your first slice — cf set slice <index>',
       };
