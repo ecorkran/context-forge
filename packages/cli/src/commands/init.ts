@@ -75,12 +75,16 @@ export function registerInitCommand(program: Command): void {
 
         // Step 1: Create project
         const projectName = opts.name || path.basename(cwd);
+        const today = new Date();
+        const dateProject = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
         await store.create({
           name: projectName,
           projectPath: cwd,
           template: 'default',
           fileSlice: '',
           instruction: 'implementation',
+          developmentPhase: 'Phase 1: Concept',
+          dateProject,
         });
         console.log(success(`Project '${projectName}' registered`));
 
