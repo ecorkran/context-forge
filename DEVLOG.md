@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 202: Post-merge fix — cf init project defaults
+- `cf init` now sets `developmentPhase: 'Phase 1: Concept'` and `dateProject: YYYYMMDD` to match `project_create` MCP tool defaults
+- Commits:
+  - `a8f41ff` fix(cli): set developmentPhase and dateProject on cf init to match project_create defaults
+
 ### Slice 202: Smart cf init Composition — Implementation Complete
 - Extracted `guidesInstallAction` from `guides.ts`, `setupIdeAction` from `setup-ide.ts`, added `installCommandsAction` wrapper in `commandInstaller.ts`
 - Enhanced `cf init` with `--lite`, `--no-ide`, `--ide <target>` flags; detection phase (no .git → git init, already-registered → exit, worktree → suggest cf worktree init); step sequence with non-fatal warnings
