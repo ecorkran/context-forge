@@ -95,11 +95,10 @@ export class WorkflowNavigator {
         : false;
 
       // First-run detection: check for sparse project state before generic recommendations
-      if (this.isFirstRunState(project, archFileExists, status)) {
-        const firstRunAction = this.detectFirstRunContext(project, archFileExists, status);
-        if (firstRunAction !== null) {
-          return firstRunAction;
-        }
+      // No gate needed — detectFirstRunContext returns null when no condition matches
+      const firstRunAction = this.detectFirstRunContext(project, archFileExists, status);
+      if (firstRunAction !== null) {
+        return firstRunAction;
       }
 
       // No architecture (or arch set but file not yet created) → recommend creating architecture first
@@ -205,23 +204,7 @@ export class WorkflowNavigator {
     };
   }
 
-  /**
-   * Returns true when the project is in a first-run state:
-   * no active slice AND (no arch file on disk OR no slice plan).
-   */
-  private isFirstRunState(
-    _project: ProjectData,
-    archFileExists: boolean,
-    status: WorkflowStatus,
-  ): boolean {
-    const activeSliceStatus = status.activeSlice?.status;
-    if (activeSliceStatus !== 'no-active-slice' && activeSliceStatus !== undefined) {
-      return false;
-    }
-    return !archFileExists || status.slicePlan === null;
-  }
-
-  /**
+/**
    * Returns true if the project has a concept doc file set AND that file exists on disk.
    * fileConcept is stored as a relative path directly (not a bare stem), so we resolve
    * via resolveArtifactPath first; if the field isn't mapped, fall back to treating the
