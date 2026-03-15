@@ -219,7 +219,9 @@ export class ContextTemplateEngine {
    * Validate input data has required fields
    */
   private validateInputData(data: EnhancedContextData): void {
-    const required = ['projectName', 'template', 'fileSlice', 'instruction'];
+    // fileSlice is intentionally omitted — early-phase projects (concept, architecture)
+    // legitimately have no active slice; profile filtering handles it.
+    const required = ['projectName', 'template', 'instruction'];
     // Assertion safe: required array contains only known EnhancedContextData keys
     const missing = required.filter(field => !data[field as keyof EnhancedContextData]);
 

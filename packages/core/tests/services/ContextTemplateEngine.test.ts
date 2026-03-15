@@ -166,12 +166,12 @@ describe('ContextTemplateEngine', () => {
       expect(result).toContain('ERROR');
     });
 
-    it('returns error context when fileSlice missing', async () => {
+    it('succeeds when fileSlice is empty (early-phase projects have no active slice)', async () => {
       const engine = createEngine();
       const data = createTestEnhancedContextData({ fileSlice: '' });
 
       const result = await engine.generateContext(data);
-      expect(result).toContain('ERROR');
+      expect(result).not.toContain('ERROR');
     });
 
     it('returns error context when instruction missing', async () => {

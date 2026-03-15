@@ -267,8 +267,8 @@ export class WorkflowNavigator {
         recommendation: 'Your project is in Phase 1 (Concept). Start by describing what you want to build.',
         rationale:
           'Use a concept prompt to guide a conversation with your AI agent about the project idea. This produces a concept document that drives the architecture phase.',
-        suggestedCommand: 'cf build --phase concept',
-        summary: 'Start Phase 1 — generate a concept prompt with cf build --phase concept',
+        suggestedCommand: 'cf build',
+        summary: 'Start Phase 1 — generate a concept prompt with cf build',
       };
     }
 

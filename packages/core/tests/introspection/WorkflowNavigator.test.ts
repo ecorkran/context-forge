@@ -280,7 +280,7 @@ describe('WorkflowNavigator', () => {
       expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Concept'");
     });
 
-    it('FR-2: Phase 1, no arch, no plan, no concept doc → cf build --phase concept', async () => {
+    it('FR-2: Phase 1, no arch, no plan, no concept doc → cf build', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
@@ -291,7 +291,7 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Phase 1 (Concept)');
-      expect(next.suggestedCommand).toBe('cf build --phase concept');
+      expect(next.suggestedCommand).toBe('cf build');
     });
 
     it('FR-2 does not fire when arch file exists on disk', async () => {
