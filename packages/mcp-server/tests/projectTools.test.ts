@@ -768,7 +768,7 @@ describe('project_create', () => {
     expect(createArg.projectPath).toBe('/tmp/test-project');
     expect(createArg.developmentPhase).toBe('Phase 2: Specification');
     expect(createArg.template).toBe('default');
-    expect(createArg.instruction).toBe('implementation');
+    expect(createArg.instruction).toBe('Phase 2: Specification');
     expect(createArg.fileSlice).toBe('');
     expect(createArg.dateProject).toMatch(/^\d{8}$/);
     const content = result.content as { type: string; text: string }[];

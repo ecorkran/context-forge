@@ -126,8 +126,8 @@ export function registerProjectTools(server: McpServer): void {
           projectPath: normalizedPath,
           template: 'default',
           fileSlice: '',
-          instruction: 'implementation',
           developmentPhase: developmentPhase || 'Phase 1: Concept',
+          instruction: developmentPhase || 'Phase 1: Concept',
           dateProject,
         });
 
