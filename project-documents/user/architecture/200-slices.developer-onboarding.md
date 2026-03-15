@@ -43,7 +43,7 @@ status: in_progress
 
 ## Feature Slices
 
-2. [ ] **(202) Smart cf init Composition** — Extend `cf init` to detect environment state and compose the full setup sequence: git init, project creation, guide installation, command installation, and IDE configuration. Detection-based defaults with override flags (`--lite`, `--no-ide`, `--ide <target>`, `--name`).
+2. [x] **(202) Smart cf init Composition** — Extend `cf init` to detect environment state and compose the full setup sequence: git init, project creation, guide installation, command installation, and IDE configuration. Detection-based defaults with override flags (`--lite`, `--no-ide`, `--ide <target>`, `--name`).
 
    **Detection matrix:**
    | Condition | Behavior |
