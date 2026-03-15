@@ -6,7 +6,7 @@ lld: user/slices/203-slice.enhanced-cf-next-first-run-guidance.md
 dependencies: []
 dateCreated: 20260315
 dateUpdated: 20260315
-status: in_progress
+status: complete
 ---
 
 # Tasks: Slice 203 — Enhanced cf next First-Run Guidance
@@ -166,15 +166,15 @@ Extend `WorkflowNavigator.getNext()` with a first-run detection layer. When a fr
 
 ## Section 6: Wrap-up
 
-- [ ] **6.1** Update slice and slice plan status
-  - [ ] `203-slice.enhanced-cf-next-first-run-guidance.md` → `status: complete`, `dateUpdated: today`
-  - [ ] `200-slices.developer-onboarding.md` → check off slice 203 entry, `dateUpdated: today`
+- [x] **6.1** Update slice and slice plan status
+  - [x] `203-slice.enhanced-cf-next-first-run-guidance.md` → `status: complete`, `dateUpdated: today`
+  - [x] `200-slices.developer-onboarding.md` → check off slice 203 entry, `dateUpdated: today`
 
-- [ ] **6.2** Write DEVLOG entry
+- [x] **6.2** Write DEVLOG entry
 
-- [ ] **6.3** Final commit
-  - [ ] `git add` all changed files
-  - [ ] `git commit -m "docs: complete slice 203 enhanced cf next first-run guidance"`
+- [x] **6.3** Final commit
+  - [x] `git add` all changed files
+  - [x] `git commit -m "docs: complete slice 203 enhanced cf next first-run guidance"`
 
-- [ ] **6.4** Merge to main
-  - [ ] `git checkout main && git merge 203-slice.enhanced-cf-next-first-run-guidance --no-ff`
+- [x] **6.4** Merge to main
+  - [x] `git checkout main && git merge 203-slice.enhanced-cf-next-first-run-guidance --no-ff`
