@@ -125,7 +125,7 @@ status: in_progress
    1. Detecting whether a CF project exists at CWD (`project_list`, check paths)
    2. Creating a project if needed (`project_create` MCP tool or suggest `cf init`)
    3. Checking and installing guides (`guide_status`, `guide_install`)
-   4. Building the Phase 1 (Concept) prompt (`prompt_get` or `cf build --phase concept`)
+   4. Building the Phase 1 (Concept) prompt (`prompt_get` or `cf build`)
    5. Transitioning into a concept discussion naturally
 
    **Conversation flow example:**
@@ -153,6 +153,8 @@ status: in_progress
    **Dependencies:** [201 — project_create MCP Tool]
    **Risk:** Low — plain text skill file; no runtime code changes beyond adding to managed files list
    **Effort:** 1/5
+
+   **Pre-work (bundle into 204 slice design):** Extract `buildNewProjectDefaults()` helper into `packages/core/src` to unify project creation defaults (`developmentPhase`, `instruction` sync, `template`, `dateProject`, `fileSlice`) across `cf init` and `project_create`. Currently duplicated in both paths — the skill should reference a single source of truth. Effort 2/5; requires thorough tests covering all three creation paths. Add as Section 1 of the 204 task file before the skill itself.
 
 ## Implementation Order
 
