@@ -94,6 +94,14 @@ export class WorkflowNavigator {
         ? existsSync(join(project.projectPath, archRelPath))
         : false;
 
+      // First-run detection: check for sparse project state before generic recommendations
+      if (this.isFirstRunState(project, archFileExists, status)) {
+        const firstRunAction = this.detectFirstRunContext(project, archFileExists, status);
+        if (firstRunAction !== null) {
+          return firstRunAction;
+        }
+      }
+
       // No architecture (or arch set but file not yet created) → recommend creating architecture first
       if (!archFileExists && !status.slicePlan) {
         return {
@@ -195,6 +203,108 @@ export class WorkflowNavigator {
       rationale: 'Unable to determine next action from current project state.',
       summary: 'Review project status',
     };
+  }
+
+  /**
+   * Returns true when the project is in a first-run state:
+   * no active slice AND (no arch file on disk OR no slice plan).
+   */
+  private isFirstRunState(
+    _project: ProjectData,
+    archFileExists: boolean,
+    status: WorkflowStatus,
+  ): boolean {
+    const activeSliceStatus = status.activeSlice?.status;
+    if (activeSliceStatus !== 'no-active-slice' && activeSliceStatus !== undefined) {
+      return false;
+    }
+    return !archFileExists || status.slicePlan === null;
+  }
+
+  /**
+   * Returns true if the project has a concept doc file set AND that file exists on disk.
+   * fileConcept is stored as a relative path directly (not a bare stem), so we resolve
+   * via resolveArtifactPath first; if the field isn't mapped, fall back to treating the
+   * value as a direct relative path within the project.
+   */
+  private conceptDocExists(project: ProjectData): boolean {
+    if (!project.fileConcept || !project.projectPath) return false;
+    const resolved = resolveArtifactPath('fileConcept', project.fileConcept);
+    const relPath = resolved ?? project.fileConcept;
+    return existsSync(join(project.projectPath, relPath));
+  }
+
+  /**
+   * Checks FR-1 through FR-5 in order and returns the first matching NextAction,
+   * or null if no first-run condition matches.
+   */
+  private detectFirstRunContext(
+    project: ProjectData,
+    archFileExists: boolean,
+    status: WorkflowStatus,
+  ): NextAction | null {
+    const phase = project.developmentPhase?.trim() ?? '';
+
+    // FR-1: No phase set
+    if (!phase) {
+      return {
+        recommendation: 'Welcome to Context Forge! Start by setting your project phase.',
+        rationale:
+          "Your project is registered but no development phase is set. Phases guide what to do next — start with Phase 1 (Concept) to define what you're building.",
+        suggestedCommand: "cf set phase 'Phase 1: Concept'",
+        summary: 'Set a development phase to get started',
+      };
+    }
+
+    // FR-2: Phase 1, no artifacts (no arch, no plan, no concept doc)
+    if (
+      phase.startsWith('Phase 1') &&
+      !archFileExists &&
+      status.slicePlan === null &&
+      !this.conceptDocExists(project)
+    ) {
+      return {
+        recommendation: 'Your project is in Phase 1 (Concept). Start by describing what you want to build.',
+        rationale:
+          'Use a concept prompt to guide a conversation with your AI agent about the project idea. This produces a concept document that drives the architecture phase.',
+        suggestedCommand: 'cf build --phase concept',
+        summary: 'Start Phase 1 — generate a concept prompt with cf build --phase concept',
+      };
+    }
+
+    // FR-3: Phase 2, no arch and no plan
+    if (phase.startsWith('Phase 2') && !archFileExists && status.slicePlan === null) {
+      return {
+        recommendation: 'Your project is in Phase 2 (Architecture). Create an architecture document.',
+        rationale:
+          'Use an architecture prompt to define the high-level structure. For small projects, you can skip architecture and go straight to a slice plan.',
+        suggestedCommand: 'cf build --phase architecture',
+        summary: 'Start Phase 2 — generate an architecture prompt with cf build --phase architecture',
+      };
+    }
+
+    // FR-4: Phase 3, no slice plan
+    if (phase.startsWith('Phase 3') && status.slicePlan === null) {
+      return {
+        recommendation: 'Your project is in Phase 3 (Slice Planning). Create a slice plan from your architecture.',
+        rationale:
+          'A slice plan breaks the architecture into deliverable increments. Use a slice-planning prompt to guide the conversation.',
+        suggestedCommand: 'cf build --phase slice-planning',
+        summary: 'Start Phase 3 — generate a slice-planning prompt with cf build --phase slice-planning',
+      };
+    }
+
+    // FR-5: Has slice plan, no active slice
+    if (status.slicePlan !== null) {
+      return {
+        recommendation: 'You have a slice plan but no active slice. Pick your first slice to begin.',
+        rationale: 'Choose the first foundation slice from your plan. Usually this is the first unchecked entry.',
+        suggestedCommand: 'cf set slice <index>',
+        summary: 'Pick your first slice — cf set slice <index>',
+      };
+    }
+
+    return null;
   }
 
   /**

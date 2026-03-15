@@ -14,7 +14,7 @@ status: in_progress
 
 ## Foundation Work
 
-1. [x] **(201) project_create MCP Tool** — New atomic MCP tool for creating a Context Forge project via MCP. Wraps the existing `FileProjectStore.create()` with input validation and duplicate-path detection. Returns full project object (same shape as `project_get`). Does not install guides, commands, or configure IDE — those are separate operations, consistent with the MCP server's atomic tool philosophy.
+1. [x] **(201) project-create MCP Tool** — New atomic MCP tool for creating a Context Forge project via MCP. Wraps the existing `FileProjectStore.create()` with input validation and duplicate-path detection. Returns full project object (same shape as `project_get`). Does not install guides, commands, or configure IDE — those are separate operations, consistent with the MCP server's atomic tool philosophy.
 
    **Parameters:**
    - `name` (string, required) — project display name
@@ -89,7 +89,7 @@ status: in_progress
    **Risk:** Low — composition of tested components; primary risk is detection edge cases
    **Effort:** 3/5
 
-3. [ ] **(203) Enhanced cf next First-Run Guidance** — Extend the WorkflowNavigator to detect sparse project state and provide richer, actionable first-run recommendations. Targets the gap between "project created" and "user knows what to do."
+3. [x] **(203) Enhanced cf next First-Run Guidance** — Extend the WorkflowNavigator to detect sparse project state and provide richer, actionable first-run recommendations. Targets the gap between "project created" and "user knows what to do."
 
    **Current state:** `WorkflowNavigator.getNext()` returns recommendations based on a priority-ordered state machine. The existing conditions work well for in-progress projects but give generic guidance for fresh projects (e.g., "Set active slice" when the user doesn't yet have a slice plan).
 

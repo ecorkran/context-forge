@@ -144,14 +144,15 @@ describe('WorkflowNavigator', () => {
       expect(next.suggestedCommand).toContain('cf set projectPath');
     });
 
-    it('recommends setting slice when no fileSlice but plan exists', async () => {
+    it('recommends setting slice when no fileSlice but plan exists (FR-5)', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: '100-slices.test-system',
+        developmentPhase: 'Phase 6: Implementation',
       });
       const next = await nav.getNext(project);
 
-      expect(next.recommendation).toContain('Set active slice');
+      expect(next.recommendation).toContain('slice plan but no active slice');
       expect(next.suggestedCommand).toContain('cf set slice');
     });
 
@@ -218,6 +219,7 @@ describe('WorkflowNavigator', () => {
         fileSlice: '',
         fileSlicePlan: undefined,
         fileArch: undefined,
+        developmentPhase: 'Phase 6: Implementation',
       });
       const next = await nav.getNext(project);
 
@@ -230,6 +232,7 @@ describe('WorkflowNavigator', () => {
         fileSlice: '',
         fileSlicePlan: undefined,
         fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 6: Implementation',
       });
       const next = await nav.getNext(project);
 
@@ -241,11 +244,159 @@ describe('WorkflowNavigator', () => {
         fileSlice: '',
         fileSlicePlan: undefined,
         fileArch: '999-arch.nonexistent.md',
+        developmentPhase: 'Phase 6: Implementation',
       });
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Create architecture');
       expect(next.rationale).toContain('does not exist yet');
+    });
+  });
+
+  describe('first-run conditions', () => {
+    it('FR-1: no developmentPhase → welcome message with cf set phase command', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: undefined,
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Welcome to Context Forge');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Concept'");
+    });
+
+    it('FR-1: empty developmentPhase → welcome message', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: '',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Welcome to Context Forge');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Concept'");
+    });
+
+    it('FR-2: Phase 1, no arch, no plan, no concept doc → cf build --phase concept', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        fileConcept: undefined,
+        developmentPhase: 'Phase 1: Concept',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Phase 1 (Concept)');
+      expect(next.suggestedCommand).toBe('cf build --phase concept');
+    });
+
+    it('FR-2 does not fire when arch file exists on disk', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '100-arch.test-system',
+        fileConcept: undefined,
+        developmentPhase: 'Phase 1: Concept',
+      });
+      const next = await nav.getNext(project);
+
+      // Falls through to existing "Create or assign a slice plan" since arch exists but no plan
+      expect(next.recommendation).toContain('Create or assign a slice plan');
+    });
+
+    it('FR-2 does not fire when concept doc exists on disk', async () => {
+      // Use a concept path that resolves to an existing fixture file
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        fileConcept: 'project-documents/user/architecture/050-arch.hld-test-project.md',
+        developmentPhase: 'Phase 1: Concept',
+      });
+      const next = await nav.getNext(project);
+
+      // Concept doc exists → FR-2 does not fire; falls through to standard arch check
+      expect(next.recommendation).not.toContain('Phase 1 (Concept)');
+    });
+
+    it('FR-3: Phase 2, no arch, no plan → cf build --phase architecture', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: 'Phase 2: Architecture',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Phase 2 (Architecture)');
+      expect(next.suggestedCommand).toBe('cf build --phase architecture');
+    });
+
+    it('FR-3 does not fire when arch file exists on disk', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 2: Architecture',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create or assign a slice plan');
+    });
+
+    it('FR-4: Phase 3, no slice plan → cf build --phase slice-planning', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Phase 3 (Slice Planning)');
+      expect(next.suggestedCommand).toBe('cf build --phase slice-planning');
+    });
+
+    it('FR-4 does not fire when slice plan is set', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: '100-slices.test-system',
+        fileArch: undefined,
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+      const next = await nav.getNext(project);
+
+      // FR-5: has plan, no active slice
+      expect(next.recommendation).toContain('slice plan but no active slice');
+    });
+
+    it('FR-5: slice plan exists but no active slice → pick first slice guidance', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: '100-slices.test-system',
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('slice plan but no active slice');
+      expect(next.suggestedCommand).toContain('cf set slice');
+    });
+
+    it('fallthrough: active slice set → first-run logic not entered, standard path used', async () => {
+      // fileSlice is set (in-implementation fixture), standard Priority 5 should apply
+      const project = makeProject({
+        fileSlice: '100-slice.test-feature.md',
+        fileSlicePlan: undefined,
+        developmentPhase: undefined,
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Continue implementation');
+      expect(next.phase).toBe('Phase 6: Implementation');
     });
   });
 });

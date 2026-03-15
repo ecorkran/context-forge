@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 203: Enhanced cf next First-Run Guidance — Implementation Complete
+- Added `isFirstRunState()`, `conceptDocExists()`, `detectFirstRunContext()` private methods to `WorkflowNavigator`
+- FR-1 through FR-5 conditions implemented; FR-5 replaces existing "Set active slice" text with richer guidance
+- Updated existing test `"recommends setting slice when no fileSlice but plan exists"` to match new FR-5 text; three other existing tests needed `developmentPhase` set to `'Phase 6: Implementation'` to bypass first-run logic
+- 627 tests pass; build clean; smoke tests verified FR-2, FR-3, FR-4 via live CLI
+- Commits:
+  - `47fa921` feat(core): add first-run detection FR-1 and FR-2 to WorkflowNavigator
+
 ### Slice 203: Enhanced cf next First-Run Guidance — Task Breakdown
 - Created `user/tasks/203-tasks.enhanced-cf-next-first-run-guidance.md` (6 sections, 180 lines)
 - Sections: Setup → isFirstRunState helper → FR-1+FR-2 → FR-3+FR-4+FR-5 → build/verify → wrap-up
