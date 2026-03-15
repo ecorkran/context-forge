@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 202: Smart cf init Composition — Slice Design
+- Created `user/slices/202-slice.smart-cf-init-composition.md`
+- Key design decisions: extract `guidesInstallAction` and `setupIdeAction` from inline handlers before composing in `cf init`; `installCommandsAction` is a thin wrapper over existing `installCommands()`; `cf init` becomes a sequencer with detection (git, existing project, worktree) and step-level output
+- Non-interactive constraint: `--yes` flag passed to `setupIdeAction` when called from `cf init`
+- `--lite` preserves current `cf init` behavior exactly for backwards compatibility
+
 ### Slice 201: project_create MCP Tool — Complete
 - Added `project_create` tool to `registerProjectTools()` in `packages/mcp-server/src/tools/projectTools.ts`
 - Thin wrapper over `FileProjectStore.create()` with name validation, path normalization, duplicate-path detection, and sensible defaults
