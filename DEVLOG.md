@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-14
+
+Tags: v0.5.2
+
+### cf check Rule 11: missing-arch-status
+- Added `missing-arch-status` rule to `ConsistencyChecker` — flags arch files with no `status` frontmatter field
+- Fix: infers status from paired slice plan (in-progress/complete) or `not_started` if unpaired
+- 4 new tests (616 core total, all pass)
+- Renamed `200-arch.event-driven-pipeline.md` → `220-arch.event-driven-pipeline.md`; index 200 reserved for new initiative
+
+---
+
 ## 2026-03-12
 
 Tags: v0.5.1
@@ -23,7 +35,7 @@ Tags: v0.5.1
   - `87d8aaa` feat(core): improve default worktree name, range, and dynamic chopping
   - `ce6da81` docs: add slice 188 design, tasks, and planning artifacts
 
-### Architecture: Event-Driven Pipeline (200-arch)
+### Architecture: Event-Driven Pipeline (220-arch)
 - Created concept architecture document for persistent MCP server with Streamable HTTP transport, state-change events, and server-initiated notifications
 - Scope: daemon lifecycle, dual transport (stdio + HTTP), storage event emission, Squadron integration
 - Status: concept (no slices yet)

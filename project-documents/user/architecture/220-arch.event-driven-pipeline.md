@@ -3,13 +3,13 @@ docType: architecture
 layer: project
 parent: user/architecture/140-arch.context-forge-restructure.md
 project: context-forge
-archIndex: 200
+archIndex: 220
 component: event-driven-pipeline
 relatedSlices: []
 riskLevel: medium
 dateCreated: 20260311
 dateUpdated: 20260311
-status: concept
+status: not_started
 ---
 
 # Architecture: Event-Driven Pipeline

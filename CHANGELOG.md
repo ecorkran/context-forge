@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 20260314
+
+### Added
+- `cf check` Rule 11: `missing-arch-status` — flags architecture files with no `status` frontmatter field; fixable (infers from paired slice plan if present, else `not_started`)
+- Renamed `200-arch.event-driven-pipeline.md` → `220-arch.event-driven-pipeline.md` (index reserved for new initiative)
+
 ## [0.5.1] - 20260312
 
 ### Added
