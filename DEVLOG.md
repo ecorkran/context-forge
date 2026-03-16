@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 204: Onboarding Skill — Task Breakdown
+- Created `user/tasks/204-tasks.onboarding-skill.md` (6 sections, ~140 lines)
+- Sections: Create skill file → Register in installer → Verify MCP references → Build/test → Verification walkthrough → Wrap-up
+- Lightweight slice: one markdown file + one-line MANAGED_FILES registration; existing data-driven tests auto-cover the new file
+
 ### Slice 204: Onboarding Skill — Slice Design
 - Created `user/slices/204-slice.onboarding-skill.md`
 - Design: markdown skill file (`onboard.md`) installed via `cf install-commands`; MCP-first with CLI fallbacks
