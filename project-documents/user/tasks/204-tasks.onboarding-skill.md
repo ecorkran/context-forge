@@ -6,7 +6,7 @@ dependencies: [201-project-create-mcp-tool, 202-smart-cf-init, 203-enhanced-cf-n
 projectState: Slices 201-203 complete. project_create MCP tool, smart cf init, and enhanced cf next all implemented and tested. Existing slash commands (7 files) installed via commandInstaller.ts. No onboarding skill exists yet.
 dateCreated: 20260315
 dateUpdated: 20260315
-status: not_started
+status: complete
 ---
 
 ## Context Summary
@@ -21,7 +21,7 @@ status: not_started
 
 ## Section 1: Create the Onboarding Skill File
 
-- [ ] **1.1 Create `packages/cli/commands/cf/onboard.md`**
+- [x] **1.1 Create `packages/cli/commands/cf/onboard.md`**
   - Create the skill file following the pattern established by existing slash commands in the same directory
   - The skill file must contain:
     1. YAML frontmatter with `description`, `argument-hint`, and `allowed-tools`
@@ -37,20 +37,20 @@ status: not_started
   - Step 2 (Create project) CLI fallback should note that `cf init` handles guides + IDE setup, so the agent can skip to Step 4 if using the CLI path
   - Step 4 (Transition) must instruct the agent to use the returned context prompt as working context
   - Notes section must cover: MCP failure fallback, later-phase edge case (suggest `cf next`), conversational tone guidance
-  - [ ] File exists at `packages/cli/commands/cf/onboard.md`
-  - [ ] YAML frontmatter parses correctly (valid YAML between `---` delimiters)
-  - [ ] `description` field is present and concise
-  - [ ] `allowed-tools` includes both `Bash(cf:*)` and all 7 MCP tool references
-  - [ ] All 5 steps are present with MCP primary and CLI fallback paths
-  - [ ] Notes section covers failure fallback and later-phase edge case
+  - [x] File exists at `packages/cli/commands/cf/onboard.md`
+  - [x] YAML frontmatter parses correctly (valid YAML between `---` delimiters)
+  - [x] `description` field is present and concise
+  - [x] `allowed-tools` includes both `Bash(cf:*)` and all 7 MCP tool references
+  - [x] All 5 steps are present with MCP primary and CLI fallback paths
+  - [x] Notes section covers failure fallback and later-phase edge case
 
-- [ ] **1.2 Verify skill file format matches existing commands**
+- [x] **1.2 Verify skill file format matches existing commands**
   - Compare `onboard.md` against an existing command file (e.g., `build.md` or `next.md`) to confirm:
     1. Frontmatter structure matches (same YAML keys)
     2. File starts with `---\n` (required by the command file format test)
     3. Contains `description:` and `allowed-tools:` (checked by existing tests)
-  - [ ] Frontmatter has same structure as other command files
-  - [ ] File starts with `---\n` delimiter
+  - [x] Frontmatter has same structure as other command files
+  - [x] File starts with `---\n` delimiter
 
 **Commit:** `feat(cli): add onboarding skill (onboard.md) for AI-guided project setup`
 
@@ -58,21 +58,21 @@ status: not_started
 
 ## Section 2: Register in Command Installer
 
-- [ ] **2.1 Add `'onboard.md'` to `MANAGED_FILES` in `commandInstaller.ts`**
+- [x] **2.1 Add `'onboard.md'` to `MANAGED_FILES` in `commandInstaller.ts`**
   - File: `packages/cli/src/commands/commandInstaller.ts`
   - Add `'onboard.md'` to the `MANAGED_FILES` array
   - This ensures `uninstallCommands` knows to remove it (install already copies all `.md` files from the source directory)
-  - [ ] `MANAGED_FILES` array contains `'onboard.md'`
+  - [x] `MANAGED_FILES` array contains `'onboard.md'`
 
-- [ ] **2.2 Verify existing commandInstaller tests pass**
+- [x] **2.2 Verify existing commandInstaller tests pass**
   - Run `npx vitest run packages/cli/tests/commands/commandInstaller.test.ts`
   - The existing tests are data-driven from the source directory (`getExpectedFiles()` reads all `.md` files from `packages/cli/commands/cf/`), so adding `onboard.md` automatically extends coverage:
     - "copies all command files on fresh install" — will now include `onboard.md`
     - "file contents match source files" — will verify `onboard.md` content matches
     - "all command files have valid YAML frontmatter with required fields" — will validate `onboard.md` frontmatter
     - Uninstall tests verify managed files are removed
-  - [ ] All existing `commandInstaller.test.ts` tests pass
-  - [ ] Test output shows 8 command files processed (was 7, now includes `onboard.md`)
+  - [x] All existing `commandInstaller.test.ts` tests pass
+  - [x] Test output shows 8 command files processed (was 7, now includes `onboard.md`)
 
 **Commit:** `feat(cli): register onboard.md in MANAGED_FILES for install/uninstall`
 
@@ -80,15 +80,15 @@ status: not_started
 
 ## Section 3: Verify MCP Tool References
 
-- [ ] **3.1 Cross-check MCP tool names against current server**
+- [x] **3.1 Cross-check MCP tool names against current server**
   - Verify each MCP tool name referenced in the skill matches the actual registered tool name in the MCP server
   - Tools to verify: `project_list`, `project_create`, `project_get`, `guide_status`, `guide_install`, `context_build`, `workflow_next`
   - Check against tool registrations in `packages/mcp-server/src/tools/` (projectTools.ts, guideTools.ts, contextTools.ts, workflowTools.ts)
   - Verify the `allowed-tools` frontmatter uses the correct `mcp__context-forge__` prefix format
-  - [ ] All 7 MCP tool names match actual registered tool names
-  - [ ] `allowed-tools` prefix format is correct (`mcp__context-forge__<tool_name>`)
+  - [x] All 7 MCP tool names match actual registered tool names
+  - [x] `allowed-tools` prefix format is correct (`mcp__context-forge__<tool_name>`)
 
-- [ ] **3.2 Cross-check CLI command references**
+- [x] **3.2 Cross-check CLI command references**
   - Verify each CLI command referenced in fallback paths exists and works:
     - `cf project list` — verify this subcommand exists
     - `cf init <name>` — verify accepts positional name argument
@@ -96,7 +96,7 @@ status: not_started
     - `cf build` — verify works on a project in Phase 1
     - `cf next` — verify works on a fresh project
   - This is a documentation-level check (reading code), not a full integration test
-  - [ ] All CLI commands referenced in the skill are valid and exist
+  - [x] All CLI commands referenced in the skill are valid and exist
 
 **Commit:** (no separate commit — verification only, folded into next commit if corrections needed)
 
@@ -104,22 +104,22 @@ status: not_started
 
 ## Section 4: Build and Full Test Pass
 
-- [ ] **4.1 Run full CLI package tests**
+- [x] **4.1 Run full CLI package tests**
   - Run `npx vitest run` from `packages/cli/`
   - All tests must pass, including the commandInstaller tests which now cover `onboard.md`
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
-- [ ] **4.2 Run full project build**
+- [x] **4.2 Run full project build**
   - Run `npm run build` from project root
   - Build must succeed with no errors
-  - [ ] Build completes successfully
+  - [x] Build completes successfully
 
-- [ ] **4.3 Smoke test: install commands and verify onboard.md**
+- [x] **4.3 Smoke test: install commands and verify onboard.md**
   - Run `cf install-commands` from a project directory
   - Verify `~/.claude/commands/cf/onboard.md` exists and contains the expected content
   - Verify existing commands still present (spot check `status.md`, `build.md`)
-  - [ ] `onboard.md` installed to `~/.claude/commands/cf/`
-  - [ ] Existing commands still present after install
+  - [x] `onboard.md` installed to `~/.claude/commands/cf/`
+  - [x] Existing commands still present after install
 
 **Commit:** `test: verify onboarding skill installation and full test pass`
 
@@ -129,22 +129,22 @@ status: not_started
 
 Follow the verification walkthrough from the slice design. Update the walkthrough in the slice design with actual results.
 
-- [ ] **5.1 Walkthrough step 1: Install the skill**
+- [x] **5.1 Walkthrough step 1: Install the skill**
   - Run `cf install-commands` — confirm output lists `onboard.md`
   - Run `ls ~/.claude/commands/cf/onboard.md` — confirm file exists
-  - [ ] Skill file installed successfully
+  - [x] Skill file installed successfully
 
-- [ ] **5.2 Walkthrough step 5: Uninstall**
+- [x] **5.2 Walkthrough step 5: Uninstall**
   - Run `cf uninstall-commands`
   - Verify `~/.claude/commands/cf/onboard.md` no longer exists
   - Re-run `cf install-commands` to restore for subsequent manual testing
-  - [ ] Uninstall removes the skill file
-  - [ ] Re-install restores it
+  - [x] Uninstall removes the skill file
+  - [x] Re-install restores it
 
-- [ ] **5.3 Update slice design verification walkthrough**
+- [x] **5.3 Update slice design verification walkthrough**
   - Update the Verification Walkthrough section of `user/slices/204-slice.onboarding-skill.md` with actual commands run and their output
   - Note any caveats or deviations from the expected behavior
-  - [ ] Walkthrough updated with actual results
+  - [x] Walkthrough updated with actual results
 
 **Commit:** `docs: update 204 slice design verification walkthrough with actual results`
 
@@ -152,23 +152,23 @@ Follow the verification walkthrough from the slice design. Update the walkthroug
 
 ## Section 6: Wrap-Up
 
-- [ ] **6.1 Update slice plan**
+- [x] **6.1 Update slice plan**
   - Check off slice 204 in `user/architecture/200-slices.developer-onboarding.md`
-  - [ ] Slice 204 entry marked `[x]` in slice plan
+  - [x] Slice 204 entry marked `[x]` in slice plan
 
-- [ ] **6.2 Update slice design status**
+- [x] **6.2 Update slice design status**
   - Set `status: complete` in `user/slices/204-slice.onboarding-skill.md` frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **6.3 Update task file status**
+- [x] **6.3 Update task file status**
   - Set `status: complete` in this file's frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **6.4 Write DEVLOG entry**
+- [x] **6.4 Write DEVLOG entry**
   - Append entry to `DEVLOG.md` with:
     - Slice 204 completion summary
     - List of commits with hashes
     - Note that this completes the 200-band developer onboarding initiative
-  - [ ] DEVLOG entry written
+  - [x] DEVLOG entry written
 
 **Commit:** `docs: complete slice 204 onboarding skill`

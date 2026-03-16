@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260315
-status: in_progress
+status: complete
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -119,7 +119,7 @@ status: in_progress
    **Risk:** Low — additive logic in existing service; no changes to core recommendation engine
    **Effort:** 2/5
 
-4. [ ] **(204) Onboarding Skill** — A prompt/skill that teaches AI agents how to guide users through project creation and the first phase of work. Delivered via `cf install-commands` alongside existing slash commands.
+4. [x] **(204) Onboarding Skill** — A prompt/skill that teaches AI agents how to guide users through project creation and the first phase of work. Delivered via `cf install-commands` alongside existing slash commands.
 
    **The skill provides a recipe for:**
    1. Detecting whether a CF project exists at CWD (`project_list`, check paths)
