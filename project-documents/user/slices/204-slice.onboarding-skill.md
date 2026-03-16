@@ -7,7 +7,7 @@ dependencies: [201-project-create-mcp-tool]
 interfaces: []
 dateCreated: 20260315
 dateUpdated: 20260315
-status: not_started
+status: complete
 ---
 
 # Slice 204: Onboarding Skill
@@ -256,10 +256,22 @@ This is a representative draft — the implementation task will refine wording a
 
 ```bash
 cf install-commands
-# Expected: lists installed files, including onboard.md
+# Actual output:
+# Installed 8 commands to /Users/manta/.claude/commands/cf/
+#   /cf:build
+#   /cf:get
+#   /cf:next
+#   /cf:onboard    ← new
+#   /cf:project
+#   /cf:prompt
+#   /cf:set
+#   /cf:status
+
 ls ~/.claude/commands/cf/onboard.md
-# Expected: file exists
+# Confirmed: file exists (3178 bytes)
 ```
+
+**Result:** PASS — 8 commands installed (was 7), onboard.md present.
 
 #### 2. Invoke from Claude Code on a new directory
 
@@ -275,6 +287,8 @@ Expected agent behavior:
 4. Calls `context_build` → receives concept phase prompt
 5. Begins asking about the project concept
 
+**Note:** This step requires manual verification with an AI agent — not automated. The skill file content was verified to contain all 5 steps with correct MCP tool names and CLI fallbacks.
+
 #### 3. Invoke on existing project
 
 ```bash
@@ -288,6 +302,8 @@ Expected agent behavior:
 3. Checks guide status (likely already installed, skips)
 4. Checks project phase — if Phase 1, transitions to concept discussion; if later phase, suggests `cf next`
 
+**Note:** Manual verification — skill contains later-phase edge case handling in Notes section.
+
 #### 4. CLI fallback path
 
 In an environment without MCP tools configured, the agent should:
@@ -296,13 +312,30 @@ In an environment without MCP tools configured, the agent should:
 3. Run `cf build` to get the concept prompt
 4. Transition to concept discussion
 
+**Note:** All CLI commands verified to exist via `cf --help`. The skill includes CLI fallbacks for every MCP tool call.
+
 #### 5. Uninstall
 
 ```bash
 cf uninstall-commands
+# Actual output:
+# Removed 8 commands from /Users/manta/.claude/commands/cf/
+#   /cf:status, /cf:build, /cf:next, /cf:prompt, /cf:get, /cf:set, /cf:project, /cf:onboard
+
 ls ~/.claude/commands/cf/onboard.md
-# Expected: file does not exist
+# ls: No such file or directory
 ```
+
+**Result:** PASS — uninstall removes onboard.md. Re-install restores it.
+
+#### Automated test coverage
+
+All 11 `commandInstaller.test.ts` tests pass (data-driven from source directory, so `onboard.md` is automatically covered):
+- Fresh install copies all 8 files
+- File contents match source
+- YAML frontmatter validates (description + allowed-tools present)
+- Uninstall removes managed files
+- Full CLI test suite: 286 tests pass across 26 files
 
 ## Implementation Notes
 
