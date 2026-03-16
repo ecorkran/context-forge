@@ -9,6 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 204: Onboarding Skill — Slice Design
+- Created `user/slices/204-slice.onboarding-skill.md`
+- Design: markdown skill file (`onboard.md`) installed via `cf install-commands`; MCP-first with CLI fallbacks
+- Flow: detect existing project → create if needed → install guides → transition to Phase 1 concept discussion
+- Deferred `buildNewProjectDefaults()` extraction to dedicated future slice after audit revealed 5 areas of CLI/MCP duplication (not just project defaults)
+- Added future work item #6 to slice plan: CLI/MCP duplication extraction
+
 ### Slice 203: Enhanced cf next First-Run Guidance — Implementation Complete
 - Added `isFirstRunState()`, `conceptDocExists()`, `detectFirstRunContext()` private methods to `WorkflowNavigator`
 - FR-1 through FR-5 conditions implemented; FR-5 replaces existing "Set active slice" text with richer guidance
