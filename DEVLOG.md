@@ -9,6 +9,30 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-15
 
+### Slice 204: Onboarding Skill — Implementation Complete (200-band complete)
+- Created `packages/cli/commands/cf/onboard.md` — multi-step skill for AI-guided project onboarding
+- Added `'onboard.md'` to `MANAGED_FILES` in `commandInstaller.ts`; 8 commands now installed (was 7)
+- All 7 MCP tool references and CLI fallback commands verified against actual registrations
+- 286 CLI tests pass (11 commandInstaller tests auto-cover new file via data-driven pattern); build clean
+- Verification walkthrough: install/uninstall confirmed, slice design updated with actual results
+- **This completes the 200-band developer onboarding initiative** (slices 201–204 all done)
+- Commits:
+  - `775ea38` feat(cli): add onboarding skill (onboard.md) for AI-guided project setup
+  - `5690f07` feat(cli): register onboard.md in MANAGED_FILES for install/uninstall
+  - `8c2d6e7` docs: update 204 slice design verification walkthrough with actual results
+
+### Slice 204: Onboarding Skill — Task Breakdown
+- Created `user/tasks/204-tasks.onboarding-skill.md` (6 sections, ~140 lines)
+- Sections: Create skill file → Register in installer → Verify MCP references → Build/test → Verification walkthrough → Wrap-up
+- Lightweight slice: one markdown file + one-line MANAGED_FILES registration; existing data-driven tests auto-cover the new file
+
+### Slice 204: Onboarding Skill — Slice Design
+- Created `user/slices/204-slice.onboarding-skill.md`
+- Design: markdown skill file (`onboard.md`) installed via `cf install-commands`; MCP-first with CLI fallbacks
+- Flow: detect existing project → create if needed → install guides → transition to Phase 1 concept discussion
+- Deferred `buildNewProjectDefaults()` extraction to dedicated future slice after audit revealed 5 areas of CLI/MCP duplication (not just project defaults)
+- Added future work item #6 to slice plan: CLI/MCP duplication extraction
+
 ### Slice 203: Enhanced cf next First-Run Guidance — Implementation Complete
 - Added `isFirstRunState()`, `conceptDocExists()`, `detectFirstRunContext()` private methods to `WorkflowNavigator`
 - FR-1 through FR-5 conditions implemented; FR-5 replaces existing "Set active slice" text with richer guidance

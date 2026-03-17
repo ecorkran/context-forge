@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260315
-status: in_progress
+status: complete
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -119,7 +119,7 @@ status: in_progress
    **Risk:** Low — additive logic in existing service; no changes to core recommendation engine
    **Effort:** 2/5
 
-4. [ ] **(204) Onboarding Skill** — A prompt/skill that teaches AI agents how to guide users through project creation and the first phase of work. Delivered via `cf install-commands` alongside existing slash commands.
+4. [x] **(204) Onboarding Skill** — A prompt/skill that teaches AI agents how to guide users through project creation and the first phase of work. Delivered via `cf install-commands` alongside existing slash commands.
 
    **The skill provides a recipe for:**
    1. Detecting whether a CF project exists at CWD (`project_list`, check paths)
@@ -153,8 +153,6 @@ status: in_progress
    **Dependencies:** [201 — project_create MCP Tool]
    **Risk:** Low — plain text skill file; no runtime code changes beyond adding to managed files list
    **Effort:** 1/5
-
-   **Pre-work (bundle into 204 slice design):** Extract `buildNewProjectDefaults()` helper into `packages/core/src` to unify project creation defaults (`developmentPhase`, `instruction` sync, `template`, `dateProject`, `fileSlice`) across `cf init` and `project_create`. Currently duplicated in both paths — the skill should reference a single source of truth. Effort 2/5; requires thorough tests covering all three creation paths. Add as Section 1 of the 204 task file before the skill itself.
 
 ## Implementation Order
 
@@ -191,3 +189,5 @@ Feature (202 and 203 are independent; 204 depends on 201):
 4. [ ] **Onboarding analytics** — Understanding where users get stuck. Could be as simple as tracking which `cf next` recommendations are most common across fresh projects.
 
 5. [ ] **Web-based onboarding** — Self-hostable or hosted web UI for guided project creation. Separate initiative (suggested 240-band). Depends on 220-arch event-driven pipeline for HTTP transport.
+
+6. [ ] **CLI/MCP duplication extraction** — Extract shared logic duplicated between CLI and MCP server into `@context-forge/core`. Covers: project creation defaults (`dateProject` formatting, `template`, `instruction` sync), worktree field mappings (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`), auto-set logic (`fileTasks` from `fileSlice`, `fileSlicePlan` from `fileArch`, `instruction` from `developmentPhase`), and project path resolution. Currently duplicated in `packages/cli/src/commands/init.ts` + `project.ts` and `packages/mcp-server/src/tools/projectTools.ts`. Dedicated slice recommended — extracting piecemeal creates false sense of "fixed" while leaving inconsistency risk.
