@@ -29,26 +29,32 @@ Your AI assistant sees this too — through MCP tools, through slash commands, t
 ## Get Started
 
 ```bash
-# Install globally
+# 1. Install globally
 npm install -g @context-forge/mcp @context-forge/cli
 
-# Install the methodology guides into your project
-cf guides install
-
-# Install Claude rules and create CLAUDE.md.  It will warn before any overwrite, and 
-# create CLAUDE.md.bak as well.  Only Claude is currently supported.
-cf setup-ide claude
-
-# Add the MCP server to Claude Code
+# 2. Add the MCP server to Claude Code (strongly recommended)
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 
-# Install Claude Code slash commands
-cf install-commands
+# 3. Set up your project — pick one:
+cf init                   # CLI: creates project, installs guides, configures IDE, installs slash commands
+# — or —
+/cf:onboard               # Slash command: AI-guided setup — walks you through everything conversationally
 ```
 
-That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context from a slash command.
+That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` can take a new user from zero to their first concept discussion.
 
-Requirements: Node.js 18+, pnpm 10+.
+<details>
+<summary>Manual setup (if you prefer step-by-step control)</summary>
+
+```bash
+cf guides install          # Install methodology guides into your project
+cf setup-ide claude        # Install Claude rules and create CLAUDE.md
+cf install-commands        # Install Claude Code slash commands
+```
+
+</details>
+
+Requirements: Node.js 18+.
 
 ## How It Works
 
@@ -74,11 +80,11 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 ### MCP Server (`@context-forge/mcp`)
 
-32 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
+33 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
 
 | Category | Tools |
 |----------|-------|
-| Project | `project_list`, `project_get`, `project_update`, `project_schema`, `project_structure` |
+| Project | `project_list`, `project_get`, `project_create`, `project_update`, `project_schema`, `project_structure` |
 | Context | `context_build`, `context_summarize`, `template_preview`, `prompt_list`, `prompt_get` |
 | Workflow | `workflow_status`, `workflow_next`, `workflow_check`, `workflow_future` |
 | Worktrees | `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm` |
@@ -94,7 +100,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 | Command | Description |
 |---------|-------------|
-| `cf init` | Register current directory as a project |
+| `cf init` | Initialize project: git, guides, IDE config, slash commands |
 | `cf status` | Workflow status (phase, slice, task progress) |
 | `cf next` | Recommended next action with rationale |
 | `cf build` | Assemble context prompt for AI session |
@@ -121,6 +127,7 @@ Installed via `cf install-commands`. Available directly in Claude Code sessions:
 
 | Command | Description |
 |---------|-------------|
+| `/cf:onboard` | AI-guided project setup and first-phase walkthrough |
 | `/cf:build` | Build context prompt (accepts `--phase`, `--slice`) |
 | `/cf:status` | Show workflow status |
 | `/cf:get` | Show all project fields |
