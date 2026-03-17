@@ -23,6 +23,10 @@ matches the current directory.
 
 Create a new Context Forge project.
 
+Before creating the project, ensure git is initialized in the current
+directory. If there is no `.git` directory, ask the user to run `git init`
+(or run it for them if you have Bash access).
+
 **MCP:** Call `project_create` with:
 - `name`: Use the argument provided with this command, or the current directory
   name, or ask the user what they'd like to call their project.
