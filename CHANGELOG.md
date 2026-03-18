@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.8] - 20260318
+
+### Added
+- Worktree-aware guide operations (slice 190):
+  - `cf guides info` and `cf guides update` detect worktree context via `resolveProjectWorktree()` and operate on the correct worktree path
+  - `SubmoduleStrategy.sync()` reads target commit from main worktree, fetches objects, and checks out in worktree guide directory — handles worktrees on different branches
+  - `GuideManager.syncWorktrees()` syncs multiple worktrees in one call with per-path error handling
+  - `GuideDetector.checkSyncStatus()` reports per-worktree sync state via `git submodule status`
+  - MCP `guide_update` auto-syncs all registered worktrees after primary update
+  - MCP `guide_status` includes `worktreeSync` array for submodule-based projects with worktrees
+  - New `SyncResult` type exported from `@context-forge/core`
+
+### Fixed
+- Guide submodule updates now work in non-default worktrees — previously `cf guides update` from a worktree only updated the main worktree's checkout, leaving stale guide files in other worktrees (#44 cosmetic display issue noted)
+
 ## [0.5.2] - 20260314
 
 ### Added
