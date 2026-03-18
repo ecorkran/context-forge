@@ -94,23 +94,26 @@ export interface ContextData {
 }
 ```
 
-**`applyWorktreeOverlay` (extend return):**
+**`ContextIntegrator.mapToContextData()` (accept worktreeId):**
+
+Rather than adding convention fields to `ProjectData`, `mapToContextData` accepts an optional `worktreeId` parameter and looks up the worktree metadata directly from `project.worktrees[]`:
+
 ```typescript
-export function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
-  const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);
-  if (!wt) return project;
-  return {
-    ...project,
-    // existing field mappings ...
-    // NEW: carry worktree identity
-    _worktreeName: wt.name,
-    _worktreeIndexStart: wt.indexRange[0],
-    _worktreeIndexEnd: wt.indexRange[1],
-  };
+mapToContextData(project: ProjectData, worktreeId?: string): ContextData {
+  // ... existing mapping ...
+  if (worktreeId) {
+    const wt = (project.worktrees ?? []).find(w => w.id === worktreeId);
+    if (wt) {
+      data.worktreeName = wt.name;
+      data.worktreeIndexStart = wt.indexRange[0];
+      data.worktreeIndexEnd = wt.indexRange[1];
+    }
+  }
+  return data;
 }
 ```
 
-Since `ProjectData` doesn't have worktree metadata fields, we use underscore-prefixed convention fields that `ContextIntegrator.mapToContextData()` can pick up. Alternatively, `mapToContextData` can accept the worktreeId and look it up directly from `project.worktrees[]`. The implementation should choose whichever approach is cleaner — the slice design does not prescribe the internal plumbing, only the result: `ContextData` must have the three new fields populated when building from a worktree.
+`applyWorktreeOverlay` remains unchanged — it handles workflow field mapping only. The worktree identity flows through a separate path, keeping concerns separated.
 
 **`TemplateProcessor.createEnhancedData()` (add aliases):**
 ```typescript
