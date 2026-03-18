@@ -15,6 +15,7 @@ import { registerWorktreeTools } from './tools/worktreeTools.js';
 import { registerVersionTool } from './tools/versionTool.js';
 import { registerGuideTools } from './tools/guideTools.js';
 import { registerAgentGuideTool } from './tools/agentGuideTool.js';
+import { registerAgentOnboardTool } from './tools/agentOnboardTool.js';
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require('../package.json') as { version: string };
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   // Registration order matters — some MCP clients truncate tool lists.
   // High-priority tools first to maximize usability on limited clients.
   registerAgentGuideTool(server);       // orientation for agents
+  registerAgentOnboardTool(server);     // onboarding recipe for new projects
   registerProjectTools(server);         // core: list, get, create, update
   registerWorkflowTools(server);        // what to do next
   registerContextTools(server);         // build prompts

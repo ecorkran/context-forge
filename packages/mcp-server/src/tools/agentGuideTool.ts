@@ -9,6 +9,9 @@ Call this tool first to understand what's available and how to use it.
 
 ## Quick Start
 
+- **New user / no project yet?** Call **agent_onboard** — it returns step-by-step instructions to create a project and start working.
+- **Existing project?** Follow this sequence:
+
 1. **project_list** — See all registered projects. Find the one matching the user's current directory.
 2. **project_get** — Get full details for a project (phase, active slice, task file, etc.).
 3. **workflow_next** — Get the recommended next action with rationale and suggested command.
@@ -57,6 +60,7 @@ Call this tool first to understand what's available and how to use it.
 - **config_set** — Set a config value at user or project scope
 
 ### Meta
+- **agent_onboard** — Step-by-step onboarding recipe for new projects
 - **server_version** — Server name and version
 - **storage_backup** — Create a versioned backup of project data
 
