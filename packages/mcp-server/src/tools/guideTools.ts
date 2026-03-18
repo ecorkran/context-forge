@@ -1,11 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FileProjectStore, GuideManager, ConfigManager } from '@context-forge/core/node';
+import type { ProjectData } from '@context-forge/core';
+import { GuideDetector } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import { errorResult, jsonResult } from './contextTools.js';
 
-/** Resolve projectId to projectPath, throwing actionable errors */
-async function resolveProjectPath(projectId?: string): Promise<string> {
+interface ResolvedProject {
+  projectPath: string;
+  project: ProjectData;
+}
+
+/** Resolve projectId to projectPath and project data, throwing actionable errors */
+async function resolveProjectWithData(projectId?: string): Promise<ResolvedProject> {
   const resolvedId = await resolveProjectId(projectId);
   const store = new FileProjectStore();
   const project = await store.getById(resolvedId);
@@ -20,7 +27,7 @@ async function resolveProjectPath(projectId?: string): Promise<string> {
       `Project '${project.name}' has no configured project path. Set a project path first.`
     );
   }
-  return project.projectPath;
+  return { projectPath: project.projectPath, project };
 }
 
 export function registerGuideTools(server: McpServer): void {
@@ -43,11 +50,25 @@ export function registerGuideTools(server: McpServer): void {
     },
     async ({ projectId }) => {
       try {
-        const projectPath = await resolveProjectPath(projectId);
+        const { projectPath, project } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
         const info = await manager.status();
-        return jsonResult(info);
+
+        // Report per-worktree sync status when worktrees exist and method is submodule
+        let worktreeSync: { name: string; path: string; status: string }[] | undefined;
+        if (info.method === 'submodule' && project.worktrees?.length) {
+          const detector = new GuideDetector();
+          worktreeSync = [];
+          for (const wt of project.worktrees) {
+            if (wt.worktreePath) {
+              const syncStatus = await detector.checkSyncStatus(wt.worktreePath);
+              worktreeSync.push({ name: wt.name, path: wt.worktreePath, status: syncStatus });
+            }
+          }
+        }
+
+        return jsonResult(worktreeSync ? { ...info, worktreeSync } : info);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -83,7 +104,7 @@ export function registerGuideTools(server: McpServer): void {
     },
     async ({ projectId, strategy, source }) => {
       try {
-        const projectPath = await resolveProjectPath(projectId);
+        const { projectPath } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
         const result = await manager.install(strategy, source);
@@ -114,11 +135,23 @@ export function registerGuideTools(server: McpServer): void {
     },
     async ({ projectId }) => {
       try {
-        const projectPath = await resolveProjectPath(projectId);
+        const { projectPath, project } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
         const result = await manager.update();
-        return jsonResult(result);
+
+        // Auto-sync all worktrees with registered paths
+        let syncResults: { worktreePath: string; success: boolean; error?: string }[] | undefined;
+        if (project.worktrees?.length) {
+          const worktreePaths = project.worktrees
+            .map((wt) => wt.worktreePath)
+            .filter((p): p is string => !!p);
+          if (worktreePaths.length > 0) {
+            syncResults = await manager.syncWorktrees(worktreePaths);
+          }
+        }
+
+        return jsonResult(syncResults ? { ...result, syncResults } : result);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);

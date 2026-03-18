@@ -9,6 +9,8 @@ import { registerGuideTools } from '../src/tools/guideTools.js';
 const mockStatus = vi.fn();
 const mockInstall = vi.fn();
 const mockUpdate = vi.fn();
+const mockSyncWorktrees = vi.fn();
+const mockCheckSyncStatus = vi.fn();
 const mockGetById = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
@@ -19,6 +21,10 @@ vi.mock('@context-forge/core/node', () => ({
     status: mockStatus,
     install: mockInstall,
     update: mockUpdate,
+    syncWorktrees: mockSyncWorktrees,
+  })),
+  GuideDetector: vi.fn().mockImplementation(() => ({
+    checkSyncStatus: mockCheckSyncStatus,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
@@ -39,6 +45,14 @@ const sampleProject = {
   id: 'test-project',
   name: 'Test Project',
   projectPath: '/test/project',
+};
+
+const sampleProjectWithWorktrees = {
+  ...sampleProject,
+  worktrees: [
+    { id: 'wt_1', name: 'default', worktreePath: '/test/project', indexRange: [100, 299] },
+    { id: 'wt_2', name: 'world-server', worktreePath: '/test/project-ws', indexRange: [300, 499] },
+  ],
 };
 
 const sampleGuideInfo = {
@@ -220,6 +234,111 @@ describe('guide_update', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('not installed');
+  });
+});
+
+describe('guide_update worktree sync', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('calls syncWorktrees when project has worktrees with paths', async () => {
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+    });
+    mockSyncWorktrees.mockResolvedValue([
+      { worktreePath: '/test/project', success: true },
+      { worktreePath: '/test/project-ws', success: true },
+    ]);
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.syncResults).toHaveLength(2);
+    expect(parsed.syncResults[0].success).toBe(true);
+  });
+
+  it('does NOT call syncWorktrees when project has no worktrees', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+    });
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockSyncWorktrees).not.toHaveBeenCalled();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.syncResults).toBeUndefined();
+  });
+});
+
+describe('guide_status worktree sync', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('includes worktreeSync when project has worktrees and method is submodule', async () => {
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockStatus.mockResolvedValue({ ...sampleGuideInfo, method: 'submodule' });
+    mockCheckSyncStatus.mockResolvedValueOnce('in_sync').mockResolvedValueOnce('out_of_sync');
+
+    const result = await client.callTool({
+      name: 'guide_status',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.worktreeSync).toHaveLength(2);
+    expect(parsed.worktreeSync[0].status).toBe('in_sync');
+    expect(parsed.worktreeSync[1].status).toBe('out_of_sync');
+  });
+
+  it('does NOT include worktreeSync for non-submodule methods', async () => {
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockStatus.mockResolvedValue({ ...sampleGuideInfo, method: 'clone' });
+
+    const result = await client.callTool({
+      name: 'guide_status',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.worktreeSync).toBeUndefined();
   });
 });
 
