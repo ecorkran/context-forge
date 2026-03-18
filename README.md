@@ -129,7 +129,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 | `cf slice list` | Slices from the active plan with status |
 | `cf tasks list` | Task files with completion counts |
 | `cf tasks items` | Individual tasks from the active task file |
-| `cf config get\|set\|list` | Two-tier configuration |
+| `cf config get\|set` | Two-tier configuration |
 | `cf future` | Consolidated future work across all plans |
 | `cf prompt list\|get <phase>` | Prompt templates with variable substitution |
 | `cf guides install\|status\|update` | ai-project-guide template management |

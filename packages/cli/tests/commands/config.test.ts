@@ -22,7 +22,7 @@ function createProgram(): Command {
   return program;
 }
 
-describe('cf config list', () => {
+describe('cf config get (no key — list all)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -36,7 +36,7 @@ describe('cf config list', () => {
     ]);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'config', 'list']);
+    await program.parseAsync(['node', 'cf', 'config', 'get']);
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('default_project');
@@ -53,7 +53,7 @@ describe('cf config list', () => {
     mockList.mockResolvedValue(entries);
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'config', 'list', '--json']);
+    await program.parseAsync(['node', 'cf', 'config', 'get', '--json']);
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     expect(JSON.parse(output)).toEqual(entries);
