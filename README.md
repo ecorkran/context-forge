@@ -32,7 +32,7 @@ Your AI assistant sees this too — through MCP tools, through slash commands, t
 # 1. Install globally
 npm install -g @context-forge/mcp @context-forge/cli
 
-# 2. Add the MCP server to Claude Code (strongly recommended)
+# 2. Add the MCP server (strongly recommended)
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 
 # 3. Set up your project — pick one:
@@ -42,6 +42,21 @@ cf init                   # CLI: creates project, installs guides, configures ID
 ```
 
 That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` can take a new user from zero to their first concept discussion.
+
+<details>
+<summary>MCP server JSON config (for Cursor, Perplexity, Windsurf, etc.)</summary>
+
+```json
+{
+  "context-forge": {
+    "command": "npx",
+    "args": ["@context-forge/mcp"],
+    "env": {}
+  }
+}
+```
+
+</details>
 
 <details>
 <summary>Manual setup (if you prefer step-by-step control)</summary>
