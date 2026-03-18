@@ -6,8 +6,8 @@ parent: user/architecture/180-slices.initiative-context-worktree.md
 dependencies: [185-worktree-aware-context-assembly]
 interfaces: []
 dateCreated: 20260317
-dateUpdated: 20260317
-status: not_started
+dateUpdated: 20260318
+status: in_progress
 ---
 
 # Slice 189: Worktree-Aware Prompt Context
@@ -170,37 +170,58 @@ The MCP `context_build` tool already accepts an optional `worktree` parameter an
 
 ## Verification Walkthrough
 
-#### 1. Build from worktree with no arch doc
+#### 1. Build from worktree with arch doc set
 
 ```bash
-cd /path/to/project-worktree   # worktree named "world-server", range 300-499
-cf set phase 2
-cf build
-```
-
-Expected: Prompt includes "You are working in the `world-server` worktree (index range 300-499)" and "No architecture document exists yet... Create one at index 300."
-
-#### 2. Build from worktree with arch doc set
-
-```bash
-cf set arch 300
-cf build
-```
-
-Expected: Prompt includes "Architecture document is already set: `300-arch.world-server`"
-
-#### 3. Build from non-worktree project
-
-```bash
-cd /path/to/regular-project
+cd ~/source/repos/manta/context-forge   # "default" worktree, range 100-499, arch=180-arch.initiative-context-worktree
 cf build --phase architecture
 ```
 
-Expected: Prompt shows the existing Phase 2 instructions without worktree-specific content.
+Actual output (excerpt):
+```
+**Worktree context:** You are working in the `default` worktree (index range 100-499).
+- Base index for this component's architecture document: 100
+- Architecture file naming: `100-arch.<component-name>.md`
+- Current arch doc: `180-arch.initiative-context-worktree` (empty means none set yet — create one at index 100)
+```
+✅ Worktree name, range, and arch doc shown. Non-worktree block absent.
+
+#### 2. Build from worktree with no arch doc
+
+```bash
+cd ~/source/repos/manta/context-forge-maintenance   # "maintenance" worktree, range 900-999, no arch set
+cf build --phase architecture
+```
+
+Actual output (excerpt):
+```
+**Worktree context:** You are working in the `maintenance` worktree (index range 900-999).
+- Base index for this component's architecture document: 900
+- Architecture file naming: `900-arch.<component-name>.md`
+- Current arch doc: `` (empty means none set yet — create one at index 900)
+```
+✅ Worktree name and range shown. Empty arch doc field with "create one" guidance.
+
+#### 3. Build from non-worktree project (regression)
+
+```bash
+cd ~/source/repos/manta/context-forge
+cf build --phase architecture --project context-forge   # forces non-worktree resolution
+```
+
+Actual output (excerpt):
+```
+**Before proceeding, determine the component name and base index:**
+1. If the project's `fileArch` is already set, use that component name and index.
+...
+```
+✅ Non-worktree path preserved. No worktree content appears.
 
 #### 4. MCP path
 
-Call `context_build` with `worktree: "world-server"` — output should match CLI worktree build.
+Verified via unit tests (`context_build with worktree` suite in `packages/mcp-server/tests/contextTools.test.ts`). The `generateContextFromProject` spy confirms `worktreeId` is passed through correctly.
+
+**Note on template design:** The original slice design specified nested `{{#if arch}}` inside `{{#if worktreeName}}`, but `TemplateProcessor` does not support nested conditionals (single-pass regex). The implementation uses a flat single `{{#if worktreeName}}...{{else}}...{{/if}}` block where the arch doc field renders as empty string when not set, with inline guidance for the agent.
 
 ## Implementation Notes
 

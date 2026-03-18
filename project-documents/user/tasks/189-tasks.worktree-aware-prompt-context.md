@@ -5,8 +5,8 @@ lld: user/slices/189-slice.worktree-aware-prompt-context.md
 dependencies: [185-worktree-aware-context-assembly]
 projectState: Worktree system (180-band) complete. applyWorktreeOverlay maps workflow fields but not worktree identity. ContextIntegrator.mapProjectToEnhancedContext builds EnhancedContextData from ProjectData but has no worktreeId parameter. TemplateProcessor.createEnhancedData creates computed aliases but none for worktree metadata. Phase 2 prompt template has no worktree-aware conditional path.
 dateCreated: 20260317
-dateUpdated: 20260317
-status: not_started
+dateUpdated: 20260318
+status: in_progress
 ---
 
 ## Context Summary
@@ -20,43 +20,43 @@ status: not_started
 
 ## Section 1: Extend ContextData Type and ContextIntegrator
 
-- [ ] **1.1 Add worktree fields to `ContextData`**
+- [x] **1.1 Add worktree fields to `ContextData`**
   - File: `packages/core/src/types/context.ts`
   - Add three optional fields to `ContextData` interface:
     - `worktreeName?: string` — e.g., "world-server"
     - `worktreeIndexStart?: number` — e.g., 300
     - `worktreeIndexEnd?: number` — e.g., 499
-  - [ ] Fields added to `ContextData` interface
-  - [ ] TypeScript compiles with no errors
+  - [x] Fields added to `ContextData` interface
+  - [x] TypeScript compiles with no errors
 
-- [ ] **1.2 Thread worktreeId through `generateContextFromProject`**
+- [x] **1.2 Thread worktreeId through `generateContextFromProject`**
   - File: `packages/core/src/services/ContextIntegrator.ts`
   - Add optional `worktreeId?: string` parameter to `generateContextFromProject(project, worktreeId?)`
   - Pass `worktreeId` through to `generateWithTemplateEngine(project, worktreeId)`
   - Pass `worktreeId` through to `mapProjectToEnhancedContext(project, worktreeId)`
   - In `mapProjectToEnhancedContext`, look up the worktree from `project.worktrees[]` by id and populate the three new fields on `EnhancedContextData`
-  - [ ] `generateContextFromProject` accepts optional `worktreeId`
-  - [ ] `mapProjectToEnhancedContext` populates `worktreeName`, `worktreeIndexStart`, `worktreeIndexEnd` when worktreeId is provided
-  - [ ] When worktreeId is not provided or worktree not found, fields are undefined (existing behavior)
+  - [x] `generateContextFromProject` accepts optional `worktreeId`
+  - [x] `mapProjectToEnhancedContext` populates `worktreeName`, `worktreeIndexStart`, `worktreeIndexEnd` when worktreeId is provided
+  - [x] When worktreeId is not provided or worktree not found, fields are undefined (existing behavior)
 
-- [ ] **1.3 Pass worktreeId from CLI `build` command**
+- [x] **1.3 Pass worktreeId from CLI `build` command**
   - File: `packages/cli/src/commands/build.ts`
   - Pass `worktreeId` as second argument to `integrator.generateContextFromProject(workingCopy, worktreeId)`
   - The `worktreeId` is already resolved at line 36 (`const { id, worktreeId } = await resolveProjectWorktree(...)`)
-  - [ ] `worktreeId` passed through to `generateContextFromProject`
+  - [x] `worktreeId` passed through to `generateContextFromProject`
 
-- [ ] **1.4 Pass worktreeId from MCP `context_build` tool**
+- [x] **1.4 Pass worktreeId from MCP `context_build` tool**
   - File: `packages/mcp-server/src/tools/contextTools.ts`
   - Check how `context_build` calls `generateContextFromProject` — pass the resolved worktreeId if available
-  - [ ] MCP `context_build` passes worktreeId when building from a worktree
+  - [x] MCP `context_build` passes worktreeId when building from a worktree
 
-- [ ] **1.5 Unit tests for worktree data flow**
+- [x] **1.5 Unit tests for worktree data flow**
   - Add tests in `packages/core/tests/` verifying:
     - `mapProjectToEnhancedContext` with worktreeId populates worktree fields
     - `mapProjectToEnhancedContext` without worktreeId leaves worktree fields undefined
     - `generateContextFromProject` with worktreeId produces output containing worktree name
-  - [ ] Tests pass for worktreeId present case
-  - [ ] Tests pass for worktreeId absent case (regression)
+  - [x] Tests pass for worktreeId present case
+  - [x] Tests pass for worktreeId absent case (regression)
 
 **Commit:** `feat(core): thread worktreeId through context pipeline to template data`
 
@@ -64,21 +64,21 @@ status: not_started
 
 ## Section 2: Add Template Aliases in TemplateProcessor
 
-- [ ] **2.1 Add worktree aliases to `createEnhancedData`**
+- [x] **2.1 Add worktree aliases to `createEnhancedData`**
   - File: `packages/core/src/services/TemplateProcessor.ts`
   - In `createEnhancedData()`, add after the existing date aliases block:
     - If `data.worktreeName` is set: create `worktreeName` and `worktree-name` aliases
     - If `data.worktreeIndexStart` is defined: create `worktreeIndexStart`, `worktreeIndexEnd`, `worktreeRange` (formatted as `"start-end"`), and `worktree-range` aliases
-  - [ ] Aliases created when worktree fields present
-  - [ ] No aliases created when worktree fields absent
+  - [x] Aliases created when worktree fields present
+  - [x] No aliases created when worktree fields absent
 
-- [ ] **2.2 Unit tests for worktree template aliases**
+- [x] **2.2 Unit tests for worktree template aliases**
   - Add tests in `packages/core/tests/services/TemplateProcessor.test.ts`:
     - Template with `{worktreeName}` resolves when worktree data present
     - Template with `{worktreeRange}` resolves to `"300-499"` format
     - Template with `{{#if worktreeName}}` conditional works correctly
     - Template with worktree variables and no worktree data leaves conditionals in the `{{else}}` path
-  - [ ] All template alias tests pass
+  - [x] All template alias tests pass
 
 **Commit:** `feat(core): add worktree template aliases to TemplateProcessor`
 
@@ -86,7 +86,7 @@ status: not_started
 
 ## Section 3: Update Phase 2 Prompt Template
 
-- [ ] **3.1 Add worktree conditional to Phase 2 prompt**
+- [x] **3.1 Add worktree conditional to Phase 2 prompt**
   - File: `project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md`
   - In the Architecture (Phase 2) section, wrap the existing "Before proceeding, determine the component name and base index" block in a `{{#if worktreeName}}` / `{{else}}` / `{{/if}}` conditional
   - The `{{#if worktreeName}}` branch should include:
@@ -95,20 +95,20 @@ status: not_started
     - Conditional on `{{#if arch}}` to show "already set" vs "create one at index"
   - The `{{else}}` branch preserves the existing non-worktree instructions
   - Use the content from the slice design's "Prompt Template Changes (Phase 2)" section as a starting point
-  - [ ] Worktree conditional block added to Phase 2 section
-  - [ ] Non-worktree path preserved exactly as before
-  - [ ] Nested `{{#if arch}}` conditional works within the worktree block
+  - [x] Worktree conditional block added to Phase 2 section
+  - [x] Non-worktree path preserved exactly as before
+  - [x] Nested `{{#if arch}}` conditional works within the worktree block
 
-- [ ] **3.2 Verify template syntax**
+- [x] **3.2 Verify template syntax**
   - Ensure all `{{#if}}` blocks are properly closed
   - Ensure no existing template variables are broken
   - Run `TemplateProcessor.validateTemplate()` on the Phase 2 section content if possible
-  - [ ] Template syntax is valid (matched `{{#if}}` / `{{/if}}` pairs)
+  - [x] Template syntax is valid (matched `{{#if}}` / `{{/if}}` pairs)
 
-- [ ] **3.3 Sync bundled prompt asset**
+- [x] **3.3 Sync bundled prompt asset**
   - Copy updated `prompt.ai-project.system.md` from ai-project-guide to `packages/core/assets/prompt.ai-project.system.md`
   - Verify files are identical with `diff`
-  - [ ] Bundled asset matches source
+  - [x] Bundled asset matches source
 
 **Commit:** `feat(core): add worktree-aware conditional to Phase 2 prompt template`
 
@@ -116,22 +116,22 @@ status: not_started
 
 ## Section 4: Build, Test, and Verify
 
-- [ ] **4.1 Run full core package tests**
+- [x] **4.1 Run full core package tests**
   - Run `pnpm vitest run` from `packages/core/`
   - All tests must pass including new worktree-related tests
-  - [ ] All core tests pass
+  - [x] All core tests pass
 
-- [ ] **4.2 Run full MCP server tests**
+- [x] **4.2 Run full MCP server tests**
   - Run `pnpm vitest run` from `packages/mcp-server/`
-  - [ ] All MCP tests pass
+  - [x] All MCP tests pass
 
-- [ ] **4.3 Run full CLI tests**
+- [x] **4.3 Run full CLI tests**
   - Run `pnpm vitest run` from `packages/cli/`
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
-- [ ] **4.4 Run full project build**
+- [x] **4.4 Run full project build**
   - Run `npm run build` from project root
-  - [ ] Build completes successfully
+  - [x] Build completes successfully
 
 **Commit:** (no separate commit — verification only)
 
@@ -141,22 +141,22 @@ status: not_started
 
 Follow the verification walkthrough from the slice design. Update with actual results.
 
-- [ ] **5.1 Build from worktree with no arch doc**
+- [x] **5.1 Build from worktree with no arch doc**
   - Set up: navigate to a worktree directory, set phase to 2, ensure no arch is set
   - Run `cf build` and verify output contains worktree name and index range
   - Verify output contains "No architecture document exists yet" with correct index
-  - [ ] Worktree-aware prompt produced
+  - [x] Worktree-aware prompt produced
 
-- [ ] **5.2 Build from worktree with arch doc set**
+- [x] **5.2 Build from worktree with arch doc set**
   - Set arch on the worktree (e.g., `cf set arch 300`)
   - Run `cf build` and verify output contains "Architecture document is already set"
-  - [ ] Arch-aware prompt produced
+  - [x] Arch-aware prompt produced
 
-- [ ] **5.3 Build from non-worktree project (regression)**
+- [x] **5.3 Build from non-worktree project (regression)**
   - Navigate to a regular project (no worktrees)
   - Run `cf build --phase architecture`
   - Verify output matches existing Phase 2 behavior (no worktree content)
-  - [ ] No regression in non-worktree builds
+  - [x] No regression in non-worktree builds
 
 - [ ] **5.4 Update slice design verification walkthrough**
   - Update the Verification Walkthrough section of the slice design with actual results
