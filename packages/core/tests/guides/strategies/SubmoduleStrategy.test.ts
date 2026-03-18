@@ -191,4 +191,34 @@ describe('SubmoduleStrategy', () => {
       );
     });
   });
+
+  describe('sync()', () => {
+    it('calls gitExec with submodule update --init and the worktree path as cwd', async () => {
+      mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
+      const worktreePath = '/test/worktree';
+
+      await strategy.sync(worktreePath);
+
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
+        worktreePath
+      );
+    });
+
+    it('propagates errors from gitExec', async () => {
+      mockGitExec.mockRejectedValue(new Error('submodule update failed'));
+
+      await expect(strategy.sync('/test/worktree'))
+        .rejects.toThrow('submodule update failed');
+    });
+
+    it('does not use --remote flag', async () => {
+      mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await strategy.sync('/test/worktree');
+
+      const call = mockGitExec.mock.calls[0];
+      expect(call[0]).not.toContain('--remote');
+    });
+  });
 });

@@ -2,7 +2,7 @@
 import { join } from 'path';
 import { mkdirSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, InstallStrategy } from './types.js';
+import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, InstallStrategy, SyncResult } from './types.js';
 import { DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from './types.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
@@ -13,17 +13,19 @@ export class GuideManager {
   private readonly projectPath: string;
   private readonly configManager?: ConfigManager;
   private readonly detector: GuideDetector;
+  private readonly operationPath?: string;
 
-  constructor(projectPath: string, configManager?: ConfigManager) {
+  constructor(projectPath: string, configManager?: ConfigManager, operationPath?: string) {
     this.projectPath = projectPath;
     this.configManager = configManager;
     this.detector = new GuideDetector();
+    this.operationPath = operationPath;
   }
 
   /** Get current guide installation status */
   async status(): Promise<GuideInfo> {
     const source = await this.resolveSource();
-    return this.detector.detect(this.projectPath, source);
+    return this.detector.detect(this.projectPath, source, this.operationPath);
   }
 
   /** Install the guide into the project */
@@ -62,7 +64,40 @@ export class GuideManager {
     }
 
     const strategy = this.getStrategy(info.method);
-    return strategy.update(this.projectPath, targetDir);
+    const result = await strategy.update(this.projectPath, targetDir);
+
+    // Sync the worktree's submodule checkout if operating from a non-default worktree
+    if (this.operationPath && this.operationPath !== this.projectPath && info.method === 'submodule') {
+      const submoduleStrategy = strategy as SubmoduleStrategy;
+      await submoduleStrategy.sync(this.operationPath);
+    }
+
+    return result;
+  }
+
+  /** Sync guide submodule checkout in multiple worktrees */
+  async syncWorktrees(worktreePaths: string[]): Promise<SyncResult[]> {
+    const source = await this.resolveSource();
+    const info = await this.detector.detect(this.projectPath, source);
+    if (info.method !== 'submodule') return [];
+
+    const strategy = new SubmoduleStrategy();
+    const results: SyncResult[] = [];
+
+    for (const worktreePath of worktreePaths) {
+      try {
+        await strategy.sync(worktreePath);
+        results.push({ worktreePath, success: true });
+      } catch (err) {
+        results.push({
+          worktreePath,
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return results;
   }
 
   /** Resolve source URL from config or default */

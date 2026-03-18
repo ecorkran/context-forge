@@ -31,6 +31,13 @@ export interface UpdateResult {
   method: GuideMethod;
 }
 
+/** Result of syncing a worktree's guide submodule checkout */
+export interface SyncResult {
+  worktreePath: string;
+  success: boolean;
+  error?: string;
+}
+
 /** Detection result returned by a strategy's detect() method */
 export interface DetectionResult {
   method: GuideMethod;

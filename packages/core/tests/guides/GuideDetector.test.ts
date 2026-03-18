@@ -193,6 +193,75 @@ describe('GuideDetector', () => {
 
       expect(info.source).toBe(customSource);
     });
+
+    it('uses projectPath for guidePath when no operationPath', async () => {
+      mockExistsSync.mockReturnValue(false);
+
+      const info = await detector.detect(projectPath);
+
+      expect(info.path).toBe(join(projectPath, GUIDE_RELATIVE_PATH));
+    });
+
+    it('uses operationPath for guidePath when provided', async () => {
+      const operationPath = '/test/worktree';
+      const worktreeGuidePath = join(operationPath, GUIDE_RELATIVE_PATH);
+      mockExistsSync.mockImplementation((p) => {
+        const path = String(p);
+        if (path === worktreeGuidePath) return true;
+        if (path === join(projectPath, '.gitmodules')) return true;
+        return false;
+      });
+      mockReadFileSync.mockReturnValue(
+        `[submodule "ai-project-guide"]\n\tpath = ${GUIDE_RELATIVE_PATH}\n\turl = ${DEFAULT_SOURCE_GIT}`
+      );
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        throw new Error('network');
+      });
+
+      const info = await detector.detect(projectPath, undefined, operationPath);
+
+      expect(info.path).toBe(worktreeGuidePath);
+      expect(info.installed).toBe(true);
+    });
+  });
+
+  describe('checkSyncStatus()', () => {
+    it('returns in_sync when output starts with space', async () => {
+      mockGitExec.mockResolvedValue({ stdout: ' abc123 project-documents/ai-project-guide (v0.13.2)', stderr: '' });
+
+      const status = await detector.checkSyncStatus('/test/worktree');
+
+      expect(status).toBe('in_sync');
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['submodule', 'status', GUIDE_RELATIVE_PATH],
+        '/test/worktree'
+      );
+    });
+
+    it('returns out_of_sync when output starts with +', async () => {
+      mockGitExec.mockResolvedValue({ stdout: '+abc123 project-documents/ai-project-guide (v0.12.0)', stderr: '' });
+
+      const status = await detector.checkSyncStatus('/test/worktree');
+
+      expect(status).toBe('out_of_sync');
+    });
+
+    it('returns not_initialized when output starts with -', async () => {
+      mockGitExec.mockResolvedValue({ stdout: '-abc123 project-documents/ai-project-guide', stderr: '' });
+
+      const status = await detector.checkSyncStatus('/test/worktree');
+
+      expect(status).toBe('not_initialized');
+    });
+
+    it('returns error when git command fails', async () => {
+      mockGitExec.mockRejectedValue(new Error('git failed'));
+
+      const status = await detector.checkSyncStatus('/test/worktree');
+
+      expect(status).toBe('error');
+    });
   });
 
   describe('isNewerVersion()', () => {

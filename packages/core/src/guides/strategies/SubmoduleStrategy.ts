@@ -98,4 +98,9 @@ export class SubmoduleStrategy implements InstallStrategy {
 
     return { success: true, previousVersion, newVersion, method: 'submodule' };
   }
+
+  /** Sync a worktree's submodule checkout to match the committed pointer */
+  async sync(worktreePath: string): Promise<void> {
+    await gitExec(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], worktreePath);
+  }
 }

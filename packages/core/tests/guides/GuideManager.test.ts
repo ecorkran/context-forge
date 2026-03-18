@@ -201,5 +201,139 @@ describe('GuideManager', () => {
 
       await expect(manager.update()).rejects.toThrow('not installed');
     });
+
+    it('does not call sync() when no operationPath is set', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const mockSync = vi.fn();
+      const mockUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+        sync: mockSync,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      await manager.update();
+
+      expect(mockSync).not.toHaveBeenCalled();
+    });
+
+    it('calls sync(operationPath) after update when operationPath is set and method is submodule', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const mockSync = vi.fn();
+      const mockUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+        sync: mockSync,
+      }));
+
+      const operationPath = '/test/worktree';
+      const manager = new GuideManager(projectPath, mockConfigManager as never, operationPath);
+      await manager.update();
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockSync).toHaveBeenCalledWith(operationPath);
+    });
+
+    it('does not call sync() when operationPath equals projectPath', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const mockSync = vi.fn();
+      const mockUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+        sync: mockSync,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never, projectPath);
+      await manager.update();
+
+      expect(mockSync).not.toHaveBeenCalled();
+    });
+
+    it('does not call sync() when method is clone (not submodule)', async () => {
+      const cloneInstalledInfo: GuideInfo = {
+        ...installedInfo,
+        method: 'clone',
+      };
+      mockDetect.mockResolvedValue(cloneInstalledInfo);
+      const mockSync = vi.fn();
+      const mockCloneUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'clone',
+      });
+      (CloneStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockCloneUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never, '/test/worktree');
+      await manager.update();
+
+      expect(mockCloneUpdate).toHaveBeenCalled();
+      expect(mockSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('syncWorktrees()', () => {
+    it('calls sync() for each path and collects results', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const mockSync = vi.fn().mockResolvedValue(undefined);
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: vi.fn(),
+        sync: mockSync,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const results = await manager.syncWorktrees(['/wt1', '/wt2']);
+
+      expect(results).toEqual([
+        { worktreePath: '/wt1', success: true },
+        { worktreePath: '/wt2', success: true },
+      ]);
+      expect(mockSync).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns success: false with error for failing paths without stopping', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const mockSync = vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('sync failed'))
+        .mockResolvedValueOnce(undefined);
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: vi.fn(),
+        sync: mockSync,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const results = await manager.syncWorktrees(['/wt1', '/wt2', '/wt3']);
+
+      expect(results).toEqual([
+        { worktreePath: '/wt1', success: true },
+        { worktreePath: '/wt2', success: false, error: 'sync failed' },
+        { worktreePath: '/wt3', success: true },
+      ]);
+    });
+
+    it('returns empty array when method is not submodule', async () => {
+      const cloneInstalledInfo: GuideInfo = {
+        ...installedInfo,
+        method: 'clone',
+      };
+      mockDetect.mockResolvedValue(cloneInstalledInfo);
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const results = await manager.syncWorktrees(['/wt1']);
+
+      expect(results).toEqual([]);
+    });
   });
 });

@@ -59,10 +59,12 @@ export class GuideDetector {
    * Detect guide installation state for a project.
    * @param projectPath - absolute path to the project root
    * @param source - override source URL (defaults to DEFAULT_SOURCE_GIT)
+   * @param operationPath - worktree path for filesystem checks (defaults to projectPath)
    */
-  async detect(projectPath: string, source?: string): Promise<GuideInfo> {
+  async detect(projectPath: string, source?: string, operationPath?: string): Promise<GuideInfo> {
     const resolvedSource = source || DEFAULT_SOURCE_GIT;
-    const guidePath = join(projectPath, GUIDE_RELATIVE_PATH);
+    const effectivePath = operationPath || projectPath;
+    const guidePath = join(effectivePath, GUIDE_RELATIVE_PATH);
 
     const baseInfo: GuideInfo = {
       installed: false,
@@ -81,7 +83,7 @@ export class GuideDetector {
       return baseInfo;
     }
 
-    // Guide directory exists — determine method
+    // Guide directory exists — determine method (use projectPath for .gitmodules check)
     const method = this.detectMethod(projectPath, guidePath);
     const version = await this.detectVersion(guidePath, method);
     const latestVersion = await this.fetchLatestVersion(resolvedSource);
@@ -140,6 +142,22 @@ export class GuideDetector {
       return readFileSync(markerPath, 'utf-8').trim() || null;
     } catch {
       return null;
+    }
+  }
+
+  /** Check whether a worktree's submodule checkout is in sync with the committed pointer */
+  async checkSyncStatus(worktreePath: string): Promise<'in_sync' | 'out_of_sync' | 'not_initialized' | 'error'> {
+    try {
+      const { stdout } = await gitExec(
+        ['submodule', 'status', GUIDE_RELATIVE_PATH],
+        worktreePath
+      );
+      const trimmed = stdout.trimStart();
+      if (trimmed.startsWith('+')) return 'out_of_sync';
+      if (trimmed.startsWith('-')) return 'not_initialized';
+      return 'in_sync';
+    } catch {
+      return 'error';
     }
   }
 
