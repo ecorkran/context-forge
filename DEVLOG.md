@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-18
 
+### Slice 179: Remove Bundled Prompt Asset — Slice Design
+- Created `user/slices/179-slice.remove-bundled-prompt-asset.md`
+- Scope: delete bundled prompt fallback, remove `default_project` config key, simplify resolution chains
+- Promoted from future work to active slice in 160-slices plan
+
 ### Slice 189: Worktree-Aware Prompt Context — Implementation Complete
 - Extended `ContextData` with `worktreeName?`, `worktreeIndexStart?`, `worktreeIndexEnd?`
 - Threaded `worktreeId` through `generateContextFromProject` → `mapProjectToEnhancedContext` with worktree lookup from `project.worktrees[]`
