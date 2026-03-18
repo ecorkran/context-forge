@@ -246,18 +246,14 @@ describe('workflow_future', () => {
     expect(getErrorText(result)).toContain('projectPath');
   });
 
-  it('default_project fallback works when projectId omitted', async () => {
-    mockConfigGet.mockResolvedValue({ value: MOCK_PROJECT.id, source: 'user' });
-    mockGetById.mockResolvedValue(MOCK_PROJECT);
-    mockCollect.mockResolvedValue(MOCK_RESULT);
-
+  it('returns error when projectId omitted', async () => {
     const result = await client.callTool({
       name: 'workflow_future',
       arguments: {},
     });
 
-    expect(result.isError).toBeFalsy();
-    expect(mockGetById).toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(getErrorText(result)).toContain('No project ID provided');
   });
 });
 

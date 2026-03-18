@@ -159,27 +159,27 @@ status: in_progress
 
 ## Section 5: Update MCP Project Resolution
 
-- [ ] **5.1 Simplify `resolveProjectId()`**
+- [x] **5.1 Simplify `resolveProjectId()`**
   - File: `packages/mcp-server/src/tools/resolveProjectId.ts`
   - Re-read the file before modifying
   - Remove step 2 (the `ConfigManager` instantiation and `default_project` lookup)
   - Update error message to: `No project ID provided. Either pass a projectId argument, or ensure the MCP client is running from a registered project directory.\n  Use project_list to see available projects.\n  Use project_create to register a new project.`
   - Remove the `ConfigManager` import
   - Update the JSDoc to reflect 2-step chain
-  - [ ] Function has two paths: explicit ID → return, else → throw
-  - [ ] No `ConfigManager` or `default_project` reference
-  - [ ] Error message includes actionable guidance
+  - [x] Function has two paths: explicit ID → return, else → throw
+  - [x] No `ConfigManager` or `default_project` reference
+  - [x] Error message includes actionable guidance
 
-- [ ] **5.2 Update `resolveProjectId` tests**
+- [x] **5.2 Update `resolveProjectId` tests**
   - File: `packages/mcp-server/tests/resolveProjectId.test.ts`
   - Re-read the file before modifying
   - Remove test: `returns configured default_project when explicit ID omitted`
   - Update test: `throws descriptive error when neither explicit ID nor default_project configured` — simplify to just "throws when no explicit ID provided", update expected error message
   - Remove any test that mocks `ConfigManager.get('default_project')`
-  - [ ] No tests reference `default_project`
-  - [ ] All MCP tests pass
+  - [x] No tests reference `default_project`
+  - [x] All MCP tests pass
 
-- [ ] **5.3 Update MCP tool description strings**
+- [x] **5.3 Update MCP tool description strings**
   - Files (re-read each before modifying):
     - `packages/mcp-server/src/tools/projectTools.ts`
     - `packages/mcp-server/src/tools/worktreeTools.ts`
@@ -192,10 +192,10 @@ status: in_progress
   - Replace all `.describe()` strings that say `Omit to use default_project config.` with `Omit to resolve from CWD.` (or similar — match the tool's context)
   - In `configTools.ts`, update example strings that use `default_project` as a key example — replace with `guide.source` or similar
   - In `contextTools.ts`, update `prompt_list` and `prompt_get` descriptions that mention bundled prompts or `default_project`
-  - [ ] No `.describe()` string references `default_project`
-  - [ ] No description mentions bundled prompts as a fallback
+  - [x] No `.describe()` string references `default_project`
+  - [x] No description mentions bundled prompts as a fallback
 
-- [ ] **5.4 Update remaining MCP test files**
+- [x] **5.4 Update remaining MCP test files**
   - Files (re-read each before modifying):
     - `packages/mcp-server/tests/projectTools.test.ts`
     - `packages/mcp-server/tests/stateTools.test.ts`
@@ -203,8 +203,8 @@ status: in_progress
     - `packages/mcp-server/tests/configTools.test.ts`
   - Remove `default_project fallback` describe blocks and their tests
   - Update any test that uses `default_project` as an example config key
-  - [ ] No MCP test references `default_project`
-  - [ ] All MCP tests pass
+  - [x] No MCP test references `default_project`
+  - [x] All MCP tests pass
 
 **Commit:** `refactor(mcp): remove default_project resolution path and update tool descriptions`
 

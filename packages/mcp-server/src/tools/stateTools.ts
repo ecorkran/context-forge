@@ -15,7 +15,7 @@ export function registerStateTools(server: McpServer): void {
         'which will be included in subsequent context_build output. Use this after significant work milestones, context ' +
         "switches, or to record session progress for continuity. Analogous to Claude Code's /compact but for project-level state.",
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID to update. Use project_list to find IDs. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID to update. Use project_list to find IDs. Omit to resolve from CWD.'),
         summary: z
           .string()
           .describe(

@@ -62,15 +62,15 @@ describe('config_get', () => {
 
   it('returns default value for unconfigured key', async () => {
     mockGet.mockResolvedValue({
-      key: 'default_project',
+      key: 'guide.source',
       value: '',
       source: 'default',
-      description: 'Default project ID',
+      description: 'URL or path to the AI project guide source',
     });
 
     const result = await client.callTool({
       name: 'config_get',
-      arguments: { key: 'default_project' },
+      arguments: { key: 'guide.source' },
     });
 
     expect(result.isError).toBeFalsy();
@@ -82,22 +82,22 @@ describe('config_get', () => {
 
   it('returns user-configured value with source', async () => {
     mockGet.mockResolvedValue({
-      key: 'default_project',
-      value: 'my-proj-id',
+      key: 'guide.source',
+      value: 'https://example.com',
       source: 'user',
-      description: 'Default project ID',
+      description: 'URL or path to the AI project guide source',
     });
 
     const result = await client.callTool({
       name: 'config_get',
-      arguments: { key: 'default_project' },
+      arguments: { key: 'guide.source' },
     });
 
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
     expect(parsed.source).toBe('user');
-    expect(parsed.value).toBe('my-proj-id');
+    expect(parsed.value).toBe('https://example.com');
   });
 
   it('returns isError for unknown key', async () => {
@@ -132,38 +132,38 @@ describe('config_set', () => {
   it('sets user-level value, subsequent config_get returns it', async () => {
     mockSet.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({
-      key: 'default_project',
-      value: 'new-proj',
+      key: 'guide.source',
+      value: 'https://new.com',
       source: 'user',
-      description: 'Default project ID',
+      description: 'URL or path to the AI project guide source',
     });
 
     const result = await client.callTool({
       name: 'config_set',
-      arguments: { key: 'default_project', value: 'new-proj', scope: 'user' },
+      arguments: { key: 'guide.source', value: 'https://new.com', scope: 'user' },
     });
 
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
     expect(parsed.success).toBe(true);
-    expect(parsed.value).toBe('new-proj');
-    expect(mockSet).toHaveBeenCalledWith('default_project', 'new-proj', 'user');
+    expect(parsed.value).toBe('https://new.com');
+    expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://new.com', 'user');
   });
 
   it('sets project-level value with projectPath', async () => {
     mockSet.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({
-      key: 'default_project',
+      key: 'guide.source',
       value: 'proj-val',
       source: 'project',
-      description: 'Default project ID',
+      description: 'URL or path to the AI project guide source',
     });
 
     const result = await client.callTool({
       name: 'config_set',
       arguments: {
-        key: 'default_project',
+        key: 'guide.source',
         value: 'proj-val',
         scope: 'project',
         projectPath: '/home/user/projects/test',
@@ -225,14 +225,6 @@ describe('config_get without key (list all)', () => {
   it('returns all keys with values and sources when no key provided', async () => {
     mockList.mockResolvedValue([
       {
-        key: 'default_project',
-        value: 'my-proj',
-        source: 'user',
-        description: 'Default project ID',
-        type: 'string',
-        defaultValue: '',
-      },
-      {
         key: 'guide.auto_update',
         value: false,
         source: 'default',
@@ -242,8 +234,8 @@ describe('config_get without key (list all)', () => {
       },
       {
         key: 'guide.source',
-        value: '',
-        source: 'default',
+        value: 'https://example.com',
+        source: 'user',
         description: 'Guide source',
         type: 'string',
         defaultValue: '',
@@ -266,11 +258,11 @@ describe('config_get without key (list all)', () => {
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
-    expect(parsed.entries).toHaveLength(4);
+    expect(parsed.entries).toHaveLength(3);
     expect(parsed.configPaths).toBeDefined();
     expect(parsed.configPaths.user).toContain('config.toml');
-    const defaultProj = parsed.entries.find((e: { key: string }) => e.key === 'default_project');
-    expect(defaultProj.source).toBe('user');
-    expect(defaultProj.value).toBe('my-proj');
+    const guideSource = parsed.entries.find((e: { key: string }) => e.key === 'guide.source');
+    expect(guideSource.source).toBe('user');
+    expect(guideSource.value).toBe('https://example.com');
   });
 });

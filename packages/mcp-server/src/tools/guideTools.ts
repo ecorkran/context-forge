@@ -44,7 +44,7 @@ export function registerGuideTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID or name. Falls back to default_project config if omitted.'),
+          .describe('Project ID or name. Omit to resolve from CWD.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -90,7 +90,7 @@ export function registerGuideTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID or name. Falls back to default_project config if omitted.'),
+          .describe('Project ID or name. Omit to resolve from CWD.'),
         strategy: z
           .enum(['submodule', 'clone', 'manual'])
           .optional()
@@ -129,7 +129,7 @@ export function registerGuideTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID or name. Falls back to default_project config if omitted.'),
+          .describe('Project ID or name. Omit to resolve from CWD.'),
       },
       annotations: { readOnlyHint: false, openWorldHint: true },
     },

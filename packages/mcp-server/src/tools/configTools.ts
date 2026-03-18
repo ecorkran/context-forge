@@ -14,7 +14,7 @@ export function registerConfigTools(server: McpServer, serverVersion?: string): 
         'Without a key, returns all keys with current values, sources, and defaults. ' +
         'Resolution order: project config → user config → built-in default.',
       inputSchema: {
-        key: z.string().optional().describe('Config key to retrieve (e.g. "default_project", "guide.source"). Omit to list all keys.'),
+        key: z.string().optional().describe('Config key to retrieve (e.g. "guide.source", "guide.git_strategy"). Omit to list all keys.'),
         projectPath: z
           .string()
           .optional()
@@ -57,7 +57,7 @@ export function registerConfigTools(server: McpServer, serverVersion?: string): 
         'Set a configuration key to a new value at user or project scope. ' +
         'Use scope="user" for machine-wide defaults, scope="project" to override for a specific project.',
       inputSchema: {
-        key: z.string().describe('Config key to set (e.g. "default_project", "guide.auto_update")'),
+        key: z.string().describe('Config key to set (e.g. "guide.source", "guide.auto_update")'),
         value: z
           .union([z.string(), z.boolean(), z.number()])
           .describe('Value to set. Must match the key\'s expected type.'),

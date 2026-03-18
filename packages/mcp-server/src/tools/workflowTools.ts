@@ -40,7 +40,7 @@ export function registerWorkflowTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         status: z
           .enum(['all', 'pending', 'completed'])
           .optional()
@@ -101,7 +101,7 @@ export function registerWorkflowTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         worktreeId: z
           .string()
           .optional()
@@ -162,7 +162,7 @@ export function registerWorkflowTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         worktreeId: z
           .string()
           .optional()
@@ -228,7 +228,7 @@ export function registerWorkflowTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         sliceIndex: z
           .number()
           .optional()

@@ -90,7 +90,7 @@ const filePathSchema = {
   projectId: z
     .string()
     .optional()
-    .describe('Project ID. Omit to use default_project config.'),
+    .describe('Project ID. Omit to resolve from CWD.'),
   path: z
     .string()
     .optional()
@@ -186,7 +186,7 @@ export function registerIntrospectionTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         projectPath: z
           .string()
           .optional()
@@ -257,7 +257,7 @@ export function registerIntrospectionTools(server: McpServer): void {
         projectId: z
           .string()
           .optional()
-          .describe('Project ID. Omit to use default_project config.'),
+          .describe('Project ID. Omit to resolve from CWD.'),
         name: z.string().optional().describe('Override project name in output.'),
         description: z.string().optional().describe('Override project description in output.'),
       },

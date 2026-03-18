@@ -158,7 +158,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
       description:
         'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. When the project has a projectPath, the response includes an `introspection` field with: slicePlan (totalSlices, completedSlices, summary), currentTasks (totalTasks, completedTasks, inferredStatus, summary), and artifacts (presence flags for slicePlan, HLD, arch, spec, currentSliceDesign, currentTaskFile). Use project_list first to find project IDs.',
       inputSchema: {
-        id: z.string().optional().describe('Project ID (e.g., project_1739...). Omit to use default_project config.'),
+        id: z.string().optional().describe('Project ID (e.g., project_1739...). Omit to resolve from CWD.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -205,7 +205,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
       description:
         'Update configuration fields on an existing Context Forge project. Provide the project ID and any fields to change (e.g., fileSlice, instruction, developmentPhase). Returns the full updated project. Does not delete or replace — only modifies specified fields.',
       inputSchema: {
-        id: z.string().optional().describe('Project ID to update. Omit to use default_project config.'),
+        id: z.string().optional().describe('Project ID to update. Omit to resolve from CWD.'),
         worktreeId: z.string().optional().describe('Worktree ID or name. When provided, workflow fields (fileSlice, instruction, etc.) are routed to the worktree context instead of the project.'),
         name: z.string().optional().describe('Project display name'),
         template: z.string().optional().describe('Template name'),

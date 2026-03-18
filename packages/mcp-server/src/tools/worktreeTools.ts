@@ -65,7 +65,7 @@ export function registerWorktreeTools(server: McpServer): void {
         'List all worktree contexts for a project. Returns worktree IDs, names, index ranges, and workflow state. ' +
         'Use this to discover available worktrees before calling worktree_get or worktree_update.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -105,7 +105,7 @@ export function registerWorktreeTools(server: McpServer): void {
         'Get full details for a specific worktree context by ID or name. ' +
         'Returns all worktree fields including index range, workflow state, and paths.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         worktree: z.string().describe('Worktree ID or name to look up.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -134,7 +134,7 @@ export function registerWorktreeTools(server: McpServer): void {
         'moving existing workflow fields into a "default" worktree (range 100-799). Returns the created worktree, ' +
         'whether migration occurred, and any index range overlaps.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         name: z.string().describe('Display name for the worktree context.'),
         indexRange: z.string().describe('Slice index range as "start-end" (e.g., "100-199").'),
         worktreePath: z.string().optional().describe('Absolute path to the git worktree directory.'),
@@ -190,7 +190,7 @@ export function registerWorktreeTools(server: McpServer): void {
         'Update fields on an existing worktree context. Provide the worktree ID or name and any fields to change. ' +
         'Returns the full updated worktree context.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         worktree: z.string().describe('Worktree ID or name to update.'),
         name: z.string().optional().describe('New display name.'),
         indexRange: z.string().optional().describe('New index range as "start-end".'),
@@ -267,7 +267,7 @@ export function registerWorktreeTools(server: McpServer): void {
         'Remove a worktree context from a project. If this is the last worktree, triggers reverse migration ' +
         'restoring workflow fields to the project. Returns the removed worktree and whether migration occurred.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Omit to use default_project config.'),
+        projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         worktree: z.string().describe('Worktree ID or name to remove.'),
       },
       annotations: { destructiveHint: true, idempotentHint: false },
