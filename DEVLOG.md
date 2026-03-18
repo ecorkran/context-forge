@@ -9,6 +9,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-18
 
+### Slice 190: Worktree-Aware Guide Operations — Design & Tasks
+- Discovered bug: `cf guides update` only syncs submodule in main worktree; non-default worktrees get stale guide files while reporting correct version (git tag resolves from shared object store)
+- Added slice 190 to 180 slice plan as feature slice 10
+- Created `user/slices/190-slice.worktree-aware-guide-operations.md` — design covers CLI (worktree-scoped update via `resolveProjectWorktree`), MCP (auto-sync all worktrees), and core (`SubmoduleStrategy.sync()`, `GuideManager.syncWorktrees()`)
+- Created `user/tasks/190-tasks.worktree-aware-guide-operations.md` — 13 tasks across core/CLI/MCP layers
+- Key decisions: CLI updates current worktree only (least surprise); MCP auto-syncs all worktrees (project-level intent); sync uses `git submodule update --init` not `--remote`
+- Commits: 601432a (slice design + plan update)
+
 ### Slice 179: Remove Bundled Prompt Asset — Slice Design
 - Created `user/slices/179-slice.remove-bundled-prompt-asset.md`
 - Scope: delete bundled prompt fallback, remove `default_project` config key, simplify resolution chains
