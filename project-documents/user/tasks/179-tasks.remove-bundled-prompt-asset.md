@@ -54,37 +54,37 @@ status: in_progress
 
 ## Section 2: Update MCP Prompt Tools
 
-- [ ] **2.1 Update `resolvePromptFileForTools` helper**
+- [x] **2.1 Update `resolvePromptFileForTools` helper**
   - File: `packages/mcp-server/src/tools/contextTools.ts`
   - Re-read the file before modifying
   - The current helper catches errors from `resolveProjectId` and falls back to `resolvePromptFilePath()` (no args = bundled)
   - Change: remove the try/catch fallback. Let errors propagate. If no project is resolved, throw with guidance message
   - The function should: resolve project ID → get project from store → if project has `projectPath`, call `resolvePromptFilePath(projectPath)` → else throw
-  - [ ] No fallback to bundled prompt
-  - [ ] Errors propagate with actionable messages
+  - [x] No fallback to bundled prompt
+  - [x] Errors propagate with actionable messages
 
-- [ ] **2.2 Update `prompt_list` error handling**
+- [x] **2.2 Update `prompt_list` error handling**
   - File: `packages/mcp-server/src/tools/contextTools.ts`
   - In the `prompt_list` tool handler, ensure errors from `resolvePromptFileForTools` are caught and returned as a user-friendly error result (not an unhandled throw)
   - Error message should mention `cf guide install` or passing a `projectId`
-  - [ ] `prompt_list` returns error text when no project/guide available
-  - [ ] Error message includes guidance
+  - [x] `prompt_list` returns error text when no project/guide available
+  - [x] Error message includes guidance
 
-- [ ] **2.3 Update `prompt_get` error handling**
+- [x] **2.3 Update `prompt_get` error handling**
   - File: `packages/mcp-server/src/tools/contextTools.ts`
   - Same pattern as 2.2: catch errors from `resolvePromptFileForTools`, return user-friendly error
-  - [ ] `prompt_get` returns error text when no project/guide available
+  - [x] `prompt_get` returns error text when no project/guide available
 
-- [ ] **2.4 Update MCP context tools tests**
+- [x] **2.4 Update MCP context tools tests**
   - File: `packages/mcp-server/tests/contextTools.test.ts`
   - Re-read the file before modifying
   - Remove `default_project fallback (context tools)` describe block and its tests
   - Remove or update the `resolvePromptFilePath` mock if it returns a bundled path
   - Add test: `prompt_list` without project returns error mentioning "guide install"
   - Add test: `prompt_get` without project returns error mentioning "guide install"
-  - [ ] No tests reference bundled prompt fallback
-  - [ ] New tests verify error behavior for prompt tools
-  - [ ] All MCP tests pass (`npx vitest run` from `packages/mcp-server`)
+  - [x] No tests reference bundled prompt fallback
+  - [x] New tests verify error behavior for prompt tools
+  - [x] All MCP tests pass (`npx vitest run` from `packages/mcp-server`)
 
 **Commit:** `refactor(mcp): remove bundled prompt fallback from prompt tools`
 

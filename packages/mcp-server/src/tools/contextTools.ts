@@ -66,7 +66,7 @@ export async function generateContext(
 
 /** Zod schema for optional project parameter overrides */
 const contextOverridesSchema = {
-  projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config.'),
+  projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to resolve from CWD.'),
   fileSlice: z.string().optional().describe('Override the current slice name'),
   fileTasks: z.string().optional().describe('Override the task file name'),
   instruction: z.string().optional().describe('Override the instruction type (e.g., implementation, design, review)'),
@@ -79,21 +79,23 @@ const contextOverridesSchema = {
 
 /**
  * Resolve the prompt file path for prompt_list/prompt_get.
- * Tries project-local first; falls back to bundled prompt when no project is available.
+ * Requires a resolvable project with guides installed.
  */
 async function resolvePromptFileForTools(projectId?: string): Promise<string> {
-  try {
-    const resolvedId = await resolveProjectId(projectId);
-    const store = new FileProjectStore();
-    const project = await store.getById(resolvedId);
-    if (project?.projectPath) {
-      return resolvePromptFilePath(project.projectPath);
-    }
-  } catch {
-    // No project resolved — fall through to bundled
+  const resolvedId = await resolveProjectId(projectId);
+  const store = new FileProjectStore();
+  const project = await store.getById(resolvedId);
+  if (!project) {
+    throw new Error(
+      `Project not found: '${resolvedId}'. Use project_list to see available projects.`,
+    );
   }
-  // Fall back to bundled prompt
-  return resolvePromptFilePath();
+  if (!project.projectPath) {
+    throw new Error(
+      `Project '${project.name}' has no configured path. Set a project path with project_update before using prompt tools.`,
+    );
+  }
+  return resolvePromptFilePath(project.projectPath);
 }
 
 // --- Tool registration ---
@@ -251,9 +253,9 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'List Prompts',
       description:
-        'List available prompt templates. When a project is resolved, prefers the project-local prompt file; otherwise falls back to the bundled prompt shipped with @context-forge/core. Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
+        'List available prompt templates from the project-local ai-project-guide. Requires guides to be installed (cf guide install). Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config. If no project can be resolved, bundled prompts are returned.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to resolve from CWD.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -283,9 +285,9 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'Get Prompt',
       description:
-        'Get the full content of a specific prompt template. When a project is resolved, prefers the project-local prompt file; otherwise falls back to the bundled prompt. Returns the raw template text.',
+        'Get the full content of a specific prompt template from the project-local ai-project-guide. Requires guides to be installed (cf guide install). Returns the raw template text.',
       inputSchema: {
-        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to use default_project config. If no project can be resolved, bundled prompts are used.'),
+        projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to resolve from CWD.'),
         templateName: z.string().describe('Template name or key to match. Use prompt_list to see available templates.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
