@@ -134,15 +134,10 @@ if (data.worktreeIndexStart !== undefined) {
 The Phase 2 section in `prompt.ai-project.system.md` gains a conditional block:
 
 ```markdown
-{{#if worktreeName}}
-**Worktree context:** You are working in the `{{worktreeName}}` worktree (index range {{worktreeRange}}).
-- Use base index {{worktreeIndexStart}} for this component's architecture document.
-- The architecture file should be named `{{worktreeIndexStart}}-arch.<component-name>.md`.
-{{#if arch}}
-- Architecture document is already set: `{{arch}}`. Review and update it.
-{{else}}
-- No architecture document exists yet for this worktree. Create one at index {{worktreeIndexStart}}.
-{{/if}}
+{{#if worktreeName}}**Worktree context:** You are working in the `{{worktreeName}}` worktree (index range {{worktreeRange}}).
+- Base index for this component's architecture document: {{worktreeIndexStart}}
+- Architecture file naming: `{{worktreeIndexStart}}-arch.<component-name>.md`
+- Current arch doc: `{{arch}}` (empty means none set yet — create one at index {{worktreeIndexStart}})
 {{else}}
 **Before proceeding, determine the component name and base index:**
 1. If the project's `fileArch` is already set, use that component name and index.
@@ -151,6 +146,8 @@ The Phase 2 section in `prompt.ai-project.system.md` gains a conditional block:
 ...existing non-worktree instructions...
 {{/if}}
 ```
+
+> **Implementation note:** The original design specified a nested `{{#if arch}}` inside `{{#if worktreeName}}`. `TemplateProcessor` uses a single-pass non-greedy regex that does not support nested conditionals — the inner `{{#if}}` consumes the `{{else}}`/`{{/if}}` tokens before the outer block can be processed. The implemented template is flat: the arch doc value is rendered directly via `{{arch}}` (empty string when not set), with inline guidance for the agent. Functionality is identical — the agent still receives worktree name, index range, and arch doc status.
 
 This gives worktree-context agents immediate clarity on the component's index and arch status, while preserving the existing behavior for non-worktree builds.
 
