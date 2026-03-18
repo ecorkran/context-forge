@@ -26,11 +26,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Key decisions: CLI updates current worktree only (least surprise); MCP auto-syncs all worktrees (project-level intent); sync uses `git submodule update --init` not `--remote`
 - Commits: 601432a (slice design + plan update)
 
-### Slice 179: Remove Bundled Prompt Asset — Slice Design & Task Breakdown
-- Created `user/slices/179-slice.remove-bundled-prompt-asset.md` and `user/tasks/179-tasks.remove-bundled-prompt-asset.md`
-- Scope: delete bundled prompt fallback, remove `default_project` config key, simplify resolution chains
-- Promoted from future work to active slice in 160-slices plan
-- 8 task sections, 291 lines — covers asset deletion, CoreServiceFactory, MCP prompt tools, ConfigKeys, CLI/MCP resolution paths, tool descriptions, verification walkthrough
+### Slice 179: Remove Bundled Prompt Asset — Complete
+- Deleted `packages/core/assets/prompt.ai-project.system.md` (bundled fallback)
+- `resolvePromptFilePath` now requires `projectPath` and throws when no guide installed
+- Removed `default_project` from `ConfigKeys`, CLI `resolveProjectWorktree` (step 3), MCP `resolveProjectId` (step 2)
+- Updated all MCP tool descriptions (20+ `.describe()` strings) to reference CWD resolution
+- Updated `resolvePromptFileForTools` — errors instead of silent bundled fallback
+- Removed `findByNameOrId` / `ConfigManager` imports from CLI `project.ts` / `project.ts` utils
+- Updated `cf project list` active marker to use CWD match only (no `default_project`)
+- All tests pass (658 core + 286 CLI + 165 MCP); build clean
+- Commits: `c7b9f43` (asset+factory), `6e9b3ca` (MCP prompt tools), `2a79662` (ConfigKeys), `d503474` (CLI resolution), `d6c0a43` (MCP resolution+descriptions), `ed26d2d` (build fix)
 
 ### Slice 189: Worktree-Aware Prompt Context — Implementation Complete
 - Extended `ContextData` with `worktreeName?`, `worktreeIndexStart?`, `worktreeIndexEnd?`

@@ -6,7 +6,7 @@ dependencies: [172-guide-management]
 projectState: Slice 189 complete. Bundled prompt asset exists at packages/core/assets/prompt.ai-project.system.md with fallback in CoreServiceFactory.resolvePromptFilePath(). default_project config key defined in ConfigKeys.ts, used as step 3 in CLI resolveProjectWorktree() and step 2 in MCP resolveProjectId(). CLI already emits deprecation warning for default_project. 1118 tests passing (656 core + 290 CLI + 172 MCP). Build clean.
 dateCreated: 20260318
 dateUpdated: 20260318
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -212,22 +212,22 @@ status: in_progress
 
 ## Section 6: Build, Test, and Verify
 
-- [ ] **6.1 Full build verification**
+- [x] **6.1 Full build verification**
   - Run `npm run build` from project root
-  - [ ] Build completes with no errors
+  - [x] Build completes with no errors
 
-- [ ] **6.2 Full test suite**
+- [x] **6.2 Full test suite**
   - Run `npx vitest run` from `packages/core`, `packages/cli`, `packages/mcp-server`
-  - [ ] All core tests pass
-  - [ ] All CLI tests pass
-  - [ ] All MCP tests pass
+  - [x] All core tests pass
+  - [x] All CLI tests pass
+  - [x] All MCP tests pass
 
-- [ ] **6.3 Grep verification — no stale references**
+- [x] **6.3 Grep verification — no stale references**
   - Search entire codebase for: `BUNDLED_PROMPT_PATH`, `default_project`, `bundled prompt` (in source files, not docs/historical)
   - `default_project` may appear in DEVLOG historical entries — that's fine
   - `bundled prompt` may appear in historical docs — that's fine
   - No source code (`.ts` files) should reference either
-  - [ ] No stale references in source code
+  - [x] No stale references in source code
 
 **Commit:** (no separate commit — verification only)
 
@@ -235,26 +235,26 @@ status: in_progress
 
 ## Section 7: Documentation Cleanup and Wrap-Up
 
-- [ ] **7.1 Clean documentation references**
+- [x] **7.1 Clean documentation references**
   - Search `project-documents/user/` for "sync bundled asset" or "sync bundled prompt" references that describe ongoing obligations (not historical entries)
   - Update or remove as appropriate — historical DEVLOG entries and completed slice designs should be left as-is
-  - [ ] No active documentation describes bundled asset sync as an ongoing requirement
+  - [x] No active documentation describes bundled asset sync as an ongoing requirement
 
-- [ ] **7.2 Update slice plan**
+- [x] **7.2 Update slice plan**
   - Check off slice 179 in `user/architecture/160-slices.project-workflow-system.md`
-  - [ ] Slice 179 entry marked `[x]`
+  - [x] Slice 179 entry marked `[x]`
 
-- [ ] **7.3 Update slice design status**
+- [x] **7.3 Update slice design status**
   - Set `status: complete` in `user/slices/179-slice.remove-bundled-prompt-asset.md` frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **7.4 Update task file status**
+- [x] **7.4 Update task file status**
   - Set `status: complete` in this file's frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **7.5 Write DEVLOG entry**
+- [x] **7.5 Write DEVLOG entry**
   - Append entry to `DEVLOG.md` with slice 179 completion summary and commit hashes
-  - [ ] DEVLOG entry written
+  - [x] DEVLOG entry written
 
 **Commit:** `docs: complete slice 179 remove bundled prompt asset`
 

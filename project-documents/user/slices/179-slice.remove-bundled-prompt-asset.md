@@ -7,7 +7,7 @@ dependencies: [172-guide-management]
 interfaces: []
 dateCreated: 20260318
 dateUpdated: 20260318
-status: not_started
+status: complete
 ---
 
 # Slice 179: Remove Bundled Prompt Asset

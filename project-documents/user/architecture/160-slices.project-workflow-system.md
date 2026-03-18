@@ -375,7 +375,7 @@ Effort: 2/5
 
 18. [x] **(178) Consistency Checker: All-Slices Mode (priority)** — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
 
-19. [ ] **(179) Remove Bundled Prompt Asset** — Remove the bundled fallback prompt file (`packages/core/assets/prompt.ai-project.system.md`) and its resolution path. The bundled asset is a maintenance liability: it drifts from the live guide, requires manual sync after every prompt change, and has caused incidents where agents modify it directly instead of requesting prompt changes through the proper channel.
+19. [x] **(179) Remove Bundled Prompt Asset** — Remove the bundled fallback prompt file (`packages/core/assets/prompt.ai-project.system.md`) and its resolution path. The bundled asset is a maintenance liability: it drifts from the live guide, requires manual sync after every prompt change, and has caused incidents where agents modify it directly instead of requesting prompt changes through the proper channel.
 
    **Scope:**
    - Delete `packages/core/assets/prompt.ai-project.system.md`
