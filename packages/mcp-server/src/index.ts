@@ -35,13 +35,13 @@ async function main(): Promise<void> {
   // High-priority tools first to maximize usability on limited clients.
   registerAgentGuideTool(server);       // orientation for agents
   registerAgentOnboardTool(server);     // onboarding recipe for new projects
-  registerProjectTools(server);         // core: list, get, create, update
+  registerProjectTools(server, SERVER_VERSION); // core: list, get, create, update
   registerWorkflowTools(server);        // what to do next
   registerContextTools(server);         // build prompts
   registerGuideTools(server);           // install/check guides
   registerIntrospectionTools(server);   // read project artifacts
   registerWorktreeTools(server);        // parallel work
-  registerConfigTools(server);          // rarely needed
+  registerConfigTools(server, SERVER_VERSION); // rarely needed
   registerStateTools(server);           // backup
   registerVersionTool(server, SERVER_NAME, SERVER_VERSION);
 

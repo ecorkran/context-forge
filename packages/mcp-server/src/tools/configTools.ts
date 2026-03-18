@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ConfigManager, getUserConfigPath, getProjectConfigPath } from '@context-forge/core/node';
 import { errorResult, jsonResult } from './contextTools.js';
 
-export function registerConfigTools(server: McpServer): void {
+export function registerConfigTools(server: McpServer, serverVersion?: string): void {
   // --- config_get ---
   server.registerTool(
     'config_get',
@@ -25,9 +25,12 @@ export function registerConfigTools(server: McpServer): void {
     async ({ key, projectPath }) => {
       try {
         const cm = new ConfigManager(projectPath);
+        const serverInfo = serverVersion
+          ? { serverVersion, hint: 'Call agent_guide for tool orientation, agent_onboard for new project setup.' }
+          : undefined;
         if (key) {
           const result = await cm.get(key);
-          return jsonResult(result);
+          return jsonResult({ ...result, ...(serverInfo && { serverInfo }) });
         }
         const entries = await cm.list();
         return jsonResult({
@@ -36,6 +39,7 @@ export function registerConfigTools(server: McpServer): void {
             user: getUserConfigPath(),
             project: projectPath ? getProjectConfigPath(projectPath) : null,
           },
+          ...(serverInfo && { serverInfo }),
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);

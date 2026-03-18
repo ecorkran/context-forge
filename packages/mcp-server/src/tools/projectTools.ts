@@ -59,7 +59,7 @@ function jsonResult(data: unknown): { content: { type: 'text'; text: string }[] 
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
 
-export function registerProjectTools(server: McpServer): void {
+export function registerProjectTools(server: McpServer, serverVersion?: string): void {
   // --- project_list ---
   server.registerTool(
     'project_list',
@@ -173,19 +173,23 @@ export function registerProjectTools(server: McpServer): void {
           );
         }
 
+        const serverInfo = serverVersion
+          ? { serverVersion, hint: 'Call agent_guide for tool orientation, agent_onboard for new project setup.' }
+          : undefined;
+
         // Enrich with introspection when projectPath is available
         if (project.projectPath) {
           try {
             const introspector = new ArtifactIntrospector();
             const introspection = await introspector.summarize(project);
-            return jsonResult({ ...project, introspection });
+            return jsonResult({ ...project, introspection, ...(serverInfo && { serverInfo }) });
           } catch (e: unknown) {
             // Graceful degradation — return project without introspection
             const msg = e instanceof Error ? e.message : String(e);
             console.error(`Introspection failed for project ${resolvedId}: ${msg}`);
           }
         }
-        return jsonResult(project);
+        return jsonResult({ ...project, ...(serverInfo && { serverInfo }) });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${message}`);
