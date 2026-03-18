@@ -92,19 +92,19 @@ status: in_progress
 
 ## Section 3: Remove `default_project` Config Key
 
-- [ ] **3.1 Remove `default_project` from `ConfigKeys.ts`**
+- [x] **3.1 Remove `default_project` from `ConfigKeys.ts`**
   - File: `packages/core/src/config/ConfigKeys.ts`
   - Re-read the file before modifying
   - Remove the `default_project` entry from `CONFIG_KEYS`
-  - [ ] `default_project` key no longer exists in `CONFIG_KEYS`
-  - [ ] TypeScript compiles with no errors
+  - [x] `default_project` key no longer exists in `CONFIG_KEYS`
+  - [x] TypeScript compiles with no errors
 
-- [ ] **3.2 Update `ConfigManager` tests**
+- [x] **3.2 Update `ConfigManager` tests**
   - File: `packages/core/tests/config/ConfigManager.test.ts`
   - Re-read the file before modifying
   - Any test that uses `default_project` as the test key should be updated to use a different existing key (e.g., `guide.source` or `guide.git_strategy`)
-  - [ ] No test references `default_project`
-  - [ ] All core tests pass
+  - [x] No test references `default_project`
+  - [x] All core tests pass
 
 **Commit:** `refactor(core): remove default_project config key`
 

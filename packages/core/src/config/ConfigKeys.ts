@@ -7,11 +7,6 @@ export interface ConfigKeyDefinition {
 }
 
 export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
-  default_project: {
-    type: 'string',
-    default: '',
-    description: 'Default project ID used when projectId is not provided to MCP tools',
-  },
   'guide.auto_update': {
     type: 'boolean',
     default: false,

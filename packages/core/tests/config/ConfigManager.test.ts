@@ -37,10 +37,10 @@ describe('ConfigManager', () => {
 
     it('returns built-in default when no config files exist', async () => {
       const cm = new ConfigManager();
-      const result = await cm.get('default_project');
+      const result = await cm.get('guide.source');
       expect(result.value).toBe('');
       expect(result.source).toBe('default');
-      expect(result.key).toBe('default_project');
+      expect(result.key).toBe('guide.source');
     });
 
     it('returns boolean default for guide.auto_update', async () => {
@@ -59,25 +59,25 @@ describe('ConfigManager', () => {
 
     it('reads user config value, reports source: user', async () => {
       const cm = new ConfigManager();
-      await cm.set('default_project', 'my-project-id', 'user');
-      const result = await cm.get('default_project');
-      expect(result.value).toBe('my-project-id');
+      await cm.set('guide.source', 'https://example.com', 'user');
+      const result = await cm.get('guide.source');
+      expect(result.value).toBe('https://example.com');
       expect(result.source).toBe('user');
     });
 
     it('reads project config value, reports source: project', async () => {
       const cm = new ConfigManager(projectDir);
-      await cm.set('default_project', 'proj-value', 'project');
-      const result = await cm.get('default_project');
+      await cm.set('guide.source', 'proj-value', 'project');
+      const result = await cm.get('guide.source');
       expect(result.value).toBe('proj-value');
       expect(result.source).toBe('project');
     });
 
     it('project config overrides user config (precedence)', async () => {
       const cm = new ConfigManager(projectDir);
-      await cm.set('default_project', 'user-value', 'user');
-      await cm.set('default_project', 'project-value', 'project');
-      const result = await cm.get('default_project');
+      await cm.set('guide.source', 'user-value', 'user');
+      await cm.set('guide.source', 'project-value', 'project');
+      const result = await cm.get('guide.source');
       expect(result.value).toBe('project-value');
       expect(result.source).toBe('project');
     });
@@ -92,7 +92,7 @@ describe('ConfigManager', () => {
 
     it('handles missing config files gracefully (no error)', async () => {
       const cm = new ConfigManager('/nonexistent/path');
-      const result = await cm.get('default_project');
+      const result = await cm.get('guide.source');
       expect(result.source).toBe('default');
     });
 
@@ -116,16 +116,16 @@ describe('ConfigManager', () => {
   describe('set()', () => {
     it('writes to user-level TOML file', async () => {
       const cm = new ConfigManager();
-      await cm.set('default_project', 'test-proj', 'user');
-      const result = await cm.get('default_project');
-      expect(result.value).toBe('test-proj');
+      await cm.set('guide.source', 'test-source', 'user');
+      const result = await cm.get('guide.source');
+      expect(result.value).toBe('test-source');
       expect(result.source).toBe('user');
     });
 
     it('writes to project-level TOML file', async () => {
       const cm = new ConfigManager(projectDir);
-      await cm.set('default_project', 'proj-val', 'project');
-      const result = await cm.get('default_project');
+      await cm.set('guide.source', 'proj-val', 'project');
+      const result = await cm.get('guide.source');
       expect(result.value).toBe('proj-val');
       expect(result.source).toBe('project');
     });
@@ -133,8 +133,8 @@ describe('ConfigManager', () => {
     it('creates parent directories if config file does not exist yet', async () => {
       const deepDir = join(tempDir, 'a', 'b', 'c');
       const cm = new ConfigManager(deepDir);
-      await expect(cm.set('default_project', 'x', 'project')).resolves.not.toThrow();
-      const result = await cm.get('default_project');
+      await expect(cm.set('guide.source', 'x', 'project')).resolves.not.toThrow();
+      const result = await cm.get('guide.source');
       expect(result.value).toBe('x');
     });
 
@@ -161,7 +161,7 @@ describe('ConfigManager', () => {
 
     it('rejects project scope when no projectPath provided', async () => {
       const cm = new ConfigManager();
-      await expect(cm.set('default_project', 'val', 'project')).rejects.toThrow(
+      await expect(cm.set('guide.source', 'val', 'project')).rejects.toThrow(
         'no projectPath provided'
       );
     });
@@ -182,12 +182,12 @@ describe('ConfigManager', () => {
 
     it('preserves existing keys in TOML file when adding new key', async () => {
       const cm = new ConfigManager();
-      await cm.set('default_project', 'first', 'user');
-      await cm.set('guide.source', 'https://example.com', 'user');
-      const r1 = await cm.get('default_project');
-      const r2 = await cm.get('guide.source');
+      await cm.set('guide.source', 'first', 'user');
+      await cm.set('guide.git_strategy', 'clone', 'user');
+      const r1 = await cm.get('guide.source');
+      const r2 = await cm.get('guide.git_strategy');
       expect(r1.value).toBe('first');
-      expect(r2.value).toBe('https://example.com');
+      expect(r2.value).toBe('clone');
     });
   });
 
@@ -197,9 +197,8 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(6);
+      expect(entries).toHaveLength(5);
       const keys = entries.map((e) => e.key);
-      expect(keys).toContain('default_project');
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
       expect(keys).toContain('guide.git_strategy');
@@ -214,13 +213,13 @@ describe('ConfigManager', () => {
 
     it('shows correct source for overridden values', async () => {
       const cm = new ConfigManager(projectDir);
-      await cm.set('default_project', 'user-proj', 'user');
-      await cm.set('guide.source', 'proj-source', 'project');
+      await cm.set('guide.source', 'user-source', 'user');
+      await cm.set('guide.git_strategy', 'clone', 'project');
       const entries = await cm.list();
-      const defaultProj = entries.find((e) => e.key === 'default_project')!;
       const guideSource = entries.find((e) => e.key === 'guide.source')!;
-      expect(defaultProj.source).toBe('user');
-      expect(guideSource.source).toBe('project');
+      const gitStrategy = entries.find((e) => e.key === 'guide.git_strategy')!;
+      expect(guideSource.source).toBe('user');
+      expect(gitStrategy.source).toBe('project');
     });
   });
 });
