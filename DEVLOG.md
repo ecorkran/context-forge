@@ -7,6 +7,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-18
+
+### Slice 189: Worktree-Aware Prompt Context — Implementation Complete
+- Extended `ContextData` with `worktreeName?`, `worktreeIndexStart?`, `worktreeIndexEnd?`
+- Threaded `worktreeId` through `generateContextFromProject` → `mapProjectToEnhancedContext` with worktree lookup from `project.worktrees[]`
+- Passed `worktreeId` from CLI `build` command and MCP `context_build`/`template_preview` handlers
+- Added `{worktreeName}`, `{worktreeRange}`, `{worktreeIndexStart}`, `{worktreeIndexEnd}` aliases to `TemplateProcessor.createEnhancedData()`
+- Updated Phase 2 prompt template with flat `{{#if worktreeName}}...{{else}}...{{/if}}` conditional (nested conditionals not supported by single-pass regex engine — noted as implementation caveat)
+- Synced bundled prompt asset; 1093 tests pass across all packages; build clean
+- Commits: 1e80347 (pipeline), d80c983 (template + test fix), 71b6635 (walkthrough)
+
 ## 2026-03-17
 
 ### Slice 189: Worktree-Aware Prompt Context — Slice Design

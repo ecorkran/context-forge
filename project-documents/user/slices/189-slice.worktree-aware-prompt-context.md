@@ -7,7 +7,7 @@ dependencies: [185-worktree-aware-context-assembly]
 interfaces: []
 dateCreated: 20260317
 dateUpdated: 20260318
-status: in_progress
+status: complete
 ---
 
 # Slice 189: Worktree-Aware Prompt Context
