@@ -194,6 +194,71 @@ describe('ContextIntegrator', () => {
     });
   });
 
+  describe('worktreeId data flow', () => {
+    it('populates worktree fields when matching worktreeId provided', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        worktrees: [
+          { id: 'wt_001', name: 'world-server', indexRange: [300, 499] as [number, number] },
+        ],
+      });
+
+      await integrator.generateContextFromProject(project, 'wt_001');
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.worktreeName).toBe('world-server');
+      expect(contextData.worktreeIndexStart).toBe(300);
+      expect(contextData.worktreeIndexEnd).toBe(499);
+    });
+
+    it('leaves worktree fields undefined when worktreeId not provided', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        worktrees: [
+          { id: 'wt_001', name: 'world-server', indexRange: [300, 499] as [number, number] },
+        ],
+      });
+
+      await integrator.generateContextFromProject(project);
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.worktreeName).toBeUndefined();
+      expect(contextData.worktreeIndexStart).toBeUndefined();
+      expect(contextData.worktreeIndexEnd).toBeUndefined();
+    });
+
+    it('leaves worktree fields undefined when worktreeId does not match', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        worktrees: [
+          { id: 'wt_001', name: 'world-server', indexRange: [300, 499] as [number, number] },
+        ],
+      });
+
+      await integrator.generateContextFromProject(project, 'wt_nonexistent');
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.worktreeName).toBeUndefined();
+    });
+
+    it('leaves worktree fields undefined when project has no worktrees', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      const project = createTestProjectData({ projectPath: '/tmp/test' });
+
+      await integrator.generateContextFromProject(project, 'wt_001');
+      const contextData = generateSpy.mock.calls[0][0];
+      expect(contextData.worktreeName).toBeUndefined();
+    });
+  });
+
   describe('profile-aware filtering', () => {
     const PROFILES_CONTENT = `## Prompts
 \`\`\`yaml

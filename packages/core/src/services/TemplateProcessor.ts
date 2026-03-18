@@ -144,6 +144,18 @@ export class TemplateProcessor {
       enhanced['projectdate'] = data.dateProject;
     }
 
+    // Add worktree aliases when worktree identity is present
+    if (data.worktreeName) {
+      enhanced['worktreeName'] = data.worktreeName;
+      enhanced['worktree-name'] = data.worktreeName;
+    }
+    if (data.worktreeIndexStart !== undefined) {
+      enhanced['worktreeIndexStart'] = data.worktreeIndexStart;
+      enhanced['worktreeIndexEnd'] = data.worktreeIndexEnd;
+      enhanced['worktreeRange'] = `${data.worktreeIndexStart}-${data.worktreeIndexEnd}`;
+      enhanced['worktree-range'] = `${data.worktreeIndexStart}-${data.worktreeIndexEnd}`;
+    }
+
     return enhanced;
   }
 

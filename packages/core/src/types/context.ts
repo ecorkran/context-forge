@@ -19,6 +19,9 @@ export interface ContextData {
   dateProject?: string;
   recentEvents: string;
   additionalNotes: string;
+  worktreeName?: string;
+  worktreeIndexStart?: number;
+  worktreeIndexEnd?: number;
 }
 
 /**

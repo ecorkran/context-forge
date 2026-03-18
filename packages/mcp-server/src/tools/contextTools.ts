@@ -27,6 +27,7 @@ export async function generateContext(
   projectId: string,
   overrides?: Partial<ProjectData>,
   additionalInstructions?: string,
+  worktreeId?: string,
 ): Promise<string> {
   const store = new FileProjectStore();
   const project = await store.getById(projectId);
@@ -54,7 +55,7 @@ export async function generateContext(
   }
 
   const { integrator } = createContextPipeline(workingCopy.projectPath!);
-  let contextString = await integrator.generateContextFromProject(workingCopy);
+  let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
   if (additionalInstructions) {
     contextString = `${contextString}\n\n${additionalInstructions}`;
@@ -114,6 +115,7 @@ export function registerContextTools(server: McpServer): void {
 
         // When worktree is specified, apply overlay before explicit overrides
         let worktreeOverrides: Partial<ProjectData> | undefined;
+        let resolvedWorktreeId: string | undefined;
         if (worktreeIdOrName) {
           const store = new FileProjectStore();
           const project = await store.getById(resolvedId);
@@ -132,6 +134,7 @@ export function registerContextTools(server: McpServer): void {
               `Worktree '${worktreeIdOrName}' not found. Use worktree_list to see available worktrees.`,
             );
           }
+          resolvedWorktreeId = wt.id;
           // Build overlay as overrides — generateContext will apply them
           const overlaid = applyWorktreeOverlay(project, wt.id);
           worktreeOverrides = {
@@ -166,6 +169,7 @@ export function registerContextTools(server: McpServer): void {
           resolvedId,
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
+          resolvedWorktreeId,
         );
         return textResult(contextString);
       } catch (error: unknown) {
@@ -191,6 +195,7 @@ export function registerContextTools(server: McpServer): void {
 
         // Worktree overlay (same logic as context_build)
         let worktreeOverrides: Partial<ProjectData> | undefined;
+        let resolvedWtId: string | undefined;
         if (wtIdOrName) {
           const store = new FileProjectStore();
           const project = await store.getById(resolvedId);
@@ -199,6 +204,7 @@ export function registerContextTools(server: McpServer): void {
             let wt = await service.getWorktree(resolvedId, wtIdOrName);
             if (!wt) wt = await service.getWorktreeByName(resolvedId, wtIdOrName);
             if (wt) {
+              resolvedWtId = wt.id;
               const overlaid = applyWorktreeOverlay(project, wt.id);
               worktreeOverrides = {
                 fileSlice: overlaid.fileSlice,
@@ -229,6 +235,7 @@ export function registerContextTools(server: McpServer): void {
           resolvedId,
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
+          resolvedWtId,
         );
         return textResult(contextString);
       } catch (error: unknown) {

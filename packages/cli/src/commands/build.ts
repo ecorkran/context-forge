@@ -73,7 +73,7 @@ export function registerBuildCommand(program: Command): void {
         if (opts.tasks) workingCopy.fileTasks = opts.tasks;
 
         const { integrator } = createContextPipeline(workingCopy.projectPath!);
-        let contextString = await integrator.generateContextFromProject(workingCopy);
+        let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
         if (opts.additional) {
           contextString = `${contextString}\n\n${opts.additional}`;

@@ -63,10 +63,10 @@ export class ContextIntegrator {
    * @param project Project data from storage
    * @returns Formatted context string ready for display/copying
    */
-  async generateContextFromProject(project: ProjectData): Promise<string> {
+  async generateContextFromProject(project: ProjectData, worktreeId?: string): Promise<string> {
     try {
       if (this.enableNewEngine) {
-        return await this.generateWithTemplateEngine(project);
+        return await this.generateWithTemplateEngine(project, worktreeId);
       } else {
         return this.generateWithLegacySystem(project);
       }
@@ -79,7 +79,7 @@ export class ContextIntegrator {
   /**
    * Generate context using the new template engine
    */
-  private async generateWithTemplateEngine(project: ProjectData): Promise<string> {
+  private async generateWithTemplateEngine(project: ProjectData, worktreeId?: string): Promise<string> {
     // Resolve absolute file paths from project root before service calls
     if (project.projectPath) {
       const base = project.projectPath.replace(/\/+$/, '');
@@ -89,7 +89,7 @@ export class ContextIntegrator {
     }
 
     // Map project data to enhanced context data
-    const enhancedData = await this.mapProjectToEnhancedContext(project);
+    const enhancedData = await this.mapProjectToEnhancedContext(project, worktreeId);
 
     // Generate using template engine
     return await this.templateEngine.generateContext(enhancedData);
@@ -115,7 +115,7 @@ export class ContextIntegrator {
    * @param project Project data from storage
    * @returns Enhanced context data ready for template engine
    */
-  private async mapProjectToEnhancedContext(project: ProjectData): Promise<EnhancedContextData> {
+  private async mapProjectToEnhancedContext(project: ProjectData, worktreeId?: string): Promise<EnhancedContextData> {
     // Detect available tools and MCP servers
     const availableTools = await this.detectAvailableTools();
     const mcpServers = await this.detectMCPServers();
@@ -141,6 +141,16 @@ export class ContextIntegrator {
       templateVersion: '1.0.0',
       customData: project.customData
     };
+
+    // Populate worktree identity fields when worktreeId is provided
+    if (worktreeId) {
+      const wt = (project.worktrees ?? []).find(w => w.id === worktreeId);
+      if (wt) {
+        enhanced.worktreeName = wt.name;
+        enhanced.worktreeIndexStart = wt.indexRange[0];
+        enhanced.worktreeIndexEnd = wt.indexRange[1];
+      }
+    }
 
     // Apply profile-aware filtering if profiles are available
     this.applyProfileFiltering(enhanced, project.instruction || 'implementation');

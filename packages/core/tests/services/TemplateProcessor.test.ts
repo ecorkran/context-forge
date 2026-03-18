@@ -195,6 +195,53 @@ describe('TemplateProcessor', () => {
     });
   });
 
+  describe('processTemplate — worktree aliases', () => {
+    it('resolves {worktreeName} when worktree data is present', () => {
+      const data = createTestContextData({ worktreeName: 'world-server' });
+      expect(processor.processTemplate('{worktreeName}', data)).toBe('world-server');
+    });
+
+    it('resolves {worktree-name} alias', () => {
+      const data = createTestContextData({ worktreeName: 'world-server' });
+      expect(processor.processTemplate('{worktree-name}', data)).toBe('world-server');
+    });
+
+    it('resolves {worktreeRange} to "start-end" format', () => {
+      const data = createTestContextData({ worktreeIndexStart: 300, worktreeIndexEnd: 499 });
+      expect(processor.processTemplate('{worktreeRange}', data)).toBe('300-499');
+    });
+
+    it('resolves {worktree-range} alias', () => {
+      const data = createTestContextData({ worktreeIndexStart: 300, worktreeIndexEnd: 499 });
+      expect(processor.processTemplate('{worktree-range}', data)).toBe('300-499');
+    });
+
+    it('resolves {worktreeIndexStart} and {worktreeIndexEnd}', () => {
+      const data = createTestContextData({ worktreeIndexStart: 300, worktreeIndexEnd: 499 });
+      expect(processor.processTemplate('{worktreeIndexStart}', data)).toBe('300');
+      expect(processor.processTemplate('{worktreeIndexEnd}', data)).toBe('499');
+    });
+
+    it('{{#if worktreeName}} conditional is true when worktreeName is set', () => {
+      const data = createTestContextData({ worktreeName: 'world-server' });
+      const template = '{{#if worktreeName}}worktree: {{worktreeName}}{{else}}no worktree{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('worktree: world-server');
+    });
+
+    it('{{#if worktreeName}} conditional falls to else when worktreeName is absent', () => {
+      const data = createTestContextData();
+      const template = '{{#if worktreeName}}worktree: {{worktreeName}}{{else}}no worktree{{/if}}';
+      expect(processor.processTemplate(template, data)).toBe('no worktree');
+    });
+
+    it('does not create worktreeRange when worktreeIndexStart is undefined', () => {
+      const data = createTestContextData();
+      // When no worktree data, {worktreeRange} should resolve to the expression (no alias created)
+      const result = processor.processTemplate('{worktreeRange}', data);
+      expect(result).toBe('worktreeRange');
+    });
+  });
+
   describe('processTemplate — edge cases', () => {
     it('returns empty string for empty template', () => {
       const data = createTestContextData();
