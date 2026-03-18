@@ -383,20 +383,23 @@ Effort: 2/5
    - `resolvePromptFilePath` errors explicitly when no guide is installed (no silent fallback)
    - Update MCP `resolvePromptFileForTools` helper — error instead of falling back to bundled when no project/guide found
    - Update MCP `prompt_list` / `prompt_get` to return clear error when no guide is available
+   - Remove `default_project` config key and all resolution paths that use it (CLI step 3 in `resolveProjectId`, MCP `resolveProjectId`, `ConfigKeys.ts` definition, tool description references). The CLI already emits a deprecation warning for this path. CWD-based resolution and `--project` flag cover all real use cases; `default_project` is a vestigial fallback that masks misconfiguration.
    - Remove all "sync bundled asset" references from documentation and slice designs
-   - Update tests that rely on bundled fallback path
+   - Update tests that rely on bundled fallback path or `default_project` resolution
 
-   **Value:** Eliminates the #1 source of prompt file confusion. `cf init` installs guides automatically; there is no legitimate use case for running CF without guides. The fallback masks misconfiguration instead of surfacing it. Removing it also removes the temptation for agents to modify the bundled file directly.
+   **Value:** Eliminates the #1 source of prompt file confusion. `cf init` installs guides automatically; there is no legitimate use case for running CF without guides. The fallback masks misconfiguration instead of surfacing it. Removing it also removes the temptation for agents to modify the bundled file directly. Removing `default_project` simplifies the resolution chain to two clear steps (`--project` flag → CWD match) and removes the last consumer of the bundled fallback path in MCP.
 
    **Success Criteria:**
    - `cf build` in a project with guides installed works identically to today
    - `cf build` in a project without guides produces a clear error: "No prompt file found. Run `cf guide install` to set up guides."
    - MCP `prompt_list` / `prompt_get` without a resolvable project return an error, not bundled prompts
    - No file exists at `packages/core/assets/prompt.ai-project.system.md`
-   - All tests pass without bundled fallback
+   - `default_project` config key is removed; `cf config get` no longer lists it
+   - MCP `resolveProjectId` without explicit ID errors with guidance to use `--project` or run from project directory
+   - All tests pass without bundled fallback or `default_project` resolution
 
    **Dependencies:** [172 — Guide Management] (complete)
-   **Risk:** Low — only affects the no-guide edge case, which `cf init` already prevents
+   **Risk:** Low — only affects the no-guide edge case (`cf init` already prevents) and the `default_project` path (already deprecated with warning, no known active users)
    **Effort:** 2/5
 
 ## Implementation Order
