@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { createContextPipeline } from '../../src/services/CoreServiceFactory.js';
+import { createContextPipeline, resolvePromptFilePath } from '../../src/services/CoreServiceFactory.js';
 import { ContextTemplateEngine } from '../../src/services/ContextTemplateEngine.js';
 import { ContextIntegrator } from '../../src/services/ContextIntegrator.js';
 import { createTestProjectData } from '../helpers/testData.js';
@@ -32,6 +32,15 @@ describe('CoreServiceFactory — createContextPipeline', () => {
     const context = await integrator.generateContextFromProject(project);
     expect(context).toBeTruthy();
     expect(context.length).toBeGreaterThan(0);
+  });
+
+  it('resolvePromptFilePath throws when guide is not installed', () => {
+    expect(() => resolvePromptFilePath('/tmp/no-such-project')).toThrow('cf guide install');
+  });
+
+  it('resolvePromptFilePath returns path when guide is installed', () => {
+    const result = resolvePromptFilePath(FIXTURE_PROJECT_PATH);
+    expect(result).toContain('prompt.ai-project.system.md');
   });
 
   it('generated context contains project name', async () => {

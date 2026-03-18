@@ -1,41 +1,35 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { SystemPromptParser } from './SystemPromptParser.js';
 import { StatementManager } from './StatementManager.js';
 import { ContextTemplateEngine } from './ContextTemplateEngine.js';
 import { ContextIntegrator } from './ContextIntegrator.js';
 import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
 
-/** Absolute path to the bundled system prompt file shipped with @context-forge/core */
-const BUNDLED_PROMPT_PATH = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'assets',
-  'prompt.ai-project.system.md'
-);
-
 /**
- * Resolve the system prompt file path.
- * Prefers the project-local ai-project-guide copy; falls back to the bundled asset.
- * When called without a projectPath, returns the bundled asset directly.
+ * Resolve the system prompt file path for a project.
+ * Requires the project to have ai-project-guide installed.
+ * Throws if no prompt file is found.
+ *
+ * @param projectPath Absolute path to the project root
+ * @returns Absolute path to the prompt file
  */
-export function resolvePromptFilePath(projectPath?: string): string {
-  if (projectPath) {
-    const projectLocalPath = path.join(projectPath, PROMPT_FILE_RELATIVE_PATH);
-    if (fs.existsSync(projectLocalPath)) {
-      return projectLocalPath;
-    }
+export function resolvePromptFilePath(projectPath: string): string {
+  const projectLocalPath = path.join(projectPath, PROMPT_FILE_RELATIVE_PATH);
+  if (fs.existsSync(projectLocalPath)) {
+    return projectLocalPath;
   }
-  return BUNDLED_PROMPT_PATH;
+  throw new Error(
+    `No prompt file found at ${projectLocalPath}. Run 'cf guide install' to set up the AI project guide.`
+  );
 }
 
 /**
  * Creates a fully wired context assembly pipeline for a given project path.
  * Intended for use in non-renderer contexts (MCP server, CLI, tests).
  *
- * Uses the project-local ai-project-guide prompt file if present,
- * otherwise falls back to the bundled prompt shipped with @context-forge/core.
+ * Uses the project-local ai-project-guide prompt file.
+ * Throws if the guide is not installed.
  *
  * @param projectPath Absolute path to the project root
  * @returns { engine, integrator } ready for context generation

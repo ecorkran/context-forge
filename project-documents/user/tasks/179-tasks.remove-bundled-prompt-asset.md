@@ -6,7 +6,7 @@ dependencies: [172-guide-management]
 projectState: Slice 189 complete. Bundled prompt asset exists at packages/core/assets/prompt.ai-project.system.md with fallback in CoreServiceFactory.resolvePromptFilePath(). default_project config key defined in ConfigKeys.ts, used as step 3 in CLI resolveProjectWorktree() and step 2 in MCP resolveProjectId(). CLI already emits deprecation warning for default_project. 1118 tests passing (656 core + 290 CLI + 172 MCP). Build clean.
 dateCreated: 20260318
 dateUpdated: 20260318
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -21,32 +21,32 @@ status: not_started
 
 ## Section 1: Remove Bundled Prompt Asset and Update CoreServiceFactory
 
-- [ ] **1.1 Delete the bundled prompt asset file**
+- [x] **1.1 Delete the bundled prompt asset file**
   - Delete `packages/core/assets/prompt.ai-project.system.md`
-  - [ ] File no longer exists at that path
-  - [ ] `git status` shows the deletion
+  - [x] File no longer exists at that path
+  - [x] `git status` shows the deletion
 
-- [ ] **1.2 Update `CoreServiceFactory.resolvePromptFilePath()`**
+- [x] **1.2 Update `CoreServiceFactory.resolvePromptFilePath()`**
   - File: `packages/core/src/services/CoreServiceFactory.ts`
   - Remove the `BUNDLED_PROMPT_PATH` constant and its `path.join(...)` / `fileURLToPath(...)` computation
   - Change `resolvePromptFilePath(projectPath?: string)` to `resolvePromptFilePath(projectPath: string)` (required parameter)
   - Remove the fallback `return BUNDLED_PROMPT_PATH` at the end of the function
   - When no guide file exists at the project-local path, throw an `Error` with message: `No prompt file found at ${projectLocalPath}. Run 'cf guide install' to set up the AI project guide.`
   - Remove the `fileURLToPath` import if no longer used elsewhere in the file
-  - [ ] `projectPath` is required (not optional)
-  - [ ] Missing guide throws with actionable error message
-  - [ ] No references to `BUNDLED_PROMPT_PATH` remain in the file
-  - [ ] TypeScript compiles with no errors (`npx tsc --noEmit` from `packages/core`)
+  - [x] `projectPath` is required (not optional)
+  - [x] Missing guide throws with actionable error message
+  - [x] No references to `BUNDLED_PROMPT_PATH` remain in the file
+  - [x] TypeScript compiles with no errors (`npx tsc --noEmit` from `packages/core`)
 
-- [ ] **1.3 Update `CoreServiceFactory` tests**
+- [x] **1.3 Update `CoreServiceFactory` tests**
   - File: `packages/core/tests/services/CoreServiceFactory.test.ts`
   - Re-read the file before modifying — it may have changed since the slice design was written
   - Remove or update any test that expects bundled fallback behavior
   - Add a test: calling `resolvePromptFilePath` with a `projectPath` that has no guide installed throws with message containing "cf guide install"
   - Update any test that calls `resolvePromptFilePath()` without arguments — it now requires `projectPath`
-  - [ ] No test references bundled prompt fallback
-  - [ ] New test verifies throw on missing guide
-  - [ ] All core tests pass (`npx vitest run` from `packages/core`)
+  - [x] No test references bundled prompt fallback
+  - [x] New test verifies throw on missing guide
+  - [x] All core tests pass (`npx vitest run` from `packages/core`)
 
 **Commit:** `refactor(core): remove bundled prompt asset and fallback path`
 
