@@ -11,7 +11,7 @@ import {
   FIELD_GROUPS,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
-import { resolveProjectId, resolveProjectWorktree, findByNameOrId, findProjectByCwd } from '../utils/project.js';
+import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
