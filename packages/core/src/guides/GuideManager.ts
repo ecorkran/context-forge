@@ -69,7 +69,7 @@ export class GuideManager {
     // Sync the worktree's submodule checkout if operating from a non-default worktree
     if (this.operationPath && this.operationPath !== this.projectPath && info.method === 'submodule') {
       const submoduleStrategy = strategy as SubmoduleStrategy;
-      await submoduleStrategy.sync(this.operationPath);
+      await submoduleStrategy.sync(this.operationPath, this.projectPath);
     }
 
     return result;
@@ -86,7 +86,7 @@ export class GuideManager {
 
     for (const worktreePath of worktreePaths) {
       try {
-        await strategy.sync(worktreePath);
+        await strategy.sync(worktreePath, this.projectPath);
         results.push({ worktreePath, success: true });
       } catch (err) {
         results.push({

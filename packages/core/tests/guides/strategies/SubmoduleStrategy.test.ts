@@ -193,32 +193,64 @@ describe('SubmoduleStrategy', () => {
   });
 
   describe('sync()', () => {
-    it('calls gitExec with submodule update --init and the worktree path as cwd', async () => {
-      mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
-      const worktreePath = '/test/worktree';
+    const worktreePath = '/test/worktree';
+    const lsTreeOutput = `160000 commit abc123def456\t${GUIDE_RELATIVE_PATH}`;
 
-      await strategy.sync(worktreePath);
+    it('reads target commit from projectPath and checks it out in worktree guide dir', async () => {
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'ls-tree') return { stdout: lsTreeOutput, stderr: '' };
+        return { stdout: '', stderr: '' };
+      });
 
+      await strategy.sync(worktreePath, projectPath);
+
+      // Step 1: read target commit from projectPath
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['ls-tree', 'HEAD', GUIDE_RELATIVE_PATH],
+        projectPath
+      );
+      // Step 2: init submodule in worktree
       expect(mockGitExec).toHaveBeenCalledWith(
         ['submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
         worktreePath
+      );
+      // Step 3: fetch latest objects
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['fetch', 'origin'],
+        `${worktreePath}/${GUIDE_RELATIVE_PATH}`
+      );
+      // Step 4: checkout target commit in worktree guide dir
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['checkout', 'abc123def456'],
+        `${worktreePath}/${GUIDE_RELATIVE_PATH}`
       );
     });
 
     it('propagates errors from gitExec', async () => {
       mockGitExec.mockRejectedValue(new Error('submodule update failed'));
 
-      await expect(strategy.sync('/test/worktree'))
+      await expect(strategy.sync(worktreePath, projectPath))
         .rejects.toThrow('submodule update failed');
     });
 
-    it('does not use --remote flag', async () => {
+    it('throws when ls-tree output has no submodule entry', async () => {
       mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
 
-      await strategy.sync('/test/worktree');
+      await expect(strategy.sync(worktreePath, projectPath))
+        .rejects.toThrow('Could not read submodule commit');
+    });
 
-      const call = mockGitExec.mock.calls[0];
-      expect(call[0]).not.toContain('--remote');
+    it('does not use --remote flag', async () => {
+      mockGitExec.mockImplementation(async (args) => {
+        if (args[0] === 'ls-tree') return { stdout: lsTreeOutput, stderr: '' };
+        return { stdout: '', stderr: '' };
+      });
+
+      await strategy.sync(worktreePath, projectPath);
+
+      for (const call of mockGitExec.mock.calls) {
+        expect(call[0]).not.toContain('--remote');
+      }
     });
   });
 });

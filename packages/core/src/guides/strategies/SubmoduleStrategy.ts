@@ -99,8 +99,30 @@ export class SubmoduleStrategy implements InstallStrategy {
     return { success: true, previousVersion, newVersion, method: 'submodule' };
   }
 
-  /** Sync a worktree's submodule checkout to match the committed pointer */
-  async sync(worktreePath: string): Promise<void> {
+  /**
+   * Sync a worktree's submodule checkout to match the primary worktree's pointer.
+   * Reads the target commit from projectPath's HEAD, then checks it out in the
+   * worktree's guide directory. This handles worktrees on different branches
+   * where `git submodule update` would only sync to the worktree's own index.
+   */
+  async sync(worktreePath: string, projectPath: string): Promise<void> {
+    // Read target commit from primary worktree
+    const { stdout } = await gitExec(
+      ['ls-tree', 'HEAD', GUIDE_RELATIVE_PATH],
+      projectPath
+    );
+    const match = /^160000 commit ([0-9a-f]+)\t/.exec(stdout);
+    if (!match) {
+      throw new Error('Could not read submodule commit from project HEAD');
+    }
+    const targetCommit = match[1];
+
+    // Ensure submodule is initialized in the worktree
     await gitExec(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], worktreePath);
+
+    // Fetch latest objects so the target commit is available, then checkout
+    const guidePath = join(worktreePath, GUIDE_RELATIVE_PATH);
+    await gitExec(['fetch', 'origin'], guidePath);
+    await gitExec(['checkout', targetCommit], guidePath);
   }
 }

@@ -237,7 +237,7 @@ describe('GuideManager', () => {
       await manager.update();
 
       expect(mockUpdate).toHaveBeenCalled();
-      expect(mockSync).toHaveBeenCalledWith(operationPath);
+      expect(mockSync).toHaveBeenCalledWith(operationPath, projectPath);
     });
 
     it('does not call sync() when operationPath equals projectPath', async () => {
