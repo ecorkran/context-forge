@@ -1,4 +1,5 @@
 import * as os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
   FileProjectStore,
@@ -83,6 +84,17 @@ export function registerWorktreeCommand(program: Command): void {
               );
             }
           }
+        }
+
+        // Initialize submodules in the worktree (git worktree add doesn't do this)
+        try {
+          execFileSync('git', ['submodule', 'update', '--init'], {
+            cwd: worktreePath,
+            stdio: 'pipe',
+          });
+          console.log(dim('  Submodules initialized'));
+        } catch {
+          // No submodules or git not available — not an error
         }
 
         // Auto-discover archDoc and slicePlan from range base
