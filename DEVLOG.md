@@ -7,6 +7,26 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-17
+
+### Slice 189: Worktree-Aware Prompt Context — Slice Design
+- Created `user/slices/189-slice.worktree-aware-prompt-context.md`
+- Problem: `cf build` from a worktree gives Phase 2 prompts with no worktree context — agent must discover index range, component name via MCP/filesystem scanning
+- Design: inject worktree metadata (name, indexRange) into `ContextData` → `TemplateProcessor` aliases → conditional block in Phase 2 prompt template
+- Data flow: `applyWorktreeOverlay` carries worktree identity → `ContextIntegrator` maps to `ContextData` → `TemplateProcessor` creates `{worktreeName}`, `{worktreeRange}`, `{worktreeIndexStart}` aliases
+- Added slice 189 to 180 slice plan (reopened as in_progress)
+
+### Misc: MCP Client Compatibility & Onboarding Improvements
+- Added `agent_guide` MCP tool (tool orientation for limited clients)
+- Added `agent_onboard` MCP tool (onboarding recipe for non-Claude MCP clients)
+- Added `serverInfo` field to `project_get` and `config_get` responses (version + hint)
+- Merged `config_list` into `config_get` (key optional); removed `config_list` from MCP and CLI
+- Reordered MCP tool registration for clients that truncate by registration order
+- Added MCP JSON config block to README for Cursor/Perplexity/Windsurf
+- Fixed `cf worktree init` not initializing submodules in new worktrees
+- Updated README: onboarding workflow, smart init, 34 tools
+- Tags: @context-forge/cli@0.6.6, @context-forge/mcp@0.6.6, @context-forge/core@0.6.6
+
 ## 2026-03-15
 
 ### Slice 204: Onboarding Skill — Implementation Complete (200-band complete)
