@@ -375,6 +375,29 @@ Effort: 2/5
 
 18. [x] **(178) Consistency Checker: All-Slices Mode (priority)** — The current checker only inspects the active slice, which requires manually switching slices to scan the project. This must iterate across all slices in the plan so `cf check` and `workflow_check` report the full picture without requiring slice switching. Also includes: slice plan frontmatter status vs. all-entries-complete, architecture file status vs. all-plans-complete, duplicate slice index detection within a plan (e.g., two entries using index 168). Depends on 166.
 
+19. [ ] **(179) Remove Bundled Prompt Asset** — Remove the bundled fallback prompt file (`packages/core/assets/prompt.ai-project.system.md`) and its resolution path. The bundled asset is a maintenance liability: it drifts from the live guide, requires manual sync after every prompt change, and has caused incidents where agents modify it directly instead of requesting prompt changes through the proper channel.
+
+   **Scope:**
+   - Delete `packages/core/assets/prompt.ai-project.system.md`
+   - Remove `BUNDLED_PROMPT_PATH` constant and fallback logic from `CoreServiceFactory.resolvePromptFilePath()`
+   - `resolvePromptFilePath` errors explicitly when no guide is installed (no silent fallback)
+   - Update MCP `resolvePromptFileForTools` helper — error instead of falling back to bundled when no project/guide found
+   - Update MCP `prompt_list` / `prompt_get` to return clear error when no guide is available
+   - Remove all "sync bundled asset" references from documentation and slice designs
+   - Update tests that rely on bundled fallback path
+
+   **Value:** Eliminates the #1 source of prompt file confusion. `cf init` installs guides automatically; there is no legitimate use case for running CF without guides. The fallback masks misconfiguration instead of surfacing it. Removing it also removes the temptation for agents to modify the bundled file directly.
+
+   **Success Criteria:**
+   - `cf build` in a project with guides installed works identically to today
+   - `cf build` in a project without guides produces a clear error: "No prompt file found. Run `cf guide install` to set up guides."
+   - MCP `prompt_list` / `prompt_get` without a resolvable project return an error, not bundled prompts
+   - No file exists at `packages/core/assets/prompt.ai-project.system.md`
+   - All tests pass without bundled fallback
+
+   **Dependencies:** [172 — Guide Management] (complete)
+   **Risk:** Low — only affects the no-guide edge case, which `cf init` already prevents
+   **Effort:** 2/5
 
 ## Implementation Order
 
@@ -402,7 +425,5 @@ Feature (163 first, then 164-166 can parallelize):
 - **ADP compatibility.** The workflow navigator (164) is designed to be consumable by the Automated Development Pipeline (120-arch, orchestration project). The structured JSON output and state machine model should align with ADP's pipeline executor expectations. However, ADP integration is not in scope for this initiative — it's a consumer, not a dependency.
 
 ## Future Work
-
-19. [ ] **(179) Remove bundled prompt asset** (`packages/core/assets/prompt.ai-project.system.md`) — The bundled fallback is a maintenance liability: it drifts from the live guide, requires manual sync, and the parser already handles the no-profiles case gracefully (filtering skipped, all artifacts pass through). Users without guides installed should use another tool. Remove the asset, the fallback path in `CoreServiceFactory.resolvePromptFilePath`, and all related sync notes.
 
 20. [ ] **(180) Frontmatter Schema Validation** — Define required and optional YAML frontmatter fields per `docType` (e.g., `slice-plan` requires `status`, `docType`, `parent`; `slice` requires `status`, `docType`, `parent`, `slice`; `tasks` requires `status`, `slice`, `project`). Implement a schema registry in `packages/core` that maps `docType` values to field requirements with types and allowed values. Extend `ConsistencyChecker` to validate all project documents against their schema — detecting missing required fields, unknown fields, and invalid values. Currently Rule 9 hard-codes a check for missing `status` on slice plans; this would generalize that pattern to all document types and all required fields. The schema registry should be data-driven (e.g., a config file or typed constant) so adding new document types or fields doesn't require rule code changes.
