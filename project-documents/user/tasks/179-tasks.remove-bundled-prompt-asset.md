@@ -264,28 +264,28 @@ status: complete
 
 Follow the verification walkthrough from the slice design. Update with actual results.
 
-- [ ] **8.1 Normal build — no regression**
+- [x] **8.1 Normal build — no regression**
   - Run `cf build --phase architecture` from `~/source/repos/manta/context-forge`
   - Verify output is identical to pre-slice behavior
-  - [ ] Build output unchanged
+  - [x] Build output unchanged
 
-- [ ] **8.2 Build without guides — clear error**
+- [x] **8.2 Build without guides — clear error**
   - Create a temporary project with no guides, run `cf build`
   - Verify error message contains "No prompt file found" and "cf guide install"
-  - [ ] Error message is clear and actionable
+  - [x] Error message is clear and actionable
   - Clean up temporary project after verification
 
-- [ ] **8.3 Config key removed**
+- [x] **8.3 Config key removed**
   - Run `cf config get` — verify `default_project` is not listed
   - Run `cf config set default_project foo` — verify error about unknown key
-  - [ ] Config key fully removed
+  - [x] Config key fully removed
 
-- [ ] **8.4 No bundled asset**
+- [x] **8.4 No bundled asset**
   - Verify `packages/core/assets/prompt.ai-project.system.md` does not exist
-  - [ ] File confirmed absent
+  - [x] File confirmed absent
 
-- [ ] **8.5 Update slice design verification walkthrough**
+- [x] **8.5 Update slice design verification walkthrough**
   - Update the Verification Walkthrough section of the slice design with actual results
-  - [ ] Walkthrough updated with actual commands and output
+  - [x] Walkthrough updated with actual commands and output
 
 **Commit:** `docs: update 179 slice design verification walkthrough with actual results`

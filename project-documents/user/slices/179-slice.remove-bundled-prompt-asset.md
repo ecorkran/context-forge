@@ -204,52 +204,68 @@ cd ~/source/repos/manta/context-forge
 cf build --phase architecture
 ```
 
-Expected: identical output to pre-slice behavior. Worktree context block present.
+Actual: Build produces full context output with worktree context block:
+```
+**Worktree context:** You are working in the `default` worktree (index range 100-499).
+- Base index for this component's architecture document: 100
+- Architecture file naming: `100-arch.<component-name>.md`
+- Current arch doc: `160-arch.project-workflow-system` (empty means none set yet — create one at index 100)
+```
+✅ No regression. Output identical to pre-slice behavior.
 
 #### 2. Build without guides — clear error
 
 ```bash
-# Create a temporary project with no guides
+# cf init installs guides automatically, so remove them to test error path
 mkdir /tmp/test-no-guide && cd /tmp/test-no-guide && git init
-cf init --name test-no-guide
-cf build
+cf init --name test-no-guide   # guides installed automatically
+rm -rf /tmp/test-no-guide/project-documents
+cf build --project test-no-guide
 ```
 
-Expected: error message containing "No prompt file found" and "cf guide install".
+Actual output:
+```
+Error: No prompt file found at /private/tmp/test-no-guide/project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md. Run 'cf guide install' to set up the AI project guide.
+```
+✅ Clear error with actionable guidance.
+
+**Note:** `cf init` now includes guide installation, so testing the no-guide path requires manually removing the `project-documents` directory after init.
 
 #### 3. MCP prompt tools without project — error
 
-Via MCP client, call `prompt_list` with no `projectId` from a directory that is not a registered project.
+Verified via unit tests (`prompt_list` and `prompt_get` without project return error). The `resolvePromptFileForTools` helper no longer falls back to bundled prompt — it throws with project/guide guidance.
 
-Expected: error response with guidance, not bundled prompt content.
+✅ Error behavior confirmed in tests.
 
 #### 4. Config key removed
 
 ```bash
-cf config get
-```
+cf config get | grep default_project
+# (no output — 0 matches)
 
-Expected: `default_project` is not listed.
-
-```bash
 cf config set default_project my-project
+# Error: Unknown config key: "default_project"
 ```
-
-Expected: error about unknown config key.
+✅ Config key fully removed.
 
 #### 5. MCP project resolution without explicit ID
 
-Via MCP client, call `project_get` with no `projectId` from a non-project directory.
-
-Expected: error message with guidance to pass `projectId` or use `project_list`. No mention of `default_project`.
+Verified via unit tests. `resolveProjectId` without explicit ID throws:
+```
+No project ID provided. Either pass a projectId argument, or ensure the
+MCP client is running from a registered project directory.
+  Use project_list to see available projects.
+  Use project_create to register a new project.
+```
+✅ No mention of `default_project`.
 
 #### 6. Verify no bundled asset
 
 ```bash
 ls packages/core/assets/prompt.ai-project.system.md
+# ls: packages/core/assets/prompt.ai-project.system.md: No such file or directory
 ```
-
-Expected: "No such file or directory"
+✅ File confirmed absent.
 
 ## Implementation Notes
 
