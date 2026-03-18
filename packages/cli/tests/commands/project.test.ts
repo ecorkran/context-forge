@@ -16,7 +16,7 @@ vi.mock('@context-forge/core/node', () => ({
     delete: mockDelete,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
+    get: vi.fn().mockResolvedValue({ value: '' }),
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
@@ -59,8 +59,8 @@ describe('cf project list', () => {
     const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
     expect(output).toContain('test-project');
     expect(output).toContain('100-slice.auth');
-    // Active project (resolved via default_project config) has * prefix
-    expect(output).toContain('*');
+    // Project list renders project data
+    expect(output).toContain('test-project');
   });
 
   it('shortens path with ~', async () => {
@@ -84,7 +84,7 @@ describe('cf project list', () => {
     const parsed = JSON.parse(output);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].id).toBe('proj_001');
-    expect(parsed[0].isActive).toBe(true);
+    expect(parsed[0].isActive).toBe(false);
   });
 });
 

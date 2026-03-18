@@ -31,24 +31,24 @@ describe('cf config get (no key — list all)', () => {
 
   it('renders aligned text with key/value/source', async () => {
     mockList.mockResolvedValue([
-      { key: 'default_project', value: 'my-project', source: 'user', description: '' },
-      { key: 'guide.source', value: 'bundled', source: 'default', description: '' },
+      { key: 'guide.source', value: 'https://example.com', source: 'user', description: '' },
+      { key: 'guide.git_strategy', value: 'submodule', source: 'default', description: '' },
     ]);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'get']);
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('default_project');
-    expect(output).toContain('my-project');
-    expect(output).toContain('user');
     expect(output).toContain('guide.source');
-    expect(output).toContain('bundled');
+    expect(output).toContain('https://example.com');
+    expect(output).toContain('user');
+    expect(output).toContain('guide.git_strategy');
+    expect(output).toContain('submodule');
   });
 
   it('outputs JSON when --json flag is set', async () => {
     const entries = [
-      { key: 'default_project', value: 'proj', source: 'user', description: '' },
+      { key: 'guide.source', value: 'https://example.com', source: 'user', description: '' },
     ];
     mockList.mockResolvedValue(entries);
 
@@ -69,19 +69,19 @@ describe('cf config get', () => {
 
   it('displays key, value, and source', async () => {
     mockGet.mockResolvedValue({
-      key: 'default_project',
-      value: 'my-proj',
+      key: 'guide.source',
+      value: 'https://example.com',
       source: 'user',
-      description: 'Default project ID',
+      description: 'URL or path to the AI project guide source',
     });
 
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'config', 'get', 'default_project']);
+    await program.parseAsync(['node', 'cf', 'config', 'get', 'guide.source']);
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     const joined = calls.join('\n');
-    expect(joined).toContain('default_project');
-    expect(joined).toContain('my-proj');
+    expect(joined).toContain('guide.source');
+    expect(joined).toContain('https://example.com');
     expect(joined).toContain('user');
   });
 
@@ -105,9 +105,9 @@ describe('cf config set', () => {
 
   it('calls ConfigManager.set with user scope by default', async () => {
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'config', 'set', 'default_project', 'my-proj']);
+    await program.parseAsync(['node', 'cf', 'config', 'set', 'guide.source', 'https://example.com']);
 
-    expect(mockSet).toHaveBeenCalledWith('default_project', 'my-proj', 'user');
+    expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://example.com', 'user');
   });
 
   it('calls ConfigManager.set with project scope when --project is set', async () => {

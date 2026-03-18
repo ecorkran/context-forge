@@ -112,46 +112,46 @@ status: in_progress
 
 ## Section 4: Update CLI Project Resolution
 
-- [ ] **4.1 Remove step 3 from `resolveProjectWorktree()`**
+- [x] **4.1 Remove step 3 from `resolveProjectWorktree()`**
   - File: `packages/cli/src/utils/project.ts`
   - Re-read the file before modifying
   - Remove the "Step 3: default_project config" block (the `ConfigManager` instantiation, `cm.get('default_project')`, the stale-project error, and the deprecation warning)
   - Update the function's JSDoc comment to reflect the simplified chain (3 steps, not 4)
   - The step 4 error ("No project specified...") becomes step 3 — no content change needed, just renumber the comment
-  - [ ] No `default_project` reference in `resolveProjectWorktree()`
-  - [ ] JSDoc accurately describes the resolution chain
-  - [ ] `ConfigManager` import can be removed if no longer used in this file
+  - [x] No `default_project` reference in `resolveProjectWorktree()`
+  - [x] JSDoc accurately describes the resolution chain
+  - [x] `ConfigManager` import can be removed if no longer used in this file
 
-- [ ] **4.2 Remove `default_project` active marker from `cf project list`**
+- [x] **4.2 Remove `default_project` active marker from `cf project list`**
   - File: `packages/cli/src/commands/project.ts`
   - Re-read the file before modifying
   - Find the code that reads `default_project` config to determine which project gets a `*` prefix in `cf project list` output
   - Remove that logic. If the active marker is still desired, base it on CWD match instead (or remove the marker entirely — check what makes sense in context)
-  - [ ] No `default_project` reference in `project.ts`
-  - [ ] `cf project list` still works (verify output format)
+  - [x] No `default_project` reference in `project.ts`
+  - [x] `cf project list` still works (verify output format)
 
-- [ ] **4.3 Update CLI help text**
+- [x] **4.3 Update CLI help text**
   - File: `packages/cli/src/index.ts`
   - Re-read the file before modifying
   - Update the `.addHelpText` string that mentions `default_project config`
   - Replace with text about CWD-based resolution: e.g., "overrides CWD-based project detection"
-  - [ ] No `default_project` reference in help text
+  - [x] No `default_project` reference in help text
 
-- [ ] **4.4 Update CLI project resolution tests**
+- [x] **4.4 Update CLI project resolution tests**
   - File: `packages/cli/tests/utils/project.test.ts`
   - Re-read the file before modifying
   - Remove tests for: `resolves via default_project config`, `emits deprecation warning`, `throws UserError when default_project is stale`
   - Verify remaining tests cover the simplified chain (flag → CWD → error)
-  - [ ] No tests reference `default_project`
-  - [ ] All CLI tests pass (`npx vitest run` from `packages/cli`)
+  - [x] No tests reference `default_project`
+  - [x] All CLI tests pass (`npx vitest run` from `packages/cli`)
 
-- [ ] **4.5 Update CLI `project.test.ts` and `config.test.ts`**
+- [x] **4.5 Update CLI `project.test.ts` and `config.test.ts`**
   - Files: `packages/cli/tests/commands/project.test.ts`, `packages/cli/tests/commands/config.test.ts`
   - Re-read both files before modifying
   - `project.test.ts`: remove active marker test that uses `default_project`
   - `config.test.ts`: update any test that uses `default_project` as example key to use `guide.source` or similar
-  - [ ] No tests reference `default_project`
-  - [ ] All CLI tests pass
+  - [x] No tests reference `default_project`
+  - [x] All CLI tests pass
 
 **Commit:** `refactor(cli): remove default_project resolution path and references`
 

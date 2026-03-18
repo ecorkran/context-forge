@@ -15,7 +15,7 @@ vi.mock('@context-forge/core/node', () => ({
     update: mockUpdate,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
+    get: vi.fn().mockResolvedValue({ value: '' }),
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
@@ -98,6 +98,7 @@ describe('cf set (top-level shortcut)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/test');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -171,6 +172,7 @@ describe('cf get (top-level shortcut)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/test');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -222,6 +224,7 @@ describe('cf set index resolution', () => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
     mockGetById.mockResolvedValue(sampleProject);
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/test');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);

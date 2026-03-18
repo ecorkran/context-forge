@@ -8,19 +8,16 @@ import {
 } from '../../src/utils/project.js';
 import { UserError } from '../../src/utils/errors.js';
 
-// Mock ConfigManager, FileProjectStore, and GitWorktreeDiscovery
+// Mock FileProjectStore and GitWorktreeDiscovery
 const mockListGitWorktrees = vi.fn().mockRejectedValue(new Error('not a git repo'));
 vi.mock('@context-forge/core/node', () => ({
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn(),
-  })),
   FileProjectStore: vi.fn(),
   GitWorktreeDiscovery: vi.fn().mockImplementation(() => ({
     listWorktrees: mockListGitWorktrees,
   })),
 }));
 
-import { ConfigManager, FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
+import { FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
 
 /** Helper to create a mock store with predefined projects. */
 function mockStore(projects: Array<Record<string, unknown>>) {
@@ -215,9 +212,6 @@ describe('resolveProjectWorktree', () => {
     vi.mocked(GitWorktreeDiscovery).mockImplementation(() => ({
       listWorktrees: mockListGitWorktrees,
     }) as unknown as InstanceType<typeof GitWorktreeDiscovery>);
-    vi.mocked(ConfigManager).mockImplementation(() => ({
-      get: vi.fn().mockResolvedValue({ value: '' }),
-    }) as unknown as InstanceType<typeof ConfigManager>);
   });
 
   it('resolves explicit flag with source "flag", no worktreeId', async () => {
@@ -259,34 +253,12 @@ describe('resolveProjectWorktree', () => {
       { path: '/repos/unknown', branch: 'refs/heads/main', head: 'abc', bare: false },
       { path: '/repos/unknown-wt', branch: 'refs/heads/feature', head: 'def', bare: false },
     ]);
-    const mockGet = vi.fn().mockResolvedValue({ value: '' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
     const store = mockStore(projects);
     await expect(resolveProjectWorktree({}, store)).rejects.toThrow(UserError);
   });
 
-  it('resolves via default_project config with source "default"', async () => {
-    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
-    const store = mockStore(projects);
-    const result = await resolveProjectWorktree({}, store);
-    expect(result).toEqual({ id: 'project_001', source: 'default' });
-    expect(result.worktreeId).toBeUndefined();
-    stderrSpy.mockRestore();
-  });
-
   it('throws UserError when no resolution available', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const mockGet = vi.fn().mockResolvedValue({ value: '' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
     const store = mockStore(projects);
     await expect(resolveProjectWorktree({}, store)).rejects.toThrow(UserError);
     await expect(resolveProjectWorktree({}, store)).rejects.toThrow('cf init');
@@ -366,60 +338,8 @@ describe('resolveProjectId', () => {
     expect(result).toEqual({ id: 'project_002', source: 'cwd' });
   });
 
-  it('resolves by default_project config with source "default"', async () => {
-    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
-
-    const store = mockStore(projects);
-    const result = await resolveProjectId(undefined, store);
-    expect(result).toEqual({ id: 'project_001', source: 'default' });
-    expect(mockGet).toHaveBeenCalledWith('default_project');
-    stderrSpy.mockRestore();
-  });
-
-  it('emits deprecation warning to stderr when resolved via default_project', async () => {
-    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const mockGet = vi.fn().mockResolvedValue({ value: 'context-forge' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
-
-    const store = mockStore(projects);
-    await resolveProjectId(undefined, store);
-
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Warning'),
-    );
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('default_project'),
-    );
-    stderrSpy.mockRestore();
-  });
-
-  it('throws UserError when default_project is stale', async () => {
-    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const mockGet = vi.fn().mockResolvedValue({ value: 'deleted-project' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
-
-    const store = mockStore(projects);
-    await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
-    await expect(resolveProjectId(undefined, store)).rejects.toThrow('deleted-project');
-  });
-
   it('throws UserError with guidance when no resolution available', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
-    const mockGet = vi.fn().mockResolvedValue({ value: '' });
-    vi.mocked(ConfigManager).mockImplementation(
-      () => ({ get: mockGet }) as unknown as InstanceType<typeof ConfigManager>,
-    );
-
     const store = mockStore(projects);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow('cf init');

@@ -1,4 +1,4 @@
-import { ConfigManager, FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
+import { FileProjectStore, GitWorktreeDiscovery } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { UserError } from './errors.js';
 
@@ -107,12 +107,11 @@ export interface ResolveProjectWorktreeOptions {
 }
 
 /**
- * Resolves which project and (optionally) worktree to use via a four-step chain:
+ * Resolves which project and (optionally) worktree to use via a three-step chain:
  *
  * 1. explicit --project flag → findByNameOrId
  * 2. CWD detection → findProjectByCwd (worktree-aware)
- * 3. default_project config → findByNameOrId
- * 4. Throw UserError with guidance
+ * 3. Throw UserError with guidance
  *
  * When opts.worktree is provided and a project was resolved, also resolves the
  * worktreeId via findWorktreeByNameOrId.
@@ -165,29 +164,7 @@ export async function resolveProjectWorktree(
     // Git unavailable or not a git repo — fall through
   }
 
-  // Step 3: default_project config
-  const cm = new ConfigManager();
-  const result = await cm.get('default_project');
-  const defaultRef = result.value as string;
-
-  if (defaultRef) {
-    const project = await findByNameOrId(defaultRef, store);
-    if (!project) {
-      throw new UserError(
-        `default_project is set to '${defaultRef}' but no matching project was found.\n` +
-          '  cf project list                        # see available projects\n' +
-          '  cf config set default_project <name>   # update the default',
-      );
-    }
-    console.error(
-      'Warning: Resolved via default_project config. Consider using --project or running from within a registered project directory.\n' +
-        '  cf init          # register current directory\n' +
-        '  cf project list  # see registered projects',
-    );
-    return { id: project.id, source: 'default' };
-  }
-
-  // Step 4: no resolution
+  // Step 3: no resolution
   throw new UserError(
     'No project specified and no registered project found at current path.\n' +
       '  cf init                    # register current directory as a project\n' +

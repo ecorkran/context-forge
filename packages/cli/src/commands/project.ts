@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, ConfigManager, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService } from '@context-forge/core/node';
+import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -443,16 +443,8 @@ export function registerProjectCommand(program: Command): void {
         const store = new FileProjectStore();
         const projects = await store.getAll();
 
-        // Read default_project config to determine which project is the default
-        const cm = new ConfigManager();
-        const defaultRef = (await cm.get('default_project')).value as string;
-        let defaultProject: ProjectData | null = null;
-        if (defaultRef) {
-          defaultProject = await findByNameOrId(defaultRef, store);
-        }
-
         const cwdMatch = await findProjectByCwd(store);
-        const activeId = cwdMatch?.project.id ?? defaultProject?.id ?? null;
+        const activeId = cwdMatch?.project.id ?? null;
 
         if (opts.json) {
           printJson(projects.map((p) => ({

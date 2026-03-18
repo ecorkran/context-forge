@@ -41,7 +41,7 @@ program
     styleDescriptionText: (str) => str,
     subcommandTerm: (cmd) => cmd.name(),
   })
-  .addHelpText('after', `\n${chalk.bold('Common options')} (available on most commands):\n  ${chalk.cyan('--project <name|id>')}  Project name or ID (overrides default_project config)\n  ${chalk.cyan('--json')}               Output as JSON (not applicable to build/prompt get)`);
+  .addHelpText('after', `\n${chalk.bold('Common options')} (available on most commands):\n  ${chalk.cyan('--project <name|id>')}  Project name or ID (overrides CWD-based project detection)\n  ${chalk.cyan('--json')}               Output as JSON (not applicable to build/prompt get)`);
 
 registerConfigCommand(program);
 registerProjectCommand(program);
