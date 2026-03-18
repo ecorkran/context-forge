@@ -1,15 +1,21 @@
 import { Command } from 'commander';
 import { FileProjectStore, GuideManager, ConfigManager } from '@context-forge/core/node';
 import type { GuideMethod } from '@context-forge/core';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success, warn } from '../output/styles.js';
 
-/** Resolve project path from --project flag or CWD/default */
-async function getProjectPath(projectOpt: string | undefined): Promise<string> {
+interface GuideContext {
+  projectPath: string;
+  operationPath: string;
+  worktreeId?: string;
+}
+
+/** Resolve project and worktree context for guide operations */
+async function getGuideContext(projectOpt: string | undefined): Promise<GuideContext> {
   const store = new FileProjectStore();
-  const { id } = await resolveProjectId(projectOpt, store);
+  const { id, worktreeId } = await resolveProjectWorktree({ project: projectOpt }, store);
   const project = await store.getById(id);
 
   if (!project) {
@@ -21,14 +27,23 @@ async function getProjectPath(projectOpt: string | undefined): Promise<string> {
         '  Run cf init in the project directory to set the path.'
     );
   }
-  return project.projectPath;
+
+  let operationPath = project.projectPath;
+  if (worktreeId && project.worktrees) {
+    const wt = project.worktrees.find((w) => w.id === worktreeId);
+    if (wt?.worktreePath) {
+      operationPath = wt.worktreePath;
+    }
+  }
+
+  return { projectPath: project.projectPath, operationPath, worktreeId };
 }
 
 /** Show guide status */
 async function showStatus(opts: { json?: boolean; project?: string }): Promise<void> {
-  const projectPath = await getProjectPath(opts.project);
-  const cm = new ConfigManager(projectPath);
-  const manager = new GuideManager(projectPath, cm);
+  const ctx = await getGuideContext(opts.project);
+  const cm = new ConfigManager(ctx.projectPath);
+  const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
   const info = await manager.status();
 
   if (opts.json) {
@@ -99,8 +114,8 @@ export function registerGuidesCommand(program: Command): void {
     .option('--project <name|id>', 'Project name or ID')
     .action(async (opts: { strategy?: string; source?: string; project?: string }) => {
       try {
-        const projectPath = await getProjectPath(opts.project);
-        await guidesInstallAction(projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
+        const ctx = await getGuideContext(opts.project);
+        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
       } catch (err) {
         handleError(err);
       }
@@ -113,9 +128,9 @@ export function registerGuidesCommand(program: Command): void {
     .option('--project <name|id>', 'Project name or ID')
     .action(async (opts: { project?: string }) => {
       try {
-        const projectPath = await getProjectPath(opts.project);
-        const cm = new ConfigManager(projectPath);
-        const manager = new GuideManager(projectPath, cm);
+        const ctx = await getGuideContext(opts.project);
+        const cm = new ConfigManager(ctx.projectPath);
+        const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
 
         const result = await manager.update();
 

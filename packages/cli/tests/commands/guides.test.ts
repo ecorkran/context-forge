@@ -2,31 +2,51 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerGuidesCommand, guidesInstallAction } from '../../src/commands/guides.js';
 
-const mockGetAll = vi.fn();
-const mockGetById = vi.fn();
-const mockStatus = vi.fn();
-const mockInstall = vi.fn();
-const mockUpdate = vi.fn();
+const {
+  mockGetAll,
+  mockGetById,
+  mockStatus,
+  mockInstall,
+  mockUpdate,
+  MockGuideManager,
+  mockResolveProjectWorktree,
+} = vi.hoisted(() => ({
+  mockGetAll: vi.fn(),
+  mockGetById: vi.fn(),
+  mockStatus: vi.fn(),
+  mockInstall: vi.fn(),
+  mockUpdate: vi.fn(),
+  MockGuideManager: vi.fn(),
+  mockResolveProjectWorktree: vi.fn(),
+}));
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
-  GuideManager: vi.fn().mockImplementation(() => ({
-    status: mockStatus,
-    install: mockInstall,
-    update: mockUpdate,
-  })),
+  GuideManager: MockGuideManager,
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
+}));
+
+vi.mock('../../src/utils/project.js', () => ({
+  resolveProjectWorktree: (...args: unknown[]) => mockResolveProjectWorktree(...args),
 }));
 
 const sampleProject = {
   id: 'proj_001',
   name: 'test-project',
   projectPath: '/tmp/test',
+};
+
+const sampleProjectWithWorktrees = {
+  ...sampleProject,
+  worktrees: [
+    { id: 'wt_1', name: 'default', worktreePath: '/tmp/test', indexRange: [100, 299] },
+    { id: 'wt_2', name: 'world-server', worktreePath: '/tmp/test-ws', indexRange: [300, 499] },
+  ],
 };
 
 const sampleGuideInfo = {
@@ -61,8 +81,14 @@ function createProgram(): Command {
 describe('cf guides', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
     mockGetAll.mockResolvedValue([sampleProject]);
     mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -108,8 +134,14 @@ describe('cf guides', () => {
 describe('cf guides install', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
     mockGetAll.mockResolvedValue([sampleProject]);
     mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -181,8 +213,14 @@ describe('guidesInstallAction', () => {
 describe('cf guides update', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
     mockGetAll.mockResolvedValue([sampleProject]);
     mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -222,5 +260,70 @@ describe('cf guides update', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('already at the latest');
+  });
+});
+
+describe('worktree-aware guide operations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('cf guides info passes operationPath when resolved to a worktree', async () => {
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', worktreeId: 'wt_2', source: 'worktree' });
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockStatus.mockResolvedValue(sampleGuideInfo);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides']);
+
+    expect(MockGuideManager).toHaveBeenCalledWith('/tmp/test', expect.anything(), '/tmp/test-ws');
+  });
+
+  it('cf guides update passes operationPath when resolved to a worktree', async () => {
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', worktreeId: 'wt_2', source: 'worktree' });
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update']);
+
+    expect(MockGuideManager).toHaveBeenCalledWith('/tmp/test', expect.anything(), '/tmp/test-ws');
+  });
+
+  it('cf guides install does NOT pass operationPath', async () => {
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', worktreeId: 'wt_2', source: 'worktree' });
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'submodule', path: '/tmp/test/project-documents/ai-project-guide',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install']);
+
+    // Install always uses projectPath only (no operationPath)
+    expect(MockGuideManager).toHaveBeenCalledWith('/tmp/test', expect.anything());
+  });
+
+  it('operationPath equals projectPath when no worktree resolved', async () => {
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetById.mockResolvedValue(sampleProject);
+    mockStatus.mockResolvedValue(sampleGuideInfo);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', '--project', 'proj_001']);
+
+    // operationPath defaults to projectPath when no worktreeId
+    expect(MockGuideManager).toHaveBeenCalledWith('/tmp/test', expect.anything(), '/tmp/test');
   });
 });
