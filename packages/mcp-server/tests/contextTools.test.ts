@@ -586,12 +586,13 @@ describe('context_build with worktree', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    // The generateContextFromProject should receive an overlaid project
+    // The generateContextFromProject should receive an overlaid project and the resolved worktreeId
     expect(mockGenerateContextFromProject).toHaveBeenCalledWith(
       expect.objectContaining({
         fileSlice: '150-slice.wt-feature',
         instruction: 'design',
       }),
+      MOCK_WORKTREE.id,
     );
   });
 
@@ -610,11 +611,12 @@ describe('context_build with worktree', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    // Explicit fileSlice should override worktree overlay
+    // Explicit fileSlice should override worktree overlay; worktreeId is still passed
     expect(mockGenerateContextFromProject).toHaveBeenCalledWith(
       expect.objectContaining({
         fileSlice: 'explicit-slice',
       }),
+      MOCK_WORKTREE.id,
     );
   });
 

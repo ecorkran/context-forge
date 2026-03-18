@@ -63,17 +63,11 @@ We're designing a new architectural component for project {project}. Architectur
 
 All projects will have at least one architectural component. A small project may have only one, and will directly reference the concept document to create its architectural component. In most projects, the project manager will describe the concept being designed in the architectural component.
 
-{{#if worktreeName}}
-**Worktree context:** You are working in the `{{worktreeName}}` worktree (index range {{worktreeRange}}).
-- Use base index {{worktreeIndexStart}} for this component's architecture document.
-- The architecture file should be named `{{worktreeIndexStart}}-arch.<component-name>.md`.
-{{#if arch}}
-- Architecture document is already set: `{{arch}}`. Review and update it.
-{{else}}
-- No architecture document exists yet for this worktree. Create one at index {{worktreeIndexStart}}.
-{{/if}}
-{{else}}
-**Before proceeding, determine the component name and base index:**
+{{#if worktreeName}}**Worktree context:** You are working in the `{{worktreeName}}` worktree (index range {{worktreeRange}}).
+- Base index for this component's architecture document: {{worktreeIndexStart}}
+- Architecture file naming: `{{worktreeIndexStart}}-arch.<component-name>.md`
+- Current arch doc: `{{arch}}` (empty means none set yet — create one at index {{worktreeIndexStart}})
+{{else}}**Before proceeding, determine the component name and base index:**
 1. If the project's `fileArch` is already set, use that component name and index.
 2. If Additional Instructions below describe the component, derive the name from that description.
 3. Otherwise, **stop and ask the Project Manager** what architectural component they want to create. Do not proceed with placeholder names.
