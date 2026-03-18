@@ -14,6 +14,7 @@ import { registerWorkflowTools } from './tools/workflowTools.js';
 import { registerWorktreeTools } from './tools/worktreeTools.js';
 import { registerVersionTool } from './tools/versionTool.js';
 import { registerGuideTools } from './tools/guideTools.js';
+import { registerAgentGuideTool } from './tools/agentGuideTool.js';
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require('../package.json') as { version: string };
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
     version: SERVER_VERSION,
   });
 
+  registerAgentGuideTool(server);
   registerProjectTools(server);
   registerContextTools(server);
   registerStateTools(server);

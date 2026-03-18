@@ -95,7 +95,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 ### MCP Server (`@context-forge/mcp`)
 
-33 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
+34 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
 
 | Category | Tools |
 |----------|-------|
@@ -107,7 +107,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 | Configuration | `config_list`, `config_get`, `config_set` |
 | Guides | `guide_install`, `guide_status`, `guide_update` |
 | Storage | `storage_backup` |
-| Meta | `server_version` |
+| Meta | `agent_guide`, `server_version` |
 
 ### CLI (`@context-forge/cli`)
 

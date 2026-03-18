@@ -87,7 +87,7 @@ describe('Server Lifecycle', () => {
     }
   });
 
-  it('starts, completes MCP handshake, lists all 33 tools, and exits cleanly', async () => {
+  it('starts, completes MCP handshake, lists all 34 tools, and exits cleanly', async () => {
     // Setup isolated temp data dir
     tempDir = await mkdtemp(join(tmpdir(), 'cf-mcp-test-'));
     await writeFile(join(tempDir, 'projects.json'), '[]');
@@ -121,6 +121,7 @@ describe('Server Lifecycle', () => {
     const tools = toolsResult.tools as { name: string }[];
     const toolNames = tools.map((t) => t.name).sort();
     expect(toolNames).toEqual([
+      'agent_guide',
       'config_get',
       'config_list',
       'config_set',
