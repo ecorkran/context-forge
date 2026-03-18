@@ -366,3 +366,7 @@ Suggested implementation order:
 
 - **Submodule initialization:** A worktree created *after* the submodule was added may not have the submodule initialized. The sync operation should handle this by running `git submodule init` before `git submodule update` if needed. The `git submodule update --init` flag handles this in one command.
 - **Non-submodule strategies:** Clone and manual strategies store guide files as regular files in the working tree. Since git worktrees share the same working tree for tracked files (with the exception of submodules), these strategies don't have the per-worktree problem. The `syncWorktrees` method should only operate when the detected method is `submodule`.
+
+### Known Cosmetic Issue
+
+`cf guides update` from a non-default worktree may report "Guide is already at the latest version" while still visibly updating the guide files. This happens because: (1) the primary `strategy.update()` runs in the main worktree where the pointer is already current → `previousVersion === newVersion` → "already at latest"; (2) the worktree sync step runs afterward and checks out the correct commit, changing the files. The version detection via `git describe --tags` also reports the latest version in all worktrees (shared object store) even when files are stale, contributing to the misleading output. A fix would involve detecting whether the sync changed files and adjusting the CLI message, but this is cosmetic — the sync itself works correctly.
