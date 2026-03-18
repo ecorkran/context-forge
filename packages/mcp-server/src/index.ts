@@ -30,15 +30,17 @@ async function main(): Promise<void> {
     version: SERVER_VERSION,
   });
 
-  registerAgentGuideTool(server);
-  registerProjectTools(server);
-  registerContextTools(server);
-  registerStateTools(server);
-  registerConfigTools(server);
-  registerIntrospectionTools(server);
-  registerWorkflowTools(server);
-  registerWorktreeTools(server);
-  registerGuideTools(server);
+  // Registration order matters — some MCP clients truncate tool lists.
+  // High-priority tools first to maximize usability on limited clients.
+  registerAgentGuideTool(server);       // orientation for agents
+  registerProjectTools(server);         // core: list, get, create, update
+  registerWorkflowTools(server);        // what to do next
+  registerContextTools(server);         // build prompts
+  registerGuideTools(server);           // install/check guides
+  registerIntrospectionTools(server);   // read project artifacts
+  registerWorktreeTools(server);        // parallel work
+  registerConfigTools(server);          // rarely needed
+  registerStateTools(server);           // backup
   registerVersionTool(server, SERVER_NAME, SERVER_VERSION);
 
   const transport = new StdioServerTransport();
