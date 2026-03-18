@@ -16,6 +16,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Data flow: `applyWorktreeOverlay` carries worktree identity → `ContextIntegrator` maps to `ContextData` → `TemplateProcessor` creates `{worktreeName}`, `{worktreeRange}`, `{worktreeIndexStart}` aliases
 - Added slice 189 to 180 slice plan (reopened as in_progress)
 
+### Slice 189: Worktree-Aware Prompt Context — Task Breakdown
+- Created `user/tasks/189-tasks.worktree-aware-prompt-context.md` (6 sections)
+- Sections: Extend ContextData + thread worktreeId → Template aliases → Phase 2 prompt conditional → Build/test → Verification walkthrough → Wrap-up
+
 ### Misc: MCP Client Compatibility & Onboarding Improvements
 - Added `agent_guide` MCP tool (tool orientation for limited clients)
 - Added `agent_onboard` MCP tool (onboarding recipe for non-Claude MCP clients)
