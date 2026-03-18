@@ -14,7 +14,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - CLI: replaced `getProjectPath()` with `getGuideContext()` using `resolveProjectWorktree()` — `cf guides info` and `cf guides update` now worktree-aware; `cf guides install` unchanged
 - MCP: `guide_update` auto-syncs all registered worktrees after primary update; `guide_status` reports per-worktree sync state for submodule-based guides
 - All 1223 tests pass, clean build across all packages
-- Commits: d711586 (core), 4ad8961 (CLI), 05baf27 (MCP), fc220cd (test fix)
+- **Verification fix:** Initial `sync()` used `git submodule update --init` which only syncs to the worktree's own index pointer (stale on different branches). Real fix: read target commit from main worktree via `git ls-tree HEAD`, `git fetch origin` in the guide dir, then `git checkout <commit>`
+- Verified on migratory-world-server: version correctly moves from v0.13.12 → v0.13.17 after `cf guides update`
+- Commits: d711586 (core), 4ad8961 (CLI), 05baf27 (MCP), fc220cd (test fix), c0ab0f7 (sync fix)
 
 ### Slice 190: Worktree-Aware Guide Operations — Design & Tasks
 - Discovered bug: `cf guides update` only syncs submodule in main worktree; non-default worktrees get stale guide files while reporting correct version (git tag resolves from shared object store)
