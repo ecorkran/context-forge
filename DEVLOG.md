@@ -9,6 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-18
 
+### Slice 190: Worktree-Aware Guide Operations — Implementation Complete
+- Core: `SyncResult` type, `SubmoduleStrategy.sync()`, `GuideManager.operationPath` + `syncWorktrees()`, `GuideDetector.checkSyncStatus()`
+- CLI: replaced `getProjectPath()` with `getGuideContext()` using `resolveProjectWorktree()` — `cf guides info` and `cf guides update` now worktree-aware; `cf guides install` unchanged
+- MCP: `guide_update` auto-syncs all registered worktrees after primary update; `guide_status` reports per-worktree sync state for submodule-based guides
+- All 1223 tests pass, clean build across all packages
+- Commits: d711586 (core), 4ad8961 (CLI), 05baf27 (MCP), fc220cd (test fix)
+
 ### Slice 190: Worktree-Aware Guide Operations — Design & Tasks
 - Discovered bug: `cf guides update` only syncs submodule in main worktree; non-default worktrees get stale guide files while reporting correct version (git tag resolves from shared object store)
 - Added slice 190 to 180 slice plan as feature slice 10

@@ -7,7 +7,7 @@ dependencies: [182, 186]
 interfaces: []
 dateCreated: 20260318
 dateUpdated: 20260318
-status: in_progress
+status: complete
 ---
 
 # Slice Design: Worktree-Aware Guide Operations
