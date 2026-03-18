@@ -92,7 +92,7 @@ describe('GuideManager', () => {
 
       const result = await manager.status();
 
-      expect(mockDetect).toHaveBeenCalledWith(projectPath, DEFAULT_SOURCE_GIT);
+      expect(mockDetect).toHaveBeenCalledWith(projectPath, DEFAULT_SOURCE_GIT, undefined);
       expect(result).toEqual(installedInfo);
     });
 
@@ -107,7 +107,7 @@ describe('GuideManager', () => {
       const manager = new GuideManager(projectPath, mockConfigManager as never);
       await manager.status();
 
-      expect(mockDetect).toHaveBeenCalledWith(projectPath, customSource);
+      expect(mockDetect).toHaveBeenCalledWith(projectPath, customSource, undefined);
     });
   });
 
