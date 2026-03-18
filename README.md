@@ -95,7 +95,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 ### MCP Server (`@context-forge/mcp`)
 
-34 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
+33 tools for project management, context generation, artifact introspection, workflow navigation, worktree management, guide management, and configuration. Works with Claude Code, Cursor, or any MCP-compatible client. This is what your AI assistant talks to.
 
 | Category | Tools |
 |----------|-------|
@@ -104,7 +104,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 | Workflow | `workflow_status`, `workflow_next`, `workflow_check`, `workflow_future` |
 | Worktrees | `worktree_list`, `worktree_get`, `worktree_init`, `worktree_update`, `worktree_rm` |
 | Introspection | `introspection_documents`, `introspection_frontmatter`, `introspection_slice_plan`, `introspection_tasks`, `introspection_future_work` |
-| Configuration | `config_list`, `config_get`, `config_set` |
+| Configuration | `config_get`, `config_set` |
 | Guides | `guide_install`, `guide_status`, `guide_update` |
 | Storage | `storage_backup` |
 | Meta | `agent_guide`, `server_version` |
@@ -129,7 +129,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 | `cf slice list` | Slices from the active plan with status |
 | `cf tasks list` | Task files with completion counts |
 | `cf tasks items` | Individual tasks from the active task file |
-| `cf config list\|get\|set` | Two-tier configuration |
+| `cf config get\|set\|list` | Two-tier configuration |
 | `cf future` | Consolidated future work across all plans |
 | `cf prompt list\|get <phase>` | Prompt templates with variable substitution |
 | `cf guides install\|status\|update` | ai-project-guide template management |

@@ -53,7 +53,8 @@ Call this tool first to understand what's available and how to use it.
 - **worktree_list**, **worktree_get**, **worktree_init**, **worktree_update**, **worktree_rm**
 
 ### Configuration
-- **config_list**, **config_get**, **config_set** — Manage settings (rarely needed)
+- **config_get** — Get a single config key, or omit key to list all settings (rarely needed)
+- **config_set** — Set a config value at user or project scope
 
 ### Meta
 - **server_version** — Server name and version
@@ -61,7 +62,7 @@ Call this tool first to understand what's available and how to use it.
 
 ## Common Mistakes
 
-- Do NOT start with config_list — configuration is rarely relevant to the user's task.
+- Do NOT start with config_get — configuration is rarely relevant to the user's task.
 - Do NOT call project_update without the user asking to change something.
 - Do NOT guess project IDs — call project_list first to find the right one.
 - If the user says "what's next" or "what should I do", call workflow_next.

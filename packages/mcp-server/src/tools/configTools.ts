@@ -10,11 +10,11 @@ export function registerConfigTools(server: McpServer): void {
     {
       title: 'Get Config Value',
       description:
-        'Get the current value of a configuration key. ' +
-        'Returns the value, its source (project/user/default), and description. ' +
+        'Get configuration. With a key, returns that key\'s value, source, and description. ' +
+        'Without a key, returns all keys with current values, sources, and defaults. ' +
         'Resolution order: project config → user config → built-in default.',
       inputSchema: {
-        key: z.string().describe('Config key to retrieve (e.g. "default_project", "guide.source")'),
+        key: z.string().optional().describe('Config key to retrieve (e.g. "default_project", "guide.source"). Omit to list all keys.'),
         projectPath: z
           .string()
           .optional()
@@ -25,8 +25,18 @@ export function registerConfigTools(server: McpServer): void {
     async ({ key, projectPath }) => {
       try {
         const cm = new ConfigManager(projectPath);
-        const result = await cm.get(key);
-        return jsonResult(result);
+        if (key) {
+          const result = await cm.get(key);
+          return jsonResult(result);
+        }
+        const entries = await cm.list();
+        return jsonResult({
+          entries,
+          configPaths: {
+            user: getUserConfigPath(),
+            project: projectPath ? getProjectConfigPath(projectPath) : null,
+          },
+        });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -70,37 +80,4 @@ export function registerConfigTools(server: McpServer): void {
     },
   );
 
-  // --- config_list ---
-  server.registerTool(
-    'config_list',
-    {
-      title: 'List Config Values',
-      description:
-        'List all known configuration keys with their current values, sources, types, and defaults. ' +
-        'Useful for inspecting the current configuration state.',
-      inputSchema: {
-        projectPath: z
-          .string()
-          .optional()
-          .describe('Absolute path to project root, to include project-level config in resolution'),
-      },
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    async ({ projectPath }) => {
-      try {
-        const cm = new ConfigManager(projectPath);
-        const entries = await cm.list();
-        return jsonResult({
-          entries,
-          configPaths: {
-            user: getUserConfigPath(),
-            project: projectPath ? getProjectConfigPath(projectPath) : null,
-          },
-        });
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        return errorResult(message);
-      }
-    },
-  );
 }

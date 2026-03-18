@@ -37,13 +37,30 @@ export function registerConfigCommand(program: Command): void {
     });
 
   cmd
-    .command('get <key>')
-    .description('Get the value of a configuration key')
+    .command('get [key]')
+    .description('Get a configuration key, or list all keys if none specified')
     .option('--json', 'Output as JSON')
     .option('--project <path>', 'Include project-level config from this path')
-    .action(async (key: string, opts: { json?: boolean; project?: string }) => {
+    .action(async (key: string | undefined, opts: { json?: boolean; project?: string }) => {
       try {
         const cm = new ConfigManager(opts.project);
+
+        if (!key) {
+          // No key — list all (same as cf config list)
+          const entries = await cm.list();
+          if (opts.json) {
+            printJson(entries);
+            return;
+          }
+          const maxKey = Math.max(...entries.map((e) => e.key.length));
+          const maxVal = Math.max(...entries.map((e) => String(e.value ?? '').length), 5);
+          for (const e of entries) {
+            const val = String(e.value ?? '');
+            console.log(`  ${e.key.padEnd(maxKey)}  ${valueStyle(val.padEnd(maxVal))}  ${dim(e.source)}`);
+          }
+          return;
+        }
+
         const result = await cm.get(key);
 
         if (opts.json) {

@@ -207,7 +207,7 @@ describe('config_set', () => {
   });
 });
 
-describe('config_list', () => {
+describe('config_get without key (list all)', () => {
   let client: Client;
   let cleanup: () => Promise<void>;
 
@@ -222,7 +222,7 @@ describe('config_list', () => {
     await cleanup();
   });
 
-  it('returns all keys with values and sources', async () => {
+  it('returns all keys with values and sources when no key provided', async () => {
     mockList.mockResolvedValue([
       {
         key: 'default_project',
@@ -259,7 +259,7 @@ describe('config_list', () => {
     ]);
 
     const result = await client.callTool({
-      name: 'config_list',
+      name: 'config_get',
       arguments: {},
     });
 
