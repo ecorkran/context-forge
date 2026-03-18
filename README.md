@@ -2,10 +2,6 @@
 
 Context Forge manages the full lifecycle of AI-assisted development projects — from concept through architecture, slice planning, task breakdown, implementation, and integration. It maintains traceable, hierarchical project state so that every AI session starts with full awareness of where things stand and what's next.
 
-This is one project. Two weeks of work. The structure was created and tracked by Context Forge:
-
-> [screenshot/image: the file explorer showing 175 slices and tasks]
-
 Every slice has a design document. Every design has a task breakdown. Every task has completion state. Every session — whether it's you or an AI agent — picks up exactly where the last one left off, because the project state is real files with real structure, not a chat history that vanished.
 
 ## What It Looks Like
