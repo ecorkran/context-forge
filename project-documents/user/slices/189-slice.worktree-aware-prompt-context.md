@@ -220,20 +220,23 @@ Verified via unit tests (`context_build with worktree` suite in `packages/mcp-se
 
 **Note on template design:** The original slice design specified nested `{{#if arch}}` inside `{{#if worktreeName}}`, but `TemplateProcessor` does not support nested conditionals (single-pass regex). The implementation uses a flat single `{{#if worktreeName}}...{{else}}...{{/if}}` block where the arch doc field renders as empty string when not set, with inline guidance for the agent.
 
+**Note on prompt file changes:** Prompt template files (`prompt.ai-project.system.md` in the ai-project-guide submodule and the bundled copy in `packages/core/assets/`) must never be modified directly by an agent. Changes to these files require PM approval and are applied externally. The bundled asset is then synced via copy + `cf guide update`.
+
 ## Implementation Notes
 
 ### File Changes
 - **Modified:** `packages/core/src/types/context.ts` — add worktree fields to `ContextData`
-- **Modified:** `packages/core/src/utils/worktree-overlay.ts` — carry worktree metadata
-- **Modified:** `packages/core/src/services/ContextIntegrator.ts` — map worktree fields to `ContextData`
-- **Modified:** `packages/core/src/services/TemplateProcessor.ts` — add worktree aliases
-- **Modified:** `prompt.ai-project.system.md` (in ai-project-guide) — Phase 2 conditional block
-- **Modified:** `packages/core/assets/prompt.ai-project.system.md` — sync bundled copy
+- **Modified:** `packages/core/src/services/ContextIntegrator.ts` — thread `worktreeId` through pipeline, populate worktree fields from `project.worktrees[]`
+- **Modified:** `packages/core/src/services/TemplateProcessor.ts` — add worktree aliases (`worktreeName`, `worktreeRange`, etc.)
+- **Modified:** `packages/cli/src/commands/build.ts` — pass `worktreeId` to `generateContextFromProject`
+- **Modified:** `packages/mcp-server/src/tools/contextTools.ts` — pass resolved `worktreeId` through `context_build` and `template_preview` handlers
+- **Modified (external, PM-approved):** `prompt.ai-project.system.md` (in ai-project-guide) — Phase 2 `{{#if worktreeName}}` conditional block
+- **Synced:** `packages/core/assets/prompt.ai-project.system.md` — bundled copy synced from guide
 
 ### Testing Strategy
-- Unit test `TemplateProcessor` with worktree variables present/absent
-- Unit test `applyWorktreeOverlay` returns worktree metadata
-- Unit test Phase 2 prompt rendering with/without worktree context
+- Unit test `ContextIntegrator` worktreeId data flow (4 tests)
+- Unit test `TemplateProcessor` worktree aliases and conditionals (8 tests)
+- Unit test MCP `context_build` worktreeId passthrough (2 updated tests)
 - Integration: `cf build` from worktree produces worktree-aware prompt
 - Regression: `cf build` from non-worktree produces unchanged output
 

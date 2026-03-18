@@ -97,7 +97,7 @@ status: complete
   - Use the content from the slice design's "Prompt Template Changes (Phase 2)" section as a starting point
   - [x] Worktree conditional block added to Phase 2 section
   - [x] Non-worktree path preserved exactly as before
-  - [x] Nested `{{#if arch}}` conditional works within the worktree block
+  - [x] Flat conditional used (nested `{{#if}}` not supported by TemplateProcessor); `{{arch}}` renders inline with guidance text
 
 - [x] **3.2 Verify template syntax**
   - Ensure all `{{#if}}` blocks are properly closed

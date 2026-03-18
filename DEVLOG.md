@@ -14,9 +14,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Threaded `worktreeId` through `generateContextFromProject` → `mapProjectToEnhancedContext` with worktree lookup from `project.worktrees[]`
 - Passed `worktreeId` from CLI `build` command and MCP `context_build`/`template_preview` handlers
 - Added `{worktreeName}`, `{worktreeRange}`, `{worktreeIndexStart}`, `{worktreeIndexEnd}` aliases to `TemplateProcessor.createEnhancedData()`
-- Updated Phase 2 prompt template with flat `{{#if worktreeName}}...{{else}}...{{/if}}` conditional (nested conditionals not supported by single-pass regex engine — noted as implementation caveat)
-- Synced bundled prompt asset; 1093 tests pass across all packages; build clean
-- Commits: 1e80347 (pipeline), d80c983 (template + test fix), 71b6635 (walkthrough)
+- Phase 2 prompt template updated (PM-approved, applied externally) with flat `{{#if worktreeName}}...{{else}}...{{/if}}` conditional; nested conditionals not supported by single-pass regex engine
+- Synced bundled prompt asset via guide update + copy; 1093 tests pass; build clean
+- **Incident:** Prior Sonnet session directly modified both the bundled prompt asset and ai-project-guide submodule — both are forbidden. Required multiple reverts and guide reinstall. Prompt file changes must always be PM-approved and applied externally.
+- Commits: 1e80347 (pipeline), d80c983 (MCP test fix), 30a8f9d (prompt sync), f328ee2/d5abf8c (reverts)
 
 ## 2026-03-17
 
