@@ -26,10 +26,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Key decisions: CLI updates current worktree only (least surprise); MCP auto-syncs all worktrees (project-level intent); sync uses `git submodule update --init` not `--remote`
 - Commits: 601432a (slice design + plan update)
 
-### Slice 179: Remove Bundled Prompt Asset — Slice Design
-- Created `user/slices/179-slice.remove-bundled-prompt-asset.md`
+### Slice 179: Remove Bundled Prompt Asset — Slice Design & Task Breakdown
+- Created `user/slices/179-slice.remove-bundled-prompt-asset.md` and `user/tasks/179-tasks.remove-bundled-prompt-asset.md`
 - Scope: delete bundled prompt fallback, remove `default_project` config key, simplify resolution chains
 - Promoted from future work to active slice in 160-slices plan
+- 8 task sections, 291 lines — covers asset deletion, CoreServiceFactory, MCP prompt tools, ConfigKeys, CLI/MCP resolution paths, tool descriptions, verification walkthrough
 
 ### Slice 189: Worktree-Aware Prompt Context — Implementation Complete
 - Extended `ContextData` with `worktreeName?`, `worktreeIndexStart?`, `worktreeIndexEnd?`
