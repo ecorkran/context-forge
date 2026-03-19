@@ -69,18 +69,43 @@ export class ConsistencyChecker {
       return this.emptyResult('');
     }
 
-    const slicePlanResult = await this.safeParseSlicePlan(project, projectPath);
-    if (!slicePlanResult || slicePlanResult.entries.length === 0) {
+    // Discover all slice plans in the project (not just the configured one)
+    const discoveredPlans = await this.discoverAllSlicePlans(projectPath);
+    const configuredPlanPath = this.resolveSlicePlanPath(project, projectPath);
+
+    // Merge configured plan with discovered plans (deduplicated)
+    const allPlanPaths = new Set(discoveredPlans);
+    if (configuredPlanPath) allPlanPaths.add(configuredPlanPath);
+
+    // Parse all plans and collect unique entries (first occurrence wins by index)
+    const parsedPlans = new Map<string, SlicePlanResult>();
+    const uniqueEntries = new Map<number, { entry: SlicePlanEntry; planPath: string; planResult: SlicePlanResult }>();
+
+    for (const planPath of allPlanPaths) {
+      try {
+        const planResult = await this.introspector.parseSlicePlan(planPath);
+        parsedPlans.set(planPath, planResult);
+        for (const entry of planResult.entries) {
+          if (!uniqueEntries.has(entry.index)) {
+            uniqueEntries.set(entry.index, { entry, planPath, planResult });
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    // If no plans found or all plans empty, return empty result
+    if (uniqueEntries.size === 0) {
       return this.emptyResult(projectPath);
     }
 
-    const slicePlanPath = this.resolveSlicePlanPath(project, projectPath);
     const allFindings: ConsistencyFinding[] = [];
 
-    // Run rules 1-5 for each slice entry
-    for (const entry of slicePlanResult.entries) {
+    // Run rules 1-5 for each unique slice entry across all plans
+    for (const [, { entry, planPath, planResult }] of uniqueEntries) {
       const sliceFindings = await this.checkSlice(
-        projectPath, entry.index, slicePlanResult, slicePlanPath,
+        projectPath, entry.index, planResult, planPath,
       );
       // Prefix each finding's description with [sliceIndex] for attribution
       for (const finding of sliceFindings) {
@@ -90,24 +115,7 @@ export class ConsistencyChecker {
     }
 
     // Run aggregate rules (6-9) across all discovered slice plans
-    const discoveredPlans = await this.discoverAllSlicePlans(projectPath);
-    // Merge configured plan with discovered plans (deduplicated)
-    const allPlanPaths = new Set(discoveredPlans);
-    if (slicePlanPath) allPlanPaths.add(slicePlanPath);
-
-    for (const planPath of allPlanPaths) {
-      // Reuse already-parsed result for the configured plan
-      let planResult: SlicePlanResult;
-      if (planPath === slicePlanPath) {
-        planResult = slicePlanResult;
-      } else {
-        try {
-          planResult = await this.introspector.parseSlicePlan(planPath);
-        } catch {
-          continue;
-        }
-      }
-
+    for (const [planPath, planResult] of parsedPlans) {
       allFindings.push(
         ...this.ruleDuplicateIndex(planResult.entries, planPath),
       );
