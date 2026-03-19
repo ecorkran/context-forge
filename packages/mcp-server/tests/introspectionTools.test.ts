@@ -16,6 +16,8 @@ const mockDetectDocuments = vi.fn();
 const mockParseFutureWork = vi.fn();
 const mockBuildModel = vi.fn();
 
+const mockMergeProjectModels = vi.fn();
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
@@ -31,6 +33,7 @@ vi.mock('@context-forge/core/node', () => ({
     parseFutureWork: mockParseFutureWork,
   })),
   buildModel: (...args: unknown[]) => mockBuildModel(...args),
+  mergeProjectModels: (...args: unknown[]) => mockMergeProjectModels(...args),
 }));
 
 // --- Fixtures ---
@@ -471,5 +474,76 @@ describe('project_structure', () => {
 
     expect(result.isError).toBeFalsy();
     expect(mockBuildModel).toHaveBeenCalledWith('/repos/api', expect.anything());
+  });
+
+  it('all: true returns merged model from all worktree paths', async () => {
+    const projectWithWt: ProjectData = {
+      ...MOCK_PROJECT,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_api', name: 'api', indexRange: [300, 499] as [number, number], worktreePath: '/repos/api' },
+      ],
+    };
+    mockGetById.mockResolvedValue(projectWithWt);
+
+    const model1 = { name: 'Test', initiatives: { '100': { name: 'Core' } } };
+    const model2 = { name: 'Test', initiatives: { '300': { name: 'API' } } };
+    const mergedModel = { name: 'Test', initiatives: { '100': { name: 'Core' }, '300': { name: 'API' } } };
+
+    mockBuildModel.mockResolvedValueOnce(model1).mockResolvedValueOnce(model2).mockResolvedValueOnce(model1);
+    mockMergeProjectModels.mockReturnValue(mergedModel);
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: projectWithWt.id, all: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockMergeProjectModels).toHaveBeenCalled();
+    const parsed = parseResult(result) as { initiatives: Record<string, unknown> };
+    expect(Object.keys(parsed.initiatives)).toEqual(['100', '300']);
+  });
+
+  it('all: false uses single path with index filtering', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockBuildModel.mockResolvedValue({
+      name: 'Test',
+      initiatives: { '100': { name: 'Core' } },
+    });
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: MOCK_PROJECT.id, all: false },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockMergeProjectModels).not.toHaveBeenCalled();
+  });
+
+  it('filters default worktree by its own index range', async () => {
+    const projectWithWt: ProjectData = {
+      ...MOCK_PROJECT,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 299] as [number, number], worktreePath: '/repos/main' },
+      ],
+    };
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockBuildModel.mockResolvedValue({
+      name: 'Test',
+      initiatives: {
+        '100': { name: 'Core', slices: [] },
+        '300': { name: 'API', slices: [] },
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: projectWithWt.id, worktreeId: 'default' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { initiatives: Record<string, unknown> };
+    // Default worktree now filters by its own range (100-299)
+    expect(Object.keys(parsed.initiatives)).toEqual(['100']);
   });
 });

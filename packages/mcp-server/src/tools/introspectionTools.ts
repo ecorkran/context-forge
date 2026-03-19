@@ -4,10 +4,11 @@ import {
   FileProjectStore,
   ArtifactIntrospector,
   buildModel,
+  mergeProjectModels,
 } from '@context-forge/core/node';
 import { join } from 'node:path';
 import { resolveProjectId } from './resolveProjectId.js';
-import { resolveOperationContext } from './resolveOperationPath.js';
+import { resolveOperationContext, resolveAllOperationPaths } from './resolveOperationPath.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
   return { content: [{ type: 'text', text: message }], isError: true };
@@ -289,6 +290,10 @@ export function registerIntrospectionTools(server: McpServer): void {
           .string()
           .optional()
           .describe('Worktree name or ID. Omit to use project root.'),
+        all: z
+          .boolean()
+          .optional()
+          .describe('Scan all worktree paths and aggregate results.'),
         name: z.string().optional().describe('Override project name in output.'),
         description: z.string().optional().describe('Override project description in output.'),
       },
@@ -296,6 +301,19 @@ export function registerIntrospectionTools(server: McpServer): void {
     },
     async (args) => {
       try {
+        if (args.all) {
+          const { paths } = await resolveAllOperationPaths({ projectId: args.projectId });
+          const models = (await Promise.all(
+            paths.map((p) =>
+              buildModel(p, { name: args.name, description: args.description }).catch(() => null),
+            ),
+          )).filter((m): m is NonNullable<typeof m> => m !== null);
+          if (models.length === 0) {
+            return errorResult('No models could be built from any worktree path.');
+          }
+          return jsonResult(mergeProjectModels(models));
+        }
+
         const { operationPath, indexRange } = await resolveOperationContext({
           projectId: args.projectId,
           worktreeId: args.worktreeId,
@@ -304,7 +322,7 @@ export function registerIntrospectionTools(server: McpServer): void {
           name: args.name,
           description: args.description,
         });
-        // Filter initiatives by index range when in a non-default worktree
+        // Filter initiatives by index range
         if (indexRange) {
           for (const key of Object.keys(result.initiatives)) {
             const idx = parseInt(key, 10);
