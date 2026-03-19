@@ -234,16 +234,16 @@ status: in_progress
 
 ## Section 9: MCP Introspection Tools
 
-- [ ] **9.1 Add `resolveOperationContext` helper for MCP**
+- [x] **9.1 Add `resolveOperationContext` helper for MCP**
   - File: `packages/mcp-server/src/tools/resolveOperationPath.ts` (new file)
   - Add `ResolvedOperation` interface and `resolveOperationContext()` function
   - See slice design "MCP Changes" section for implementation
   - Accepts `worktreeId` as name or ID (match against `w.id || w.name`)
   - Returns `{ operationPath, indexRange? }` — `indexRange` undefined for default worktree
-  - [ ] Function exported and compiles
-  - [ ] Resolves by name or ID
+  - [x] Function exported and compiles
+  - [x] Resolves by name or ID
 
-- [ ] **9.2 Add `worktreeId` parameter to MCP introspection tools**
+- [x] **9.2 Add `worktreeId` parameter to MCP introspection tools**
   - File: `packages/mcp-server/src/tools/introspectionTools.ts`
   - Re-read before modifying
   - Add optional `worktreeId` input parameter (`.describe('Worktree name or ID. Omit to use project root.')`) to:
@@ -260,16 +260,16 @@ status: in_progress
     - `introspection_future_work`: filter results by index range
     - `introspection_slice_plan`: filter entries by index range
     - `introspection_tasks`: no index filtering (task files are already specific)
-  - [ ] All 5 tools accept `worktreeId`
-  - [ ] Results filtered by index range for non-default worktrees
+  - [x] All 5 tools accept `worktreeId`
+  - [x] Results filtered by index range for non-default worktrees
 
-- [ ] **9.3 Tests for MCP introspection worktree support**
+- [x] **9.3 Tests for MCP introspection worktree support**
   - File: `packages/mcp-server/tests/introspectionTools.test.ts`
   - Re-read before modifying
   - Add test: `project_structure` with worktreeId (by name) returns filtered results
   - Add test: `project_structure` without worktreeId returns all results
   - Add test: `resolveOperationContext` resolves by name and by ID
-  - [ ] All MCP tests pass (`npx vitest run` from `packages/mcp-server`)
+  - [x] All MCP tests pass (`npx vitest run` from `packages/mcp-server`)
 
 **Commit:** `feat(mcp): worktree-aware introspection tools with index filtering`
 
