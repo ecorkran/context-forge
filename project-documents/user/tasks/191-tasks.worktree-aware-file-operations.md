@@ -172,21 +172,21 @@ status: in_progress
 
 ## Section 7: `cf check` — Worktree Path Override + Range Scoping
 
-- [ ] **7.1 Update check.ts to override projectPath on worktree views**
+- [x] **7.1 Update check.ts to override projectPath on worktree views**
   - File: `packages/cli/src/commands/check.ts`
   - Re-read before modifying
   - Currently uses `resolveProjectId()` — migrate to `resolveProjectWorktree()` to get `worktreeId`
   - In the worktree view construction (`projectViews`): set `view.projectPath = wt.worktreePath` for each worktree with a path
   - When run from a non-default worktree (not `--all` mode): the checker should only iterate slice plan entries within the worktree's index range
   - Pre-filter: after `checkAll()` returns, filter findings to only include those with locations within the range, OR pass a filtered slice plan view
-  - [ ] Each worktree view has correct projectPath for filesystem scanning
-  - [ ] Non-default worktree check scoped to index range
+  - [x] Each worktree view has correct projectPath for filesystem scanning
+  - [x] Non-default worktree check scoped to index range
 
-- [ ] **7.2 Tests for `cf check` worktree awareness**
+- [x] **7.2 Tests for `cf check` worktree awareness**
   - File: `packages/cli/tests/commands/check.test.ts`
   - Re-read before modifying
   - Add test: check from worktree scopes to worktree's index range
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware cf check with index scoping`
 
@@ -194,39 +194,39 @@ status: in_progress
 
 ## Section 8: `cf status --worktrees`, `cf future`, `cf prompt`
 
-- [ ] **8.1 Update status.ts — worktree path for plan parsing**
+- [x] **8.1 Update status.ts — worktree path for plan parsing**
   - File: `packages/cli/src/commands/status.ts`
   - Re-read before modifying
   - In the `--worktrees` dashboard code: when resolving each worktree's slice plan path, use that worktree's `worktreePath` instead of `rawProject.projectPath`
   - No index-range filtering — this is a project-wide view
-  - [ ] Each worktree's progress reads from its own path
-  - [ ] Dashboard shows all worktrees regardless of CWD
+  - [x] Each worktree's progress reads from its own path
+  - [x] Dashboard shows all worktrees regardless of CWD
 
-- [ ] **8.2 Update future.ts — worktree path + index filtering**
+- [x] **8.2 Update future.ts — worktree path + index filtering**
   - File: `packages/cli/src/commands/future.ts`
   - Re-read before modifying
   - Currently uses `resolveProjectId()` — migrate to `resolveProjectWorktree()`
   - Import helpers; resolve `operationPath` and `indexRange`
   - Pass `operationPath` to `collector.collect()` instead of `project.projectPath`
   - Filter collected results by index range
-  - [ ] Future work scanned from worktree path
-  - [ ] Non-default worktree shows only in-range items
+  - [x] Future work scanned from worktree path
+  - [x] Non-default worktree shows only in-range items
 
-- [ ] **8.3 Update prompt.ts — worktree path resolution**
+- [x] **8.3 Update prompt.ts — worktree path resolution**
   - File: `packages/cli/src/commands/prompt.ts`
   - Re-read before modifying
   - Currently uses `resolveProjectId()` — migrate to `resolveProjectWorktree()`
   - Import `resolveOperationPath`; use `operationPath` for prompt file path and phase shorthands
   - No index-range filtering (prompts are not index-based)
-  - [ ] Prompt file read from worktree path
-  - [ ] Existing prompt behavior unchanged
+  - [x] Prompt file read from worktree path
+  - [x] Existing prompt behavior unchanged
 
-- [ ] **8.4 Tests for status, future, prompt worktree changes**
+- [x] **8.4 Tests for status, future, prompt worktree changes**
   - Files: relevant test files in `packages/cli/tests/commands/`
   - Re-read before modifying
   - Add test for `cf future` from non-default worktree: filtered by range
   - Add test for `cf prompt list` from worktree: reads from worktree path
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware status, future, and prompt commands`
 
