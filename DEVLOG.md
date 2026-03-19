@@ -9,13 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-19
 
-### Slice 205: Consistency Checker & Build Template Fixes — Design Complete
+### Slice 205: Consistency Checker & Build Template Fixes — Design & Tasks Complete
 - Multi-plan scanning in `checkAll` (per-slice rules across all discovered plans, not just configured one)
 - MCP `workflow_check` worktree parity (apply overlays like CLI does)
 - `/cf:check` slash command
 - `cf:build` template reordering (instruction prompt before tools section)
 - Also: MCP `resolveProjectId` now accepts project names, removed stale bundled prompt message
-- Commits: 11adfbf, c24fe63, 656534a
+- Commits: 11adfbf, c24fe63, 656534a, a49b1ee, efe3241
 
 ### Slice 192: Default Worktree Aggregation & Field Reset — Implementation Complete
 - Default worktree now filters by its own index range (consistent with non-default worktrees)
