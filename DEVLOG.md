@@ -9,6 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-18
 
+### Investigation: Prompt File Resolution in Worktrees (Not a Bug)
+- Reported: local edits to prompt file in a git worktree not picked up by `cf build`
+- Root cause: all prompt resolution paths (`resolvePromptFilePath`, `ContextIntegrator.generateWithTemplateEngine`) use `project.projectPath` (main repo root), never `worktreeContext.worktreePath`
+- This is by design — prompt files live in the ai-project-guide submodule, which is shared infrastructure owned by that project. Local edits to prompt files are against policy (see `feedback_prompt_files_readonly` memory)
+- `worktreeId` is used for template variable injection (worktree name, index range), not path resolution
+- Resolution: working as designed. If prompt changes are needed, they go through the guide project and `cf guide update`
+
 ### Slice 190: Worktree-Aware Guide Operations — Implementation Complete
 - Core: `SyncResult` type, `SubmoduleStrategy.sync()`, `GuideManager.operationPath` + `syncWorktrees()`, `GuideDetector.checkSyncStatus()`
 - CLI: replaced `getProjectPath()` with `getGuideContext()` using `resolveProjectWorktree()` — `cf guides info` and `cf guides update` now worktree-aware; `cf guides install` unchanged
