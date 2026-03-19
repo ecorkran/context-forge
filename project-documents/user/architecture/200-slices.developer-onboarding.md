@@ -156,7 +156,7 @@ status: in_progress
 
 ## Maintenance Slices
 
-5. [ ] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
+5. [x] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
 
 ## Implementation Order
 

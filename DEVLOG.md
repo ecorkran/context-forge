@@ -9,6 +9,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-19
 
+### Slice 205: Consistency Checker & Build Template Fixes — Implementation Complete
+- `checkAll` now scans all discovered slice plans for per-slice rules (not just configured plan)
+- MCP `workflow_check` applies worktree overlays with finding merge/dedup (matching CLI behavior)
+- `/cf:check` slash command added (passthrough to `cf check $ARGUMENTS`)
+- `cf:build` template reordering: instruction(3) → notes(4) → events(5) → tools(6)
+- 7 new tests (4 core multi-plan, 4 template ordering, 3 MCP worktree parity)
+- All tests pass: core 50, CLI 324, MCP 23+, electron 106
+- Commits: 4f1860e, 1073149, ff06b48, a2344f4
+
 ### Slice 205: Consistency Checker & Build Template Fixes — Design & Tasks Complete
 - Multi-plan scanning in `checkAll` (per-slice rules across all discovered plans, not just configured one)
 - MCP `workflow_check` worktree parity (apply overlays like CLI does)
