@@ -9,8 +9,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-19
 
-### Slice 192: Default Worktree Aggregation & Field Reset — Design Complete
-- Two features: (1) default worktree scans all worktree paths and unions results for project-wide overview, (2) `cf unset <field>` command for explicit field clearing
+### Slice 192: Default Worktree Aggregation & Field Reset — Design & Tasks Complete
+- Two features: (1) `--all` flag for cross-worktree aggregation + default worktree scoped to its own range, (2) `cf unset <field>` command for explicit field clearing
+- Design updated: `--all` opt-in instead of auto-aggregation, consistent behavior across all worktrees (all filter by own range)
 - Aggregation uses new `resolveAllOperationPaths()` + `mergeProjectModels()` utilities
 - Unset guards against required/readonly fields, works on project and worktree-scoped fields
 - Also added update future work item to 200-slices (CLI & MCP Update Command)
