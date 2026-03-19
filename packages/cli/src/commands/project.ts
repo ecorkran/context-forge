@@ -349,6 +349,53 @@ export async function projectSetAction(
   }
 }
 
+/** Shared action handler for `cf unset` and `cf project unset`. */
+export async function projectUnsetAction(
+  field: string,
+  opts: { project?: string; projectLevel?: boolean },
+): Promise<void> {
+  const resolvedField = resolveFieldName(field);
+  if (!resolvedField) {
+    throw new UserError(
+      `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
+    );
+  }
+
+  const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
+  if (fieldDef?.required) {
+    throw new UserError(`Cannot unset required field '${resolvedField}'.`);
+  }
+  if (fieldDef?.readonly) {
+    throw new UserError(`Cannot unset read-only field '${resolvedField}'.`);
+  }
+
+  const store = new FileProjectStore();
+  const resolved = await resolveProjectWorktree({ project: opts.project }, store);
+  const id = resolved.id;
+  const worktreeId = resolved.worktreeId;
+
+  const existing = await store.getById(id);
+  if (!existing) {
+    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+
+  const worktreeName = worktreeId
+    ? (existing.worktrees ?? []).find((wt) => wt.id === worktreeId)?.name
+    : undefined;
+
+  const displayName = fieldDef?.aliases[0] ?? resolvedField;
+
+  if (worktreeId && isWorktreeField(resolvedField) && !opts.projectLevel) {
+    const svc = new WorktreeService(store);
+    const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
+    await svc.updateWorktree(id, worktreeId, { [wtField]: undefined });
+    console.log(success(`Unset ${displayName} on worktree context "${worktreeName}"`));
+  } else {
+    await store.update(id, { [resolvedField]: undefined });
+    console.log(success(`Unset ${displayName} on project ${existing.name}`));
+  }
+}
+
 /** Shared action handler for `cf get` and `cf project get`. */
 export async function projectGetAction(
   opts: { json?: boolean; project?: string; projectLevel?: boolean },
@@ -513,6 +560,23 @@ export function registerProjectCommand(program: Command): void {
       }
       try {
         await projectSetAction(field, val, opts);
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+  cmd
+    .command('unset [field]')
+    .description('Unset (clear) a field on the active project')
+    .option('--project <id>', 'Project ID or name (overrides default)')
+    .option('--project-level', 'Force unset at project level (skip worktree routing)')
+    .action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
+      if (!field) {
+        console.log(`Usage: cf project unset [options] <field>  —  run cf project unset --help for details`);
+        return;
+      }
+      try {
+        await projectUnsetAction(field, opts);
       } catch (err) {
         handleError(err);
       }

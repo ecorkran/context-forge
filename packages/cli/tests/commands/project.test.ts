@@ -560,3 +560,110 @@ describe('cf project set — worktree path resolution', () => {
     expect(console.warn).not.toHaveBeenCalled();
   });
 });
+
+describe('cf project unset', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('calls store.update with undefined for valid field', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'unset', 'fileSlice',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: undefined });
+  });
+
+  it('rejects unsetting required field (name)', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'unset', 'name',
+      '--project', 'proj_001',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('required'),
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsetting readonly field (id)', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'unset', 'id',
+      '--project', 'proj_001',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('read-only'),
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsetting unknown field', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'unset', 'nonexistent',
+      '--project', 'proj_001',
+    ]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown field'),
+    );
+  });
+
+  it('resolves alias "arch" to fileArch', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'unset', 'arch',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileArch: undefined });
+  });
+
+  it('routes worktree-scoped field to updateWorktree when in worktree', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        {
+          id: 'wt_api',
+          name: 'api-layer',
+          indexRange: [300, 499] as [number, number],
+          worktreePath: '/repos/api',
+        },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/api');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'unset', 'arch']);
+
+    expect(mockUpdateWorktree).toHaveBeenCalledWith(
+      'proj_001',
+      'wt_api',
+      { archDoc: undefined },
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('shows usage when no field provided', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'project', 'unset']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Usage');
+  });
+});

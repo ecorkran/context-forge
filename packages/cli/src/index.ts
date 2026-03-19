@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
-import { registerProjectCommand, projectSetAction, projectGetAction, buildSettableFieldsHelp } from './commands/project.js';
+import { registerProjectCommand, projectSetAction, projectGetAction, projectUnsetAction, buildSettableFieldsHelp } from './commands/project.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerNextCommand } from './commands/next.js';
 import { registerBuildCommand } from './commands/build.js';
@@ -91,6 +91,23 @@ program
   .action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
     try {
       await projectGetAction(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command('unset [field]')
+  .description('Unset (clear) a field on the active project (shortcut for cf project unset)')
+  .option('--project <name|id>', 'Project name or ID (overrides default)')
+  .option('--project-level', 'Force unset at project level (skip worktree routing)')
+  .action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
+    if (!field) {
+      console.log(`Usage: cf unset [options] <field>  —  run cf unset --help for details`);
+      return;
+    }
+    try {
+      await projectUnsetAction(field, opts);
     } catch (err) {
       handleError(err);
     }
