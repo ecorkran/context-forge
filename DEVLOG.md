@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-19
 
+### Slice 192: Default Worktree Aggregation & Field Reset — Implementation Complete
+- Default worktree now filters by its own index range (consistent with non-default worktrees)
+- `--all` flag added to `cf arch list`, `cf plan list`, `cf tasks list`, `cf future` for cross-worktree aggregation
+- MCP `project_structure` gains `all: boolean` parameter; `resolveOperationContext` returns range for default worktree
+- New `resolveAllOperationPaths()` (CLI + MCP), `mergeProjectModels()` (core) utilities
+- `cf unset <field>` command with required/readonly guards, alias support, worktree routing
+- Also registered as `cf project unset <field>` subcommand
+- All 1160 tests pass (665 core + 324 CLI + 171 MCP), build clean
+- Commits: 2791f4e, 1f00cbd, 455c96b, e278fc5, 13f4947
+
 ### Slice 192: Default Worktree Aggregation & Field Reset — Design & Tasks Complete
 - Two features: (1) `--all` flag for cross-worktree aggregation + default worktree scoped to its own range, (2) `cf unset <field>` command for explicit field clearing
 - Design updated: `--all` opt-in instead of auto-aggregation, consistent behavior across all worktrees (all filter by own range)
