@@ -11,7 +11,7 @@ import type {
   ConsistencyFixResult,
   ConsistencyFinding,
 } from '@context-forge/core';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectWorktree } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -122,7 +122,7 @@ export function registerCheckCommand(program: Command): void {
     .action(async (opts: CheckOpts) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
+        const { id } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -157,7 +157,11 @@ export function registerCheckCommand(program: Command): void {
         // view but produce the same results, so deduplication collapses them correctly.
         const worktrees = project.worktrees ?? [];
         const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
+          ? worktrees.map((wt) => {
+              const view = applyWorktreeOverlay(project, wt.id);
+              if (wt.worktreePath) view.projectPath = wt.worktreePath;
+              return view;
+            })
           : [project];
 
         let result: ConsistencyCheckResult;

@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -43,23 +43,29 @@ export function registerSliceCommand(program: Command): void {
           );
         }
 
+        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+
         const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
         if (!planRelPath) {
           throw new UserError('Could not resolve slice plan path.');
         }
-        const planPath = join(project.projectPath, planRelPath);
+        const planPath = join(operationPath, planRelPath);
         const introspector = new ArtifactIntrospector();
         const planResult = await introspector.parseSlicePlan(planPath);
 
         // Determine active slice index
         const activeIndex = extractSliceIndex(project.fileSlice);
 
+        // Filter entries by worktree index range
+        const filteredEntries = planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
+
         // Check for design files per entry
         const entries = await Promise.all(
-          planResult.entries.map(async (entry) => {
+          filteredEntries.map(async (entry) => {
             let designFile: string | null = null;
             try {
-              const docs = await introspector.detectDocuments(project.projectPath!, entry.index);
+              const docs = await introspector.detectDocuments(operationPath, entry.index);
               designFile = docs.sliceDesign;
             } catch {
               // skip

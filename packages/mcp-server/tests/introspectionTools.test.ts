@@ -402,4 +402,74 @@ describe('project_structure', () => {
       description: 'Desc',
     });
   });
+
+  it('filters initiatives by worktree index range', async () => {
+    const projectWithWt: ProjectData = {
+      ...MOCK_PROJECT,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_api', name: 'api-layer', indexRange: [300, 499] as [number, number], worktreePath: '/repos/api' },
+      ],
+    };
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockBuildModel.mockResolvedValue({
+      name: 'Test',
+      initiatives: {
+        '100': { name: 'Core', slices: [] },
+        '300': { name: 'API', slices: [] },
+        '500': { name: 'UI', slices: [] },
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: projectWithWt.id, worktreeId: 'api-layer' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { initiatives: Record<string, unknown> };
+    expect(Object.keys(parsed.initiatives)).toEqual(['300']);
+  });
+
+  it('shows all initiatives when no worktreeId provided', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockBuildModel.mockResolvedValue({
+      name: 'Test',
+      initiatives: {
+        '100': { name: 'Core', slices: [] },
+        '300': { name: 'API', slices: [] },
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { initiatives: Record<string, unknown> };
+    expect(Object.keys(parsed.initiatives)).toEqual(['100', '300']);
+  });
+
+  it('resolves worktreeId by name (case-insensitive)', async () => {
+    const projectWithWt: ProjectData = {
+      ...MOCK_PROJECT,
+      worktrees: [
+        { id: 'wt_api', name: 'API-Layer', indexRange: [300, 499] as [number, number], worktreePath: '/repos/api' },
+      ],
+    };
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockBuildModel.mockResolvedValue({
+      name: 'Test',
+      initiatives: { '300': { name: 'API', slices: [] } },
+    });
+
+    const result = await client.callTool({
+      name: 'project_structure',
+      arguments: { projectId: projectWithWt.id, worktreeId: 'api-layer' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockBuildModel).toHaveBeenCalledWith('/repos/api', expect.anything());
+  });
 });

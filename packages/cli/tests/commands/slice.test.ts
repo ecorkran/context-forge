@@ -143,4 +143,29 @@ describe('cf slice list', () => {
       expect.stringContaining('slice plan'),
     );
   });
+
+  it('filters entries by worktree index range for non-default worktree', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_billing', name: 'billing', indexRange: [101, 199] as [number, number], worktreePath: '/repos/billing' },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockParseSlicePlan.mockResolvedValue(samplePlanResult);
+    mockDetectDocuments.mockResolvedValue({ sliceDesign: null, taskFile: null });
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/billing');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'slice', 'list']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    // 101 and 102 are in range [101-199], 100 is not
+    expect(output).toContain('Billing Feature');
+    expect(output).toContain('Dashboard');
+    expect(output).not.toContain('Auth Feature');
+  });
 });

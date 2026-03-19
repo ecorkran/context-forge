@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
-dateUpdated: 20260312
-status: complete
+dateUpdated: 20260318
+status: in_progress
 ---
 
 # Slice Plan: Initiative Contexts (Worktrees)
@@ -279,6 +279,13 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
 9. [x] **(189) Worktree-Aware Prompt Context** — Inject worktree metadata (name, index range, archDoc status) into template variables so phase-specific prompts receive worktree context. Currently `applyWorktreeOverlay` maps workflow fields but does not expose worktree identity or index range to the template engine. Phase 2 prompts in a worktree don't know the component name, base index, or that an arch doc is missing — the agent must discover this from MCP calls. Fix: extend template data with worktree fields when building from a worktree, and update the Phase 2 prompt template to use them. Dependencies: [185]. Risk: Low. Effort: 2/5
 
 10. [x] **(190) Worktree-Aware Guide Operations** — Make `cf guides info`, `cf guides update`, and MCP `guide_status`/`guide_update` worktree-transparent. Currently guide operations always use `project.projectPath`, so `git submodule update --remote` only updates the submodule checkout in the main worktree. Non-default worktrees have stale guide files but report the correct version (tag exists in git history). Fix: CLI uses `resolveProjectWorktree()` to detect worktree CWD and run git operations in the correct worktree path; MCP auto-syncs all worktrees with paths on update. Dependencies: [182, 186]. Risk: Low. Effort: 2/5
+
+11. [x] **(191) Worktree-Aware File Operations** — Two-part fix for CLI commands that scan/list project documents. (1) Path resolution: use the worktree's filesystem path instead of the main project path. (2) Index-range scoping: from non-default worktrees, filter results to only show documents within the worktree's index range (e.g., `cf arch list` from `world-server` [300-499] shows only 300-range docs). Default worktree shows everything. `cf set` with an out-of-range index warns but allows. Affects 10 CLI commands, 5 MCP introspection tools (including `project_structure` for visualizer), and `ConsistencyChecker`. MCP `worktreeId` parameter accepts name or ID.
+
+   **Value:** Completes the worktree story — currently `cf build` and `cf next` are worktree-aware but all file-listing and introspection commands are not. Users in non-default worktrees see the wrong documents. The visualizer cannot display worktree-specific document structures.
+   **Dependencies:** [182 — CWD Resolution], [183 — Worktree CLI Commands]
+   **Risk:** Low — established pattern, but many touch points
+   **Effort:** 4/5
 
 ## Integration Work
 

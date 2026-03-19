@@ -3,7 +3,8 @@ import { Command } from 'commander';
 import { FileProjectStore, SystemPromptParser } from '@context-forge/core/node';
 import { PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
-import { resolveProjectId } from '../utils/project.js';
+import { resolveProjectWorktree } from '../utils/project.js';
+import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson, printRaw } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -43,25 +44,26 @@ export function registerPromptCommand(program: Command): void {
     .action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);
 
         if (!project) {
           throw new UserError(`Project not found: '${id}'.`);
         }
-        if (!project.projectPath) {
+        const opPath = resolveOperationPath(project, worktreeId);
+        if (!opPath) {
           throw new UserError(
             `Project '${project.name}' has no projectPath configured.\n` +
               '  cf project set projectPath /path/to/project',
           );
         }
 
-        const promptFilePath = path.join(project.projectPath, PROMPT_FILE_RELATIVE_PATH);
+        const promptFilePath = path.join(opPath, PROMPT_FILE_RELATIVE_PATH);
         const parser = new SystemPromptParser(promptFilePath);
         const prompts = await parser.getAllPrompts();
 
         // Build shorthand map for display
-        const shorthands = await getPhaseShorthands(project.projectPath);
+        const shorthands = await getPhaseShorthands(opPath);
         const shorthandReverse = new Map<string, string>();
         for (const [key, name] of shorthands) {
           shorthandReverse.set(name.toLowerCase(), key);
@@ -97,13 +99,14 @@ export function registerPromptCommand(program: Command): void {
     .action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
       try {
         const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);
 
         if (!project) {
           throw new UserError(`Project not found: '${id}'.`);
         }
-        if (!project.projectPath) {
+        const opPath = resolveOperationPath(project, worktreeId);
+        if (!opPath) {
           throw new UserError(
             `Project '${project.name}' has no projectPath configured.\n` +
               '  cf project set projectPath /path/to/project',
@@ -111,9 +114,9 @@ export function registerPromptCommand(program: Command): void {
         }
 
         // Resolve shorthand or name to instruction key
-        const resolvedPhase = await resolvePhaseInput(phase, project.projectPath);
+        const resolvedPhase = await resolvePhaseInput(phase, opPath);
 
-        const promptFilePath = path.join(project.projectPath, PROMPT_FILE_RELATIVE_PATH);
+        const promptFilePath = path.join(opPath, PROMPT_FILE_RELATIVE_PATH);
         const parser = new SystemPromptParser(promptFilePath);
         const prompt = await parser.getPromptForInstruction(resolvedPhase);
 

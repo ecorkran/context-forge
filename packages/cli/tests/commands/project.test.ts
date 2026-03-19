@@ -8,6 +8,8 @@ const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 const mockResolveFileByIndex = vi.fn();
 
+const mockUpdateWorktree = vi.fn();
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
@@ -17,6 +19,9 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
+  })),
+  WorktreeService: vi.fn().mockImplementation(() => ({
+    updateWorktree: mockUpdateWorktree,
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
 }));
@@ -491,5 +496,67 @@ describe('cf project rm', () => {
       expect.stringContaining('not found'),
     );
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('cf project set — worktree path resolution', () => {
+  const projectWithWorktrees = {
+    ...sampleProject,
+    worktrees: [
+      {
+        id: 'wt_default',
+        name: 'default',
+        indexRange: [100, 799] as [number, number],
+        worktreePath: '/repos/main',
+      },
+      {
+        id: 'wt_api',
+        name: 'api-layer',
+        indexRange: [300, 499] as [number, number],
+        worktreePath: '/repos/api',
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([projectWithWorktrees]);
+    mockGetById.mockResolvedValue(projectWithWorktrees);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/api');
+  });
+
+  it('resolves file from worktree path when CWD matches worktree', async () => {
+    mockResolveFileByIndex.mockReturnValue('300-arch.api-foundation');
+
+    const { projectSetAction } = await import('../../src/commands/project.js');
+    await projectSetAction('arch', '300', {});
+
+    expect(mockResolveFileByIndex).toHaveBeenCalledWith(
+      '/repos/api', 'fileArch', '300',
+    );
+  });
+
+  it('warns when index is outside worktree range', async () => {
+    mockResolveFileByIndex.mockReturnValue('100-arch.behavior-engine');
+
+    const { projectSetAction } = await import('../../src/commands/project.js');
+    await projectSetAction('arch', '100', {});
+
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('outside this worktree\'s range [300-499]'),
+    );
+  });
+
+  it('does not warn when index is within worktree range', async () => {
+    mockResolveFileByIndex.mockReturnValue('300-arch.api-foundation');
+
+    const { projectSetAction } = await import('../../src/commands/project.js');
+    await projectSetAction('arch', '300', {});
+
+    expect(console.warn).not.toHaveBeenCalled();
   });
 });

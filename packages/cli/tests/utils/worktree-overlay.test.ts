@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { applyWorktreeOverlay } from '../../src/utils/worktree-overlay.js';
+import {
+  applyWorktreeOverlay,
+  resolveOperationPath,
+  getWorktreeIndexRange,
+  isInIndexRange,
+} from '../../src/utils/worktree-overlay.js';
 import type { ProjectData } from '@context-forge/core';
 
 const baseProject: ProjectData = {
@@ -111,5 +116,101 @@ describe('applyWorktreeOverlay', () => {
 
     expect(baseProject.developmentPhase).toBe(original.developmentPhase);
     expect(baseProject.fileSlice).toBe(original.fileSlice);
+  });
+});
+
+const projectWithDefault: ProjectData = {
+  ...baseProject,
+  worktrees: [
+    {
+      id: 'wt_default',
+      name: 'default',
+      indexRange: [100, 799] as [number, number],
+      worktreePath: '/repos/main',
+    },
+    {
+      id: 'wt_api',
+      name: 'api-layer',
+      indexRange: [300, 499] as [number, number],
+      worktreePath: '/repos/api',
+    },
+    {
+      id: 'wt_nopath',
+      name: 'no-path',
+      indexRange: [500, 599] as [number, number],
+      // no worktreePath
+    },
+  ],
+};
+
+describe('resolveOperationPath', () => {
+  it('returns worktreePath when worktreeId matches and has path', () => {
+    expect(resolveOperationPath(projectWithDefault, 'wt_api')).toBe('/repos/api');
+  });
+
+  it('returns projectPath when worktreeId matches but has no worktreePath', () => {
+    expect(resolveOperationPath(projectWithDefault, 'wt_nopath')).toBe('/tmp/test');
+  });
+
+  it('returns projectPath when no worktreeId provided', () => {
+    expect(resolveOperationPath(projectWithDefault)).toBe('/tmp/test');
+  });
+
+  it('returns projectPath when worktreeId not found', () => {
+    expect(resolveOperationPath(projectWithDefault, 'wt_missing')).toBe('/tmp/test');
+  });
+
+  it('returns projectPath when project has no worktrees array', () => {
+    const noWt: ProjectData = { ...baseProject, worktrees: undefined };
+    expect(resolveOperationPath(noWt, 'wt_api')).toBe('/tmp/test');
+  });
+});
+
+describe('getWorktreeIndexRange', () => {
+  it('returns index range for non-default worktree', () => {
+    expect(getWorktreeIndexRange(projectWithDefault, 'wt_api')).toEqual([300, 499]);
+  });
+
+  it('returns undefined for default worktree', () => {
+    expect(getWorktreeIndexRange(projectWithDefault, 'wt_default')).toBeUndefined();
+  });
+
+  it('returns undefined when no worktreeId provided', () => {
+    expect(getWorktreeIndexRange(projectWithDefault)).toBeUndefined();
+  });
+
+  it('returns undefined when worktreeId not found', () => {
+    expect(getWorktreeIndexRange(projectWithDefault, 'wt_missing')).toBeUndefined();
+  });
+
+  it('returns undefined when project has no worktrees', () => {
+    const noWt: ProjectData = { ...baseProject, worktrees: undefined };
+    expect(getWorktreeIndexRange(noWt, 'wt_api')).toBeUndefined();
+  });
+});
+
+describe('isInIndexRange', () => {
+  it('returns true when index is within range', () => {
+    expect(isInIndexRange(350, [300, 499])).toBe(true);
+  });
+
+  it('returns true at lower boundary', () => {
+    expect(isInIndexRange(300, [300, 499])).toBe(true);
+  });
+
+  it('returns true at upper boundary', () => {
+    expect(isInIndexRange(499, [300, 499])).toBe(true);
+  });
+
+  it('returns false when index is below range', () => {
+    expect(isInIndexRange(100, [300, 499])).toBe(false);
+  });
+
+  it('returns false when index is above range', () => {
+    expect(isInIndexRange(500, [300, 499])).toBe(false);
+  });
+
+  it('returns true when no range specified (no filtering)', () => {
+    expect(isInIndexRange(999)).toBe(true);
   });
 });

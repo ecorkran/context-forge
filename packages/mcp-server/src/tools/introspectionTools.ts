@@ -7,6 +7,7 @@ import {
 } from '@context-forge/core/node';
 import { join } from 'node:path';
 import { resolveProjectId } from './resolveProjectId.js';
+import { resolveOperationContext } from './resolveOperationPath.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
   return { content: [{ type: 'text', text: message }], isError: true };
@@ -25,6 +26,7 @@ async function resolveIntrospectionPath(args: {
   filePath?: string;
   projectId?: string;
   path?: string;
+  worktreeId?: string;
 }): Promise<string> {
   if (args.filePath) {
     return args.filePath;
@@ -34,6 +36,15 @@ async function resolveIntrospectionPath(args: {
     throw new Error(
       'Either filePath (absolute) or projectId + path (relative) must be provided.',
     );
+  }
+
+  // Use worktree-aware resolution when worktreeId is provided
+  if (args.worktreeId) {
+    const { operationPath } = await resolveOperationContext({
+      projectId: args.projectId,
+      worktreeId: args.worktreeId,
+    });
+    return join(operationPath, args.path);
   }
 
   const resolvedId = await resolveProjectId(args.projectId);
@@ -55,36 +66,6 @@ async function resolveIntrospectionPath(args: {
   return join(project.projectPath, args.path);
 }
 
-/**
- * Resolve a project's absolute path from projectId or explicit projectPath.
- */
-async function resolveProjectPath(args: {
-  projectId?: string;
-  projectPath?: string;
-}): Promise<string> {
-  if (args.projectPath) {
-    return args.projectPath;
-  }
-
-  const resolvedId = await resolveProjectId(args.projectId);
-  const store = new FileProjectStore();
-  const project = await store.getById(resolvedId);
-
-  if (!project) {
-    throw new Error(
-      `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
-    );
-  }
-
-  if (!project.projectPath) {
-    throw new Error(
-      `Project '${resolvedId}' has no projectPath configured. Set it with project_update.`,
-    );
-  }
-
-  return project.projectPath;
-}
-
 // Common input schema fragments
 const filePathSchema = {
   projectId: z
@@ -99,6 +80,10 @@ const filePathSchema = {
     .string()
     .optional()
     .describe('Absolute path to the target file. Overrides projectId + path.'),
+  worktreeId: z
+    .string()
+    .optional()
+    .describe('Worktree name or ID. Omit to use project root.'),
 };
 
 export function registerIntrospectionTools(server: McpServer): void {
@@ -118,6 +103,22 @@ export function registerIntrospectionTools(server: McpServer): void {
         const resolved = await resolveIntrospectionPath(args);
         const introspector = new ArtifactIntrospector();
         const result = await introspector.parseSlicePlan(resolved);
+        // Filter by worktree index range if applicable
+        if (args.worktreeId) {
+          const { indexRange } = await resolveOperationContext({
+            projectId: args.projectId,
+            worktreeId: args.worktreeId,
+          });
+          if (indexRange) {
+            result.entries = result.entries.filter(
+              (e: { index: number }) => e.index >= indexRange[0] && e.index <= indexRange[1],
+            );
+            result.totalSlices = result.entries.length;
+            result.completedSlices = result.entries.filter(
+              (e: { isChecked: boolean }) => e.isChecked,
+            ).length;
+          }
+        }
         return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -191,6 +192,10 @@ export function registerIntrospectionTools(server: McpServer): void {
           .string()
           .optional()
           .describe('Absolute path to project root. Overrides projectId.'),
+        worktreeId: z
+          .string()
+          .optional()
+          .describe('Worktree name or ID. Omit to use project root.'),
         sliceIndex: z
           .number()
           .describe('Numeric slice index to check (e.g., 163).'),
@@ -199,10 +204,16 @@ export function registerIntrospectionTools(server: McpServer): void {
     },
     async (args) => {
       try {
-        const resolved = await resolveProjectPath({
-          projectId: args.projectId,
-          projectPath: args.projectPath,
-        });
+        let resolved: string;
+        if (args.projectPath) {
+          resolved = args.projectPath;
+        } else {
+          const ctx = await resolveOperationContext({
+            projectId: args.projectId,
+            worktreeId: args.worktreeId,
+          });
+          resolved = ctx.operationPath;
+        }
         const introspector = new ArtifactIntrospector();
         const result = await introspector.detectDocuments(resolved, args.sliceIndex);
         return jsonResult(result);
@@ -235,6 +246,22 @@ export function registerIntrospectionTools(server: McpServer): void {
         const resolved = await resolveIntrospectionPath(args);
         const introspector = new ArtifactIntrospector();
         const result = await introspector.parseFutureWork(resolved, args.nextIndex);
+        // Filter by worktree index range if applicable
+        if (args.worktreeId) {
+          const { indexRange } = await resolveOperationContext({
+            projectId: args.projectId,
+            worktreeId: args.worktreeId,
+          });
+          if (indexRange && result.items) {
+            result.items = result.items.filter(
+              (item: { index?: string }) => {
+                if (!item.index) return true;
+                const idx = parseInt(item.index, 10);
+                return isNaN(idx) || (idx >= indexRange[0] && idx <= indexRange[1]);
+              },
+            );
+          }
+        }
         return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -258,6 +285,10 @@ export function registerIntrospectionTools(server: McpServer): void {
           .string()
           .optional()
           .describe('Project ID. Omit to resolve from CWD.'),
+        worktreeId: z
+          .string()
+          .optional()
+          .describe('Worktree name or ID. Omit to use project root.'),
         name: z.string().optional().describe('Override project name in output.'),
         description: z.string().optional().describe('Override project description in output.'),
       },
@@ -265,11 +296,23 @@ export function registerIntrospectionTools(server: McpServer): void {
     },
     async (args) => {
       try {
-        const projectPath = await resolveProjectPath({ projectId: args.projectId });
-        const result = await buildModel(projectPath, {
+        const { operationPath, indexRange } = await resolveOperationContext({
+          projectId: args.projectId,
+          worktreeId: args.worktreeId,
+        });
+        const result = await buildModel(operationPath, {
           name: args.name,
           description: args.description,
         });
+        // Filter initiatives by index range when in a non-default worktree
+        if (indexRange) {
+          for (const key of Object.keys(result.initiatives)) {
+            const idx = parseInt(key, 10);
+            if (idx < indexRange[0] || idx > indexRange[1]) {
+              delete result.initiatives[key];
+            }
+          }
+        }
         return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);

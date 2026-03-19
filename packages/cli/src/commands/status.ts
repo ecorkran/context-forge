@@ -47,11 +47,12 @@ export function registerStatusCommand(program: Command): void {
               const overlaid = applyWorktreeOverlay(rawProject, wt.id);
               let sliceProgress = '—';
 
-              if (overlaid.fileSlicePlan && rawProject.projectPath) {
+              const wtPath = wt.worktreePath ?? rawProject.projectPath;
+              if (overlaid.fileSlicePlan && wtPath) {
                 const planRelPath = resolveArtifactPath('fileSlicePlan', overlaid.fileSlicePlan);
                 if (planRelPath) {
                   try {
-                    const planPath = join(rawProject.projectPath, planRelPath);
+                    const planPath = join(wtPath, planRelPath);
                     const plan = await parseSlicePlan(planPath);
                     sliceProgress = `${plan.completedSlices}/${plan.totalSlices} slices`;
                   } catch {
