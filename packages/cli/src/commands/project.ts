@@ -12,7 +12,7 @@ import {
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -27,14 +27,17 @@ async function deriveFromSlicePlan(
   project: ProjectData,
   field: string,
   index: string,
+  operationPath?: string,
 ): Promise<string | null> {
-  if (!project.fileSlicePlan || !project.projectPath) return null;
+  if (!project.fileSlicePlan) return null;
+  const basePath = operationPath ?? project.projectPath;
+  if (!basePath) return null;
   if (field !== 'fileSlice' && field !== 'fileTasks') return null;
 
   const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
   if (!planRelPath) return null;
 
-  const planPath = join(project.projectPath, planRelPath);
+  const planPath = join(basePath, planRelPath);
   const plan = await parseSlicePlan(planPath);
   const entry = plan.entries.find((e) => e.index === parseInt(index, 10));
   if (!entry) return null;
@@ -201,18 +204,19 @@ export async function projectSetAction(
 
   // Index-based file resolution: cf set slice 171 → scans for matching file
   // Falls back to slice plan entry name if file doesn't exist on disk
-  if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && existing.projectPath) {
+  const opPath = resolveOperationPath(existing, worktreeId);
+  if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && opPath) {
     // Use worktree-overlaid project for slice plan lookup (project-level fields
     // may be cleared after migration, but the worktree context has the values)
     const overlaid = worktreeId ? applyWorktreeOverlay(existing, worktreeId) : existing;
     try {
-      const fileResolved = resolveFileByIndex(existing.projectPath, resolvedField, resolvedValue);
+      const fileResolved = resolveFileByIndex(opPath, resolvedField, resolvedValue);
       if (fileResolved !== null) {
         resolvedValue = fileResolved;
       }
     } catch {
       // File doesn't exist — try deriving from slice plan
-      const derived = await deriveFromSlicePlan(overlaid, resolvedField, resolvedValue);
+      const derived = await deriveFromSlicePlan(overlaid, resolvedField, resolvedValue, opPath);
       if (derived) {
         resolvedValue = derived;
       } else {
@@ -220,6 +224,13 @@ export async function projectSetAction(
           `No file matching index '${resolvedValue}' for field '${resolvedField}', and no slice plan entry found to derive from.`,
         );
       }
+    }
+
+    // Warn if index is outside worktree's range
+    const indexRange = getWorktreeIndexRange(existing, worktreeId);
+    const numericIndex = parseInt(resolvedValue, 10) || parseInt(/^(\d+)/.exec(resolvedValue)?.[1] ?? '', 10);
+    if (indexRange && !isNaN(numericIndex) && !isInIndexRange(numericIndex, indexRange)) {
+      console.warn(`Warning: index ${numericIndex} is outside this worktree's range [${indexRange[0]}-${indexRange[1]}]`);
     }
   }
 
@@ -241,12 +252,12 @@ export async function projectSetAction(
     }
 
     // Auto-set slicePlan when archDoc changes on worktree
-    if (resolvedField === 'fileArch' && existing.projectPath) {
+    if (resolvedField === 'fileArch' && opPath) {
       const archIndex = /^(\d+)-/.exec(resolvedValue);
       if (archIndex) {
         let planResolved: string | null = null;
         try {
-          planResolved = resolveFileByIndex(existing.projectPath, 'fileSlicePlan', archIndex[1]);
+          planResolved = resolveFileByIndex(opPath, 'fileSlicePlan', archIndex[1]);
         } catch {
           const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
           if (derived !== resolvedValue) planResolved = derived;
@@ -259,12 +270,12 @@ export async function projectSetAction(
     }
 
     // Auto-set activeTaskFile when activeSlice changes on worktree
-    if (resolvedField === 'fileSlice' && existing.projectPath) {
+    if (resolvedField === 'fileSlice' && opPath) {
       const sliceIndex = /^(\d+)-/.exec(resolvedValue);
       if (sliceIndex) {
         let tasksResolved: string | null = null;
         try {
-          tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+          tasksResolved = resolveFileByIndex(opPath, 'fileTasks', sliceIndex[1]);
         } catch {
           const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
           if (derived !== resolvedValue) tasksResolved = derived;
@@ -296,12 +307,12 @@ export async function projectSetAction(
   }
 
   // Auto-set fileSlicePlan when fileArch changes (project-level)
-  if (resolvedField === 'fileArch' && existing.projectPath) {
+  if (resolvedField === 'fileArch' && opPath) {
     const archIndex = /^(\d+)-/.exec(resolvedValue);
     if (archIndex) {
       let planResolved: string | null = null;
       try {
-        planResolved = resolveFileByIndex(existing.projectPath, 'fileSlicePlan', archIndex[1]);
+        planResolved = resolveFileByIndex(opPath, 'fileSlicePlan', archIndex[1]);
       } catch {
         const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
         if (derived !== resolvedValue) planResolved = derived;
@@ -314,12 +325,12 @@ export async function projectSetAction(
   }
 
   // Auto-set fileTasks when fileSlice changes (project-level)
-  if (resolvedField === 'fileSlice' && existing.projectPath) {
+  if (resolvedField === 'fileSlice' && opPath) {
     const sliceIndex = /^(\d+)-/.exec(resolvedValue);
     if (sliceIndex) {
       let tasksResolved: string | null = null;
       try {
-        tasksResolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
+        tasksResolved = resolveFileByIndex(opPath, 'fileTasks', sliceIndex[1]);
       } catch {
         const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
         if (derived !== resolvedValue) tasksResolved = derived;

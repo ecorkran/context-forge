@@ -47,7 +47,7 @@ status: in_progress
 
 ## Section 2: `cf set` — Path Resolution + Out-of-Range Warning
 
-- [ ] **2.1 Update `projectSetAction` in project.ts to use worktree path**
+- [x] **2.1 Update `projectSetAction` in project.ts to use worktree path**
   - File: `packages/cli/src/commands/project.ts`
   - Re-read the file before modifying — focus on `projectSetAction` and `deriveFromSlicePlan`
   - Import `resolveOperationPath` and `getWorktreeIndexRange` from worktree-overlay
@@ -56,25 +56,25 @@ status: in_progress
     - Pass `operationPath` instead of `existing.projectPath` to all `resolveFileByIndex()` calls
   - In the project-level branch: continue using `existing.projectPath`
   - Update `deriveFromSlicePlan()` similarly if it uses `project.projectPath`
-  - [ ] `resolveFileByIndex` calls use worktree path when in worktree context
-  - [ ] Project-level `cf set` unchanged
+  - [x] `resolveFileByIndex` calls use worktree path when in worktree context
+  - [x] Project-level `cf set` unchanged
 
-- [ ] **2.2 Add out-of-range warning for `cf set`**
+- [x] **2.2 Add out-of-range warning for `cf set`**
   - File: `packages/cli/src/commands/project.ts`
   - When `worktreeId` is set and field is index-based (fileArch, fileSlicePlan, fileSlice, fileTasks):
     - After resolving the file, extract the index from the resolved value
     - Call `getWorktreeIndexRange(project, worktreeId)` to get the range
     - If index is outside range: `console.warn(\`Warning: index ${index} is outside this worktree's range [${range[0]}-${range[1]}]\`)`
     - Allow the operation to proceed regardless
-  - [ ] Warning emitted for out-of-range index
-  - [ ] Operation still succeeds
+  - [x] Warning emitted for out-of-range index
+  - [x] Operation still succeeds
 
-- [ ] **2.3 Tests for `cf set` worktree path and warning**
+- [x] **2.3 Tests for `cf set` worktree path and warning**
   - File: `packages/cli/tests/commands/project.test.ts`
   - Re-read before modifying
   - Add test: `cf set arch <index>` from worktree resolves file from worktree path
   - Add test: `cf set arch <out-of-range-index>` emits warning but succeeds
-  - [ ] All CLI tests pass (`npx vitest run` from `packages/cli`)
+  - [x] All CLI tests pass (`npx vitest run` from `packages/cli`)
 
 **Commit:** `feat(cli): worktree-aware cf set with out-of-range warning`
 
