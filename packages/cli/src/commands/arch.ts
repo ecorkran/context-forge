@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { FileProjectStore, buildModel } from '@context-forge/core/node';
+import { FileProjectStore, buildModel, mergeProjectModels } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -17,8 +17,9 @@ export function registerArchCommand(program: Command): void {
     .command('list')
     .description('List architecture initiatives from the project')
     .option('--json', 'Output as JSON')
+    .option('--all', 'Show initiatives from all worktrees')
     .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .action(async (opts: { json?: boolean; all?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
@@ -36,9 +37,22 @@ export function registerArchCommand(program: Command): void {
           );
         }
 
-        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
-        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-        const model = await buildModel(operationPath!);
+        let model;
+        let indexRange: [number, number] | undefined;
+
+        if (opts.all && rawProject.worktrees?.length) {
+          const paths = resolveAllOperationPaths(rawProject);
+          const models = (await Promise.all(
+            paths.map((p) => buildModel(p).catch(() => null)),
+          )).filter((m): m is NonNullable<typeof m> => m !== null);
+          model = mergeProjectModels(models);
+          // No index filtering in --all mode
+        } else {
+          const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
+          indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+          model = await buildModel(operationPath!);
+        }
+
         const initiativeKeys = Object.keys(model.initiatives)
           .filter((key) => isInIndexRange(parseInt(key, 10), indexRange))
           .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));

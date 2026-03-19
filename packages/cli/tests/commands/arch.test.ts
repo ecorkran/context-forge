@@ -7,6 +7,8 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockBuildModel = vi.fn();
 
+const mockMergeProjectModels = vi.fn();
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
@@ -16,6 +18,7 @@ vi.mock('@context-forge/core/node', () => ({
     get: vi.fn().mockResolvedValue({ value: 'proj_001' }),
   })),
   buildModel: (...args: unknown[]) => mockBuildModel(...args),
+  mergeProjectModels: (...args: unknown[]) => mockMergeProjectModels(...args),
   extractSliceIndex: vi.fn((v: string) => {
     const m = /^(\d+)-/.exec(v ?? '');
     return m ? parseInt(m[1], 10) : null;
@@ -189,5 +192,60 @@ describe('cf arch list', () => {
     const output = calls.join('\n');
     expect(output).toContain('Core System');
     expect(output).toContain('Workflow System');
+  });
+
+  it('--all aggregates initiatives from all worktree paths', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_wf', name: 'workflow', indexRange: [160, 199] as [number, number], worktreePath: '/repos/workflow' },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+
+    const mergedModel = {
+      ...sampleModel,
+      initiatives: {
+        ...sampleModel.initiatives,
+        '300': {
+          name: 'API Layer',
+          slices: [],
+          features: [],
+          arch: { index: '300', name: 'api-layer', status: 'active' },
+        },
+      },
+    };
+    mockBuildModel.mockResolvedValue(sampleModel);
+    mockMergeProjectModels.mockReturnValue(mergedModel);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/main');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list', '--all']);
+
+    // mergeProjectModels should have been called
+    expect(mockMergeProjectModels).toHaveBeenCalled();
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    expect(output).toContain('Core System');
+    expect(output).toContain('Workflow System');
+    expect(output).toContain('API Layer');
+  });
+
+  it('--all without worktrees works (single path, no aggregation)', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockBuildModel.mockResolvedValue(sampleModel);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list', '--all', '--project', 'proj_001']);
+
+    // No worktrees → falls through to single-path
+    expect(mockMergeProjectModels).not.toHaveBeenCalled();
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    expect(output).toContain('Core System');
   });
 });
