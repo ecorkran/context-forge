@@ -146,6 +146,46 @@ describe('ContextTemplateEngine', () => {
       const t2 = await engine.buildTemplate(withoutNotes);
       expect(t2.sections.some((s) => s.key === 'additional-notes')).toBe(false);
     });
+
+    it('instruction appears before tools-section', async () => {
+      const engine = createEngine();
+      const data = createTestEnhancedContextData({ recentEvents: 'event', additionalNotes: 'note' });
+      const template = await engine.buildTemplate(data);
+
+      const instrOrder = template.sections.find((s) => s.key === 'instruction')!.order;
+      const toolsOrder = template.sections.find((s) => s.key === 'tools-section')!.order;
+      expect(instrOrder).toBeLessThan(toolsOrder);
+    });
+
+    it('additional-notes appears immediately after instruction', async () => {
+      const engine = createEngine();
+      const data = createTestEnhancedContextData({ additionalNotes: 'note' });
+      const template = await engine.buildTemplate(data);
+
+      const instrOrder = template.sections.find((s) => s.key === 'instruction')!.order;
+      const notesOrder = template.sections.find((s) => s.key === 'additional-notes')!.order;
+      expect(notesOrder).toBe(instrOrder + 1);
+    });
+
+    it('current-events appears after additional-notes', async () => {
+      const engine = createEngine();
+      const data = createTestEnhancedContextData({ recentEvents: 'event', additionalNotes: 'note' });
+      const template = await engine.buildTemplate(data);
+
+      const notesOrder = template.sections.find((s) => s.key === 'additional-notes')!.order;
+      const eventsOrder = template.sections.find((s) => s.key === 'current-events')!.order;
+      expect(eventsOrder).toBeGreaterThan(notesOrder);
+    });
+
+    it('tools-section appears last among all sections', async () => {
+      const engine = createEngine();
+      const data = createTestEnhancedContextData({ recentEvents: 'event', additionalNotes: 'note' });
+      const template = await engine.buildTemplate(data);
+
+      const toolsOrder = template.sections.find((s) => s.key === 'tools-section')!.order;
+      const maxOrder = Math.max(...template.sections.map((s) => s.order));
+      expect(toolsOrder).toBe(maxOrder);
+    });
   });
 
   describe('validateInputData', () => {

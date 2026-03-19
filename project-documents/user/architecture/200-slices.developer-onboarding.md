@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260319
-status: in_progress
+status: complete
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -156,7 +156,7 @@ status: in_progress
 
 ## Maintenance Slices
 
-5. [ ] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
+5. [x] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
 
 ## Implementation Order
 

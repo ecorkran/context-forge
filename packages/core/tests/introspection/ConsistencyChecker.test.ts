@@ -23,6 +23,12 @@ vi.mock('node:fs', () => ({
   existsSync: (...args: unknown[]) => mockExistsSync(...args),
 }));
 
+// Mock readdir for multi-plan discovery tests
+const mockReaddir = vi.fn().mockRejectedValue(new Error('ENOENT'));
+vi.mock('node:fs/promises', () => ({
+  readdir: (...args: unknown[]) => mockReaddir(...args),
+}));
+
 // Mock the markdownWriter module for fix mode tests
 vi.mock('../../src/introspection/writers/markdownWriter.js', () => ({
   updateCheckbox: vi.fn().mockResolvedValue({
@@ -789,6 +795,173 @@ describe('ConsistencyChecker', () => {
       const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
       expect(finding).toBeDefined();
       expect(finding!.description).toContain('All 1 plan entries');
+    });
+
+    // --- Multi-plan scanning ---
+
+    it('discovers entries from non-configured plan and runs per-slice rules', async () => {
+      // Mock readdir to return two plan files
+      mockReaddir.mockResolvedValueOnce([
+        '160-slices.test-system.md',
+        '180-slices.other-system.md',
+      ]);
+
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('160-slices')) {
+            return {
+              filePath: path,
+              entries: [
+                { index: 165, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+              ],
+              totalSlices: 1,
+              completedSlices: 0,
+            };
+          }
+          if (path.includes('180-slices')) {
+            return {
+              filePath: path,
+              entries: [
+                { index: 185, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0 },
+              ],
+              totalSlices: 1,
+              completedSlices: 0,
+            };
+          }
+          throw new Error('unexpected plan path');
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      // Per-slice rules should run for both plans' entries
+      const prefixed165 = result.findings.filter((f) => f.description.startsWith('[165]'));
+      const prefixed185 = result.findings.filter((f) => f.description.startsWith('[185]'));
+      expect(prefixed165.length).toBeGreaterThan(0);
+      expect(prefixed185.length).toBeGreaterThan(0);
+    });
+
+    it('deduplicates entries by index across multiple plans', async () => {
+      // Both plans have an entry with index 165
+      mockReaddir.mockResolvedValueOnce([
+        '160-slices.test-system.md',
+        '180-slices.other-system.md',
+      ]);
+
+      const parseCallPaths: string[] = [];
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(async (path: string) => {
+          parseCallPaths.push(path);
+          return {
+            filePath: path,
+            entries: [
+              { index: 165, name: 'shared-slice', status: 'in-progress', isChecked: false, lineIndex: 0 },
+              ...(path.includes('180-slices') ? [
+                { index: 186, name: 'unique-slice', status: 'in-progress', isChecked: false, lineIndex: 1 },
+              ] : []),
+            ],
+            totalSlices: path.includes('180-slices') ? 2 : 1,
+            completedSlices: 0,
+          };
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      // Index 165 should appear only once (first occurrence wins), plus 186
+      const prefixed165 = result.findings.filter((f) => f.description.startsWith('[165]'));
+      const prefixed186 = result.findings.filter((f) => f.description.startsWith('[186]'));
+      expect(prefixed165.length).toBeGreaterThan(0);
+      expect(prefixed186.length).toBeGreaterThan(0);
+
+      // Count how many times per-slice rules ran for index 165 — should be once
+      const rule165TaskVsPlan = result.findings.filter(
+        (f) => f.description.startsWith('[165]') && f.rule === 'missing-artifact',
+      );
+      // One finding per unique index, not duplicated
+      expect(rule165TaskVsPlan.length).toBeLessThanOrEqual(1);
+    });
+
+    it('produces findings when configured plan is empty but another plan has entries', async () => {
+      // readdir returns both plans
+      mockReaddir.mockResolvedValueOnce([
+        '160-slices.test-system.md',
+        '180-slices.other-system.md',
+      ]);
+
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('160-slices')) {
+            return {
+              filePath: path,
+              entries: [], // Configured plan is empty
+              totalSlices: 0,
+              completedSlices: 0,
+            };
+          }
+          if (path.includes('180-slices')) {
+            return {
+              filePath: path,
+              entries: [
+                { index: 185, name: 'other-slice', status: 'in-progress', isChecked: false, lineIndex: 0 },
+              ],
+              totalSlices: 1,
+              completedSlices: 0,
+            };
+          }
+          throw new Error('unexpected plan path');
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      // Should NOT return empty — the 180-slices plan has an entry
+      const prefixed185 = result.findings.filter((f) => f.description.startsWith('[185]'));
+      expect(prefixed185.length).toBeGreaterThan(0);
+      expect(result.totalFindings).toBeGreaterThan(0);
+    });
+
+    it('single plan project — behavior unchanged', async () => {
+      // readdir returns only the configured plan
+      mockReaddir.mockResolvedValueOnce(['160-slices.test-system.md']);
+
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      // Should produce findings for the single plan's entry (index 165 from default mock)
+      const prefixed165 = result.findings.filter((f) => f.description.startsWith('[165]'));
+      expect(prefixed165.length).toBeGreaterThan(0);
+      // No findings from other indices
+      const otherPrefixed = result.findings.filter(
+        (f) => /^\[\d+\]/.test(f.description) && !f.description.startsWith('[165]'),
+      );
+      expect(otherPrefixed.length).toBe(0);
     });
   });
 

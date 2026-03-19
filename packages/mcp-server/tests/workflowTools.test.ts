@@ -587,3 +587,112 @@ describe('workflow_next with worktreeId', () => {
     expect(getErrorText(result)).toContain('not found');
   });
 });
+
+describe('workflow_check with worktree parity', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  const MOCK_WORKTREE_B = {
+    id: 'wt_test_002',
+    name: 'Bugfix Branch',
+    indexRange: [200, 299] as [number, number],
+    worktreePath: '/home/user/projects/test-project-bugfix',
+    developmentPhase: 'implementation',
+    activeSlice: '250-slice.wt-bugfix.md',
+    activeTaskFile: '250-tasks.wt-bugfix.md',
+    instruction: 'implementation',
+  };
+
+  const MOCK_PROJECT_TWO_WORKTREES: ProjectData = {
+    ...MOCK_PROJECT,
+    worktrees: [MOCK_WORKTREE, MOCK_WORKTREE_B],
+  };
+
+  const MOCK_CHECK_RESULT_A = {
+    projectPath: '/home/user/projects/test-project-feature',
+    findings: [
+      { rule: 'task-vs-plan', severity: 'warning', location: '/fake/plan.md', description: 'Finding from worktree A', suggestedFix: 'Fix it', fixable: true },
+    ],
+    totalFindings: 1, errors: 0, warnings: 1, infos: 0,
+    summary: '1 finding: 1 warning',
+  };
+
+  const MOCK_CHECK_RESULT_B = {
+    projectPath: '/home/user/projects/test-project-bugfix',
+    findings: [
+      { rule: 'missing-artifact', severity: 'info', location: 'slice plan entry 250', description: 'Finding from worktree B', suggestedFix: 'Create task file', fixable: false },
+    ],
+    totalFindings: 1, errors: 0, warnings: 0, infos: 1,
+    summary: '1 finding: 1 info',
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('applies worktree overlays and merges findings from all views', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    // Return different findings for each worktree view
+    mockCheckAll
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A)
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_B);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { findings: unknown[]; totalFindings: number };
+    // Should have findings from both views merged
+    expect(parsed.totalFindings).toBe(2);
+    expect(parsed.findings).toHaveLength(2);
+    // checkAll should have been called twice (once per view)
+    expect(mockCheckAll).toHaveBeenCalledTimes(2);
+  });
+
+  it('behavior unchanged for project without worktrees', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT_A);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { totalFindings: number };
+    expect(parsed.totalFindings).toBe(1);
+    // checkAll called once (no worktrees)
+    expect(mockCheckAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates identical findings across worktree views', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    // Both worktree views return the same finding
+    mockCheckAll
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A)
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = parseResult(result) as { findings: unknown[]; totalFindings: number };
+    // Same finding from both views should be deduplicated to 1
+    expect(parsed.totalFindings).toBe(1);
+    expect(parsed.findings).toHaveLength(1);
+  });
+});

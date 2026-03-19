@@ -11,6 +11,7 @@ import {
   createVersionedBackup,
   WorktreeService,
 } from '@context-forge/core/node';
+import type { ConsistencyCheckResult, ConsistencyFinding } from '@context-forge/core';
 import { applyWorktreeOverlay } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
@@ -20,6 +21,36 @@ function errorResult(message: string): { content: { type: 'text'; text: string }
 
 function jsonResult(data: unknown): { content: { type: 'text'; text: string }[] } {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+}
+
+/**
+ * Merge findings from multiple checkAll runs, deduplicating by rule+location+description.
+ * TODO: Extract to @context-forge/core shared utility (200-slices future work item 7)
+ */
+function mergeCheckResults(results: ConsistencyCheckResult[]): ConsistencyCheckResult {
+  if (results.length === 1) return results[0];
+  const seen = new Set<string>();
+  const allFindings: ConsistencyFinding[] = [];
+  for (const result of results) {
+    for (const finding of result.findings) {
+      const key = `${finding.rule}|${finding.location}|${finding.description}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        allFindings.push(finding);
+      }
+    }
+  }
+  const projectPath = results[0].projectPath;
+  const errors = allFindings.filter((f) => f.severity === 'error').length;
+  const warnings = allFindings.filter((f) => f.severity === 'warning').length;
+  const infos = allFindings.filter((f) => f.severity === 'info').length;
+  const total = allFindings.length;
+  const parts: string[] = [];
+  if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`);
+  if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
+  if (infos > 0) parts.push(`${infos} info${infos !== 1 ? 's' : ''}`);
+  const summary = total === 0 ? 'No inconsistencies found' : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
+  return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
 }
 
 export function registerWorkflowTools(server: McpServer): void {
@@ -269,18 +300,33 @@ export function registerWorkflowTools(server: McpServer): void {
           }
         }
 
+        // Build project views: one per worktree overlay so all workflow fields are visible.
+        // Findings are merged and deduplicated — aggregate rules (filesystem scan) run per
+        // view but produce the same results, so deduplication collapses them correctly.
+        // TODO: Extract merge logic to @context-forge/core shared utility (200-slices future work item 7)
+        const worktrees = project.worktrees ?? [];
+        const projectViews = worktrees.length > 0
+          ? worktrees.map((wt) => {
+              const view = applyWorktreeOverlay(project, wt.id);
+              if (wt.worktreePath) view.projectPath = wt.worktreePath;
+              return view;
+            })
+          : [project];
+
         let result;
         if (args.sliceIndex !== undefined) {
           // Single-slice mode
-          const sliceProject = { ...project, fileSlice: `${args.sliceIndex}-slice` };
-          result = fixMode
-            ? await checker.fix(sliceProject)
-            : await checker.check(sliceProject);
+          const sliceViews = projectViews.map((v) => ({ ...v, fileSlice: `${args.sliceIndex}-slice` }));
+          const checkResults = await Promise.all(sliceViews.map((v) =>
+            fixMode ? checker.fix(v) : checker.check(v),
+          ));
+          result = mergeCheckResults(checkResults);
         } else {
           // All-slices mode (no confirmation prompt in MCP)
-          result = fixMode
-            ? await checker.fixAll(project)
-            : await checker.checkAll(project);
+          const checkResults = await Promise.all(projectViews.map((v) =>
+            fixMode ? checker.fixAll(v) : checker.checkAll(v),
+          ));
+          result = mergeCheckResults(checkResults);
         }
 
         return jsonResult(result);

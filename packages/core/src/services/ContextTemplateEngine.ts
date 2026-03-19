@@ -100,45 +100,45 @@ export class ContextTemplateEngine {
       order: 2
     });
 
-    // 3. Tools and MCP section (always included)
-    sections.push({
-      key: 'tools-section',
-      title: '### 3rd-Party Tools & MCP',
-      content: await this.sectionBuilder.buildToolsSection(data),
-      conditional: false,
-      order: 3
-    });
-
-    // 4. Current project state section (always included if present)
-    if (data.recentEvents && data.recentEvents.trim()) {
-      sections.push({
-        key: 'current-events',
-        title: '### Current Project State',
-        content: data.recentEvents,
-        conditional: false,
-        order: 4
-      });
-    }
-
-    // 6. Instruction section (always included)
+    // 3. Instruction section (always included)
     sections.push({
       key: 'instruction',
       title: '### Instruction Prompt',
       content: await this.sectionBuilder.buildInstructionSection(data),
       conditional: false,
-      order: 5
+      order: 3
     });
 
-    // 7. Additional instructions section (conditional)
+    // 4. Additional instructions section (conditional)
     if (data.additionalNotes && data.additionalNotes.trim()) {
       sections.push({
         key: 'additional-notes',
         title: '## Additional Instructions',
         content: data.additionalNotes,
         conditional: false,
-        order: 6
+        order: 4
       });
     }
+
+    // 5. Current project state section (always included if present)
+    if (data.recentEvents && data.recentEvents.trim()) {
+      sections.push({
+        key: 'current-events',
+        title: '### Current Project State',
+        content: data.recentEvents,
+        conditional: false,
+        order: 5
+      });
+    }
+
+    // 6. Tools and MCP section (always included)
+    sections.push({
+      key: 'tools-section',
+      title: '### 3rd-Party Tools & MCP',
+      content: await this.sectionBuilder.buildToolsSection(data),
+      conditional: false,
+      order: 6
+    });
 
     return {
       sections,
