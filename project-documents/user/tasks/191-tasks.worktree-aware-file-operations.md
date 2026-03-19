@@ -5,8 +5,8 @@ lld: user/slices/191-slice.worktree-aware-file-operations.md
 dependencies: [182, 183]
 projectState: Slice 190 complete. CLI commands (arch list, slice list, tasks list, plan list, set, check, future, status --worktrees, prompt list/get) and MCP introspection tools use project.projectPath for filesystem ops — invisible to worktree-specific documents. Index-range filtering not implemented. Build clean.
 dateCreated: 20260318
-dateUpdated: 20260318
-status: in_progress
+dateUpdated: 20260319
+status: complete
 ---
 
 ## Context Summary
@@ -277,15 +277,15 @@ status: in_progress
 
 ## Section 10: Build, Test, and Verify
 
-- [ ] **10.1 Full build verification**
+- [x] **10.1 Full build verification**
   - Run `npm run build` from project root
-  - [ ] Build completes with no errors
+  - [x] Build completes with no errors
 
-- [ ] **10.2 Full test suite**
+- [x] **10.2 Full test suite**
   - Run `npx vitest run` from `packages/core`, `packages/cli`, `packages/mcp-server`
-  - [ ] All core tests pass
-  - [ ] All CLI tests pass
-  - [ ] All MCP tests pass
+  - [x] All core tests pass (658)
+  - [x] All CLI tests pass (309)
+  - [x] All MCP tests pass (168)
 
 **Commit:** (no separate commit — verification only)
 
@@ -293,21 +293,21 @@ status: in_progress
 
 ## Section 11: Documentation and Wrap-Up
 
-- [ ] **11.1 Update slice plan**
+- [x] **11.1 Update slice plan**
   - Check off slice 191 in `user/architecture/180-slices.initiative-context-worktree.md`
-  - [ ] Slice 191 entry marked `[x]`
+  - [x] Slice 191 entry marked `[x]`
 
-- [ ] **11.2 Update slice design status**
+- [x] **11.2 Update slice design status**
   - Set `status: complete` in `user/slices/191-slice.worktree-aware-file-operations.md` frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **11.3 Update task file status**
+- [x] **11.3 Update task file status**
   - Set `status: complete` in this file's frontmatter
-  - [ ] Status is `complete`
+  - [x] Status is `complete`
 
-- [ ] **11.4 Write DEVLOG entry**
+- [x] **11.4 Write DEVLOG entry**
   - Append entry to `DEVLOG.md` with slice 191 completion summary and commit hashes
-  - [ ] DEVLOG entry written
+  - [x] DEVLOG entry written
 
 **Commit:** `docs: complete slice 191 worktree-aware file operations`
 

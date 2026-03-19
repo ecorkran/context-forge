@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-19
+
+### Slice 191: Worktree-Aware File Operations — Implementation Complete
+- Two-part fix: (1) worktree path resolution via `resolveOperationPath()`, (2) index-range scoping via `getWorktreeIndexRange()` + `isInIndexRange()`
+- CLI: 10 commands updated (arch, slice, tasks, plan, set, check, status, future, prompt + set out-of-range warning)
+- MCP: 5 introspection tools gain `worktreeId` parameter (name or ID), `resolveOperationContext()` shared helper
+- `check.ts`, `future.ts`, `prompt.ts` migrated from `resolveProjectId()` → `resolveProjectWorktree()`
+- All 1135 tests pass (658 core + 309 CLI + 168 MCP), build clean
+- Commits: 3214e5b, ed698c1, 087ec3b, 5bd9d84, ef79f8b
+
 ## 2026-03-18
 
 ### Slice 191: Worktree-Aware File Operations — Design & Tasks Complete
