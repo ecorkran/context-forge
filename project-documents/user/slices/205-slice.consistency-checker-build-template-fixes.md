@@ -130,12 +130,12 @@ New order:
 | 1 | `project-intro` | Project statement |
 | 1.5 | `project-info` | Project metadata |
 | 2 | `context-init` | Context initialization prompt |
-| 3 | `current-events` | Current Project State |
-| 4 | `instruction` | Instruction Prompt |
-| 5 | `additional-notes` | Additional Instructions |
+| 3 | `instruction` | Instruction Prompt |
+| 4 | `additional-notes` | Additional Instructions |
+| 5 | `current-events` | Current Project State |
 | 6 | `tools-section` | 3rd-Party Tools & MCP |
 
-Rationale: The instruction prompt is the core directive — what the agent should do. It should appear before tool guidance, which is supplementary. Additional instructions (user notes like "On Phase Complete: ...") stay adjacent to the instruction prompt. Tools section moves to the end since it's reference material the agent consults as needed.
+Rationale: The instruction prompt is the core directive — what the agent should do. Additional instructions (user notes like "On Phase Complete: ...") stay adjacent to form a "what to do" block. Reference material (project state, tools) follows — context the agent consults as needed but shouldn't see before its directive.
 
 ## Success Criteria
 
@@ -149,6 +149,7 @@ Rationale: The instruction prompt is the core directive — what the agent shoul
 - Existing `ConsistencyChecker` unit tests continue to pass
 - New tests cover multi-plan scanning (project with 2+ slice plans, entries from non-configured plan are checked)
 - MCP `workflow_check` tests cover worktree overlay iteration
+- Parity tests: CLI and MCP produce equivalent findings for the same project (with and without worktrees)
 - `ContextTemplateEngine` tests verify new section ordering
 
 ### Verification Walkthrough
