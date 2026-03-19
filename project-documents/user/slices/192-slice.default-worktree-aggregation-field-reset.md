@@ -308,77 +308,65 @@ For `WorktreeService.updateWorktree()`, the same pattern applies — `{ ...workt
 
 **Setup:** Project `migratory` with worktrees:
 - `default` (range 100-799) at `~/repos/migratory` — has `100-arch.behavior-engine` on its branch
-- `world-server` (range 300-499) at `~/repos/migratory-world-server` — has both 100 and 300 range files
+- `world-server` (range 300-499) at `~/repos/migratory-world-server` — has 300-range files
 
-**1. Default worktree scoped to its own range:**
+**1. Default worktree scoped to its own range:** ✓
 ```bash
 cd ~/repos/migratory
 cf arch list
-# Expected: shows only initiatives within default worktree's range (100-299)
-# e.g., 100-arch.behavior-engine — NOT 300-range docs
+# Result: shows only 100-range (Behavior Engine). 300-range NOT shown.
+#   100  Behavior Engine  behavior-engine  behavior-engine  0/6 ← active
 ```
 
-**2. `--all` aggregation from any worktree:**
+**2. `--all` aggregation from default worktree:** ✓
 ```bash
 cd ~/repos/migratory
 cf arch list --all
-# Expected: shows BOTH 100-arch.behavior-engine AND 300-arch.worldserver-foundation
-# (300 is pulled from the world-server worktree path)
+# Result: shows BOTH 100-range and 300-range.
+#   100  Behavior Engine         behavior-engine         behavior-engine  0/6 ← active
+#   300  Worldserver Foundation  worldserver-foundation  —                —
 ```
 
-**3. Non-default worktree unchanged:**
+**3. Non-default worktree unchanged:** ✓
 ```bash
 cd ~/repos/migratory-world-server
 cf arch list
-# Expected: shows ONLY 300-arch.worldserver-foundation (same as slice 191)
+# Result: shows only 300-range (same as slice 191).
+#   300  Worldserver Foundation  worldserver-foundation  —  —
 ```
 
-**3. cf unset — basic usage:**
-```bash
-cf set arch 300
-cf get | grep -i arch
-# Shows: 300-arch.worldserver-foundation
-
-cf unset arch
-cf get | grep -i arch
-# Shows: — (unset)
-```
-
-**4. cf unset — required field guard:**
-```bash
-cf unset name
-# Expected: error "Cannot unset required field 'name'"
-```
-
-**5. cf unset — worktree-scoped:**
+**4. cf unset — basic usage:** ✓
 ```bash
 cd ~/repos/migratory-world-server
-cf set phase 6
-cf unset phase
-cf get | grep -i phase
-# Shows: — (unset on worktree context)
+cf set arch 300
+# Updated plan = 300-slices.worldserver-foundation (auto-set from arch) on worktree context "world-server"
+# Updated arch = 300-arch.worldserver-foundation on worktree context "world-server"
+
+cf unset arch
+# Unset arch on worktree context "world-server"
+
+cf get | grep -i arch
+# Result: Architecture: — (unset)
 ```
 
-**7. No regression for projects without worktrees:**
+**5. cf unset — required field guard:** ✓
+```bash
+cf unset name
+# Result: error exit code 1: "Cannot unset required field 'name'."
+```
+
+**6. No regression for projects without worktrees:** ✓
 ```bash
 cd ~/repos/context-forge    # no worktrees
 cf arch list
-# Expected: identical to current behavior (no range = no filtering)
+# Result: all initiatives shown (140, 160, 180, 200, 220), no range filtering.
 ```
 
-**8. MCP project_structure with `all: true`:**
-```
-Call project_structure with projectId="migratory", all=true
-# Expected: initiatives include both 100-band and 300-band
-```
+**7. MCP `project_structure` with `all: true`:**
+Verified via unit tests — `all: true` calls `resolveAllOperationPaths`, builds models from each path, merges via `mergeProjectModels`. Test confirms merged initiatives returned.
 
-**9. MCP project_structure with worktreeId (scoped):**
-```
-Call project_structure with projectId="migratory", worktreeId="default"
-# Expected: only 100-band (default worktree's range)
-Call project_structure with projectId="migratory", worktreeId="world-server"
-# Expected: only 300-band
-```
+**8. MCP `project_structure` with worktreeId (scoped):**
+Verified via unit tests — `worktreeId="default"` now returns range-filtered results (default worktree's indexRange applied). `worktreeId="api-layer"` returns only that worktree's range. New test `filters default worktree by its own index range` confirms this behavioral change.
 
 ## Implementation Notes
 

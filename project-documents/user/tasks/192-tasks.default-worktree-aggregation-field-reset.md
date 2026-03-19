@@ -255,37 +255,37 @@ status: complete
 
 Follow the verification walkthrough from the slice design. Update with actual results.
 
-- [ ] **8.1 Default worktree scoped to its own range**
+- [x] **8.1 Default worktree scoped to its own range**
   - From `~/repos/migratory`, run `cf arch list`
   - Verify only 100-range shown (default worktree's range)
-  - [ ] Scoped correctly
+  - [x] Scoped correctly
 
-- [ ] **8.2 `--all` aggregation**
+- [x] **8.2 `--all` aggregation**
   - From `~/repos/migratory`, run `cf arch list --all`
   - Verify both 100-range and 300-range shown
-  - [ ] Aggregation works
+  - [x] Aggregation works
 
-- [ ] **8.3 Non-default worktree unchanged**
+- [x] **8.3 Non-default worktree unchanged**
   - From `~/repos/migratory-world-server`, run `cf arch list`
   - Verify only 300-range shown
-  - [ ] Same as slice 191
+  - [x] Same as slice 191
 
-- [ ] **8.4 `cf unset` basic usage**
+- [x] **8.4 `cf unset` basic usage**
   - `cf set arch 300` then `cf unset arch` then `cf get`
   - Verify arch shows `—` (unset)
-  - [ ] Field cleared
+  - [x] Field cleared
 
-- [ ] **8.5 `cf unset` required field guard**
+- [x] **8.5 `cf unset` required field guard**
   - `cf unset name` → error
-  - [ ] Guard works
+  - [x] Guard works
 
-- [ ] **8.6 No regression for projects without worktrees**
+- [x] **8.6 No regression for projects without worktrees**
   - From `~/repos/context-forge`, run `cf arch list`
   - Verify identical to current behavior
-  - [ ] No regression
+  - [x] No regression
 
-- [ ] **8.7 Update slice design verification walkthrough**
+- [x] **8.7 Update slice design verification walkthrough**
   - Update the Verification Walkthrough section of the slice design with actual results
-  - [ ] Walkthrough updated
+  - [x] Walkthrough updated
 
 **Commit:** `docs: update 192 slice design verification walkthrough with actual results`
