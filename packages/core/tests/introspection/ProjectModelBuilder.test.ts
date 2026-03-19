@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { buildModel, scanDirectory } from '../../src/introspection/ProjectModelBuilder.js';
+import { buildModel, scanDirectory, mergeProjectModels } from '../../src/introspection/ProjectModelBuilder.js';
+import type { ProjectModel, Initiative } from '../../src/introspection/types.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
 const USER_DIR = join(PROJECT_ROOT, 'project-documents', 'user');
@@ -140,5 +141,72 @@ describe('buildModel', () => {
     const model = await buildModel(PROJECT_ROOT);
     // Fixture docs have project: "test-project", which title-cases to "Test Project"
     expect(model.name).toBe('Test Project');
+  });
+});
+
+function makeModel(overrides: Partial<ProjectModel> = {}): ProjectModel {
+  return {
+    name: 'Test',
+    description: '',
+    foundation: [],
+    projectArchitecture: [],
+    initiatives: {},
+    futureSlices: [],
+    quality: [],
+    investigation: [],
+    maintenance: [],
+    devlog: false,
+    ...overrides,
+  };
+}
+
+function makeInitiative(name: string): Initiative {
+  return { name, slices: [], features: [] };
+}
+
+describe('mergeProjectModels', () => {
+  it('throws on empty array', () => {
+    expect(() => mergeProjectModels([])).toThrow('No models to merge');
+  });
+
+  it('returns the single model as-is', () => {
+    const model = makeModel({ name: 'Solo' });
+    expect(mergeProjectModels([model])).toBe(model);
+  });
+
+  it('merges initiatives from two non-overlapping models', () => {
+    const m1 = makeModel({ initiatives: { '100': makeInitiative('Auth') } });
+    const m2 = makeModel({ initiatives: { '300': makeInitiative('API') } });
+    const merged = mergeProjectModels([m1, m2]);
+    expect(Object.keys(merged.initiatives)).toEqual(['100', '300']);
+  });
+
+  it('deduplicates initiatives by key (first wins)', () => {
+    const m1 = makeModel({ initiatives: { '100': makeInitiative('Auth-v1') } });
+    const m2 = makeModel({ initiatives: { '100': makeInitiative('Auth-v2') } });
+    const merged = mergeProjectModels([m1, m2]);
+    expect(merged.initiatives['100'].name).toBe('Auth-v1');
+  });
+
+  it('deduplicates foundation entries by name', () => {
+    const entry = { index: '000', name: 'concept', status: 'complete', type: 'concept' };
+    const m1 = makeModel({ foundation: [entry as any] });
+    const m2 = makeModel({ foundation: [entry as any] });
+    const merged = mergeProjectModels([m1, m2]);
+    expect(merged.foundation).toHaveLength(1);
+  });
+
+  it('unions devlog flag (true if any model has devlog)', () => {
+    const m1 = makeModel({ devlog: false });
+    const m2 = makeModel({ devlog: true });
+    expect(mergeProjectModels([m1, m2]).devlog).toBe(true);
+  });
+
+  it('preserves name and description from first model', () => {
+    const m1 = makeModel({ name: 'First', description: 'Desc1' });
+    const m2 = makeModel({ name: 'Second', description: 'Desc2' });
+    const merged = mergeProjectModels([m1, m2]);
+    expect(merged.name).toBe('First');
+    expect(merged.description).toBe('Desc1');
   });
 });

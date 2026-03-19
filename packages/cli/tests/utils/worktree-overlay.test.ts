@@ -4,6 +4,7 @@ import {
   resolveOperationPath,
   getWorktreeIndexRange,
   isInIndexRange,
+  resolveAllOperationPaths,
 } from '../../src/utils/worktree-overlay.js';
 import type { ProjectData } from '@context-forge/core';
 
@@ -171,8 +172,8 @@ describe('getWorktreeIndexRange', () => {
     expect(getWorktreeIndexRange(projectWithDefault, 'wt_api')).toEqual([300, 499]);
   });
 
-  it('returns undefined for default worktree', () => {
-    expect(getWorktreeIndexRange(projectWithDefault, 'wt_default')).toBeUndefined();
+  it('returns index range for default worktree', () => {
+    expect(getWorktreeIndexRange(projectWithDefault, 'wt_default')).toEqual([100, 799]);
   });
 
   it('returns undefined when no worktreeId provided', () => {
@@ -212,5 +213,46 @@ describe('isInIndexRange', () => {
 
   it('returns true when no range specified (no filtering)', () => {
     expect(isInIndexRange(999)).toBe(true);
+  });
+});
+
+describe('resolveAllOperationPaths', () => {
+  it('returns projectPath and all worktree paths (deduplicated)', () => {
+    const paths = resolveAllOperationPaths(projectWithDefault);
+    expect(paths).toContain('/tmp/test');
+    expect(paths).toContain('/repos/main');
+    expect(paths).toContain('/repos/api');
+    // wt_nopath has no worktreePath, should not contribute
+    expect(paths).toHaveLength(3);
+  });
+
+  it('returns only projectPath when no worktrees', () => {
+    const noWt: ProjectData = { ...baseProject, worktrees: undefined };
+    expect(resolveAllOperationPaths(noWt)).toEqual(['/tmp/test']);
+  });
+
+  it('deduplicates when projectPath equals a worktreePath', () => {
+    const overlapping: ProjectData = {
+      ...baseProject,
+      projectPath: '/repos/main',
+      worktrees: [
+        {
+          id: 'wt_default',
+          name: 'default',
+          indexRange: [100, 799] as [number, number],
+          worktreePath: '/repos/main',
+        },
+      ],
+    };
+    expect(resolveAllOperationPaths(overlapping)).toEqual(['/repos/main']);
+  });
+
+  it('returns empty array when no projectPath and no worktrees', () => {
+    const empty: ProjectData = {
+      ...baseProject,
+      projectPath: undefined as unknown as string,
+      worktrees: [],
+    };
+    expect(resolveAllOperationPaths(empty)).toEqual([]);
   });
 });

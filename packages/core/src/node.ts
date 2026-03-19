@@ -27,7 +27,7 @@ export { parseSlicePlan } from './introspection/parsers/slicePlanParser.js';
 export { parseTaskItems, parseTaskFile } from './introspection/parsers/taskFileParser.js';
 export { parseFutureWork } from './introspection/parsers/futureWorkParser.js';
 export { detectDocuments, checkFileExists } from './introspection/parsers/documentDetector.js';
-export { buildModel, scanDirectory } from './introspection/ProjectModelBuilder.js';
+export { buildModel, scanDirectory, mergeProjectModels } from './introspection/ProjectModelBuilder.js';
 export { FutureWorkCollector } from './introspection/FutureWorkCollector.js';
 export { ConsistencyChecker } from './introspection/ConsistencyChecker.js';
 export { updateCheckbox, updateFrontmatterField } from './introspection/writers/markdownWriter.js';

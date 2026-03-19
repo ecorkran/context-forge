@@ -19,6 +19,63 @@ import type {
   MaintenanceEntry,
 } from './types.js';
 
+/** Deduplicate DocSummary-like arrays by name field (first wins). */
+function dedupeByName<T extends { name: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.name)) return false;
+    seen.add(item.name);
+    return true;
+  });
+}
+
+/**
+ * Merge multiple ProjectModel objects into one (for --all aggregation).
+ * Deduplicates initiatives by index key (first wins), arrays by name.
+ */
+export function mergeProjectModels(models: ProjectModel[]): ProjectModel {
+  if (models.length === 0) throw new Error('No models to merge');
+  if (models.length === 1) return models[0];
+
+  const merged: ProjectModel = {
+    name: models[0].name,
+    description: models[0].description,
+    foundation: [],
+    projectArchitecture: [],
+    initiatives: {},
+    futureSlices: [],
+    quality: [],
+    investigation: [],
+    maintenance: [],
+    devlog: models.some((m) => m.devlog),
+  };
+
+  for (const model of models) {
+    merged.foundation.push(...model.foundation);
+    merged.projectArchitecture.push(...model.projectArchitecture);
+    merged.futureSlices.push(...model.futureSlices);
+    merged.quality.push(...model.quality);
+    merged.investigation.push(...model.investigation);
+    merged.maintenance.push(...model.maintenance);
+
+    for (const [key, init] of Object.entries(model.initiatives)) {
+      if (!merged.initiatives[key]) {
+        merged.initiatives[key] = init;
+      }
+    }
+  }
+
+  // Deduplicate arrays by name
+  merged.foundation = dedupeByName(merged.foundation);
+  merged.projectArchitecture = dedupeByName(merged.projectArchitecture);
+  merged.futureSlices = dedupeByName(merged.futureSlices);
+  merged.quality = dedupeByName(merged.quality);
+  merged.investigation = dedupeByName(merged.investigation);
+  merged.maintenance = dedupeByName(merged.maintenance);
+
+  return merged;
+}
+
 const USER_DOCS = 'project-documents/user';
 
 // Subdirectories scanned under user/ (matching parse.py order)
