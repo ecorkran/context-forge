@@ -133,4 +133,61 @@ describe('cf arch list', () => {
     const output = calls.join('\n');
     expect(output).toContain('No initiatives found');
   });
+
+  it('filters initiatives by worktree index range for non-default worktree', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_wf', name: 'workflow', indexRange: [160, 199] as [number, number], worktreePath: '/repos/workflow' },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockBuildModel.mockResolvedValue(sampleModel);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/workflow');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    expect(output).toContain('Workflow System');
+    expect(output).not.toContain('Core System');
+  });
+
+  it('shows all initiatives from default worktree', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_wf', name: 'workflow', indexRange: [160, 199] as [number, number], worktreePath: '/repos/workflow' },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+    mockBuildModel.mockResolvedValue(sampleModel);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/main');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    expect(output).toContain('Core System');
+    expect(output).toContain('Workflow System');
+  });
+
+  it('shows all initiatives when no worktrees exist (regression)', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockBuildModel.mockResolvedValue(sampleModel);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list', '--project', 'proj_001']);
+
+    const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+    const output = calls.join('\n');
+    expect(output).toContain('Core System');
+    expect(output).toContain('Workflow System');
+  });
 });

@@ -82,7 +82,7 @@ status: in_progress
 
 ## Section 3: `cf arch list` — Path + Index Filtering
 
-- [ ] **3.1 Update arch.ts to use worktree path and filter by index range**
+- [x] **3.1 Update arch.ts to use worktree path and filter by index range**
   - File: `packages/cli/src/commands/arch.ts`
   - Re-read before modifying
   - Import `resolveOperationPath`, `getWorktreeIndexRange`, `isInIndexRange`
@@ -90,17 +90,17 @@ status: in_progress
   - Resolve `operationPath` and pass to `buildModel()` instead of `project.projectPath`
   - Get `indexRange` via `getWorktreeIndexRange()`
   - After `buildModel()` returns, filter the model's initiatives: keep only those whose index is in range
-  - [ ] `buildModel` receives worktree path
-  - [ ] Non-default worktree shows only in-range arch docs
-  - [ ] Default worktree shows all
+  - [x] `buildModel` receives worktree path
+  - [x] Non-default worktree shows only in-range arch docs
+  - [x] Default worktree shows all
 
-- [ ] **3.2 Tests for `cf arch list` filtering**
+- [x] **3.2 Tests for `cf arch list` filtering**
   - File: `packages/cli/tests/commands/arch.test.ts`
   - Re-read before modifying
   - Add test: arch list from non-default worktree shows only in-range entries
   - Add test: arch list from default worktree shows all entries
   - Add test: arch list with no worktrees (regression)
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware cf arch list with index filtering`
 
@@ -108,20 +108,20 @@ status: in_progress
 
 ## Section 4: `cf slice list` — Path + Index Filtering
 
-- [ ] **4.1 Update slice.ts to use worktree path and filter by index range**
+- [x] **4.1 Update slice.ts to use worktree path and filter by index range**
   - File: `packages/cli/src/commands/slice.ts`
   - Re-read before modifying
   - Import helpers; already uses `resolveProjectWorktree()`
   - Use `operationPath` for slice plan path join and `detectDocuments()` calls
   - Filter slice plan entries by index range before display
-  - [ ] Plan path resolves from worktree
-  - [ ] Non-default worktree shows only in-range slices
+  - [x] Plan path resolves from worktree
+  - [x] Non-default worktree shows only in-range slices
 
-- [ ] **4.2 Tests for `cf slice list` filtering**
+- [x] **4.2 Tests for `cf slice list` filtering**
   - File: `packages/cli/tests/commands/slice.test.ts`
   - Re-read before modifying
   - Add test: slice list from non-default worktree filters by range
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware cf slice list with index filtering`
 
@@ -129,21 +129,21 @@ status: in_progress
 
 ## Section 5: `cf tasks list` / `cf tasks items` — Path + Index Filtering
 
-- [ ] **5.1 Update task.ts to use worktree path and filter by index range**
+- [x] **5.1 Update task.ts to use worktree path and filter by index range**
   - File: `packages/cli/src/commands/task.ts`
   - Re-read before modifying
   - Import helpers; already uses `resolveProjectWorktree()`
   - `listTaskFiles()` and `listTaskItems()` use `project.projectPath!` — replace with `operationPath` parameter
   - In `listTaskFiles()`: after scanning the tasks directory, filter files by extracting the numeric prefix and checking against range
   - In `listTaskItems()`: same path fix for resolving task file paths
-  - [ ] Tasks directory scanned from worktree path
-  - [ ] Non-default worktree shows only in-range task files
+  - [x] Tasks directory scanned from worktree path
+  - [x] Non-default worktree shows only in-range task files
 
-- [ ] **5.2 Tests for `cf tasks` filtering**
+- [x] **5.2 Tests for `cf tasks` filtering**
   - File: `packages/cli/tests/commands/task.test.ts`
   - Re-read before modifying
   - Add test: tasks list from non-default worktree filters by range
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware cf tasks with index filtering`
 
@@ -151,20 +151,20 @@ status: in_progress
 
 ## Section 6: `cf plan list` — Path + Index Filtering
 
-- [ ] **6.1 Update plan.ts to use worktree path and filter by index range**
+- [x] **6.1 Update plan.ts to use worktree path and filter by index range**
   - File: `packages/cli/src/commands/plan.ts`
   - Re-read before modifying
   - Import helpers; already uses `resolveProjectWorktree()`
   - Use `operationPath` for architecture directory scan
   - Filter discovered slice plan files by index prefix against range
-  - [ ] Architecture directory scanned from worktree path
-  - [ ] Non-default worktree shows only in-range plans
+  - [x] Architecture directory scanned from worktree path
+  - [x] Non-default worktree shows only in-range plans
 
-- [ ] **6.2 Tests for `cf plan list` filtering**
+- [x] **6.2 Tests for `cf plan list` filtering**
   - File: `packages/cli/tests/commands/plan.test.ts`
   - Re-read before modifying
   - Add test: plan list from non-default worktree filters by range
-  - [ ] All CLI tests pass
+  - [x] All CLI tests pass
 
 **Commit:** `feat(cli): worktree-aware cf plan list with index filtering`
 

@@ -9,7 +9,7 @@ import {
   parseTaskFile,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
@@ -42,7 +42,9 @@ export function registerTaskCommand(program: Command): void {
           );
         }
 
-        await listTaskFiles(project, opts.json);
+        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+        await listTaskFiles(project, operationPath, indexRange, opts.json);
       } catch (err) {
         handleError(err);
       }
@@ -71,7 +73,8 @@ export function registerTaskCommand(program: Command): void {
           );
         }
 
-        await listTaskItems(project, opts.json);
+        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+        await listTaskItems(project, operationPath, opts.json);
       } catch (err) {
         handleError(err);
       }
@@ -80,6 +83,7 @@ export function registerTaskCommand(program: Command): void {
 
 async function listTaskItems(
   project: { fileTasks?: string; projectPath?: string; fileSlice?: string },
+  operationPath: string,
   json?: boolean,
 ): Promise<void> {
   if (!project.fileTasks) {
@@ -98,19 +102,19 @@ async function listTaskItems(
   let taskPaths: string[];
 
   if (sliceIndex !== null) {
-    const tasksDir = join(project.projectPath!, 'project-documents/user/tasks');
+    const tasksDir = join(operationPath, 'project-documents/user/tasks');
     try {
       const files = await readdir(tasksDir);
       const matching = files
         .filter((f) => f.startsWith(`${sliceIndex}-tasks.`) && f.endsWith('.md'))
         .sort()
         .map((f) => join(tasksDir, f));
-      taskPaths = matching.length > 0 ? matching : [join(project.projectPath!, taskRelPath)];
+      taskPaths = matching.length > 0 ? matching : [join(operationPath, taskRelPath)];
     } catch {
-      taskPaths = [join(project.projectPath!, taskRelPath)];
+      taskPaths = [join(operationPath, taskRelPath)];
     }
   } else {
-    taskPaths = [join(project.projectPath!, taskRelPath)];
+    taskPaths = [join(operationPath, taskRelPath)];
   }
 
   const taskResult = await parseTaskFile(taskPaths);
@@ -135,6 +139,8 @@ async function listTaskItems(
 
 async function listTaskFiles(
   project: { fileSlicePlan?: string; fileSlice?: string; projectPath?: string },
+  operationPath: string,
+  indexRange: [number, number] | undefined,
   json?: boolean,
 ): Promise<void> {
   if (!project.fileSlicePlan) {
@@ -146,10 +152,10 @@ async function listTaskFiles(
     throw new UserError('Could not resolve slice plan path.');
   }
 
-  const planPath = join(project.projectPath!, planRelPath);
+  const planPath = join(operationPath, planRelPath);
   const plan = await parseSlicePlan(planPath);
   const activeIndex = extractSliceIndex(project.fileSlice);
-  const tasksDir = join(project.projectPath!, 'project-documents/user/tasks');
+  const tasksDir = join(operationPath, 'project-documents/user/tasks');
 
   let allFiles: string[];
   try {
@@ -160,7 +166,8 @@ async function listTaskFiles(
 
   const summaries: { index: number; name: string; files: string[]; completed: number; total: number; isActive: boolean }[] = [];
 
-  for (const entry of plan.entries) {
+  const filteredEntries = plan.entries.filter((e) => isInIndexRange(e.index, indexRange));
+  for (const entry of filteredEntries) {
     const matching = allFiles
       .filter((f) => f.startsWith(`${entry.index}-tasks.`) && f.endsWith('.md'))
       .sort();

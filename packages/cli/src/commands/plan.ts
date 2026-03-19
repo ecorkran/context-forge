@@ -6,7 +6,7 @@ import {
   parseSlicePlan,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -40,7 +40,10 @@ export function registerPlanCommand(program: Command): void {
           );
         }
 
-        const archDir = join(project.projectPath, 'project-documents/user/architecture');
+        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+
+        const archDir = join(operationPath, 'project-documents/user/architecture');
         let files: string[];
         try {
           files = await readdir(archDir);
@@ -50,6 +53,10 @@ export function registerPlanCommand(program: Command): void {
 
         const planFiles = files
           .filter((f) => /^\d+-slices\..*\.md$/.test(f))
+          .filter((f) => {
+            const m = /^(\d+)-/.exec(f);
+            return m ? isInIndexRange(parseInt(m[1], 10), indexRange) : true;
+          })
           .sort();
 
         if (planFiles.length === 0) {

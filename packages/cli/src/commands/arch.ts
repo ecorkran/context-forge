@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { FileProjectStore, buildModel } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -36,10 +36,12 @@ export function registerArchCommand(program: Command): void {
           );
         }
 
-        const model = await buildModel(project.projectPath);
-        const initiativeKeys = Object.keys(model.initiatives).sort(
-          (a, b) => parseInt(a, 10) - parseInt(b, 10),
-        );
+        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
+        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+        const model = await buildModel(operationPath!);
+        const initiativeKeys = Object.keys(model.initiatives)
+          .filter((key) => isInIndexRange(parseInt(key, 10), indexRange))
+          .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
         if (initiativeKeys.length === 0) {
           console.log(dim('No initiatives found in project.'));
