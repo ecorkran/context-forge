@@ -317,29 +317,29 @@ status: complete
 
 Follow the verification walkthrough from the slice design. Update with actual results.
 
-- [ ] **12.1 `cf arch list` from non-default worktree**
+- [x] **12.1 `cf arch list` from non-default worktree**
   - From `~/repos/migratory-world-server`, run `cf arch list`
   - Verify only 300-range docs shown
-  - [ ] Scoped to worktree's index range
+  - [x] Scoped to worktree's index range
 
-- [ ] **12.2 `cf arch list` from default worktree**
+- [x] **12.2 `cf arch list` from default worktree**
   - From `~/repos/migratory`, run `cf arch list`
   - Verify all arch docs shown
-  - [ ] No filtering for default worktree
+  - [x] No filtering for default worktree
 
-- [ ] **12.3 `cf set arch` from worktree — in range and out of range**
+- [x] **12.3 `cf set arch` from worktree — in range and out of range**
   - From `~/repos/migratory-world-server`:
     - `cf set arch 300` — succeeds
     - `cf set arch 100` — warns but succeeds
-  - [ ] In-range works, out-of-range warns
+  - [x] In-range works, out-of-range warns
 
-- [ ] **12.4 No regression for projects without worktrees**
+- [x] **12.4 No regression for projects without worktrees**
   - From `~/repos/context-forge`, run `cf arch list`
   - Verify identical to current behavior
-  - [ ] No regression
+  - [x] No regression
 
-- [ ] **12.5 Update slice design verification walkthrough**
+- [x] **12.5 Update slice design verification walkthrough**
   - Update the Verification Walkthrough section of the slice design with actual results
-  - [ ] Walkthrough updated with actual commands and output
+  - [x] Walkthrough updated with actual commands and output
 
 **Commit:** `docs: update 191 slice design verification walkthrough with actual results`
