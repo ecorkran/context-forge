@@ -102,4 +102,50 @@ describe('cf future', () => {
 
     expect(mockCollect).toHaveBeenCalledWith('/tmp/test', 'pending');
   });
+
+  it('--all aggregates future work from all worktree paths', async () => {
+    const projectWithWt = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
+        { id: 'wt_api', name: 'api', indexRange: [300, 499] as [number, number], worktreePath: '/repos/api' },
+      ],
+    };
+    mockGetAll.mockResolvedValue([projectWithWt]);
+    mockGetById.mockResolvedValue(projectWithWt);
+
+    const result1 = {
+      ...sampleResult,
+      groups: [{ ...sampleResult.groups[0], initiativeName: 'Core System' }],
+    };
+    const result2 = {
+      ...sampleResult,
+      groups: [{ ...sampleResult.groups[0], initiativeName: 'API Layer' }],
+    };
+    // 3 paths: projectPath + 2 worktree paths
+    mockCollect.mockResolvedValueOnce(result1).mockResolvedValueOnce(result2).mockResolvedValueOnce(result1);
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/main');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'future', '--all']);
+
+    // Should have collected from all paths (projectPath + 2 worktree paths = 3)
+    expect(mockCollect).toHaveBeenCalledTimes(3);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Core System');
+    expect(output).toContain('API Layer');
+  });
+
+  it('--all without worktrees falls through to single-path behavior', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCollect.mockResolvedValue(sampleResult);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'future', '--all', '--project', 'proj_001']);
+
+    // No worktrees → single collect call
+    expect(mockCollect).toHaveBeenCalledTimes(1);
+    expect(mockCollect).toHaveBeenCalledWith('/tmp/test', 'all');
+  });
 });

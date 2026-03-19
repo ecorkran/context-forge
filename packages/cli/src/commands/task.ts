@@ -9,7 +9,7 @@ import {
   parseTaskFile,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
@@ -23,8 +23,9 @@ export function registerTaskCommand(program: Command): void {
     .command('list')
     .description('List task files from the slice plan')
     .option('--json', 'Output as JSON')
+    .option('--all', 'Show task files from all worktrees')
     .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .action(async (opts: { json?: boolean; all?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
@@ -42,9 +43,14 @@ export function registerTaskCommand(program: Command): void {
           );
         }
 
-        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
-        const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-        await listTaskFiles(project, operationPath, indexRange, opts.json);
+        if (opts.all && rawProject.worktrees?.length) {
+          const paths = resolveAllOperationPaths(rawProject);
+          await listTaskFiles(project, paths, undefined, opts.json);
+        } else {
+          const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+          const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+          await listTaskFiles(project, [operationPath], indexRange, opts.json);
+        }
       } catch (err) {
         handleError(err);
       }
@@ -139,7 +145,7 @@ async function listTaskItems(
 
 async function listTaskFiles(
   project: { fileSlicePlan?: string; fileSlice?: string; projectPath?: string },
-  operationPath: string,
+  operationPaths: string[],
   indexRange: [number, number] | undefined,
   json?: boolean,
 ): Promise<void> {
@@ -152,15 +158,37 @@ async function listTaskFiles(
     throw new UserError('Could not resolve slice plan path.');
   }
 
-  const planPath = join(operationPath, planRelPath);
-  const plan = await parseSlicePlan(planPath);
-  const activeIndex = extractSliceIndex(project.fileSlice);
-  const tasksDir = join(operationPath, 'project-documents/user/tasks');
+  // Try to find the plan file across operation paths
+  let plan;
+  for (const op of operationPaths) {
+    try {
+      plan = await parseSlicePlan(join(op, planRelPath));
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!plan) {
+    throw new UserError('Could not resolve slice plan path.');
+  }
 
-  let allFiles: string[];
-  try {
-    allFiles = await readdir(tasksDir);
-  } catch {
+  const activeIndex = extractSliceIndex(project.fileSlice);
+
+  // Collect task files from all operation paths, deduplicate by filename
+  const fileMap = new Map<string, string>(); // filename -> full path to tasks dir
+  for (const op of operationPaths) {
+    const tasksDir = join(op, 'project-documents/user/tasks');
+    try {
+      const files = await readdir(tasksDir);
+      for (const f of files) {
+        if (!fileMap.has(f)) fileMap.set(f, tasksDir);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (fileMap.size === 0) {
     throw new UserError('Tasks directory not found: project-documents/user/tasks/');
   }
 
@@ -168,19 +196,19 @@ async function listTaskFiles(
 
   const filteredEntries = plan.entries.filter((e) => isInIndexRange(e.index, indexRange));
   for (const entry of filteredEntries) {
-    const matching = allFiles
-      .filter((f) => f.startsWith(`${entry.index}-tasks.`) && f.endsWith('.md'))
-      .sort();
+    const matching = [...fileMap.entries()]
+      .filter(([f]) => f.startsWith(`${entry.index}-tasks.`) && f.endsWith('.md'))
+      .sort(([a], [b]) => a.localeCompare(b));
 
     if (matching.length === 0) continue;
 
-    const paths = matching.map((f) => join(tasksDir, f));
+    const paths = matching.map(([f, dir]) => join(dir, f));
     try {
       const result = await parseTaskFile(paths);
       summaries.push({
         index: entry.index,
         name: entry.name,
-        files: matching,
+        files: matching.map(([f]) => f),
         completed: result.completedTasks,
         total: result.totalTasks,
         isActive: entry.index === activeIndex,
@@ -189,7 +217,7 @@ async function listTaskFiles(
       summaries.push({
         index: entry.index,
         name: entry.name,
-        files: matching,
+        files: matching.map(([f]) => f),
         completed: 0,
         total: 0,
         isActive: entry.index === activeIndex,
