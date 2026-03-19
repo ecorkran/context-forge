@@ -9,6 +9,28 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-18
 
+### Slice 191: Worktree-Aware File Operations — Design & Tasks Complete
+- Two-part fix: (1) path resolution using worktree filesystem path, (2) index-range scoping for non-default worktrees
+- Scoping rules: default worktree shows everything, non-default shows only its index range, `cf set` with out-of-range index warns but allows
+- 10 CLI commands, 5 MCP introspection tools, ConsistencyChecker
+- MCP `worktreeId` accepts name or ID
+- Task file: 12 sections, test-with pattern throughout
+- Documents: slice design, task file, slice plan entry updated
+
+### Slice 191: Worktree-Aware File Operations — Design Complete
+- Discovered bug: `cf arch list`, `cf set arch`, `cf slice list`, `cf tasks list`, `cf plan list`, `cf check`, `cf status --worktrees`, `cf future`, `cf prompt list/get` all use `project.projectPath` for filesystem ops — invisible to worktree-specific documents
+- MCP `project_structure` and introspection tools also affected (visualizer can't see worktree docs)
+- Added slice 191 to 180 slice plan; created slice design at `user/slices/191-slice.worktree-aware-file-operations.md`
+- Fix: apply `resolveOperationPath()` helper (extract from guides.ts pattern) to all 10 CLI commands + 5 MCP tools
+- Core services need no signature changes — callers pass the right path
+- ConsistencyChecker fix: override `projectPath` on worktree views before passing to checker
+
+### fix(cli): respect STOP conditions in cf:build wrapper
+- `cf build` for phase 2 with no architecture set caused agents to ignore STOP conditions in the instruction prompt
+- Root cause: `build.md` wrapper said "immediately begin the work" which overrode STOP conditions buried later in the prompt
+- Fix: changed wrapper to defer to instruction prompt; explicit STOP override language added
+- Bumped to v0.6.10, tagged
+
 ### Investigation: Prompt File Resolution in Worktrees (Not a Bug)
 - Reported: local edits to prompt file in a git worktree not picked up by `cf build`
 - Root cause: all prompt resolution paths (`resolvePromptFilePath`, `ContextIntegrator.generateWithTemplateEngine`) use `project.projectPath` (main repo root), never `worktreeContext.worktreePath`
