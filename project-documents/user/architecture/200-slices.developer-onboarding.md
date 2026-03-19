@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260319
-status: in_progress
+status: complete
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
