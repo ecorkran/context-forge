@@ -127,7 +127,7 @@ describe('cf guides', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('no');
-    expect(output).toContain('bundled');
+    expect(output).toContain('not installed');
   });
 });
 

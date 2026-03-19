@@ -61,8 +61,8 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
       console.log(`  ${label('Update:')}     ${warn(`${info.latestVersion} available`)}`);
     }
   } else {
-    console.log(`  ${label('Bundled:')}    ${valueStyle('using bundled system prompt')}`);
-    console.log(`  ${dim('  Run cf guides install to install the full guide.')}`);
+    console.log(`  ${label('Guides:')}     ${dim('not installed (required for context generation)')}`);
+    console.log(`  ${dim('  Run cf guides install to install guides.')}`);
   }
   if (info.latestVersion) {
     console.log(`  ${label('Latest:')}     ${dim(info.latestVersion)}`);
