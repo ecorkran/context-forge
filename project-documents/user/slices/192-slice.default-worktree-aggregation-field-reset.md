@@ -31,10 +31,12 @@ Field reset eliminates the clunky space-character workaround and makes project s
 ### Included
 
 **Default worktree aggregation:**
-- When in the default worktree (or no worktree), listing commands aggregate results across all registered worktree paths
-- Applies to: `cf arch list`, `cf slice list`, `cf tasks list`, `cf plan list`, `cf future`
-- MCP `project_structure` with no `worktreeId` (or `worktreeId="default"`) returns the aggregated view
+- All worktrees (including default) filter by their own index range by default — consistent behavior across all worktrees
+- New `--all` flag on listing commands scans all registered worktree paths and unions results (the "dashboard" view)
+- Applies to: `cf arch list --all`, `cf tasks list --all`, `cf plan list --all`, `cf future --all`
+- MCP: `all: boolean` parameter on `project_structure` and introspection tools (defaults to `false`)
 - Deduplication: when the same file exists in multiple worktrees (after merge), it appears once
+- `cf slice list` does NOT support `--all` — slice plans are worktree-specific artifacts
 
 **Field reset:**
 - New `cf unset <field>` command — clears a field to undefined/empty
@@ -47,7 +49,6 @@ Field reset eliminates the clunky space-character workaround and makes project s
 
 ### Excluded
 
-- No config option for default worktree behavior (aggregation is always on for default)
 - No `cf reset` command (reset all fields at once) — out of scope, can be added later
 - No MCP-specific `unset` tool — `project_update` with empty values covers this
 
@@ -66,38 +67,43 @@ Field reset eliminates the clunky space-character workaround and makes project s
 
 ## Architecture
 
-### Feature 1: Default Worktree Aggregation
+### Feature 1: Default Worktree Aggregation via `--all`
 
 #### The Problem
 
-After slice 191, each command resolves a single `operationPath` and scans only that directory. For the default worktree (or no worktree), `resolveOperationPath` returns `project.projectPath`. Since `getWorktreeIndexRange` returns `undefined` for the default worktree (no filtering), the default worktree shows all files found on its filesystem — but files that only exist on non-default worktree branches are invisible.
+After slice 191, each command resolves a single `operationPath` and scans only that directory. For the default worktree, `getWorktreeIndexRange` returns `undefined` (no filtering), so it shows all files on its filesystem. But files that only exist on non-default worktree branches are invisible. The default worktree also lacks its own index-range filtering — it shows everything on disk rather than scoping to its own range.
 
-#### The Solution
+#### Behavioral Change from Slice 191
 
-Add a new helper that returns all worktree paths when the default worktree is active:
+Slice 191 established: default worktree shows everything, non-default filters by range. This slice changes that:
+
+- **All worktrees (including default) filter by their own index range** — consistent behavior
+- **`--all` flag opts into cross-worktree aggregation** — scans all worktree paths, unions results, no index filtering
+- **Projects without worktrees are unaffected** — no range means no filtering (same as today)
+
+This means `getWorktreeIndexRange()` must change to return the default worktree's range instead of `undefined`. The "show everything" mode moves to `--all`.
+
+#### Updated Helper
 
 ```typescript
 // packages/cli/src/utils/worktree-overlay.ts
 
-/**
- * Get all paths to scan for aggregate results.
- * For the default worktree (or no worktree): returns all worktree paths + projectPath.
- * For a non-default worktree: returns only that worktree's path.
- * Used by listing commands to provide the "overview" from the default worktree.
- */
-export function resolveAllOperationPaths(
+// CHANGE: getWorktreeIndexRange now returns range for ALL worktrees (including default)
+// Returns undefined only when no worktreeId or no worktrees (projects without worktrees)
+export function getWorktreeIndexRange(
   project: ProjectData,
   worktreeId?: string,
-): string[] {
-  // Non-default worktree: single path, already handled by resolveOperationPath
-  if (worktreeId && project.worktrees) {
-    const wt = project.worktrees.find((w) => w.id === worktreeId);
-    if (wt && wt.name !== 'default') {
-      return wt.worktreePath ? [wt.worktreePath] : [project.projectPath].filter(Boolean) as string[];
-    }
-  }
+): [number, number] | undefined {
+  if (!worktreeId || !project.worktrees) return undefined;
+  const wt = project.worktrees.find((w) => w.id === worktreeId);
+  if (!wt) return undefined;
+  return wt.indexRange;  // Returns range for default too
+}
 
-  // Default worktree or no worktree: aggregate all paths
+// NEW: Get all paths for --all aggregation
+export function resolveAllOperationPaths(
+  project: ProjectData,
+): string[] {
   const paths = new Set<string>();
   if (project.projectPath) paths.add(project.projectPath);
   for (const wt of project.worktrees ?? []) {
@@ -107,23 +113,20 @@ export function resolveAllOperationPaths(
 }
 ```
 
-#### Aggregation Strategy
+#### Aggregation Strategy (--all mode)
 
-Each listing command calls `buildModel()` (or scans a directory) on each path and merges results:
+When `--all` is passed, the command scans all worktree paths and merges results with no index filtering:
 
 ```typescript
-const paths = resolveAllOperationPaths(project, worktreeId);
-const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-
-if (paths.length === 1) {
-  // Single path — existing behavior
-  const model = await buildModel(paths[0]);
-  // ... filter and display
-} else {
-  // Multiple paths — aggregate
+if (opts.all && project.worktrees?.length) {
+  const paths = resolveAllOperationPaths(project);
   const models = await Promise.all(paths.map((p) => buildModel(p).catch(() => null)));
   const merged = mergeProjectModels(models.filter(Boolean));
-  // ... filter and display
+  // Display merged — no index filtering
+} else {
+  // Single path with index-range filtering (existing behavior)
+  const model = await buildModel(operationPath);
+  // Filter by indexRange
 }
 ```
 
@@ -138,59 +141,42 @@ export function mergeProjectModels(models: ProjectModel[]): ProjectModel {
   if (models.length === 0) throw new Error('No models to merge');
   if (models.length === 1) return models[0];
 
-  const merged: ProjectModel = {
-    name: models[0].name,
-    description: models[0].description,
-    foundation: [],
-    projectArchitecture: [],
-    initiatives: {},
-    futureSlices: [],
-    quality: [],
-    investigation: [],
-    maintenance: [],
-    devlog: models.some((m) => m.devlog),
-  };
+  const merged: ProjectModel = { /* ... init from models[0] ... */ };
 
   for (const model of models) {
-    // Merge foundation docs (deduplicate by name)
-    for (const doc of model.foundation) {
-      if (!merged.foundation.some((d) => d.name === doc.name)) {
-        merged.foundation.push(doc);
-      }
-    }
-    // Merge initiatives (deduplicate by index key)
+    // Merge initiatives (deduplicate by index key, prefer the one with more data)
     for (const [key, init] of Object.entries(model.initiatives)) {
       if (!merged.initiatives[key]) {
         merged.initiatives[key] = init;
       }
-      // If initiative exists in both, prefer the one with more data (arch doc, slices, etc.)
     }
-    // Similar dedup for other arrays...
+    // Similar dedup for foundation, quality, maintenance, etc.
   }
 
   return merged;
 }
 ```
 
-#### Commands That Need Aggregation
+#### Commands That Get `--all`
 
-| Command | Current | After |
-|---------|---------|-------|
-| `cf arch list` | Calls `buildModel(operationPath)` | Calls `buildModel` on each path, merges |
-| `cf slice list` | Reads one plan file | No change — slice plan is worktree-specific, not aggregated |
-| `cf tasks list` | Scans one tasks directory | Scans all paths' task directories, deduplicates |
-| `cf plan list` | Scans one architecture directory | Scans all paths' architecture directories, deduplicates |
-| `cf future` | Calls `collector.collect(operationPath)` | Calls collect on each path, merges |
+| Command | Default behavior (after 192) | With `--all` |
+|---------|------------------------------|-------------|
+| `cf arch list` | Scoped to worktree's index range (all worktrees including default) | Aggregates across all worktree paths |
+| `cf tasks list` | Scoped to worktree's index range | Aggregates across all paths |
+| `cf plan list` | Scoped to worktree's index range | Aggregates across all paths |
+| `cf future` | Scoped to worktree's index range | Aggregates across all paths |
+| `cf slice list` | Scoped to worktree's slice plan | No `--all` — slice plans are worktree-specific |
 
-**Note:** `cf slice list` does NOT aggregate — the slice plan is a worktree-specific artifact. From the default worktree, it shows the default worktree's configured slice plan (which may show all slices if the plan is comprehensive). This is correct behavior.
-
-**Note:** `cf check` does NOT change — it already iterates all worktree views via `applyWorktreeOverlay`. The check command's existing multi-view pattern handles this correctly.
-
-**Note:** `cf status --worktrees` does NOT change — it already iterates all worktrees for the dashboard.
+**Unchanged commands:**
+- `cf check` — already iterates all worktree views via `applyWorktreeOverlay`
+- `cf status --worktrees` — already iterates all worktrees for the dashboard
+- `cf prompt list/get` — not index-based
 
 #### MCP Impact
 
-`project_structure` in `introspectionTools.ts`: when no `worktreeId` is provided (or `worktreeId="default"`), call `buildModel` on all worktree paths and merge. The `resolveOperationContext` helper in `resolveOperationPath.ts` needs a similar multi-path variant.
+`project_structure` and introspection tools gain an optional `all: boolean` parameter (defaults to `false`). When `true`, scans all worktree paths and merges. When `false`, uses the existing single-path + index-range behavior.
+
+The `resolveOperationContext` helper in `resolveOperationPath.ts` gains a `resolveAllOperationPaths()` variant for the aggregation codepath.
 
 ### Feature 2: Field Reset (`cf unset`)
 
@@ -278,22 +264,26 @@ For `WorktreeService.updateWorktree()`, the same pattern applies — `{ ...workt
 - `packages/core/src/introspection/ProjectModelBuilder.ts` — add `mergeProjectModels()` function, export it
 
 **Modified (MCP):**
-- `packages/mcp-server/src/tools/introspectionTools.ts` — `project_structure` aggregates when no worktreeId
+- `packages/mcp-server/src/tools/introspectionTools.ts` — `project_structure` and introspection tools gain `all: boolean` parameter
 - `packages/mcp-server/src/tools/resolveOperationPath.ts` — add `resolveAllOperationPaths()` variant
 
 ## Success Criteria
 
 ### Functional Requirements
 
-**Default worktree aggregation:**
-- `cf arch list` from default worktree shows initiatives from all worktree paths (e.g., both 100-range and 300-range docs)
-- `cf plan list` from default worktree shows slice plans from all worktree paths
-- `cf tasks list` from default worktree shows task files from all worktree paths
-- `cf future` from default worktree shows future work from all worktree paths
+**Default worktree scoping (behavioral change from 191):**
+- Default worktree now filters by its own index range (same as non-default worktrees)
+- `cf arch list` from default worktree shows only initiatives within the default worktree's range
+- Projects without worktrees: unchanged (no range = no filtering)
+
+**`--all` aggregation:**
+- `cf arch list --all` shows initiatives from all worktree paths (e.g., both 100-range and 300-range docs)
+- `cf plan list --all` shows slice plans from all worktree paths
+- `cf tasks list --all` shows task files from all worktree paths
+- `cf future --all` shows future work from all worktree paths
 - Duplicate entries (same file in multiple worktrees after merge) appear only once
-- Non-default worktree behavior unchanged (still scoped to own index range)
-- Projects without worktrees: identical to current behavior
-- MCP `project_structure` without `worktreeId` returns aggregated view
+- MCP `project_structure` with `all: true` returns aggregated view
+- MCP `project_structure` with `all: false` (default) returns scoped view
 
 **Field reset:**
 - `cf unset <field>` clears the field from the project
@@ -308,7 +298,8 @@ For `WorktreeService.updateWorktree()`, the same pattern applies — `{ ...workt
 
 ### Technical Requirements
 
-- `resolveAllOperationPaths()` tested with: default worktree, non-default worktree, no worktrees, worktree without path
+- `getWorktreeIndexRange()` updated: returns range for default worktree too (not `undefined`)
+- `resolveAllOperationPaths()` tested with: project with worktrees, project without worktrees, worktree without path
 - `mergeProjectModels()` tested with: single model, two models with non-overlapping initiatives, two models with overlapping initiatives (dedup)
 - `projectUnsetAction()` tested with: valid field, required field (error), readonly field (error), unknown field (error), worktree-scoped field, project-level field
 - All existing tests pass unchanged
@@ -319,15 +310,23 @@ For `WorktreeService.updateWorktree()`, the same pattern applies — `{ ...workt
 - `default` (range 100-799) at `~/repos/migratory` — has `100-arch.behavior-engine` on its branch
 - `world-server` (range 300-499) at `~/repos/migratory-world-server` — has both 100 and 300 range files
 
-**1. Default worktree aggregation:**
+**1. Default worktree scoped to its own range:**
 ```bash
 cd ~/repos/migratory
 cf arch list
-# Expected: shows BOTH 100-arch.behavior-engine AND 300-arch.worldserver-foundation
-# (300 is pulled from the world-server worktree path even though it's not on the default branch)
+# Expected: shows only initiatives within default worktree's range (100-299)
+# e.g., 100-arch.behavior-engine — NOT 300-range docs
 ```
 
-**2. Non-default worktree unchanged:**
+**2. `--all` aggregation from any worktree:**
+```bash
+cd ~/repos/migratory
+cf arch list --all
+# Expected: shows BOTH 100-arch.behavior-engine AND 300-arch.worldserver-foundation
+# (300 is pulled from the world-server worktree path)
+```
+
+**3. Non-default worktree unchanged:**
 ```bash
 cd ~/repos/migratory-world-server
 cf arch list
@@ -360,11 +359,25 @@ cf get | grep -i phase
 # Shows: — (unset on worktree context)
 ```
 
-**6. No regression:**
+**7. No regression for projects without worktrees:**
 ```bash
 cd ~/repos/context-forge    # no worktrees
 cf arch list
-# Expected: identical to current behavior
+# Expected: identical to current behavior (no range = no filtering)
+```
+
+**8. MCP project_structure with `all: true`:**
+```
+Call project_structure with projectId="migratory", all=true
+# Expected: initiatives include both 100-band and 300-band
+```
+
+**9. MCP project_structure with worktreeId (scoped):**
+```
+Call project_structure with projectId="migratory", worktreeId="default"
+# Expected: only 100-band (default worktree's range)
+Call project_structure with projectId="migratory", worktreeId="world-server"
+# Expected: only 300-band
 ```
 
 ## Implementation Notes
@@ -373,11 +386,11 @@ cf arch list
 
 Suggested order:
 
-1. **`mergeProjectModels()`** — core utility, testable in isolation
-2. **`resolveAllOperationPaths()`** — CLI helper, testable in isolation
-3. **`cf arch list` aggregation** — highest visibility, proves the pattern
-4. **`cf plan list`, `cf tasks list`, `cf future` aggregation** — same pattern
-5. **MCP `project_structure` aggregation** — extends the MCP helper
+1. **Update `getWorktreeIndexRange()`** — return range for default worktree too (behavioral change)
+2. **`resolveAllOperationPaths()` + `mergeProjectModels()`** — new helpers, testable in isolation
+3. **`cf arch list --all`** — highest visibility, proves the pattern; also update default to filter by range
+4. **`cf plan list --all`, `cf tasks list --all`, `cf future --all`** — same pattern
+5. **MCP `project_structure` `all` parameter** — extends the MCP helper
 6. **`cf unset` command** — independent of aggregation work
 7. **Tests** — unit tests for each component
 
