@@ -203,6 +203,14 @@ Within each group, alphabetical except where functional pairing takes precedence
 
 Implementation: Reorder `register*Command()` calls and shortcut command blocks in `packages/cli/src/index.ts`. Commander displays commands in registration order.
 
+### 6. `cf next` — Distinguish "Plan Not Set" vs "Plan File Missing"
+
+**Added 20260320** — When `fileSlicePlan` is set but the plan file doesn't exist yet, `parseSlicePlanSafe` returns `null` (file not found → catch → null). The navigator then treats this identically to "no plan configured," suggesting `cf set plan <stem>` even though the field is already set.
+
+Fix: In `WorkflowNavigator.getNext()`, at Priority 7 (slice complete, no plan) and Priority 2 (no slice, no plan), check whether `project.fileSlicePlan` is set. If it is but `status.slicePlan` is null, the file doesn't exist yet — recommend creating it (e.g., `cf build`) rather than setting the field.
+
+Also applies to the "Architecture exists but no slice plan" branch at line 115, and the FR-4 first-run check at line 277.
+
 ## Implementation Notes
 
 ### Development Approach

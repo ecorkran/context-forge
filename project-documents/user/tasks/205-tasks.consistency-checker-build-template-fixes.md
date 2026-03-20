@@ -147,3 +147,23 @@ status: complete
   - [x] No functional regression — all commands still work
 
 **Commit**: `style(cli): reorder cf --help command listing by functional group`
+
+---
+
+## Section 7: `cf next` — Plan Field Set but File Missing (Added 20260320)
+
+**Effort: 1/5**
+
+- [x] 7.1 Update `getNext()` to distinguish "no plan field" from "plan file missing"
+  - [x] In Priority 7 (line ~192, slice complete + no plan): check if `project.fileSlicePlan` is set; if so, recommend creating the plan file, not setting the field
+  - [x] In Priority 2 "Architecture exists but no slice plan" (line ~115): same check
+  - [x] In FR-4 first-run check (line ~277): same check
+  - [x] Build clean
+
+- [x] 7.2 Tests for plan-field-set-but-file-missing
+  - [x] Add test: `fileSlicePlan` set, file doesn't exist, slice complete → recommends creating plan, not `cf set plan`
+  - [x] Add test: `fileSlicePlan` set, file doesn't exist, no slice → recommends creating plan
+  - [x] Add test: `fileSlicePlan` not set, no slice → existing behavior unchanged (recommends `cf set plan`)
+  - [x] All WorkflowNavigator tests pass
+
+**Commit**: `fix(core): cf next distinguishes plan-not-set from plan-file-missing`

@@ -214,6 +214,18 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
+    it('recommends creating plan doc when complete, plan field set but file missing', async () => {
+      const project = makeProject({
+        fileSlice: '300-slice.all-done.md',
+        fileSlicePlan: '999-slices.nonexistent',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create the slice plan document');
+      expect(next.rationale).toContain('does not exist yet');
+      expect(next.suggestedCommand).toBe('cf build');
+    });
+
     it('recommends creating architecture when no arch, no slice, and no plan', async () => {
       const project = makeProject({
         fileSlice: '',
@@ -237,6 +249,20 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Create or assign a slice plan');
+    });
+
+    it('recommends creating plan doc when arch exists, plan field set but file missing', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: '999-slices.nonexistent',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create the slice plan document');
+      expect(next.rationale).toContain('does not exist yet');
+      expect(next.suggestedCommand).toBe('cf build');
     });
 
     it('recommends creating architecture when arch is set but file does not exist', async () => {
@@ -385,6 +411,20 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('slice plan but no active slice');
       // Fixture plan: entry 100 checked, 101 unchecked — expects specific index
       expect(next.suggestedCommand).toBe('cf set slice 101');
+    });
+
+    it('FR-4 with plan field set but file missing → recommends creating plan doc', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: '999-slices.nonexistent',
+        fileArch: undefined,
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create the slice plan document');
+      expect(next.rationale).toContain('does not exist yet');
+      expect(next.suggestedCommand).toBe('cf build');
     });
 
     it('fallthrough: active slice set → first-run logic not entered, standard path used', async () => {

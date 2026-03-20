@@ -113,6 +113,14 @@ export class WorkflowNavigator {
       }
       // Architecture exists but no slice plan
       if (!status.slicePlan) {
+        if (project.fileSlicePlan) {
+          return {
+            recommendation: 'Create the slice plan document',
+            rationale: `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document to define deliverable increments.`,
+            suggestedCommand: 'cf build',
+            summary: 'Create the slice plan document',
+          };
+        }
         return {
           recommendation: 'Create or assign a slice plan',
           rationale: 'Architecture is set but no slice plan is configured. A slice plan breaks the architecture into deliverable increments.',
@@ -190,6 +198,15 @@ export class WorkflowNavigator {
 
     // Priority 7 (fallback): complete but no plan
     if (slice.status === 'complete') {
+      if (project.fileSlicePlan) {
+        return {
+          recommendation: 'Create the slice plan document',
+          rationale: `Current slice is complete. Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document.`,
+          suggestedCommand: 'cf build',
+          slice: project.fileSlice,
+          summary: 'Slice complete — create the slice plan document',
+        };
+      }
       return {
         recommendation: 'Create or assign a slice plan',
         rationale: 'Current slice is complete but no slice plan is configured to determine next steps.',
@@ -275,6 +292,15 @@ export class WorkflowNavigator {
 
     // FR-4: Phase 3, no slice plan
     if (phase.startsWith('Phase 3') && status.slicePlan === null) {
+      if (project.fileSlicePlan) {
+        return {
+          recommendation: 'Your project is in Phase 3 (Slice Planning). Create the slice plan document.',
+          rationale:
+            `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Use a slice-planning prompt to create it.`,
+          suggestedCommand: 'cf build',
+          summary: 'Start Phase 3 — create the slice plan document with cf build',
+        };
+      }
       return {
         recommendation: 'Your project is in Phase 3 (Slice Planning). Create a slice plan from your architecture.',
         rationale:
