@@ -5,7 +5,7 @@ lld: user/slices/205-slice.consistency-checker-build-template-fixes.md
 dependencies: []
 projectState: Slice 192 complete (v0.6.12). ConsistencyChecker.checkAll only checks configured plan. MCP workflow_check lacks worktree overlay support. cf:build template ordering puts instruction after tools.
 dateCreated: 20260319
-dateUpdated: 20260319
+dateUpdated: 20260320
 status: complete
 ---
 
@@ -127,3 +127,23 @@ status: complete
   - [x] Update verification walkthrough in slice design with actual results
 
 **Commit**: `docs: complete 205 slice verification walkthrough`
+
+---
+
+## Section 6: `cf --help` Command Ordering (Added 20260320)
+
+**Effort: 1/5**
+
+- [x] 6.1 Reorder command registrations in `packages/cli/src/index.ts`
+  - [x] Reorder imports to match new registration order
+  - [x] Reorder `register*Command()` calls to: build, check, future, next, project, prompt, status
+  - [x] Move `get`, `set`, `unset` shortcut blocks immediately after registered commands
+  - [x] Then artifact commands: arch, plan, slice, tasks, worktree
+  - [x] Then setup/admin: backup, config, guides, init, install-commands, uninstall-commands, setup-ide
+  - [x] Build clean
+
+- [x] 6.2 Verify `cf --help` output matches expected order
+  - [x] Run `cf --help` and confirm grouping: workflow → shortcuts → artifacts → setup/admin
+  - [x] No functional regression — all commands still work
+
+**Commit**: `style(cli): reorder cf --help command listing by functional group`

@@ -6,7 +6,7 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20260319
-dateUpdated: 20260319
+dateUpdated: 20260320
 status: complete
 ---
 
@@ -186,6 +186,22 @@ cf build | head -80
 # Current Project State → 3rd-Party Tools & MCP
 # Instruction now appears at order 3 (before tools at order 6)
 ```
+
+### 5. `cf --help` Command Ordering
+
+**Added 20260320** — Polish item. CLI help displays commands in registration order. Current order is roughly chronological (when each command was added). Reorder to group by functionality:
+
+| Group | Commands |
+|-------|----------|
+| Help | `help` |
+| Workflow | `build`, `check`, `future`, `next`, `project`, `prompt`, `status` |
+| Shortcuts | `get`, `set`, `unset` |
+| Artifacts | `arch`, `plan`, `slice`, `tasks`, `worktree` |
+| Setup/Admin | `backup`, `config`, `guides`, `init`, `install-commands`, `uninstall-commands`, `setup-ide` |
+
+Within each group, alphabetical except where functional pairing takes precedence (install/uninstall adjacent, then setup-ide).
+
+Implementation: Reorder `register*Command()` calls and shortcut command blocks in `packages/cli/src/index.ts`. Commander displays commands in registration order.
 
 ## Implementation Notes
 
