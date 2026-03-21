@@ -371,7 +371,22 @@ describe('WorkflowNavigator', () => {
       });
       const next = await nav.getNext(project);
 
-      expect(next.recommendation).toContain('Create or assign a slice plan');
+      // FR-3b fires instead
+      expect(next.recommendation).toContain('Advance to Phase 3');
+    });
+
+    it('FR-3b: Phase 2, arch exists but no plan → advance to Phase 3', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 2: Architecture',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Architecture document exists');
+      expect(next.recommendation).toContain('Advance to Phase 3');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 3: Slice Planning'");
     });
 
     it('FR-4: Phase 3, no slice plan → cf build', async () => {

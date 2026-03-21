@@ -290,6 +290,17 @@ export class WorkflowNavigator {
       };
     }
 
+    // FR-3b: Phase 2, arch exists but no slice plan → advance to Phase 3
+    if (phase.startsWith('Phase 2') && archFileExists && status.slicePlan === null) {
+      return {
+        recommendation: 'Architecture document exists. Advance to Phase 3 and create a slice plan.',
+        rationale:
+          'Your architecture document is complete. Set your phase to Phase 3 (Slice Planning) and create a slice plan to break the architecture into deliverable increments.',
+        suggestedCommand: "cf set phase 'Phase 3: Slice Planning'",
+        summary: 'Advance to Phase 3 — set phase and create a slice plan',
+      };
+    }
+
     // FR-4: Phase 3, no slice plan
     if (phase.startsWith('Phase 3') && status.slicePlan === null) {
       if (project.fileSlicePlan) {
