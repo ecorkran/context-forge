@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/180-arch.initiative-context-worktree.md
 project: context-forge
 dateCreated: 20260309
-dateUpdated: 20260319
-status: complete
+dateUpdated: 20260320
+status: in-progress
 ---
 
 # Slice Plan: Initiative Contexts (Worktrees)
@@ -293,6 +293,8 @@ This plan uses **worktree** as the user-facing term for the per-initiative workf
    **Dependencies:** [191 — Worktree-Aware File Operations]
    **Risk:** Low — aggregation extends existing path resolution; unset is a thin layer over existing update logic
    **Effort:** 3/5
+
+13. [ ] **(193) Overlapping Index Range Override** — Add `-o` (`--override`) flag to `cf worktree init` and `cf worktree update` that allows creating or modifying a worktree context with an index range that overlaps existing worktrees. Currently the dynamic range-chopping logic prevents overlapping ranges, which blocks legitimate use cases like borrowing a slice from another initiative's range for parallel work. The override flag skips range-chopping of the default worktree and suppresses the overlap block, storing `rangeOverride: true` on the worktree context so `cf status` and `cf worktree list` can surface that the range was intentionally overridden. Also applies the flag to `cf set slice` to suppress out-of-range warnings when the worktree has `rangeOverride: true`. Dependencies: [188 — Default Worktree Improvements]. Risk: Low. Effort: 2/5
 
 ## Integration Work
 
