@@ -9,6 +9,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-20
 
+### Slice 193: Overlapping Index Range Override — Slice Design Complete
+- `-o`/`--override` flag for `cf worktree init` and `cf worktree update` to skip `chopDefaultRange()` on intentional overlap
+- New `rangeOverride?: boolean` field on `WorktreeContext`, persisted and surfaced in list/status display
+- Out-of-range warning in `cf set slice` suppressed when worktree has `rangeOverride: true`
+- MCP `worktree_init` and `worktree_update` gain corresponding `override`/`rangeOverride` parameters
+- Override is clearable: updating range without `-o` clears the flag and re-enables chop
+
 ### Slice 206: CLI/MCP Shared-Logic Consolidation — Slice Design Complete
 - Promoted from future work in 200-slices to feature slice (206)
 - Designed extraction of duplicated logic (constants, creation defaults, auto-set rules) into `@context-forge/core`
