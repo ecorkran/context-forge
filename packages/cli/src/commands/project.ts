@@ -467,9 +467,8 @@ export async function projectGetAction(
         const subField = f.field.split('.')[1];
         v = customData?.[subField];
       } else if (worktree && isWorktreeField(f.field)) {
-        // Worktree overlay: use worktree value if set, fall back to project
-        const wtVal = wtOverlay[f.field];
-        v = (wtVal !== undefined && wtVal !== '') ? wtVal : projectRecord[f.field];
+        // Worktree overlay: use worktree value directly, no fallback to project
+        v = wtOverlay[f.field];
       } else {
         v = projectRecord[f.field];
       }

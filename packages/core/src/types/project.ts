@@ -7,9 +7,9 @@ export interface ProjectData {
   id: string;
   name: string;
   template: string;
-  fileSlice: string;
-  fileTasks: string;
-  instruction: string;
+  fileSlice?: string;
+  fileTasks?: string;
+  instruction?: string;
   developmentPhase?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;

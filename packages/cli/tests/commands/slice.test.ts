@@ -149,7 +149,7 @@ describe('cf slice list', () => {
       ...sampleProject,
       worktrees: [
         { id: 'wt_default', name: 'default', indexRange: [100, 799] as [number, number], worktreePath: '/repos/main' },
-        { id: 'wt_billing', name: 'billing', indexRange: [101, 199] as [number, number], worktreePath: '/repos/billing' },
+        { id: 'wt_billing', name: 'billing', indexRange: [101, 199] as [number, number], worktreePath: '/repos/billing', slicePlan: '100-slices.test' },
       ],
     };
     mockGetAll.mockResolvedValue([projectWithWt]);
