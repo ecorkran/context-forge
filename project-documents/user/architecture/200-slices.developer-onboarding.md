@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
-dateUpdated: 20260319
-status: complete
+dateUpdated: 20260320
+status: in_progress
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -154,6 +154,27 @@ status: complete
    **Risk:** Low — plain text skill file; no runtime code changes beyond adding to managed files list
    **Effort:** 1/5
 
+6. [ ] **(206) CLI/MCP Shared-Logic Consolidation** — Extract duplicated logic between CLI and MCP server into `@context-forge/core`. Covers project creation defaults (`dateProject` formatting, `template`/`instruction` sync), worktree field mappings (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`), auto-set logic (`fileTasks` from `fileSlice`, `fileSlicePlan` from `fileArch`, `instruction` from `developmentPhase`), and project path resolution. Currently duplicated across `packages/cli/src/commands/init.ts` + `project.ts` and `packages/mcp-server/src/tools/projectTools.ts`.
+
+   **Motivation:** Piecemeal extraction creates a false sense of "fixed" while leaving inconsistency risk. A dedicated slice ensures all duplication sites are addressed together, with tests proving both CLI and MCP paths produce identical results.
+
+   **Scope:**
+   - Identify all duplicated logic between CLI commands and MCP tool handlers
+   - Extract shared functions/constants into `@context-forge/core`
+   - Update CLI and MCP server to import from core
+   - Add tests verifying CLI and MCP produce identical outputs for the same inputs
+
+   **Success Criteria:**
+   - No duplicated project-creation default logic between CLI and MCP server
+   - Shared field mappings and auto-set logic live in `@context-forge/core`
+   - CLI and MCP server import from core — no local copies
+   - Tests confirm behavioral parity between CLI and MCP paths
+   - Existing CLI and MCP behavior unchanged (pure refactor)
+
+   **Dependencies:** None (can proceed independently; all target code is stable post-205)
+   **Risk:** Med — touches multiple packages; requires careful behavioral parity testing
+   **Effort:** 3/5
+
 ## Maintenance Slices
 
 5. [x] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
@@ -168,9 +189,12 @@ Feature (202 and 203 are independent; 204 depends on 201):
   202. Smart cf init ──────────── 203. Enhanced cf next
                                     ↓ (nice-to-have, not blocking)
   204. Onboarding Skill ←──── 201
+
+Refactoring (independent, no blockers):
+  206. CLI/MCP Shared-Logic Consolidation
 ```
 
-202 and 203 can be implemented in parallel — they touch different parts of the codebase (CLI init vs. WorkflowNavigator). 204 depends on 201 (needs `project_create` to exist) and benefits from 203 (enhanced `cf next` improves the post-onboarding experience) but doesn't strictly require it.
+202 and 203 can be implemented in parallel — they touch different parts of the codebase (CLI init vs. WorkflowNavigator). 204 depends on 201 (needs `project_create` to exist) and benefits from 203 (enhanced `cf next` improves the post-onboarding experience) but doesn't strictly require it. 206 has no dependencies and can proceed at any time.
 
 ## Notes
 
@@ -196,4 +220,3 @@ Feature (202 and 203 are independent; 204 depends on 201):
 
 6. [ ] **CLI & MCP Update Command** — A `cf update` command that checks installed vs. available versions for CLI, MCP server, commands (slash commands), and guides, then presents a summary and prompts to apply updates. `cf update<enter>` checks all, shows what's outdated, prompts Y/n. `cf update --yes` auto-applies. Should handle: npm package version check (CLI + MCP), `cf install-commands` for slash commands, and potentially `cf guides update` for guide sync. The MCP server should also have awareness of update state — either its own `update_check` tool or knowledge of what needs updating that an agent can act on. Guides integration TBD — may bundle `cf guides update` into the flow or keep it separate since guide updates involve git operations with different failure modes.
 
-7. [ ] **CLI/MCP duplication extraction** — Extract shared logic duplicated between CLI and MCP server into `@context-forge/core`. Covers: project creation defaults (`dateProject` formatting, `template`, `instruction` sync), worktree field mappings (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`), auto-set logic (`fileTasks` from `fileSlice`, `fileSlicePlan` from `fileArch`, `instruction` from `developmentPhase`), and project path resolution. Currently duplicated in `packages/cli/src/commands/init.ts` + `project.ts` and `packages/mcp-server/src/tools/projectTools.ts`. Dedicated slice recommended — extracting piecemeal creates false sense of "fixed" while leaving inconsistency risk.
