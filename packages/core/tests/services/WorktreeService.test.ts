@@ -663,6 +663,109 @@ describe('WorktreeService', () => {
     });
   });
 
+  describe('rangeOverride', () => {
+    async function setupDefault(range: [number, number]): Promise<void> {
+      store.projects = [createEmptyProject({ worktrees: [{
+        id: 'wt_default',
+        name: 'default',
+        indexRange: range,
+        worktreePath: '/projects/my-app',
+      }] })];
+    }
+
+    it('addWorktree with override: true skips chopDefaultRange', async () => {
+      await setupDefault([100, 799]);
+      const result = await service.addWorktree('proj_1', {
+        name: 'Cross',
+        indexRange: [300, 399],
+        override: true,
+      });
+      expect(result.worktree.rangeOverride).toBe(true);
+      const worktrees = await service.listWorktrees('proj_1');
+      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      // Default range should be unchanged — chop was skipped
+      expect(defaultWt.indexRange).toEqual([100, 799]);
+    });
+
+    it('addWorktree with override: true still returns overlaps', async () => {
+      await setupDefault([100, 799]);
+      const result = await service.addWorktree('proj_1', {
+        name: 'Cross',
+        indexRange: [300, 399],
+        override: true,
+      });
+      // findOverlaps still runs — advisory only
+      expect(result.overlaps).toHaveLength(1);
+      expect(result.overlaps[0].existingWorktreeName).toBe('default');
+    });
+
+    it('addWorktree with override: true on first worktree (migration path)', async () => {
+      store.projects = [createProjectWithWorkflowFields()];
+      const result = await service.addWorktree('proj_1', {
+        name: 'Cross',
+        indexRange: [100, 199],
+        override: true,
+      });
+      expect(result.migrated).toBe(true);
+      expect(result.worktree.rangeOverride).toBe(true);
+      const worktrees = await service.listWorktrees('proj_1');
+      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      // Default range NOT chopped — override skips chop
+      expect(defaultWt.indexRange).toEqual([100, 799]);
+    });
+
+    it('updateWorktree with rangeOverride: true skips chop', async () => {
+      await setupDefault([100, 799]);
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'Other',
+        indexRange: [900, 999],
+      });
+      // Update range to overlap default, with rangeOverride
+      const updated = await service.updateWorktree('proj_1', worktree.id, {
+        indexRange: [300, 399],
+        rangeOverride: true,
+      });
+      expect(updated.rangeOverride).toBe(true);
+      const worktrees = await service.listWorktrees('proj_1');
+      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      expect(defaultWt.indexRange).toEqual([100, 799]);
+    });
+
+    it('updateWorktree clears rangeOverride when updating range without override flag', async () => {
+      await setupDefault([100, 799]);
+      // Create worktree with override
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'Cross',
+        indexRange: [300, 399],
+        override: true,
+      });
+      // Update range without rangeOverride → clears override, runs chop
+      const updated = await service.updateWorktree('proj_1', worktree.id, {
+        indexRange: [300, 399],
+      });
+      expect(updated.rangeOverride).toBeUndefined();
+      const worktrees = await service.listWorktrees('proj_1');
+      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      // Chop should have run now
+      expect(defaultWt.indexRange).toEqual([100, 299]);
+    });
+
+    it('updateWorktree preserves rangeOverride when not changing range', async () => {
+      await setupDefault([100, 799]);
+      const { worktree } = await service.addWorktree('proj_1', {
+        name: 'Cross',
+        indexRange: [300, 399],
+        override: true,
+      });
+      // Update name only — rangeOverride should persist
+      const updated = await service.updateWorktree('proj_1', worktree.id, {
+        name: 'Cross v2',
+      });
+      expect(updated.rangeOverride).toBe(true);
+      expect(updated.name).toBe('Cross v2');
+    });
+  });
+
   describe('collision detection', () => {
     async function setupDefault(range: [number, number], artifacts?: Partial<WorktreeContext>): Promise<void> {
       store.projects = [createEmptyProject({ worktrees: [{
