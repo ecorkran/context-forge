@@ -3,6 +3,7 @@ import {
   applyWorktreeOverlay,
   resolveOperationPath,
   getWorktreeIndexRange,
+  getWorktreeRangeOverride,
   isInIndexRange,
   resolveAllOperationPaths,
 } from '../../src/utils/worktree-overlay.js';
@@ -187,6 +188,36 @@ describe('getWorktreeIndexRange', () => {
   it('returns undefined when project has no worktrees', () => {
     const noWt: ProjectData = { ...baseProject, worktrees: undefined };
     expect(getWorktreeIndexRange(noWt, 'wt_api')).toBeUndefined();
+  });
+});
+
+describe('getWorktreeRangeOverride', () => {
+  it('returns false when no worktreeId', () => {
+    expect(getWorktreeRangeOverride(projectWithDefault)).toBe(false);
+  });
+
+  it('returns false when worktree has no rangeOverride', () => {
+    expect(getWorktreeRangeOverride(projectWithDefault, 'wt_api')).toBe(false);
+  });
+
+  it('returns true when worktree has rangeOverride: true', () => {
+    const projectWithOverride: ProjectData = {
+      ...baseProject,
+      worktrees: [
+        {
+          id: 'wt_override',
+          name: 'Cross',
+          indexRange: [300, 399] as [number, number],
+          rangeOverride: true,
+        },
+      ],
+    };
+    expect(getWorktreeRangeOverride(projectWithOverride, 'wt_override')).toBe(true);
+  });
+
+  it('returns false when project has no worktrees', () => {
+    const noWt: ProjectData = { ...baseProject, worktrees: undefined };
+    expect(getWorktreeRangeOverride(noWt, 'wt_001')).toBe(false);
   });
 });
 

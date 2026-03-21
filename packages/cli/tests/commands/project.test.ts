@@ -551,6 +551,27 @@ describe('cf project set — worktree path resolution', () => {
     );
   });
 
+  it('does not warn when worktree has rangeOverride: true', async () => {
+    const projectWithOverride = {
+      ...projectWithWorktrees,
+      worktrees: [
+        projectWithWorktrees.worktrees[0],
+        {
+          ...projectWithWorktrees.worktrees[1],
+          rangeOverride: true,
+        },
+      ],
+    };
+    mockGetById.mockResolvedValue(projectWithOverride);
+    mockGetAll.mockResolvedValue([projectWithOverride]);
+    mockResolveFileByIndex.mockReturnValue('100-arch.behavior-engine');
+
+    const { projectSetAction } = await import('../../src/commands/project.js');
+    await projectSetAction('arch', '100', {});
+
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
   it('does not warn when index is within worktree range', async () => {
     mockResolveFileByIndex.mockReturnValue('300-arch.api-foundation');
 
