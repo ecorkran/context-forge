@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-20
+
+### Slice 206: CLI/MCP Shared-Logic Consolidation — Slice Design Complete
+- Promoted from future work in 200-slices to feature slice (206)
+- Designed extraction of duplicated logic (constants, creation defaults, auto-set rules) into `@context-forge/core`
+- Key finding: `fileArch→fileSlicePlan` auto-set is missing from MCP entirely — extraction fixes this
+- New core module: `project-defaults.ts` with `computeAutoSetFields()`, `buildProjectCreationDefaults()`, constants
+
+---
+
 ## 2026-03-19
 
 ### Slice 205: Consistency Checker & Build Template Fixes — Implementation Complete
