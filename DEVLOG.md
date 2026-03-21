@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-20
 
+### Slice 193: Overlapping Index Range Override — Task Breakdown Complete
+- 4 sections: core type+service (6 tasks), CLI flags+display (8 tasks), MCP params (4 tasks), final validation (3 tasks)
+- Test-with pattern: each implementation task followed by its test task
+- 3 commit checkpoints (core, CLI, MCP) plus final validation commit
+
 ### Slice 193: Overlapping Index Range Override — Slice Design Complete
 - `-o`/`--override` flag for `cf worktree init` and `cf worktree update` to skip `chopDefaultRange()` on intentional overlap
 - New `rangeOverride?: boolean` field on `WorktreeContext`, persisted and surfaced in list/status display
