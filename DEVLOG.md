@@ -17,7 +17,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Out-of-range warning in `cf set slice` suppressed for overridden worktrees
 - Override clearable: updating range without `-o` clears flag and re-enables chop
 - 15 new tests across core (6), CLI (7), MCP (2). All 1297 tests passing.
-- Commits: `4673630` core, `635e072` cli, `7199ecb` mcp
+- Fix: removed worktree overlay fallback — `cf unset` on worktree fields now works correctly
+- Fix: `fileSlice`, `fileTasks`, `instruction` now optional on `ProjectData` (matching schema)
+- Commits: `4673630` core, `635e072` cli, `7199ecb` mcp, `367fb83` overlay fix
 
 ### Slice 193: Overlapping Index Range Override — Task Breakdown Complete
 - 4 sections: core type+service (6 tasks), CLI flags+display (8 tasks), MCP params (4 tasks), final validation (3 tasks)
