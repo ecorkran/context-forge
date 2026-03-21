@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-20
 
+### Slice 193: Overlapping Index Range Override — Implementation Complete
+- `rangeOverride?: boolean` on `WorktreeContext`, `override?: boolean` on `CreateWorktreeInput`
+- `addWorktree()` and `updateWorktree()` skip `chopDefaultRange()` when override is set
+- CLI: `-o`/`--override` on `cf worktree init` and `cf worktree update`, `[override]` indicator in list
+- MCP: `override` param on `worktree_init`, `rangeOverride` param on `worktree_update`
+- Out-of-range warning in `cf set slice` suppressed for overridden worktrees
+- Override clearable: updating range without `-o` clears flag and re-enables chop
+- 15 new tests across core (6), CLI (7), MCP (2). All 1297 tests passing.
+- Commits: `4673630` core, `635e072` cli, `7199ecb` mcp
+
 ### Slice 193: Overlapping Index Range Override — Task Breakdown Complete
 - 4 sections: core type+service (6 tasks), CLI flags+display (8 tasks), MCP params (4 tasks), final validation (3 tasks)
 - Test-with pattern: each implementation task followed by its test task

@@ -6,7 +6,7 @@ dependencies: [188]
 projectState: Slice 192 complete. All worktree CRUD, range chopping, display, and file operations working. chopDefaultRange() blocks overlapping ranges or throws when artifacts would be displaced. No override mechanism exists. Build clean, 1281 tests passing (677 core, 324 CLI, 174 MCP, 106 electron).
 dateCreated: 20260320
 dateUpdated: 20260320
-status: not_started
+status: complete
 ---
 
 ## Context Summary
@@ -21,22 +21,22 @@ status: not_started
 
 ## Section 1: Core Type & Service Changes
 
-- [ ] **1.1 Add `rangeOverride` to `WorktreeContext` type**
+- [x] **1.1 Add `rangeOverride` to `WorktreeContext` type**
   - File: `packages/core/src/types/worktree.ts`
   - Re-read the file before modifying
   - Add `rangeOverride?: boolean` field to `WorktreeContext` interface (after `workType`)
   - Add JSDoc: `/** When true, this worktree intentionally overlaps other ranges (skips chop logic) */`
-  - [ ] Field exists on `WorktreeContext`
-  - [ ] TypeScript compiles (`npx tsc --noEmit` from `packages/core`)
+  - [x] Field exists on `WorktreeContext`
+  - [x] TypeScript compiles (`npx tsc --noEmit` from `packages/core`)
 
-- [ ] **1.2 Add `override` to `CreateWorktreeInput` type**
+- [x] **1.2 Add `override` to `CreateWorktreeInput` type**
   - File: `packages/core/src/types/worktree.ts`
   - Add `override?: boolean` field to `CreateWorktreeInput` interface
   - Add JSDoc: `/** Skip range-chopping and allow intentional overlap */`
-  - [ ] Field exists on `CreateWorktreeInput`
-  - [ ] TypeScript compiles
+  - [x] Field exists on `CreateWorktreeInput`
+  - [x] TypeScript compiles
 
-- [ ] **1.3 Update `WorktreeService.addWorktree()` to support override**
+- [x] **1.3 Update `WorktreeService.addWorktree()` to support override**
   - File: `packages/core/src/services/WorktreeService.ts`
   - Re-read the file before modifying
   - When constructing `newWorktree`, set `rangeOverride: input.override ? true : undefined`
@@ -44,12 +44,12 @@ status: not_started
   - In the append branch (around line 191): wrap `this.chopDefaultRange()` call in `if (!input.override)`
   - When override is true, set `chopWarning = undefined` (no chop occurred)
   - `findOverlaps()` call at line 196 remains unconditional — overlaps are still advisory
-  - [ ] `addWorktree()` with `override: true` creates worktree with `rangeOverride: true`
-  - [ ] `addWorktree()` with `override: true` does NOT call `chopDefaultRange()`
-  - [ ] `addWorktree()` without override behaves identically to before
-  - [ ] `findOverlaps()` still runs regardless of override
+  - [x] `addWorktree()` with `override: true` creates worktree with `rangeOverride: true`
+  - [x] `addWorktree()` with `override: true` does NOT call `chopDefaultRange()`
+  - [x] `addWorktree()` without override behaves identically to before
+  - [x] `findOverlaps()` still runs regardless of override
 
-- [ ] **1.4 Update `WorktreeService.updateWorktree()` to support override**
+- [x] **1.4 Update `WorktreeService.updateWorktree()` to support override**
   - File: `packages/core/src/services/WorktreeService.ts`
   - Re-read the file before modifying
   - In the `if (updates.indexRange)` block (around line 225):
@@ -57,11 +57,11 @@ status: not_started
     2. If `hasOverride`: skip `chopDefaultRange()` call
     3. If `!hasOverride` and the existing worktree had `rangeOverride === true`: set `updated.rangeOverride = undefined` to clear it
   - When `updates.rangeOverride` is explicitly provided without `updates.indexRange`, it should still be applied (allows toggling override without changing range)
-  - [ ] `updateWorktree()` with `rangeOverride: true` and new `indexRange` skips chop
-  - [ ] `updateWorktree()` with new `indexRange` but no `rangeOverride` on a previously-overridden worktree clears `rangeOverride` and runs chop
-  - [ ] `updateWorktree()` without `indexRange` change behaves identically to before
+  - [x] `updateWorktree()` with `rangeOverride: true` and new `indexRange` skips chop
+  - [x] `updateWorktree()` with new `indexRange` but no `rangeOverride` on a previously-overridden worktree clears `rangeOverride` and runs chop
+  - [x] `updateWorktree()` without `indexRange` change behaves identically to before
 
-- [ ] **1.5 Unit tests for core override logic**
+- [x] **1.5 Unit tests for core override logic**
   - File: `packages/core/tests/services/WorktreeService.test.ts`
   - Re-read the file before modifying
   - Add tests within or adjacent to the existing `chopDefaultRange` describe block:
@@ -72,19 +72,19 @@ status: not_started
     5. `updateWorktree clears rangeOverride when updating range without override flag` — worktree has `rangeOverride: true`, update with new `indexRange` but no `rangeOverride`. Assert `rangeOverride` is cleared (undefined), chop runs normally
     6. `updateWorktree preserves rangeOverride when not changing range` — worktree has `rangeOverride: true`, update name only. Assert `rangeOverride` is still true
   - Run: `npx vitest run` from `packages/core`
-  - [ ] All 6 new tests pass
-  - [ ] All existing tests still pass
+  - [x] All 6 new tests pass
+  - [x] All existing tests still pass
 
-- [ ] **1.6 Commit core changes**
+- [x] **1.6 Commit core changes**
   - Stage: `packages/core/src/types/worktree.ts`, `packages/core/src/services/WorktreeService.ts`, `packages/core/tests/services/WorktreeService.test.ts`
   - Commit message: `feat(core): add rangeOverride support to WorktreeContext and WorktreeService`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 2: CLI Changes
 
-- [ ] **2.1 Add `getWorktreeRangeOverride` helper**
+- [x] **2.1 Add `getWorktreeRangeOverride` helper**
   - File: `packages/cli/src/utils/worktree-overlay.ts`
   - Re-read the file before modifying
   - Add exported function:
@@ -98,19 +98,19 @@ status: not_started
       return wt?.rangeOverride === true;
     }
     ```
-  - [ ] Function exported
-  - [ ] TypeScript compiles (`npx tsc --noEmit` from `packages/cli`)
+  - [x] Function exported
+  - [x] TypeScript compiles (`npx tsc --noEmit` from `packages/cli`)
 
-- [ ] **2.2 Suppress out-of-range warning in `projectSetAction`**
+- [x] **2.2 Suppress out-of-range warning in `projectSetAction`**
   - File: `packages/cli/src/commands/project.ts`
   - Re-read the file before modifying (around line 229)
   - Import `getWorktreeRangeOverride` from `../utils/worktree-overlay.js`
   - Before the existing out-of-range warning check, retrieve override status: `const worktreeHasOverride = getWorktreeRangeOverride(existing, worktreeId)`
   - Add `&& !worktreeHasOverride` to the warning condition
-  - [ ] Warning is suppressed when worktree has `rangeOverride: true`
-  - [ ] Warning still fires for non-override worktrees with out-of-range index
+  - [x] Warning is suppressed when worktree has `rangeOverride: true`
+  - [x] Warning still fires for non-override worktrees with out-of-range index
 
-- [ ] **2.3 Unit tests for overlay helper and warning suppression**
+- [x] **2.3 Unit tests for overlay helper and warning suppression**
   - Files: `packages/cli/tests/utils/worktree-overlay.test.ts`, `packages/cli/tests/commands/project.test.ts`
   - Re-read before modifying
   - `worktree-overlay.test.ts`: add tests for `getWorktreeRangeOverride`:
@@ -120,38 +120,38 @@ status: not_started
   - `project.test.ts`: add test adjacent to existing "warns when index is outside worktree range" test:
     1. `does not warn when worktree has rangeOverride: true` — set up worktree with `rangeOverride: true`, set slice outside range, assert `console.warn` not called
   - Run: `npx vitest run` from `packages/cli`
-  - [ ] All new tests pass
-  - [ ] All existing tests still pass
+  - [x] All new tests pass
+  - [x] All existing tests still pass
 
-- [ ] **2.4 Add `-o`/`--override` flag to `cf worktree init`**
+- [x] **2.4 Add `-o`/`--override` flag to `cf worktree init`**
   - File: `packages/cli/src/commands/worktree.ts`
   - Re-read the file before modifying
   - Add `.option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')` to the `init` subcommand
   - Add `override?: boolean` to the opts type
   - Pass `override: opts.override` in the `addWorktree()` input object (alongside `name`, `indexRange`, `worktreePath`, `archDoc`, `slicePlan`)
-  - [ ] `cf worktree init --name X --range 100-199 -o` passes `override: true` to service
-  - [ ] `cf worktree init --name X --range 100-199` (no flag) does not set override
+  - [x] `cf worktree init --name X --range 100-199 -o` passes `override: true` to service
+  - [x] `cf worktree init --name X --range 100-199` (no flag) does not set override
 
-- [ ] **2.5 Add `-o`/`--override` flag to `cf worktree update`**
+- [x] **2.5 Add `-o`/`--override` flag to `cf worktree update`**
   - File: `packages/cli/src/commands/worktree.ts`
   - Re-read the file before modifying
   - Add `.option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')` to the `update` subcommand
   - Add `override?: boolean` to the opts type
   - When `opts.override` is true: add `rangeOverride: true` to the updates object
-  - [ ] `cf worktree update X --range 100-199 -o` passes `rangeOverride: true` in updates
-  - [ ] `cf worktree update X --range 100-199` (no flag) does not set `rangeOverride`
+  - [x] `cf worktree update X --range 100-199 -o` passes `rangeOverride: true` in updates
+  - [x] `cf worktree update X --range 100-199` (no flag) does not set `rangeOverride`
 
-- [ ] **2.6 Add `[override]` indicator to `cf worktree list` display**
+- [x] **2.6 Add `[override]` indicator to `cf worktree list` display**
   - File: `packages/cli/src/commands/worktree.ts`
   - Re-read the file before modifying (the list command, around line 213)
   - In the row-building loop, when `wt.rangeOverride === true`, append ` [override]` to `rangeStr`
   - Use the `warn` style for the indicator: `` rangeStr = `${rangeStr} ${warn('[override]')}` ``
   - JSON output already includes the full worktree object (which will contain `rangeOverride`), so no change needed there
-  - [ ] `cf worktree list` shows `[override]` next to range for overridden worktrees
-  - [ ] Non-override worktrees show range without indicator
-  - [ ] JSON output includes `rangeOverride` field
+  - [x] `cf worktree list` shows `[override]` next to range for overridden worktrees
+  - [x] Non-override worktrees show range without indicator
+  - [x] JSON output includes `rangeOverride` field
 
-- [ ] **2.7 CLI unit tests for override flags and display**
+- [x] **2.7 CLI unit tests for override flags and display**
   - File: `packages/cli/tests/commands/worktree.test.ts`
   - Re-read before modifying
   - Add tests:
@@ -159,67 +159,67 @@ status: not_started
     2. `update with -o flag passes rangeOverride in updates` — mock `updateWorktree`, parse `cf worktree update X --range 100-199 -o`, assert mock called with `rangeOverride: true`
     3. `list shows [override] indicator for overridden worktrees` — mock worktree list with one worktree having `rangeOverride: true`, assert console output contains `[override]`
   - Run: `npx vitest run` from `packages/cli`
-  - [ ] All new tests pass
-  - [ ] All existing tests still pass
+  - [x] All new tests pass
+  - [x] All existing tests still pass
 
-- [ ] **2.8 Commit CLI changes**
+- [x] **2.8 Commit CLI changes**
   - Stage: `packages/cli/src/utils/worktree-overlay.ts`, `packages/cli/src/commands/project.ts`, `packages/cli/src/commands/worktree.ts`, `packages/cli/tests/utils/worktree-overlay.test.ts`, `packages/cli/tests/commands/project.test.ts`, `packages/cli/tests/commands/worktree.test.ts`
   - Commit message: `feat(cli): add -o/--override flag for worktree range override`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 3: MCP Tool Changes
 
-- [ ] **3.1 Add `override` parameter to `worktree_init` MCP tool**
+- [x] **3.1 Add `override` parameter to `worktree_init` MCP tool**
   - File: `packages/mcp-server/src/tools/worktreeTools.ts`
   - Re-read the file before modifying
   - Add `override: z.boolean().optional().describe('Skip range-chopping and allow intentional overlap.')` to `worktree_init` inputSchema
   - Pass `override: args.override` in the `addWorktree()` call input
-  - [ ] `worktree_init` accepts `override: true`
-  - [ ] Override value is passed through to service
+  - [x] `worktree_init` accepts `override: true`
+  - [x] Override value is passed through to service
 
-- [ ] **3.2 Add `rangeOverride` parameter to `worktree_update` MCP tool**
+- [x] **3.2 Add `rangeOverride` parameter to `worktree_update` MCP tool**
   - File: `packages/mcp-server/src/tools/worktreeTools.ts`
   - Re-read the file before modifying
   - Add `rangeOverride: z.boolean().optional().describe('Allow overlapping index ranges (skip range chopping).')` to `worktree_update` inputSchema
   - Add `'rangeOverride'` to the `fieldKeys` array so it gets included in updates
-  - [ ] `worktree_update` accepts `rangeOverride: true`
-  - [ ] Value is passed through to service
+  - [x] `worktree_update` accepts `rangeOverride: true`
+  - [x] Value is passed through to service
 
-- [ ] **3.3 MCP unit tests for override parameters**
+- [x] **3.3 MCP unit tests for override parameters**
   - File: `packages/mcp-server/tests/worktreeTools.test.ts`
   - Re-read before modifying
   - Add tests:
     1. `worktree_init with override creates worktree with rangeOverride` — call `worktree_init` with `override: true`, assert response includes `rangeOverride: true`
     2. `worktree_update with rangeOverride updates worktree` — call `worktree_update` with `rangeOverride: true`, assert response worktree has `rangeOverride: true`
   - Run: `npx vitest run` from `packages/mcp-server`
-  - [ ] All new tests pass
-  - [ ] All existing tests still pass
+  - [x] All new tests pass
+  - [x] All existing tests still pass
 
-- [ ] **3.4 Commit MCP changes**
+- [x] **3.4 Commit MCP changes**
   - Stage: `packages/mcp-server/src/tools/worktreeTools.ts`, `packages/mcp-server/tests/worktreeTools.test.ts`
   - Commit message: `feat(mcp): add override parameter to worktree_init and worktree_update tools`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 4: Final Validation
 
-- [ ] **4.1 Full build and test verification**
+- [x] **4.1 Full build and test verification**
   - Run `npm run build` from project root — verify clean
   - Run `npm test` from project root — verify all tests pass across all packages
-  - [ ] Build succeeds with no errors
-  - [ ] All tests pass (core, CLI, MCP, electron)
+  - [x] Build succeeds with no errors
+  - [x] All tests pass (core, CLI, MCP, electron)
 
-- [ ] **4.2 Update slice design status**
+- [x] **4.2 Update slice design status**
   - File: `project-documents/user/slices/193-slice.overlapping-index-range-override.md`
-  - Update frontmatter `status: not_started` → `status: complete`
-  - [ ] Status updated
+  - Update frontmatter `status: complete` → `status: complete`
+  - [x] Status updated
 
-- [ ] **4.3 Final commit and DEVLOG**
+- [x] **4.3 Final commit and DEVLOG**
   - Update DEVLOG with implementation summary and commit hashes
   - Stage any remaining files
   - Commit message: `docs: mark slice 193 complete, update DEVLOG`
-  - [ ] DEVLOG updated
-  - [ ] Final commit created
+  - [x] DEVLOG updated
+  - [x] Final commit created
