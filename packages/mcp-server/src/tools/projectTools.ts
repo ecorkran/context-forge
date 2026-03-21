@@ -32,9 +32,9 @@ const PROJECT_TO_WORKTREE_FIELD: Record<string, string> = {
 interface ProjectSummary {
   id: string;
   name: string;
-  fileSlice: string;
+  fileSlice?: string;
   template: string;
-  instruction: string;
+  instruction?: string;
   projectPath: string | undefined;
   updatedAt: string;
 }

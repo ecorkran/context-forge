@@ -6,12 +6,12 @@ export function applyWorktreeOverlay(project: ProjectData, worktreeId: string): 
   if (!wt) return project;
   return {
     ...project,
-    developmentPhase: wt.developmentPhase || project.developmentPhase,
-    instruction: wt.instruction || project.instruction,
-    workType: wt.workType || project.workType,
-    fileArch: wt.archDoc || project.fileArch,
-    fileSlicePlan: wt.slicePlan || project.fileSlicePlan,
-    fileSlice: wt.activeSlice || project.fileSlice,
-    fileTasks: wt.activeTaskFile || project.fileTasks,
+    developmentPhase: wt.developmentPhase,
+    instruction: wt.instruction,
+    workType: wt.workType,
+    fileArch: wt.archDoc,
+    fileSlicePlan: wt.slicePlan,
+    fileSlice: wt.activeSlice,
+    fileTasks: wt.activeTaskFile,
   };
 }

@@ -154,6 +154,7 @@ export class WorktreeService {
       worktreePath: input.worktreePath,
       archDoc: input.archDoc,
       slicePlan: input.slicePlan,
+      rangeOverride: input.override ? true : undefined,
     };
 
     const isFirstWorktree = !project.worktrees || project.worktrees.length === 0;
@@ -171,7 +172,9 @@ export class WorktreeService {
       };
 
       const worktrees = [defaultWorktree, newWorktree];
-      const chopResult = this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
+      const chopResult = input.override
+        ? { chopped: false }
+        : this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
       const clearedFields = {
         developmentPhase: '',
         fileSlice: '',
@@ -188,7 +191,9 @@ export class WorktreeService {
     } else {
       // No migration needed: just append
       const worktrees = [...(project.worktrees ?? []), newWorktree];
-      const chopResult = this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
+      const chopResult = input.override
+        ? { chopped: false }
+        : this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
       await this.store.update(projectId, { worktrees });
       chopWarning = chopResult.warning;
     }
@@ -218,13 +223,27 @@ export class WorktreeService {
       throw new Error(`Worktree not found: ${worktreeId}`);
     }
 
-    const updated: WorktreeContext = { ...worktrees[index], ...updates, id: worktreeId };
+    const original = worktrees[index];
+    const updated: WorktreeContext = { ...original, ...updates, id: worktreeId };
     worktrees[index] = updated;
 
     let chopWarning: string | undefined;
     if (updates.indexRange) {
-      const chopResult = this.chopDefaultRange(worktrees, updates.indexRange, worktreeId);
-      chopWarning = chopResult.warning;
+      if (updates.rangeOverride === true) {
+        // Explicit override — skip chop
+      } else {
+        const chopResult = this.chopDefaultRange(worktrees, updates.indexRange, worktreeId);
+        chopWarning = chopResult.warning;
+        // Clear rangeOverride if previously set and not explicitly re-enabled
+        if (original.rangeOverride === true) {
+          updated.rangeOverride = undefined;
+          worktrees[index] = updated;
+        }
+      }
+    } else if (updates.rangeOverride !== undefined) {
+      // Allow toggling override without changing range
+      updated.rangeOverride = updates.rangeOverride || undefined;
+      worktrees[index] = updated;
     }
 
     await this.store.update(projectId, { worktrees });

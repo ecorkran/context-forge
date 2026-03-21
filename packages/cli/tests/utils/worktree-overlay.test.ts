@@ -3,6 +3,7 @@ import {
   applyWorktreeOverlay,
   resolveOperationPath,
   getWorktreeIndexRange,
+  getWorktreeRangeOverride,
   isInIndexRange,
   resolveAllOperationPaths,
 } from '../../src/utils/worktree-overlay.js';
@@ -63,7 +64,7 @@ describe('applyWorktreeOverlay', () => {
     expect(result).toBe(baseProject);
   });
 
-  it('falls back to project values for empty worktree fields', () => {
+  it('does not fall back to project values for empty worktree fields', () => {
     const projectWithPartialWorktree: ProjectData = {
       ...baseProject,
       worktrees: [
@@ -73,7 +74,7 @@ describe('applyWorktreeOverlay', () => {
           indexRange: [200, 299] as [number, number],
           worktreePath: '/repos/partial',
           developmentPhase: 'Phase 4: Slice Design',
-          // All other fields empty/undefined — should fall back to project
+          // Empty/undefined fields should NOT fall back to project values
           archDoc: '',
           slicePlan: '',
           activeSlice: '',
@@ -85,10 +86,10 @@ describe('applyWorktreeOverlay', () => {
     const result = applyWorktreeOverlay(projectWithPartialWorktree, 'wt_partial');
 
     expect(result.developmentPhase).toBe('Phase 4: Slice Design');
-    expect(result.fileArch).toBe('050-arch.core-system');
-    expect(result.fileSlicePlan).toBe('050-slices.core');
-    expect(result.fileSlice).toBe('050-slice.core-auth');
-    expect(result.fileTasks).toBe('050-tasks.core-auth');
+    expect(result.fileArch).toBe('');
+    expect(result.fileSlicePlan).toBe('');
+    expect(result.fileSlice).toBe('');
+    expect(result.fileTasks).toBe('');
   });
 
   it('handles project with no worktrees array (undefined)', () => {
@@ -187,6 +188,36 @@ describe('getWorktreeIndexRange', () => {
   it('returns undefined when project has no worktrees', () => {
     const noWt: ProjectData = { ...baseProject, worktrees: undefined };
     expect(getWorktreeIndexRange(noWt, 'wt_api')).toBeUndefined();
+  });
+});
+
+describe('getWorktreeRangeOverride', () => {
+  it('returns false when no worktreeId', () => {
+    expect(getWorktreeRangeOverride(projectWithDefault)).toBe(false);
+  });
+
+  it('returns false when worktree has no rangeOverride', () => {
+    expect(getWorktreeRangeOverride(projectWithDefault, 'wt_api')).toBe(false);
+  });
+
+  it('returns true when worktree has rangeOverride: true', () => {
+    const projectWithOverride: ProjectData = {
+      ...baseProject,
+      worktrees: [
+        {
+          id: 'wt_override',
+          name: 'Cross',
+          indexRange: [300, 399] as [number, number],
+          rangeOverride: true,
+        },
+      ],
+    };
+    expect(getWorktreeRangeOverride(projectWithOverride, 'wt_override')).toBe(true);
+  });
+
+  it('returns false when project has no worktrees', () => {
+    const noWt: ProjectData = { ...baseProject, worktrees: undefined };
+    expect(getWorktreeRangeOverride(noWt, 'wt_001')).toBe(false);
   });
 });
 

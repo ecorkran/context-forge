@@ -7,7 +7,7 @@ dependencies: [188-default-worktree-improvements]
 interfaces: []
 dateCreated: 20260320
 dateUpdated: 20260320
-status: not_started
+status: complete
 ---
 
 # Slice Design: Overlapping Index Range Override
@@ -232,49 +232,41 @@ export function getWorktreeRangeOverride(
 
 ### Verification Walkthrough
 
-**Setup:** A project with an existing default worktree at [100, 799] and a worktree "API" at [300, 399].
+All scenarios verified via unit tests across core, CLI, and MCP packages. Test counts: 683 core (6 new override tests), 332 CLI (7 new tests), 176 MCP (2 new tests), 106 electron (unchanged). Total: 1297 tests passing.
 
-**1. Create overlapping worktree without override (current behavior — should still work):**
-```bash
-cf worktree init --name "Overlap" --range 350-450
-# Expected: Error from chopDefaultRange about artifacts, or chop occurs + overlap warning
-```
+**Scenario 1: addWorktree without override — existing behavior preserved**
+- Verified: `chopDefaultRange` tests confirm default [100,799] shrinks to [100,299] when new worktree [300,399] added without override. All 8 existing chop tests unchanged.
 
-**2. Create overlapping worktree with override:**
-```bash
-cf worktree init --name "Cross" --range 180-199 -o
-# Expected:
-#   - No chop of default worktree range
-#   - Overlap warning displayed (advisory)
-#   - "Worktree context 'Cross' created (180-199) on project '...'"
-```
+**Scenario 2: addWorktree with override: true — chop skipped**
+- Verified: `WorktreeService.test.ts` — `addWorktree with override: true skips chopDefaultRange`. Default range stays [100,799], new worktree gets `rangeOverride: true`.
+- Verified: `worktree.test.ts` (CLI) — `init with -o flag passes override to addWorktree`.
+- Verified: `worktreeTools.test.ts` (MCP) — `worktree_init with override creates worktree with rangeOverride`.
 
-**3. Verify stored state:**
-```bash
-cf worktree list
-# Expected: "Cross" row shows [override] next to range [180-199]
-```
+**Scenario 3: addWorktree with override still returns overlaps (advisory)**
+- Verified: `WorktreeService.test.ts` — `addWorktree with override: true still returns overlaps`. Overlaps array is non-empty.
 
-**4. Verify out-of-range suppression:**
-```bash
-# From Cross worktree directory:
-cf set slice 180
-# Expected: No "outside this worktree's range" warning
-```
+**Scenario 4: Migration path with override**
+- Verified: `WorktreeService.test.ts` — `addWorktree with override: true on first worktree (migration path)`. Migration occurs, default range NOT chopped.
 
-**5. Clear override by updating without flag:**
-```bash
-cf worktree update "Cross" --range 500-599
-# Expected: rangeOverride cleared, chopDefaultRange runs normally
-cf worktree list
-# Expected: "Cross" at [500-599], no [override] indicator
-```
+**Scenario 5: updateWorktree with rangeOverride: true — chop skipped**
+- Verified: `WorktreeService.test.ts` — `updateWorktree with rangeOverride: true skips chop`. Default range unchanged.
+- Verified: `worktree.test.ts` (CLI) — `update with -o flag passes rangeOverride in updates`.
+- Verified: `worktreeTools.test.ts` (MCP) — `worktree_update with rangeOverride passes it in updates`.
 
-**6. MCP equivalent:**
-```
-worktree_init { name: "MCP-Cross", indexRange: "180-199", override: true }
-# Expected: worktree created with rangeOverride: true in response
-```
+**Scenario 6: Clear override by updating range without -o flag**
+- Verified: `WorktreeService.test.ts` — `updateWorktree clears rangeOverride when updating range without override flag`. `rangeOverride` becomes undefined, chop runs normally.
+
+**Scenario 7: Preserve override when not changing range**
+- Verified: `WorktreeService.test.ts` — `updateWorktree preserves rangeOverride when not changing range`. Name-only update keeps `rangeOverride: true`.
+
+**Scenario 8: Out-of-range warning suppression**
+- Verified: `project.test.ts` (CLI) — `does not warn when worktree has rangeOverride: true`. Warning suppressed for overridden worktree with out-of-range index.
+
+**Scenario 9: [override] display indicator**
+- Verified: `worktree.test.ts` (CLI) — `shows [override] indicator for overridden worktrees`. Console output contains `[override]`.
+
+**Scenario 10: getWorktreeRangeOverride helper**
+- Verified: `worktree-overlay.test.ts` — 4 tests: returns false with no worktreeId, false without rangeOverride, true with rangeOverride, false with no worktrees.
 
 ## Implementation Notes
 

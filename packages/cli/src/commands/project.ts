@@ -12,7 +12,7 @@ import {
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, getWorktreeRangeOverride, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -226,10 +226,11 @@ export async function projectSetAction(
       }
     }
 
-    // Warn if index is outside worktree's range
+    // Warn if index is outside worktree's range (suppressed when worktree has rangeOverride)
     const indexRange = getWorktreeIndexRange(existing, worktreeId);
     const numericIndex = parseInt(resolvedValue, 10) || parseInt(/^(\d+)/.exec(resolvedValue)?.[1] ?? '', 10);
-    if (indexRange && !isNaN(numericIndex) && !isInIndexRange(numericIndex, indexRange)) {
+    const worktreeHasOverride = getWorktreeRangeOverride(existing, worktreeId);
+    if (indexRange && !isNaN(numericIndex) && !isInIndexRange(numericIndex, indexRange) && !worktreeHasOverride) {
       console.warn(`Warning: index ${numericIndex} is outside this worktree's range [${indexRange[0]}-${indexRange[1]}]`);
     }
   }
@@ -466,9 +467,8 @@ export async function projectGetAction(
         const subField = f.field.split('.')[1];
         v = customData?.[subField];
       } else if (worktree && isWorktreeField(f.field)) {
-        // Worktree overlay: use worktree value if set, fall back to project
-        const wtVal = wtOverlay[f.field];
-        v = (wtVal !== undefined && wtVal !== '') ? wtVal : projectRecord[f.field];
+        // Worktree overlay: use worktree value directly, no fallback to project
+        v = wtOverlay[f.field];
       } else {
         v = projectRecord[f.field];
       }

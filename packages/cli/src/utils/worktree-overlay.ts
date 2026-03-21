@@ -51,6 +51,19 @@ export function resolveAllOperationPaths(
 }
 
 /**
+ * Check if a worktree has rangeOverride enabled.
+ * Returns false when no worktreeId, no worktrees, or worktree not found.
+ */
+export function getWorktreeRangeOverride(
+  project: ProjectData,
+  worktreeId?: string,
+): boolean {
+  if (!worktreeId || !project.worktrees) return false;
+  const wt = project.worktrees.find((w) => w.id === worktreeId);
+  return wt?.rangeOverride === true;
+}
+
+/**
  * Check if a numeric index falls within an optional range.
  * Returns true if no range is specified (no filtering).
  */

@@ -15,7 +15,7 @@ export class ContextGenerator {
     let context = template
       .replace('{{PROJECT_NAME}}', project.name)
       .replace('{{TEMPLATE}}', project.template)
-      .replace('{{SLICE}}', project.fileSlice)
+      .replace('{{SLICE}}', project.fileSlice || '')
       .replace('{{TASK_FILE}}', project.fileTasks || '')
       .replace('{{TIMESTAMP}}', new Date().toLocaleString());
 

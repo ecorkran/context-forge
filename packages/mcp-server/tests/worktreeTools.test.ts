@@ -325,6 +325,29 @@ describe('worktree_init', () => {
     expect(getErrorText(result)).toContain('Invalid indexRange');
   });
 
+  it('worktree_init with override creates worktree with rangeOverride', async () => {
+    const overrideWorktree = { ...MOCK_WORKTREE, rangeOverride: true };
+    const addResult = { worktree: overrideWorktree, migrated: false, overlaps: [] };
+    mockAddWorktree.mockResolvedValue(addResult);
+
+    const result = await client.callTool({
+      name: 'worktree_init',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        name: 'Cross',
+        indexRange: '100-199',
+        override: true,
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockAddWorktree).toHaveBeenCalledWith(MOCK_PROJECT.id, expect.objectContaining({
+      override: true,
+    }));
+    const parsed = parseResult(result) as typeof addResult;
+    expect(parsed.worktree.rangeOverride).toBe(true);
+  });
+
   it('sets developmentPhase via updateWorktree when provided', async () => {
     const addResult = { worktree: { ...MOCK_WORKTREE }, migrated: false, overlaps: [] };
     mockAddWorktree.mockResolvedValue(addResult);
@@ -472,6 +495,32 @@ describe('worktree_update', () => {
     expect(result.isError).toBeFalsy();
     const parsed = parseResult(result) as { worktree: WorktreeContext; overlaps: unknown[] };
     expect(parsed.overlaps).toEqual([]);
+  });
+
+  it('worktree_update with rangeOverride passes it in updates', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    const overrideWorktree = { ...MOCK_WORKTREE, rangeOverride: true, indexRange: [300, 399] as [number, number] };
+    mockUpdateWorktree.mockResolvedValue(overrideWorktree);
+
+    const result = await client.callTool({
+      name: 'worktree_update',
+      arguments: {
+        projectId: MOCK_PROJECT.id,
+        worktree: MOCK_WORKTREE.id,
+        indexRange: '300-399',
+        rangeOverride: true,
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdateWorktree).toHaveBeenCalledWith(
+      MOCK_PROJECT.id,
+      MOCK_WORKTREE.id,
+      expect.objectContaining({ rangeOverride: true, indexRange: [300, 399] }),
+    );
+    const parsed = parseResult(result) as { worktree: WorktreeContext };
+    expect(parsed.worktree.rangeOverride).toBe(true);
   });
 
   it('omits overlaps when indexRange not changed', async () => {

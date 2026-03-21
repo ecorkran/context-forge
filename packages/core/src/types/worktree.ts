@@ -26,6 +26,8 @@ export interface WorktreeContext {
   instruction?: string;
   /** Work type: starting fresh or continuing existing work */
   workType?: 'start' | 'continue';
+  /** When true, this worktree intentionally overlaps other ranges (skips chop logic) */
+  rangeOverride?: boolean;
 }
 
 /**
@@ -43,6 +45,8 @@ export interface CreateWorktreeInput {
   archDoc?: string;
   /** Path to the initiative slice plan */
   slicePlan?: string;
+  /** Skip range-chopping and allow intentional overlap */
+  override?: boolean;
 }
 
 /**

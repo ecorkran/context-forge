@@ -141,6 +141,7 @@ export function registerWorktreeTools(server: McpServer): void {
         archDoc: z.string().optional().describe('Architecture document reference.'),
         slicePlan: z.string().optional().describe('Slice plan document reference.'),
         developmentPhase: z.string().optional().describe('Initial development phase.'),
+        override: z.boolean().optional().describe('Skip range-chopping and allow intentional overlap.'),
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
@@ -163,6 +164,7 @@ export function registerWorktreeTools(server: McpServer): void {
           worktreePath: args.worktreePath,
           archDoc: args.archDoc,
           slicePlan: args.slicePlan,
+          override: args.override,
         });
 
         // Set developmentPhase via update if provided
@@ -202,6 +204,7 @@ export function registerWorktreeTools(server: McpServer): void {
         activeTaskFile: z.string().optional().describe('Active task file name.'),
         instruction: z.string().optional().describe('Instruction type.'),
         workType: z.enum(['start', 'continue']).optional().describe('Work type.'),
+        rangeOverride: z.boolean().optional().describe('Allow overlapping index ranges (skip range chopping).'),
       },
       annotations: { destructiveHint: false, idempotentHint: true },
     },
@@ -229,7 +232,7 @@ export function registerWorktreeTools(server: McpServer): void {
         const fieldKeys = [
           'name', 'worktreePath', 'archDoc', 'slicePlan',
           'developmentPhase', 'activeSlice', 'activeTaskFile',
-          'instruction', 'workType',
+          'instruction', 'workType', 'rangeOverride',
         ] as const;
 
         for (const key of fieldKeys) {

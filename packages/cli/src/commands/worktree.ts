@@ -49,8 +49,9 @@ export function registerWorktreeCommand(program: Command): void {
     .requiredOption('--name <name>', 'Name for this worktree context')
     .requiredOption('--range <start-end>', 'Slice index range, e.g. 100-199')
     .option('--path <path>', 'Absolute path to the git worktree directory (default: CWD)')
+    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')
     .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { name: string; range: string; path?: string; project?: string }) => {
+    .action(async (opts: { name: string; range: string; path?: string; override?: boolean; project?: string }) => {
       try {
         const indexRange = parseRange(opts.range);
         const store = new FileProjectStore();
@@ -124,6 +125,7 @@ export function registerWorktreeCommand(program: Command): void {
           worktreePath,
           archDoc,
           slicePlan,
+          override: opts.override,
         });
 
         if (migrated) {
@@ -210,7 +212,10 @@ export function registerWorktreeCommand(program: Command): void {
 
         for (const wt of worktrees) {
           const isActive = wt.id === activeWorktreeId;
-          const rangeStr = `[${wt.indexRange[0]}-${wt.indexRange[1]}]`;
+          let rangeStr = `[${wt.indexRange[0]}-${wt.indexRange[1]}]`;
+          if (wt.rangeOverride === true) {
+            rangeStr = `${rangeStr} ${warn('[override]')}`;
+          }
           let pathStr = wt.worktreePath ? shortenPath(wt.worktreePath) : dim('—');
 
           // Append stale path indicator
@@ -246,14 +251,15 @@ export function registerWorktreeCommand(program: Command): void {
     .option('--name <name>', 'New display name')
     .option('--range <start-end>', 'New slice index range, e.g. 150-249')
     .option('--path <path>', 'New worktree directory path')
+    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')
     .option('--project <name|id>', 'Project name or ID (overrides default)')
     .action(
       async (
         nameOrId: string | undefined,
-        opts: { name?: string; range?: string; path?: string; project?: string },
+        opts: { name?: string; range?: string; path?: string; override?: boolean; project?: string },
       ) => {
         try {
-          if (!opts.name && !opts.range && !opts.path) {
+          if (!opts.name && !opts.range && !opts.path && !opts.override) {
             throw new UserError(
               `At least one update option is required: --name, --range, or --path`,
             );
@@ -301,6 +307,10 @@ export function registerWorktreeCommand(program: Command): void {
           if (opts.range) {
             indexRange = parseRange(opts.range);
             updates.indexRange = indexRange;
+          }
+
+          if (opts.override) {
+            updates.rangeOverride = true;
           }
 
           if (opts.path) {

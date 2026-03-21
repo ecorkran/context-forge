@@ -163,6 +163,14 @@ describe('cf worktree init', () => {
       archDoc: '100-arch.initiative.md',
     }));
   });
+
+  it('init with -o flag passes override to addWorktree', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'init', '--name', 'Cross', '--range', '100-199', '-o']);
+    expect(mockAddWorktree).toHaveBeenCalledWith('project_001', expect.objectContaining({
+      override: true,
+    }));
+  });
 });
 
 // ── cf worktree list ──────────────────────────────────────────────────────────
@@ -252,6 +260,15 @@ describe('cf worktree list', () => {
     await program.parseAsync(['node', 'cf', 'worktree', 'list']);
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Feature A'));
   });
+
+  it('shows [override] indicator for overridden worktrees', async () => {
+    const overrideWorktree = { ...sampleWorktree, rangeOverride: true };
+    mockGetById.mockResolvedValue({ ...baseProject, worktrees: [overrideWorktree] });
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'list']);
+    const logCalls = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+    expect(logCalls.some((s) => s.includes('[override]'))).toBe(true);
+  });
 });
 
 // ── cf worktree update ────────────────────────────────────────────────────────
@@ -323,6 +340,16 @@ describe('cf worktree update', () => {
     await program.parseAsync(['node', 'cf', 'worktree', 'update', 'nonexistent', '--name', 'X']);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('not found'));
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('update with -o flag passes rangeOverride in updates', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'update', 'Feature A', '--range', '100-199', '-o']);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('project_001', 'wt_001', expect.objectContaining({
+      rangeOverride: true,
+      indexRange: [100, 199],
+    }));
   });
 });
 
