@@ -10,6 +10,8 @@ import {
   PROJECT_FIELDS,
   FIELD_GROUPS,
   applyWorktreeOverlay,
+  WORKTREE_SCOPED_FIELDS,
+  PROJECT_TO_WORKTREE_FIELD,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
@@ -55,28 +57,6 @@ function shortenPath(p: string): string {
   return p;
 }
 
-
-/** Fields that are routed to WorktreeContext when a worktree is active. */
-const WORKTREE_SCOPED_FIELDS = new Set([
-  'developmentPhase',
-  'instruction',
-  'workType',
-  'fileArch',
-  'fileSlicePlan',
-  'fileSlice',
-  'fileTasks',
-]);
-
-/** Map ProjectData field names to their WorktreeContext counterparts. */
-const PROJECT_TO_WORKTREE_FIELD: Record<string, string> = {
-  fileSlice: 'activeSlice',
-  fileTasks: 'activeTaskFile',
-  fileArch: 'archDoc',
-  fileSlicePlan: 'slicePlan',
-  developmentPhase: 'developmentPhase',
-  instruction: 'instruction',
-  workType: 'workType',
-};
 
 function isWorktreeField(field: string): boolean {
   return WORKTREE_SCOPED_FIELDS.has(field);

@@ -3,30 +3,8 @@ import { z } from 'zod';
 import * as path from 'node:path';
 import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
-import { getSchema, resolveProject } from '@context-forge/core';
+import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
-
-/** Fields that are routed to the worktree context when worktreeId is provided. */
-const WORKTREE_SCOPED_FIELDS = new Set([
-  'developmentPhase',
-  'instruction',
-  'workType',
-  'fileArch',
-  'fileSlicePlan',
-  'fileSlice',
-  'fileTasks',
-]);
-
-/** Map ProjectData field names to their WorktreeContext counterparts. */
-const PROJECT_TO_WORKTREE_FIELD: Record<string, string> = {
-  fileSlice: 'activeSlice',
-  fileTasks: 'activeTaskFile',
-  fileArch: 'archDoc',
-  fileSlicePlan: 'slicePlan',
-  developmentPhase: 'developmentPhase',
-  instruction: 'instruction',
-  workType: 'workType',
-};
 
 /** Summary fields returned by project_list */
 interface ProjectSummary {

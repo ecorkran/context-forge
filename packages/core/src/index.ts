@@ -17,5 +17,16 @@ export * from './schema/projectSchema.js';
 // Git utilities
 export { GitWorktreeDiscovery, parseWorktreeListOutput } from './git/index.js';
 
+// Project defaults — browser-safe constants and creation helpers
+// NOTE: computeAutoSetFields is exported from node.ts (fs-dependent via resolveFileByIndex)
+export {
+  WORKTREE_SCOPED_FIELDS,
+  PROJECT_TO_WORKTREE_FIELD,
+  formatDateProject,
+  buildProjectCreationDefaults,
+  type ProjectCreationOptions,
+  type AutoSetResult,
+} from './project-defaults.js';
+
 // Worktree overlay (browser-safe — pure object mapping, no fs/path)
 export { applyWorktreeOverlay } from './utils/worktree-overlay.js';
