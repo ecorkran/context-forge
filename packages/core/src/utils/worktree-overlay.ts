@@ -6,6 +6,7 @@ export function applyWorktreeOverlay(project: ProjectData, worktreeId: string): 
   if (!wt) return project;
   return {
     ...project,
+    ...(wt.worktreePath && { projectPath: wt.worktreePath }),
     developmentPhase: wt.developmentPhase,
     instruction: wt.instruction,
     workType: wt.workType,

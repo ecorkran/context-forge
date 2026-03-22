@@ -55,6 +55,32 @@ describe('applyWorktreeOverlay', () => {
 
     expect(result.id).toBe('proj_001');
     expect(result.name).toBe('test-project');
+  });
+
+  it('sets projectPath to worktreePath when worktreePath is present', () => {
+    const result = applyWorktreeOverlay(baseProject, 'wt_001');
+
+    expect(result.projectPath).toBe('/repos/feature-a');
+  });
+
+  it('preserves projectPath when worktreePath is absent', () => {
+    const projectWithNoPathWorktree: ProjectData = {
+      ...baseProject,
+      worktrees: [
+        {
+          id: 'wt_nopath',
+          name: 'No Path',
+          indexRange: [200, 299] as [number, number],
+          developmentPhase: 'Phase 4: Slice Design',
+          archDoc: '',
+          slicePlan: '',
+          activeSlice: '',
+          activeTaskFile: '',
+        },
+      ],
+    };
+
+    const result = applyWorktreeOverlay(projectWithNoPathWorktree, 'wt_nopath');
     expect(result.projectPath).toBe('/tmp/test');
   });
 

@@ -157,11 +157,7 @@ export function registerCheckCommand(program: Command): void {
         // view but produce the same results, so deduplication collapses them correctly.
         const worktrees = project.worktrees ?? [];
         const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => {
-              const view = applyWorktreeOverlay(project, wt.id);
-              if (wt.worktreePath) view.projectPath = wt.worktreePath;
-              return view;
-            })
+          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
           : [project];
 
         let result: ConsistencyCheckResult;

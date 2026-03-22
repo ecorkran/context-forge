@@ -306,11 +306,7 @@ export function registerWorkflowTools(server: McpServer): void {
         // TODO: Extract merge logic to @context-forge/core shared utility (200-slices future work item 7)
         const worktrees = project.worktrees ?? [];
         const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => {
-              const view = applyWorktreeOverlay(project, wt.id);
-              if (wt.worktreePath) view.projectPath = wt.worktreePath;
-              return view;
-            })
+          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
           : [project];
 
         let result;
