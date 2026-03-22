@@ -9,10 +9,9 @@ import {
   ConfigManager,
   getStoragePath,
   createVersionedBackup,
-  WorktreeService,
 } from '@context-forge/core/node';
 import type { ConsistencyCheckResult, ConsistencyFinding } from '@context-forge/core';
-import { applyWorktreeOverlay } from '@context-forge/core';
+import { applyWorktreeOverlay, resolveProject } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -144,7 +143,7 @@ export function registerWorkflowTools(server: McpServer): void {
       try {
         const resolvedId = await resolveProjectId(args.projectId);
         const store = new FileProjectStore();
-        let project = await store.getById(resolvedId);
+        const project = await resolveProject(store, resolvedId, args.worktreeId);
 
         if (!project) {
           return errorResult(
@@ -152,26 +151,11 @@ export function registerWorkflowTools(server: McpServer): void {
           );
         }
 
-        let worktreeField: Record<string, unknown> | undefined;
-
-        if (args.worktreeId) {
-          const service = new WorktreeService(store);
-          let wt = await service.getWorktree(resolvedId, args.worktreeId);
-          if (!wt) {
-            wt = await service.getWorktreeByName(resolvedId, args.worktreeId);
-          }
-          if (!wt) {
-            return errorResult(
-              `Worktree '${args.worktreeId}' not found. Use worktree_list to see available worktrees.`,
-            );
-          }
-          project = applyWorktreeOverlay(project, wt.id);
-          worktreeField = { id: wt.id, name: wt.name };
-        }
-
         const nav = new WorkflowNavigator();
         const status = await nav.getStatus(project);
-        const result = worktreeField ? { ...status, worktree: worktreeField } : status;
+        const result = project.resolvedWorktree
+          ? { ...status, worktree: project.resolvedWorktree }
+          : status;
         return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -205,7 +189,7 @@ export function registerWorkflowTools(server: McpServer): void {
       try {
         const resolvedId = await resolveProjectId(args.projectId);
         const store = new FileProjectStore();
-        let project = await store.getById(resolvedId);
+        const project = await resolveProject(store, resolvedId, args.worktreeId);
 
         if (!project) {
           return errorResult(
@@ -213,26 +197,11 @@ export function registerWorkflowTools(server: McpServer): void {
           );
         }
 
-        let worktreeField: Record<string, unknown> | undefined;
-
-        if (args.worktreeId) {
-          const service = new WorktreeService(store);
-          let wt = await service.getWorktree(resolvedId, args.worktreeId);
-          if (!wt) {
-            wt = await service.getWorktreeByName(resolvedId, args.worktreeId);
-          }
-          if (!wt) {
-            return errorResult(
-              `Worktree '${args.worktreeId}' not found. Use worktree_list to see available worktrees.`,
-            );
-          }
-          project = applyWorktreeOverlay(project, wt.id);
-          worktreeField = { id: wt.id, name: wt.name };
-        }
-
         const nav = new WorkflowNavigator();
         const next = await nav.getNext(project);
-        const result = worktreeField ? { ...next, worktree: worktreeField } : next;
+        const result = project.resolvedWorktree
+          ? { ...next, worktree: project.resolvedWorktree }
+          : next;
         return jsonResult(result);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
