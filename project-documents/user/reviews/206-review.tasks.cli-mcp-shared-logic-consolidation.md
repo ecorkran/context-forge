@@ -3,130 +3,121 @@ docType: review
 reviewType: tasks
 slice: cli-mcp-shared-logic-consolidation
 project: squadron
-verdict: CONCERNS
+verdict: PASS
 dateCreated: 20260322
 dateUpdated: 20260322
 ---
 
 # Review: tasks — slice 206
 
-**Verdict:** CONCERNS
+**Verdict:** PASS
 **Model:** claude-haiku-4-5-20251001
 
 ## Findings
 
-### [PASS] Success Criteria Coverage
+### [PASS] Complete coverage of success criteria
 
-All success criteria from the slice design have corresponding tasks:
-- **Functional (5/5):** `cf init` defaults (2.5-2.7), `cf set` auto-set (3.4-3.6), MCP `project_create` (2.6-2.7), MCP `project_update` + bugfix (3.5-3.6, 4.4), tests pass (1.5, 2.7, 3.6, 4.2)
-- **Technical (3/3):** No duplication (1.3-1.4, 3.4-3.5, 4.1), unit tests (2.4, 3.3), integration tests (1.5, 2.7, 3.6, 4.2)
-- **Verification (5/5):** Duplication checks (4.1), behavioral parity (2.7, 3.6, 4.4), CLI auto-set (3.4-3.6), MCP auto-set (3.5-3.6, 4.4), full test suite (4.2)
+All 8 success criteria from the slice design are systematically addressed:
+- **Functional requirements 1-5:** Each has corresponding implementation and verification tasks
+- **Technical requirements 6-8:** Unit tests (2.4, 3.3), integration tests (1.5, 2.7, 3.6, 4.2), and verification (4.1)
 
-No gaps identified.
-
----
-
-### [CONCERN] Commit Strategy Diverges from Design Intent
-
-The slice design explicitly states (Risk Assessment): *"Delete local definitions in the same commit as adding core imports — compiler catches any missed consumers"* and (Implementation Notes): *"Each step should leave the build passing."*
-
-The task breakdown batches all commits into a single task (4.3) after all implementation is complete. This defers compiler-safety verification:
-
-- Tasks 1.1-1.2 add new core code and exports
-- Tasks 1.3-1.4 remove old definitions and add imports
-- No intermediate commit between these steps to verify the compiler catches missing consumers
-
-**Mitigation present but weaker:** Task 4.1 explicitly runs grep verification to catch duplicates. This is a valid safety net but relies on a manual script rather than compiler feedback.
-
-**Recommendation:** Add explicit commit tasks after extraction steps (e.g., after 1.4, 2.6, 3.5) to follow the slice design's safety strategy, or clarify that all changes are committed together and 4.1 verification compensates for lack of intermediate compiler checks.
+**Example:** Criterion "MCP project_update auto-set behavior unchanged + fileArch→fileSlicePlan bug fix" maps to Tasks 3.1-3.5 (implementation) and 4.5 (verification).
 
 ---
 
-### [CONCERN] Verification Approach Inconsistent with Design
+### [PASS] No scope creep
 
-The slice design's "Verification Walkthrough" (§328) outlines 5 manual verification steps:
-1. Duplication checks (covered: task 4.1) ✓
-2. **Behavioral parity — project creation** (mentioned in design, not explicit in tasks)
-3. **Auto-set rules via CLI** (mentioned in design, not explicit in tasks)
-4. Auto-set rules via MCP (covered: task 4.4) ✓
-5. Run test suite (covered: task 4.2) ✓
-
-CLI manual verification steps mentioned in the design (e.g., `cf init --name test-parity-cli /tmp/test-cli` and `cf set fileArch 200-arch...`) are implicitly covered by tests but not called out as explicit verification tasks like task 4.4 is for MCP.
-
-**Recommendation:** Either add explicit manual verification tasks for CLI (to match 4.4 for MCP) or remove 4.4 as redundant since unit tests in 3.3 already verify the fileArch→fileSlicePlan rule.
+All tasks trace to at least one success criterion. Tasks 1.6, 2.8, 3.7, 4.6 (administrative: commit/status) are standard practice and necessary for maintaining work history.
 
 ---
 
-### [CONCERN] Test Run Redundancy
+### [PASS] Correct task sequencing and dependencies
 
-Tasks 1.5, 2.7, 3.6, and 4.2 all invoke `pnpm test` (or `pnpm run build && pnpm test` for 4.2). This is safe but creates 4 separate test runs:
-- 1.5 after constants extraction
-- 2.7 after defaults implementation
-- 3.6 after auto-set rules implementation
-- 4.2 final verification
+Four logical phases with proper ordering:
+1. **Phase 1 (Constants, 1.1-1.6):** Create file → Export → Update consumers → Test → Commit
+2. **Phase 2 (Defaults, 2.1-2.8):** Implement functions → Export → Unit tests → Use in consumers → Integration test → Commit
+3. **Phase 3 (Auto-set, 3.1-3.7):** Implement function → Export → Unit tests → Use in consumers → Integration test → Commit
+4. **Phase 4 (Verification, 4.1-4.6):** Duplication checks → Build → Behavioral verification → Status update
 
-Each test run takes time and provides overlapping coverage. All subsequent test runs re-run tests from prior steps.
-
-**Recommendation:** Consolidate to fewer test checkpoints (e.g., after task 1.4, after 2.6, after 3.5, and final 4.2) to reduce iteration time while maintaining safety. Alternatively, document why each checkpoint is necessary if there's a risk of integration issues between steps.
+No circular dependencies. Each phase depends only on completion of previous phases. Compiler will catch missing imports if a step is skipped.
 
 ---
 
-### [PASS] Proper Test-With Pattern
+### [PASS] Well-distributed test-with pattern
 
-Tests immediately follow implementation for each major feature:
-- Constants: 1.1-1.4 → 1.5 ✓
-- Defaults: 2.1-2.3 → 2.4, then integration 2.5-2.6 → 2.7 ✓
-- Auto-set: 3.1-3.2 → 3.3, then integration 3.4-3.5 → 3.6 ✓
-- Final: all changes → 4.2 ✓
+- Section 1: Implementation (1.1-1.4) → Test (1.5) ✓
+- Section 2: Define → Export → Unit tests (2.4) → Use in consumers (2.5-2.6) → Integration test (2.7) ✓
+- Section 3: Define → Export → Unit tests (3.3) → Use in consumers (3.4-3.5) → Integration test (3.6) ✓
 
----
-
-### [PASS] Clear Task Sequencing
-
-The task order follows the slice design's suggested order exactly:
-1. Extract constants (slice design: "Lowest risk, immediate compile-time verification")
-2. Extract defaults (slice design: "Isolated from update logic")
-3. Extract auto-set rules (slice design: "Most complex, benefits from constants already being in core")
-4. Verification and commit
-
-No circular dependencies. All prerequisites satisfied before dependents.
+Tests follow their implementations appropriately. Unit tests cover required test matrix per slice design §Technical Requirements 7.
 
 ---
 
-### [PASS] Unit Tests for All New Core Functions
+### [PASS] Well-distributed commit checkpoints
 
-- Task 2.4: `formatDateProject()`, `buildProjectCreationDefaults()` with overrides
-- Task 3.3: All three auto-set rules, undefined projectPath edge case, regex fallback
+- Task 1.6: After constants extraction
+- Task 2.8: After project creation defaults extraction
+- Task 3.7: After auto-set rules extraction
+- Task 4.6: Status/DEVLOG update only (no code commit)
 
-Matches the "Technical Requirements" §320-326 precisely.
-
----
-
-### [PASS] Bug Fix Properly Tracked
-
-The MCP missing `fileArch→fileSlicePlan` auto-set is:
-- Identified in the overview (task file context)
-- Implemented in task 3.1 (all three rules in `computeAutoSetFields`)
-- Integrated in task 3.5 (MCP now gains the rule)
-- Verified in task 4.4 (explicit check for new behavior)
-
-No risk of this fix being overlooked.
+Commits are distributed after each major extraction step, not batched at the end. Each commit represents a complete, testable unit of work.
 
 ---
 
-### [PASS] Duplication Elimination Explicitly Verified
+### [PASS] Appropriate task sizing
 
-Task 4.1 runs the exact grep commands specified in the slice design (§341) to verify:
-- No `WORKTREE_SCOPED_FIELDS` outside imports
-- No `PROJECT_TO_WORKTREE_FIELD` outside imports  
-- No inline date formatting in CLI or MCP
+All tasks are independently completable with clear success criteria:
 
-This is a concrete verification gate, not a hand-wave.
+| Category | Size | Examples | Assessment |
+|----------|------|----------|-----------|
+| **Trivial** | <5 LOC or command | 1.2, 1.6, 2.3, 3.2, 4.2 | ✓ |
+| **Small** | ~10-40 LOC or straightforward | 1.1, 1.3, 1.4, 2.1, 2.5, 2.6, 4.1, 4.3, 4.4, 4.5 | ✓ |
+| **Medium** | ~40-80 LOC | 2.2, 2.4, 3.3 | ✓ |
+| **Largest** | ~80-100 LOC | 3.1, 3.4, 3.5 | ✓ |
+
+Largest tasks (3.1, 3.4, 3.5) remain manageable. Each has explicit success criteria and clear decomposition in task description. Task 3.1 implements three tightly-coupled rules; splitting would reduce clarity without improving independence.
 
 ---
 
-### [MINOR] No Explicit Criteria Cross-Reference in Tasks Document
+### [PASS] Comprehensive verification coverage
 
-The tasks document doesn't link each task back to the success criteria it addresses (e.g., "Task 2.5 satisfies functional requirement 1: `cf init` creates projects with identical defaults"). This makes peer review and traceability harder. A matrix in the task document would improve clarity.
+Section 4 covers all verification requirements from slice design §Verification Walkthrough:
+
+| Design Requirement | Task | Coverage |
+|---|---|---|
+| Confirm no duplication (3 grep checks) | 4.1 | ✓ All 3 commands specified |
+| Behavioral parity (project creation) | 4.3 | ✓ `cf init --name test-parity` validation |
+| CLI auto-set rules work (3 commands) | 4.4 | ✓ fileArch, fileSlice, phase tests |
+| MCP auto-set works (new behavior) | 4.5 | ✓ Verifies fileArch→fileSlicePlan rule |
+| Test suite passes | 4.2 | ✓ `pnpm run build && pnpm test` |
+
+---
+
+### [CONCERN] Line number discrepancy in Task 3.5
+
+**Severity: Minor (should be resolved before implementation)**
+
+- Slice design (§Extraction 3, line 178): MCP source lines **289-351**
+- Task 3.5 (line 94): MCP source lines **297-359**
+
+**Impact:** The intent is clear (replace the auto-set logic), but the discrepancy should be verified against the actual source file before starting implementation. Line numbers may have shifted since the slice design was written.
+
+**Mitigation:** Before starting Task 3.5, verify the actual line range in `packages/mcp-server/src/tools/projectTools.ts` containing the auto-set logic and update the task description accordingly. This is routine work that won't affect the implementation strategy.
+
+**Note:** Similar small discrepancies may exist in other line ranges (1.3 says 60-79, slice says 57-77 for CLI). These should also be spot-checked against source files as each task begins.
+
+---
+
+### [PASS] Clear success criteria for each task
+
+Every task includes testable, objective success criteria. Examples:
+
+- Task 1.1: "File exists, exports both constants, types are correct"
+- Task 2.4: "All new tests pass" (with specific test cases enumerated)
+- Task 3.1: "Function exported with correct signature"
+- Task 4.3: "CLI project creation produces identical defaults as before extraction"
+- Task 4.5: "fileSlicePlan is derived from fileArch in MCP (new behavior)"
+
+These enable verification by a human reviewer or automated checks.
 
 ---
