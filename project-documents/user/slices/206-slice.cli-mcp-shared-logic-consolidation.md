@@ -65,7 +65,7 @@ project-defaults.ts
 ├── WORKTREE_SCOPED_FIELDS          (Set<string>)
 ├── PROJECT_TO_WORKTREE_FIELD       (Record<string, string>)
 ├── buildProjectCreationDefaults()  (name, path, opts?) → Partial<ProjectData>
-├── applyAutoSetRules()             (field, value, projectPath) → Record<string, string>
+├── computeAutoSetFields()             (field, value, projectPath) → Record<string, string>
 └── formatDateProject()             (Date?) → string (YYYYMMDD)
 ```
 
@@ -93,8 +93,8 @@ MCP projectTools.ts ──→ inline if/else chains (incomplete) ──→ store
 
 **Field update auto-set (after):**
 ```
-CLI project.ts  ──→ applyAutoSetRules() ──→ store.update() + store.updateWorktree()
-MCP projectTools.ts ──→ applyAutoSetRules() ──→ store.update() + store.updateWorktree()
+CLI project.ts  ──→ computeAutoSetFields() ──→ store.update() + store.updateWorktree()
+MCP projectTools.ts ──→ computeAutoSetFields() ──→ store.update() + store.updateWorktree()
                               ↑
                      @context-forge/core
 ```
@@ -370,7 +370,7 @@ cf set phase "Phase 6: Implementation"
 
 **5. Run test suite:**
 ```bash
-npm test
+pnpm test
 # All existing tests pass; new unit tests for project-defaults.ts pass
 ```
 

@@ -31,13 +31,6 @@ The `fileArch→fileSlicePlan` auto-set gap in MCP is fixed by the extraction, n
 
 The architecture's anticipated slices (smart `cf init`, `project_create`, onboarding skill) all depend on consistent project creation defaults and field auto-set rules being correct and reachable from both CLI and MCP. Slice 206 is the natural pre-condition for those. Although it is not explicitly named in the architecture's "Anticipated Slices" list, it is supportive of, not in conflict with, those goals. Pure refactoring slices of this kind are routinely identified during implementation and need not be forecasted in the architecture document.
 
-### [CONCERN] Parent document reference has a filename error
-
-Slice frontmatter: `parent: user/architecture/200-slices.developer-onboarding.md`
-Actual filename: `200-arch.developer-onboarding.md`
-
-The segment `200-slices` does not match the actual document name `200-arch`. This is a metadata error that could break any tooling that resolves the parent link. Correct it to `user/architecture/200-arch.developer-onboarding.md`.
-
 ### [CONCERN] Internal naming inconsistency in the module overview
 
 The module structure diagram (§Architecture, Component Structure) lists the exported function as `applyAutoSetRules()`, but the implementation section defines and exports it as `computeAutoSetFields()`. Every other reference in the document uses `computeAutoSetFields`. The diagram name appears to be a stale draft label. Align the diagram to match the implementation name before implementation begins to avoid confusion about the public API.
