@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
+import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printRaw } from '../output/formatter.js';
 
@@ -34,21 +34,18 @@ export function registerBuildCommand(program: Command): void {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const rawProject = await store.getById(id);
+        const project = await resolveProject(store, id, worktreeId);
 
-        if (!rawProject) {
+        if (!project) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
 
-        if (!rawProject.projectPath) {
+        if (!project.projectPath) {
           throw new UserError(
-            `Project '${rawProject.name}' has no projectPath configured.\n` +
+            `Project '${project.name}' has no projectPath configured.\n` +
               '  cf project set projectPath /path/to/project',
           );
         }
-
-        // Apply worktree overlay so build uses correct fields
-        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
 
         // Status message goes to stderr so stdout stays clean for piping
         process.stderr.write(`Building context for ${project.name}...\n`);

@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
+import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim } from '../output/styles.js';
@@ -16,13 +16,11 @@ export function registerNextCommand(program: Command): void {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const rawProject = await store.getById(id);
+        const project = await resolveProject(store, id, worktreeId);
 
-        if (!rawProject) {
+        if (!project) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
-
-        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
 
         const nav = new WorkflowNavigator();
         const result = await nav.getNext(project);

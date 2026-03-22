@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath } from '@context-forge/core/node';
+import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -105,7 +106,10 @@ export function registerStatusCommand(program: Command): void {
         }
 
         // Apply worktree overlay so navigator and display use correct fields
-        const project = resolvedWorktreeId ? applyWorktreeOverlay(rawProject, resolvedWorktreeId) : rawProject;
+        const project = await resolveProject(store, id, resolvedWorktreeId);
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'.`);
+        }
         const worktreeCtx = resolvedWorktreeId
           ? (rawProject.worktrees ?? []).find((w) => w.id === resolvedWorktreeId)
           : undefined;

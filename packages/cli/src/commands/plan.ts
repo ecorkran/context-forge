@@ -6,7 +6,8 @@ import {
   parseSlicePlan,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
+import { resolveProject } from '@context-forge/core';
+import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -33,7 +34,10 @@ export function registerPlanCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'.`);
         }
 
-        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
+        const project = await resolveProject(store, id, worktreeId);
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'.`);
+        }
 
         if (!project.projectPath) {
           throw new UserError(

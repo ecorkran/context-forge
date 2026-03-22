@@ -12,7 +12,8 @@ import {
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, getWorktreeRangeOverride, isInIndexRange } from '../utils/worktree-overlay.js';
+import { resolveProject } from '@context-forge/core';
+import { resolveOperationPath, getWorktreeIndexRange, getWorktreeRangeOverride, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -206,9 +207,9 @@ export async function projectSetAction(
   // Falls back to slice plan entry name if file doesn't exist on disk
   const opPath = resolveOperationPath(existing, worktreeId);
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && opPath) {
-    // Use worktree-overlaid project for slice plan lookup (project-level fields
+    // Use worktree-resolved project for slice plan lookup (project-level fields
     // may be cleared after migration, but the worktree context has the values)
-    const overlaid = worktreeId ? applyWorktreeOverlay(existing, worktreeId) : existing;
+    const overlaid = await resolveProject(store, id, worktreeId) ?? existing;
     try {
       const fileResolved = resolveFileByIndex(opPath, resolvedField, resolvedValue);
       if (fileResolved !== null) {

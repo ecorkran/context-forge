@@ -3,7 +3,8 @@ import { Command } from 'commander';
 import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { applyWorktreeOverlay, resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
+import { resolveProject } from '@context-forge/core';
+import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -29,7 +30,10 @@ export function registerSliceCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'.`);
         }
 
-        const project = worktreeId ? applyWorktreeOverlay(rawProject, worktreeId) : rawProject;
+        const project = await resolveProject(store, id, worktreeId);
+        if (!project) {
+          throw new UserError(`Project not found: '${id}'.`);
+        }
 
         if (!project.fileSlicePlan) {
           throw new UserError(
