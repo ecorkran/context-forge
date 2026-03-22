@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { Command } from 'commander';
 import { FileProjectStore, SystemPromptParser } from '@context-forge/core/node';
-import { PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
+import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
@@ -126,7 +126,8 @@ export function registerPromptCommand(program: Command): void {
           );
         }
 
-        const output = opts.raw ? prompt.content : substituteVariables(prompt.content, project);
+        const resolved = worktreeId ? applyWorktreeOverlay(project, worktreeId) : project;
+        const output = opts.raw ? prompt.content : substituteVariables(prompt.content, resolved);
         printRaw(output);
       } catch (err) {
         handleError(err);

@@ -9,6 +9,7 @@ import {
   validateFieldValue,
   PROJECT_FIELDS,
   FIELD_GROUPS,
+  applyWorktreeOverlay,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
@@ -416,10 +417,11 @@ export async function projectGetAction(
     : undefined;
 
   if (opts.json) {
+    const data = worktreeId ? applyWorktreeOverlay(project, worktreeId) : project;
     if (worktree) {
-      printJson({ ...project, worktree });
+      printJson({ ...data, worktree });
     } else {
-      printJson(project);
+      printJson(data);
     }
     return;
   }
