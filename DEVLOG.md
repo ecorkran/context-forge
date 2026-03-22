@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-22
 
+### Slice 207: Worktree-Resolved Project View — Task Breakdown Complete
+- 6 sections, 24 tasks: core function+tests (4), MCP workflow tools (5), MCP project_get (3), MCP context tools (5), CLI commands (10), cleanup+validation (4)
+- 16 call sites inventoried: 11 CLI, 5 MCP — multi-view iteration sites (check, workflow_check) excluded from migration
+- Test-with pattern: unit tests follow core implementation, integration tests follow each consumer migration
+- 5 commit checkpoints (core, workflow tools, project_get, context tools, CLI, cleanup)
+
 ### Slice 207: Worktree-Resolved Project View — Slice Design Complete
 - Centralized `resolveProject()` function in `@context-forge/core` replaces scattered inline overlay calls
 - `project_get` gains optional `worktreeId` parameter — returns resolved view with overlay pre-applied
