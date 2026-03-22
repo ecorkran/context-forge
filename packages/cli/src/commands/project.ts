@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService } from '@context-forge/core/node';
+import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -227,109 +227,51 @@ export async function projectSetAction(
     const svc = new WorktreeService(store);
     const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
 
-    if (resolvedField === 'developmentPhase') {
-      // Auto-set instruction on worktree context
-      await svc.updateWorktree(id, worktreeId, { [wtField]: resolvedValue, instruction: resolvedValue });
-    } else {
-      await svc.updateWorktree(id, worktreeId, { [wtField]: resolvedValue });
-    }
+    // Compute auto-set derived fields
+    const autoSet = computeAutoSetFields(resolvedField, resolvedValue, opPath);
 
-    // Auto-set slicePlan when archDoc changes on worktree
-    if (resolvedField === 'fileArch' && opPath) {
-      const archIndex = /^(\d+)-/.exec(resolvedValue);
-      if (archIndex) {
-        let planResolved: string | null = null;
-        try {
-          planResolved = resolveFileByIndex(opPath, 'fileSlicePlan', archIndex[1]);
-        } catch {
-          const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
-          if (derived !== resolvedValue) planResolved = derived;
-        }
-        if (planResolved !== null) {
-          await svc.updateWorktree(id, worktreeId, { slicePlan: planResolved });
-          console.log(success(`Updated plan = ${planResolved} (auto-set from arch) on worktree context "${worktreeName}"`));
-        }
-      }
+    // Build worktree update: primary field + derived fields (mapped to worktree names)
+    const wtUpdate: Record<string, string> = { [wtField]: resolvedValue };
+    for (const [derivedField, derivedValue] of Object.entries(autoSet.derivedUpdates)) {
+      const derivedWtField = PROJECT_TO_WORKTREE_FIELD[derivedField] ?? derivedField;
+      wtUpdate[derivedWtField] = derivedValue;
     }
+    await svc.updateWorktree(id, worktreeId, wtUpdate);
 
-    // Auto-set activeTaskFile when activeSlice changes on worktree
-    if (resolvedField === 'fileSlice' && opPath) {
-      const sliceIndex = /^(\d+)-/.exec(resolvedValue);
-      if (sliceIndex) {
-        let tasksResolved: string | null = null;
-        try {
-          tasksResolved = resolveFileByIndex(opPath, 'fileTasks', sliceIndex[1]);
-        } catch {
-          const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
-          if (derived !== resolvedValue) tasksResolved = derived;
-        }
-        if (tasksResolved !== null) {
-          await svc.updateWorktree(id, worktreeId, { activeTaskFile: tasksResolved });
-          console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice) on worktree context "${worktreeName}"`));
-        }
-      }
+    // Log auto-set descriptions
+    for (const desc of autoSet.descriptions) {
+      console.log(success(`Updated ${desc} on worktree context "${worktreeName}"`));
     }
 
     const displayName = fieldDef?.aliases[0] ?? resolvedField;
     console.log(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`));
-    if (resolvedField === 'developmentPhase') {
-      console.log(success(`Updated instruction = ${resolvedValue} (auto-set from phase) on worktree context "${worktreeName}"`));
-    }
     return;
   }
 
   // Project-level update (no worktree, or --project-level, or non-worktree field)
+  // Compute auto-set derived fields
+  const autoSet = computeAutoSetFields(resolvedField, resolvedValue, opPath);
+  const allUpdates = { [resolvedField]: resolvedValue, ...autoSet.derivedUpdates };
+
   if (resolvedField.startsWith('customData.')) {
     const subField = resolvedField.split('.')[1];
     const merged = { ...existing.customData, [subField]: resolvedValue };
     await store.update(id, { customData: merged });
-  } else if (resolvedField === 'developmentPhase') {
-    await store.update(id, { [resolvedField]: resolvedValue, instruction: resolvedValue });
+    // Apply any derived updates separately (unlikely for customData, but consistent)
+    if (Object.keys(autoSet.derivedUpdates).length > 0) {
+      await store.update(id, autoSet.derivedUpdates);
+    }
   } else {
-    await store.update(id, { [resolvedField]: resolvedValue });
+    await store.update(id, allUpdates);
   }
 
-  // Auto-set fileSlicePlan when fileArch changes (project-level)
-  if (resolvedField === 'fileArch' && opPath) {
-    const archIndex = /^(\d+)-/.exec(resolvedValue);
-    if (archIndex) {
-      let planResolved: string | null = null;
-      try {
-        planResolved = resolveFileByIndex(opPath, 'fileSlicePlan', archIndex[1]);
-      } catch {
-        const derived = resolvedValue.replace(/^(\d+)-arch\./, '$1-slices.');
-        if (derived !== resolvedValue) planResolved = derived;
-      }
-      if (planResolved !== null) {
-        await store.update(id, { fileSlicePlan: planResolved });
-        console.log(success(`Updated plan = ${planResolved} (auto-set from arch)`));
-      }
-    }
-  }
-
-  // Auto-set fileTasks when fileSlice changes (project-level)
-  if (resolvedField === 'fileSlice' && opPath) {
-    const sliceIndex = /^(\d+)-/.exec(resolvedValue);
-    if (sliceIndex) {
-      let tasksResolved: string | null = null;
-      try {
-        tasksResolved = resolveFileByIndex(opPath, 'fileTasks', sliceIndex[1]);
-      } catch {
-        const derived = resolvedValue.replace(/^(\d+)-slice\./, '$1-tasks.');
-        if (derived !== resolvedValue) tasksResolved = derived;
-      }
-      if (tasksResolved !== null) {
-        await store.update(id, { fileTasks: tasksResolved });
-        console.log(success(`Updated tasks = ${tasksResolved} (auto-set from slice)`));
-      }
-    }
+  // Log auto-set descriptions
+  for (const desc of autoSet.descriptions) {
+    console.log(success(`Updated ${desc}`));
   }
 
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
   console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
-  if (resolvedField === 'developmentPhase') {
-    console.log(success(`Updated instruction = ${resolvedValue} (auto-set from phase)`));
-  }
 }
 
 /** Shared action handler for `cf unset` and `cf project unset`. */

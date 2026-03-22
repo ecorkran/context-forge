@@ -8,6 +8,7 @@ const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
 const mockUpdateWorktree = vi.fn();
 const mockResolveFileByIndex = vi.fn();
+const mockComputeAutoSetFields = vi.fn().mockReturnValue({ derivedUpdates: {}, descriptions: [] });
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -25,6 +26,7 @@ vi.mock('@context-forge/core/node', () => ({
   resolveArtifactPath: vi.fn(),
   deriveArtifactStem: vi.fn(),
   parseSlicePlan: vi.fn(),
+  computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
 }));
 
 vi.mock('../../src/utils/project.js', async () => {
@@ -88,6 +90,10 @@ describe('projectSetAction — worktree-scoped', () => {
   });
 
   it('routes developmentPhase to WorktreeService with auto-set instruction', async () => {
+    mockComputeAutoSetFields.mockReturnValueOnce({
+      derivedUpdates: { instruction: 'Phase 5: Task Breakdown' },
+      descriptions: ['instruction'],
+    });
     await projectSetAction('phase', 'Phase 5: Task Breakdown', { project: 'test-project' });
     expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', {
       developmentPhase: 'Phase 5: Task Breakdown',
@@ -101,25 +107,31 @@ describe('projectSetAction — worktree-scoped', () => {
   });
 
   it('auto-sets slicePlan when archDoc changes on worktree', async () => {
-    mockResolveFileByIndex.mockImplementation((_path: unknown, field: unknown) => {
-      if (field === 'fileSlicePlan') return '180-slices.derived.md';
-      throw new Error('not found');
+    mockComputeAutoSetFields.mockReturnValueOnce({
+      derivedUpdates: { fileSlicePlan: '180-slices.derived.md' },
+      descriptions: ['slice plan'],
     });
     await projectSetAction('fileArch', '180-arch.new.md', { project: 'test-project' });
-    // First call: archDoc update
-    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', { archDoc: '180-arch.new.md' });
-    // Second call: slicePlan auto-set
-    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', { slicePlan: '180-slices.derived.md' });
+    // Single merged call: archDoc + slicePlan (fileSlicePlan maps to slicePlan via PROJECT_TO_WORKTREE_FIELD)
+    expect(mockUpdateWorktree).toHaveBeenCalledTimes(1);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', {
+      archDoc: '180-arch.new.md',
+      slicePlan: '180-slices.derived.md',
+    });
   });
 
   it('auto-sets activeTaskFile when activeSlice changes on worktree', async () => {
-    mockResolveFileByIndex.mockImplementation((_path: unknown, field: unknown) => {
-      if (field === 'fileTasks') return '200-tasks.feature.md';
-      throw new Error('not found');
+    mockComputeAutoSetFields.mockReturnValueOnce({
+      derivedUpdates: { fileTasks: '200-tasks.feature.md' },
+      descriptions: ['task file'],
     });
     await projectSetAction('fileSlice', '200-slice.feature.md', { project: 'test-project' });
-    // Second call: activeTaskFile auto-set
-    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', { activeTaskFile: '200-tasks.feature.md' });
+    // Single merged call: activeSlice + activeTaskFile (fileTasks maps to activeTaskFile via PROJECT_TO_WORKTREE_FIELD)
+    expect(mockUpdateWorktree).toHaveBeenCalledTimes(1);
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', {
+      activeSlice: '200-slice.feature.md',
+      activeTaskFile: '200-tasks.feature.md',
+    });
   });
 
   it('prints confirmation with worktree context name', async () => {

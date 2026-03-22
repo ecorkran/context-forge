@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'node:path';
-import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
 import type { ProjectData, CreateProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
 import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD, buildProjectCreationDefaults } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
@@ -260,30 +260,17 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
             if (WORKTREE_SCOPED_FIELDS.has(key)) {
               const wtKey = PROJECT_TO_WORKTREE_FIELD[key] ?? key;
               (worktreeUpdates as Record<string, unknown>)[wtKey] = value;
-            } else {
-              (projectUpdates as Record<string, unknown>)[key] = value;
-            }
-          }
 
-          // Auto-set instruction when developmentPhase changes on worktree
-          if ('developmentPhase' in worktreeUpdates && !('instruction' in worktreeUpdates)) {
-            worktreeUpdates.instruction = worktreeUpdates.developmentPhase;
-          }
-
-          // Auto-set activeTaskFile when activeSlice changes on worktree
-          if ('activeSlice' in worktreeUpdates && !('activeTaskFile' in worktreeUpdates) && existing.projectPath) {
-            const sliceValue = worktreeUpdates.activeSlice as string;
-            const sliceIndex = /^(\d+)-/.exec(sliceValue);
-            if (sliceIndex) {
-              try {
-                const resolved = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
-                (worktreeUpdates as Record<string, unknown>).activeTaskFile = resolved;
-              } catch {
-                const derived = sliceValue.replace(/^(\d+)-slice\./, '$1-tasks.');
-                if (derived !== sliceValue) {
-                  (worktreeUpdates as Record<string, unknown>).activeTaskFile = derived;
+              // Compute auto-set fields (skip if caller explicitly provided the derived field)
+              const autoSet = computeAutoSetFields(key, value as string, existing.projectPath);
+              for (const [derivedField, derivedValue] of Object.entries(autoSet.derivedUpdates)) {
+                if (!(derivedField in allUpdates)) {
+                  const derivedWtKey = PROJECT_TO_WORKTREE_FIELD[derivedField] ?? derivedField;
+                  (worktreeUpdates as Record<string, unknown>)[derivedWtKey] = derivedValue;
                 }
               }
+            } else {
+              (projectUpdates as Record<string, unknown>)[key] = value;
             }
           }
 
@@ -302,40 +289,28 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
         }
 
         // --- Standard (non-worktree) path ---
-        const updates: UpdateProjectData = allUpdates as UpdateProjectData;
+        const updates: Record<string, unknown> = { ...allUpdates };
+        const autoSetInfo: Record<string, string> = {};
 
-        // Auto-set instruction when developmentPhase changes (unless instruction is explicitly provided)
-        if ('developmentPhase' in updates && !('instruction' in updates)) {
-          (updates as Record<string, unknown>).instruction = updates.developmentPhase;
-        }
-
-        // Auto-set fileTasks when fileSlice changes (unless fileTasks is explicitly provided)
-        let autoSetTasks: string | null = null;
-        if ('fileSlice' in updates && !('fileTasks' in updates) && existing.projectPath) {
-          const sliceIndex = /^(\d+)-/.exec(updates.fileSlice!);
-          if (sliceIndex) {
-            try {
-              autoSetTasks = resolveFileByIndex(existing.projectPath, 'fileTasks', sliceIndex[1]);
-            } catch {
-              // File doesn't exist yet — derive stem from slice value
-              const derived = updates.fileSlice!.replace(/^(\d+)-slice\./, '$1-tasks.');
-              if (derived !== updates.fileSlice) {
-                autoSetTasks = derived;
-              }
-            }
-            if (autoSetTasks !== null) {
-              (updates as Record<string, unknown>).fileTasks = autoSetTasks;
+        // Compute auto-set derived fields for each updated field
+        for (const [key, value] of Object.entries(allUpdates)) {
+          const autoSet = computeAutoSetFields(key, value as string, existing.projectPath);
+          for (const [derivedField, derivedValue] of Object.entries(autoSet.derivedUpdates)) {
+            // Only auto-set if caller didn't explicitly provide the derived field
+            if (!(derivedField in allUpdates)) {
+              updates[derivedField] = derivedValue;
+              autoSetInfo[derivedField] = derivedValue;
             }
           }
         }
 
-        await store.update(resolvedId, updates);
+        await store.update(resolvedId, updates as UpdateProjectData);
 
         // Read back updated project
         const updated = await store.getById(resolvedId);
         const result: Record<string, unknown> = { ...updated };
-        if (autoSetTasks) {
-          result._autoSet = { fileTasks: autoSetTasks };
+        if (Object.keys(autoSetInfo).length > 0) {
+          result._autoSet = autoSetInfo;
         }
         return jsonResult(result);
       } catch (error: unknown) {

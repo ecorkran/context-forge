@@ -10,6 +10,8 @@ const mockResolveFileByIndex = vi.fn();
 
 const mockUpdateWorktree = vi.fn();
 
+const mockComputeAutoSetFields = vi.fn().mockReturnValue({ derivedUpdates: {}, descriptions: [] });
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
@@ -24,6 +26,7 @@ vi.mock('@context-forge/core/node', () => ({
     updateWorktree: mockUpdateWorktree,
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
+  computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
 }));
 
 const sampleProject = {
@@ -228,6 +231,10 @@ describe('cf project set', () => {
 
   it('resolves alias "phase" to developmentPhase and auto-sets instruction', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    mockComputeAutoSetFields.mockReturnValue({
+      derivedUpdates: { instruction: 'Phase 4: Slice Design' },
+      descriptions: ['instruction = Phase 4: Slice Design (auto-set from developmentPhase)'],
+    });
 
     const program = createProgram();
     await program.parseAsync([
@@ -243,6 +250,10 @@ describe('cf project set', () => {
 
   it('resolves phase number and auto-sets instruction', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    mockComputeAutoSetFields.mockReturnValue({
+      derivedUpdates: { instruction: 'Phase 6: Implementation' },
+      descriptions: ['instruction = Phase 6: Implementation (auto-set from developmentPhase)'],
+    });
 
     const program = createProgram();
     await program.parseAsync([
@@ -258,6 +269,8 @@ describe('cf project set', () => {
 
   it('setting instruction directly does not touch developmentPhase', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    // computeAutoSetFields for 'instruction' field returns nothing
+    mockComputeAutoSetFields.mockReturnValue({ derivedUpdates: {}, descriptions: [] });
 
     const program = createProgram();
     await program.parseAsync([
@@ -275,6 +288,10 @@ describe('cf project set', () => {
 
   it('resolves case-insensitive field names', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    mockComputeAutoSetFields.mockReturnValueOnce({
+      derivedUpdates: { instruction: 'Phase 6: Implementation' },
+      descriptions: ['instruction'],
+    });
 
     const program = createProgram();
     await program.parseAsync([
@@ -382,8 +399,10 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
 
   it('auto-sets fileTasks when setting fileSlice with matching task file', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    // Auto-set call: resolveFileByIndex(projectPath, 'fileTasks', '200')
-    mockResolveFileByIndex.mockReturnValue('200-tasks.new-feature.md');
+    mockComputeAutoSetFields.mockReturnValue({
+      derivedUpdates: { fileTasks: '200-tasks.new-feature.md' },
+      descriptions: ['fileTasks = 200-tasks.new-feature.md (auto-set from fileSlice)'],
+    });
 
     const program = createProgram();
     await program.parseAsync([
@@ -391,18 +410,20 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // First update: fileSlice itself
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '200-slice.new-feature.md' });
-    // Second update: auto-set fileTasks
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new-feature.md' });
+    // Single update with both primary and derived fields
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      fileSlice: '200-slice.new-feature.md',
+      fileTasks: '200-tasks.new-feature.md',
+    });
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('auto-set from slice');
+    expect(output).toContain('auto-set from fileSlice');
   });
 
   it('derives fileTasks from slice name when task file does not exist on disk', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockResolveFileByIndex.mockImplementation(() => {
-      throw new Error('No file matching index');
+    mockComputeAutoSetFields.mockReturnValue({
+      derivedUpdates: { fileTasks: '999-tasks.no-tasks.md' },
+      descriptions: ['fileTasks = 999-tasks.no-tasks.md (auto-set from fileSlice)'],
     });
 
     const program = createProgram();
@@ -411,15 +432,18 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // Two updates: fileSlice + derived fileTasks
-    expect(mockUpdate).toHaveBeenCalledTimes(2);
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileSlice: '999-slice.no-tasks.md' });
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '999-tasks.no-tasks.md' });
+    // Single merged update
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
+      fileSlice: '999-slice.no-tasks.md',
+      fileTasks: '999-tasks.no-tasks.md',
+    });
   });
 
   it('does not auto-set fileSlice when setting fileTasks directly', async () => {
     mockGetById.mockResolvedValue(sampleProject);
-    mockResolveFileByIndex.mockReturnValue(null);
+    // computeAutoSetFields for 'fileTasks' field returns nothing
+    mockComputeAutoSetFields.mockReturnValue({ derivedUpdates: {}, descriptions: [] });
 
     const program = createProgram();
     await program.parseAsync([
@@ -427,7 +451,6 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // Only one update call (for fileTasks itself)
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new.md' });
   });

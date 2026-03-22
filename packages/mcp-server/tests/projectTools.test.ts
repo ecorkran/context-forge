@@ -18,6 +18,45 @@ const mockWtGetWorktree = vi.fn();
 const mockWtGetWorktreeByName = vi.fn();
 const mockWtUpdateWorktree = vi.fn();
 
+/**
+ * Default implementation mirrors the real computeAutoSetFields logic,
+ * using mockResolveFileByIndex for file-based derivations.
+ */
+function defaultComputeAutoSetFields(
+  field: string,
+  value: string,
+  projectPath: string | undefined,
+): { derivedUpdates: Record<string, string>; descriptions: string[] } {
+  const derivedUpdates: Record<string, string> = {};
+  const descriptions: string[] = [];
+
+  if (field === 'developmentPhase') {
+    derivedUpdates.instruction = value;
+    descriptions.push(`instruction = ${value} (auto-set from developmentPhase)`);
+  }
+
+  if (field === 'fileSlice' && projectPath) {
+    const sliceIndex = /^(\d+)-/.exec(value);
+    if (sliceIndex) {
+      let resolved: string | null = null;
+      try {
+        resolved = mockResolveFileByIndex(projectPath, 'fileTasks', sliceIndex[1]);
+      } catch {
+        const derived = value.replace(/^(\d+)-slice\./, '$1-tasks.');
+        if (derived !== value) resolved = derived;
+      }
+      if (resolved !== null) {
+        derivedUpdates.fileTasks = resolved;
+        descriptions.push(`fileTasks = ${resolved} (auto-set from fileSlice)`);
+      }
+    }
+  }
+
+  return { derivedUpdates, descriptions };
+}
+
+const mockComputeAutoSetFields = vi.fn().mockImplementation(defaultComputeAutoSetFields);
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
@@ -32,6 +71,7 @@ vi.mock('@context-forge/core/node', () => ({
     summarize: mockSummarize,
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
+  computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
   WorktreeService: vi.fn().mockImplementation(() => ({
     getWorktree: mockWtGetWorktree,
     getWorktreeByName: mockWtGetWorktreeByName,
