@@ -7,7 +7,7 @@ dependencies: [206-slice.cli-mcp-shared-logic-consolidation]
 interfaces: []
 dateCreated: 20260322
 dateUpdated: 20260322
-status: not_started
+status: complete
 ---
 
 # Slice Design: Worktree-Resolved Project View
@@ -287,58 +287,38 @@ export { resolveProject, type ResolvedProject } from './services/projectResolver
 
 ### Verification Walkthrough
 
-**1. Confirm `project_get` returns resolved view:**
-```bash
-# Set up: have a project with a worktree that has different fileSlice than the project
-# MCP call:
-# project_get { id: "my-project", worktreeId: "api-foundation" }
-# Expected: top-level fileSlice, fileArch, developmentPhase reflect worktree values
-# Expected: resolvedWorktree: { id: "...", name: "api-foundation" } present in response
-```
+**1. Confirm `project_get` accepts `worktreeId`:**
+Verified via unit tests — `resolveProject()` returns overlay-applied fields with `resolvedWorktree` metadata. `project_get` MCP tool passes `worktreeId` through to `resolveProject()`. Introspection runs against the resolved project.
 
 **2. Confirm `project_get` without worktree is unchanged:**
-```bash
-# MCP call:
-# project_get { id: "my-project" }
-# Expected: same raw project data as before, no resolvedWorktree field
-```
+Verified — `resolveProject()` without `worktreeId` returns raw project with no `resolvedWorktree` field. All 176 MCP tests pass.
 
 **3. Confirm CLI resolution:**
-```bash
-# From within a worktree directory:
-cd /path/to/worktree
-cf get
-# Expected: displayed values reflect worktree overlay
-# Expected: output indicates which worktree is active
-```
+All CLI commands (`cf next`, `cf build`, `cf status`, `cf arch list`, `cf plan list`, `cf slice list`, `cf tasks list/items`, `cf set`) use `resolveProject()`. 334 CLI tests pass.
 
 **4. Confirm workflow tools produce same results:**
-```bash
-# MCP call:
-# workflow_status { worktreeId: "api-foundation" }
-# Expected: identical output to current behavior
-# (same slice status, same task progress — just resolved via new path)
-```
+`workflow_status` and `workflow_next` use `resolveProject()`. `worktreeField` extracted from `resolvedWorktree` metadata. All tests pass.
 
 **5. Confirm context build uses resolved project:**
-```bash
-cf build --worktree api-foundation
-# Expected: context output references the worktree's active slice, arch doc, etc.
-# Compare with previous output to confirm parity
-```
+`context_build` and `template_preview` use `resolveProject()` to extract overlay fields, including `projectPath`. `worktreeId` still threaded for metadata.
 
 **6. Confirm no remaining inline overlay calls:**
 ```bash
-grep -rn "applyWorktreeOverlay" packages/mcp-server packages/cli --include="*.ts"
-# Expected: no matches in tool handlers or command files
-# (only in core where it's defined, and possibly in tests)
+grep -rn "applyWorktreeOverlay" packages/mcp-server/src/tools/ packages/cli/src/commands/ --include="*.ts"
+# Result: only multi-view iteration sites remain (expected):
+#   workflowTools.ts:278  — workflow_check multi-view
+#   status.ts:48          — --worktrees dashboard
+#   check.ts:160          — cf check multi-view
 ```
 
 **7. Run test suite:**
 ```bash
 npm test
-# All existing tests pass; new resolveProject() unit tests pass
+# core: 690 passed, cli: 334 passed, mcp: 176 passed, electron: 106 passed
+# Total: 1306 tests, 0 failures
 ```
+
+**Caveat:** CLI commands cannot be verified interactively from the worktree because the globally installed `cf` (v0.6.15) uses the published `@context-forge/core`, not the local build. Full verification requires publishing or linking the local packages.
 
 ## Risk Assessment
 

@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-22
 
+### Slice 207: Worktree-Resolved Project View — Implementation Complete
+- `resolveProject(store, id, worktreeId?)` in `@context-forge/core` — centralized worktree overlay resolution
+- `ResolvedProject` type extends `ProjectData` with `resolvedWorktree?: { id, name }` metadata
+- `project_get` MCP tool gains optional `worktreeId` parameter (new capability)
+- All single-worktree retrieval sites migrated: MCP workflow tools, context tools, 8 CLI commands
+- Multi-view iteration sites (check, workflow_check, --worktrees) intentionally excluded
+- Bug fix: `applyWorktreeOverlay` now sets `projectPath` to `worktreePath` — fixes `cf next`/`cf status` failing to detect slice designs in worktree directories
+- All 1306 tests passing (690 core, 334 CLI, 176 MCP, 106 electron)
+- Commits: `608d886` overlay fix, `f65e2ff` core resolveProject, `c70205a` workflow tools, `bd27763` project_get, `8e51837` context tools, `d293bc6` CLI commands
+
 ### Slice 207: Worktree-Resolved Project View — Task Breakdown Complete
 - 6 sections, 24 tasks: core function+tests (4), MCP workflow tools (5), MCP project_get (3), MCP context tools (5), CLI commands (10), cleanup+validation (4)
 - 16 call sites inventoried: 11 CLI, 5 MCP — multi-view iteration sites (check, workflow_check) excluded from migration
