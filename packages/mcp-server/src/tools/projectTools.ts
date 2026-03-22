@@ -3,7 +3,7 @@ import { z } from 'zod';
 import * as path from 'node:path';
 import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
 import type { ProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
-import { getSchema } from '@context-forge/core';
+import { getSchema, resolveProject } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 /** Fields that are routed to the worktree context when worktreeId is provided. */
@@ -159,14 +159,22 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
         'Get full details for a specific Context Forge project by ID. Returns all project fields including configuration, custom data, and timestamps. When the project has a projectPath, the response includes an `introspection` field with: slicePlan (totalSlices, completedSlices, summary), currentTasks (totalTasks, completedTasks, inferredStatus, summary), and artifacts (presence flags for slicePlan, HLD, arch, spec, currentSliceDesign, currentTaskFile). Use project_list first to find project IDs.',
       inputSchema: {
         id: z.string().optional().describe('Project ID (e.g., project_1739...). Omit to resolve from CWD.'),
+        worktreeId: z
+          .string()
+          .optional()
+          .describe(
+            'Worktree ID or name. When provided, returns the resolved project view with ' +
+              'worktree-scoped fields (fileSlice, fileArch, developmentPhase, etc.) reflecting ' +
+              "the worktree's values instead of the project-level values.",
+          ),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ id }) => {
+    async ({ id, worktreeId }) => {
       try {
         const resolvedId = await resolveProjectId(id);
         const store = new FileProjectStore();
-        const project = await store.getById(resolvedId);
+        const project = await resolveProject(store, resolvedId, worktreeId);
         if (!project) {
           return errorResult(
             `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
