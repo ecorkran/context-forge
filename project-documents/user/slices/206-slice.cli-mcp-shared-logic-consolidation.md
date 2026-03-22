@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20260320
-dateUpdated: 20260320
-status: not_started
+dateUpdated: 20260322
+status: complete
 ---
 
 # Slice Design: CLI/MCP Shared-Logic Consolidation
@@ -65,7 +65,7 @@ project-defaults.ts
 ├── WORKTREE_SCOPED_FIELDS          (Set<string>)
 ├── PROJECT_TO_WORKTREE_FIELD       (Record<string, string>)
 ├── buildProjectCreationDefaults()  (name, path, opts?) → Partial<ProjectData>
-├── applyAutoSetRules()             (field, value, projectPath) → Record<string, string>
+├── computeAutoSetFields()             (field, value, projectPath) → Record<string, string>
 └── formatDateProject()             (Date?) → string (YYYYMMDD)
 ```
 
@@ -93,8 +93,8 @@ MCP projectTools.ts ──→ inline if/else chains (incomplete) ──→ store
 
 **Field update auto-set (after):**
 ```
-CLI project.ts  ──→ applyAutoSetRules() ──→ store.update() + store.updateWorktree()
-MCP projectTools.ts ──→ applyAutoSetRules() ──→ store.update() + store.updateWorktree()
+CLI project.ts  ──→ computeAutoSetFields() ──→ store.update() + store.updateWorktree()
+MCP projectTools.ts ──→ computeAutoSetFields() ──→ store.update() + store.updateWorktree()
                               ↑
                      @context-forge/core
 ```
@@ -327,51 +327,55 @@ export {
 
 ### Verification Walkthrough
 
-**1. Confirm no duplication remains:**
+**1. Confirm no duplication remains:** PASS
 ```bash
-# These should return zero matches outside of core:
 grep -r "WORKTREE_SCOPED_FIELDS" packages/cli packages/mcp-server --include="*.ts" -l
-# Expected: no results (only import statements)
+# Result: only import statements in src files and mock references in test files
 
 grep -r "PROJECT_TO_WORKTREE_FIELD" packages/cli packages/mcp-server --include="*.ts" -l
-# Expected: no results (only import statements)
+# Result: only import statements and usage via imported symbol
 
 grep -rn "getMonth.*padStart" packages/cli packages/mcp-server --include="*.ts"
-# Expected: no results
+# Result: no matches — all inline date formatting replaced by formatDateProject()
 ```
 
-**2. Confirm behavioral parity — project creation:**
+**2. Confirm behavioral parity — project creation:** PASS
 ```bash
-# CLI: create a test project
-cf init --name test-parity-cli /tmp/test-cli
-cf project get test-parity-cli --json > /tmp/cli-output.json
-
-# MCP: create equivalent project (via MCP tool call or test)
-# Compare dateProject format, template, instruction, developmentPhase defaults
+mkdir -p /tmp/test-parity && cd /tmp/test-parity && git init
+cf init --name test-parity --lite
+cf get --json --project test-parity
+# Output: template=default, developmentPhase="Phase 1: Concept",
+#         dateProject=20260322, instruction="Phase 1: Concept", fileSlice=""
+cf project rm test-parity --yes
 ```
+Caveat: `cf init` does not accept a positional path argument — it operates on CWD. Must `cd` into the target directory first.
 
-**3. Confirm auto-set rules work via CLI:**
+**3. Confirm auto-set rules work via CLI:** PASS
 ```bash
 cf set fileArch 200-arch.developer-onboarding
-# Should print: "Updated fileSlicePlan = 200-slices.developer-onboarding (auto-set from fileArch)"
+# Output: "Updated fileSlicePlan = 200-slices.developer-onboarding (auto-set from fileArch) on worktree context "mcp-consolidation""
+#         "Updated arch = 200-arch.developer-onboarding on worktree context "mcp-consolidation""
 
 cf set fileSlice 206-slice.cli-mcp-shared-logic-consolidation
-# Should print: "Updated fileTasks = 206-tasks.cli-mcp-shared-logic-consolidation (auto-set from fileSlice)"
+# Output: "Updated fileTasks = 206-tasks.cli-mcp-shared-logic-consolidation (auto-set from fileSlice) on worktree context "mcp-consolidation""
+#         "Updated slice = 206-slice.cli-mcp-shared-logic-consolidation on worktree context "mcp-consolidation""
 
 cf set phase "Phase 6: Implementation"
-# Should also set instruction to "Phase 6: Implementation"
+# Output: "Updated instruction = Phase 6: Implementation (auto-set from developmentPhase) on worktree context "mcp-consolidation""
+#         "Updated phase = Phase 6: Implementation on worktree context "mcp-consolidation""
 ```
 
-**4. Confirm auto-set rules work via MCP:**
-```
-# Call project_update with fileArch field
-# Verify fileSlicePlan is auto-set (this was previously MISSING from MCP)
-```
+**4. Confirm auto-set rules work via MCP:** PASS
+Verified via code inspection: `computeAutoSetFields` is called for every worktree-scoped field in both the worktree and non-worktree update paths of `projectTools.ts`. The `fileArch→fileSlicePlan` rule (previously missing from MCP) is now handled by `computeAutoSetFields` which is tested in `packages/core/tests/project-autoset.test.ts`.
 
-**5. Run test suite:**
+**5. Run test suite:** PASS
 ```bash
-npm test
-# All existing tests pass; new unit tests for project-defaults.ts pass
+pnpm test
+# core:       39 test files, 712 tests passed
+# cli:        26 test files, 334 tests passed
+# mcp-server: 12 test files, 176 tests passed
+# electron:   11 test files, 106 tests passed
+# Total: 1328 tests, all passing
 ```
 
 ## Risk Assessment

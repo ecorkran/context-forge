@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import { FileProjectStore } from '@context-forge/core/node';
+import { buildProjectCreationDefaults } from '@context-forge/core';
+import type { CreateProjectData } from '@context-forge/core';
 import { handleError } from '../utils/errors.js';
 import { success, warn, dim } from '../output/styles.js';
 import { guidesInstallAction } from './guides.js';
@@ -75,17 +77,10 @@ export function registerInitCommand(program: Command): void {
 
         // Step 1: Create project
         const projectName = opts.name || path.basename(cwd);
-        const today = new Date();
-        const dateProject = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-        await store.create({
+        await store.create(buildProjectCreationDefaults({
           name: projectName,
           projectPath: cwd,
-          template: 'default',
-          fileSlice: '',
-          instruction: 'Phase 1: Concept',
-          developmentPhase: 'Phase 1: Concept',
-          dateProject,
-        });
+        }) as CreateProjectData);
         console.log(success(`Project '${projectName}' registered`));
 
         if (!opts.lite) {

@@ -9,6 +9,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-22
 
+### Slice 206: CLI/MCP Shared-Logic Consolidation — Complete
+- Extracted duplicated constants (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`) from CLI and MCP into `@context-forge/core`
+- Extracted project creation defaults (`formatDateProject`, `buildProjectCreationDefaults`) into core
+- Extracted auto-set rules (`computeAutoSetFields`) into core — three rules: `developmentPhase→instruction`, `fileArch→fileSlicePlan`, `fileSlice→fileTasks`
+- Bug fix: MCP now correctly auto-sets `fileSlicePlan` from `fileArch` (was missing entirely)
+- Browser-safe/Node split: constants and creation helpers in `index.ts`, `computeAutoSetFields` in `node.ts` (depends on `resolveFileByIndex`)
+- All 1328 tests passing (712 core, 334 CLI, 176 MCP, 106 electron)
+- Commits: `e959388` constants, `d754718` creation defaults, `8a6e1d3` auto-set rules
+
 ### Slice 207: Worktree-Resolved Project View — Implementation Complete
 - `resolveProject(store, id, worktreeId?)` in `@context-forge/core` — centralized worktree overlay resolution
 - `ResolvedProject` type extends `ProjectData` with `resolvedWorktree?: { id, name }` metadata

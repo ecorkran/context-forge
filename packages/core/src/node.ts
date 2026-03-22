@@ -32,6 +32,9 @@ export { FutureWorkCollector } from './introspection/FutureWorkCollector.js';
 export { ConsistencyChecker } from './introspection/ConsistencyChecker.js';
 export { updateCheckbox, updateFrontmatterField } from './introspection/writers/markdownWriter.js';
 
+// Project defaults — fs-dependent auto-set rules (uses resolveFileByIndex)
+export { computeAutoSetFields } from './project-autoset.js';
+
 // Git utilities — spawns git subprocess (fs/process dependent)
 export { GitWorktreeDiscovery } from './git/index.js';
 

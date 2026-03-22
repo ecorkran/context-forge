@@ -7,6 +7,7 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockUpdate = vi.fn();
 const mockResolveFileByIndex = vi.fn();
+const mockComputeAutoSetFields = vi.fn().mockReturnValue({ derivedUpdates: {}, descriptions: [] });
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -18,6 +19,7 @@ vi.mock('@context-forge/core/node', () => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
+  computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
 }));
 
 const sampleProject = {
@@ -115,6 +117,10 @@ describe('cf set (top-level shortcut)', () => {
 
   it('resolves phase shorthand via cf set', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    mockComputeAutoSetFields.mockReturnValue({
+      derivedUpdates: { instruction: 'Phase 4: Slice Design' },
+      descriptions: ['instruction = Phase 4: Slice Design (auto-set from developmentPhase)'],
+    });
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'set', 'phase', '4']);
@@ -224,6 +230,7 @@ describe('cf set index resolution', () => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
     mockGetById.mockResolvedValue(sampleProject);
+    mockComputeAutoSetFields.mockReturnValue({ derivedUpdates: {}, descriptions: [] });
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/test');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
