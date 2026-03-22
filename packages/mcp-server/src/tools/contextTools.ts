@@ -1,9 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, WorktreeService } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
-import { applyWorktreeOverlay } from '@context-forge/core';
+import { resolveProject } from '@context-forge/core';
 
 // --- Shared helpers ---
 
@@ -115,38 +115,27 @@ export function registerContextTools(server: McpServer): void {
       try {
         const resolvedId = await resolveProjectId(projectId);
 
-        // When worktree is specified, apply overlay before explicit overrides
+        // Resolve worktree overlay fields as overrides for generateContext
         let worktreeOverrides: Partial<ProjectData> | undefined;
         let resolvedWorktreeId: string | undefined;
         if (worktreeIdOrName) {
           const store = new FileProjectStore();
-          const project = await store.getById(resolvedId);
-          if (!project) {
+          const resolved = await resolveProject(store, resolvedId, worktreeIdOrName);
+          if (!resolved) {
             return errorResult(
               `Project not found: '${resolvedId}'. Use the project_list tool to see available projects.`,
             );
           }
-          const service = new WorktreeService(store);
-          let wt = await service.getWorktree(resolvedId, worktreeIdOrName);
-          if (!wt) {
-            wt = await service.getWorktreeByName(resolvedId, worktreeIdOrName);
-          }
-          if (!wt) {
-            return errorResult(
-              `Worktree '${worktreeIdOrName}' not found. Use worktree_list to see available worktrees.`,
-            );
-          }
-          resolvedWorktreeId = wt.id;
-          // Build overlay as overrides — generateContext will apply them
-          const overlaid = applyWorktreeOverlay(project, wt.id);
+          resolvedWorktreeId = resolved.resolvedWorktree?.id;
           worktreeOverrides = {
-            fileSlice: overlaid.fileSlice,
-            fileTasks: overlaid.fileTasks,
-            instruction: overlaid.instruction,
-            developmentPhase: overlaid.developmentPhase,
-            workType: overlaid.workType,
-            fileArch: overlaid.fileArch,
-            fileSlicePlan: overlaid.fileSlicePlan,
+            projectPath: resolved.projectPath,
+            fileSlice: resolved.fileSlice,
+            fileTasks: resolved.fileTasks,
+            instruction: resolved.instruction,
+            developmentPhase: resolved.developmentPhase,
+            workType: resolved.workType,
+            fileArch: resolved.fileArch,
+            fileSlicePlan: resolved.fileSlicePlan,
           };
         }
 
@@ -200,24 +189,19 @@ export function registerContextTools(server: McpServer): void {
         let resolvedWtId: string | undefined;
         if (wtIdOrName) {
           const store = new FileProjectStore();
-          const project = await store.getById(resolvedId);
-          if (project) {
-            const service = new WorktreeService(store);
-            let wt = await service.getWorktree(resolvedId, wtIdOrName);
-            if (!wt) wt = await service.getWorktreeByName(resolvedId, wtIdOrName);
-            if (wt) {
-              resolvedWtId = wt.id;
-              const overlaid = applyWorktreeOverlay(project, wt.id);
-              worktreeOverrides = {
-                fileSlice: overlaid.fileSlice,
-                fileTasks: overlaid.fileTasks,
-                instruction: overlaid.instruction,
-                developmentPhase: overlaid.developmentPhase,
-                workType: overlaid.workType,
-                fileArch: overlaid.fileArch,
-                fileSlicePlan: overlaid.fileSlicePlan,
-              };
-            }
+          const resolved = await resolveProject(store, resolvedId, wtIdOrName);
+          if (resolved?.resolvedWorktree) {
+            resolvedWtId = resolved.resolvedWorktree.id;
+            worktreeOverrides = {
+              projectPath: resolved.projectPath,
+              fileSlice: resolved.fileSlice,
+              fileTasks: resolved.fileTasks,
+              instruction: resolved.instruction,
+              developmentPhase: resolved.developmentPhase,
+              workType: resolved.workType,
+              fileArch: resolved.fileArch,
+              fileSlicePlan: resolved.fileSlicePlan,
+            };
           }
         }
 
