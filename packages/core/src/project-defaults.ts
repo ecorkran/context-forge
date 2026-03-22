@@ -33,7 +33,7 @@ export function formatDateProject(date?: Date): string {
 
 export interface ProjectCreationOptions {
   name: string;
-  projectPath: string;
+  projectPath?: string;
   developmentPhase?: string;
   template?: string;
 }

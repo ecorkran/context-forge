@@ -2,8 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'node:path';
 import { FileProjectStore, ArtifactIntrospector, resolveFileByIndex, WorktreeService } from '@context-forge/core/node';
-import type { ProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
-import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD } from '@context-forge/core';
+import type { ProjectData, CreateProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
+import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD, buildProjectCreationDefaults } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 /** Summary fields returned by project_list */
@@ -96,18 +96,11 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
           }
         }
 
-        const today = new Date();
-        const dateProject = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-
-        const project = await store.create({
+        const project = await store.create(buildProjectCreationDefaults({
           name: trimmedName,
           projectPath: normalizedPath,
-          template: 'default',
-          fileSlice: '',
-          developmentPhase: developmentPhase || 'Phase 1: Concept',
-          instruction: developmentPhase || 'Phase 1: Concept',
-          dateProject,
-        });
+          developmentPhase,
+        }) as CreateProjectData);
 
         if (project.projectPath) {
           try {
