@@ -154,7 +154,7 @@ status: in_progress
    **Risk:** Low — plain text skill file; no runtime code changes beyond adding to managed files list
    **Effort:** 1/5
 
-6. [ ] **(206) CLI/MCP Shared-Logic Consolidation** — Extract duplicated logic between CLI and MCP server into `@context-forge/core`. Covers project creation defaults (`dateProject` formatting, `template`/`instruction` sync), worktree field mappings (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`), auto-set logic (`fileTasks` from `fileSlice`, `fileSlicePlan` from `fileArch`, `instruction` from `developmentPhase`), and project path resolution. Currently duplicated across `packages/cli/src/commands/init.ts` + `project.ts` and `packages/mcp-server/src/tools/projectTools.ts`.
+6. [x] **(206) CLI/MCP Shared-Logic Consolidation** — Extract duplicated logic between CLI and MCP server into `@context-forge/core`. Covers project creation defaults (`dateProject` formatting, `template`/`instruction` sync), worktree field mappings (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`), auto-set logic (`fileTasks` from `fileSlice`, `fileSlicePlan` from `fileArch`, `instruction` from `developmentPhase`), and project path resolution. Currently duplicated across `packages/cli/src/commands/init.ts` + `project.ts` and `packages/mcp-server/src/tools/projectTools.ts`.
 
    **Motivation:** Piecemeal extraction creates a false sense of "fixed" while leaving inconsistency risk. A dedicated slice ensures all duplication sites are addressed together, with tests proving both CLI and MCP paths produce identical results.
 

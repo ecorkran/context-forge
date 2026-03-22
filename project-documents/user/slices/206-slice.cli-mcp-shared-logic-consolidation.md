@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20260320
-dateUpdated: 20260320
-status: not_started
+dateUpdated: 20260322
+status: complete
 ---
 
 # Slice Design: CLI/MCP Shared-Logic Consolidation
