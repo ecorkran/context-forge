@@ -121,6 +121,26 @@ export function registerGuidesCommand(program: Command): void {
       }
     });
 
+  // cf guides uninstall
+  cmd
+    .command('uninstall')
+    .description('Uninstall the AI project guide (deinits submodule if applicable)')
+    .option('--project <name|id>', 'Project name or ID')
+    .action(async (opts: { project?: string }) => {
+      try {
+        const ctx = await getGuideContext(opts.project);
+        const cm = new ConfigManager(ctx.projectPath);
+        const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
+
+        const result = await manager.uninstall();
+
+        console.log(success('Guide uninstalled successfully.'));
+        console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
   // cf guides update
   cmd
     .command('update')

@@ -9,6 +9,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-22
 
+### CLI Quality-of-Life: `cf guides uninstall` + `cf set date now`
+- `cf guides uninstall` — deinits submodule, cleans `.git/modules/`, removes entry from index; for clone/manual installs, removes directory. Fixes git worktree removal blocked by submodule presence.
+- `cf set date now` / `cf set date` — sets `dateProject` to today's date (YYYYMMDD) without typing it. Uses `formatDateProject()` from core.
+
 ### Slice 206: CLI/MCP Shared-Logic Consolidation — Complete
 - Extracted duplicated constants (`WORKTREE_SCOPED_FIELDS`, `PROJECT_TO_WORKTREE_FIELD`) from CLI and MCP into `@context-forge/core`
 - Extracted project creation defaults (`formatDateProject`, `buildProjectCreationDefaults`) into core

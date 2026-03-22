@@ -12,6 +12,7 @@ import {
   applyWorktreeOverlay,
   WORKTREE_SCOPED_FIELDS,
   PROJECT_TO_WORKTREE_FIELD,
+  formatDateProject,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
@@ -167,6 +168,11 @@ export async function projectSetAction(
       );
     }
     resolvedValue = phaseVal;
+  }
+
+  // Shorthand: `cf set date now` or `cf set date` → today's date in YYYYMMDD
+  if (resolvedField === 'dateProject' && (!resolvedValue || resolvedValue === 'now')) {
+    resolvedValue = formatDateProject();
   }
 
   const validation = validateFieldValue(resolvedField, resolvedValue);
@@ -479,12 +485,14 @@ export function registerProjectCommand(program: Command): void {
     .option('--project-level', 'Force update at project level (skip worktree routing)')
     .addHelpText('after', buildSettableFieldsHelp)
     .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
-      if (!field || !val) {
+      // Allow `cf project set date` (no value) as shorthand for `cf project set date now`
+      const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
+      if (!field || !resolvedVal) {
         console.log(`Usage: cf project set [options] <field> <value>  —  run cf project set --help for details`);
         return;
       }
       try {
-        await projectSetAction(field, val, opts);
+        await projectSetAction(field, resolvedVal, opts);
       } catch (err) {
         handleError(err);
       }

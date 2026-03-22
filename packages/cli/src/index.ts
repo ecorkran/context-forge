@@ -74,12 +74,14 @@ program
   .option('--project-level', 'Force update at project level (skip worktree routing)')
   .addHelpText('after', buildSettableFieldsHelp)
   .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
-    if (!field || !val) {
+    // Allow `cf set date` (no value) as shorthand for `cf set date now`
+    const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
+    if (!field || !resolvedVal) {
       console.log(`Usage: cf set [options] <field> <value>  —  run cf set --help for details`);
       return;
     }
     try {
-      await projectSetAction(field, val, opts);
+      await projectSetAction(field, resolvedVal, opts);
     } catch (err) {
       handleError(err);
     }

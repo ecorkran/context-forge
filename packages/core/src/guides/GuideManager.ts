@@ -1,8 +1,8 @@
 // Orchestration layer for guide lifecycle management
 import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, rmSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, InstallStrategy, SyncResult } from './types.js';
+import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult } from './types.js';
 import { DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from './types.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
@@ -73,6 +73,44 @@ export class GuideManager {
     }
 
     return result;
+  }
+
+  /** Uninstall the guide from the project */
+  async uninstall(): Promise<UninstallResult> {
+    const source = await this.resolveSource();
+    const info = await this.detector.detect(this.projectPath, source);
+
+    if (!info.installed || !info.method) {
+      throw new Error('Guide is not installed. Nothing to uninstall.');
+    }
+
+    const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
+    const method = info.method;
+
+    if (method === 'submodule') {
+      const { gitExec } = await import('./gitExec.js');
+      // Deinit the submodule (removes working tree contents)
+      await gitExec(['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
+      // Remove from .git/modules
+      const modulesPath = join(this.projectPath, '.git', 'modules', GUIDE_RELATIVE_PATH);
+      if (existsSync(modulesPath)) {
+        rmSync(modulesPath, { recursive: true, force: true });
+      }
+      // Remove the submodule entry from index and .gitmodules
+      await gitExec(['rm', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
+      // Commit the removal
+      await gitExec(
+        ['commit', '-m', 'docs: uninstall ai-project-guide'],
+        this.projectPath,
+      );
+    } else {
+      // clone or manual — just remove the directory
+      if (existsSync(targetDir)) {
+        rmSync(targetDir, { recursive: true, force: true });
+      }
+    }
+
+    return { success: true, method };
   }
 
   /** Sync guide submodule checkout in multiple worktrees */

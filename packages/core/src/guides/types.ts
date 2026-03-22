@@ -31,6 +31,12 @@ export interface UpdateResult {
   method: GuideMethod;
 }
 
+/** Result of uninstalling a guide */
+export interface UninstallResult {
+  success: boolean;
+  method: GuideMethod;
+}
+
 /** Result of syncing a worktree's guide submodule checkout */
 export interface SyncResult {
   worktreePath: string;
