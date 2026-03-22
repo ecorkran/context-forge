@@ -35,6 +35,7 @@ export interface UpdateResult {
 export interface UninstallResult {
   success: boolean;
   method: GuideMethod;
+  version: string | null;
 }
 
 /** Result of syncing a worktree's guide submodule checkout */

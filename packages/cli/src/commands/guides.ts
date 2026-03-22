@@ -135,7 +135,11 @@ export function registerGuidesCommand(program: Command): void {
         const result = await manager.uninstall();
 
         console.log(success('Guide uninstalled successfully.'));
+        console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
         console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+        if (result.method === 'submodule') {
+          console.log(dim('  Note: submodule removal affects all worktrees. Run cf guides install to reinstall.'));
+        }
       } catch (err) {
         handleError(err);
       }

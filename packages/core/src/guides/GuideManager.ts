@@ -86,6 +86,7 @@ export class GuideManager {
 
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
     const method = info.method;
+    const version = info.version;
 
     if (method === 'submodule') {
       const { gitExec } = await import('./gitExec.js');
@@ -99,8 +100,9 @@ export class GuideManager {
       // Remove the submodule entry from index and .gitmodules
       await gitExec(['rm', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
       // Commit the removal
+      const versionSuffix = version ? ` ${version}` : '';
       await gitExec(
-        ['commit', '-m', 'docs: uninstall ai-project-guide'],
+        ['commit', '-m', `docs: uninstall ai-project-guide${versionSuffix}`],
         this.projectPath,
       );
     } else {
@@ -110,7 +112,7 @@ export class GuideManager {
       }
     }
 
-    return { success: true, method };
+    return { success: true, method, version };
   }
 
   /** Sync guide submodule checkout in multiple worktrees */
