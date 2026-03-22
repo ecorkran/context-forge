@@ -18,5 +18,8 @@ export { ContextIntegrator } from './ContextIntegrator.js';
 // Worktree management
 export { WorktreeService } from './WorktreeService.js';
 
+// Project resolution (worktree-aware retrieval)
+export { resolveProject, type ResolvedProject } from './projectResolver.js';
+
 // Node.js-dependent services moved to @context-forge/core/node:
 // StatementManager, SystemPromptParser, ProjectPathService, createContextPipeline
