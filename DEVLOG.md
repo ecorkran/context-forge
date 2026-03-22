@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-22
+
+### Slice 207: Worktree-Resolved Project View — Slice Design Complete
+- Centralized `resolveProject()` function in `@context-forge/core` replaces scattered inline overlay calls
+- `project_get` gains optional `worktreeId` parameter — returns resolved view with overlay pre-applied
+- All retrieval points (`project_get`, `workflow_status`, `workflow_next`, `context_build`, CLI commands) use single resolution path
+- `ResolvedProject` type extends `ProjectData` with `resolvedWorktree?: { id, name }` metadata
+- Throws on missing worktree (no silent fallback) per project principles
+- Dependencies: [206] for shared constants in core
+
+---
+
 ## 2026-03-20
 
 ### Slice 193: Overlapping Index Range Override — Implementation Complete
