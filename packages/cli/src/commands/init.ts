@@ -59,29 +59,28 @@ export function registerInitCommand(program: Command): void {
           }
         }
 
-        // Detection 2: CF project already registered at CWD
+        // Detection 2: CF project already registered at CWD — skip creation but continue setup
         const existing = all.find((p) => p.projectPath === cwd);
         if (existing) {
-          console.log(warn(`Project '${existing.name}' is already registered. Run cf status for details.`));
-          return;
-        }
+          console.log(dim(`Project '${existing.name}' already registered — running setup steps`));
+        } else {
+          // Detection 3: Git worktree of a registered project
+          const registeredPaths = all
+            .filter((p) => p.projectPath)
+            .map((p) => p.projectPath as string);
+          if (isGitWorktreeOf(cwd, registeredPaths)) {
+            console.log(warn('This looks like a worktree. Run cf worktree init instead.'));
+            return;
+          }
 
-        // Detection 3: Git worktree of a registered project
-        const registeredPaths = all
-          .filter((p) => p.projectPath)
-          .map((p) => p.projectPath as string);
-        if (isGitWorktreeOf(cwd, registeredPaths)) {
-          console.log(warn('This looks like a worktree. Run cf worktree init instead.'));
-          return;
+          // Create project
+          const projectName = opts.name || path.basename(cwd);
+          await store.create(buildProjectCreationDefaults({
+            name: projectName,
+            projectPath: cwd,
+          }) as CreateProjectData);
+          console.log(success(`Project '${projectName}' registered`));
         }
-
-        // Step 1: Create project
-        const projectName = opts.name || path.basename(cwd);
-        await store.create(buildProjectCreationDefaults({
-          name: projectName,
-          projectPath: cwd,
-        }) as CreateProjectData);
-        console.log(success(`Project '${projectName}' registered`));
 
         if (!opts.lite) {
           // Step 2: Install guides
