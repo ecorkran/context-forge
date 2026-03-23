@@ -55,7 +55,7 @@ infrastructure the user doesn't need to think about.
 
 ## Step 4 — Transition to concept discussion
 
-The project is set up. Now begin the Phase 1 (Concept) conversation.
+The project is set up. Now begin the Phase 0 (Concept) conversation.
 
 **MCP:** Call `context_build` to generate the concept-phase context prompt.
 Use the returned prompt as your working context to guide the conversation.
@@ -75,7 +75,7 @@ next. It adapts as your project progresses."
 ## Notes
 
 - If any MCP tool call fails, fall back to the CLI equivalent.
-- If the user already has a project but is in a later phase (not Phase 1),
+- If the user already has a project but is in a later phase (not Phase 0),
   acknowledge this and suggest `cf next` instead of starting a concept
   discussion.
 - Keep the conversation natural. This is onboarding, not a checklist.

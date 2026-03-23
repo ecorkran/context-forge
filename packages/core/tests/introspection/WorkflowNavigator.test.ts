@@ -334,7 +334,7 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
-    it('FR-2 does not fire when concept doc exists on disk', async () => {
+    it('Phase 0 with concept doc → advance to Phase 1', async () => {
       // Use a concept path that resolves to an existing fixture file
       const project = makeProject({
         fileSlice: '',
@@ -345,11 +345,24 @@ describe('WorkflowNavigator', () => {
       });
       const next = await nav.getNext(project);
 
-      // Concept doc exists → FR-2 does not fire; falls through to standard arch check
-      expect(next.recommendation).not.toContain('Phase 0 (Concept)');
+      expect(next.recommendation).toContain('Advance to Phase 1');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Initiative Plan'");
     });
 
-    it('FR-3: Phase 2, no arch, no plan → cf build --phase architecture', async () => {
+    it('Phase 1, no arch, no plan → cf build for initiative plan', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: 'Phase 1: Initiative Plan',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Phase 1 (Initiative Plan)');
+      expect(next.suggestedCommand).toBe('cf build');
+    });
+
+    it('Phase 2, no arch, no plan → cf build --phase architecture', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,

@@ -263,7 +263,7 @@ export class WorkflowNavigator {
       };
     }
 
-    // FR-2: Phase 0 (Concept), no artifacts (no arch, no plan, no concept doc)
+    // Phase 0, no concept doc → create concept
     if (
       phase.startsWith('Phase 0') &&
       !archFileExists &&
@@ -279,7 +279,36 @@ export class WorkflowNavigator {
       };
     }
 
-    // FR-3: Phase 2, no arch and no plan
+    // Phase 0, concept doc exists → advance to Phase 1 (Initiative Plan)
+    if (
+      phase.startsWith('Phase 0') &&
+      this.conceptDocExists(project)
+    ) {
+      return {
+        recommendation: 'Concept document exists. Advance to Phase 1 (Initiative Plan).',
+        rationale:
+          'Your concept is complete. The next step is to decompose it into named initiatives — use cf build to generate an initiative plan prompt.',
+        suggestedCommand: "cf set phase 'Phase 1: Initiative Plan'",
+        summary: 'Advance to Phase 1 — create an initiative plan from your concept',
+      };
+    }
+
+    // Phase 1, no initiative plan → create initiative plan
+    if (
+      phase.startsWith('Phase 1') &&
+      !archFileExists &&
+      status.slicePlan === null
+    ) {
+      return {
+        recommendation: 'Your project is in Phase 1 (Initiative Plan). Create an initiative plan from your concept.',
+        rationale:
+          'The initiative plan decomposes your concept into named initiatives with index assignments and dependencies. This drives all subsequent architecture work.',
+        suggestedCommand: 'cf build',
+        summary: 'Start Phase 1 — generate an initiative plan prompt with cf build',
+      };
+    }
+
+    // Phase 2, no arch and no plan
     if (phase.startsWith('Phase 2') && !archFileExists && status.slicePlan === null) {
       return {
         recommendation: 'Your project is in Phase 2 (Architecture). Create an architecture document.',
