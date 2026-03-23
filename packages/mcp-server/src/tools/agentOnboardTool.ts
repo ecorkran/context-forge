@@ -26,7 +26,7 @@ Call \`project_create\` with:
 - \`name\`: Use the project name argument if provided, or the current directory
   name, or ask the user what they'd like to call their project.
 - \`projectPath\`: The current working directory (absolute path).
-- \`developmentPhase\`: "Phase 1: Concept" (default — no need to specify).
+- \`developmentPhase\`: "Phase 0: Concept" (default — no need to specify).
 
 Confirm to the user: "Project created: {name}."
 

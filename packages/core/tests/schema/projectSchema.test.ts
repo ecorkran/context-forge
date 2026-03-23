@@ -47,34 +47,39 @@ describe('projectSchema', () => {
 
   describe('resolvePhaseValue', () => {
     it('resolves phase numbers', () => {
-      expect(resolvePhaseValue('1')).toBe('Phase 1: Concept');
+      expect(resolvePhaseValue('0')).toBe('Phase 0: Concept');
+      expect(resolvePhaseValue('1')).toBe('Phase 1: Initiative Plan');
       expect(resolvePhaseValue('4')).toBe('Phase 4: Slice Design');
       expect(resolvePhaseValue('6')).toBe('Phase 6: Implementation');
       expect(resolvePhaseValue('7')).toBe('Phase 7: Integration');
     });
 
     it('resolves P-prefix shorthands', () => {
-      expect(resolvePhaseValue('P1')).toBe('Phase 1: Concept');
+      expect(resolvePhaseValue('P0')).toBe('Phase 0: Concept');
+      expect(resolvePhaseValue('P1')).toBe('Phase 1: Initiative Plan');
       expect(resolvePhaseValue('P5')).toBe('Phase 5: Task Breakdown');
       expect(resolvePhaseValue('P6')).toBe('Phase 6: Implementation');
       expect(resolvePhaseValue('p3')).toBe('Phase 3: Slice Planning');
     });
 
     it('resolves short names', () => {
-      expect(resolvePhaseValue('concept')).toBe('Phase 1: Concept');
+      expect(resolvePhaseValue('concept')).toBe('Phase 0: Concept');
+      expect(resolvePhaseValue('initiative-plan')).toBe('Phase 1: Initiative Plan');
       expect(resolvePhaseValue('implementation')).toBe('Phase 6: Implementation');
       expect(resolvePhaseValue('slice-design')).toBe('Phase 4: Slice Design');
       expect(resolvePhaseValue('task-breakdown')).toBe('Phase 5: Task Breakdown');
     });
 
     it('passes through full phase strings', () => {
+      expect(resolvePhaseValue('Phase 0: Concept')).toBe('Phase 0: Concept');
+      expect(resolvePhaseValue('Phase 1: Initiative Plan')).toBe('Phase 1: Initiative Plan');
       expect(resolvePhaseValue('Phase 4: Slice Design')).toBe('Phase 4: Slice Design');
       expect(resolvePhaseValue('Phase 6: Implementation')).toBe('Phase 6: Implementation');
     });
 
     it('resolves case-insensitively', () => {
       expect(resolvePhaseValue('Implementation')).toBe('Phase 6: Implementation');
-      expect(resolvePhaseValue('CONCEPT')).toBe('Phase 1: Concept');
+      expect(resolvePhaseValue('CONCEPT')).toBe('Phase 0: Concept');
       expect(resolvePhaseValue('Slice-Design')).toBe('Phase 4: Slice Design');
     });
 
@@ -84,9 +89,12 @@ describe('projectSchema', () => {
       expect(resolvePhaseValue('Ad-Hoc Tasks')).toBe('Ad-Hoc Tasks');
     });
 
+    it('backward compat: "Phase 1: Concept" resolves to Phase 0', () => {
+      expect(resolvePhaseValue('Phase 1: Concept')).toBe('Phase 0: Concept');
+    });
+
     it('returns undefined for invalid input', () => {
       expect(resolvePhaseValue('99')).toBeUndefined();
-      expect(resolvePhaseValue('0')).toBeUndefined();
       expect(resolvePhaseValue('foobar')).toBeUndefined();
       expect(resolvePhaseValue('')).toBeUndefined();
     });

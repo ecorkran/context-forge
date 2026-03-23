@@ -56,7 +56,7 @@ export function registerBuildCommand(program: Command): void {
           const resolved = resolvePhaseValue(opts.phase);
           if (!resolved) {
             process.stderr.write(
-              `Warning: '${opts.phase}' is not a recognized phase. Use a number (1-7), name (implementation), or shorthand (P6).\n`,
+              `Warning: '${opts.phase}' is not a recognized phase. Use a number (0-7), name (implementation), or shorthand (P6).\n`,
             );
           }
           const phaseValue = resolved ?? opts.phase;

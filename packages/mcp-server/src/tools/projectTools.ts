@@ -71,7 +71,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
       inputSchema: {
         name: z.string().describe('Project display name (required)'),
         projectPath: z.string().optional().describe('Absolute path to the project root. When omitted, the project is created without a path (can be set later via project_update).'),
-        developmentPhase: z.string().optional().describe('Initial development phase. Defaults to "Phase 1: Concept".'),
+        developmentPhase: z.string().optional().describe('Initial development phase. Defaults to "Phase 0: Concept".'),
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },

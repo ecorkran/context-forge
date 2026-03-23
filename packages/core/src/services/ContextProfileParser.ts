@@ -58,25 +58,38 @@ function parseProfilesYaml(yaml: string): ProfileMap {
  */
 const INSTRUCTION_NORMALISATION: Record<string, string> = {
   // Full phase strings (lowercase)
-  'phase 1: concept': 'concept',
-  'phase 2: architecture': 'architecture',
-  'phase 3: slice planning': 'slice-planning',
-  'phase 4: slice design': 'slice-design',
-  'phase 5: task breakdown': 'task-breakdown',
-  'phase 6: implementation': 'implementation',
-  'phase 7: integration': 'integration',
+  'phase 0: concept': 'concept-phase-0',
+  'phase 1: initiative plan': 'initiative-plan-phase-1',
+  'phase 2: architecture': 'architecture-phase-2',
+  'phase 3: slice planning': 'slice-planning-phase-3',
+  'phase 4: slice design': 'slice-design-phase-4',
+  'phase 5: task breakdown': 'task-breakdown-phase-5',
+  'phase 6: implementation': 'implementation-phase-6',
+  'phase 7: integration': 'slice-integration-phase-7',
+  // Backward compat: pre-v0.14.0 "Phase 1: Concept"
+  'phase 1: concept': 'concept-phase-0',
   // Special instruction names
-  'maintenance task': 'maintenance',
-  'perform routine maintenance': 'maintenance',
+  'maintenance task': 'maintenance-task',
+  'perform routine maintenance': 'maintenance-routine',
   'analysis processing': 'analysis-processing',
   // Number shortcuts
-  '1': 'concept',
-  '2': 'architecture',
-  '3': 'slice-planning',
-  '4': 'slice-design',
-  '5': 'task-breakdown',
-  '6': 'implementation',
-  '7': 'integration',
+  '0': 'concept-phase-0',
+  '1': 'initiative-plan-phase-1',
+  '2': 'architecture-phase-2',
+  '3': 'slice-planning-phase-3',
+  '4': 'slice-design-phase-4',
+  '5': 'task-breakdown-phase-5',
+  '6': 'implementation-phase-6',
+  '7': 'slice-integration-phase-7',
+  // Short name shortcuts
+  'concept': 'concept-phase-0',
+  'initiative-plan': 'initiative-plan-phase-1',
+  'architecture': 'architecture-phase-2',
+  'slice-planning': 'slice-planning-phase-3',
+  'slice-design': 'slice-design-phase-4',
+  'task-breakdown': 'task-breakdown-phase-5',
+  'implementation': 'implementation-phase-6',
+  'integration': 'slice-integration-phase-7',
 };
 
 export class ContextProfileParser {

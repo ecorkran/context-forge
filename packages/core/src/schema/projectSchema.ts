@@ -19,7 +19,8 @@ export interface FieldDefinition {
 
 // Phase display strings
 const PHASE_STRINGS = [
-  'Phase 1: Concept',
+  'Phase 0: Concept',
+  'Phase 1: Initiative Plan',
   'Phase 2: Architecture',
   'Phase 3: Slice Planning',
   'Phase 4: Slice Design',
@@ -35,15 +36,17 @@ const ALL_PHASE_VALUES: string[] = [...PHASE_STRINGS, ...SPECIAL_PHASES];
 /** Maps phase numbers and short names to full phase strings. */
 export const PHASE_MAP: Record<string, string> = {
   // Number shortcuts
-  '1': 'Phase 1: Concept',
+  '0': 'Phase 0: Concept',
+  '1': 'Phase 1: Initiative Plan',
   '2': 'Phase 2: Architecture',
   '3': 'Phase 3: Slice Planning',
   '4': 'Phase 4: Slice Design',
   '5': 'Phase 5: Task Breakdown',
   '6': 'Phase 6: Implementation',
   '7': 'Phase 7: Integration',
-  // P-prefix shortcuts (P1–P7)
-  'p1': 'Phase 1: Concept',
+  // P-prefix shortcuts (P0–P7)
+  'p0': 'Phase 0: Concept',
+  'p1': 'Phase 1: Initiative Plan',
   'p2': 'Phase 2: Architecture',
   'p3': 'Phase 3: Slice Planning',
   'p4': 'Phase 4: Slice Design',
@@ -51,7 +54,8 @@ export const PHASE_MAP: Record<string, string> = {
   'p6': 'Phase 6: Implementation',
   'p7': 'Phase 7: Integration',
   // Short name shortcuts
-  'concept': 'Phase 1: Concept',
+  'concept': 'Phase 0: Concept',
+  'initiative-plan': 'Phase 1: Initiative Plan',
   'architecture': 'Phase 2: Architecture',
   'slice-planning': 'Phase 3: Slice Planning',
   'slice-design': 'Phase 4: Slice Design',
@@ -121,6 +125,8 @@ for (const [key, val] of Object.entries(PHASE_MAP)) {
 for (const phase of ALL_PHASE_VALUES) {
   phaseLookup[phase.toLowerCase()] = phase;
 }
+// Backward-compat: "Phase 1: Concept" (pre-v0.14.0) resolves to new "Phase 0: Concept"
+phaseLookup['phase 1: concept'] = 'Phase 0: Concept';
 
 /**
  * Resolve a user-provided field name to its canonical ProjectData field name.
@@ -133,7 +139,7 @@ export function resolveFieldName(input: string): string | undefined {
 
 /**
  * Resolve a user-provided phase value to the full phase string.
- * Accepts phase numbers (1-7), short names, or full strings.
+ * Accepts phase numbers (0-7), short names, or full strings.
  * Case-insensitive. Returns undefined if no match.
  */
 export function resolvePhaseValue(input: string): string | undefined {

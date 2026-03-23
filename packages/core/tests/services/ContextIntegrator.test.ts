@@ -263,10 +263,10 @@ describe('ContextIntegrator', () => {
     const PROFILES_CONTENT = `## Prompts
 \`\`\`yaml
 context_profiles:
-  maintenance:
+  maintenance-task:
     variables: [fileTasks]
-  implementation:
-    variables: [fileSlicePlan, fileSlice, fileTasks]
+  implementation-phase-6:
+    variables: [fileSlice, fileTasks]
   _default:
     variables: [fileArch, fileSlicePlan, fileSlice, fileTasks]
 \`\`\`
@@ -312,10 +312,10 @@ context_profiles:
       await integrator.generateContextFromProject(project);
       const contextData = generateSpy.mock.calls[0][0];
 
-      expect(contextData.fileSlicePlan).toBe('160-slices.system');
       expect(contextData.fileSlice).toBe('176-slice.current');
       expect(contextData.fileTasks).toBe('176-tasks.current');
       expect(contextData.fileArch).toBe('');
+      expect(contextData.fileSlicePlan).toBe('');
     });
 
     it('skips filtering when profiles block is absent', async () => {

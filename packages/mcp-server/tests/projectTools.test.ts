@@ -777,7 +777,7 @@ describe('project_create', () => {
       id: 'project_99990002',
       name: 'Minimal Project',
       projectPath: undefined,
-      developmentPhase: 'Phase 1: Concept',
+      developmentPhase: 'Phase 0: Concept',
     };
     mockGetAll.mockResolvedValue([]);
     mockCreate.mockResolvedValue(minimalProject);
@@ -789,7 +789,7 @@ describe('project_create', () => {
 
     expect(result.isError).toBeFalsy();
     const createArg = mockCreate.mock.calls[0][0] as Record<string, unknown>;
-    expect(createArg.developmentPhase).toBe('Phase 1: Concept');
+    expect(createArg.developmentPhase).toBe('Phase 0: Concept');
     expect(createArg.projectPath).toBeUndefined();
     // No introspection attempted when projectPath absent
     expect(mockSummarize).not.toHaveBeenCalled();

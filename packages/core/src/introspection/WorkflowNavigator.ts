@@ -257,25 +257,25 @@ export class WorkflowNavigator {
       return {
         recommendation: 'Welcome to Context Forge! Start by setting your project phase.',
         rationale:
-          "Your project is registered but no development phase is set. Phases guide what to do next — start with Phase 1 (Concept) to define what you're building.",
-        suggestedCommand: "cf set phase 'Phase 1: Concept'",
+          "Your project is registered but no development phase is set. Phases guide what to do next — start with Phase 0 (Concept) to define what you're building.",
+        suggestedCommand: "cf set phase 'Phase 0: Concept'",
         summary: 'Set a development phase to get started',
       };
     }
 
-    // FR-2: Phase 1, no artifacts (no arch, no plan, no concept doc)
+    // FR-2: Phase 0 (Concept), no artifacts (no arch, no plan, no concept doc)
     if (
-      phase.startsWith('Phase 1') &&
+      phase.startsWith('Phase 0') &&
       !archFileExists &&
       status.slicePlan === null &&
       !this.conceptDocExists(project)
     ) {
       return {
-        recommendation: 'Your project is in Phase 1 (Concept). Start by describing what you want to build.',
+        recommendation: 'Your project is in Phase 0 (Concept). Start by describing what you want to build.',
         rationale:
-          'Use a concept prompt to guide a conversation with your AI agent about the project idea. This produces a concept document that drives the architecture phase.',
+          'Use a concept prompt to guide a conversation with your AI agent about the project idea. This produces a concept document that drives the initiative plan and architecture phases.',
         suggestedCommand: 'cf build',
-        summary: 'Start Phase 1 — generate a concept prompt with cf build',
+        summary: 'Start Phase 0 — generate a concept prompt with cf build',
       };
     }
 

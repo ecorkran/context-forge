@@ -290,7 +290,7 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Welcome to Context Forge');
-      expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Concept'");
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 0: Concept'");
     });
 
     it('FR-1: empty developmentPhase → welcome message', async () => {
@@ -303,20 +303,20 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Welcome to Context Forge');
-      expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Concept'");
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 0: Concept'");
     });
 
-    it('FR-2: Phase 1, no arch, no plan, no concept doc → cf build', async () => {
+    it('FR-2: Phase 0, no arch, no plan, no concept doc → cf build', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
         fileArch: undefined,
         fileConcept: undefined,
-        developmentPhase: 'Phase 1: Concept',
+        developmentPhase: 'Phase 0: Concept',
       });
       const next = await nav.getNext(project);
 
-      expect(next.recommendation).toContain('Phase 1 (Concept)');
+      expect(next.recommendation).toContain('Phase 0 (Concept)');
       expect(next.suggestedCommand).toBe('cf build');
     });
 
@@ -326,7 +326,7 @@ describe('WorkflowNavigator', () => {
         fileSlicePlan: undefined,
         fileArch: '100-arch.test-system',
         fileConcept: undefined,
-        developmentPhase: 'Phase 1: Concept',
+        developmentPhase: 'Phase 0: Concept',
       });
       const next = await nav.getNext(project);
 
@@ -341,12 +341,12 @@ describe('WorkflowNavigator', () => {
         fileSlicePlan: undefined,
         fileArch: undefined,
         fileConcept: 'project-documents/user/architecture/050-arch.hld-test-project.md',
-        developmentPhase: 'Phase 1: Concept',
+        developmentPhase: 'Phase 0: Concept',
       });
       const next = await nav.getNext(project);
 
       // Concept doc exists → FR-2 does not fire; falls through to standard arch check
-      expect(next.recommendation).not.toContain('Phase 1 (Concept)');
+      expect(next.recommendation).not.toContain('Phase 0 (Concept)');
     });
 
     it('FR-3: Phase 2, no arch, no plan → cf build --phase architecture', async () => {

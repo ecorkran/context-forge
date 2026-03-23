@@ -31,7 +31,7 @@ directory. If there is no `.git` directory, ask the user to run `git init`
 - `name`: Use the argument provided with this command, or the current directory
   name, or ask the user what they'd like to call their project.
 - `projectPath`: The current working directory (absolute path).
-- `developmentPhase`: "Phase 1: Concept" (default — no need to specify).
+- `developmentPhase`: "Phase 0: Concept" (default — no need to specify).
 
 **CLI fallback:** Run `cf init <name>`. This handles project creation plus
 guide installation and IDE setup in one step — if using the CLI path, skip

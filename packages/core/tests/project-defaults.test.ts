@@ -66,8 +66,8 @@ describe('buildProjectCreationDefaults', () => {
     expect(result.name).toBe('test-project');
     expect(result.projectPath).toBe('/tmp/test');
     expect(result.template).toBe('default');
-    expect(result.developmentPhase).toBe('Phase 1: Concept');
-    expect(result.instruction).toBe('Phase 1: Concept');
+    expect(result.developmentPhase).toBe('Phase 0: Concept');
+    expect(result.instruction).toBe('Phase 0: Concept');
     expect(result.fileSlice).toBe('');
     expect(result.dateProject).toMatch(/^\d{8}$/);
   });

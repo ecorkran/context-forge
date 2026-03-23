@@ -35,7 +35,8 @@ type PhaseOption =
   | { type: 'divider' };
 
 const PHASE_OPTIONS: PhaseOption[] = [
-  { type: 'option', value: 'concept', label: 'Phase 1: Concept' },
+  { type: 'option', value: 'concept', label: 'Phase 0: Concept' },
+  { type: 'option', value: 'initiative-plan', label: 'Phase 1: Initiative Plan' },
   { type: 'option', value: 'architecture', label: 'Phase 2: Architecture' },
   { type: 'option', value: 'slice-planning', label: 'Phase 3: Slice Planning' },
   { type: 'option', value: 'slice-design', label: 'Phase 4: Slice Design' },

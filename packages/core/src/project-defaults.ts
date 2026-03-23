@@ -43,7 +43,7 @@ export interface ProjectCreationOptions {
  * Callers may spread additional overrides on top of the returned object.
  */
 export function buildProjectCreationDefaults(opts: ProjectCreationOptions): Partial<ProjectData> {
-  const phase = opts.developmentPhase || 'Phase 1: Concept';
+  const phase = opts.developmentPhase || 'Phase 0: Concept';
   return {
     name: opts.name,
     projectPath: opts.projectPath,
