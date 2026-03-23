@@ -121,4 +121,4 @@ These are provisional slice concepts, not commitments. Sequencing and boundaries
 
 - **780-slices.future.guide-management** — Guide install, update, and auto-update features. These consume the config system (specifically `guide.*` config keys) but are not part of workflow awareness. They remain at 780 with a dependency on the config slice from this initiative.
 
-- **ai-project-guide process methodology** (guide.ai-project.000-process) — The methodology whose phases and structure the workflow navigator encodes. Changes to the methodology's phase structure or artifact conventions would require corresponding updates to the navigator's parsing and state machine logic.
+- **ai-project-guide process methodology** (guide.ai-project.process) — The methodology whose phases and structure the workflow navigator encodes. Changes to the methodology's phase structure or artifact conventions would require corresponding updates to the navigator's parsing and state machine logic.
