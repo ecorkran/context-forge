@@ -19,29 +19,25 @@ the current directory.
 
 ## Step 2 — Create project
 
-Before creating the project, ensure git is initialized in the current directory.
-If there is no \`.git\` directory, let the user know they need to run \`git init\` first.
+Ask the user what they'd like to name their project. If a project name argument
+was provided, use that. If the user declines to choose, default to the current
+directory name.
 
-Call \`project_create\` with:
-- \`name\`: Use the project name argument if provided, or the current directory
-  name, or ask the user what they'd like to call their project.
-- \`projectPath\`: The current working directory (absolute path).
-- \`developmentPhase\`: "Phase 0: Concept" (default — no need to specify).
+Run \`cf init <name>\` via the shell. This single command handles everything:
+git initialization, project registration, guide installation, command
+installation, and IDE setup.
 
-Confirm to the user: "Project created: {name}."
+**Important:** Do not rely on environment context (like "Is a git repository")
+to determine git status — \`cf init\` checks the actual directory and handles
+git initialization itself.
 
-## Step 3 — Check and install guides
+If shell access is unavailable, fall back to the MCP path:
+1. Call \`project_create\` with \`name\` and \`projectPath\` (the CWD).
+2. Call \`guide_install\` to install the AI Project Guide.
+Note: the MCP fallback cannot initialize git. If the directory is not a git
+repository, inform the user they need to run \`git init\` first.
 
-Verify the AI Project Guide is installed, and install it if missing.
-
-Call \`guide_status\`.
-- If \`installed: true\` → skip installation.
-- If \`installed: false\` → call \`guide_install\`.
-
-Do not draw attention to this step unless installation fails. It's infrastructure
-the user doesn't need to think about.
-
-## Step 4 — Transition to concept discussion
+## Step 3 — Transition to concept discussion
 
 The project is set up. Now begin the Phase 0 (Concept) conversation.
 
@@ -52,7 +48,7 @@ Begin by asking the user to describe what they want to build. Guide them through
 the concept exploration naturally — the context prompt provides the structure.
 The goal is a concept document at the end of this conversation.
 
-## Step 5 — Mention ongoing guidance
+## Step 4 — Mention ongoing guidance
 
 After the concept conversation concludes (or if the user wants to pause),
 mention that \`workflow_next\` (or \`cf next\` on the CLI) provides ongoing
