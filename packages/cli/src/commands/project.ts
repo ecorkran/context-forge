@@ -410,6 +410,40 @@ export async function projectGetAction(
   }
 }
 
+/** Shared action handler for listing all projects. */
+export async function projectListAction(opts: { json?: boolean }): Promise<void> {
+  const store = new FileProjectStore();
+  const projects = await store.getAll();
+
+  const cwdMatch = await findProjectByCwd(store);
+  const activeId = cwdMatch?.project.id ?? null;
+
+  if (opts.json) {
+    printJson(projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      projectPath: p.projectPath,
+      fileSlice: p.fileSlice,
+      isActive: p.id === activeId,
+    })));
+    return;
+  }
+
+  const rows = projects.map((p) => {
+    const active = p.id === activeId;
+    const name = p.name;
+    const path = shortenPath(p.projectPath ?? '');
+    const slice = p.fileSlice ?? '';
+    return active
+      ? [success(name), success(path), success(slice)]
+      : [name, path, slice];
+  });
+  const prefixes = projects.map((p) =>
+    p.id === activeId ? success('* ') : '  ',
+  );
+  console.log(renderTable(['Name', 'Path', 'Slice'], rows, prefixes));
+}
+
 export function registerProjectCommand(program: Command): void {
   const cmd = program
     .command('project')
@@ -429,36 +463,7 @@ export function registerProjectCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .action(async (opts: { json?: boolean }) => {
       try {
-        const store = new FileProjectStore();
-        const projects = await store.getAll();
-
-        const cwdMatch = await findProjectByCwd(store);
-        const activeId = cwdMatch?.project.id ?? null;
-
-        if (opts.json) {
-          printJson(projects.map((p) => ({
-            id: p.id,
-            name: p.name,
-            projectPath: p.projectPath,
-            fileSlice: p.fileSlice,
-            isActive: p.id === activeId,
-          })));
-          return;
-        }
-
-        const rows = projects.map((p) => {
-          const active = p.id === activeId;
-          const name = p.name;
-          const path = shortenPath(p.projectPath ?? '');
-          const slice = p.fileSlice ?? '';
-          return active
-            ? [success(name), success(path), success(slice)]
-            : [name, path, slice];
-        });
-        const prefixes = projects.map((p) =>
-          p.id === activeId ? success('* ') : '  ',
-        );
-        console.log(renderTable(['Name', 'Path', 'Slice'], rows, prefixes));
+        await projectListAction(opts);
       } catch (err) {
         handleError(err);
       }
