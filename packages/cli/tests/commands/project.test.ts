@@ -218,6 +218,7 @@ describe('cf project set', () => {
 
   it('prints success message', async () => {
     mockGetById.mockResolvedValue(sampleProject);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     const program = createProgram();
     await program.parseAsync([
@@ -225,7 +226,7 @@ describe('cf project set', () => {
       '--project', 'proj_001',
     ]);
 
-    const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
+    const output = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
     expect(output).toContain('Updated slice');
   });
 
@@ -394,6 +395,7 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
     mockGetAll.mockResolvedValue([sampleProject]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
@@ -415,7 +417,7 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       fileSlice: '200-slice.new-feature.md',
       fileTasks: '200-tasks.new-feature.md',
     });
-    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    const output = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
     expect(output).toContain('auto-set from fileSlice');
   });
 

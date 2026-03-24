@@ -135,8 +135,10 @@ describe('projectSetAction — worktree-scoped', () => {
   });
 
   it('prints confirmation with worktree context name', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     await projectSetAction('fileSlice', '200-slice.new', { project: 'test-project' });
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('on worktree context "Feature A"'));
+    const output = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
+    expect(output).toContain('on worktree context "Feature A"');
   });
 });
 

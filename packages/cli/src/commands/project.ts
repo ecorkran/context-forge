@@ -244,13 +244,13 @@ export async function projectSetAction(
     }
     await svc.updateWorktree(id, worktreeId, wtUpdate);
 
-    // Log auto-set descriptions
+    // Log auto-set descriptions to stderr (status output, not data)
     for (const desc of autoSet.descriptions) {
-      console.log(success(`Updated ${desc} on worktree context "${worktreeName}"`));
+      process.stderr.write(success(`Updated ${desc} on worktree context "${worktreeName}"`) + '\n');
     }
 
     const displayName = fieldDef?.aliases[0] ?? resolvedField;
-    console.log(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`));
+    process.stderr.write(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`) + '\n');
     return;
   }
 
@@ -271,13 +271,13 @@ export async function projectSetAction(
     await store.update(id, allUpdates);
   }
 
-  // Log auto-set descriptions
+  // Log auto-set descriptions to stderr (status output, not data)
   for (const desc of autoSet.descriptions) {
-    console.log(success(`Updated ${desc}`));
+    process.stderr.write(success(`Updated ${desc}`) + '\n');
   }
 
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
-  console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
+  process.stderr.write(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`) + '\n');
 }
 
 /** Shared action handler for `cf unset` and `cf project unset`. */
@@ -320,10 +320,10 @@ export async function projectUnsetAction(
     const svc = new WorktreeService(store);
     const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
     await svc.updateWorktree(id, worktreeId, { [wtField]: undefined });
-    console.log(success(`Unset ${displayName} on worktree context "${worktreeName}"`));
+    process.stderr.write(success(`Unset ${displayName} on worktree context "${worktreeName}"`) + '\n');
   } else {
     await store.update(id, { [resolvedField]: undefined });
-    console.log(success(`Unset ${displayName} on project ${existing.name}`));
+    process.stderr.write(success(`Unset ${displayName} on project ${existing.name}`) + '\n');
   }
 }
 
