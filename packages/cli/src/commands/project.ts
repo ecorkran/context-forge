@@ -244,13 +244,13 @@ export async function projectSetAction(
     }
     await svc.updateWorktree(id, worktreeId, wtUpdate);
 
-    // Log auto-set descriptions
+    // Log auto-set descriptions to stderr (status output, not data)
     for (const desc of autoSet.descriptions) {
-      console.log(success(`Updated ${desc} on worktree context "${worktreeName}"`));
+      process.stderr.write(success(`Updated ${desc} on worktree context "${worktreeName}"`) + '\n');
     }
 
     const displayName = fieldDef?.aliases[0] ?? resolvedField;
-    console.log(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`));
+    process.stderr.write(success(`Updated ${displayName} = ${resolvedValue} on worktree context "${worktreeName}"`) + '\n');
     return;
   }
 
@@ -271,13 +271,13 @@ export async function projectSetAction(
     await store.update(id, allUpdates);
   }
 
-  // Log auto-set descriptions
+  // Log auto-set descriptions to stderr (status output, not data)
   for (const desc of autoSet.descriptions) {
-    console.log(success(`Updated ${desc}`));
+    process.stderr.write(success(`Updated ${desc}`) + '\n');
   }
 
   const displayName = fieldDef?.aliases[0] ?? resolvedField;
-  console.log(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`));
+  process.stderr.write(success(`Updated ${displayName} = ${resolvedValue} on project ${existing.name}`) + '\n');
 }
 
 /** Shared action handler for `cf unset` and `cf project unset`. */
@@ -320,10 +320,10 @@ export async function projectUnsetAction(
     const svc = new WorktreeService(store);
     const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
     await svc.updateWorktree(id, worktreeId, { [wtField]: undefined });
-    console.log(success(`Unset ${displayName} on worktree context "${worktreeName}"`));
+    process.stderr.write(success(`Unset ${displayName} on worktree context "${worktreeName}"`) + '\n');
   } else {
     await store.update(id, { [resolvedField]: undefined });
-    console.log(success(`Unset ${displayName} on project ${existing.name}`));
+    process.stderr.write(success(`Unset ${displayName} on project ${existing.name}`) + '\n');
   }
 }
 
@@ -410,6 +410,40 @@ export async function projectGetAction(
   }
 }
 
+/** Shared action handler for listing all projects. */
+export async function projectListAction(opts: { json?: boolean }): Promise<void> {
+  const store = new FileProjectStore();
+  const projects = await store.getAll();
+
+  const cwdMatch = await findProjectByCwd(store);
+  const activeId = cwdMatch?.project.id ?? null;
+
+  if (opts.json) {
+    printJson(projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      projectPath: p.projectPath,
+      fileSlice: p.fileSlice,
+      isActive: p.id === activeId,
+    })));
+    return;
+  }
+
+  const rows = projects.map((p) => {
+    const active = p.id === activeId;
+    const name = p.name;
+    const path = shortenPath(p.projectPath ?? '');
+    const slice = p.fileSlice ?? '';
+    return active
+      ? [success(name), success(path), success(slice)]
+      : [name, path, slice];
+  });
+  const prefixes = projects.map((p) =>
+    p.id === activeId ? success('* ') : '  ',
+  );
+  console.log(renderTable(['Name', 'Path', 'Slice'], rows, prefixes));
+}
+
 export function registerProjectCommand(program: Command): void {
   const cmd = program
     .command('project')
@@ -429,36 +463,7 @@ export function registerProjectCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .action(async (opts: { json?: boolean }) => {
       try {
-        const store = new FileProjectStore();
-        const projects = await store.getAll();
-
-        const cwdMatch = await findProjectByCwd(store);
-        const activeId = cwdMatch?.project.id ?? null;
-
-        if (opts.json) {
-          printJson(projects.map((p) => ({
-            id: p.id,
-            name: p.name,
-            projectPath: p.projectPath,
-            fileSlice: p.fileSlice,
-            isActive: p.id === activeId,
-          })));
-          return;
-        }
-
-        const rows = projects.map((p) => {
-          const active = p.id === activeId;
-          const name = p.name;
-          const path = shortenPath(p.projectPath ?? '');
-          const slice = p.fileSlice ?? '';
-          return active
-            ? [success(name), success(path), success(slice)]
-            : [name, path, slice];
-        });
-        const prefixes = projects.map((p) =>
-          p.id === activeId ? success('* ') : '  ',
-        );
-        console.log(renderTable(['Name', 'Path', 'Slice'], rows, prefixes));
+        await projectListAction(opts);
       } catch (err) {
         handleError(err);
       }

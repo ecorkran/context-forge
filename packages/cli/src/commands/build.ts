@@ -18,6 +18,47 @@ interface BuildOpts {
   additional?: string;
 }
 
+/** Core build logic: resolves project, generates context, prints to stdout. */
+export async function buildAndPrint(opts: { project?: string; phase?: string; slice?: string }): Promise<void> {
+  const store = new FileProjectStore();
+  const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+  const project = await resolveProject(store, id, worktreeId);
+
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+
+  if (!project.projectPath) {
+    throw new UserError(
+      `Project '${project.name}' has no projectPath configured.\n` +
+        '  cf project set projectPath /path/to/project',
+    );
+  }
+
+  // Status message goes to stderr so stdout stays clean for piping
+  process.stderr.write(`Building context for ${project.name}...\n`);
+
+  // Apply overrides to a working copy
+  const workingCopy: ProjectData = { ...project };
+  if (opts.phase) {
+    const resolved = resolvePhaseValue(opts.phase);
+    if (!resolved) {
+      process.stderr.write(
+        `Warning: '${opts.phase}' is not a recognized phase. Use a number (0-7), name (implementation), or shorthand (P6).\n`,
+      );
+    }
+    const phaseValue = resolved ?? opts.phase;
+    workingCopy.developmentPhase = phaseValue;
+    workingCopy.instruction = phaseValue;
+  }
+  if (opts.slice) workingCopy.fileSlice = opts.slice;
+
+  const { integrator } = createContextPipeline(workingCopy.projectPath!);
+  const contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
+
+  printRaw(contextString);
+}
+
 export function registerBuildCommand(program: Command): void {
   program
     .command('build')

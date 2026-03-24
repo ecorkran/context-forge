@@ -1,6 +1,5 @@
 import { join } from 'node:path';
 import { readdir } from 'node:fs/promises';
-import { Command } from 'commander';
 import {
   FileProjectStore,
   resolveArtifactPath,
@@ -11,82 +10,59 @@ import {
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
-import { handleError, UserError } from '../utils/errors.js';
+import { UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
 
-export function registerTaskCommand(program: Command): void {
-  const cmd = program
-    .command('tasks')
-    .description('Manage tasks');
+/** Shared action handler for listing task files. */
+export async function taskListAction(opts: { json?: boolean; all?: boolean; project?: string }): Promise<void> {
+  const store = new FileProjectStore();
+  const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+  const rawProject = await store.getById(id);
 
-  cmd
-    .command('list')
-    .description('List task files from the slice plan')
-    .option('--json', 'Output as JSON')
-    .option('--all', 'Show task files from all worktrees')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { json?: boolean; all?: boolean; project?: string }) => {
-      try {
-        const store = new FileProjectStore();
-        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const rawProject = await store.getById(id);
+  if (!rawProject) {
+    throw new UserError(`Project not found: '${id}'.`);
+  }
 
-        if (!rawProject) {
-          throw new UserError(`Project not found: '${id}'.`);
-        }
+  const project = await resolveProject(store, id, worktreeId);
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'.`);
+  }
 
-        const project = await resolveProject(store, id, worktreeId);
-        if (!project) {
-          throw new UserError(`Project not found: '${id}'.`);
-        }
+  if (!project.projectPath) {
+    throw new UserError(
+      'No projectPath configured. Set one with: cf set projectPath /path/to/project',
+    );
+  }
 
-        if (!project.projectPath) {
-          throw new UserError(
-            'No projectPath configured. Set one with: cf set projectPath /path/to/project',
-          );
-        }
+  if (opts.all && rawProject.worktrees?.length) {
+    const paths = resolveAllOperationPaths(rawProject);
+    await listTaskFiles(project, paths, undefined, opts.json);
+  } else {
+    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+    const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+    await listTaskFiles(project, [operationPath], indexRange, opts.json);
+  }
+}
 
-        if (opts.all && rawProject.worktrees?.length) {
-          const paths = resolveAllOperationPaths(rawProject);
-          await listTaskFiles(project, paths, undefined, opts.json);
-        } else {
-          const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
-          const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-          await listTaskFiles(project, [operationPath], indexRange, opts.json);
-        }
-      } catch (err) {
-        handleError(err);
-      }
-    });
+/** Shared action handler for listing task items from the active task file. */
+export async function taskItemsAction(opts: { json?: boolean; project?: string }): Promise<void> {
+  const store = new FileProjectStore();
+  const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+  const project = await resolveProject(store, id, worktreeId);
 
-  cmd
-    .command('items')
-    .description('Show individual task items from the active task file')
-    .option('--json', 'Output as JSON')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
-      try {
-        const store = new FileProjectStore();
-        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const project = await resolveProject(store, id, worktreeId);
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'.`);
+  }
 
-        if (!project) {
-          throw new UserError(`Project not found: '${id}'.`);
-        }
+  if (!project.projectPath) {
+    throw new UserError(
+      'No projectPath configured. Set one with: cf set projectPath /path/to/project',
+    );
+  }
 
-        if (!project.projectPath) {
-          throw new UserError(
-            'No projectPath configured. Set one with: cf set projectPath /path/to/project',
-          );
-        }
-
-        const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
-        await listTaskItems(project, operationPath, opts.json);
-      } catch (err) {
-        handleError(err);
-      }
-    });
+  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+  await listTaskItems(project, operationPath, opts.json);
 }
 
 async function listTaskItems(

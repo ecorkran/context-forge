@@ -7,6 +7,22 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-24
+
+### Slice 208: Compound Workflow Commands — Complete
+- Seven compound CLI commands: `cf concept`, `cf initiatives`, `cf arch <index>`, `cf plan <index>`, `cf slice <index>`, `cf tasks <index>`, `cf implement <index>`
+- Each command sets the appropriate artifact field + phase, then builds context in one invocation
+- `cf list` command consolidates artifact listing: `cf list projects/initiatives/arch/plans/slices/tasks/items`
+- `cf list arch` is an alias for `cf list initiatives`
+- Old commands removed: `cf arch list`, `cf plan list`, `cf slice list`, `cf tasks list`, `cf tasks items`
+- Artifact existence warnings fire for all commands except `cf implement`
+- Auto-set rules work through compound commands (e.g., `cf arch 220` auto-sets fileSlicePlan)
+- Set/unset confirmations routed to stderr for pipeable compound output (`cf concept | pbcopy`)
+- All 1345 tests passing (716 core, 347 CLI, 176 MCP, 106 electron)
+- Commits: `4188c97` extract handlers, `fd0d94c` cf list, `516c25b` workflow commands, `647b5fe` tests, `756e780` stderr routing
+
+---
+
 ## 2026-03-22
 
 ### CLI Quality-of-Life: `cf guides uninstall` + `cf set date now`
