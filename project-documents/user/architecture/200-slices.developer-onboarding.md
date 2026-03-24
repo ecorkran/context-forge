@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260323
-status: complete
+status: in-progress
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -177,7 +177,7 @@ status: complete
 
 7. [x] **(207) Worktree-Resolved Project View** — All project-facing commands and MCP tools should return the resolved view with worktree overlays already applied to top-level fields. Currently consumers must know about the overlay pattern — `cf get` returns raw `fileArch` (project-level) alongside `worktree.archDoc` (overlay-level), and callers must manually prefer the worktree value. This leaks an implementation detail. The fix pushes overlay resolution into the core layer so `getProject` / `project_get` (and all commands that return or consume project state) return a single coherent view. Consumers should never need to check both a top-level field and its worktree override. Affects: `project_get`, `workflow_status`, `workflow_next`, `context_build`, CLI commands (`cf get`, `cf status`, `cf next`, `cf build`, etc.), and any external consumer (e.g., Squadron) that reads project data via MCP or CLI. Dependencies: [206]. Risk: Med — touches the core project resolution path used by every command; requires careful parity testing. Effort: 3/5
 
-8. [ ] **(208) Compound Workflow Commands** — Add phase-aware compound CLI commands that combine `cf set` + `cf build` into single invocations aligned with the methodology phases. Commands: `cf concept` (Phase 0 → concept doc), `cf initiatives` (Phase 1 → initiative plan), `cf arch <initiative>` (Phase 2 → architecture doc), `cf plan <initiative>` (Phase 3 → slice plan), `cf slice <slice>` (Phase 4 → slice design), `cf tasks <slice>` (Phase 5 → task breakdown), `cf implement <slice>` (Phase 6 → implementation context). Each command sets the appropriate phase and artifact fields, then runs `cf build`. Warns if the target artifact already exists (e.g., concept doc, slice design). Reduces the multi-command ceremony that currently gates every phase transition. Dependencies: None (builds on existing `cf set` and `cf build` infrastructure). Risk: Low. Effort: 2/5
+8. [x] **(208) Compound Workflow Commands** — Add phase-aware compound CLI commands that combine `cf set` + `cf build` into single invocations aligned with the methodology phases. Commands: `cf concept` (Phase 0 → concept doc), `cf initiatives` (Phase 1 → initiative plan), `cf arch <initiative>` (Phase 2 → architecture doc), `cf plan <initiative>` (Phase 3 → slice plan), `cf slice <slice>` (Phase 4 → slice design), `cf tasks <slice>` (Phase 5 → task breakdown), `cf implement <slice>` (Phase 6 → implementation context). Each command sets the appropriate phase and artifact fields, then runs `cf build`. Warns if the target artifact already exists (e.g., concept doc, slice design). Reduces the multi-command ceremony that currently gates every phase transition. Dependencies: None (builds on existing `cf set` and `cf build` infrastructure). Risk: Low. Effort: 2/5
 
 ## Maintenance Slices
 

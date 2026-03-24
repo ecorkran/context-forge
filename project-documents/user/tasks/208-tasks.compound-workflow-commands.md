@@ -6,7 +6,7 @@ dependencies: []
 projectState: Phase migration to v0.14.0 complete. Phases 0-7 with Initiative Plan at Phase 1. All 1332 tests passing (716 core, 334 CLI, 176 MCP, 106 electron). Build clean. Existing artifact commands cf arch/plan/slice/tasks have list subcommands that will be migrated to cf list.
 dateCreated: 20260323
 dateUpdated: 20260324
-status: not_started
+status: complete
 ---
 
 ## Context Summary
@@ -21,7 +21,7 @@ status: not_started
 
 ## Section 1: Extract Reusable Action Handlers
 
-- [ ] **1.1 Extract `buildAndPrint()` from `build.ts`**
+- [x] **1.1 Extract `buildAndPrint()` from `build.ts`**
   - File: `packages/cli/src/commands/build.ts`
   - Re-read the file before modifying
   - Extract the core logic from the commander action handler into an exported async function:
@@ -29,11 +29,11 @@ status: not_started
     export async function buildAndPrint(opts: { project?: string; phase?: string; slice?: string }): Promise<void>
     ```
   - The existing commander action calls `buildAndPrint(opts)` — behavior unchanged
-  - [ ] `buildAndPrint` is exported and callable from other modules
-  - [ ] `cf build` works identically to before
-  - [ ] TypeScript compiles (`npx tsc --noEmit` from `packages/cli`)
+  - [x] `buildAndPrint` is exported and callable from other modules
+  - [x] `cf build` works identically to before
+  - [x] TypeScript compiles (`npx tsc --noEmit` from `packages/cli`)
 
-- [ ] **1.2 Extract project list action from `project.ts`**
+- [x] **1.2 Extract project list action from `project.ts`**
   - File: `packages/cli/src/commands/project.ts`
   - Re-read the file before modifying
   - Extract the `cf project list` action handler into an exported function:
@@ -41,11 +41,11 @@ status: not_started
     export async function projectListAction(opts: { json?: boolean }): Promise<void>
     ```
   - Keep the `cf project list` subcommand registration in `registerProjectCommand` — it continues to call `projectListAction` (no breaking change)
-  - [ ] `projectListAction` is exported
-  - [ ] `cf project list` works identically to before
-  - [ ] TypeScript compiles
+  - [x] `projectListAction` is exported
+  - [x] `cf project list` works identically to before
+  - [x] TypeScript compiles
 
-- [ ] **1.3 Extract list action from `arch.ts`**
+- [x] **1.3 Extract list action from `arch.ts`**
   - File: `packages/cli/src/commands/arch.ts`
   - Re-read the file before modifying
   - Extract the `list` subcommand action handler into an exported function:
@@ -53,22 +53,22 @@ status: not_started
     export async function archListAction(opts: { json?: boolean; all?: boolean; project?: string }): Promise<void>
     ```
   - Remove `registerArchCommand` export (no longer registers commands)
-  - [ ] `archListAction` is exported
-  - [ ] TypeScript compiles
+  - [x] `archListAction` is exported
+  - [x] TypeScript compiles
 
-- [ ] **1.4 Extract list action from `plan.ts`**
+- [x] **1.4 Extract list action from `plan.ts`**
   - File: `packages/cli/src/commands/plan.ts`
   - Same pattern as 1.2: extract `planListAction`, remove `registerPlanCommand`
-  - [ ] `planListAction` is exported
-  - [ ] TypeScript compiles
+  - [x] `planListAction` is exported
+  - [x] TypeScript compiles
 
-- [ ] **1.5 Extract list action from `slice.ts`**
+- [x] **1.5 Extract list action from `slice.ts`**
   - File: `packages/cli/src/commands/slice.ts`
   - Same pattern: extract `sliceListAction`, remove `registerSliceCommand`
-  - [ ] `sliceListAction` is exported
-  - [ ] TypeScript compiles
+  - [x] `sliceListAction` is exported
+  - [x] TypeScript compiles
 
-- [ ] **1.6 Extract list and items actions from `task.ts`**
+- [x] **1.6 Extract list and items actions from `task.ts`**
   - File: `packages/cli/src/commands/task.ts`
   - Extract two action handlers:
     ```typescript
@@ -76,19 +76,19 @@ status: not_started
     export async function taskItemsAction(opts: { json?: boolean; project?: string }): Promise<void>
     ```
   - Remove `registerTaskCommand`
-  - [ ] Both `taskListAction` and `taskItemsAction` are exported
-  - [ ] TypeScript compiles
+  - [x] Both `taskListAction` and `taskItemsAction` are exported
+  - [x] TypeScript compiles
 
-- [ ] **1.7 Commit extraction**
+- [x] **1.7 Commit extraction**
   - Stage: `packages/cli/src/commands/build.ts`, `project.ts`, `arch.ts`, `plan.ts`, `slice.ts`, `task.ts`
   - Commit message: `refactor(cli): extract reusable action handlers from artifact commands`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 2: Create `cf list` Command
 
-- [ ] **2.1 Create `list.ts` with all subcommands**
+- [x] **2.1 Create `list.ts` with all subcommands**
   - New file: `packages/cli/src/commands/list.ts`
   - Create `registerListCommand(program: Command)` that registers:
     - `cf list projects` — calls `projectListAction(opts)` with `--json` option
@@ -99,19 +99,19 @@ status: not_started
     - `cf list tasks` — calls `taskListAction(opts)`
     - `cf list items` — calls `taskItemsAction(opts)` with `--json`, `--project` options
   - `cf project list` remains as-is (calls same `projectListAction`) — no breaking change
-  - [ ] All seven subcommands are registered
-  - [ ] TypeScript compiles
+  - [x] All seven subcommands are registered
+  - [x] TypeScript compiles
 
-- [ ] **2.2 Update `index.ts` — replace old registrations with `registerListCommand`**
+- [x] **2.2 Update `index.ts` — replace old registrations with `registerListCommand`**
   - File: `packages/cli/src/index.ts`
   - Remove imports and calls for `registerArchCommand`, `registerPlanCommand`, `registerSliceCommand`, `registerTaskCommand`
   - Add import and call for `registerListCommand`
   - Keep `registerWorktreeCommand` — it's not affected
-  - [ ] Old artifact commands no longer registered
-  - [ ] `cf list initiatives` works
-  - [ ] TypeScript compiles
+  - [x] Old artifact commands no longer registered
+  - [x] `cf list initiatives` works
+  - [x] TypeScript compiles
 
-- [ ] **2.3 Update and expand list tests**
+- [x] **2.3 Update and expand list tests**
   - Files: `packages/cli/tests/commands/arch.test.ts`, `slice.test.ts`, `task.test.ts`
   - Rename/move test files to `packages/cli/tests/commands/list.test.ts`
   - Update test descriptions and imports to reflect the new `cf list` command paths
@@ -123,22 +123,22 @@ status: not_started
     4. `--all` flag on applicable subcommands shows items from all worktrees
     5. Old commands (`cf arch list`, `cf plan list`, `cf slice list`, `cf tasks list`, `cf tasks items`) are no longer registered — verify they error or are unrecognized
   - Run: `npx vitest run` from `packages/cli`
-  - [ ] All migrated tests pass with output parity verified
-  - [ ] Alias test passes
-  - [ ] `--json` and `--all` flags tested
-  - [ ] Old commands confirmed removed
-  - [ ] All other existing tests still pass
+  - [x] All migrated tests pass with output parity verified
+  - [x] Alias test passes
+  - [x] `--json` and `--all` flags tested
+  - [x] Old commands confirmed removed
+  - [x] All other existing tests still pass
 
-- [ ] **2.4 Commit `cf list` command**
+- [x] **2.4 Commit `cf list` command**
   - Stage: `packages/cli/src/commands/list.ts`, `packages/cli/src/index.ts`, test files
   - Commit message: `feat(cli): add cf list command consolidating artifact listings`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 3: Create Compound Workflow Commands
 
-- [ ] **3.1 Create `workflow.ts` with `cf concept` and `cf initiatives`**
+- [x] **3.1 Create `workflow.ts` with `cf concept` and `cf initiatives`**
   - New file: `packages/cli/src/commands/workflow.ts`
   - Create `registerWorkflowCommands(program: Command)`
   - Implement `cf concept`:
@@ -151,11 +151,11 @@ status: not_started
     2. Call `projectSetAction('developmentPhase', 'Phase 1: Initiative Plan', opts)`
     3. Call `buildAndPrint(opts)`
   - Both commands accept `--project` and `--project-level` options
-  - [ ] `cf concept` sets phase and outputs concept prompt
-  - [ ] `cf initiatives` sets phase and outputs initiative plan prompt
-  - [ ] TypeScript compiles
+  - [x] `cf concept` sets phase and outputs concept prompt
+  - [x] `cf initiatives` sets phase and outputs initiative plan prompt
+  - [x] TypeScript compiles
 
-- [ ] **3.2 Add `cf arch <index>` and `cf plan <index>`**
+- [x] **3.2 Add `cf arch <index>` and `cf plan <index>`**
   - File: `packages/cli/src/commands/workflow.ts`
   - Implement `cf arch <index>`:
     1. Call `projectSetAction('fileArch', index, opts)` — this auto-sets fileSlicePlan
@@ -167,12 +167,12 @@ status: not_started
     2. Call `projectSetAction('developmentPhase', 'Phase 3: Slice Planning', opts)`
     3. Check if slice plan exists → warn if so
     4. Call `buildAndPrint(opts)`
-  - [ ] `cf arch 220` sets fileArch, auto-sets fileSlicePlan, sets phase, outputs prompt
-  - [ ] `cf plan 220` sets fileSlicePlan, sets phase, outputs prompt
-  - [ ] Warnings fire when artifacts exist
-  - [ ] TypeScript compiles
+  - [x] `cf arch 220` sets fileArch, auto-sets fileSlicePlan, sets phase, outputs prompt
+  - [x] `cf plan 220` sets fileSlicePlan, sets phase, outputs prompt
+  - [x] Warnings fire when artifacts exist
+  - [x] TypeScript compiles
 
-- [ ] **3.3 Add `cf slice <index>` and `cf tasks <index>`**
+- [x] **3.3 Add `cf slice <index>` and `cf tasks <index>`**
   - File: `packages/cli/src/commands/workflow.ts`
   - Implement `cf slice <index>`:
     1. Call `projectSetAction('fileSlice', index, opts)` — auto-sets fileTasks
@@ -184,88 +184,88 @@ status: not_started
     2. Call `projectSetAction('developmentPhase', 'Phase 5: Task Breakdown', opts)`
     3. Check if task file exists → warn if so
     4. Call `buildAndPrint(opts)`
-  - [ ] `cf slice 208` sets fileSlice, auto-sets fileTasks, sets phase, outputs prompt
-  - [ ] `cf tasks 208` sets fileTasks, sets phase, outputs prompt
-  - [ ] TypeScript compiles
+  - [x] `cf slice 208` sets fileSlice, auto-sets fileTasks, sets phase, outputs prompt
+  - [x] `cf tasks 208` sets fileTasks, sets phase, outputs prompt
+  - [x] TypeScript compiles
 
-- [ ] **3.4 Add `cf implement <index>`**
+- [x] **3.4 Add `cf implement <index>`**
   - File: `packages/cli/src/commands/workflow.ts`
   - Implement `cf implement <index>`:
     1. Call `projectSetAction('fileSlice', index, opts)` — auto-sets fileTasks
     2. Call `projectSetAction('developmentPhase', 'Phase 6: Implementation', opts)`
     3. No artifact warning (implementation is always continuation)
     4. Call `buildAndPrint(opts)`
-  - [ ] `cf implement 208` sets fileSlice, sets phase to Phase 6, outputs prompt
-  - [ ] No warning emitted
-  - [ ] TypeScript compiles
+  - [x] `cf implement 208` sets fileSlice, sets phase to Phase 6, outputs prompt
+  - [x] No warning emitted
+  - [x] TypeScript compiles
 
-- [ ] **3.5 Register workflow commands in `index.ts`**
+- [x] **3.5 Register workflow commands in `index.ts`**
   - File: `packages/cli/src/index.ts`
   - Add import and call for `registerWorkflowCommands`
   - Place in the command group section (after workflow commands like build/check, before worktree)
-  - [ ] All seven compound commands are accessible
-  - [ ] Build clean
+  - [x] All seven compound commands are accessible
+  - [x] Build clean
 
-- [ ] **3.6 Commit compound commands**
+- [x] **3.6 Commit compound commands**
   - Stage: `packages/cli/src/commands/workflow.ts`, `packages/cli/src/index.ts`
   - Commit message: `feat(cli): add compound workflow commands (concept, arch, slice, etc.)`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 4: Tests for Compound Commands
 
-- [ ] **4.1 Unit tests for compound workflow commands**
+- [x] **4.1 Unit tests for compound workflow commands**
   - New file: `packages/cli/tests/commands/workflow.test.ts`
   - Mock `projectSetAction` and `buildAndPrint` to verify call sequences
   - **Command sequence tests** (mock projectSetAction and buildAndPrint):
-    1. `cf concept` — calls set with Phase 0, calls buildAndPrint
-    2. `cf initiatives` — calls set with Phase 1, calls buildAndPrint
-    3. `cf arch 220` — calls set for fileArch with '220', calls set for phase, calls buildAndPrint
-    4. `cf plan 220` — calls set for fileSlicePlan, calls set for phase, calls buildAndPrint
-    5. `cf slice 208` — calls set for fileSlice, calls set for phase, calls buildAndPrint
-    6. `cf tasks 208` — calls set for fileTasks, calls set for phase, calls buildAndPrint
-    7. `cf implement 208` — calls set for fileSlice, calls set for Phase 6, calls buildAndPrint
+    1. [x] `cf concept` — calls set with Phase 0, calls buildAndPrint
+    2. [x] `cf initiatives` — calls set with Phase 1, calls buildAndPrint
+    3. [x] `cf arch 220` — calls set for fileArch with '220', calls set for phase, calls buildAndPrint
+    4. [x] `cf plan 220` — calls set for fileSlicePlan, calls set for phase, calls buildAndPrint
+    5. [x] `cf slice 208` — calls set for fileSlice, calls set for phase, calls buildAndPrint
+    6. [x] `cf tasks 208` — calls set for fileTasks, calls set for phase, calls buildAndPrint
+    7. [x] `cf implement 208` — calls set for fileSlice, calls set for Phase 6, calls buildAndPrint
   - **Warning behavior tests** (mock `detectDocuments`):
-    8. Artifact warning fires when document exists — verify warning written to stderr
-    9. `cf implement` does not warn even when slice design exists
+    8. [x] Artifact warning fires when document exists — verify warning written to stderr
+    9. [x] `cf implement` does not warn even when slice design exists
   - **Auto-set verification** (verify projectSetAction called with correct field so auto-set triggers):
-    10. `cf arch 220` — verify `projectSetAction('fileArch', ...)` is called (auto-sets fileSlicePlan)
-    11. `cf slice 208` — verify `projectSetAction('fileSlice', ...)` is called (auto-sets fileTasks)
+    10. [x] `cf arch 220` — verify `projectSetAction('fileArch', ...)` is called (auto-sets fileSlicePlan)
+    11. [x] `cf slice 208` — verify `projectSetAction('fileSlice', ...)` is called (auto-sets fileTasks)
   - **Stdout/stderr routing**:
-    12. Verify `buildAndPrint` output goes to stdout (capture stdout)
-    13. Verify set confirmations and warnings go to stderr (capture stderr)
+    12. [x] Verify `buildAndPrint` output goes to stdout (capture stdout)
+    13. [x] Verify set confirmations and warnings go to stderr (capture stderr)
   - **Worktree correctness**:
-    14. Verify `--project-level` option is passed through to `projectSetAction`
-    15. Verify default behavior passes worktree-aware opts (no `--project-level` flag)
+    14. [x] Verify `--project-level` option is passed through to `projectSetAction`
+    15. [x] Verify default behavior passes worktree-aware opts (no `--project-level` flag)
   - Note: auto-set rules are tested in core (`project-autoset.test.ts`). These tests verify the compound commands call `projectSetAction` with the correct field names that trigger auto-set, not that auto-set itself works.
   - Run: `npx vitest run` from `packages/cli`
-  - [ ] All new tests pass
-  - [ ] All existing tests still pass
+  - [x] All new tests pass
+  - [x] All existing tests still pass
 
-- [ ] **4.2 Commit tests**
+- [x] **4.2 Commit tests**
   - Stage: `packages/cli/tests/commands/workflow.test.ts`
   - Commit message: `test(cli): add unit tests for compound workflow commands`
-  - [ ] Commit created, build clean
+  - [x] Commit created, build clean
 
 ---
 
 ## Section 5: Final Validation
 
-- [ ] **5.1 Full build and test verification**
+- [x] **5.1 Full build and test verification**
   - Run `npm run build` from project root — verify clean
   - Run `npm test` from project root — verify all tests pass across all packages
-  - [ ] Build succeeds with no errors
-  - [ ] All tests pass (core, CLI, MCP, electron)
+  - [x] Build succeeds with no errors
+  - [x] All tests pass (core, CLI, MCP, electron)
 
-- [ ] **5.2 Update slice design status**
+- [x] **5.2 Update slice design status**
   - File: `user/slices/208-slice.compound-workflow-commands.md`
   - Update frontmatter `status: not_started` → `status: complete`
-  - [ ] Status updated
+  - [x] Status updated
 
-- [ ] **5.3 Final commit and DEVLOG**
+- [x] **5.3 Final commit and DEVLOG**
   - Update DEVLOG with implementation summary and commit hashes
   - Stage any remaining files
   - Commit message: `docs: mark slice 208 complete, update DEVLOG`
-  - [ ] DEVLOG updated
-  - [ ] Final commit created
+  - [x] DEVLOG updated
+  - [x] Final commit created
