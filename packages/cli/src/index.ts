@@ -10,10 +10,7 @@ import { registerNextCommand } from './commands/next.js';
 import { registerProjectCommand, projectSetAction, projectGetAction, projectUnsetAction, buildSettableFieldsHelp } from './commands/project.js';
 import { registerPromptCommand } from './commands/prompt.js';
 import { registerStatusCommand } from './commands/status.js';
-import { registerArchCommand } from './commands/arch.js';
-import { registerPlanCommand } from './commands/plan.js';
-import { registerSliceCommand } from './commands/slice.js';
-import { registerTaskCommand } from './commands/task.js';
+import { registerListCommand } from './commands/list.js';
 import { registerWorktreeCommand } from './commands/worktree.js';
 import { registerBackupCommand } from './commands/backup.js';
 import { registerConfigCommand } from './commands/config.js';
@@ -104,11 +101,10 @@ program
     }
   });
 
-// Artifact commands
-registerArchCommand(program);
-registerPlanCommand(program);
-registerSliceCommand(program);
-registerTaskCommand(program);
+// Artifact listing
+registerListCommand(program);
+
+// Worktree management
 registerWorktreeCommand(program);
 
 // Setup and administration
