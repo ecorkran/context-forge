@@ -200,7 +200,7 @@ Verified 2026-03-24. All commands tested via `node packages/cli/dist/index.js` (
 
 ```bash
 # 1. Build
-npm run build
+pnpm build
 # Result: Clean build, no errors
 
 # 2. Compound commands
