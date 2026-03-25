@@ -4,7 +4,7 @@ parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
 dateUpdated: 20260324
-status: in-progress
+status: complete
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -179,7 +179,7 @@ status: in-progress
 
 8. [x] **(208) Compound Workflow Commands** — Add phase-aware compound CLI commands that combine `cf set` + `cf build` into single invocations aligned with the methodology phases. Commands: `cf concept` (Phase 0 → concept doc), `cf initiatives` (Phase 1 → initiative plan), `cf arch <initiative>` (Phase 2 → architecture doc), `cf plan <initiative>` (Phase 3 → slice plan), `cf slice <slice>` (Phase 4 → slice design), `cf tasks <slice>` (Phase 5 → task breakdown), `cf implement <slice>` (Phase 6 → implementation context). Each command sets the appropriate phase and artifact fields, then runs `cf build`. Warns if the target artifact already exists (e.g., concept doc, slice design). Reduces the multi-command ceremony that currently gates every phase transition. Dependencies: None (builds on existing `cf set` and `cf build` infrastructure). Risk: Low. Effort: 2/5
 
-9. [ ] **(209) AI-Agent Consumption Interface** — Make Context Forge easy for AI agents to discover and use programmatically. Addresses two gaps: (1) CLI discoverability — agents hardcode command strings that break on rename (e.g., `cf slice list` → `cf list slices`); (2) error format — agents parse human-readable error strings instead of structured codes. Deliverables: `cf help --json` (machine-readable command catalog with names, args, types, descriptions), `cf version --json` (version + breaking change signals), structured JSON error format (`{ error, code, suggestion }`) on all commands when `--json` is active, and an `agent_quickstart` MCP tool that returns capability schema and getting-started instructions for pure-machine consumers (distinct from `agent_onboard` which targets human-supervised agents). Also: audit all commands for idempotency (repeated `cf set slice 208` should not warn), and document the MCP-first integration pattern for agent authors. Dependencies: [208 — compound commands must be stable first]. Risk: Low. Effort: 3/5
+9. [x] **(209) AI-Agent Consumption Interface** — Make Context Forge easy for AI agents to discover and use programmatically. Addresses two gaps: (1) CLI discoverability — agents hardcode command strings that break on rename (e.g., `cf slice list` → `cf list slices`); (2) error format — agents parse human-readable error strings instead of structured codes. Deliverables: `cf help --json` (machine-readable command catalog with names, args, types, descriptions), `cf version --json` (version + breaking change signals), structured JSON error format (`{ error, code, suggestion }`) on all commands when `--json` is active, and an `agent_quickstart` MCP tool that returns capability schema and getting-started instructions for pure-machine consumers (distinct from `agent_onboard` which targets human-supervised agents). Also: audit all commands for idempotency (repeated `cf set slice 208` should not warn), and document the MCP-first integration pattern for agent authors. Dependencies: [208 — compound commands must be stable first]. Risk: Low. Effort: 3/5
 
 ## Maintenance Slices
 

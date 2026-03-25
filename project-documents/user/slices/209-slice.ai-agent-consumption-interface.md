@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: [208]
 interfaces: []
 dateCreated: 20260324
-dateUpdated: 20260324
-status: not_started
+dateUpdated: 20260325
+status: complete
 ---
 
 # Slice Design: AI-Agent Consumption Interface
@@ -283,50 +283,50 @@ Agent (Squadron, CI, orchestrator)
 
 ## Verification Walkthrough
 
-*Draft — to be refined during Phase 6 implementation.*
+*Verified 2026-03-25. All checks pass.*
 
 ```bash
 # 1. Command catalog
 cf help --json | jq '.commands | length'
-# Result: should show total command count (20+)
+# Result: 27 (all registered commands including compound, list, version, help)
 
 cf help --json | jq '.commands[] | select(.name == "slice")'
-# Result: shows slice command with args and options
+# Result: { name: "slice", args: [{ name: "index", required: true }], options: [...] }
 
 # 2. Version introspection
 cf version --json | jq '.'
-# Result: { name, version, guideVersion, breaking }
+# Result: { name: "@context-forge/cli", version: "0.6.23", guideVersion: "v0.14.3", breaking: [...] }
 
-# 3. Structured errors
-cf --json set slice banana 2>&1 >/dev/null | jq '.'
-# Result: { error: true, code: "INVALID_ARGUMENT", message: "...", suggestion: "..." }
+cf version
+# Result: @context-forge/cli v0.6.23
 
-cf --json set slice 999 2>&1 >/dev/null | jq '.'
-# Result: { error: true, code: "ARTIFACT_NOT_FOUND", ... }
+# 3. Structured errors (compound commands use --json; cf set uses CF_JSON=1)
+cf slice banana --json 2>&1 >/dev/null
+# Result: {"error":true,"code":"INVALID_ARGUMENT","message":"'cf slice' requires a numeric index, got 'banana'.","suggestion":"..."}
 
-# 4. MCP agent_quickstart
-# Via MCP client:
-# Call agent_quickstart → verify structured JSON with capabilities, quickStart, cliEquivalents
+CF_JSON=1 cf set bogusfield foo 2>&1 >/dev/null
+# Result: {"error":true,"code":"FIELD_NOT_FOUND","message":"Unknown field: 'bogusfield'.","suggestion":"Run 'cf project --schema' to see available fields."}
+# Note: cf set does not have --json option; use CF_JSON=1 env var
+
+# 4. MCP agent_quickstart — tested via in-memory transport (agentQuickstartTool.test.ts, 6 tests)
 
 # 5. Idempotency
-cf set slice 208
-# First call: "Updated slice = 208-slice.compound-workflow-commands"
-cf set slice 208
-# Second call: "slice already set to 208-slice.compound-workflow-commands"
+cf set slice 209
+# First call: "Updated slice = 209-slice.ai-agent-consumption-interface"
+cf set slice 209
+# Second call: "slice already set to 209-slice.ai-agent-consumption-interface"
 # (no write, exit 0)
 
 # 6. Agent docs
 cat docs/AGENT-INTEGRATION.md
-# Result: integration guide with MCP-first pattern, discovery, error handling
+# Result: 65-line guide covering MCP-first pattern, discovery, error handling, idempotency
 
 # 7. Package READMEs
-# Verify CLI README shows current commands
-grep "cf list" packages/cli/README.md
-# Result: references to cf list slices, cf list tasks, etc. (not old cf slice list)
+grep "cf list" packages/cli/README.md | head -3
+# Result: references to cf list initiatives, cf list slices, etc.
 
-# Verify MCP README shows all tool categories
-grep "workflow_status\|agent_guide\|worktree_list" packages/mcp-server/README.md
-# Result: all present
+grep "workflow_status\|agent_guide\|worktree_list" packages/mcp-server/README.md | head -3
+# Result: all present in tool tables
 ```
 
 ## Risks

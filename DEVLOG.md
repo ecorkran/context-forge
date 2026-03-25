@@ -7,6 +7,21 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-25
+
+### Slice 209: AI-Agent Consumption Interface — Complete
+- `cf help --json`: machine-readable command catalog (27 commands) from Commander runtime
+- `cf version --json`: version, guideVersion, breaking changes array for cache invalidation
+- Structured JSON errors: `ErrorCode` type on `UserError`, JSON output via `--json` or `CF_JSON=1`
+- `agent_quickstart` MCP tool: structured capability schema with 7 capability groups and CLI equivalents
+- Idempotency: `projectSetAction` detects no-change, prints "already set", exits 0
+- `docs/AGENT-INTEGRATION.md`: 65-line integration guide for agent authors
+- CLI, MCP, core package READMEs updated — all tool categories, compound commands, v0.6 changelog
+- All 1387 tests passing (716 core, 383 CLI, 182 MCP, 106 electron)
+- Commits: `7e2503e` help --json, `1528de7` version --json, `64f07c2` JSON errors, `cda1cc0` agent_quickstart, `f949938` idempotency, `7a0ffce` agent integration guide, `fb5fa0c` README updates
+
+---
+
 ## 2026-03-24
 
 ### Slice 209: AI-Agent Consumption Interface — Task Breakdown Complete
