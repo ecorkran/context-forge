@@ -31,28 +31,24 @@ cf install-commands
 # All commands are discoverable
 cf --help
 cf project --help
-#etc. 
 
 # Check project status
 cf status
 
-# Generate a context prompt and copy to clipboard
-cf build | pbcopy
+# Compound workflow commands — set phase + artifact + build context in one step
+cf concept             # Start concept phase
+cf slice 208           # Set active slice 208, switch to slice design phase, build context
+cf implement 208       # Switch to implementation phase for slice 208
 
-# Generate with phase override
-cf build --phase task-breakdown
-
-# Set project fields
+# Set project fields individually
 cf set phase 6
 cf set slice 175
 
-# Confirm updates (if you like)
-cf status
-
 # Browse project artifacts
-cf arch list        # Architecture initiatives
-cf slice list       # Slices in the active plan
-cf tasks list       # Task files with progress
+cf list initiatives    # Architecture initiatives
+cf list slices         # Slices in the active plan
+cf list tasks          # Task files with progress
+cf list items          # Individual tasks from the active task file
 
 # What should I do next?
 cf next
@@ -74,38 +70,79 @@ When installed via `cf install-commands`, these slash commands are available dir
 | Command | Description |
 |---------|-------------|
 | `/cf:build` | Build a context prompt (accepts `--phase`, `--slice` flags) |
+| `/cf:concept` | Set phase to Concept and build context |
+| `/cf:initiatives` | Set phase to Initiative Plan and build context |
+| `/cf:arch <index>` | Set architecture initiative and build context |
+| `/cf:plan <index>` | Set slice plan and build context |
+| `/cf:slice <index>` | Set active slice and build context |
+| `/cf:tasks <index>` | Set active task file and build context |
+| `/cf:implement <index>` | Set slice for implementation and build context |
 | `/cf:status` | Show project workflow status |
 | `/cf:get` | Show all project fields |
 | `/cf:set` | Set a project field (e.g., `/cf:set phase 6`) |
 | `/cf:prompt` | Get or list prompt templates (e.g., `/cf:prompt P5` or `/cf:prompt list`) |
 | `/cf:project` | Manage projects (e.g., `/cf:project list`, `/cf:project --schema`) |
 | `/cf:next` | Show recommended next action |
+| `/cf:check` | Run consistency checks on project artifacts |
+| `/cf:onboard` | AI-guided project setup |
 
 Each command runs `cf` under the hood — same CWD-based project resolution, same output.
 
 ## Commands Reference
 
+### Compound Workflow Commands
+
+One command sets the appropriate artifact + phase, then builds context:
+
+| Command | Description |
+|---------|-------------|
+| `cf concept` | Set phase to Concept, build context |
+| `cf initiatives` | Set phase to Initiative Plan, build context |
+| `cf arch <index>` | Set architecture initiative, build context |
+| `cf plan <index>` | Set slice plan, build context |
+| `cf slice <index>` | Set active slice, build context |
+| `cf tasks <index>` | Set active task file, build context |
+| `cf implement <index>` | Set slice for implementation, build context |
+
+### Listing Commands
+
+| Command | Description |
+|---------|-------------|
+| `cf list projects` | List all registered projects |
+| `cf list initiatives` | Architecture initiatives with slice counts |
+| `cf list arch` | Alias for `cf list initiatives` |
+| `cf list plans` | Slice plan files with completion progress |
+| `cf list slices` | Slices from the active plan with status |
+| `cf list tasks` | Task files from the plan with progress |
+| `cf list items` | Individual tasks from the active task file |
+
+### Project & Workflow
+
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `cf init` | `cf init` | Register the current directory as a Context Forge project |
-| `cf status` | `cf status [--project <id>] [--json]` | Show workflow status for the active project |
-| `cf next` | `cf next [--project <id>] [--json]` | Show recommended next action |
-| `cf build` | `cf build [--project <id>] [--phase] [--slice] [--instruction] [--tasks] [--additional]` | Generate context prompt to stdout |
-| `cf set` | `cf set <field> <value>` | Set a project field (shortcut for `cf project set`) |
-| `cf get` | `cf get [--json]` | Show all project fields (shortcut for `cf project get`) |
-| `cf arch` | `cf arch list [--json]` | List architecture initiatives with progress |
-| `cf plan` | `cf plan list [--json]` | List slice plan files with progress |
-| `cf slice` | `cf slice list [--json]` | List slices from the active plan with status |
-| `cf tasks` | `cf tasks list [--json]` | List task files from the plan with progress |
-| `cf tasks items` | `cf tasks items [--json]` | Show individual tasks from the active task file |
-| `cf worktree` | `cf worktree init\|list\|get\|update\|rm` | Manage git worktree contexts for parallel initiatives |
-| `cf config` | `cf config list\|get\|set` | Manage configuration |
+| `cf init` | `cf init` | Register the current directory as a project |
+| `cf status` | `cf status [--json]` | Show workflow status |
+| `cf next` | `cf next [--json]` | Show recommended next action |
+| `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt |
+| `cf set` | `cf set <field> <value>` | Set a project field |
+| `cf get` | `cf get [--json]` | Show all project fields |
+| `cf check` | `cf check [--fix] [--slice <n>] [--json]` | Run consistency checks |
+| `cf future` | `cf future [--status <filter>] [--json]` | Consolidated future work |
 | `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
-| `cf future` | `cf future [--project <id>] [--status <filter>] [--json]` | Show consolidated future work |
-| `cf check` | `cf check [--fix] [--slice <n>] [--yes] [--json]` | Run consistency checks across all worktrees |
-| `cf backup` | `cf backup` | Create versioned backup of project data (keeps last 10) |
-| `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates with variable substitution |
-| `cf guides` | `cf guides install\|status\|update` | Manage ai-project-guide templates |
+| `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates |
+| `cf version` | `cf version [--json]` | Show version (JSON includes breaking changes) |
+| `cf help` | `cf help [--json]` | Show help (JSON outputs command catalog) |
+
+### Administration
+
+| Command | Description |
+|---------|-------------|
+| `cf worktree init\|list\|get\|update\|rm` | Manage git worktree contexts |
+| `cf config get\|set` | Manage configuration |
+| `cf guides install\|status\|update\|uninstall` | Manage ai-project-guide templates |
+| `cf backup` | Create versioned backup of project data |
+| `cf install-commands` | Install Claude Code slash commands |
+| `cf setup-ide claude` | Configure IDE integration |
 
 ## Common Options
 
@@ -172,23 +209,9 @@ cf set slice 166
 
 Setting `fileSlice` always auto-sets `fileTasks` to match.
 
-## Discovery Commands
-
-Browse project artifacts at every level:
-
-```bash
-cf arch list       # Architecture initiatives with slice counts
-cf plan list       # Slice plan files with completion progress
-cf slice list      # Slices from the active plan with status markers
-cf tasks list      # Task files from the plan with completion counts
-cf tasks items     # Individual task items from the active task file
-```
-
-All accept `--json` and `--project <name|id>`.
-
 ## Architecture
 
-The CLI wraps `@context-forge/core` directly (no MCP layer), following the same pattern as the Electron package. All core services are imported from `@context-forge/core/node`.
+The CLI wraps `@context-forge/core` directly (no MCP layer). All core services are imported from `@context-forge/core/node`.
 
 ## Development (monorepo)
 
@@ -200,6 +223,17 @@ pnpm --filter @context-forge/cli typecheck # Type check
 ```
 
 ## Changelog
+
+### v0.6.0
+
+- **Compound workflow commands** — `cf concept`, `cf initiatives`, `cf arch <n>`, `cf plan <n>`, `cf slice <n>`, `cf tasks <n>`, `cf implement <n>` set artifact + phase + build context in one step
+- **`cf list` consolidation** — all artifact listing under `cf list <type>` (`cf list slices`, `cf list tasks`, etc.)
+- **Slash commands** — 16 Claude Code slash commands for compound commands, status, and workflow
+- **`cf help --json`** — machine-readable command catalog for agent consumption
+- **`cf version --json`** — version introspection with breaking changes tracking
+- **Structured JSON errors** — error codes on all `UserError` instances, JSON error output via `--json` or `CF_JSON=1`
+- **Idempotent set** — `cf set` detects no-change and skips write
+- **`cf guides uninstall`** — clean removal of guide submodule or clone
 
 ### v0.5.0
 

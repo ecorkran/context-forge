@@ -4,7 +4,7 @@ The context generation engine that powers Context Forge. Handles template proces
 
 ## Overview
 
-This package contains the core logic shared by both the [MCP server](../mcp-server/README.md) and the [Electron desktop app](../electron/). It has no Electron dependency and can be used by any Node.js consumer.
+This package contains the core logic shared by the [MCP server](../mcp-server/README.md), the [CLI](../cli/README.md), and other Node.js consumers. It has no framework dependencies.
 
 Key capabilities:
 - **Context pipeline** — assembles structured context prompts from project configuration, templates, and statements
@@ -74,7 +74,7 @@ packages/
   electron/     depends on @context-forge/core (workspace:*)
 ```
 
-Both the MCP server and Electron app import types from `@context-forge/core` and Node.js services from `@context-forge/core/node`. The Electron renderer uses only the browser-safe entry point, with IPC bridges to access Node.js services from the main process.
+The MCP server, CLI, and Electron app import types from `@context-forge/core` and Node.js services from `@context-forge/core/node`.
 
 ## License
 
