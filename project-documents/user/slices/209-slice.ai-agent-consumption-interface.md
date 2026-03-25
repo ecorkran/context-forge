@@ -213,7 +213,9 @@ Review all state-mutating commands to ensure repeated calls with the same argume
 
 ### 6. Agent Integration Documentation
 
-Add a section to the README (or a standalone `AGENTS.md` in the repo root) documenting the MCP-first integration pattern for agent authors.
+Add `docs/AGENT-INTEGRATION.md` documenting the MCP-first integration pattern for agent authors. Link to it from the root README and the MCP package README.
+
+**Note:** `AGENTS.md` is a reserved filename — it's automatically read by Codex, Copilot, Cursor, and other AI tools as "instructions for coding agents working in this repo" (similar to CLAUDE.md). Our document targets *consumers* of Context Forge, not agents working *within* this repo, so it must use a different name.
 
 **Contents:**
 - Recommended integration path: MCP server > CLI `--json` > CLI text parsing (in order of preference)
@@ -223,7 +225,28 @@ Add a section to the README (or a standalone `AGENTS.md` in the repo root) docum
 - Idempotency guarantees
 - CLI vs MCP: when to use which (MCP for data operations, CLI for context building and piping)
 
-This is a short document (< 100 lines) targeting AI agent developers, not end users. It lives alongside the README.
+This is a short document (< 100 lines) targeting AI agent developers, not end users.
+
+### 7. Package README Updates
+
+Update each published package's README to reflect current state. These are the npm landing pages and the first thing a developer (human or AI) sees.
+
+**CLI (`packages/cli/README.md`):**
+- Update Quick Start to show `cf init` as single-command setup
+- Replace old command names (`cf arch list`, `cf slice list`, etc.) with current names (`cf list initiatives`, `cf list slices`)
+- Add compound commands section (`cf concept`, `cf slice 208`, etc.)
+- Add v0.6 changelog entry covering compound commands, `cf list`, guides uninstall
+- Remove Electron references from Architecture section
+
+**MCP (`packages/mcp-server/README.md`):**
+- Add missing tool categories (Workflow: `workflow_status`, `workflow_next`, `workflow_check`; Worktrees: `worktree_*`; Guides: `guide_*`; Meta: `agent_guide`, `agent_onboard`, `server_version`)
+- Update Prerequisites to recommend `cf guides install` instead of curl bootstrap
+- Remove stale `config_list` reference
+- Add link to `docs/AGENT-INTEGRATION.md`
+
+**Core (`packages/core/README.md`):**
+- De-emphasize Electron in overview (change "MCP server and Electron desktop app" framing to "MCP server, CLI, and other Node.js consumers")
+- Verify export path examples are current
 
 ## Data Flow
 
@@ -254,8 +277,9 @@ Agent (Squadron, CI, orchestrator)
 3. All `UserError` instances carry an error code; `handleError` outputs structured JSON when JSON mode is active
 4. `agent_quickstart` MCP tool returns structured capability schema with tool groupings and CLI equivalents
 5. `cf set slice 208` when already set to 208 prints "no change" and exits 0 (idempotency)
-6. `AGENTS.md` documents the integration pattern for agent authors
-7. All existing behavior unchanged when `--json` is not passed
+6. `docs/AGENT-INTEGRATION.md` documents the integration pattern for agent authors (not `AGENTS.md` — that filename is reserved for AI coding tool instructions)
+7. CLI, MCP, and core package READMEs updated to reflect current commands and capabilities
+8. All existing behavior unchanged when `--json` is not passed
 
 ## Verification Walkthrough
 
@@ -292,8 +316,17 @@ cf set slice 208
 # (no write, exit 0)
 
 # 6. Agent docs
-cat AGENTS.md
+cat docs/AGENT-INTEGRATION.md
 # Result: integration guide with MCP-first pattern, discovery, error handling
+
+# 7. Package READMEs
+# Verify CLI README shows current commands
+grep "cf list" packages/cli/README.md
+# Result: references to cf list slices, cf list tasks, etc. (not old cf slice list)
+
+# Verify MCP README shows all tool categories
+grep "workflow_status\|agent_guide\|worktree_list" packages/mcp-server/README.md
+# Result: all present
 ```
 
 ## Risks
@@ -302,4 +335,4 @@ cat AGENTS.md
 
 ## Effort
 
-3/5 — Multiple small features across CLI and MCP, plus documentation. Each feature is individually simple but there are several touchpoints.
+3/5 — Multiple small features across CLI and MCP, plus documentation and README updates. Each feature is individually simple but there are several touchpoints.
