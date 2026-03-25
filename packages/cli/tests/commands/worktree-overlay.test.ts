@@ -330,12 +330,24 @@ describe('cf build — worktree overlay', () => {
     expect(projectArg.fileArch).toBe('180-arch.initiative-context-worktree');
   });
 
-  it('writes generated context to stdout', async () => {
+  it('bare CLI shows help message to stderr, no raw prompt to stdout', async () => {
     const program = createBuildProgram();
     await program.parseAsync(['node', 'cf', 'build']);
 
+    const stdoutOutput = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
+    expect(stdoutOutput).toBe('');
+
+    const stderrOutput = vi.mocked(process.stderr.write).mock.calls.map((c) => c[0]).join('');
+    expect(stderrOutput).toContain('Context built for');
+  });
+
+  it('--json writes generated context as JSON to stdout', async () => {
+    const program = createBuildProgram();
+    await program.parseAsync(['node', 'cf', 'build', '--json']);
+
     const output = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
-    expect(output).toBe('worktree context output');
+    const parsed = JSON.parse(output);
+    expect(parsed.context).toBe('worktree context output');
   });
 });
 
@@ -379,12 +391,24 @@ describe('cf build — no worktree resolved', () => {
     expect(projectArg.developmentPhase).toBe('Phase 4: Slice Design');
   });
 
-  it('writes generated context to stdout', async () => {
+  it('bare CLI shows help message, no raw prompt to stdout', async () => {
     const program = createBuildProgram();
     await program.parseAsync(['node', 'cf', 'build']);
 
+    const stdoutOutput = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
+    expect(stdoutOutput).toBe('');
+
+    const stderrOutput = vi.mocked(process.stderr.write).mock.calls.map((c) => c[0]).join('');
+    expect(stderrOutput).toContain('Context built for');
+  });
+
+  it('--json writes generated context as JSON to stdout', async () => {
+    const program = createBuildProgram();
+    await program.parseAsync(['node', 'cf', 'build', '--json']);
+
     const output = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
-    expect(output).toBe('project context output');
+    const parsed = JSON.parse(output);
+    expect(parsed.context).toBe('project context output');
   });
 });
 

@@ -5,7 +5,7 @@ import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
-import { printRaw } from '../output/formatter.js';
+import { printJson } from '../output/formatter.js';
 
 interface BuildOpts {
   project?: string;
@@ -16,10 +16,31 @@ interface BuildOpts {
   it?: string;
   tasks?: string;
   additional?: string;
+  json?: boolean;
 }
 
-/** Core build logic: resolves project, generates context, prints to stdout. */
-export async function buildAndPrint(opts: { project?: string; phase?: string; slice?: string }): Promise<void> {
+interface BuildAndPrintOpts {
+  project?: string;
+  phase?: string;
+  slice?: string;
+  json?: boolean;
+  /** Hint for the help message, e.g. "slice 208". Defaults to "build". */
+  commandHint?: string;
+}
+
+/**
+ * Core build logic: resolves project, generates context.
+ *
+ * Output modes:
+ * - `--json`: JSON object to stdout with project, phase, and context fields
+ * - bare CLI: help message to stderr, nothing to stdout
+ *
+ * Slash commands call the CLI, which outputs to stdout — the slash command
+ * wrapper captures and frames it as working context. Since bare CLI now shows
+ * a help message instead of raw prompt, slash commands use `--json` implicitly
+ * (the `!` backtick syntax in the .md file captures stdout).
+ */
+export async function buildAndPrint(opts: BuildAndPrintOpts): Promise<void> {
   const store = new FileProjectStore();
   const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
   const project = await resolveProject(store, id, worktreeId);
@@ -56,13 +77,31 @@ export async function buildAndPrint(opts: { project?: string; phase?: string; sl
   const { integrator } = createContextPipeline(workingCopy.projectPath!);
   const contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
-  printRaw(contextString);
+  if (opts.json) {
+    // --json mode: structured output to stdout
+    printJson({
+      project: project.name,
+      phase: workingCopy.developmentPhase ?? null,
+      context: contextString,
+    });
+  } else {
+    // Bare CLI: help message to stderr, nothing to stdout
+    const cmd = opts.commandHint ?? 'build';
+    const sliceInfo = workingCopy.fileSlice ? `, slice ${workingCopy.fileSlice}` : '';
+    const phaseInfo = workingCopy.developmentPhase ?? 'no phase set';
+    process.stderr.write(
+      `\nContext built for ${project.name} (${phaseInfo}${sliceInfo}).\n\n` +
+      `To use this context:\n` +
+      `  /cf:${cmd.split(' ')[0]} ${cmd.includes(' ') ? cmd.split(' ').slice(1).join(' ') : '$ARGUMENTS'} — load as working context in Claude Code\n` +
+      `  cf ${cmd} --json${cmd === 'build' ? '' : '  '} — output as JSON for pipelines\n`,
+    );
+  }
 }
 
 export function registerBuildCommand(program: Command): void {
   program
     .command('build')
-    .description('Generate and output a context prompt to stdout (--json not applicable)')
+    .description('Generate a context prompt')
     .option('--project <id>', 'Project ID or name (overrides default)')
     .option('--phase <phase>', 'Override development phase')
     .option('--slice <slice>', 'Override slice name')
@@ -71,6 +110,7 @@ export function registerBuildCommand(program: Command): void {
     .option('--it <type>', 'Shorthand for --instruction-type')
     .option('--tasks <tasks>', 'Override task file name')
     .option('--additional <text>', 'Additional instructions to append')
+    .option('--json', 'Output context as JSON to stdout')
     .action(async (opts: BuildOpts) => {
       try {
         const store = new FileProjectStore();
@@ -117,7 +157,22 @@ export function registerBuildCommand(program: Command): void {
           contextString = `${contextString}\n\n${opts.additional}`;
         }
 
-        printRaw(contextString);
+        if (opts.json) {
+          printJson({
+            project: project.name,
+            phase: workingCopy.developmentPhase ?? null,
+            context: contextString,
+          });
+        } else {
+          const sliceInfo = workingCopy.fileSlice ? `, slice ${workingCopy.fileSlice}` : '';
+          const phaseInfo = workingCopy.developmentPhase ?? 'no phase set';
+          process.stderr.write(
+            `\nContext built for ${project.name} (${phaseInfo}${sliceInfo}).\n\n` +
+            `To use this context:\n` +
+            `  /cf:build $ARGUMENTS — load as working context in Claude Code\n` +
+            `  cf build --json     — output as JSON for pipelines\n`,
+          );
+        }
       } catch (err) {
         handleError(err);
       }

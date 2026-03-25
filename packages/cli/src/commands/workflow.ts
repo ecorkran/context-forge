@@ -75,11 +75,12 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set phase to Concept and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         await warnIfConceptExists(opts);
         await projectSetAction('developmentPhase', 'Phase 0: Concept', opts);
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: 'concept' });
       } catch (err) {
         handleError(err);
       }
@@ -91,10 +92,11 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set phase to Initiative Plan and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         await projectSetAction('developmentPhase', 'Phase 1: Initiative Plan', opts);
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: 'initiatives' });
       } catch (err) {
         handleError(err);
       }
@@ -106,7 +108,8 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set architecture initiative and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (index: string, opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (index: string, opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         requireNumericIndex(index, 'arch');
         await projectSetAction('fileArch', index, opts);
@@ -115,7 +118,7 @@ export function registerWorkflowCommands(program: Command): void {
         if (opPath) {
           await warnIfArtifactExists(opPath, parseInt(index, 10), 'architecture', 'Architecture document');
         }
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: `arch ${index}` });
       } catch (err) {
         handleError(err);
       }
@@ -127,7 +130,8 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set slice plan and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (index: string, opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (index: string, opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         requireNumericIndex(index, 'plan');
         await projectSetAction('fileSlicePlan', index, opts);
@@ -136,7 +140,7 @@ export function registerWorkflowCommands(program: Command): void {
         if (opPath) {
           await warnIfArtifactExists(opPath, parseInt(index, 10), 'slicePlan', 'Slice plan');
         }
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: `plan ${index}` });
       } catch (err) {
         handleError(err);
       }
@@ -148,7 +152,8 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set active slice and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (index: string, opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (index: string, opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         requireNumericIndex(index, 'slice');
         await projectSetAction('fileSlice', index, opts);
@@ -157,7 +162,7 @@ export function registerWorkflowCommands(program: Command): void {
         if (opPath) {
           await warnIfArtifactExists(opPath, parseInt(index, 10), 'sliceDesign', 'Slice design');
         }
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: `slice ${index}` });
       } catch (err) {
         handleError(err);
       }
@@ -169,7 +174,8 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set active task file and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (index: string, opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (index: string, opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         requireNumericIndex(index, 'tasks');
         await projectSetAction('fileTasks', index, opts);
@@ -178,7 +184,7 @@ export function registerWorkflowCommands(program: Command): void {
         if (opPath) {
           await warnIfArtifactExists(opPath, parseInt(index, 10), 'taskFile', 'Task file');
         }
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: `tasks ${index}` });
       } catch (err) {
         handleError(err);
       }
@@ -190,13 +196,14 @@ export function registerWorkflowCommands(program: Command): void {
     .description('Set active slice for implementation and build prompt')
     .option('--project <name|id>', 'Project name or ID')
     .option('--project-level', 'Force project-level field updates')
-    .action(async (index: string, opts: { project?: string; projectLevel?: boolean }) => {
+    .option('--json', 'Output context as JSON to stdout')
+    .action(async (index: string, opts: { project?: string; projectLevel?: boolean; json?: boolean }) => {
       try {
         requireNumericIndex(index, 'implement');
         await projectSetAction('fileSlice', index, opts);
         await projectSetAction('developmentPhase', 'Phase 6: Implementation', opts);
         // No artifact warning for implement — implementation is always continuation
-        await buildAndPrint(opts);
+        await buildAndPrint({ ...opts, commandHint: `implement ${index}` });
       } catch (err) {
         handleError(err);
       }

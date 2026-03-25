@@ -292,13 +292,39 @@ cf implement 208
 cf slice 208
 # Result: "Slice design already exists for index 208. Building prompt anyway." PASS.
 
-# 4. Piping
-cf concept 2>/dev/null | head -3
-# Result: Only context output in stdout (confirmations go to stderr). PASS.
-# Caveat: projectSetAction confirmations were moved to stderr in this slice
-#         to enable clean piping. Applies to cf set/unset as well.
+# 4. Bare CLI output (no raw prompt)
+cf concept
+# Result: Outputs set confirmations to stderr, then:
+#         "Context built for context-forge (Phase 0: Concept)."
+#         "To use this context:"
+#         "  /cf:concept $ARGUMENTS — load as working context in Claude Code"
+#         "  cf concept --json     — output as JSON for pipelines"
+#         No raw prompt on stdout. PASS.
 
-# 5. List commands
+cf slice 208
+# Result: Set confirmations to stderr, then help message. No raw prompt. PASS.
+
+# 5. --json output
+cf concept --json
+# Result: JSON to stdout: { "project": "context-forge", "phase": "Phase 0: Concept", "context": "..." }. PASS.
+
+cf slice 208 --json
+# Result: JSON to stdout with full context. PASS.
+
+cf build --json
+# Result: JSON to stdout with full context. PASS.
+
+# 6. Slash commands
+cf install-commands
+# Result: "Installed 16 commands to ~/.claude/commands/cf/"
+#         Lists all 16 commands including /cf:concept, /cf:slice, /cf:implement, etc. PASS.
+
+ls ~/.claude/commands/cf/
+# Result: arch.md  build.md  check.md  concept.md  get.md  implement.md
+#         initiatives.md  next.md  onboard.md  plan.md  project.md
+#         prompt.md  set.md  slice.md  status.md  tasks.md. PASS.
+
+# 7. List commands
 cf list initiatives
 # Result: Architecture Initiatives table with Index, Initiative, Arch Doc, Slice Plan, Progress. PASS.
 
@@ -314,11 +340,11 @@ cf list items
 cf list initiatives --json
 # Result: JSON array of initiative objects. PASS.
 
-# 6. Old commands removed
+# 8. Old commands removed
 cf arch list
 # Result: "error: unknown command 'arch'" — old commands no longer registered. PASS.
 
-# 7. Worktree awareness
+# 9. Worktree awareness
 # Not tested with actual worktree in this session, but:
 # - --project-level flag passes through to projectSetAction (unit tested)
 # - Default behavior uses worktree-aware resolveProjectWorktree (unit tested)

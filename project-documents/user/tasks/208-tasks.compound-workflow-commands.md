@@ -274,7 +274,7 @@ status: in-progress
 
 ## Section 6: Slash Commands & TTY-Aware Output
 
-- [ ] **6.1 Bare CLI help message for `buildAndPrint()`**
+- [x] **6.1 Bare CLI help message for `buildAndPrint()`**
   - File: `packages/cli/src/commands/build.ts`
   - Modify `buildAndPrint()`: instead of outputting raw prompt to stdout, write a help message to stderr:
     ```
@@ -287,10 +287,10 @@ status: in-progress
   - No raw prompt output to stdout in any case (breaking change: `cf build | pbcopy` no longer works)
   - For compound commands, the help message adapts to show the relevant command (e.g., `/cf:slice 208`)
   - `buildAndPrint()` needs a way to know the originating command name for the help message (parameter or option)
-  - [ ] Bare CLI shows help message to stderr, nothing to stdout
-  - [ ] TypeScript compiles
+  - [x] Bare CLI shows help message to stderr, nothing to stdout
+  - [x] TypeScript compiles
 
-- [ ] **6.2 `--json` flag for compound commands and `cf build`**
+- [x] **6.2 `--json` flag for compound commands and `cf build`**
   - Files: `packages/cli/src/commands/workflow.ts`, `packages/cli/src/commands/build.ts`
   - Add `--json` option to all compound commands and `cf build`
   - When `--json` is passed, output JSON to stdout:
@@ -298,11 +298,11 @@ status: in-progress
     { "project": "context-forge", "phase": "Phase 4: Slice Design", "context": "..." }
     ```
   - `--json` always outputs regardless of TTY (explicit flag overrides TTY detection)
-  - [ ] `cf build --json` outputs JSON
-  - [ ] `cf slice 208 --json` outputs JSON
-  - [ ] TypeScript compiles
+  - [x] `cf build --json` outputs JSON
+  - [x] `cf slice 208 --json` outputs JSON
+  - [x] TypeScript compiles
 
-- [ ] **6.3 Create slash command files**
+- [x] **6.3 Create slash command files**
   - Directory: `packages/cli/commands/cf/`
   - Create 7 new files following the `/cf:build` pattern:
     - `concept.md` — `/cf:concept`
@@ -324,28 +324,28 @@ status: in-progress
 
     !`cf {command} $ARGUMENTS`
     ```
-  - [ ] All 7 files created
-  - [ ] Files follow established pattern
+  - [x] All 7 files created
+  - [x] Files follow established pattern
 
-- [ ] **6.4 Register slash commands in `commandInstaller.ts`**
+- [x] **6.4 Register slash commands in `commandInstaller.ts`**
   - File: `packages/cli/src/commands/commandInstaller.ts`
   - Add new files to `MANAGED_FILES` array
-  - [ ] `cf install-commands` installs all new slash commands
-  - [ ] `cf uninstall-commands` removes all new slash commands
+  - [x] `cf install-commands` installs all new slash commands
+  - [x] `cf uninstall-commands` removes all new slash commands
 
-- [ ] **6.5 Tests for TTY-aware output and --json**
+- [x] **6.5 Tests for TTY-aware output and --json**
   - File: `packages/cli/tests/commands/workflow.test.ts` (extend existing)
   - Add tests:
-    1. [ ] `cf slice 208` — help message to stderr, no raw prompt to stdout
-    2. [ ] `cf slice 208 --json` — JSON output to stdout
-    3. [ ] `cf build` — help message to stderr, no raw prompt to stdout
-    4. [ ] `cf build --json` — JSON output to stdout
-  - [ ] All new tests pass
-  - [ ] All existing tests still pass
+    1. [x] `cf slice 208` — help message to stderr, no raw prompt to stdout
+    2. [x] `cf slice 208 --json` — JSON output to stdout
+    3. [x] `cf build` — help message to stderr, no raw prompt to stdout
+    4. [x] `cf build --json` — JSON output to stdout
+  - [x] All new tests pass
+  - [x] All existing tests still pass
 
 **Commit**: `feat(cli): add slash commands, TTY-aware output, and --json for compound commands`
 
-- [ ] **6.6 Update verification walkthrough**
+- [x] **6.6 Update verification walkthrough**
   - File: `user/slices/208-slice.compound-workflow-commands.md`
   - Add verification steps for TTY behavior, --json output, and slash command installation
 

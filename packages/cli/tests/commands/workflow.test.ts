@@ -292,4 +292,42 @@ describe('compound workflow commands', () => {
     expect(mockProjectSetAction).not.toHaveBeenCalled();
     expect(mockBuildAndPrint).not.toHaveBeenCalled();
   });
+
+  // ── --json and commandHint passthrough ──
+
+  it('cf slice 208 --json passes json and commandHint to buildAndPrint', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'slice', '208', '--json']);
+
+    expect(mockBuildAndPrint).toHaveBeenCalledWith(
+      expect.objectContaining({ json: true, commandHint: 'slice 208' }),
+    );
+  });
+
+  it('cf slice 208 (bare) passes commandHint without json to buildAndPrint', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'slice', '208']);
+
+    const opts = mockBuildAndPrint.mock.calls[0][0];
+    expect(opts.commandHint).toBe('slice 208');
+    expect(opts.json).toBeFalsy();
+  });
+
+  it('cf concept --json passes json and commandHint to buildAndPrint', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'concept', '--json']);
+
+    expect(mockBuildAndPrint).toHaveBeenCalledWith(
+      expect.objectContaining({ json: true, commandHint: 'concept' }),
+    );
+  });
+
+  it('cf implement 208 --json passes json and commandHint to buildAndPrint', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'implement', '208', '--json']);
+
+    expect(mockBuildAndPrint).toHaveBeenCalledWith(
+      expect.objectContaining({ json: true, commandHint: 'implement 208' }),
+    );
+  });
 });

@@ -48,7 +48,7 @@ describe('cf build', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('writes context to stdout as raw text', async () => {
+  it('bare CLI shows help message to stderr, nothing to stdout', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockGenerateContextFromProject.mockResolvedValue('Generated context output');
 
@@ -56,8 +56,29 @@ describe('cf build', () => {
     await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001']);
 
     const stdoutCalls = vi.mocked(process.stdout.write).mock.calls;
+    const stdoutOutput = stdoutCalls.map((c) => c[0]).join('');
+    expect(stdoutOutput).toBe('');
+
+    const stderrCalls = vi.mocked(process.stderr.write).mock.calls;
+    const stderrOutput = stderrCalls.map((c) => c[0]).join('');
+    expect(stderrOutput).toContain('Context built for');
+    expect(stderrOutput).toContain('/cf:build');
+    expect(stderrOutput).toContain('cf build --json');
+  });
+
+  it('--json writes context as JSON to stdout', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGenerateContextFromProject.mockResolvedValue('Generated context output');
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001', '--json']);
+
+    const stdoutCalls = vi.mocked(process.stdout.write).mock.calls;
     const output = stdoutCalls.map((c) => c[0]).join('');
-    expect(output).toBe('Generated context output');
+    const parsed = JSON.parse(output);
+    expect(parsed.project).toBe('test-project');
+    expect(parsed.phase).toBe('Phase 6: Implementation');
+    expect(parsed.context).toBe('Generated context output');
   });
 
   it('writes status message to stderr', async () => {
@@ -149,13 +170,14 @@ describe('cf build', () => {
 
     const program = createProgram();
     await program.parseAsync([
-      'node', 'cf', 'build', '--project', 'proj_001',
+      'node', 'cf', 'build', '--project', 'proj_001', '--json',
       '--additional', 'Extra instructions here',
     ]);
 
     const output = vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join('');
-    expect(output).toContain('base context');
-    expect(output).toContain('Extra instructions here');
+    const parsed = JSON.parse(output);
+    expect(parsed.context).toContain('base context');
+    expect(parsed.context).toContain('Extra instructions here');
   });
 
   it('calls createContextPipeline with project path', async () => {
