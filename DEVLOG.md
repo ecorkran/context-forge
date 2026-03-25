@@ -9,14 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-24
 
-### Slice 209: AI-Agent Consumption Interface — Design Complete
+### Slice 209: AI-Agent Consumption Interface — Task Breakdown Complete
 - Slice design for making CF a first-class tool for AI agent consumption
-- `cf help --json`: machine-readable command catalog from Commander runtime (no static maintenance)
-- `cf version --json`: version + guide version + breaking changes array for cache invalidation
+- Task breakdown: 8 sections, 20 tasks covering all 7 deliverables
+- `cf help --json`: machine-readable command catalog from Commander runtime
+- `cf version --json`: version + guide version + breaking changes array
 - Structured JSON errors with error codes when `--json` active
 - `agent_quickstart` MCP tool: structured capability schema for pure-machine consumers
 - Idempotency audit: detect no-change in `cf set`, skip write
-- `AGENTS.md`: integration guide for agent authors (MCP-first pattern)
+- `docs/AGENT-INTEGRATION.md`: integration guide for agent authors (not AGENTS.md — reserved filename)
+- Package README updates for CLI, MCP, and core
 
 ### Slice 208: Compound Workflow Commands — Complete
 - Seven compound CLI commands: `cf concept`, `cf initiatives`, `cf arch <index>`, `cf plan <index>`, `cf slice <index>`, `cf tasks <index>`, `cf implement <index>`
