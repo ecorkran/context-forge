@@ -19,7 +19,7 @@ import { registerGuidesCommand } from './commands/guides.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
-import { handleError } from './utils/errors.js';
+import { handleError, setJsonMode } from './utils/errors.js';
 import { buildCommandCatalog } from './utils/commandCatalog.js';
 import { BREAKING_CHANGES } from './utils/breaking-changes.js';
 
@@ -167,5 +167,10 @@ program
 // Catch unhandled errors at top level
 process.on('uncaughtException', handleError);
 process.on('unhandledRejection', handleError);
+
+// Detect --json in argv to enable structured error output before parsing
+if (process.argv.includes('--json') || process.env.CF_JSON === '1') {
+  setJsonMode();
+}
 
 program.parse();

@@ -149,13 +149,15 @@ export async function projectSetAction(
   const resolvedField = resolveFieldName(field);
   if (!resolvedField) {
     throw new UserError(
-      `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
+      `Unknown field: '${field}'.`,
+      'FIELD_NOT_FOUND',
+      `Run 'cf project --schema' to see available fields.`,
     );
   }
 
   const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
   if (fieldDef?.readonly) {
-    throw new UserError(`Field '${resolvedField}' is read-only and cannot be set.`);
+    throw new UserError(`Field '${resolvedField}' is read-only and cannot be set.`, 'READ_ONLY');
   }
 
   let resolvedValue = val;
@@ -164,7 +166,9 @@ export async function projectSetAction(
     if (!phaseVal) {
       const allowed = fieldDef?.enumValues?.join(', ') ?? '';
       throw new UserError(
-        `Invalid value "${val}" for field "${resolvedField}". Allowed values: ${allowed}`,
+        `Invalid value "${val}" for field "${resolvedField}".`,
+        'INVALID_VALUE',
+        `Allowed values: ${allowed}`,
       );
     }
     resolvedValue = phaseVal;
@@ -177,7 +181,7 @@ export async function projectSetAction(
 
   const validation = validateFieldValue(resolvedField, resolvedValue);
   if (!validation.valid) {
-    throw new UserError(validation.error!);
+    throw new UserError(validation.error!, 'INVALID_VALUE');
   }
 
   const store = new FileProjectStore();
@@ -187,7 +191,11 @@ export async function projectSetAction(
 
   const existing = await store.getById(id);
   if (!existing) {
-    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+    throw new UserError(
+      `Project not found: '${id}'.`,
+      'PROJECT_NOT_FOUND',
+      `Run cf project list to see available projects.`,
+    );
   }
 
   // Index-based file resolution: cf set slice 171 → scans for matching file
@@ -221,6 +229,7 @@ export async function projectSetAction(
       } else {
         throw new UserError(
           `No file matching index '${resolvedValue}' for field '${resolvedField}', and no slice plan entry found to derive from.`,
+          'ARTIFACT_NOT_FOUND',
         );
       }
     }
@@ -299,16 +308,18 @@ export async function projectUnsetAction(
   const resolvedField = resolveFieldName(field);
   if (!resolvedField) {
     throw new UserError(
-      `Unknown field: '${field}'. Run 'cf project --schema' to see available fields.`,
+      `Unknown field: '${field}'.`,
+      'FIELD_NOT_FOUND',
+      `Run 'cf project --schema' to see available fields.`,
     );
   }
 
   const fieldDef = PROJECT_FIELDS.find((f) => f.field === resolvedField);
   if (fieldDef?.required) {
-    throw new UserError(`Cannot unset required field '${resolvedField}'.`);
+    throw new UserError(`Cannot unset required field '${resolvedField}'.`, 'INVALID_ARGUMENT');
   }
   if (fieldDef?.readonly) {
-    throw new UserError(`Cannot unset read-only field '${resolvedField}'.`);
+    throw new UserError(`Cannot unset read-only field '${resolvedField}'.`, 'READ_ONLY');
   }
 
   const store = new FileProjectStore();
@@ -318,7 +329,7 @@ export async function projectUnsetAction(
 
   const existing = await store.getById(id);
   if (!existing) {
-    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+    throw new UserError(`Project not found: '${id}'.`, 'PROJECT_NOT_FOUND', `Run cf project list to see available projects.`);
   }
 
   const worktreeName = worktreeId
@@ -347,7 +358,7 @@ export async function projectGetAction(
   const project = await store.getById(resolved.id);
 
   if (!project) {
-    throw new UserError(`Project not found: '${resolved.id}'. Run cf project list to see available projects.`);
+    throw new UserError(`Project not found: '${resolved.id}'.`, 'PROJECT_NOT_FOUND', `Run cf project list to see available projects.`);
   }
 
   const worktreeId = resolved.worktreeId;
@@ -543,7 +554,7 @@ export function registerProjectCommand(program: Command): void {
         const project = await store.getById(id);
 
         if (!project) {
-          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+          throw new UserError(`Project not found: '${id}'.`, 'PROJECT_NOT_FOUND', `Run cf project list to see available projects.`);
         }
 
         if (!opts.yes) {

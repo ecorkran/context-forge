@@ -261,7 +261,7 @@ describe('resolveProjectWorktree', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
     const store = mockStore(projects);
     await expect(resolveProjectWorktree({}, store)).rejects.toThrow(UserError);
-    await expect(resolveProjectWorktree({}, store)).rejects.toThrow('cf init');
+    await expect(resolveProjectWorktree({}, store)).rejects.toThrow('No project specified');
   });
 
   it('resolves --worktree option when --project is explicit', async () => {
@@ -342,7 +342,7 @@ describe('resolveProjectId', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
     const store = mockStore(projects);
     await expect(resolveProjectId(undefined, store)).rejects.toThrow(UserError);
-    await expect(resolveProjectId(undefined, store)).rejects.toThrow('cf init');
+    await expect(resolveProjectId(undefined, store)).rejects.toThrow('No project specified');
   });
 
   it('does not expose worktreeId (backwards compatibility)', async () => {

@@ -46,13 +46,14 @@ export async function buildAndPrint(opts: BuildAndPrintOpts): Promise<void> {
   const project = await resolveProject(store, id, worktreeId);
 
   if (!project) {
-    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+    throw new UserError(`Project not found: '${id}'.`, 'PROJECT_NOT_FOUND', `Run cf project list to see available projects.`);
   }
 
   if (!project.projectPath) {
     throw new UserError(
-      `Project '${project.name}' has no projectPath configured.\n` +
-        '  cf project set projectPath /path/to/project',
+      `Project '${project.name}' has no projectPath configured.`,
+      'MISSING_CONFIG',
+      `Run: cf project set projectPath /path/to/project`,
     );
   }
 
@@ -118,7 +119,7 @@ export function registerBuildCommand(program: Command): void {
         const project = await resolveProject(store, id, worktreeId);
 
         if (!project) {
-          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+          throw new UserError(`Project not found: '${id}'.`, 'PROJECT_NOT_FOUND', `Run cf project list to see available projects.`);
         }
 
         if (!project.projectPath) {

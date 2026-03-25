@@ -12,8 +12,9 @@ import { warn } from '../output/styles.js';
 function requireNumericIndex(value: string, commandName: string): void {
   if (!/^\d+$/.test(value)) {
     throw new UserError(
-      `'cf ${commandName}' requires a numeric index, got '${value}'.\n` +
-      `  Use: cf ${commandName} <index>  (e.g. cf ${commandName} 200)\n` +
+      `'cf ${commandName}' requires a numeric index, got '${value}'.`,
+      'INVALID_ARGUMENT',
+      `Use: cf ${commandName} <index>  (e.g. cf ${commandName} 200)\n` +
       `  To list: cf list ${commandName === 'implement' ? 'slices' : commandName === 'tasks' ? 'tasks' : commandName + 's'}`,
     );
   }

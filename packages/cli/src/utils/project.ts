@@ -127,8 +127,9 @@ export async function resolveProjectWorktree(
     const project = await findByNameOrId(explicit, store);
     if (!project) {
       throw new UserError(
-        `Project '${explicit}' not found.\n` +
-          '  Check the spelling, or run cf project list to see available projects.',
+        `Project '${explicit}' not found.`,
+        'PROJECT_NOT_FOUND',
+        `Check the spelling, or run cf project list to see available projects.`,
       );
     }
     const resolved: ResolvedProjectWorktree = { id: project.id, source: 'flag' };
@@ -166,10 +167,11 @@ export async function resolveProjectWorktree(
 
   // Step 3: no resolution
   throw new UserError(
-    'No project specified and no registered project found at current path.\n' +
-      '  cf init                    # register current directory as a project\n' +
-      '  --project <name>           # specify a project explicitly\n' +
-      '  cf project list            # see registered projects',
+    'No project specified and no registered project found at current path.',
+    'PROJECT_NOT_FOUND',
+    `cf init                    # register current directory as a project\n` +
+      `  --project <name>           # specify a project explicitly\n` +
+      `  cf project list            # see registered projects`,
   );
 }
 
