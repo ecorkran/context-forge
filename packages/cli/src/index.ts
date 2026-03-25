@@ -21,6 +21,7 @@ import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
 import { handleError } from './utils/errors.js';
 import { buildCommandCatalog } from './utils/commandCatalog.js';
+import { BREAKING_CHANGES } from './utils/breaking-changes.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
@@ -120,6 +121,34 @@ registerInitCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 registerSetupIdeCommand(program);
+
+// Version introspection
+program
+  .command('version')
+  .description('Show version information (use --json for machine-readable output)')
+  .option('--json', 'Output as JSON with guide version and breaking changes')
+  .action(async (opts: { json?: boolean }) => {
+    if (opts.json) {
+      let guideVersion: string | null = null;
+      try {
+        const { GuideDetector } = await import('@context-forge/core/node');
+        const detector = new GuideDetector();
+        const info = await detector.detect(process.cwd());
+        guideVersion = info.version;
+      } catch {
+        // Guide detection is best-effort
+      }
+      const output = {
+        name: '@context-forge/cli',
+        version,
+        guideVersion,
+        breaking: BREAKING_CHANGES,
+      };
+      process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+    } else {
+      process.stdout.write(`@context-forge/cli v${version}\n`);
+    }
+  });
 
 // Machine-readable help
 program
