@@ -6,7 +6,7 @@ dependencies: []
 projectState: Phase migration to v0.14.0 complete. Phases 0-7 with Initiative Plan at Phase 1. All 1332 tests passing (716 core, 334 CLI, 176 MCP, 106 electron). Build clean. Existing artifact commands cf arch/plan/slice/tasks have list subcommands that will be migrated to cf list.
 dateCreated: 20260323
 dateUpdated: 20260324
-status: complete
+status: in-progress
 ---
 
 ## Context Summary
@@ -261,7 +261,7 @@ status: complete
 - [x] **5.2 Update slice design status**
   - File: `user/slices/208-slice.compound-workflow-commands.md`
   - Update frontmatter `status: not_started` → `status: complete`
-  - [x] Status updated
+  - [x] Status updated (reopened in Section 6 for slash commands + TTY output)
 
 - [x] **5.3 Final commit and DEVLOG**
   - Update DEVLOG with implementation summary and commit hashes
@@ -269,3 +269,107 @@ status: complete
   - Commit message: `docs: mark slice 208 complete, update DEVLOG`
   - [x] DEVLOG updated
   - [x] Final commit created
+
+---
+
+## Section 6: Slash Commands & TTY-Aware Output
+
+- [ ] **6.1 TTY-aware output for `buildAndPrint()`**
+  - File: `packages/cli/src/commands/build.ts`
+  - Modify `buildAndPrint()` to detect `process.stdout.isTTY`:
+    - If TTY (interactive terminal): write a help message to stderr with usage guidance, suppress raw prompt output to stdout
+    - If piped (`isTTY` is false/undefined): output raw prompt to stdout as before (preserves `cf build | pbcopy`)
+  - Help message format (to stderr):
+    ```
+    Context built for {project} ({phase}, {slice}).
+
+    To use this context:
+      /cf:build            — load as working context in Claude Code
+      cf build --json      — output as JSON for pipelines
+      cf build | pbcopy    — copy raw prompt to clipboard
+    ```
+  - For compound commands, the help message adapts to show the relevant command (e.g., `/cf:slice 208`)
+  - [ ] TTY terminal shows help message, no raw prompt
+  - [ ] Piped output produces raw prompt (existing behavior)
+  - [ ] TypeScript compiles
+
+- [ ] **6.2 `--json` flag for compound commands and `cf build`**
+  - Files: `packages/cli/src/commands/workflow.ts`, `packages/cli/src/commands/build.ts`
+  - Add `--json` option to all compound commands and `cf build`
+  - When `--json` is passed, output JSON to stdout:
+    ```json
+    { "project": "context-forge", "phase": "Phase 4: Slice Design", "context": "..." }
+    ```
+  - `--json` always outputs regardless of TTY (explicit flag overrides TTY detection)
+  - [ ] `cf build --json` outputs JSON
+  - [ ] `cf slice 208 --json` outputs JSON
+  - [ ] TypeScript compiles
+
+- [ ] **6.3 Create slash command files**
+  - Directory: `packages/cli/commands/cf/`
+  - Create 7 new files following the `/cf:build` pattern:
+    - `concept.md` — `/cf:concept`
+    - `initiatives.md` — `/cf:initiatives`
+    - `arch.md` — `/cf:arch <index>`
+    - `plan.md` — `/cf:plan <index>`
+    - `slice.md` — `/cf:slice <index>`
+    - `tasks.md` — `/cf:tasks <index>`
+    - `implement.md` — `/cf:implement <index>`
+  - Each file uses the same framing as `build.md`:
+    ```markdown
+    ---
+    description: {description}
+    argument-hint: {hint}
+    allowed-tools: Bash(cf:*)
+    ---
+
+    Use the following as your working context. Confirm receipt...
+
+    !`cf {command} $ARGUMENTS`
+    ```
+  - [ ] All 7 files created
+  - [ ] Files follow established pattern
+
+- [ ] **6.4 Register slash commands in `commandInstaller.ts`**
+  - File: `packages/cli/src/commands/commandInstaller.ts`
+  - Add new files to `MANAGED_FILES` array
+  - [ ] `cf install-commands` installs all new slash commands
+  - [ ] `cf uninstall-commands` removes all new slash commands
+
+- [ ] **6.5 Tests for TTY-aware output and --json**
+  - File: `packages/cli/tests/commands/workflow.test.ts` (extend existing)
+  - Add tests:
+    1. [ ] `cf slice 208` with `isTTY = true` — help message to stderr, no raw prompt to stdout
+    2. [ ] `cf slice 208` with `isTTY = false` — raw prompt to stdout
+    3. [ ] `cf slice 208 --json` — JSON output regardless of TTY
+    4. [ ] `cf build` follows same TTY pattern
+  - [ ] All new tests pass
+  - [ ] All existing tests still pass
+
+**Commit**: `feat(cli): add slash commands, TTY-aware output, and --json for compound commands`
+
+- [ ] **6.6 Update verification walkthrough**
+  - File: `user/slices/208-slice.compound-workflow-commands.md`
+  - Add verification steps for TTY behavior, --json output, and slash command installation
+
+---
+
+## Section 7: Final Validation (Phase 2)
+
+- [ ] **7.1 Full build and test verification**
+  - Run `pnpm build` from project root — verify clean
+  - Run `pnpm test` from project root — verify all tests pass
+  - [ ] Build succeeds with no errors
+  - [ ] All tests pass
+
+- [ ] **7.2 Install and verify slash commands**
+  - Run `cf install-commands`
+  - Verify new commands appear in `~/.claude/commands/cf/`
+  - [ ] All 7 new slash command files installed
+
+- [ ] **7.3 Update slice design and DEVLOG**
+  - Update slice design status back to `complete`
+  - Update DEVLOG with Phase 2 summary
+  - [ ] Status updated
+  - [ ] DEVLOG updated
+  - [ ] Final commit created

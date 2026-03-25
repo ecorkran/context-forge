@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20260323
-dateUpdated: 20260323
-status: complete
+dateUpdated: 20260324
+status: in-progress
 ---
 
 # Slice Design: Compound Workflow Commands
@@ -49,9 +49,8 @@ Reduces friction at every phase transition. A user typing `cf slice 208` instead
 
 ### Excluded
 
-- MCP tool equivalents (CLI-only; MCP clients use `project_update` + `context_build`)
+- MCP tool equivalents (MCP clients use `project_update` + `context_build`)
 - Changes to existing `cf set` or `cf build` behavior
-- New slash commands (these are CLI commands, not skill files)
 
 ## Technical Decisions
 
@@ -101,15 +100,71 @@ The warning is informational only — the command still proceeds. The user may l
 
 `cf implement` never warns — implementation is always continuation.
 
-### 7. Output Behavior
+### 7. Output Behavior — Three Modes
 
-Each compound command prints:
-1. The field-set confirmations (from `projectSetAction`, to stderr)
-2. The built context (from the build pipeline, to stdout)
+Compound commands (and `cf build`) have three distinct usage modes:
 
-Context output can be piped (`cf slice 208 | pbcopy`) — set confirmations go to stderr, context goes to stdout, matching existing `cf build` behavior.
+**Mode A: Slash command** (`/cf:slice 208`, `/cf:build`)
+- Sets project state, builds context, loads it as working context in the AI session
+- This is the primary use case — the prompt becomes the conversation context
+- May auto-proceed or stop-and-ask based on a config setting (future)
 
-### 8. Common Options
+**Mode B: CLI with `--json`** (`cf slice 208 --json`, `cf build --json`)
+- Sets project state (for compound commands), builds context, outputs as JSON to stdout
+- For pipelines and AI agents consuming via shell
+- JSON output wraps the context string: `{ "context": "...", "project": "...", "phase": "..." }`
+
+**Mode C: Bare CLI** (`cf slice 208`, `cf build`)
+- Currently dumps raw prompt to terminal — not useful
+- Changed to: print a helpful message to stderr explaining the two useful paths:
+  ```
+  Context built for context-forge (Phase 4: Slice Design, slice 208).
+
+  To use this context:
+    /cf:slice 208        — load as working context in Claude Code
+    cf slice 208 --json  — output as JSON for pipelines
+    cf slice 208 | pbcopy — copy raw prompt to clipboard
+  ```
+- Does NOT output the raw prompt to stdout (breaking change from current behavior)
+- Users who were piping (`cf build | pbcopy`) continue to work because the message goes to stderr and the context goes to stdout — actually, this would break the pipe. Alternative: detect if stdout is a TTY. If TTY (interactive terminal), show the help message. If piped, output the raw prompt as before.
+
+**TTY detection approach (preferred):**
+- `process.stdout.isTTY === true` → interactive terminal → show help message, suppress raw prompt
+- `process.stdout.isTTY === false` → piped/redirected → output raw prompt to stdout (current behavior preserved)
+- This is the standard Unix pattern (e.g., `ls` uses colors in TTY, plain in pipe)
+
+### 8. Slash Commands for Compound Commands
+
+Seven new slash command files in `packages/cli/commands/cf/`:
+
+| File | Command | Behavior |
+|------|---------|----------|
+| `concept.md` | `/cf:concept` | Sets Phase 0, builds concept prompt, loads as context |
+| `initiatives.md` | `/cf:initiatives` | Sets Phase 1, builds initiative plan prompt |
+| `arch.md` | `/cf:arch <index>` | Sets arch + Phase 2, builds architecture prompt |
+| `plan.md` | `/cf:plan <index>` | Sets plan + Phase 3, builds slice planning prompt |
+| `slice.md` | `/cf:slice <index>` | Sets slice + Phase 4, builds slice design prompt |
+| `tasks.md` | `/cf:tasks <index>` | Sets tasks + Phase 5, builds task breakdown prompt |
+| `implement.md` | `/cf:implement <index>` | Sets slice + Phase 6, builds implementation prompt |
+
+Each slash command follows the same pattern as `/cf:build`:
+```markdown
+---
+description: Set active slice and build slice design prompt
+argument-hint: <index>
+allowed-tools: Bash(cf:*)
+---
+
+Use the following as your working context. Confirm receipt with a one-line summary: "Context loaded: {project} | {phase} | {slice}" — then follow the instruction prompt. If the instruction prompt contains a STOP condition, STOP — do not begin work.
+
+!`cf slice $ARGUMENTS`
+```
+
+The slash commands call the CLI compound commands, which set state and output the prompt. The slash command wrapper provides the "load as working context" framing that Claude Code uses.
+
+These are added to `MANAGED_FILES` in `commandInstaller.ts` and installed via `cf install-commands`.
+
+### 9. Common Options
 
 All compound commands accept:
 - `--project <name|id>` — override project resolution
@@ -183,6 +238,18 @@ The old `arch.ts`, `plan.ts`, `slice.ts`, `task.ts` files remain but only export
 - All commands work correctly with worktrees
 - Auto-set rules fire as expected (e.g., `cf arch 220` also sets fileSlicePlan)
 - Context output goes to stdout, confirmations to stderr (pipeable)
+
+### TTY-Aware Output
+- `cf slice 208` in interactive terminal shows help message (use /cf:slice, --json, or pipe)
+- `cf slice 208 | pbcopy` outputs raw prompt (pipe detection, no help message)
+- `cf slice 208 --json` outputs JSON-wrapped context
+- `cf build` follows the same TTY-aware pattern
+- All compound commands and `cf build` consistent
+
+### Slash Commands
+- `/cf:concept`, `/cf:initiatives`, `/cf:arch`, `/cf:plan`, `/cf:slice`, `/cf:tasks`, `/cf:implement` installed by `cf install-commands`
+- Each slash command loads the built context as working context in Claude Code
+- `/cf:slice 208` produces the same context as current `cf slice 208` but within a Claude Code session
 
 ### List Commands
 - `cf list initiatives` shows the same output as current `cf arch list`
