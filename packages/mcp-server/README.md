@@ -137,6 +137,7 @@ See the [ai-project-guide repository](https://github.com/ecorkran/ai-project-gui
 ## Related
 
 - [Context Forge](../../README.md) — monorepo root with desktop app and full project documentation
+- [Agent Integration Guide](../../docs/AGENT-INTEGRATION.md) — how to integrate from AI agents, orchestrators, and CI pipelines
 - [@context-forge/core](../core/README.md) — the context generation engine that powers this server
 - [ai-project-guide](https://github.com/ecorkran/ai-project-guide) — the template system and project methodology
 

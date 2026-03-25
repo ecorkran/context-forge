@@ -184,6 +184,8 @@ All interfaces consume `@context-forge/core` directly. The MCP server and CLI pr
 
 **[ai-project-guide](https://github.com/ecorkran/ai-project-guide)** — The methodology framework. Phases, guides, prompt templates, review rules, IDE configuration. This is what Context Forge's structure is built on. Install it with `cf guides install`.
 
+**[Agent Integration Guide](docs/AGENT-INTEGRATION.md)** — How to integrate with Context Forge from an AI agent, orchestrator, or CI pipeline. Covers MCP tools, CLI `--json` mode, structured errors, and command discovery.
+
 ## Published Packages
 
 - [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp)
