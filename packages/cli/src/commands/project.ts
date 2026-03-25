@@ -248,6 +248,30 @@ export async function projectSetAction(
     ? (existing.worktrees ?? []).find((wt) => wt.id === worktreeId)?.name
     : undefined;
 
+  // Idempotency check: skip write if value is already set
+  const currentValue = (() => {
+    if (worktreeId && isWorktreeField(resolvedField) && !opts.projectLevel) {
+      const wt = (existing.worktrees ?? []).find((w) => w.id === worktreeId);
+      if (wt) {
+        const wtField = PROJECT_TO_WORKTREE_FIELD[resolvedField] ?? resolvedField;
+        return (wt as unknown as Record<string, unknown>)[wtField] as string | undefined;
+      }
+      return undefined;
+    }
+    if (resolvedField.startsWith('customData.')) {
+      const subField = resolvedField.split('.')[1];
+      return (existing.customData as Record<string, string> | undefined)?.[subField];
+    }
+    return (existing as unknown as Record<string, unknown>)[resolvedField] as string | undefined;
+  })();
+
+  if (currentValue === resolvedValue) {
+    const displayName = fieldDef?.aliases[0] ?? resolvedField;
+    const scope = worktreeName ? ` on worktree context "${worktreeName}"` : '';
+    process.stderr.write(`${displayName} already set to ${resolvedValue}${scope}\n`);
+    return;
+  }
+
   // Route worktree-scoped fields to WorktreeService when worktree is resolved
   if (worktreeId && isWorktreeField(resolvedField) && !opts.projectLevel) {
     const svc = new WorktreeService(store);

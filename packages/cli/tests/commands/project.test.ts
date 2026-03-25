@@ -250,7 +250,8 @@ describe('cf project set', () => {
   });
 
   it('resolves phase number and auto-sets instruction', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
+    // Use project with a different phase to avoid idempotency short-circuit
+    mockGetById.mockResolvedValue({ ...sampleProject, developmentPhase: 'Phase 4: Slice Design' });
     mockComputeAutoSetFields.mockReturnValue({
       derivedUpdates: { instruction: 'Phase 6: Implementation' },
       descriptions: ['instruction = Phase 6: Implementation (auto-set from developmentPhase)'],
@@ -288,7 +289,8 @@ describe('cf project set', () => {
   });
 
   it('resolves case-insensitive field names', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
+    // Use project with a different phase to avoid idempotency short-circuit
+    mockGetById.mockResolvedValue({ ...sampleProject, developmentPhase: 'Phase 4: Slice Design' });
     mockComputeAutoSetFields.mockReturnValueOnce({
       derivedUpdates: { instruction: 'Phase 6: Implementation' },
       descriptions: ['instruction'],
@@ -386,6 +388,46 @@ describe('cf project --schema', () => {
     const joined = calls.join('\n');
     // Enum values appear in "Allowed values" section at bottom
     expect(joined).toContain('start | continue');
+  });
+});
+
+describe('cf project set — idempotency', () => {
+  let stderrData: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stderrData = '';
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: string | Uint8Array) => {
+      stderrData += String(chunk);
+      return true;
+    });
+  });
+
+  it('skips write when value is already set', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'fileSlice', '100-slice.auth',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(stderrData).toContain('already set');
+  });
+
+  it('proceeds with write when value differs', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'project', 'set', 'fileSlice', '200-slice.new',
+      '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalled();
+    expect(stderrData).not.toContain('already set');
   });
 });
 
