@@ -116,22 +116,17 @@ Compound commands (and `cf build`) have three distinct usage modes:
 
 **Mode C: Bare CLI** (`cf slice 208`, `cf build`)
 - Currently dumps raw prompt to terminal — not useful
-- Changed to: print a helpful message to stderr explaining the two useful paths:
+- Changed to: sets project state (for compound commands), then prints a help message explaining how to use the context:
   ```
   Context built for context-forge (Phase 4: Slice Design, slice 208).
 
   To use this context:
     /cf:slice 208        — load as working context in Claude Code
     cf slice 208 --json  — output as JSON for pipelines
-    cf slice 208 | pbcopy — copy raw prompt to clipboard
   ```
-- Does NOT output the raw prompt to stdout (breaking change from current behavior)
-- Users who were piping (`cf build | pbcopy`) continue to work because the message goes to stderr and the context goes to stdout — actually, this would break the pipe. Alternative: detect if stdout is a TTY. If TTY (interactive terminal), show the help message. If piped, output the raw prompt as before.
-
-**TTY detection approach (preferred):**
-- `process.stdout.isTTY === true` → interactive terminal → show help message, suppress raw prompt
-- `process.stdout.isTTY === false` → piped/redirected → output raw prompt to stdout (current behavior preserved)
-- This is the standard Unix pattern (e.g., `ls` uses colors in TTY, plain in pipe)
+- No raw prompt output in any case (no TTY detection needed)
+- Help message goes to stderr, nothing to stdout
+- This is a breaking change: `cf build | pbcopy` no longer works. Use `cf build --json` for pipeline consumption.
 
 ### 8. Slash Commands for Compound Commands
 
@@ -239,11 +234,10 @@ The old `arch.ts`, `plan.ts`, `slice.ts`, `task.ts` files remain but only export
 - Auto-set rules fire as expected (e.g., `cf arch 220` also sets fileSlicePlan)
 - Context output goes to stdout, confirmations to stderr (pipeable)
 
-### TTY-Aware Output
-- `cf slice 208` in interactive terminal shows help message (use /cf:slice, --json, or pipe)
-- `cf slice 208 | pbcopy` outputs raw prompt (pipe detection, no help message)
+### Bare CLI Output
+- `cf slice 208` shows help message (use /cf:slice or --json), no raw prompt
+- `cf build` shows same help message pattern, no raw prompt
 - `cf slice 208 --json` outputs JSON-wrapped context
-- `cf build` follows the same TTY-aware pattern
 - All compound commands and `cf build` consistent
 
 ### Slash Commands

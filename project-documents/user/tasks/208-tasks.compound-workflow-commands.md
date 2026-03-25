@@ -274,23 +274,20 @@ status: in-progress
 
 ## Section 6: Slash Commands & TTY-Aware Output
 
-- [ ] **6.1 TTY-aware output for `buildAndPrint()`**
+- [ ] **6.1 Bare CLI help message for `buildAndPrint()`**
   - File: `packages/cli/src/commands/build.ts`
-  - Modify `buildAndPrint()` to detect `process.stdout.isTTY`:
-    - If TTY (interactive terminal): write a help message to stderr with usage guidance, suppress raw prompt output to stdout
-    - If piped (`isTTY` is false/undefined): output raw prompt to stdout as before (preserves `cf build | pbcopy`)
-  - Help message format (to stderr):
+  - Modify `buildAndPrint()`: instead of outputting raw prompt to stdout, write a help message to stderr:
     ```
     Context built for {project} ({phase}, {slice}).
 
     To use this context:
       /cf:build            — load as working context in Claude Code
       cf build --json      — output as JSON for pipelines
-      cf build | pbcopy    — copy raw prompt to clipboard
     ```
+  - No raw prompt output to stdout in any case (breaking change: `cf build | pbcopy` no longer works)
   - For compound commands, the help message adapts to show the relevant command (e.g., `/cf:slice 208`)
-  - [ ] TTY terminal shows help message, no raw prompt
-  - [ ] Piped output produces raw prompt (existing behavior)
+  - `buildAndPrint()` needs a way to know the originating command name for the help message (parameter or option)
+  - [ ] Bare CLI shows help message to stderr, nothing to stdout
   - [ ] TypeScript compiles
 
 - [ ] **6.2 `--json` flag for compound commands and `cf build`**
@@ -339,10 +336,10 @@ status: in-progress
 - [ ] **6.5 Tests for TTY-aware output and --json**
   - File: `packages/cli/tests/commands/workflow.test.ts` (extend existing)
   - Add tests:
-    1. [ ] `cf slice 208` with `isTTY = true` — help message to stderr, no raw prompt to stdout
-    2. [ ] `cf slice 208` with `isTTY = false` — raw prompt to stdout
-    3. [ ] `cf slice 208 --json` — JSON output regardless of TTY
-    4. [ ] `cf build` follows same TTY pattern
+    1. [ ] `cf slice 208` — help message to stderr, no raw prompt to stdout
+    2. [ ] `cf slice 208 --json` — JSON output to stdout
+    3. [ ] `cf build` — help message to stderr, no raw prompt to stdout
+    4. [ ] `cf build --json` — JSON output to stdout
   - [ ] All new tests pass
   - [ ] All existing tests still pass
 
