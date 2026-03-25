@@ -26,9 +26,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Old commands removed: `cf arch list`, `cf plan list`, `cf slice list`, `cf tasks list`, `cf tasks items`
 - Artifact existence warnings fire for all commands except `cf implement`
 - Auto-set rules work through compound commands (e.g., `cf arch 220` auto-sets fileSlicePlan)
-- Set/unset confirmations routed to stderr for pipeable compound output (`cf concept | pbcopy`)
-- All 1345 tests passing (716 core, 347 CLI, 176 MCP, 106 electron)
-- Commits: `4188c97` extract handlers, `fd0d94c` cf list, `516c25b` workflow commands, `647b5fe` tests, `756e780` stderr routing
+- Set/unset confirmations routed to stderr for pipeable compound output
+- Strict numeric validation on compound command arguments (`cf slice banana` → error)
+- Moderate warning on `cf set` artifact fields for non-numeric values
+- **Phase 2: Slash commands and output modes**
+  - Seven new slash commands: `/cf:concept`, `/cf:initiatives`, `/cf:arch`, `/cf:plan`, `/cf:slice`, `/cf:tasks`, `/cf:implement`
+  - Bare CLI no longer outputs raw prompt — shows help message to stderr instead
+  - `--json` flag on all compound commands and `cf build` outputs `{ project, phase, context }` to stdout
+  - Slash commands use `--json` to capture context for Claude Code sessions
+  - Updated `/cf:build` to use `--json` (breaking: bare `cf build` no longer pipes raw prompt)
+  - 16 total slash commands installed via `cf install-commands`
+- All 1357 tests passing (716 core, 359 CLI, 176 MCP, 106 electron)
+- Commits: `4188c97` extract handlers, `fd0d94c` cf list, `516c25b` workflow commands, `647b5fe` tests, `756e780` stderr routing, `c71b21c` numeric validation, `5e36b49` slash commands + --json
 
 ---
 
