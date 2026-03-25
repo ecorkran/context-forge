@@ -20,6 +20,7 @@ import { registerInitCommand } from './commands/init.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
 import { handleError } from './utils/errors.js';
+import { buildCommandCatalog } from './utils/commandCatalog.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
@@ -119,6 +120,20 @@ registerInitCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 registerSetupIdeCommand(program);
+
+// Machine-readable help
+program
+  .command('help')
+  .description('Display help information (use --json for machine-readable catalog)')
+  .option('--json', 'Output command catalog as JSON')
+  .action((opts: { json?: boolean }) => {
+    if (opts.json) {
+      const catalog = buildCommandCatalog(program, version);
+      process.stdout.write(JSON.stringify(catalog, null, 2) + '\n');
+    } else {
+      program.outputHelp();
+    }
+  });
 
 // Catch unhandled errors at top level
 process.on('uncaughtException', handleError);

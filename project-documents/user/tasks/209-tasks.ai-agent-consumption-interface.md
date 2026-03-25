@@ -7,7 +7,7 @@ dependencies: [208]
 projectState: Slice 208 complete (compound commands, cf list, slash commands, --json). All 1357 tests passing (716 core, 359 CLI, 176 MCP, 106 electron). Build clean. Version 0.6.23 published.
 dateCreated: 20260324
 dateUpdated: 20260324
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
