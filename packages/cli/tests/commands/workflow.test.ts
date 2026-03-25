@@ -70,6 +70,7 @@ describe('compound workflow commands', () => {
     stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -245,5 +246,50 @@ describe('compound workflow commands', () => {
     // Without --project-level, the option should not be set to true
     const opts = mockProjectSetAction.mock.calls[0][2];
     expect(opts.projectLevel).toBeFalsy();
+  });
+
+  // ── Numeric index validation ──
+
+  it('cf slice rejects non-numeric argument', async () => {
+    const program = createProgram();
+    const errorSpy = vi.spyOn(console, 'error');
+    await program.parseAsync(['node', 'cf', 'slice', 'banana']);
+
+    expect(mockProjectSetAction).not.toHaveBeenCalled();
+    expect(mockBuildAndPrint).not.toHaveBeenCalled();
+    const errorOutput = errorSpy.mock.calls.map((c) => String(c[0])).join('');
+    expect(errorOutput).toContain('requires a numeric index');
+  });
+
+  it('cf arch rejects non-numeric argument', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'arch', 'list']);
+
+    expect(mockProjectSetAction).not.toHaveBeenCalled();
+    expect(mockBuildAndPrint).not.toHaveBeenCalled();
+  });
+
+  it('cf implement rejects non-numeric argument', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'implement', 'foo']);
+
+    expect(mockProjectSetAction).not.toHaveBeenCalled();
+    expect(mockBuildAndPrint).not.toHaveBeenCalled();
+  });
+
+  it('cf tasks rejects non-numeric argument', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'tasks', 'items']);
+
+    expect(mockProjectSetAction).not.toHaveBeenCalled();
+    expect(mockBuildAndPrint).not.toHaveBeenCalled();
+  });
+
+  it('cf plan rejects non-numeric argument', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'plan', 'list']);
+
+    expect(mockProjectSetAction).not.toHaveBeenCalled();
+    expect(mockBuildAndPrint).not.toHaveBeenCalled();
   });
 });

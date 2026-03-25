@@ -193,6 +193,17 @@ export async function projectSetAction(
   // Index-based file resolution: cf set slice 171 → scans for matching file
   // Falls back to slice plan entry name if file doesn't exist on disk
   const opPath = resolveOperationPath(existing, worktreeId);
+
+  // Warn on non-numeric artifact values that don't match expected patterns
+  // Valid patterns: numeric index (handled below), or NNN-type.name stem
+  if (fieldDef?.group === 'artifacts' && !/^\d+$/.test(resolvedValue) && !/^\d+-\w+\./.test(resolvedValue)) {
+    process.stderr.write(
+      `Warning: '${resolvedValue}' doesn't look like a valid artifact value.\n` +
+      `  Expected a numeric index (e.g. 200) or artifact stem (e.g. 200-slice.my-feature).\n` +
+      `  Setting anyway — use cf unset ${fieldDef.aliases[0] ?? resolvedField} to revert.\n`,
+    );
+  }
+
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && opPath) {
     // Use worktree-resolved project for slice plan lookup (project-level fields
     // may be cleared after migration, but the worktree context has the values)
