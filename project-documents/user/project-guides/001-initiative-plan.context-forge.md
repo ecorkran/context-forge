@@ -28,7 +28,7 @@ Variable gaps based on expected initiative breadth. The project predates formal 
 
 5. [ ] **(220) Event-Driven Pipeline** — Persistent MCP server daemon with Streamable HTTP transport, storage-layer event emission, server-initiated notifications for multi-client coordination and event-driven automation. Dependencies: [140]. Status: active (slice 221 in progress)
 
-6. [ ] **(900) Maintenance & Refactoring** — Ongoing maintenance initiative for cross-cutting improvements: pattern consolidation, hard-coding reduction, code quality audits, and refactoring work that doesn't belong to a feature initiative. Dependencies: none. Status: not_started
+6. [ ] **(900) Maintenance & Refactoring** (perpetual) — Ongoing maintenance initiative for cross-cutting improvements: pattern consolidation, hard-coding reduction, code quality audits, and refactoring work that doesn't belong to a feature initiative. Dependencies: none. Status: not_started
 
 ## Cross-Initiative Dependencies
 - 160 depends on 140: requires MCP infrastructure, standardized types, and filesystem-based storage from the v2 restructure

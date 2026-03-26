@@ -151,6 +151,7 @@ function makeModel(overrides: Partial<ProjectModel> = {}): ProjectModel {
     foundation: [],
     projectArchitecture: [],
     initiatives: {},
+    maintenanceInitiatives: {},
     futureSlices: [],
     quality: [],
     investigation: [],

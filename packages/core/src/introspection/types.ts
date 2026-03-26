@@ -142,6 +142,7 @@ export interface ProjectModel {
   foundation: FoundationEntry[];
   projectArchitecture: ArchEntry[];
   initiatives: Record<string, Initiative>;
+  maintenanceInitiatives: Record<string, Initiative>;
   futureSlices: FutureSliceEntry[];
   quality: DocSummary[];
   investigation: DocSummary[];

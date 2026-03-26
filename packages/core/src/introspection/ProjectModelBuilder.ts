@@ -43,6 +43,7 @@ export function mergeProjectModels(models: ProjectModel[]): ProjectModel {
     foundation: [],
     projectArchitecture: [],
     initiatives: {},
+    maintenanceInitiatives: {},
     futureSlices: [],
     quality: [],
     investigation: [],
@@ -61,6 +62,11 @@ export function mergeProjectModels(models: ProjectModel[]): ProjectModel {
     for (const [key, init] of Object.entries(model.initiatives)) {
       if (!merged.initiatives[key]) {
         merged.initiatives[key] = init;
+      }
+    }
+    for (const [key, init] of Object.entries(model.maintenanceInitiatives)) {
+      if (!merged.maintenanceInitiatives[key]) {
+        merged.maintenanceInitiatives[key] = init;
       }
     }
   }
@@ -267,6 +273,7 @@ export async function buildModel(
     foundation: [],
     projectArchitecture: [],
     initiatives: {},
+    maintenanceInitiatives: {},
     futureSlices: [],
     quality: [],
     investigation: [],
@@ -299,11 +306,11 @@ export async function buildModel(
     type: (d.name.includes('hld') || d.docType === 'hld' ? 'hld' : 'arch') as 'hld' | 'arch',
   })) as ArchEntry[];
 
-  // --- Initiative bands (100-799) ---
+  // --- Initiative bands (100+, including 900+ maintenance initiatives) ---
   // Identify base indices from arch or slices docs
   const baseIndices = new Set<number>();
   for (const d of docs) {
-    if (d.index >= 100 && d.index <= 799 && (d.docType === 'arch' || d.docType === 'slices')) {
+    if (d.index >= 100 && (d.docType === 'arch' || d.docType === 'slices')) {
       baseIndices.add(d.index);
     }
   }
@@ -312,7 +319,7 @@ export async function buildModel(
 
   for (let i = 0; i < sortedBases.length; i++) {
     const base = sortedBases[i];
-    const upper = i + 1 < sortedBases.length ? sortedBases[i + 1] : 800;
+    const upper = i + 1 < sortedBases.length ? sortedBases[i + 1] : Infinity;
 
     const archDoc = docs.find((d) => d.index === base && d.docType === 'arch');
     const slicesDoc = docs.find((d) => d.index === base && d.docType === 'slices');
@@ -426,6 +433,15 @@ export async function buildModel(
     model.initiatives[pad(base)] = initiative;
   }
 
+  // --- Partition 900+ initiatives into maintenanceInitiatives ---
+  model.maintenanceInitiatives = {};
+  for (const [key, init] of Object.entries(model.initiatives)) {
+    if (parseInt(key, 10) >= 900) {
+      model.maintenanceInitiatives[key] = init;
+      delete model.initiatives[key];
+    }
+  }
+
   // --- Operational band (900+) ---
   // Quality: review docs 900+
   model.quality = docs
@@ -439,7 +455,7 @@ export async function buildModel(
     .sort((a, b) => a.index - b.index)
     .map(toDocSummary);
 
-  // Maintenance: tasks docs 900+
+  // Maintenance: flat task list from 900+ (backward compat)
   model.maintenance = docs
     .filter((d) => d.index >= 900 && d.docType === 'tasks')
     .sort((a, b) => a.index - b.index)
