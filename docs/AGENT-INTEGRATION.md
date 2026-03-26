@@ -48,7 +48,7 @@ Set `CF_JSON=1` or pass `--json` (on commands that support it) to get structured
 
 ## Idempotency
 
-State-mutating commands (`cf set`, compound commands) are idempotent. Setting a field to its current value prints "already set" to stderr and exits 0 without writing. Safe to retry without side effects.
+State-mutating commands (`cf set`) are idempotent. Setting a field to its current value prints "already set" to stderr and exits 0 without writing. Safe to retry without side effects.
 
 ## MCP Quick Start
 

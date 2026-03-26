@@ -107,7 +107,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 
 ### CLI (`@context-forge/cli`)
 
-`cf` works like `git` — install it globally and it detects your project from the current directory. Compound commands like `cf slice 208` replace the old `cf set slice 208 && cf set phase 4 && cf build` ceremony — one command per phase transition. Pipeable output: `cf slice 208 | pbcopy` gives you a ready-to-paste context prompt. `--json` on every read command for scripting.
+`cf` works like `git` — install it globally and it detects your project from the current directory. `--json` on every read command for scripting.
 
 | Command | Description |
 |---------|-------------|
@@ -118,14 +118,6 @@ Context Forge is available through four interfaces — use whichever fits your w
 | `cf set <field> <value>` | Set a project field |
 | `cf get` | Show all project fields |
 | `cf check` | Run consistency checks (`--fix`, `--slice`) |
-| **Compound commands** | **Set phase + artifact + build in one step** |
-| `cf concept` | Set Phase 0 and build concept prompt |
-| `cf initiatives` | Set Phase 1 and build initiative plan prompt |
-| `cf arch <index>` | Set architecture initiative, Phase 2, and build |
-| `cf plan <index>` | Set slice plan, Phase 3, and build |
-| `cf slice <index>` | Set active slice, Phase 4, and build |
-| `cf tasks <index>` | Set task file, Phase 5, and build |
-| `cf implement <index>` | Set active slice, Phase 6, and build |
 | **Listing** | **Browse project artifacts** |
 | `cf list projects` | All registered projects |
 | `cf list initiatives` | Architecture initiatives with slice counts |

@@ -19,6 +19,8 @@ status: in_progress
 2. [ ] **(902) Electron UI & Security Maintenance** — Open Electron issues: combobox TS errors (#27), debounce bypass (#28), IPC path validation (#35), production CSP (#36), external link allowlist (#37). Dependencies: none. Risk: Low. Effort: 2/5
 3. [x] **(903) Schema-Driven Field Lists** — Replace duplicated hard-coded field arrays (ARTIFACT_FIELDS, WORKFLOW_FIELDS, fieldKeys, MANAGED_FILES) with schema-derived or filesystem-derived sources. Dependencies: none. Risk: Medium. Effort: 3/5
 
+4. [ ] **(904) Extract Compound Commands to Squadron** — Remove compound workflow commands (cf concept, cf initiatives, cf arch, cf plan, cf slice, cf tasks, cf implement) and their slash commands from CF CLI. These move to Squadron where they're a better fit. Dependencies: none. Risk: Low. Effort: 2/5
+
 ## Integration Work
 
 (none — maintenance slices are self-contained)

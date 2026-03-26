@@ -35,12 +35,7 @@ cf project --help
 # Check project status
 cf status
 
-# Compound workflow commands — set phase + artifact + build context in one step
-cf concept             # Start concept phase
-cf slice 208           # Set active slice 208, switch to slice design phase, build context
-cf implement 208       # Switch to implementation phase for slice 208
-
-# Set project fields individually
+# Set project fields
 cf set phase 6
 cf set slice 175
 
@@ -70,13 +65,6 @@ When installed via `cf install-commands`, these slash commands are available dir
 | Command | Description |
 |---------|-------------|
 | `/cf:build` | Build a context prompt (accepts `--phase`, `--slice` flags) |
-| `/cf:concept` | Set phase to Concept and build context |
-| `/cf:initiatives` | Set phase to Initiative Plan and build context |
-| `/cf:arch <index>` | Set architecture initiative and build context |
-| `/cf:plan <index>` | Set slice plan and build context |
-| `/cf:slice <index>` | Set active slice and build context |
-| `/cf:tasks <index>` | Set active task file and build context |
-| `/cf:implement <index>` | Set slice for implementation and build context |
 | `/cf:status` | Show project workflow status |
 | `/cf:get` | Show all project fields |
 | `/cf:set` | Set a project field (e.g., `/cf:set phase 6`) |
@@ -89,20 +77,6 @@ When installed via `cf install-commands`, these slash commands are available dir
 Each command runs `cf` under the hood — same CWD-based project resolution, same output.
 
 ## Commands Reference
-
-### Compound Workflow Commands
-
-One command sets the appropriate artifact + phase, then builds context:
-
-| Command | Description |
-|---------|-------------|
-| `cf concept` | Set phase to Concept, build context |
-| `cf initiatives` | Set phase to Initiative Plan, build context |
-| `cf arch <index>` | Set architecture initiative, build context |
-| `cf plan <index>` | Set slice plan, build context |
-| `cf slice <index>` | Set active slice, build context |
-| `cf tasks <index>` | Set active task file, build context |
-| `cf implement <index>` | Set slice for implementation, build context |
 
 ### Listing Commands
 

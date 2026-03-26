@@ -14,4 +14,5 @@ export interface BreakingChange {
 export const BREAKING_CHANGES: BreakingChange[] = [
   { since: '0.6.20', change: 'cf slice list → cf list slices (and other artifact list commands)' },
   { since: '0.6.23', change: 'Bare cf build no longer outputs raw prompt — use cf build --json or /cf:build slash command' },
+  { since: '0.6.26', change: 'Compound commands (cf concept, cf arch, cf slice, cf tasks, cf implement, cf plan, cf initiatives) removed — use cf set + cf build, or Squadron (sq) equivalents' },
 ];

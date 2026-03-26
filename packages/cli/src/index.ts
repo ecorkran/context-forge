@@ -11,7 +11,6 @@ import { registerProjectCommand, projectSetAction, projectGetAction, projectUnse
 import { registerPromptCommand } from './commands/prompt.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerListCommand } from './commands/list.js';
-import { registerWorkflowCommands } from './commands/workflow.js';
 import { registerWorktreeCommand } from './commands/worktree.js';
 import { registerBackupCommand } from './commands/backup.js';
 import { registerConfigCommand } from './commands/config.js';
@@ -105,7 +104,6 @@ program
   });
 
 // Compound workflow commands
-registerWorkflowCommands(program);
 
 // Artifact listing
 registerListCommand(program);

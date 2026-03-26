@@ -24,8 +24,6 @@ interface BuildAndPrintOpts {
   phase?: string;
   slice?: string;
   json?: boolean;
-  /** Hint for the help message, e.g. "slice 208". Defaults to "build". */
-  commandHint?: string;
 }
 
 /**
@@ -87,14 +85,13 @@ export async function buildAndPrint(opts: BuildAndPrintOpts): Promise<void> {
     });
   } else {
     // Bare CLI: help message to stderr, nothing to stdout
-    const cmd = opts.commandHint ?? 'build';
     const sliceInfo = workingCopy.fileSlice ? `, slice ${workingCopy.fileSlice}` : '';
     const phaseInfo = workingCopy.developmentPhase ?? 'no phase set';
     process.stderr.write(
       `\nContext built for ${project.name} (${phaseInfo}${sliceInfo}).\n\n` +
       `To use this context:\n` +
-      `  /cf:${cmd.split(' ')[0]} ${cmd.includes(' ') ? cmd.split(' ').slice(1).join(' ') : '$ARGUMENTS'} — load as working context in Claude Code\n` +
-      `  cf ${cmd} --json${cmd === 'build' ? '' : '  '} — output as JSON for pipelines\n`,
+      `  /cf:build — load as working context in Claude Code\n` +
+      `  cf build --json — output as JSON for pipelines\n`,
     );
   }
 }
