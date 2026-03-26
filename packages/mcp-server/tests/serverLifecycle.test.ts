@@ -121,7 +121,6 @@ describe('Server Lifecycle', () => {
     const tools = toolsResult.tools as { name: string }[];
     const toolNames = tools.map((t) => t.name).sort();
     expect(toolNames).toEqual([
-      'agent_guide',
       'agent_onboard',
       'agent_quickstart',
       'config_get',

@@ -52,7 +52,7 @@ State-mutating commands (`cf set`, compound commands) are idempotent. Setting a 
 
 ## MCP Quick Start
 
-For MCP-connected agents, call `agent_quickstart` to get a structured capability schema with tool groupings, a quickstart sequence, and CLI equivalents. For human-supervised sessions, use `agent_guide` instead.
+For MCP-connected agents, call `agent_quickstart` to get a structured capability schema with tool groupings, a quickstart sequence, and CLI equivalents. For human-supervised sessions, use `agent_onboard` to get step-by-step project setup instructions.
 
 ## CLI vs MCP: When to Use Which
 

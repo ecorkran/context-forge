@@ -153,7 +153,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
         }
 
         const serverInfo = serverVersion
-          ? { serverVersion, hint: 'Call agent_guide for tool orientation, agent_onboard for new project setup.' }
+          ? { serverVersion, hint: 'Call agent_quickstart for tool orientation, agent_onboard for new project setup.' }
           : undefined;
 
         // Enrich with introspection when projectPath is available

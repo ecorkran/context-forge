@@ -26,7 +26,7 @@ export function registerConfigTools(server: McpServer, serverVersion?: string): 
       try {
         const cm = new ConfigManager(projectPath);
         const serverInfo = serverVersion
-          ? { serverVersion, hint: 'Call agent_guide for tool orientation, agent_onboard for new project setup.' }
+          ? { serverVersion, hint: 'Call agent_quickstart for tool orientation, agent_onboard for new project setup.' }
           : undefined;
         if (key) {
           const result = await cm.get(key);

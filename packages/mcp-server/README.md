@@ -69,7 +69,6 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 
 | Tool | Description |
 |------|-------------|
-| `agent_guide` | How to use Context Forge tools — call this first |
 | `agent_onboard` | Step-by-step onboarding recipe for new projects |
 | `agent_quickstart` | Structured capability schema for machine consumers (orchestrators, CI) |
 

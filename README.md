@@ -103,7 +103,7 @@ Context Forge is available through four interfaces — use whichever fits your w
 | Configuration | `config_get`, `config_set` |
 | Guides | `guide_install`, `guide_status`, `guide_update` |
 | Storage | `storage_backup` |
-| Meta | `agent_guide`, `agent_onboard`, `server_version` |
+| Meta | `agent_onboard`, `agent_quickstart`, `server_version` |
 
 ### CLI (`@context-forge/cli`)
 
