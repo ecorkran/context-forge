@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.25] - 20260325
+
+### Added
+- 900-band maintenance initiative support: `maintenanceInitiatives` field in project model (same `Initiative` type, separate display bucket for visualization)
+- `getFieldNamesByGroup()` schema utility for deriving field lists from `PROJECT_FIELDS`
+- `agent_quickstart` MCP tool — structured JSON capability schema for machine consumers (slice 209)
+- `cf help --json` — machine-readable command catalog
+- `cf version --json` — structured version output
+- Structured JSON error format for `--json` mode (code, message, suggestion fields)
+- `docs/AGENT-INTEGRATION.md` — agent consumption guide
+- 7 new slash commands for compound workflows (`/cf:concept`, `/cf:initiatives`, `/cf:arch`, `/cf:plan`, `/cf:slice`, `/cf:tasks`, `/cf:implement`)
+
+### Fixed
+- `cf list tasks` and `cf list plans` no longer error on empty directories — returns empty result instead of `UserError` (blocked Squadron review commands on new projects)
+- Compound commands (`cf slice`, `cf tasks`, etc.) now validate numeric index — previously `cf slice banana` silently set invalid values
+- `cf set` warns on non-numeric artifact values that don't match expected patterns
+
+### Changed
+- Removed `agent_guide` MCP tool (superseded by `agent_quickstart`)
+- Replaced hard-coded field arrays (ARTIFACT_FIELDS, WORKFLOW_FIELDS, fieldKeys, MANAGED_FILES) with schema-derived or filesystem-derived sources
+- Initiative detection expanded from 100-799 to 100+ (900+ partitioned into `maintenanceInitiatives`)
+- Bare `cf build` (no flags) now shows help message instead of raw prompt output
+
 ## [0.6.8] - 20260318
 
 ### Added
