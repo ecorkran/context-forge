@@ -227,17 +227,12 @@ export function registerWorktreeTools(server: McpServer): void {
           indexRange = parsed;
         }
 
-        // Collect non-undefined update fields
+        // Collect non-undefined update fields (all args except routing keys)
+        const NON_UPDATE_KEYS = new Set(['projectId', 'worktree', 'indexRange']);
         const updates: Record<string, unknown> = {};
-        const fieldKeys = [
-          'name', 'worktreePath', 'archDoc', 'slicePlan',
-          'developmentPhase', 'activeSlice', 'activeTaskFile',
-          'instruction', 'workType', 'rangeOverride',
-        ] as const;
-
-        for (const key of fieldKeys) {
-          if (args[key] !== undefined) {
-            updates[key] = args[key];
+        for (const [key, value] of Object.entries(args)) {
+          if (!NON_UPDATE_KEYS.has(key) && value !== undefined) {
+            updates[key] = value;
           }
         }
         if (indexRange) {

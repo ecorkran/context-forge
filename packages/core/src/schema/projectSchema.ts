@@ -173,6 +173,11 @@ export function validateFieldValue(
 /** Field group display order. */
 export const FIELD_GROUPS: FieldGroup[] = ['identity', 'artifacts', 'workflow', 'metadata', 'custom'];
 
+/** Get field names belonging to a given group. */
+export function getFieldNamesByGroup(group: FieldGroup): string[] {
+  return PROJECT_FIELDS.filter((f) => f.group === group).map((f) => f.field);
+}
+
 /**
  * Returns the full schema structure for external consumption (MCP, CLI --schema).
  */

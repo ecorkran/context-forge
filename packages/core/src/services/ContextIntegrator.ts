@@ -5,9 +5,7 @@ import { ContextTemplateEngine } from './ContextTemplateEngine.js';
 import { ContextProfileParser } from './ContextProfileParser.js';
 import type { ProfileMap } from './ContextProfileParser.js';
 import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
-
-/** Artifact fields subject to profile-aware filtering */
-const ARTIFACT_FIELDS = ['fileArch', 'fileSlicePlan', 'fileHLD', 'fileSpec', 'fileSlice', 'fileTasks', 'fileConcept'] as const;
+import { getFieldNamesByGroup } from '../schema/projectSchema.js';
 
 /**
  * Default template for context generation
@@ -179,7 +177,7 @@ export class ContextIntegrator {
     if (Object.keys(profiles).length === 0) return;
 
     const allowedVars = this.profileParser.getProfileForInstruction(instruction, profiles);
-    for (const field of ARTIFACT_FIELDS) {
+    for (const field of getFieldNamesByGroup('artifacts')) {
       if (!allowedVars.includes(field)) {
         (data as unknown as Record<string, unknown>)[field] = '';
       }

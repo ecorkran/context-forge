@@ -9,26 +9,16 @@ import type {
   WorktreePathStatus,
 } from '../types/worktree.js';
 import type { WorktreeInfo } from '../types/git.js';
+import { WORKTREE_SCOPED_FIELDS } from '../project-defaults.js';
 
 /** Generate a unique worktree ID. */
 function generateWorktreeId(): string {
   return `wt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
-/** The workflow fields on ProjectData that get migrated to/from WorktreeContext. */
-const WORKFLOW_FIELDS = [
-  'developmentPhase',
-  'fileSlice',
-  'fileTasks',
-  'instruction',
-  'workType',
-  'fileArch',
-  'fileSlicePlan',
-] as const;
-
 /** Check if a project has any non-empty workflow fields worth migrating. */
 function hasWorkflowFields(project: ProjectData): boolean {
-  return WORKFLOW_FIELDS.some((field) => {
+  return [...WORKTREE_SCOPED_FIELDS].some((field) => {
     const value = project[field as keyof ProjectData];
     return value !== undefined && value !== '';
   });

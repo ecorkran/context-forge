@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { PathValidationResult, DirectoryListResult } from '../types/paths.js';
 
+/** Core subdirectories expected in a valid project. Subset of SCAN_DIRS in ProjectModelBuilder. */
 const EXPECTED_SUBDIRS = ['slices', 'tasks', 'features', 'architecture'] as const;
 
 /** Type guard for Node.js filesystem errors */

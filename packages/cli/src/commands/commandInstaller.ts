@@ -8,12 +8,6 @@ import { success, dim } from '../output/styles.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** Known command files managed by install/uninstall. */
-const MANAGED_FILES = [
-  'status.md', 'build.md', 'next.md', 'prompt.md', 'get.md', 'set.md', 'project.md', 'onboard.md', 'check.md',
-  'concept.md', 'initiatives.md', 'arch.md', 'plan.md', 'slice.md', 'tasks.md', 'implement.md',
-];
-
 /** Resolve the bundled commands/ directory relative to this script's location. */
 export function getSourceCommandsDir(): string {
   // In dist: dist/commands/commandInstaller.js → ../../commands/
@@ -49,16 +43,19 @@ export function installCommands(targetDir: string): string[] {
 
 /**
  * Remove managed command files from the target.
- * Preserves user-added files. Removes the cf/ directory only if empty.
+ * "Managed" = any .md file that exists in the bundled source directory.
+ * Preserves user-added files not in the source. Removes cf/ if empty.
  * No error if files or directory don't exist (idempotent).
  *
  * @returns List of removed filenames.
  */
 export function uninstallCommands(targetDir: string): string[] {
+  const sourceDir = path.join(getSourceCommandsDir(), 'cf');
+  const managedFiles = fs.readdirSync(sourceDir).filter((f) => f.endsWith('.md'));
   const targetCfDir = path.join(targetDir, 'cf');
   const removed: string[] = [];
 
-  for (const file of MANAGED_FILES) {
+  for (const file of managedFiles) {
     const filePath = path.join(targetCfDir, file);
     if (fs.existsSync(filePath)) {
       fs.rmSync(filePath);
