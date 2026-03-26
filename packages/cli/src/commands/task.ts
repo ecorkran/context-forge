@@ -167,7 +167,12 @@ async function listTaskFiles(
   }
 
   if (fileMap.size === 0) {
-    throw new UserError('Tasks directory not found: project-documents/user/tasks/');
+    if (json) {
+      console.log(JSON.stringify([]));
+      return;
+    }
+    console.log('No task files found.');
+    return;
   }
 
   const summaries: { index: number; name: string; files: string[]; completed: number; total: number; isActive: boolean }[] = [];

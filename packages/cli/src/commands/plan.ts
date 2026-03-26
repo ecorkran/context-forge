@@ -68,11 +68,11 @@ export async function planListAction(opts: { json?: boolean; all?: boolean; proj
   }
   planFiles.sort((a, b) => a.filename.localeCompare(b.filename));
 
-  if (scanPaths.length > 0 && planFiles.length === 0 && !seen.size) {
-    throw new UserError('Architecture directory not found: project-documents/user/architecture/');
-  }
-
   if (planFiles.length === 0) {
+    if (opts.json) {
+      console.log(JSON.stringify([]));
+      return;
+    }
     console.log(dim('No slice plans found in project.'));
     return;
   }
