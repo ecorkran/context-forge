@@ -22,6 +22,7 @@ const mockWtGetWorktreeByName = vi.fn();
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
+    getAll: vi.fn().mockResolvedValue([]),
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,

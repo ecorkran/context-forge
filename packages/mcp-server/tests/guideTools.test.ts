@@ -16,6 +16,7 @@ const mockGetById = vi.fn();
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
+    getAll: vi.fn().mockResolvedValue([]),
   })),
   GuideManager: vi.fn().mockImplementation(() => ({
     status: mockStatus,

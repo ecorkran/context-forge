@@ -22,6 +22,7 @@ const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
+    getAll: vi.fn().mockResolvedValue([]),
     update: mockUpdate,
   })),
   WorktreeService: vi.fn().mockImplementation(() => ({

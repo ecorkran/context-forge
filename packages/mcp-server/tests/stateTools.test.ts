@@ -15,6 +15,7 @@ const mockConfigGet = vi.fn();
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
+    getAll: vi.fn().mockResolvedValue([]),
     update: mockUpdate,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({

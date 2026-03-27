@@ -11,10 +11,17 @@ describe('resolveProjectId', () => {
     expect(result).toBe('project_12345');
   });
 
-  it('throws descriptive error when no explicit ID provided', async () => {
+  it('throws descriptive error when no explicit ID and CWD has no project', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/no-project-here');
     await expect(resolveProjectId(undefined)).rejects.toThrow(
       'No project ID provided'
     );
     await expect(resolveProjectId()).rejects.toThrow('project_list');
+  });
+
+  it('throws for non-existent name', async () => {
+    await expect(resolveProjectId('nonexistent')).rejects.toThrow(
+      'Project not found'
+    );
   });
 });
