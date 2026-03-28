@@ -1,16 +1,13 @@
 # Context Forge
 
-Context Forge manages the full lifecycle of AI-assisted development projects — from concept through architecture, slice planning, task breakdown, implementation, and integration. It maintains traceable, hierarchical project state so that every AI session starts with full awareness of where things stand and what's next.
+Context Forge massively speeds the development of large projects with AI agents while maintaining high quality.  
 
-Every slice has a design document. Every design has a task breakdown. Every task has completion state. Every session — whether it's you or an AI agent — picks up exactly where the last one left off, because the project state is real files with real structure, not a chat history that vanished.
+It multiplies your cognitive abilities and doesn't try to replace them. Not another "Hey AI, build me an app" framework, and it may be overkill for building simple gadgets. Development is managed through a structured process, starting with broad initiatives and breaking functionality into vertical slices and individual tasks.  It maintains traceable, hierarchical project state so that every AI session starts with full awareness of where things stand and what's next.
+
+It's designed to be easy for AIs as well.  Every command can output structured JSON.  Easily readable by AI, and usable in pipelines.  The MCP server provides an agent_quickstart to simplify use by AIs.
+
 
 ## What It Looks Like
-
-### Visualizer
-![Context Visualizer](assets/context-visualizer.png)
-
-Visualizer is available separately at:  
-https://github.com/ecorkran/context-visualizer
 
 ### CLI
 Everything is discoverable under the `cf` command.  Start with `cf --help`.  Easily manage multiple projects.  cf knows which one based on your current directory.  `cf init` to start a new one.  Ideally it will feel similar to git.
@@ -21,6 +18,13 @@ Obtain brief status with `cf status`, detailed with `cf project get`. Use the MC
 ![cf status output](assets/cf-status.png)
 
 Your AI assistant sees this too — through MCP tools, through slash commands, through the CLI. It knows the project structure, the methodology phase, the active slice, and (*very* soon) exactly which task to work on next. No "let me catch you up." No re-reading CLAUDE.md. No guessing.
+
+### Visualizer
+![Context Visualizer](assets/context-visualizer.png)
+
+Context Forge builds big projects fast.  Visualizer is a separate tool to help humans maintain an overview.  Available at:  
+https://github.com/ecorkran/context-visualizer
+
 
 ## Get Started
 
@@ -68,9 +72,9 @@ cf install-commands        # Install Claude Code slash commands
 Requirements: Node.js 18+.
 
 ## How It Works
+Context Forge is built around a structured development methodology called [ai-project-guide](https://github.com/ecorkran/ai-project-guide). 
 
-Context Forge is built around a structured development methodology called [ai-project-guide](https://github.com/ecorkran/ai-project-guide). Projects progress through phases:
-
+Projects progress through phases:
 **Concept → Architecture → Slice Planning → Slice Design → Task Breakdown → Implementation → Integration**
 
 Each phase produces documents. Documents reference each other. Slices decompose into tasks. Tasks track completion. The whole thing is a hierarchy you can navigate, introspect, and hand off between humans and agents without losing state.
@@ -85,9 +89,24 @@ It manages multiple projects simultaneously. Each one has its own slice plan, it
 
 For larger projects with parallel initiatives — running architecture and a feature slice at the same time, for example — worktrees let you run multiple AI sessions in separate git worktrees, each with its own phase/slice/task context, without conflicts.
 
-## Access Points
+## Design Philosophy
+ 
+Context Forge resists the urge to be clever on your behalf.
+ 
+We added compound commands — `cf implement` instead of `cf set phase 6 && cf build`. Then we cut them all. They bloated the command surface, cluttered the slash commands, and obscured what was actually happening. The low-level commands were better. They composed. They were transparent. So we went back.
+ 
+This is a pattern, not an accident. The tool stays close to the metal:
+ 
+- **No magic.** You can do everything through MCP if you want, but `cf set phase 6` is a hundred times faster and you should just type it. The MCP tools exist so agents can operate autonomously, not so humans can burn tokens setting a property.
+- **No opinions about your stack.** Context Forge doesn't care if you're writing Python, TypeScript, C++, or all three. It manages project state and generates context. Your agents do the rest.
+- **No hand-holding.** There's an onboarding flow if you want it (`/cf:onboard`). There's `cf next` if you want guidance. But the tool doesn't gate your progress or force you through ceremonies. You're the architect. Act like it.
 
-Context Forge is available through four interfaces — use whichever fits your workflow:
+### Naming Things
+Started as a simple Electron utility called Context Builder, it's long since outgrown its name.  We haven't picked a new one yet.  Naming things is hard.  One of the only two hard things, together with cache invalidation and off-by-one errors.  
+
+
+## Access Points
+Four interfaces — use whichever fits your workflow:
 
 ### MCP Server (`@context-forge/mcp`)
 
@@ -152,7 +171,7 @@ Installed via `cf install-commands`. Available directly in Claude Code sessions:
 
 ### Electron Desktop App
 
-Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.
+Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.  This has been relegated to 2nd priority.  If you notice issues, please let us know.
 
 ## Architecture
 
@@ -170,7 +189,7 @@ All interfaces consume `@context-forge/core` directly. The MCP server and CLI pr
 
 1345 tests across all packages. TypeScript, strict mode, no `any`.
 
-## Also
+## Related
 
 **[context-visualizer](https://github.com/ecorkran/context-visualizer)** — React app that visualizes project structure through the MCP server. See your slice plans, task completion, and project hierarchy rendered visually.
 
