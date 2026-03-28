@@ -429,4 +429,4 @@ Feature (163 first, then 164-166 can parallelize):
 
 ## Future Work
 
-20. [ ] **(180) Frontmatter Schema Validation** — Define required and optional YAML frontmatter fields per `docType` (e.g., `slice-plan` requires `status`, `docType`, `parent`; `slice` requires `status`, `docType`, `parent`, `slice`; `tasks` requires `status`, `slice`, `project`). Implement a schema registry in `packages/core` that maps `docType` values to field requirements with types and allowed values. Extend `ConsistencyChecker` to validate all project documents against their schema — detecting missing required fields, unknown fields, and invalid values. Currently Rule 9 hard-codes a check for missing `status` on slice plans; this would generalize that pattern to all document types and all required fields. The schema registry should be data-driven (e.g., a config file or typed constant) so adding new document types or fields doesn't require rule code changes.
+(Moved to 900-band maintenance initiative as slice 905)
