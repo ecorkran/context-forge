@@ -39,7 +39,7 @@ describe('commandInstaller', () => {
 
   describe('installCommands', () => {
     it('copies all command files on fresh install', () => {
-      const installed = installCommands(tempDir);
+      const { installed } = installCommands(tempDir);
 
       for (const file of expectedFiles) {
         expect(installed).toContain(file);
@@ -104,7 +104,7 @@ describe('commandInstaller', () => {
     it('installs to and uninstalls from custom location', () => {
       const customDir = path.join(tempDir, 'custom', 'location');
 
-      const installed = installCommands(customDir);
+      const { installed } = installCommands(customDir);
       expect(installed).toHaveLength(expectedFiles.length);
       expect(fs.existsSync(path.join(customDir, 'cf', 'status.md'))).toBe(true);
 

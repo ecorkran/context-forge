@@ -24,21 +24,34 @@ export function getSourceCommandsDir(): string {
 /**
  * Copy command files from the bundled commands/cf/ directory to the target.
  * Creates directories as needed. Overwrites existing files (idempotent).
+ * Removes stale .md files in the target that no longer exist in the source.
  *
- * @returns List of installed filenames.
+ * @returns Object with installed and removed filenames.
  */
-export function installCommands(targetDir: string): string[] {
+export function installCommands(targetDir: string): { installed: string[]; removed: string[] } {
   const sourceDir = path.join(getSourceCommandsDir(), 'cf');
   const targetCfDir = path.join(targetDir, 'cf');
 
   fs.mkdirSync(targetCfDir, { recursive: true });
 
-  const files = fs.readdirSync(sourceDir).filter((f) => f.endsWith('.md'));
-  for (const file of files) {
+  const sourceFiles = new Set(fs.readdirSync(sourceDir).filter((f) => f.endsWith('.md')));
+
+  // Install current files
+  for (const file of sourceFiles) {
     fs.copyFileSync(path.join(sourceDir, file), path.join(targetCfDir, file));
   }
 
-  return files;
+  // Remove stale files (exist in target but not in source)
+  const removed: string[] = [];
+  const targetFiles = fs.readdirSync(targetCfDir).filter((f) => f.endsWith('.md'));
+  for (const file of targetFiles) {
+    if (!sourceFiles.has(file)) {
+      fs.rmSync(path.join(targetCfDir, file));
+      removed.push(file);
+    }
+  }
+
+  return { installed: [...sourceFiles], removed };
 }
 
 /**
@@ -82,10 +95,13 @@ function defaultTarget(): string {
 /** Install commands to the target directory (defaults to ~/.claude/commands). Errors propagate. */
 export function installCommandsAction(targetDir?: string): void {
   const target = targetDir ?? defaultTarget();
-  const installed = installCommands(target);
+  const { installed, removed } = installCommands(target);
   console.log(success(`Installed ${installed.length} commands to ${target}/cf/`));
   for (const file of installed) {
     console.log(`  ${dim('/cf:' + file.replace('.md', ''))}`);
+  }
+  if (removed.length > 0) {
+    console.log(dim(`Removed ${removed.length} stale command(s): ${removed.map((f) => f.replace('.md', '')).join(', ')}`));
   }
 }
 
@@ -96,10 +112,13 @@ export function registerInstallCommandsCommand(program: Command): void {
     .option('--target <dir>', 'Target directory', defaultTarget())
     .action((opts: { target: string }) => {
       try {
-        const installed = installCommands(opts.target);
+        const { installed, removed } = installCommands(opts.target);
         console.log(success(`Installed ${installed.length} commands to ${opts.target}/cf/`));
         for (const file of installed) {
           console.log(`  ${dim('/cf:' + file.replace('.md', ''))}`);
+        }
+        if (removed.length > 0) {
+          console.log(dim(`Removed ${removed.length} stale command(s): ${removed.map((f) => f.replace('.md', '')).join(', ')}`));
         }
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
