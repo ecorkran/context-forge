@@ -1,6 +1,8 @@
 import * as os from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
+import { readFile } from 'node:fs/promises';
+import { readdirSync } from 'node:fs';
 import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import {
@@ -24,30 +26,80 @@ import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, value as valueStyle, success, dim } from '../output/styles.js';
 
+/** Matches `N. [ ] **(NNN) Initiative Name** — ...` in initiative plan files */
+const INITIATIVE_ENTRY_RE = /^\d+\.\s+\[[ xX]\]\s+\*\*\((\d+)\)\s+(.+?)\*\*/;
+
+/**
+ * Find and parse the initiative plan file (e.g., 001-initiative-plan.*.md)
+ * in project-guides/. Returns entries with index and name.
+ */
+async function parseInitiativePlanEntries(
+  basePath: string,
+): Promise<{ index: number; name: string }[]> {
+  const guidesDir = join(basePath, 'project-documents/user/project-guides');
+  let files: string[];
+  try {
+    files = readdirSync(guidesDir);
+  } catch {
+    return [];
+  }
+
+  const planFile = files.find((f) => f.includes('initiative-plan') && f.endsWith('.md'));
+  if (!planFile) return [];
+
+  const content = await readFile(join(guidesDir, planFile), 'utf-8');
+  const entries: { index: number; name: string }[] = [];
+
+  for (const line of content.split('\n')) {
+    const m = INITIATIVE_ENTRY_RE.exec(line.trim());
+    if (m) {
+      entries.push({ index: parseInt(m[1], 10), name: m[2].trim() });
+    }
+  }
+
+  return entries;
+}
+
 /**
  * When a numeric index doesn't match an existing file, try to derive the stem
- * from the slice plan. Only works for fileSlice and fileTasks fields.
+ * from the appropriate plan document.
+ *
+ * - fileSlice / fileTasks: looks up the slice plan
+ * - fileArch / fileSlicePlan: looks up the initiative plan
  */
-async function deriveFromSlicePlan(
+async function deriveFromPlan(
   project: ProjectData,
   field: string,
   index: string,
   operationPath?: string,
 ): Promise<string | null> {
-  if (!project.fileSlicePlan) return null;
   const basePath = operationPath ?? project.projectPath;
   if (!basePath) return null;
-  if (field !== 'fileSlice' && field !== 'fileTasks') return null;
+  const numericIndex = parseInt(index, 10);
 
-  const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
-  if (!planRelPath) return null;
+  // fileSlice / fileTasks: derive from slice plan
+  if (field === 'fileSlice' || field === 'fileTasks') {
+    if (!project.fileSlicePlan) return null;
+    const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+    if (!planRelPath) return null;
 
-  const planPath = join(basePath, planRelPath);
-  const plan = await parseSlicePlan(planPath);
-  const entry = plan.entries.find((e) => e.index === parseInt(index, 10));
-  if (!entry) return null;
+    const plan = await parseSlicePlan(join(basePath, planRelPath));
+    const entry = plan.entries.find((e) => e.index === numericIndex);
+    if (!entry) return null;
 
-  return deriveArtifactStem(field, index, entry.name);
+    return deriveArtifactStem(field, index, entry.name);
+  }
+
+  // fileArch / fileSlicePlan: derive from initiative plan
+  if (field === 'fileArch' || field === 'fileSlicePlan') {
+    const entries = await parseInitiativePlanEntries(basePath);
+    const entry = entries.find((e) => e.index === numericIndex);
+    if (!entry) return null;
+
+    return deriveArtifactStem(field, index, entry.name);
+  }
+
+  return null;
 }
 
 /** Shorten an absolute path by replacing the home directory with ~. */
@@ -223,7 +275,7 @@ export async function projectSetAction(
       }
     } catch {
       // File doesn't exist — try deriving from slice plan
-      const derived = await deriveFromSlicePlan(overlaid, resolvedField, resolvedValue, opPath);
+      const derived = await deriveFromPlan(overlaid, resolvedField, resolvedValue, opPath);
       if (derived) {
         resolvedValue = derived;
       } else {
