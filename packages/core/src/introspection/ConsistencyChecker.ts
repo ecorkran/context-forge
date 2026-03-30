@@ -133,23 +133,6 @@ export class ConsistencyChecker {
       );
     }
 
-    // Rule 11: arch files missing status field
-    const allArchFiles = await this.discoverAllArchFiles(projectPath);
-    if (project.fileArch) {
-      const configuredArchRel = resolveArtifactPath('fileArch', project.fileArch);
-      if (configuredArchRel) {
-        const configuredArchFull = join(projectPath, configuredArchRel);
-        if (!allArchFiles.includes(configuredArchFull)) allArchFiles.push(configuredArchFull);
-      }
-    }
-    // Build index → planResult map from already-parsed pairs
-    const pairedPlanByArchPath = new Map(archPlanPairs.map(({ archPath, planResult }) => [archPath, planResult]));
-    for (const archPath of allArchFiles) {
-      allFindings.push(
-        ...await this.ruleArchMissingStatus(archPath, pairedPlanByArchPath.get(archPath) ?? null),
-      );
-    }
-
     // Rule 10: stale worktree paths
     allFindings.push(
       ...await this.ruleStaleWorktreePath(project, projectPath),
@@ -548,24 +531,8 @@ export class ConsistencyChecker {
 
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
 
-    // Rule 9: Missing status field — infer from entry completion
-    if (!planFrontmatter.data.status) {
-      const inferredStatus = allComplete && slicePlanResult.totalSlices > 0 ? 'complete' : 'in-progress';
-      findings.push({
-        rule: 'missing-plan-status',
-        severity: 'warning',
-        location: slicePlanPath,
-        description: `Slice plan frontmatter has no "status" field (inferred: "${inferredStatus}")`,
-        suggestedFix: `Add status: ${inferredStatus} to slice plan frontmatter`,
-        fixable: true,
-        fixAction: {
-          type: 'update-frontmatter',
-          filePath: slicePlanPath,
-          detail: { key: 'status', value: inferredStatus },
-        },
-      });
-      return findings;
-    }
+    // Missing status is now handled by Rule 12 (frontmatter-schema)
+    if (!planFrontmatter.data.status) return findings;
 
     const planStatus = planFrontmatter.data.status.toLowerCase();
 
@@ -658,47 +625,6 @@ export class ConsistencyChecker {
     return findings;
   }
 
-  /** Rule 11: Architecture file missing status frontmatter field */
-  private async ruleArchMissingStatus(
-    archPath: string,
-    planResult: SlicePlanResult | null,
-  ): Promise<ConsistencyFinding[]> {
-    let archFrontmatter: FrontmatterResult;
-    try {
-      archFrontmatter = await this.introspector.parseFrontmatter(archPath);
-    } catch {
-      return [];
-    }
-
-    if (!archFrontmatter.found || archFrontmatter.data.status) return [];
-
-    // Infer status from paired plan if available, otherwise not_started
-    let inferredStatus: string;
-    if (planResult) {
-      const allComplete =
-        planResult.totalSlices > 0 &&
-        planResult.completedSlices === planResult.totalSlices;
-      inferredStatus = allComplete ? 'complete' : 'in-progress';
-    } else {
-      inferredStatus = 'not_started';
-    }
-
-    return [
-      {
-        rule: 'missing-arch-status',
-        severity: 'warning',
-        location: archPath,
-        description: `Architecture file has no "status" frontmatter field (inferred: "${inferredStatus}")`,
-        suggestedFix: `Add status: ${inferredStatus} to architecture frontmatter`,
-        fixable: true,
-        fixAction: {
-          type: 'update-frontmatter',
-          filePath: archPath,
-          detail: { key: 'status', value: inferredStatus },
-        },
-      },
-    ];
-  }
 
   /** Rule 10: Stale worktree paths — worktree path missing or not a git worktree */
   private async ruleStaleWorktreePath(
