@@ -9,10 +9,10 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-30
 
-### Slice 905: Frontmatter Schema Validation — Design
-- Slice design complete for schema registry + ConsistencyChecker integration
+### Slice 905: Frontmatter Schema Validation — Design & Task Breakdown
+- Slice design and task breakdown complete
+- 6 sections: schema registry, validation function, checker integration, rule removal, real-project validation, final
 - Will replace ad-hoc Rules 9/11 with data-driven validation per docType
-- Schema source of truth: `file-naming-conventions.md` per-docType definitions
 
 ## 2026-03-25
 
