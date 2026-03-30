@@ -7,6 +7,7 @@ projectState: Slices 140-148 complete. Core extraction done, storage migrated, E
 dateCreated: 20260222
 dateUpdated: 20260222
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

@@ -7,6 +7,7 @@ projectState: WorktreeService with full CRUD + migration + findOverlaps in core;
 dateCreated: 20260311
 dateUpdated: 20260311
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

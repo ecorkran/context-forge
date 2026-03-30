@@ -7,6 +7,7 @@ projectState: Introspection engine complete (slice 163). Workflow navigator comp
 dateCreated: 20260307
 dateUpdated: 20260307
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

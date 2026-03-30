@@ -7,6 +7,7 @@ projectState: Slice 205 complete (v0.6.14). 220 initiative started — slice pla
 dateCreated: 20260320
 dateUpdated: 20260320
 status: not_started
+docType: tasks
 ---
 
 ## Context Summary

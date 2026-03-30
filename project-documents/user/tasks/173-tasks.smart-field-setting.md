@@ -7,6 +7,7 @@ projectState: Slice 171 complete (tasks 11-13). CLI has cf set/get shortcuts, bu
 dateCreated: 20260306
 dateUpdated: 20260305
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

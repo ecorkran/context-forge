@@ -7,6 +7,7 @@ projectState: All 160-band prerequisite slices complete. Core services stable. p
 dateCreated: 20260303
 dateUpdated: 20260304
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

@@ -7,6 +7,7 @@ projectState: MVP complete, ready for distribution
 status: not-started
 dateCreated: 20250930
 dateUpdated: 20260207
+docType: slice-design
 ---
 
 # Slice Design: Application Packaging (macOS)

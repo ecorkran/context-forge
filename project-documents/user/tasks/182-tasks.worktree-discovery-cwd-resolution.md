@@ -7,6 +7,7 @@ projectState: Slice 181 complete — WorktreeContext type, WorktreeService CRUD,
 dateCreated: 20260310
 dateUpdated: 20260310
 status: complete
+docType: tasks
 ---
 
 # Tasks: 182 — Worktree Discovery & CWD Resolution

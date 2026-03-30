@@ -7,6 +7,7 @@ projectState: Slices 161-164 complete. ProjectModelBuilder, buildModel(), parseF
 status: complete
 dateCreated: 20260301
 dateUpdated: 20260301
+docType: tasks
 ---
 
 ## Context Summary

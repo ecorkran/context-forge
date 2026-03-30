@@ -7,6 +7,7 @@ projectState: Slice 170 complete. CLI has cf init, cf project list/get/set, thre
 dateCreated: 20260305
 dateUpdated: 20260305
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

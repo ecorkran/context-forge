@@ -8,6 +8,7 @@ projectState: Foundation slice complete - ready for feature development
 status: not-started
 dateCreated: 20250911
 dateUpdated: 20250127
+docType: slice-design
 ---
 
 # Feature Slices Low-Level Design: context-builder

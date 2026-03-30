@@ -6,6 +6,7 @@ dependencies: [foundation]
 projectState: complete
 dateCreated: 20250911
 dateUpdated: 20260207
+docType: tasks
 ---
 
 ## Context Summary

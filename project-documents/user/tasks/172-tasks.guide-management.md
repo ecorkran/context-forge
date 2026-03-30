@@ -10,6 +10,7 @@ projectState: >
 dateCreated: 20260305
 dateUpdated: 20260305
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

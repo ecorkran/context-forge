@@ -12,6 +12,7 @@ dateUpdated: 20260207
 dependencies: [125-application-packaging]
 lldReference: 126-slice.application-packaging-linux.md
 projectState: deferred
+docType: tasks
 ---
 
 # Tasks: Application Packaging (Linux)

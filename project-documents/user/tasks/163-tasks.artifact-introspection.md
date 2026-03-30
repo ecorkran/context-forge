@@ -7,6 +7,7 @@ projectState: Slices 161 (schema standardization) and 162 (config system) comple
 status: complete
 dateCreated: 20260228
 dateUpdated: 20260228
+docType: tasks
 ---
 
 ## Context Summary

@@ -7,6 +7,7 @@ projectState: Slice 163 complete — ArtifactIntrospector, 6 parsers, types, and
 status: complete
 dateCreated: 20260301
 dateUpdated: 20260301
+docType: tasks
 ---
 
 ## Context Summary

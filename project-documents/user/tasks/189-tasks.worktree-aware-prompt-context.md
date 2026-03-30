@@ -7,6 +7,7 @@ projectState: Worktree system (180-band) complete. applyWorktreeOverlay maps wor
 dateCreated: 20260317
 dateUpdated: 20260318
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

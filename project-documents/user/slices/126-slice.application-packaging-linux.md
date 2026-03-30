@@ -7,6 +7,7 @@ projectState: deferred
 status: deferred
 dateCreated: 20260131
 dateUpdated: 20260207
+docType: slice-design
 ---
 
 # Slice Design: Application Packaging (Linux)

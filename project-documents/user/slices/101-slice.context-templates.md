@@ -8,6 +8,7 @@ projectState: Feature Slice 1 (Basic Context Generation) complete - need to repl
 status: not-started
 dateCreated: 20250912
 dateUpdated: 20250127
+docType: slice-design
 ---
 
 # Slice Design: Context Templates System

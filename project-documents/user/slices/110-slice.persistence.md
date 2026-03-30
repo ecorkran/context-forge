@@ -7,6 +7,7 @@ projectState: Ready for implementation - infrastructure exists
 status: not-started
 dateCreated: 20250913
 dateUpdated: 20250127
+docType: slice-design
 ---
 
 # Slice Design: Persistence & Multi-Project Foundation

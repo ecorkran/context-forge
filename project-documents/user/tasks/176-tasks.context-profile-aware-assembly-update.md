@@ -9,6 +9,7 @@ projectState: Slice 175 complete. All artifact fields (fileArch, fileSlicePlan, 
 dateCreated: 20260308
 dateUpdated: 20260308
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

@@ -7,6 +7,7 @@ projectState: Slice 192 complete (v0.6.12). ConsistencyChecker.checkAll only che
 dateCreated: 20260319
 dateUpdated: 20260320
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

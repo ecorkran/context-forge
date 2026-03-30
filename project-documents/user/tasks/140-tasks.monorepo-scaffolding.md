@@ -7,6 +7,7 @@ projectState: Working Electron app with src/ at repo root. No monorepo structure
 dateCreated: 20260215
 status: complete
 dateUpdated: 20260217
+docType: tasks
 ---
 
 ## Context Summary

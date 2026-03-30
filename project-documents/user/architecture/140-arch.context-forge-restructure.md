@@ -9,6 +9,7 @@ dependsOn: [002-spec.context-builder.md]
 dateCreated: 20260214
 dateUpdated: 20260215
 status: complete
+docType: architecture
 ---
 
 # Context Forge v2: MCP Server Architecture

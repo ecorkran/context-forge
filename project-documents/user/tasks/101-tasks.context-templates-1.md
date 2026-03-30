@@ -7,6 +7,7 @@ dependencies: [foundation]
 projectState: complete
 dateCreated: 20250912
 dateUpdated: 20260207
+docType: tasks
 ---
 
 # Task Breakdown: Context Templates System

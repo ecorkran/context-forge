@@ -7,6 +7,7 @@ projectState: Slice 141 complete. packages/core has types/ with all shared types
 dateCreated: 20260218
 dateUpdated: 20260218
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

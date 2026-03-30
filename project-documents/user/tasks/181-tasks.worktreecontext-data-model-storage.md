@@ -7,6 +7,7 @@ projectState: "Phase 5 task breakdown for 181. No dependencies — this is the f
 dateCreated: 20260310
 dateUpdated: 20260311
 status: complete
+docType: tasks
 ---
 
 # Tasks: WorktreeContext Data Model & Storage

@@ -7,6 +7,7 @@ projectState: Slice 191 complete. All worktrees (including default) use operatio
 dateCreated: 20260319
 dateUpdated: 20260319
 status: complete
+docType: tasks
 ---
 
 ## Context Summary
