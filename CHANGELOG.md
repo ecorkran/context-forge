@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Frontmatter schema registry (`FRONTMATTER_SCHEMAS`) — maps 8 docTypes to required fields with value constraints
+- `validateFrontmatter()` pure function exported from `@context-forge/core`
+- ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
+- Status alias normalization: accepts `in-progress`, `not started`, `active`, `completed` as valid
+
+### Changed
+- Removed Rules 9 (missing-plan-status) and 11 (missing-arch-status) — subsumed by generic schema validation
+
 ## [0.6.25] - 20260325
 
 ### Added
