@@ -129,6 +129,17 @@ describe('validateFrontmatter', () => {
     expect(findings[0].description).toContain("'project'");
   });
 
+  it('accepts in-progress (hyphenated) as alias for in_progress', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'concept',
+      project: 'test',
+      status: 'in-progress',
+      dateCreated: '20260101',
+      dateUpdated: '20260301',
+    });
+    expect(findings).toHaveLength(0);
+  });
+
   it('includes fixAction for missing status', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',

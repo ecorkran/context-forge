@@ -1,8 +1,9 @@
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { WorktreeInfo } from '../types/git.js';
+import { validateFrontmatter } from '../schema/frontmatterSchema.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
   ConsistencyFinding,
@@ -152,6 +153,11 @@ export class ConsistencyChecker {
     // Rule 10: stale worktree paths
     allFindings.push(
       ...await this.ruleStaleWorktreePath(project, projectPath),
+    );
+
+    // Rule 12: frontmatter schema validation across all documents
+    allFindings.push(
+      ...await this.ruleFrontmatterSchema(projectPath),
     );
 
     return this.buildResult(projectPath, allFindings);
@@ -740,6 +746,85 @@ export class ConsistencyChecker {
           suggestedFix: `Run 'cf worktree update "${wt.name}" --path <new-path>' or 'cf worktree rm "${wt.name}"'`,
           fixable: false,
         });
+      }
+    }
+
+    return findings;
+  }
+
+  // --- Document-wide rules ---
+
+  /** Directories under project-documents/user/ to scan for methodology documents. */
+  private static readonly DOC_SCAN_DIRS = [
+    'architecture',
+    'slices',
+    'tasks',
+    'project-guides',
+    'reviews',
+    'analysis',
+  ];
+
+  /** Discover all .md documents across methodology directories. */
+  private async discoverAllDocuments(projectPath: string): Promise<string[]> {
+    const userDir = join(projectPath, 'project-documents/user');
+    const allPaths: string[] = [];
+
+    for (const subdir of ConsistencyChecker.DOC_SCAN_DIRS) {
+      const dir = join(userDir, subdir);
+      try {
+        const files = await readdir(dir);
+        for (const f of files) {
+          if (f.endsWith('.md')) {
+            allPaths.push(join(dir, f));
+          }
+        }
+      } catch {
+        // Directory may not exist — skip
+      }
+    }
+
+    return allPaths;
+  }
+
+  /** Rule 12: Validate frontmatter against per-docType schema. */
+  private async ruleFrontmatterSchema(projectPath: string): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+    const documents = await this.discoverAllDocuments(projectPath);
+
+    for (const docPath of documents) {
+      let fm;
+      try {
+        fm = await this.introspector.parseFrontmatter(docPath);
+      } catch {
+        continue;
+      }
+
+      if (!fm.found) continue;
+
+      const schemaFindings = validateFrontmatter(docPath, fm.data);
+      const relPath = relative(projectPath, docPath);
+
+      for (const sf of schemaFindings) {
+        const finding: ConsistencyFinding = {
+          rule: sf.rule,
+          severity: sf.severity,
+          location: docPath,
+          description: `${relPath}: ${sf.description}`,
+          suggestedFix: sf.fixAction
+            ? `Add ${sf.fixAction.field}: ${sf.fixAction.value} to frontmatter`
+            : `Add the missing field to frontmatter`,
+          fixable: !!sf.fixAction,
+        };
+
+        if (sf.fixAction) {
+          finding.fixAction = {
+            type: sf.fixAction.type as 'update-frontmatter',
+            filePath: docPath,
+            detail: { key: sf.fixAction.field, value: sf.fixAction.value },
+          };
+        }
+
+        findings.push(finding);
       }
     }
 

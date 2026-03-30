@@ -1196,5 +1196,107 @@ describe('ConsistencyChecker', () => {
       const staleFindings = result.findings.filter((f) => f.rule === 'stale-worktree-path');
       expect(staleFindings).toHaveLength(0);
     });
+
+    // --- Rule 12: frontmatter-schema ---
+
+    it('Rule 12: detects missing status on a tasks file', async () => {
+      // Set up readdir to return files for document discovery
+      mockReaddir.mockImplementation(async (dir: string) => {
+        if (dir.endsWith('/architecture')) return ['160-slices.test-system.md'];
+        if (dir.endsWith('/tasks')) return ['165-tasks.test-feature.md'];
+        throw new Error('ENOENT');
+      });
+
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('165-tasks')) {
+            return {
+              filePath: path,
+              found: true,
+              data: { docType: 'tasks', slice: 'test', project: 'test', dateCreated: '20260101', dateUpdated: '20260301' },
+            };
+          }
+          // Default for slice plans and arch files
+          return { filePath: path, found: true, data: { status: 'in-progress' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const schemaFindings = result.findings.filter((f) => f.rule === 'frontmatter-schema');
+      expect(schemaFindings.length).toBeGreaterThanOrEqual(1);
+      const statusFinding = schemaFindings.find((f) => f.description.includes("'status'"));
+      expect(statusFinding).toBeDefined();
+      expect(statusFinding!.fixable).toBe(true);
+      expect(statusFinding!.fixAction?.type).toBe('update-frontmatter');
+
+      mockReaddir.mockRejectedValue(new Error('ENOENT'));
+    });
+
+    it('Rule 12: no findings for valid document', async () => {
+      mockReaddir.mockImplementation(async (dir: string) => {
+        if (dir.endsWith('/architecture')) return ['160-slices.test-system.md'];
+        if (dir.endsWith('/slices')) return ['165-slice.test-feature.md'];
+        throw new Error('ENOENT');
+      });
+
+      const validFmDefault = {
+        filePath: '/fake/plan.md', found: true,
+        data: { docType: 'slice-plan', project: 'test', status: 'in-progress', dateCreated: '20260101', dateUpdated: '20260301' },
+      };
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('165-slice.test-feature')) {
+            return {
+              filePath: path,
+              found: true,
+              data: {
+                docType: 'slice-design', slice: 'test-feature', project: 'test',
+                status: 'in_progress', dateCreated: '20260101', dateUpdated: '20260301',
+              },
+            };
+          }
+          return { ...validFmDefault, filePath: path };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const schemaFindings = result.findings.filter((f) => f.rule === 'frontmatter-schema');
+      expect(schemaFindings).toHaveLength(0);
+
+      mockReaddir.mockRejectedValue(new Error('ENOENT'));
+    });
+
+    it('Rule 12: skips files without frontmatter', async () => {
+      mockReaddir.mockImplementation(async (dir: string) => {
+        if (dir.endsWith('/architecture')) return ['160-slices.test-system.md'];
+        if (dir.endsWith('/slices')) return ['readme.md'];
+        throw new Error('ENOENT');
+      });
+
+      const validFmDefault = {
+        filePath: '/fake/plan.md', found: true,
+        data: { docType: 'slice-plan', project: 'test', status: 'in-progress', dateCreated: '20260101', dateUpdated: '20260301' },
+      };
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('readme.md')) {
+            return { filePath: path, found: false, data: {} };
+          }
+          return { ...validFmDefault, filePath: path };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const schemaFindings = result.findings.filter((f) => f.rule === 'frontmatter-schema');
+      expect(schemaFindings).toHaveLength(0);
+
+      mockReaddir.mockRejectedValue(new Error('ENOENT'));
+    });
   });
 });
