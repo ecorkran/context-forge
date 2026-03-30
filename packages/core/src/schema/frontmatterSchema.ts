@@ -168,11 +168,12 @@ export function validateFrontmatter(
     if (value === undefined || value === null || String(value).trim() === '') continue;
 
     const normalizedValue = String(value).trim();
-    // For status field: accept hyphens as underscores, 'completed' as 'complete'
+    // For status field: normalize common aliases
     let effectiveValue = normalizedValue;
     if (field === 'status') {
-      effectiveValue = effectiveValue.replace(/-/g, '_');
+      effectiveValue = effectiveValue.replace(/[-\s]/g, '_');
       if (effectiveValue === 'completed') effectiveValue = 'complete';
+      if (effectiveValue === 'active') effectiveValue = 'in_progress';
     }
 
     if (!def.values.includes(effectiveValue)) {

@@ -7,6 +7,7 @@ dependencies: [161-project-schema-standardization]
 projectState: Slice 161 complete (schema standardization). Core types, storage, MCP tools all use new field names. All 392 tests pass.
 dateCreated: 20260228
 dateUpdated: 20260228
+status: not_started
 ---
 
 ## Context Summary
