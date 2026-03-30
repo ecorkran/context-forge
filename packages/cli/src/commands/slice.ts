@@ -50,8 +50,13 @@ export async function sliceListAction(opts: { json?: boolean; project?: string }
   // Determine active slice index
   const activeIndex = extractSliceIndex(project.fileSlice);
 
-  // Filter entries by worktree index range
-  const filteredEntries = planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
+  // Filter entries by worktree index range — but skip filtering when the plan itself
+  // is outside the range (user explicitly switched to a different initiative)
+  const planBaseIndex = /^(\d+)-/.exec(project.fileSlicePlan ?? '')?.[1];
+  const planOutsideRange = planBaseIndex && indexRange && !isInIndexRange(parseInt(planBaseIndex, 10), indexRange);
+  const filteredEntries = planOutsideRange
+    ? planResult.entries
+    : planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
 
   // Check for design files per entry
   const entries = await Promise.all(

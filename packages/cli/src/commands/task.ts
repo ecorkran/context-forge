@@ -177,7 +177,12 @@ async function listTaskFiles(
 
   const summaries: { index: number; name: string; files: string[]; completed: number; total: number; isActive: boolean }[] = [];
 
-  const filteredEntries = plan.entries.filter((e) => isInIndexRange(e.index, indexRange));
+  // Skip range filtering when the plan itself is outside the range
+  const planBaseIndex = /^(\d+)-/.exec(project.fileSlicePlan ?? '')?.[1];
+  const planOutsideRange = planBaseIndex && indexRange && !isInIndexRange(parseInt(planBaseIndex, 10), indexRange);
+  const filteredEntries = planOutsideRange
+    ? plan.entries
+    : plan.entries.filter((e) => isInIndexRange(e.index, indexRange));
   for (const entry of filteredEntries) {
     const matching = [...fileMap.entries()]
       .filter(([f]) => f.startsWith(`${entry.index}-tasks.`) && f.endsWith('.md'))

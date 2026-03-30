@@ -593,6 +593,7 @@ describe('cf project set — worktree path resolution', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/api');
   });
 
@@ -613,7 +614,7 @@ describe('cf project set — worktree path resolution', () => {
     const { projectSetAction } = await import('../../src/commands/project.js');
     await projectSetAction('arch', '100', {});
 
-    expect(console.warn).toHaveBeenCalledWith(
+    expect(process.stderr.write).toHaveBeenCalledWith(
       expect.stringContaining('outside this worktree\'s range [300-499]'),
     );
   });

@@ -24,7 +24,7 @@ import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
-import { label, value as valueStyle, success, dim } from '../output/styles.js';
+import { label, value as valueStyle, success, dim, warn } from '../output/styles.js';
 
 /** Matches `N. [ ] **(NNN) Initiative Name** — ...` in initiative plan files */
 const INITIATIVE_ENTRY_RE = /^\d+\.\s+\[[ xX]\]\s+\*\*\((\d+)\)\s+(.+?)\*\*/;
@@ -298,7 +298,7 @@ export async function projectSetAction(
     const numericIndex = parseInt(resolvedValue, 10) || parseInt(/^(\d+)/.exec(resolvedValue)?.[1] ?? '', 10);
     const worktreeHasOverride = getWorktreeRangeOverride(existing, worktreeId);
     if (indexRange && !isNaN(numericIndex) && !isInIndexRange(numericIndex, indexRange) && !worktreeHasOverride) {
-      console.warn(`Warning: index ${numericIndex} is outside this worktree's range [${indexRange[0]}-${indexRange[1]}]`);
+      process.stderr.write(warn(`Warning: index ${numericIndex} is outside this worktree's range [${indexRange[0]}-${indexRange[1]}]\n`));
     }
   }
 
