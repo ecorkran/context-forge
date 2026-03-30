@@ -19,6 +19,7 @@ export {
   FRONTMATTER_SCHEMAS,
   VALID_STATUSES,
   validateFrontmatter,
+  inferDocTypeFromPath,
   type FrontmatterFieldDef,
   type DocTypeSchema,
   type FrontmatterFinding,

@@ -114,6 +114,31 @@ export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
   },
 };
 
+/** Map filename segment (from NNN-segment.name.md) to docType. */
+const FILENAME_SEGMENT_TO_DOCTYPE: Record<string, string> = {
+  arch: 'architecture',
+  slices: 'slice-plan',
+  slice: 'slice-design',
+  tasks: 'tasks',
+  review: 'review',
+  analysis: 'analysis',
+  concept: 'concept',
+};
+
+/** Extract segment from a filename like "140-arch.foo.md" → "arch". */
+const FILENAME_SEGMENT_RE = /^\d+-(arch|slices|slice|tasks|review|analysis|concept)\./i;
+
+/**
+ * Infer docType from a file path based on naming conventions.
+ * Returns the docType string or null if not inferrable.
+ */
+export function inferDocTypeFromPath(filePath: string): string | null {
+  const basename = filePath.split('/').pop() ?? '';
+  const match = FILENAME_SEGMENT_RE.exec(basename);
+  if (!match) return null;
+  return FILENAME_SEGMENT_TO_DOCTYPE[match[1].toLowerCase()] ?? null;
+}
+
 /**
  * Validate frontmatter data against the schema for its docType.
  * Returns findings for missing required fields and invalid values.
@@ -126,12 +151,19 @@ export function validateFrontmatter(
 
   // Step 1: docType must be present
   if (!data.docType || data.docType.trim() === '') {
-    findings.push({
+    const inferred = inferDocTypeFromPath(filePath);
+    const finding: FrontmatterFinding = {
       rule: 'frontmatter-schema',
       severity: 'warning',
       filePath,
-      description: 'Missing required field \'docType\'',
-    });
+      description: inferred
+        ? `Missing required field 'docType' (inferred: '${inferred}')`
+        : 'Missing required field \'docType\'',
+    };
+    if (inferred) {
+      finding.fixAction = { type: 'update-frontmatter', field: 'docType', value: inferred };
+    }
+    findings.push(finding);
     return findings;
   }
 

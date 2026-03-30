@@ -3,6 +3,7 @@ import {
   FRONTMATTER_SCHEMAS,
   VALID_STATUSES,
   validateFrontmatter,
+  inferDocTypeFromPath,
 } from '../../src/schema/frontmatterSchema.js';
 
 /** The 8 canonical docTypes from file-naming-conventions.md */
@@ -154,5 +155,44 @@ describe('validateFrontmatter', () => {
       field: 'status',
       value: 'not_started',
     });
+  });
+
+  it('includes fixAction for missing docType when inferrable from filename', () => {
+    const findings = validateFrontmatter(
+      '/project/project-documents/user/slices/165-slice.test-feature.md',
+      { status: 'in_progress' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("inferred: 'slice-design'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'docType',
+      value: 'slice-design',
+    });
+  });
+
+  it('no fixAction for missing docType when filename is not inferrable', () => {
+    const findings = validateFrontmatter('/project/readme.md', { status: 'in_progress' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].fixAction).toBeUndefined();
+  });
+});
+
+describe('inferDocTypeFromPath', () => {
+  it.each([
+    ['140-arch.context-forge.md', 'architecture'],
+    ['160-slices.project-workflow.md', 'slice-plan'],
+    ['165-slice.test-feature.md', 'slice-design'],
+    ['165-tasks.test-feature.md', 'tasks'],
+    ['181-review.slice.foo.md', 'review'],
+    ['900-analysis.perf.md', 'analysis'],
+    ['001-concept.context-builder.md', 'concept'],
+  ])('%s → %s', (filename, expected) => {
+    expect(inferDocTypeFromPath(`/fake/${filename}`)).toBe(expected);
+  });
+
+  it('returns null for non-matching filenames', () => {
+    expect(inferDocTypeFromPath('/fake/readme.md')).toBeNull();
+    expect(inferDocTypeFromPath('/fake/guide.ai-project.process.md')).toBeNull();
   });
 });
