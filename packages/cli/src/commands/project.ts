@@ -279,9 +279,16 @@ export async function projectSetAction(
       if (derived) {
         resolvedValue = derived;
       } else {
+        const searchedPlan = (resolvedField === 'fileSlice' || resolvedField === 'fileTasks')
+          ? overlaid.fileSlicePlan
+          : 'initiative plan';
+        const hint = searchedPlan
+          ? `Searched '${searchedPlan}' — no entry for index ${resolvedValue}. If this index belongs to a different initiative, switch with cf set arch <initiative-index> first.`
+          : `No slice plan is set. Set one with: cf set arch <initiative-index>`;
         throw new UserError(
-          `No file matching index '${resolvedValue}' for field '${resolvedField}', and no slice plan entry found to derive from.`,
+          `No file matching index '${resolvedValue}' for field '${resolvedField}'.`,
           'ARTIFACT_NOT_FOUND',
+          hint,
         );
       }
     }
