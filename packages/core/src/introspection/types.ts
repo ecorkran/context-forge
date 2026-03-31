@@ -54,6 +54,8 @@ export interface FutureWorkItem {
   index: string;
   name: string;
   done: boolean;
+  /** Description text after the title (e.g., text after " — " or ": ") */
+  description?: string;
 }
 
 /** Result of future work section parsing */

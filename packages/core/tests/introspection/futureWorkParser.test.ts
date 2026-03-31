@@ -56,4 +56,20 @@ describe('parseFutureWork', () => {
     const result = await parseFutureWork(join(FIXTURES, 'valid-frontmatter.md'));
     expect(result.items).toEqual([]);
   });
+
+  it('captures description text after title separator', async () => {
+    const result = await parseFutureWork(join(FIXTURES, 'sample-slice-plan.md'));
+    const item200 = result.items.find((i) => i.index === '200');
+    expect(item200!.description).toBe('Add analytics dashboard and reporting.');
+
+    const item201 = result.items.find((i) => i.index === '201');
+    expect(item201!.description).toBe('Extensible plugin architecture.');
+  });
+
+  it('omits description when item has no separator', async () => {
+    // "Future enhancement without explicit index" has " — " so it will have a description
+    const result = await parseFutureWork(join(FIXTURES, 'sample-slice-plan.md'), 300);
+    const autoItem = result.items.find((i) => i.index === '300');
+    expect(autoItem!.description).toBe('better UI.');
+  });
 });

@@ -14,17 +14,19 @@ const HEADING_RE = /^#{1,3}\s+/;
 const FUTURE_WORK_HEADING_RE = /^#{1,3}\s+Future Work/i;
 
 /**
- * Extract short title from a future work item (text before em-dash or colon).
+ * Extract short title and description from a future work item.
+ * Title is the text before em-dash or colon; description is the rest.
  * Ported from parse.py _fw_title().
  */
-function extractTitle(text: string): string {
+function extractTitleAndDescription(text: string): { title: string; description?: string } {
   for (const sep of [' — ', ': ']) {
     const pos = text.indexOf(sep);
     if (pos > 0) {
-      return text.slice(0, pos).trim();
+      const desc = text.slice(pos + sep.length).trim();
+      return { title: text.slice(0, pos).trim(), ...(desc && { description: desc }) };
     }
   }
-  return text;
+  return { title: text };
 }
 
 /**
@@ -79,8 +81,8 @@ export async function parseFutureWork(
         if (autoIdx > 0) autoIdx++;
       }
 
-      const name = extractTitle(text);
-      items.push({ index, name, done });
+      const { title: name, description } = extractTitleAndDescription(text);
+      items.push({ index, name, done, ...(description && { description }) });
     }
 
     return { filePath, items };
