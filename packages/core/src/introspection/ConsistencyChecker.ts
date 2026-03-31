@@ -140,7 +140,7 @@ export class ConsistencyChecker {
 
     // Rule 12: frontmatter schema validation across all documents
     allFindings.push(
-      ...await this.ruleFrontmatterSchema(projectPath),
+      ...await this.ruleFrontmatterSchema(projectPath, project.name),
     );
 
     return this.buildResult(projectPath, allFindings);
@@ -713,7 +713,7 @@ export class ConsistencyChecker {
   }
 
   /** Rule 12: Validate frontmatter against per-docType schema. */
-  private async ruleFrontmatterSchema(projectPath: string): Promise<ConsistencyFinding[]> {
+  private async ruleFrontmatterSchema(projectPath: string, projectName?: string): Promise<ConsistencyFinding[]> {
     const findings: ConsistencyFinding[] = [];
     const documents = await this.discoverAllDocuments(projectPath);
 
@@ -727,7 +727,7 @@ export class ConsistencyChecker {
 
       if (!fm.found) continue;
 
-      const schemaFindings = validateFrontmatter(docPath, fm.data);
+      const schemaFindings = validateFrontmatter(docPath, fm.data, { projectName });
       const relPath = relative(projectPath, docPath);
 
       for (const sf of schemaFindings) {

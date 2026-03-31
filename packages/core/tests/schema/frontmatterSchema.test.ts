@@ -4,6 +4,7 @@ import {
   VALID_STATUSES,
   validateFrontmatter,
   inferDocTypeFromPath,
+  inferFieldsFromPath,
 } from '../../src/schema/frontmatterSchema.js';
 
 /** The 8 canonical docTypes from file-naming-conventions.md */
@@ -194,5 +195,107 @@ describe('inferDocTypeFromPath', () => {
   it('returns null for non-matching filenames', () => {
     expect(inferDocTypeFromPath('/fake/readme.md')).toBeNull();
     expect(inferDocTypeFromPath('/fake/guide.ai-project.process.md')).toBeNull();
+  });
+});
+
+describe('inferFieldsFromPath', () => {
+  it('infers docType and slice from slice-design filename', () => {
+    const fields = inferFieldsFromPath('/fake/100-slice.foundation.md');
+    expect(fields.docType).toBe('slice-design');
+    expect(fields.slice).toBe('foundation');
+  });
+
+  it('infers docType and slice from tasks filename', () => {
+    const fields = inferFieldsFromPath('/fake/165-tasks.test-feature.md');
+    expect(fields.docType).toBe('tasks');
+    expect(fields.slice).toBe('test-feature');
+  });
+
+  it('infers docType, archIndex, and component from architecture filename', () => {
+    const fields = inferFieldsFromPath('/fake/140-arch.context-forge-restructure.md');
+    expect(fields.docType).toBe('architecture');
+    expect(fields.archIndex).toBe('140');
+    expect(fields.component).toBe('context-forge-restructure');
+  });
+
+  it('does not infer slice for non-slice docTypes', () => {
+    const fields = inferFieldsFromPath('/fake/160-slices.project-workflow.md');
+    expect(fields.docType).toBe('slice-plan');
+    expect(fields.slice).toBeUndefined();
+  });
+
+  it('returns empty for non-matching filenames', () => {
+    expect(inferFieldsFromPath('/fake/readme.md')).toEqual({});
+  });
+});
+
+describe('validateFrontmatter — field inference', () => {
+  it('includes fixAction for missing slice on slice-design', () => {
+    const findings = validateFrontmatter(
+      '/project/user/slices/100-slice.foundation.md',
+      { docType: 'slice-design', project: 'test', status: 'complete', dateCreated: '20260101', dateUpdated: '20260301' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'slice'");
+    expect(findings[0].description).toContain("inferred: 'foundation'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'slice',
+      value: 'foundation',
+    });
+  });
+
+  it('includes fixAction for missing archIndex on architecture', () => {
+    const findings = validateFrontmatter(
+      '/project/user/architecture/140-arch.context-forge.md',
+      { docType: 'architecture', project: 'test', status: 'complete', component: 'foo', dateCreated: '20260101', dateUpdated: '20260301' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'archIndex'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'archIndex',
+      value: '140',
+    });
+  });
+
+  it('includes fixAction for missing component on architecture', () => {
+    const findings = validateFrontmatter(
+      '/project/user/architecture/140-arch.context-forge-restructure.md',
+      { docType: 'architecture', project: 'test', status: 'complete', archIndex: '140', dateCreated: '20260101', dateUpdated: '20260301' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'component'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'component',
+      value: 'context-forge-restructure',
+    });
+  });
+
+  it('includes fixAction for missing project when projectName provided', () => {
+    const findings = validateFrontmatter(
+      '/project/user/slices/100-slice.foundation.md',
+      { docType: 'slice-design', slice: 'foundation', status: 'complete', dateCreated: '20260101', dateUpdated: '20260301' },
+      { projectName: 'context-forge' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'project'");
+    expect(findings[0].description).toContain("inferred: 'context-forge'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'project',
+      value: 'context-forge',
+    });
+  });
+
+  it('no fixAction for missing project when projectName not provided', () => {
+    const findings = validateFrontmatter(
+      '/project/user/slices/100-slice.foundation.md',
+      { docType: 'slice-design', slice: 'foundation', status: 'complete', dateCreated: '20260101', dateUpdated: '20260301' },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'project'");
+    expect(findings[0].fixAction).toBeUndefined();
   });
 });

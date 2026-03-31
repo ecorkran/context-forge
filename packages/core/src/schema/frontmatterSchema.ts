@@ -125,8 +125,8 @@ const FILENAME_SEGMENT_TO_DOCTYPE: Record<string, string> = {
   concept: 'concept',
 };
 
-/** Extract segment from a filename like "140-arch.foo.md" → "arch". */
-const FILENAME_SEGMENT_RE = /^\d+-(arch|slices|slice|tasks|review|analysis|concept)\./i;
+/** Parse a methodology filename into its parts: index, segment, name. */
+const FILENAME_PARTS_RE = /^(\d+)-(arch|slices|slice|tasks|review|analysis|concept)\.(.+?)(?:-\d+)?\.md$/i;
 
 /**
  * Infer docType from a file path based on naming conventions.
@@ -134,9 +134,38 @@ const FILENAME_SEGMENT_RE = /^\d+-(arch|slices|slice|tasks|review|analysis|conce
  */
 export function inferDocTypeFromPath(filePath: string): string | null {
   const basename = filePath.split('/').pop() ?? '';
-  const match = FILENAME_SEGMENT_RE.exec(basename);
+  const match = FILENAME_PARTS_RE.exec(basename);
   if (!match) return null;
-  return FILENAME_SEGMENT_TO_DOCTYPE[match[1].toLowerCase()] ?? null;
+  return FILENAME_SEGMENT_TO_DOCTYPE[match[2].toLowerCase()] ?? null;
+}
+
+/**
+ * Infer frontmatter field values from a file path based on naming conventions.
+ * Returns a map of field → inferred value for fields that can be derived.
+ */
+export function inferFieldsFromPath(filePath: string): Record<string, string> {
+  const basename = filePath.split('/').pop() ?? '';
+  const match = FILENAME_PARTS_RE.exec(basename);
+  if (!match) return {};
+
+  const [, index, segment, name] = match;
+  const inferred: Record<string, string> = {};
+  const docType = FILENAME_SEGMENT_TO_DOCTYPE[segment.toLowerCase()];
+
+  if (docType) inferred.docType = docType;
+
+  // Infer 'slice' for slice-design and tasks (the name portion is the slice name)
+  if (docType === 'slice-design' || docType === 'tasks') {
+    inferred.slice = name;
+  }
+
+  // Infer 'archIndex' and 'component' for architecture docs
+  if (docType === 'architecture') {
+    inferred.archIndex = index;
+    inferred.component = name;
+  }
+
+  return inferred;
 }
 
 /**
@@ -146,6 +175,7 @@ export function inferDocTypeFromPath(filePath: string): string | null {
 export function validateFrontmatter(
   filePath: string,
   data: Record<string, string>,
+  options?: { projectName?: string },
 ): FrontmatterFinding[] {
   const findings: FrontmatterFinding[] = [];
 
@@ -172,21 +202,35 @@ export function validateFrontmatter(
   if (!schema) return findings;
 
   // Step 3: check required fields
+  const inferred = inferFieldsFromPath(filePath);
   for (const [field, def] of Object.entries(schema.fields)) {
     if (field === 'docType') continue; // already validated by presence
     if (!def.required) continue;
 
     const value = data[field];
     if (value === undefined || value === null || String(value).trim() === '') {
+      // Determine if we can auto-fix this field
+      let fixValue: string | undefined;
+      if (field === 'status') {
+        fixValue = 'not_started';
+      } else if (field === 'project' && options?.projectName) {
+        fixValue = options.projectName;
+      } else if (inferred[field]) {
+        fixValue = inferred[field];
+      }
+
+      const description = fixValue
+        ? `Missing required field '${field}' for docType '${data.docType}' (inferred: '${fixValue}')`
+        : `Missing required field '${field}' for docType '${data.docType}'`;
+
       const finding: FrontmatterFinding = {
         rule: 'frontmatter-schema',
         severity: 'warning',
         filePath,
-        description: `Missing required field '${field}' for docType '${data.docType}'`,
+        description,
       };
-      // Status is auto-fixable with default value
-      if (field === 'status') {
-        finding.fixAction = { type: 'update-frontmatter', field: 'status', value: 'not_started' };
+      if (fixValue) {
+        finding.fixAction = { type: 'update-frontmatter', field, value: fixValue };
       }
       findings.push(finding);
     }
