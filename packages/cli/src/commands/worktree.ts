@@ -1,4 +1,6 @@
 import * as os from 'node:os';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
@@ -437,6 +439,23 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         console.log(success(`Worktree context '${target.name}' removed from project '${project.name}'.`));
+
+        // Hint about git worktree removal when the worktree has a filesystem path
+        if (target.worktreePath) {
+          const guidesPresent = existsSync(join(target.worktreePath, 'project-documents', 'ai-project-guide'));
+          if (guidesPresent) {
+            console.log(dim(
+              `\n  To remove the git worktree, first uninstall guides:\n` +
+              `    cd ${target.worktreePath} && cf guides uninstall\n` +
+              `    git worktree remove --force ${target.worktreePath}`,
+            ));
+          } else {
+            console.log(dim(
+              `\n  To remove the git worktree:\n` +
+              `    git worktree remove --force ${target.worktreePath}`,
+            ));
+          }
+        }
       } catch (err) {
         handleError(err);
       }
