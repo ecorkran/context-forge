@@ -357,8 +357,9 @@ describe('GuideManager', () => {
       );
     });
 
-    it('performs worktree-scoped deinit only when operationPath differs from projectPath', async () => {
+    it('performs worktree-scoped deinit and removes guide dir when operationPath differs', async () => {
       mockDetect.mockResolvedValue(installedInfo);
+      mockExistsSync.mockReturnValue(true);
       const worktreePath = '/test/worktree';
       const manager = new GuideManager(projectPath, mockConfigManager as never, worktreePath);
 
@@ -370,7 +371,12 @@ describe('GuideManager', () => {
         ['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH],
         worktreePath,
       );
-      // Should NOT call git rm, remove .git/modules, or commit
+      // Should physically remove the guide directory from the worktree
+      expect(mockRmSync).toHaveBeenCalledWith(
+        `${worktreePath}/${GUIDE_RELATIVE_PATH}`,
+        { recursive: true, force: true },
+      );
+      // Should NOT call git rm or commit (shared state)
       expect(mockGitExec).not.toHaveBeenCalledWith(
         ['rm', '-f', GUIDE_RELATIVE_PATH],
         expect.anything(),
@@ -379,7 +385,6 @@ describe('GuideManager', () => {
         ['commit', '-m', expect.anything()],
         expect.anything(),
       );
-      expect(mockRmSync).not.toHaveBeenCalled();
       // Should have been called exactly once (only deinit)
       expect(mockGitExec).toHaveBeenCalledTimes(1);
     });

@@ -138,7 +138,7 @@ export function registerGuidesCommand(program: Command): void {
 
         if (isWorktree) {
           console.log(success('Guide deinited from worktree.'));
-          console.log(dim(`  You can now run: git worktree remove ${ctx.operationPath}`));
+          console.log(dim(`  You can now run: git worktree remove --force ${ctx.operationPath}`));
         } else {
           console.log(success('Guide uninstalled successfully.'));
         }

@@ -98,7 +98,15 @@ export class GuideManager {
         isWorktree ? this.operationPath : this.projectPath,
       );
 
-      if (!isWorktree) {
+      if (isWorktree) {
+        // Worktree deinit: physically remove the submodule directory from the worktree.
+        // `submodule deinit` affects shared .git/config but may not clean the worktree's
+        // physical files. Remove the directory to ensure git worktree remove --force succeeds.
+        const worktreeGuideDir = join(this.operationPath, GUIDE_RELATIVE_PATH);
+        if (existsSync(worktreeGuideDir)) {
+          rmSync(worktreeGuideDir, { recursive: true, force: true });
+        }
+      } else {
         // Full uninstall: remove shared state and commit
         const modulesPath = join(this.projectPath, '.git', 'modules', GUIDE_RELATIVE_PATH);
         if (existsSync(modulesPath)) {
