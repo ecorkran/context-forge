@@ -9,11 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-31
 
-### Slice 194: Worktree-Scoped Guide Uninstall — Slice Design
-- Added slice 194 to 180-slices plan (Bug Fix section), ref GitHub issue #46
-- Created slice design: worktree-mode branch in `GuideManager.uninstall()` using existing `operationPath`
-- Created task breakdown: 4 sections (core fix, tests, CLI integration, validation)
-- Root cause: `uninstall()` ignores `operationPath`, always operates on `projectPath`
+### Slice 194: Worktree-Scoped Guide Uninstall — Complete
+- `GuideManager.uninstall()` now detects worktree mode via `operationPath` and runs only `submodule deinit` scoped to the worktree
+- CLI shows worktree-specific hint after deinit
+- 7 new tests for both uninstall paths (worktree-mode and full)
+- Fixes GitHub issue #46
+- Commits: `70f34b6` core fix + tests, `70ee231` docs + artifacts, `fcdbbc8` review
 
 ---
 
