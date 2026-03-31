@@ -7,6 +7,7 @@ projectState: "Phase 5 task breakdown for 177. All dependencies complete. CLI in
 dateCreated: 20260308
 dateUpdated: 20260309
 status: complete
+docType: tasks
 ---
 
 # Tasks: IDE Setup Command

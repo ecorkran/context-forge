@@ -7,6 +7,7 @@ projectState: "Phase 5 task breakdown for 178. Dependencies complete. Consistenc
 dateCreated: 20260309
 dateUpdated: 20260309
 status: complete
+docType: tasks
 ---
 
 # Tasks: Consistency Checker — All-Slices Mode

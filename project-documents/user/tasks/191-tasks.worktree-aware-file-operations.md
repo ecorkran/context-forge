@@ -7,6 +7,7 @@ projectState: Slice 190 complete. CLI commands (arch list, slice list, tasks lis
 dateCreated: 20260318
 dateUpdated: 20260319
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

@@ -7,6 +7,7 @@ projectState: Slices 201-203 complete. project_create MCP tool, smart cf init, a
 dateCreated: 20260315
 dateUpdated: 20260315
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

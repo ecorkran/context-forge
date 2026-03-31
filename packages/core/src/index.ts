@@ -14,6 +14,18 @@ export type { GuideInfo, GuideMethod, InstallResult, UninstallResult, UpdateResu
 // Project schema (field metadata, aliases, phase maps)
 export * from './schema/projectSchema.js';
 
+// Frontmatter schema registry (per-docType field validation)
+export {
+  FRONTMATTER_SCHEMAS,
+  VALID_STATUSES,
+  validateFrontmatter,
+  inferDocTypeFromPath,
+  inferFieldsFromPath,
+  type FrontmatterFieldDef,
+  type DocTypeSchema,
+  type FrontmatterFinding,
+} from './schema/frontmatterSchema.js';
+
 // Git utilities
 export { GitWorktreeDiscovery, parseWorktreeListOutput } from './git/index.js';
 

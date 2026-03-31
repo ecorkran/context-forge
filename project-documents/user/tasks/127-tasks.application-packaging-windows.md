@@ -12,6 +12,7 @@ dateUpdated: 20260207
 dependencies: [125-application-packaging]
 lldReference: 127-slice.application-packaging-windows.md
 projectState: deferred
+docType: tasks
 ---
 
 # Tasks: Application Packaging (Windows)

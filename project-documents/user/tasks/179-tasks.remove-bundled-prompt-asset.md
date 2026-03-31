@@ -7,6 +7,7 @@ projectState: Slice 189 complete. Bundled prompt asset exists at packages/core/a
 dateCreated: 20260318
 dateUpdated: 20260318
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

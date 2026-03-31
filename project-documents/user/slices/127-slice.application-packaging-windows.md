@@ -7,6 +7,8 @@ projectState: deferred
 status: deferred
 dateCreated: 20260131
 dateUpdated: 20260207
+docType: slice-design
+slice: application-packaging-windows
 ---
 
 # Slice Design: Application Packaging (Windows)

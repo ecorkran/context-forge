@@ -9,10 +9,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-30
 
-### Slice 905: Frontmatter Schema Validation — Design & Task Breakdown
-- Slice design and task breakdown complete
-- 6 sections: schema registry, validation function, checker integration, rule removal, real-project validation, final
-- Will replace ad-hoc Rules 9/11 with data-driven validation per docType
+### Slice 905: Frontmatter Schema Validation — Complete
+- Schema registry: `FRONTMATTER_SCHEMAS` maps 8 docTypes to required fields with value constraints
+- `validateFrontmatter()` pure function with status alias normalization (hyphens, spaces, "active", "completed")
+- ConsistencyChecker Rule 12: scans all methodology directories, validates frontmatter per docType
+- Removed Rules 9 (missing-plan-status) and 11 (missing-arch-status) — subsumed by schema validation
+- `cf check --fix` auto-fixes missing `status` fields with `not_started` default
+- Fixed 12 project documents (added missing status to reviews and task files)
+- 726 core tests passing (12 new schema/validation tests, 6 old rule tests removed)
+- Commits: `2282fb3` schema registry, `254c74e` validateFrontmatter, `b3b90b8` checker integration, `c907af7` remove Rules 9/11, `c84efac` fix project documents
 
 ## 2026-03-25
 

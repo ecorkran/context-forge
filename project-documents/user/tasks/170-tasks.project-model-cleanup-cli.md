@@ -7,6 +7,7 @@ projectState: Slice 169 complete. CLI has three-step resolveProjectId (flag → 
 dateCreated: 20260305
 dateUpdated: 20260305
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

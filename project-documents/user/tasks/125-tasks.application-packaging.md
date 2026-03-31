@@ -12,6 +12,7 @@ dateUpdated: 20260207
 dependencies: [all-core-features]
 lldReference: 125-slice.application-packaging.md
 projectState: MVP complete, ready for distribution
+docType: tasks
 ---
 
 # Tasks: Application Packaging (macOS)

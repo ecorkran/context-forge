@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20260330
 dateUpdated: 20260330
-status: not_started
+status: complete
 ---
 
 # Slice Design: Frontmatter Schema Validation
@@ -168,27 +168,38 @@ Filter: files matching `*.md` with YAML frontmatter present. Skip files without 
 ## Verification Walkthrough
 
 ```bash
-# 1. Create a test document with missing fields
-echo "---\ndocType: architecture\n---\n# Test" > /tmp/test-arch.md
+# 1. Build and run full test suite
+pnpm build && pnpm test
+# Result: all packages build clean, 726 core + 358 cli + 183 mcp + 106 electron tests pass
 
-# 2. Run check — should report missing required fields
+# 2. Run cf check — schema findings appear for documents with missing fields
 cf check
+# Result: 255 findings total (230 warnings, 25 infos)
+# Schema findings include: missing docType on legacy docs, missing status on review/task files
 
-# 3. Verify schema validation findings appear
-# Expected: warnings for missing project, status, archIndex, component, dateCreated, dateUpdated
-
-# 4. Run check --fix — should fix what it can (status)
+# 3. Run cf check --fix — auto-fixes missing status fields
 cf check --fix
+# Result: Fixed 12 findings (added status: not_started to reviews and task files missing it)
 
-# 5. Verify no false positives on our own project
+# 4. Run cf check again — no more fixable findings
 cf check
-# Expected: no frontmatter-schema findings on existing documents
-# (or only findings for legitimately missing fields)
+# Result: remaining findings are non-fixable (missing docType on pre-convention docs)
 
-# 6. Verify Rules 9/11 are gone — schema rule covers their cases
+# 5. Verify Rules 9/11 are gone
 grep -r "missing-plan-status\|missing-arch-status" packages/core/src/
-# Expected: no matches (rules removed)
+# Result: no matches (exit code 1) — rules fully removed
+
+# 6. Verify status normalization
+# in-progress (hyphenated) → accepted as in_progress
+# completed → accepted as complete
+# active → accepted as in_progress
+# not started (space) → accepted as not_started
 ```
+
+**Caveats:**
+- Legacy documents (pre-docType convention) produce "missing docType" warnings — expected, not false positives
+- Worktree documents are also scanned; compound statuses like "paused, priority-adjusted" flag as invalid
+- Status normalization accepts common aliases (hyphens, spaces, "active", "completed")
 
 ## Effort
 

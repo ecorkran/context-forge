@@ -11,6 +11,7 @@ projectState: >
   ContextGenerator, ServiceFactory) remain in packages/electron/src/services/context/.
 dateCreated: 20260218
 dateUpdated: 20260218
+docType: tasks
 ---
 
 ## Context Summary

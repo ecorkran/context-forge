@@ -7,6 +7,7 @@ projectState: MCP server has project_list, project_get, project_update, project_
 dateCreated: 20260315
 dateUpdated: 20260315
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

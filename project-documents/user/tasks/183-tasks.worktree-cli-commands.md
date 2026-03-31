@@ -6,6 +6,7 @@ dependencies: [181-worktreecontext-data-model-storage, 182-worktree-discovery-cw
 dateCreated: 20260310
 dateUpdated: 20260310
 status: complete
+docType: tasks
 ---
 
 # Tasks: 183 — Worktree CLI Commands

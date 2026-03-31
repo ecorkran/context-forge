@@ -7,6 +7,7 @@ projectState: Slice 206 (CLI/MCP Shared-Logic Consolidation) design complete, no
 dateCreated: 20260322
 dateUpdated: 20260322
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

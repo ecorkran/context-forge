@@ -7,6 +7,7 @@ projectState: Monorepo scaffolding complete. packages/core exists with empty src
 dateCreated: 20260217
 dateUpdated: 20260217
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

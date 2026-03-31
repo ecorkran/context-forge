@@ -6,6 +6,7 @@ project: squadron
 verdict: PASS
 dateCreated: 20260323
 dateUpdated: 20260323
+status: not_started
 ---
 
 # Review: slice — slice 208

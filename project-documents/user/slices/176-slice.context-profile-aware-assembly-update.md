@@ -10,6 +10,7 @@ status: complete
 dependencies:
   - 161-schema-standardization
   - 175-context-output-consolidation
+slice: context-profile-aware-assembly-update
 ---
 
 # Slice 176: Context-Profile-Aware Assembly — Update

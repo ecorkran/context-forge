@@ -7,6 +7,9 @@ dependencies: [foundation, context-templates]
 projectState: complete
 dateCreated: 20250913
 dateUpdated: 20260207
+docType: tasks
+slice: persistence
+status: not_started
 ---
 
 # Task Breakdown: Persistence & Multi-Project Foundation

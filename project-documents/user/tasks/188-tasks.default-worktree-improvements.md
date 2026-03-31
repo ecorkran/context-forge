@@ -10,6 +10,7 @@ dateCreated: 20260312
 dateUpdated: 20260312
 dependencies:
   - 181-slice (WorktreeContext Data Model & Storage) — complete
+slice: default-worktree-improvements
 ---
 
 # Tasks: Default Worktree Improvements (188)

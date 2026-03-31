@@ -7,6 +7,7 @@ projectState: Guide operations (cf guides, guide_status/guide_update MCP tools) 
 dateCreated: 20260318
 dateUpdated: 20260318
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

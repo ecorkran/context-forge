@@ -8,6 +8,8 @@ projectState: Phase 4 slice design in progress
 status: not started
 dateCreated: 20250910
 dateUpdated: 20250910
+docType: slice-design
+slice: foundation
 ---
 
 # Foundation Design: Core Layout Structure & Local Storage

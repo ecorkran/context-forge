@@ -6,6 +6,8 @@ dependencies: [core-orchestration-extraction, storage-migration]
 projectState: All prerequisite slices (140-147) complete. Core package exports FileProjectStore, createContextPipeline, FileStorageService, ProjectPathService. MCP server operational with 8 tools. Electron app still uses internal IPC wrappers and renderer-side service stack.
 dateCreated: 20260221
 dateUpdated: 20260221
+docType: tasks
+status: not_started
 ---
 
 ## Context Summary

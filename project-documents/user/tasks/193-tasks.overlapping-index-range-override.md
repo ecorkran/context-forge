@@ -7,6 +7,7 @@ projectState: Slice 192 complete. All worktree CRUD, range chopping, display, an
 dateCreated: 20260320
 dateUpdated: 20260320
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

@@ -9,6 +9,8 @@ projectState: Electron+React app. Settings dialog exists with monorepo toggle. N
 status: not started
 dateCreated: 20260213
 dateUpdated: 20260213
+docType: slice-design
+slice: project-path-awareness
 ---
 
 # Slice Design: Project Path Awareness

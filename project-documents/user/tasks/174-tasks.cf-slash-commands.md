@@ -7,6 +7,7 @@ projectState: Slice 173 complete. CLI has cf set/get/build/status/next/prompt/in
 dateCreated: 20260306
 dateUpdated: 20260306
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

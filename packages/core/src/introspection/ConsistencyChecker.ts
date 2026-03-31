@@ -1,8 +1,9 @@
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { WorktreeInfo } from '../types/git.js';
+import { validateFrontmatter } from '../schema/frontmatterSchema.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
   ConsistencyFinding,
@@ -132,26 +133,14 @@ export class ConsistencyChecker {
       );
     }
 
-    // Rule 11: arch files missing status field
-    const allArchFiles = await this.discoverAllArchFiles(projectPath);
-    if (project.fileArch) {
-      const configuredArchRel = resolveArtifactPath('fileArch', project.fileArch);
-      if (configuredArchRel) {
-        const configuredArchFull = join(projectPath, configuredArchRel);
-        if (!allArchFiles.includes(configuredArchFull)) allArchFiles.push(configuredArchFull);
-      }
-    }
-    // Build index → planResult map from already-parsed pairs
-    const pairedPlanByArchPath = new Map(archPlanPairs.map(({ archPath, planResult }) => [archPath, planResult]));
-    for (const archPath of allArchFiles) {
-      allFindings.push(
-        ...await this.ruleArchMissingStatus(archPath, pairedPlanByArchPath.get(archPath) ?? null),
-      );
-    }
-
     // Rule 10: stale worktree paths
     allFindings.push(
       ...await this.ruleStaleWorktreePath(project, projectPath),
+    );
+
+    // Rule 12: frontmatter schema validation across all documents
+    allFindings.push(
+      ...await this.ruleFrontmatterSchema(projectPath, project.name),
     );
 
     return this.buildResult(projectPath, allFindings);
@@ -542,24 +531,8 @@ export class ConsistencyChecker {
 
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
 
-    // Rule 9: Missing status field — infer from entry completion
-    if (!planFrontmatter.data.status) {
-      const inferredStatus = allComplete && slicePlanResult.totalSlices > 0 ? 'complete' : 'in-progress';
-      findings.push({
-        rule: 'missing-plan-status',
-        severity: 'warning',
-        location: slicePlanPath,
-        description: `Slice plan frontmatter has no "status" field (inferred: "${inferredStatus}")`,
-        suggestedFix: `Add status: ${inferredStatus} to slice plan frontmatter`,
-        fixable: true,
-        fixAction: {
-          type: 'update-frontmatter',
-          filePath: slicePlanPath,
-          detail: { key: 'status', value: inferredStatus },
-        },
-      });
-      return findings;
-    }
+    // Missing status is now handled by Rule 12 (frontmatter-schema)
+    if (!planFrontmatter.data.status) return findings;
 
     const planStatus = planFrontmatter.data.status.toLowerCase();
 
@@ -652,47 +625,6 @@ export class ConsistencyChecker {
     return findings;
   }
 
-  /** Rule 11: Architecture file missing status frontmatter field */
-  private async ruleArchMissingStatus(
-    archPath: string,
-    planResult: SlicePlanResult | null,
-  ): Promise<ConsistencyFinding[]> {
-    let archFrontmatter: FrontmatterResult;
-    try {
-      archFrontmatter = await this.introspector.parseFrontmatter(archPath);
-    } catch {
-      return [];
-    }
-
-    if (!archFrontmatter.found || archFrontmatter.data.status) return [];
-
-    // Infer status from paired plan if available, otherwise not_started
-    let inferredStatus: string;
-    if (planResult) {
-      const allComplete =
-        planResult.totalSlices > 0 &&
-        planResult.completedSlices === planResult.totalSlices;
-      inferredStatus = allComplete ? 'complete' : 'in-progress';
-    } else {
-      inferredStatus = 'not_started';
-    }
-
-    return [
-      {
-        rule: 'missing-arch-status',
-        severity: 'warning',
-        location: archPath,
-        description: `Architecture file has no "status" frontmatter field (inferred: "${inferredStatus}")`,
-        suggestedFix: `Add status: ${inferredStatus} to architecture frontmatter`,
-        fixable: true,
-        fixAction: {
-          type: 'update-frontmatter',
-          filePath: archPath,
-          detail: { key: 'status', value: inferredStatus },
-        },
-      },
-    ];
-  }
 
   /** Rule 10: Stale worktree paths — worktree path missing or not a git worktree */
   private async ruleStaleWorktreePath(
@@ -740,6 +672,85 @@ export class ConsistencyChecker {
           suggestedFix: `Run 'cf worktree update "${wt.name}" --path <new-path>' or 'cf worktree rm "${wt.name}"'`,
           fixable: false,
         });
+      }
+    }
+
+    return findings;
+  }
+
+  // --- Document-wide rules ---
+
+  /** Directories under project-documents/user/ to scan for methodology documents. */
+  private static readonly DOC_SCAN_DIRS = [
+    'architecture',
+    'slices',
+    'tasks',
+    'project-guides',
+    'reviews',
+    'analysis',
+  ];
+
+  /** Discover all .md documents across methodology directories. */
+  private async discoverAllDocuments(projectPath: string): Promise<string[]> {
+    const userDir = join(projectPath, 'project-documents/user');
+    const allPaths: string[] = [];
+
+    for (const subdir of ConsistencyChecker.DOC_SCAN_DIRS) {
+      const dir = join(userDir, subdir);
+      try {
+        const files = await readdir(dir);
+        for (const f of files) {
+          if (f.endsWith('.md')) {
+            allPaths.push(join(dir, f));
+          }
+        }
+      } catch {
+        // Directory may not exist — skip
+      }
+    }
+
+    return allPaths;
+  }
+
+  /** Rule 12: Validate frontmatter against per-docType schema. */
+  private async ruleFrontmatterSchema(projectPath: string, projectName?: string): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+    const documents = await this.discoverAllDocuments(projectPath);
+
+    for (const docPath of documents) {
+      let fm;
+      try {
+        fm = await this.introspector.parseFrontmatter(docPath);
+      } catch {
+        continue;
+      }
+
+      if (!fm.found) continue;
+
+      const schemaFindings = validateFrontmatter(docPath, fm.data, { projectName });
+      const relPath = relative(projectPath, docPath);
+
+      for (const sf of schemaFindings) {
+        const finding: ConsistencyFinding = {
+          rule: sf.rule,
+          severity: sf.severity,
+          location: docPath,
+          description: `${relPath}: ${sf.description}`,
+          suggestedFix: sf.fixAction
+            ? `Add ${sf.fixAction.field}: ${sf.fixAction.value} to frontmatter`
+            : `Add the missing field to frontmatter`,
+          fixable: !!sf.fixAction,
+        };
+
+        if (sf.fixAction) {
+          finding.fixAction = {
+            type: sf.fixAction.type as 'update-frontmatter',
+            filePath: docPath,
+            detail: { key: sf.fixAction.field, value: sf.fixAction.value },
+          };
+        }
+
+        findings.push(finding);
       }
     }
 

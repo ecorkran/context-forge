@@ -7,6 +7,7 @@ projectState: Slices 140-150 complete. Monorepo restructure done. Core has 224 t
 dateCreated: 20260223
 dateUpdated: 20260223
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

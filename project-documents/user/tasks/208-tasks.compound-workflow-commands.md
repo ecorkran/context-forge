@@ -7,6 +7,7 @@ projectState: Phase migration to v0.14.0 complete. Phases 0-7 with Initiative Pl
 dateCreated: 20260323
 dateUpdated: 20260324
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

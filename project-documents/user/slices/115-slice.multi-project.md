@@ -7,6 +7,8 @@ projectState: Core single-project functionality complete with auto-save persiste
 status: not-started
 dateCreated: 20250914
 dateUpdated: 20250914
+docType: slice-design
+slice: multi-project
 ---
 
 # Low-Level Design: Multi-Project Support

@@ -7,6 +7,7 @@ projectState: Slices 140-149 complete. Core extraction done, 224 core tests pass
 dateCreated: 20260223
 dateUpdated: 20260223
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

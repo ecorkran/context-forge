@@ -7,6 +7,7 @@ projectState: "Slices 161-164, 167, 172-175 complete. 805 tests passing. Core in
 dateCreated: 20260307
 dateUpdated: 20260307
 status: complete
+docType: tasks
 ---
 
 ## Context Summary

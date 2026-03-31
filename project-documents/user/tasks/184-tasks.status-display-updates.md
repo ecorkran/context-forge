@@ -7,6 +7,7 @@ projectState: Worktree plumbing complete (181-183). applyWorktreeOverlay duplica
 dateCreated: 20260311
 dateUpdated: 20260311
 status: complete
+docType: tasks
 ---
 
 # Tasks: 184 — Status & Display Updates
