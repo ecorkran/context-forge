@@ -90,21 +90,29 @@ export class GuideManager {
 
     if (method === 'submodule') {
       const { gitExec } = await import('./gitExec.js');
-      // Deinit the submodule (removes working tree contents)
-      await gitExec(['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
-      // Remove from .git/modules
-      const modulesPath = join(this.projectPath, '.git', 'modules', GUIDE_RELATIVE_PATH);
-      if (existsSync(modulesPath)) {
-        rmSync(modulesPath, { recursive: true, force: true });
-      }
-      // Remove the submodule entry from index and .gitmodules
-      await gitExec(['rm', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
-      // Commit the removal
-      const versionSuffix = version ? ` ${version}` : '';
+      const isWorktree = this.operationPath && this.operationPath !== this.projectPath;
+
+      // Deinit the submodule — scoped to operationPath (worktree) or projectPath (main)
       await gitExec(
-        ['commit', '-m', `docs: uninstall ai-project-guide${versionSuffix}`],
-        this.projectPath,
+        ['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH],
+        isWorktree ? this.operationPath : this.projectPath,
       );
+
+      if (!isWorktree) {
+        // Full uninstall: remove shared state and commit
+        const modulesPath = join(this.projectPath, '.git', 'modules', GUIDE_RELATIVE_PATH);
+        if (existsSync(modulesPath)) {
+          rmSync(modulesPath, { recursive: true, force: true });
+        }
+        // Remove the submodule entry from index and .gitmodules
+        await gitExec(['rm', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
+        // Commit the removal
+        const versionSuffix = version ? ` ${version}` : '';
+        await gitExec(
+          ['commit', '-m', `docs: uninstall ai-project-guide${versionSuffix}`],
+          this.projectPath,
+        );
+      }
     } else {
       // clone or manual — just remove the directory
       if (existsSync(targetDir)) {

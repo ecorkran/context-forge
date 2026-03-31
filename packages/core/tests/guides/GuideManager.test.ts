@@ -3,9 +3,18 @@ import { GuideManager } from '../../src/guides/GuideManager.js';
 import { DEFAULT_SOURCE_GIT } from '../../src/guides/types.js';
 import type { GuideInfo } from '../../src/guides/types.js';
 
-// Mock fs for mkdirSync
+// Mock fs
 vi.mock('fs', () => ({
   mkdirSync: vi.fn(),
+  existsSync: vi.fn().mockReturnValue(false),
+  rmSync: vi.fn(),
+}));
+
+// Mock gitExec (used by uninstall via dynamic import)
+vi.mock('../../src/guides/gitExec.js', () => ({
+  gitExec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
+  isGitAvailable: vi.fn().mockResolvedValue(true),
+  isGitRepo: vi.fn().mockResolvedValue(true),
 }));
 
 // Mock dependencies
@@ -36,11 +45,13 @@ vi.mock('../../src/guides/strategies/TarballStrategy.js', () => ({
   })),
 }));
 
-import { mkdirSync } from 'fs';
+import { mkdirSync, existsSync, rmSync } from 'fs';
 import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
 import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
+import { gitExec } from '../../src/guides/gitExec.js';
+import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
 
 describe('GuideManager', () => {
   const projectPath = '/test/project';
@@ -278,6 +289,122 @@ describe('GuideManager', () => {
 
       expect(mockCloneUpdate).toHaveBeenCalled();
       expect(mockSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('uninstall()', () => {
+    const mockGitExec = vi.mocked(gitExec);
+    const mockExistsSync = vi.mocked(existsSync);
+    const mockRmSync = vi.mocked(rmSync);
+
+    beforeEach(() => {
+      mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
+      mockExistsSync.mockReturnValue(false);
+      mockRmSync.mockReturnValue(undefined);
+    });
+
+    it('performs full uninstall when no operationPath is set', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      const result = await manager.uninstall();
+
+      expect(result).toEqual({ success: true, method: 'submodule', version: 'v0.12.0' });
+      // Should call submodule deinit on projectPath
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH],
+        projectPath,
+      );
+      // Should call git rm
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['rm', '-f', GUIDE_RELATIVE_PATH],
+        projectPath,
+      );
+      // Should commit
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['commit', '-m', 'docs: uninstall ai-project-guide v0.12.0'],
+        projectPath,
+      );
+    });
+
+    it('performs full uninstall when operationPath equals projectPath', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const manager = new GuideManager(projectPath, mockConfigManager as never, projectPath);
+
+      await manager.uninstall();
+
+      // Should still do full uninstall (same path = main repo)
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['rm', '-f', GUIDE_RELATIVE_PATH],
+        projectPath,
+      );
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['commit', '-m', expect.stringContaining('uninstall')],
+        projectPath,
+      );
+    });
+
+    it('removes .git/modules when they exist during full uninstall', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      mockExistsSync.mockReturnValue(true);
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await manager.uninstall();
+
+      expect(mockRmSync).toHaveBeenCalledWith(
+        `/test/project/.git/modules/${GUIDE_RELATIVE_PATH}`,
+        { recursive: true, force: true },
+      );
+    });
+
+    it('performs worktree-scoped deinit only when operationPath differs from projectPath', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      const worktreePath = '/test/worktree';
+      const manager = new GuideManager(projectPath, mockConfigManager as never, worktreePath);
+
+      const result = await manager.uninstall();
+
+      expect(result).toEqual({ success: true, method: 'submodule', version: 'v0.12.0' });
+      // Should call submodule deinit on the WORKTREE path
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH],
+        worktreePath,
+      );
+      // Should NOT call git rm, remove .git/modules, or commit
+      expect(mockGitExec).not.toHaveBeenCalledWith(
+        ['rm', '-f', GUIDE_RELATIVE_PATH],
+        expect.anything(),
+      );
+      expect(mockGitExec).not.toHaveBeenCalledWith(
+        ['commit', '-m', expect.anything()],
+        expect.anything(),
+      );
+      expect(mockRmSync).not.toHaveBeenCalled();
+      // Should have been called exactly once (only deinit)
+      expect(mockGitExec).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes clone/manual directory without git operations', async () => {
+      const cloneInfo = { ...installedInfo, method: 'clone' as const };
+      mockDetect.mockResolvedValue(cloneInfo);
+      mockExistsSync.mockReturnValue(true);
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.uninstall();
+
+      expect(result.method).toBe('clone');
+      expect(mockRmSync).toHaveBeenCalledWith(
+        `${projectPath}/${GUIDE_RELATIVE_PATH}`,
+        { recursive: true, force: true },
+      );
+      expect(mockGitExec).not.toHaveBeenCalled();
+    });
+
+    it('errors when guide not installed', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.uninstall()).rejects.toThrow('not installed');
     });
   });
 

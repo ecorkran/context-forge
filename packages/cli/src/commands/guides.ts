@@ -134,10 +134,17 @@ export function registerGuidesCommand(program: Command): void {
 
         const result = await manager.uninstall();
 
-        console.log(success('Guide uninstalled successfully.'));
+        const isWorktree = ctx.operationPath !== ctx.projectPath;
+
+        if (isWorktree) {
+          console.log(success('Guide deinited from worktree.'));
+          console.log(dim(`  You can now run: git worktree remove ${ctx.operationPath}`));
+        } else {
+          console.log(success('Guide uninstalled successfully.'));
+        }
         console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
         console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
-        if (result.method === 'submodule') {
+        if (!isWorktree && result.method === 'submodule') {
           console.log(dim('  Note: submodule removal affects all worktrees. Run cf guides install to reinstall.'));
         }
       } catch (err) {
