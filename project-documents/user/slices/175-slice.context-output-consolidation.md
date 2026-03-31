@@ -7,6 +7,7 @@ sliceName: context-output-consolidation
 dateCreated: 20260306
 dateUpdated: 20260306
 status: complete
+slice: context-output-consolidation
 ---
 
 # Slice 175: Context Output Consolidation & Template Variable Completion

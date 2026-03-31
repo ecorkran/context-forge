@@ -8,6 +8,7 @@ status: not-started
 dateCreated: 20250913
 dateUpdated: 20250127
 docType: slice-design
+slice: persistence
 ---
 
 # Slice Design: Persistence & Multi-Project Foundation

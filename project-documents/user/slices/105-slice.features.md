@@ -9,6 +9,7 @@ status: not-started
 dateCreated: 20250911
 dateUpdated: 20250127
 docType: slice-design
+slice: features
 ---
 
 # Feature Slices Low-Level Design: context-builder

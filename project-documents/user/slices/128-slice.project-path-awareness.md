@@ -10,6 +10,7 @@ status: not started
 dateCreated: 20260213
 dateUpdated: 20260213
 docType: slice-design
+slice: project-path-awareness
 ---
 
 # Slice Design: Project Path Awareness

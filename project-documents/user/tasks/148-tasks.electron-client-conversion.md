@@ -7,6 +7,7 @@ projectState: All prerequisite slices (140-147) complete. Core package exports F
 dateCreated: 20260221
 dateUpdated: 20260221
 docType: tasks
+status: not_started
 ---
 
 ## Context Summary

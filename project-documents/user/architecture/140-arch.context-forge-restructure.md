@@ -10,6 +10,9 @@ dateCreated: 20260214
 dateUpdated: 20260215
 status: complete
 docType: architecture
+archIndex: 140
+project: context-forge
+component: context-forge-restructure
 ---
 
 # Context Forge v2: MCP Server Architecture

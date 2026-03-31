@@ -8,6 +8,7 @@ status: deferred
 dateCreated: 20260131
 dateUpdated: 20260207
 docType: slice-design
+slice: application-packaging-linux
 ---
 
 # Slice Design: Application Packaging (Linux)

@@ -9,6 +9,7 @@ status: not-started
 dateCreated: 20250912
 dateUpdated: 20250127
 docType: slice-design
+slice: context-templates
 ---
 
 # Slice Design: Context Templates System

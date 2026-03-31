@@ -7,6 +7,7 @@ projectState: Complete
 dateCreated: 20250910
 dateUpdated: 20250127
 docType: tasks
+status: not_started
 ---
 
 ## Context Summary
