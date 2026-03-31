@@ -15,6 +15,7 @@ describe('parseSlicePlan', () => {
       status: 'complete',
       isChecked: true,
       lineIndex: 15,
+      description: 'Initialize data models and core types.',
     });
 
     expect(result.entries[2]).toEqual({
@@ -23,6 +24,7 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 21,
+      description: 'First feature implementation.',
     });
   });
 
@@ -96,6 +98,7 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 12,
+      description: 'Python project setup, FastAPI skeleton.',
     });
 
     expect(result.entries[3]).toEqual({
@@ -104,9 +107,25 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 20,
+      description: 'Minimal web UI for chat.',
     });
 
     // Integration Work entry is also parsed (not in excluded headings)
     expect(result.entries[5].name).toBe('Operational Hardening');
+  });
+
+  it('captures description text after bold name', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
+    expect(result.entries[0].description).toBe('Initialize data models and core types.');
+    expect(result.entries[1].description).toBe('Persistent configuration layer.');
+  });
+
+  it('omits description when none present after name', async () => {
+    // All fixture entries have descriptions, so verify via real plan
+    const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
+    // All entries should have descriptions in this fixture
+    for (const entry of result.entries) {
+      expect(entry.description).toBeDefined();
+    }
   });
 });

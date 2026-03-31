@@ -1,17 +1,24 @@
 import { readFile } from 'node:fs/promises';
 import type { SlicePlanEntry, SlicePlanResult } from '../types.js';
 
-/** Matches `N. [ ] **(NNN) Slice Name**` — indexed format */
-const PLAN_INDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*/;
+/** Matches `N. [ ] **(NNN) Slice Name** — description` — indexed format */
+const PLAN_INDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*\s*(.*)/;
 
-/** Matches `N. [ ] **Slice Name**` — unindexed format (no parenthesized index) */
-const PLAN_UNINDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*([^(].*?)\*\*/;
+/** Matches `N. [ ] **Slice Name** — description` — unindexed format (no parenthesized index) */
+const PLAN_UNINDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*([^(].*?)\*\*\s*(.*)/;
 
 /** Matches headings: #, ##, ### */
 const HEADING_RE = /^#{1,3}\s+/;
 
 /** Headings that do NOT contain slice entries */
 const NON_SLICE_HEADINGS = ['future work', 'implementation order', 'notes', 'parent document'];
+
+/** Strip leading ` — ` or ` - ` separator from description text. */
+function parseDescription(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.replace(/^[\s—–-]+/, '').trim();
+  return trimmed || undefined;
+}
 
 /**
  * Parse a slice plan document and extract entries with completion state.
@@ -46,12 +53,14 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       const indexed = PLAN_INDEXED_RE.exec(stripped);
       if (indexed) {
         const isChecked = indexed[2].toLowerCase() === 'x';
+        const description = parseDescription(indexed[5]);
         entries.push({
           index: parseInt(indexed[3], 10),
           name: indexed[4].trim(),
           status: isChecked ? 'complete' : 'not-started',
           isChecked,
           lineIndex: i,
+          ...(description && { description }),
         });
         continue;
       }
@@ -61,12 +70,14 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       if (unindexed) {
         unindexedCounter++;
         const isChecked = unindexed[2].toLowerCase() === 'x';
+        const description = parseDescription(unindexed[4]);
         entries.push({
           index: unindexedCounter,
           name: unindexed[3].trim(),
           status: isChecked ? 'complete' : 'not-started',
           isChecked,
           lineIndex: i,
+          ...(description && { description }),
         });
       }
     }

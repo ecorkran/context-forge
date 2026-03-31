@@ -9,6 +9,8 @@ export interface SlicePlanEntry {
   isChecked: boolean;
   /** Zero-based line number in the source file (for checkbox fix operations) */
   lineIndex: number;
+  /** Overview/description text from after the bold name (e.g., " — Summary text...") */
+  description?: string;
 }
 
 /** Result of parsing a slice plan document */

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `validateFrontmatter()` pure function exported from `@context-forge/core`
 - ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
 - Status alias normalization: accepts `in-progress`, `not started`, `active`, `completed` as valid
+- `SlicePlanEntry.description` — overview text from slice plan entries (after bold name)
+- Auto-fix inference for missing `docType`, `slice`, `component`, `archIndex`, `project` from filename/context
+
+### Fixed
+- `cf guides update` now fetches before `--remote` and uses `--init` for resilience after worktree removal
 
 ### Changed
 - Removed Rules 9 (missing-plan-status) and 11 (missing-arch-status) — subsumed by generic schema validation
