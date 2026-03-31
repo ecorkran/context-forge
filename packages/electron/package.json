@@ -1,7 +1,7 @@
 {
   "name": "@context-forge/electron",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Context Forge - AI project context generation tool (Electron app)",
   "main": "./out/main/main.js",
   "type": "module",
