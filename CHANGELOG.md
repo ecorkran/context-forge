@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-fix inference for missing `docType`, `slice`, `component`, `archIndex`, `project` from filename/context
 
 ### Fixed
+- `cf guides uninstall` from a worktree now only deinits the submodule in that worktree — no longer breaks the main repo's guide installation (fixes #46)
 - `cf guides update` now fetches before `--remote` and uses `--init` for resilience after worktree removal
 
 ### Changed

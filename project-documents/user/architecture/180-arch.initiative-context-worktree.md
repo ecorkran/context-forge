@@ -6,7 +6,7 @@ archIndex: 180
 component: initiative-contexts
 dateCreated: 20260306
 dateUpdated: 20260306
-status: complete
+status: in-progress
 relatedSlices: []
 riskLevel: medium
 ---

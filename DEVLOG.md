@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-03-31
+
+### Slice 194: Worktree-Scoped Guide Uninstall — Slice Design
+- Added slice 194 to 180-slices plan (Bug Fix section), ref GitHub issue #46
+- Created slice design: worktree-mode branch in `GuideManager.uninstall()` using existing `operationPath`
+- Created task breakdown: 4 sections (core fix, tests, CLI integration, validation)
+- Root cause: `uninstall()` ignores `operationPath`, always operates on `projectPath`
+
+---
+
 ## 2026-03-30
 
 ### Slice 905: Frontmatter Schema Validation — Complete
