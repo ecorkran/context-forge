@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
 - Status alias normalization: accepts `in-progress`, `not started`, `active`, `completed` as valid
 - `SlicePlanEntry.description` — overview text from slice plan entries (after bold name)
+- `FutureWorkItem.description` — description text from future work entries (after title separator)
+- `DocSummary.description` — overview paragraph extracted from `## Overview` section of arch docs
 - Auto-fix inference for missing `docType`, `slice`, `component`, `archIndex`, `project` from filename/context
 
 ### Fixed

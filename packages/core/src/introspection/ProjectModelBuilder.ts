@@ -1,6 +1,7 @@
 import { readdir, access } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
+import { extractOverview } from './parsers/overviewParser.js';
 import { parseTaskItems } from './parsers/taskFileParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
@@ -178,6 +179,12 @@ export async function scanDirectory(userDir: string): Promise<DocEntry[]> {
         taskItems = await parseTaskItems(filepath);
       }
 
+      // Extract overview paragraph for arch docs (used as description in model)
+      let description = fm.data.description || undefined;
+      if (!description && docType === 'arch') {
+        description = await extractOverview(filepath);
+      }
+
       docs.push({
         index,
         docType,
@@ -189,7 +196,7 @@ export async function scanDirectory(userDir: string): Promise<DocEntry[]> {
         dateUpdated: fm.data.dateUpdated || undefined,
         project: fm.data.project || undefined,
         parent: fm.data.parent || undefined,
-        description: fm.data.description || undefined,
+        description,
         taskItems,
         splitNum,
       });
@@ -213,6 +220,7 @@ function toDocSummary(doc: DocEntry): DocSummary {
   };
   if (doc.dateCreated) result.dateCreated = doc.dateCreated;
   if (doc.dateUpdated) result.dateUpdated = doc.dateUpdated;
+  if (doc.description) result.description = doc.description;
   return result;
 }
 

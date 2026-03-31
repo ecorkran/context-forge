@@ -81,6 +81,8 @@ export interface DocSummary {
   status: string;
   dateCreated?: string;
   dateUpdated?: string;
+  /** Overview or description text extracted from the document body */
+  description?: string;
 }
 
 /** Foundation band entry (index 000-009) */
