@@ -76,7 +76,13 @@ export class SubmoduleStrategy implements InstallStrategy {
       // No previous version
     }
 
-    await gitExec(['submodule', 'update', '--remote', GUIDE_RELATIVE_PATH], projectPath);
+    // Fetch latest refs inside the submodule first — without this,
+    // `submodule update --remote` uses stale remote tracking refs
+    // and reports "already up to date" even when a new version exists.
+    // Use --init to handle cases where the submodule was deinited
+    // (e.g., worktree removal with `submodule deinit` affects shared state).
+    await gitExec(['fetch', '--tags', 'origin'], targetDir);
+    await gitExec(['submodule', 'update', '--init', '--remote', GUIDE_RELATIVE_PATH], projectPath);
 
     let newVersion: string | null = null;
     try {
