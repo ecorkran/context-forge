@@ -134,7 +134,13 @@ describe('detectInstallMethod', () => {
     expect(result).toEqual({ method: 'unknown', isLocal: true });
   });
 
-  it('returns npm as default for unknown paths', () => {
+  it('detects local dev install for relative paths (direct node invocation)', () => {
+    process.argv = ['node', 'packages/cli/dist/index.js'];
+    const result = detectInstallMethod();
+    expect(result).toEqual({ method: 'unknown', isLocal: true });
+  });
+
+  it('returns npm as default for unknown absolute paths', () => {
     process.argv = ['node', '/some/other/path/cf'];
     const result = detectInstallMethod();
     expect(result).toEqual({ method: 'npm', isLocal: false });

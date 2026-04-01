@@ -1,5 +1,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { handleError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
@@ -59,19 +61,38 @@ export function detectInstallMethod(): { method: 'npm' | 'pnpm' | 'unknown'; isL
     return { method: 'pnpm', isLocal: false };
   }
 
-  // Local/dev install: project-local node_modules (not a global prefix path)
-  // Global npm paths look like /usr/local/lib/node_modules/ or /usr/lib/node_modules/
-  // Local paths look like /Users/user/projects/foo/node_modules/
-  if (scriptPath.includes('node_modules')) {
-    const isGlobalNpm = /\/(usr|opt)\/(local\/)?lib\/node_modules\//.test(scriptPath)
-      || /\/lib\/node_modules\//.test(scriptPath);
-    if (!isGlobalNpm) {
-      return { method: 'unknown', isLocal: true };
-    }
+  // Check for global npm install (system-level node_modules)
+  const isGlobalNpm = /\/(usr|opt)\/(local\/)?lib\/node_modules\//.test(scriptPath)
+    || /\/lib\/node_modules\//.test(scriptPath);
+  if (isGlobalNpm) {
+    return { method: 'npm', isLocal: false };
   }
 
-  // Default to npm global
+  // Local/dev install: project-local node_modules or relative path
+  if (scriptPath.includes('node_modules') || !scriptPath.startsWith('/')) {
+    return { method: 'unknown', isLocal: true };
+  }
+
+  // Heuristic: if a package.json exists in the script's ancestor directories
+  // (within 4 levels), this is likely a local dev install (e.g., `node packages/cli/dist/index.js`)
+  if (isLocalDevPath(scriptPath)) {
+    return { method: 'unknown', isLocal: true };
+  }
+
+  // Default to npm global (absolute path not matching known patterns)
   return { method: 'npm', isLocal: false };
+}
+
+/** Check if the script path is under a local project by looking for package.json nearby. */
+function isLocalDevPath(scriptPath: string): boolean {
+  let dir = dirname(resolve(scriptPath));
+  for (let i = 0; i < 4; i++) {
+    if (existsSync(join(dir, 'package.json'))) return true;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return false;
 }
 
 /**

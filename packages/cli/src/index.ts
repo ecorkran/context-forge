@@ -18,6 +18,7 @@ import { registerGuidesCommand } from './commands/guides.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
+import { registerUpdateCommand } from './commands/update.js';
 import { handleError, setJsonMode } from './utils/errors.js';
 import { buildCommandCatalog } from './utils/commandCatalog.js';
 import { BREAKING_CHANGES } from './utils/breaking-changes.js';
@@ -119,6 +120,7 @@ registerInitCommand(program);
 registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 registerSetupIdeCommand(program);
+registerUpdateCommand(program);
 
 // Version introspection
 program
