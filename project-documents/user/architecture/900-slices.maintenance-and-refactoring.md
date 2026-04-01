@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/900-arch.maintenance-and-refactoring.md
 project: context-forge
 dateCreated: 20260325
-dateUpdated: 20260328
+dateUpdated: 20260331
 status: in_progress
 ---
 
@@ -21,6 +21,7 @@ status: in_progress
 
 4. [x] **(904) Extract Compound Commands to Squadron** — Remove compound workflow commands (cf concept, cf initiatives, cf arch, cf plan, cf slice, cf tasks, cf implement) and their slash commands from CF CLI. These move to Squadron where they're a better fit. Dependencies: none. Risk: Low. Effort: 2/5
 5. [x] **(905) Frontmatter Schema Validation** — Define required and optional YAML frontmatter fields per `docType` (e.g., `slice-plan` requires `status`, `docType`, `parent`; `slice` requires `status`, `docType`, `parent`, `slice`; `tasks` requires `status`, `slice`, `project`). Implement a schema registry in `packages/core` that maps `docType` values to field requirements with types and allowed values. Extend `ConsistencyChecker` to validate all project documents against their schema — detecting missing required fields, unknown fields, and invalid values. Currently Rule 9 hard-codes a check for missing `status` on slice plans; this would generalize that pattern to all document types and all required fields. The schema registry should be data-driven (e.g., a config file or typed constant) so adding new document types or fields doesn't require rule code changes. Dependencies: none. Risk: Low. Effort: 3/5
+6. [x] **(906) CLI Self-Update Command** — Add top-level `cf update` command that checks npm for newer versions and prompts the user to install. Supports `--yes` for non-interactive use. No automatic update checks on startup — explicit invocation only. Separate from `cf guides update` (tool vs guide). Dependencies: none. Risk: Low. Effort: 2/5
 
 ## Integration Work
 

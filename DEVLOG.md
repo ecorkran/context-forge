@@ -9,6 +9,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-03-31
 
+### Slice 906: CLI Self-Update Command — Complete
+- `cf update` command: checks npm registry for latest version, prompts to install
+- Core utilities: `compareSemver`, `fetchLatestVersion`, `detectInstallMethod`, `runUpdate`
+- Supports `--yes` (non-interactive), `--json` (machine-readable), npm/pnpm global detection
+- Local dev install detection via package.json heuristic — skips update with message
+- 20 unit tests covering semver comparison, fetch mocking, install method detection
+- 1,426 total tests passing across all packages
+- Commits: `e16b08e` core utilities, `01c2120` command registration
+
 ### Slice 194: Worktree-Scoped Guide Uninstall — Complete
 - `GuideManager.uninstall()` now detects worktree mode via `operationPath` and runs only `submodule deinit` scoped to the worktree
 - CLI shows worktree-specific hint after deinit
