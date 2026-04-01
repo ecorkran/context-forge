@@ -122,6 +122,7 @@ docType: tasks
   - [ ] Read `server.port` from config (via `@context-forge/core` config utilities), default `3100`, validate integer 1024-65535
   - [ ] Read `server.host` from config, default `127.0.0.1`
   - [ ] Resolve `pidPath` and `logPath` from data directory (same directory as `projects.json`)
+  - [ ] Ensure log directory exists (create with `mkdirSync({ recursive: true })`) before returning config — prevents daemon failures when the directory hasn't been created yet
   - [ ] Export the config type and resolver function
 
 - [ ] 4.2 Register config keys in core
@@ -133,24 +134,55 @@ docType: tasks
   - [ ] Create `packages/server/tests/config.test.ts`
   - [ ] Test default values (port 3100, host 127.0.0.1)
   - [ ] Test port validation rejects values outside 1024-65535
+  - [ ] Test log directory is created if it doesn't exist
   - [ ] All tests pass, build clean
 
 **Commit**: `feat(server): add server port and host configuration`
 
 ---
 
-## Section 5: Daemon Lifecycle
+## Section 5: Daemon File Logger
+
+**Effort: 1/5**
+
+> Moved before daemon lifecycle so the logger is available when daemon.ts is implemented.
+
+- [ ] 5.1 Implement daemon file logger
+  - [ ] Create `packages/server/src/logger.ts`
+  - [ ] `createDaemonLogger(logPath: string)`: returns a `log(message: string)` function that appends timestamped lines to the log file
+  - [ ] Log format: `[ISO8601] message\n`
+  - [ ] Simple size-based rotation: if file exceeds 1MB before writing, rename to `.1` (overwriting any existing backup), then create fresh file
+  - [ ] Build clean
+
+- [ ] 5.2 Tests for daemon logger
+  - [ ] Create `packages/server/tests/logger.test.ts`
+  - [ ] Test log writes timestamped lines to file
+  - [ ] Test rotation: write >1MB, verify backup created and current file reset
+  - [ ] All tests pass, build clean
+
+**Commit**: `feat(server): add daemon file logger with rotation`
+
+---
+
+## Section 6: Daemon Lifecycle
 
 **Effort: 3/5**
 
-- [ ] 5.1 Implement daemon module
+- [ ] 6.1 Implement daemon module — server creation and PID management
   - [ ] Create `packages/server/src/daemon.ts`
-  - [ ] `startDaemon(config)`: create MCP server via `createContextForgeServer()`, write PID file, register signal handlers, log startup, keep process alive
-  - [ ] `registerShutdownHandlers(pidPath, server)`: register SIGTERM and SIGINT handlers that: log shutdown, remove PID file, exit 0. Include a 5-second timeout that calls `process.exit(1)` if cleanup hangs
-  - [ ] Logging: write to `config.logPath` (append-only, timestamped lines). Use a simple file logger — no framework dependency
+  - [ ] `startDaemon(config)`: create MCP server via `createContextForgeServer()`, write PID file, create logger via `createDaemonLogger(config.logPath)`, log startup, keep process alive
   - [ ] Export `startDaemon`
 
-- [ ] 5.2 Implement daemon entry point
+- [ ] 6.2 Implement signal handling
+  - [ ] `registerShutdownHandlers(pidPath, server, log)`: register SIGTERM and SIGINT handlers that: log shutdown, remove PID file, exit 0. Include a 5-second timeout that calls `process.exit(1)` if cleanup hangs
+  - [ ] Call from `startDaemon` after PID file is written
+
+- [ ] 6.3 Implement port availability check
+  - [ ] In `packages/server/src/daemon.ts` or separate utility
+  - [ ] `checkPortAvailable(port, host)`: attempt to create and immediately close a `net.Server` on the port. Resolve `true` if successful, `false` if EADDRINUSE
+  - [ ] Call this check in `startDaemon` before writing PID file. If port unavailable, exit with clear error message: `Port {port} is already in use. Use cf config set server.port <port> to change.`
+
+- [ ] 6.4 Implement daemon entry point
   - [ ] Update `packages/server/src/index.ts`:
     - Hashbang `#!/usr/bin/env node`
     - Import `resolveServerConfig` and `startDaemon`
@@ -158,15 +190,11 @@ docType: tasks
     - Top-level error handler matching mcp-server pattern (log fatal error, exit 1)
   - [ ] Build clean
 
-- [ ] 5.3 Implement port availability check
-  - [ ] In `packages/server/src/daemon.ts` or separate utility
-  - [ ] `checkPortAvailable(port, host)`: attempt to create and immediately close a `net.Server` on the port. Resolve `true` if successful, `false` if EADDRINUSE
-  - [ ] Call this check in `startDaemon` before writing PID file. If port unavailable, exit with clear error message: `Port {port} is already in use. Use cf config set server.port <port> to change.`
-
-- [ ] 5.4 Tests for daemon lifecycle
+- [ ] 6.5 Tests for daemon lifecycle
   - [ ] Create `packages/server/tests/daemon.test.ts`
   - [ ] Test `checkPortAvailable` returns `true` for an unused port
   - [ ] Test `checkPortAvailable` returns `false` when port is occupied (bind a temp server in test)
+  - [ ] Test `checkPortAvailable` error path: daemon exits with descriptive message when port is in use
   - [ ] Test signal handler removes PID file on SIGTERM (spawn daemon process, send SIGTERM, verify PID file removed)
   - [ ] Test daemon creates PID file on startup and removes on shutdown
   - [ ] All tests pass, build clean
@@ -175,11 +203,11 @@ docType: tasks
 
 ---
 
-## Section 6: CLI `cf server` Commands
+## Section 7: CLI `cf server` Commands
 
 **Effort: 3/5**
 
-- [ ] 6.1 Implement `cf server start`
+- [ ] 7.1 Implement `cf server start`
   - [ ] Create `packages/cli/src/commands/server.ts`
   - [ ] `registerServerCommand(program)`: adds `server` command group with three subcommands
   - [ ] `start` subcommand:
@@ -193,7 +221,7 @@ docType: tasks
     - Support `--json` flag
   - [ ] Add `@context-forge/server` as dependency of `packages/cli`
 
-- [ ] 6.2 Implement `cf server stop`
+- [ ] 7.2 Implement `cf server stop`
   - [ ] `stop` subcommand:
     - Read PID file
     - If no PID file or process dead: print "Server is not running" and exit
@@ -203,7 +231,7 @@ docType: tasks
     - Print confirmation: `Server stopped`
     - Support `--json` flag
 
-- [ ] 6.3 Implement `cf server status`
+- [ ] 7.3 Implement `cf server status`
   - [ ] `status` subcommand:
     - Read PID file
     - If no PID file: print "Server is not running"
@@ -211,12 +239,12 @@ docType: tasks
     - If running: print `Server running (pid=XXXXX, port=3100, host=127.0.0.1)`
     - Support `--json` flag
 
-- [ ] 6.4 Register in CLI entry point
+- [ ] 7.4 Register in CLI entry point
   - [ ] In `packages/cli/src/index.ts`, import and call `registerServerCommand(program)`
   - [ ] Place in Setup/Admin group (after `registerGuidesCommand`, before `registerInitCommand`)
   - [ ] Build clean
 
-- [ ] 6.5 Tests for CLI server commands
+- [ ] 7.5 Tests for CLI server commands
   - [ ] Create `packages/cli/tests/server.test.ts` (or integration test that spawns `cf server`)
   - [ ] Test `cf server start` launches daemon and creates PID file
   - [ ] Test `cf server status` reports running state after start
@@ -224,31 +252,12 @@ docType: tasks
   - [ ] Test `cf server status` reports not running after stop
   - [ ] Test `cf server start` when already running prints status without error
   - [ ] Test stale PID file is cleaned up on `cf server start`
+  - [ ] Test `cf server start --json` produces valid JSON output
+  - [ ] Test `cf server stop --json` produces valid JSON output
+  - [ ] Test `cf server status --json` produces valid JSON output
   - [ ] All tests pass, build clean
 
 **Commit**: `feat(cli): add cf server start/stop/status commands`
-
----
-
-## Section 7: Logging
-
-**Effort: 1/5**
-
-- [ ] 7.1 Implement daemon file logger
-  - [ ] Create `packages/server/src/logger.ts`
-  - [ ] `createDaemonLogger(logPath: string)`: returns a `log(message: string)` function that appends timestamped lines to the log file
-  - [ ] Log format: `[ISO8601] message\n`
-  - [ ] Simple size-based rotation: if file exceeds 1MB before writing, rename to `.1` (overwriting any existing backup), then create fresh file
-  - [ ] Wire into `daemon.ts` — replace any `console.error` calls with the file logger
-  - [ ] Build clean
-
-- [ ] 7.2 Tests for daemon logger
-  - [ ] Create `packages/server/tests/logger.test.ts`
-  - [ ] Test log writes timestamped lines to file
-  - [ ] Test rotation: write >1MB, verify backup created and current file reset
-  - [ ] All tests pass, build clean
-
-**Commit**: `feat(server): add daemon file logger with rotation`
 
 ---
 
@@ -263,7 +272,8 @@ docType: tasks
 
 - [ ] 8.2 Verification walkthrough
   - [ ] Follow the verification steps in the slice design's Verification Walkthrough section
-  - [ ] Confirm: start, status, double-start, stop, status-after-stop, PID cleanup, JSON output, port config, stale PID recovery, existing stdio MCP unchanged
+  - [ ] Confirm: start, status, double-start, stop, status-after-stop, PID cleanup, JSON output, port config, stale PID recovery
+  - [ ] Verify existing stdio MCP is unchanged: `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | npx context-forge-mcp` should return a valid JSON-RPC response (critical regression check)
   - [ ] Update slice design verification walkthrough with actual results
 
 - [ ] 8.3 Update slice and plan status

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `cf update` command — check npm for newer versions and prompt to install (slice 906)
+  - `--yes` flag for non-interactive auto-install
+  - `--json` flag for machine-readable version info
+  - Detects npm vs pnpm global installs; skips local dev installs
 - Frontmatter schema registry (`FRONTMATTER_SCHEMAS`) — maps 8 docTypes to required fields with value constraints
 - `validateFrontmatter()` pure function exported from `@context-forge/core`
 - ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
