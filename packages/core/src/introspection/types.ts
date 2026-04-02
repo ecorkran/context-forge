@@ -273,6 +273,8 @@ export interface NextAction {
   slice?: string;
   phase?: string;
   summary: string;
+  /** Non-blocking warnings about project configuration (e.g., index band mismatches) */
+  warnings?: string[];
 }
 
 /** Introspection summary suitable for enriching project_get */

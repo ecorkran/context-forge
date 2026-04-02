@@ -4,7 +4,7 @@ import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
-import { label, value as valueStyle, dim } from '../output/styles.js';
+import { label, value as valueStyle, dim, warn } from '../output/styles.js';
 
 export function registerNextCommand(program: Command): void {
   program
@@ -30,6 +30,12 @@ export function registerNextCommand(program: Command): void {
           return;
         }
 
+        if (result.warnings?.length) {
+          for (const w of result.warnings) {
+            console.log(warn('Warning:   ') + dim(w));
+          }
+          console.log('');
+        }
         console.log(label('Next:      ') + valueStyle(result.recommendation));
         if (result.slice) {
           console.log(label('Slice:     ') + valueStyle(result.slice));

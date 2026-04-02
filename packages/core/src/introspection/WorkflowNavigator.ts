@@ -24,6 +24,13 @@ export function extractSliceIndex(fileSlice: string | undefined): number | null 
 }
 
 /**
+ * Extract the hundred-block for an index (e.g., 904 → 900, 125 → 100).
+ */
+function hundredBlock(index: number): number {
+  return Math.floor(index / 100) * 100;
+}
+
+/**
  * Extract a human-readable slice name from a fileSlice value.
  * "165-slice.workflow-navigator.md" → "workflow-navigator"
  */
@@ -140,26 +147,70 @@ export class WorkflowNavigator {
       };
     }
 
+    // --- Compute warnings and arch-existence for active slice path ---
+    const warnings: string[] = [];
+
+    // Check if arch file exists on disk (reused below for recommendation override)
+    const archRelPath = project.fileArch ? resolveArtifactPath('fileArch', project.fileArch) : null;
+    const archFileExists = archRelPath !== null && project.projectPath
+      ? existsSync(join(project.projectPath, archRelPath))
+      : false;
+
+    // Index band mismatch: warn when slice index is in a different hundred-block than arch/plan
+    if (slice.index !== null) {
+      const archIndex = extractSliceIndex(project.fileArch);
+      if (archIndex !== null && hundredBlock(slice.index) !== hundredBlock(archIndex)) {
+        warnings.push(
+          `Slice ${slice.index} is outside the ${hundredBlock(archIndex)}-band of architecture '${project.fileArch}'.`,
+        );
+      }
+    }
+
+    // Priority 2.5: Arch set but file doesn't exist — recommend creating arch first
+    if (project.fileArch && !archFileExists) {
+      return {
+        recommendation: 'Create architecture document',
+        rationale: `Architecture '${project.fileArch}' is set but the file does not exist. Create the architecture document before designing slices.`,
+        suggestedCommand: "cf set phase 'Phase 2: Architecture'",
+        phase: 'Phase 2: Architecture',
+        slice: project.fileSlice,
+        summary: `Create architecture '${project.fileArch}' before proceeding with slice ${slice.index ?? slice.name}`,
+        ...(warnings.length > 0 ? { warnings } : {}),
+      };
+    }
+
+    // Helper to attach warnings and phase-set suggestion to any returned action
+    const currentPhase = project.developmentPhase?.trim() ?? '';
+    const enrich = (action: NextAction): NextAction => {
+      const result = warnings.length > 0 ? { ...action, warnings } : { ...action };
+      // When the recommended phase differs from the current phase, suggest setting it
+      // (only if the action doesn't already have a more specific suggestedCommand)
+      if (action.phase && !action.suggestedCommand && !currentPhase.startsWith(action.phase.split(':')[0])) {
+        result.suggestedCommand = `cf set phase '${action.phase}'`;
+      }
+      return result;
+    };
+
     // Priority 3: needs-design
     if (slice.status === 'needs-design') {
-      return {
+      return enrich({
         recommendation: 'Create slice design (Phase 4)',
         rationale: `Slice ${slice.index ?? slice.name} has no design document. Create a slice design before proceeding.`,
         slice: project.fileSlice,
         phase: 'Phase 4: Slice Design',
         summary: `Create design for slice ${slice.index ?? slice.name}`,
-      };
+      });
     }
 
     // Priority 4: needs-tasks
     if (slice.status === 'needs-tasks') {
-      return {
+      return enrich({
         recommendation: 'Create task breakdown (Phase 5)',
         rationale: `Slice ${slice.index ?? slice.name} has a design but no task file. Break the design into actionable tasks.`,
         slice: project.fileSlice,
         phase: 'Phase 5: Task Breakdown',
         summary: `Create task breakdown for slice ${slice.index ?? slice.name}`,
-      };
+      });
     }
 
     // Priority 5: in-implementation
@@ -167,61 +218,61 @@ export class WorkflowNavigator {
       const remaining = slice.taskProgress
         ? slice.taskProgress.total - slice.taskProgress.completed
         : 0;
-      return {
+      return enrich({
         recommendation: `Continue implementation — ${remaining} task${remaining !== 1 ? 's' : ''} remaining`,
         rationale: `Slice ${slice.index ?? slice.name} is in progress with ${remaining} task${remaining !== 1 ? 's' : ''} left to complete.`,
         slice: project.fileSlice,
         phase: 'Phase 6: Implementation',
         summary: `Continue slice ${slice.index ?? slice.name} — ${remaining} tasks remaining`,
-      };
+      });
     }
 
     // Priority 6: complete → check for next slice in plan
     if (slice.status === 'complete' && status.slicePlan) {
       const nextEntry = status.slicePlan.entries.find((e) => !e.isChecked);
       if (nextEntry) {
-        return {
+        return enrich({
           recommendation: `Advance to slice ${nextEntry.index}: ${nextEntry.name}`,
           rationale: `Current slice is complete. The next unstarted slice in the plan is ${nextEntry.index}: ${nextEntry.name}.`,
           suggestedCommand: `cf set slice ${nextEntry.index}`,
           slice: project.fileSlice,
           summary: `Advance to slice ${nextEntry.index}: ${nextEntry.name}`,
-        };
+        });
       }
-      return {
+      return enrich({
         recommendation: 'Slice plan complete. Review architecture for next initiative',
         rationale: 'All slices in the current plan are complete. Review the architecture for the next body of work.',
         slice: project.fileSlice,
         summary: 'Slice plan complete — review architecture for next initiative',
-      };
+      });
     }
 
     // Priority 7 (fallback): complete but no plan
     if (slice.status === 'complete') {
       if (project.fileSlicePlan) {
-        return {
+        return enrich({
           recommendation: 'Create the slice plan document',
           rationale: `Current slice is complete. Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document.`,
           suggestedCommand: 'cf build',
           slice: project.fileSlice,
           summary: 'Slice complete — create the slice plan document',
-        };
+        });
       }
-      return {
+      return enrich({
         recommendation: 'Create or assign a slice plan',
         rationale: 'Current slice is complete but no slice plan is configured to determine next steps.',
         suggestedCommand: 'cf set plan <stem>',
         slice: project.fileSlice,
         summary: 'Slice complete — create or assign a slice plan',
-      };
+      });
     }
 
     // Should not reach here, but provide a safe fallback
-    return {
+    return enrich({
       recommendation: 'Review project status',
       rationale: 'Unable to determine next action from current project state.',
       summary: 'Review project status',
-    };
+    });
   }
 
 /**

@@ -183,6 +183,41 @@ describe('WorkflowNavigator', () => {
       expect(next.phase).toBe('Phase 6: Implementation');
     });
 
+    it('suggests cf set phase when current phase does not match recommended phase', async () => {
+      // Slice is in-implementation (Phase 6) but project phase is set to Phase 4
+      const project = makeProject({
+        fileSlice: '100-slice.test-feature.md',
+        developmentPhase: 'Phase 4: Slice Design',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.phase).toBe('Phase 6: Implementation');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 6: Implementation'");
+    });
+
+    it('does not suggest cf set phase when current phase already matches', async () => {
+      const project = makeProject({
+        fileSlice: '100-slice.test-feature.md',
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.phase).toBe('Phase 6: Implementation');
+      expect(next.suggestedCommand).toBeUndefined();
+    });
+
+    it('does not overwrite explicit suggestedCommand with phase suggestion', async () => {
+      // Slice 300 is complete, plan has unchecked entry → suggestedCommand = "cf set slice 101"
+      const project = makeProject({
+        fileSlice: '300-slice.all-done.md',
+        fileSlicePlan: '100-slices.test-system',
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.suggestedCommand).toBe('cf set slice 101');
+    });
+
     it('recommends advancing to next slice when complete with plan', async () => {
       // Fixture: slice 300 is complete, plan has entry 101 unchecked
       const project = makeProject({
@@ -466,6 +501,76 @@ describe('WorkflowNavigator', () => {
 
       expect(next.recommendation).toContain('Continue implementation');
       expect(next.phase).toBe('Phase 6: Implementation');
+    });
+  });
+
+  describe('arch-existence and index band warnings', () => {
+    it('recommends creating arch when arch set but file missing, even with active slice', async () => {
+      const project = makeProject({
+        fileSlice: '999-slice.nonexistent.md',
+        fileArch: '999-arch.nonexistent',
+        developmentPhase: 'Phase 4: Slice Design',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create architecture document');
+      expect(next.rationale).toContain('does not exist');
+      expect(next.phase).toBe('Phase 2: Architecture');
+      expect(next.suggestedCommand).toContain('Phase 2');
+    });
+
+    it('includes index band mismatch warning when slice is outside arch hundred-block', async () => {
+      // Arch at 100, slice at 900 → mismatch warning
+      const project = makeProject({
+        fileSlice: '999-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+      });
+      const next = await nav.getNext(project);
+
+      // Slice 999 needs-design, arch exists → normal recommendation with warning
+      expect(next.recommendation).toContain('Create slice design');
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('outside the 100-band');
+    });
+
+    it('no warning when slice is in same hundred-block as arch', async () => {
+      // Arch at 100, slice at 100 → same band, no warning
+      const project = makeProject({
+        fileSlice: '100-slice.test-feature.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
+    });
+
+    it('combines arch-missing with index band warning', async () => {
+      // Arch at 100 (missing file), slice at 900 → both arch-missing and band mismatch
+      const project = makeProject({
+        fileSlice: '900-slice.nonexistent.md',
+        fileArch: '100-arch.nonexistent',
+        developmentPhase: 'Phase 4: Slice Design',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create architecture document');
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('outside the 100-band');
+    });
+
+    it('no warning when fileArch is not set', async () => {
+      const project = makeProject({
+        fileSlice: '999-slice.nonexistent.md',
+        fileArch: undefined,
+        developmentPhase: 'Phase 4: Slice Design',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
     });
   });
 });
