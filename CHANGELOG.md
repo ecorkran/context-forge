@@ -12,26 +12,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.36] - 20260402
+
+### Added
+- `cf next` suggests `cf set phase` when current phase doesn't match the recommended phase
+- `cf next` warns when active slice is outside the architecture's index band (e.g., slice 904 under arch 100)
+- `cf next` recommends creating the architecture document when arch is set but the file is missing, even with an active slice
+- `warnings` field on `NextAction` type for non-blocking configuration warnings
+
+## [0.6.35] - 20260401
+
 ### Added
 - `cf update` command — check npm for newer versions and prompt to install (slice 906)
   - `--yes` flag for non-interactive auto-install
   - `--json` flag for machine-readable version info
   - Detects npm vs pnpm global installs; skips local dev installs
-- Frontmatter schema registry (`FRONTMATTER_SCHEMAS`) — maps 8 docTypes to required fields with value constraints
-- `validateFrontmatter()` pure function exported from `@context-forge/core`
-- ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
-- Status alias normalization: accepts `in-progress`, `not started`, `active`, `completed` as valid
-- `SlicePlanEntry.description` — overview text from slice plan entries (after bold name)
-- `FutureWorkItem.description` — description text from future work entries (after title separator)
-- `DocSummary.description` — overview paragraph extracted from `## Overview` section of arch docs
-- Auto-fix inference for missing `docType`, `slice`, `component`, `archIndex`, `project` from filename/context
+
+## [0.6.34] - 20260331
+
+### Added
+- `cf worktree rm` shows git worktree removal hint when the directory still exists on disk
 
 ### Fixed
 - `cf guides uninstall` from a worktree now only deinits the submodule in that worktree — no longer breaks the main repo's guide installation (fixes #46)
+- Guide directory physically removed from worktree after submodule deinit
+
+## [0.6.31–0.6.33] - 20260331
+
+### Added
+- `SlicePlanEntry.description` — overview text from slice plan entries (after bold name)
+- `FutureWorkItem.description` — description text from future work entries (after title separator)
+- `DocSummary.description` — overview paragraph extracted from `## Overview` section of arch docs
+
+## [0.6.30] - 20260330
+
+### Fixed
 - `cf guides update` now fetches before `--remote` and uses `--init` for resilience after worktree removal
+
+## [0.6.29] - 20260330
+
+### Added
+- Frontmatter schema registry (`FRONTMATTER_SCHEMAS`) — maps 8 docTypes to required fields with value constraints (slice 905)
+- `validateFrontmatter()` pure function exported from `@context-forge/core`
+- ConsistencyChecker Rule 12: validates all project documents against per-docType frontmatter schemas
+- Status alias normalization: accepts `in-progress`, `not started`, `active`, `completed` as valid
+- Auto-fix inference for missing `docType`, `slice`, `component`, `archIndex`, `project` from filename/context
+
+### Fixed
+- Slices and tasks outside worktree range now shown when plan is cross-initiative
 
 ### Changed
 - Removed Rules 9 (missing-plan-status) and 11 (missing-arch-status) — subsumed by generic schema validation
+
+## [0.6.27] - 20260327
+
+### Added
+- Derive `fileArch` and `fileSlicePlan` from initiative plan when file is missing
+
+### Fixed
+- `cf install-commands` now removes stale slash commands from previous versions
+
+## [0.6.26] - 20260327
+
+### Fixed
+- MCP tools resolve project from CWD when `projectId` is omitted
+
+### Changed
+- Extracted compound workflow commands into dedicated CLI modules
 
 ## [0.6.25] - 20260325
 
