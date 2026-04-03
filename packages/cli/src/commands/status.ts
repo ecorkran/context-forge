@@ -5,19 +5,21 @@ import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, value as valueStyle, success, dim, warn } from '../output/styles.js';
 
 export function registerStatusCommand(program: Command): void {
-  program
+  const statusCmd = program
     .command('status')
-    .description('Show workflow status for the active project')
-    .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID or name (overrides default)')
+    .description('Show workflow status for the active project');
+  withJsonOption(statusCmd);
+  withProjectOption(statusCmd);
+  statusCmd
     .option('--worktree <name>', 'Show status for a specific worktree')
-    .option('--worktrees', 'Show summary of all worktrees')
-    .action(async (opts: { json?: boolean; project?: string; worktree?: string; worktrees?: boolean }) => {
+    .option('--worktrees', 'Show summary of all worktrees');
+  statusCmd.action(async (opts: { json?: boolean; project?: string; worktree?: string; worktrees?: boolean }) => {
       try {
         if (opts.worktree && opts.worktrees) {
           throw new UserError('--worktree and --worktrees are mutually exclusive.');

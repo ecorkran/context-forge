@@ -3,16 +3,17 @@ import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, warn } from '../output/styles.js';
 
 export function registerNextCommand(program: Command): void {
-  program
+  const nextCmd = program
     .command('next')
-    .description('Show recommended next action for the active project')
-    .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .description('Show recommended next action for the active project');
+  withJsonOption(nextCmd);
+  withProjectOption(nextCmd);
+  nextCmd.action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);

@@ -11,6 +11,7 @@ import {
 } from '@context-forge/core/node';
 import type { WorktreeInfo, WorktreePathStatus } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId } from '../utils/project.js';
+import { withProjectOption, withYesOption, withJsonOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
@@ -45,15 +46,15 @@ export function registerWorktreeCommand(program: Command): void {
     .description('Manage worktree contexts for a project');
 
   // ── cf worktree init ────────────────────────────────────────────────────────
-  worktree
+  const initCmd = worktree
     .command('init')
     .description('Register a new worktree context for the active project')
     .requiredOption('--name <name>', 'Name for this worktree context')
     .requiredOption('--range <start-end>', 'Slice index range, e.g. 100-199')
     .option('--path <path>', 'Absolute path to the git worktree directory (default: CWD)')
-    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(async (opts: { name: string; range: string; path?: string; override?: boolean; project?: string }) => {
+    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)');
+  withProjectOption(initCmd);
+  initCmd.action(async (opts: { name: string; range: string; path?: string; override?: boolean; project?: string }) => {
       try {
         const indexRange = parseRange(opts.range);
         const store = new FileProjectStore();
@@ -165,12 +166,10 @@ export function registerWorktreeCommand(program: Command): void {
     });
 
   // ── cf worktree list ────────────────────────────────────────────────────────
-  worktree
-    .command('list')
-    .description('List worktree contexts for the active project')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .option('--json', 'Output as JSON')
-    .action(async (opts: { project?: string; json?: boolean }) => {
+  const listCmd = worktree.command('list').description('List worktree contexts for the active project');
+  withProjectOption(listCmd);
+  withJsonOption(listCmd);
+  listCmd.action(async (opts: { project?: string; json?: boolean }) => {
       try {
         const store = new FileProjectStore();
         const resolved = await resolveProjectWorktree({ project: opts.project }, store);
@@ -247,15 +246,15 @@ export function registerWorktreeCommand(program: Command): void {
     });
 
   // ── cf worktree update ─────────────────────────────────────────────────────
-  worktree
+  const updateCmd = worktree
     .command('update [nameOrId]')
     .description('Update a worktree context (rename, change range or path)')
     .option('--name <name>', 'New display name')
     .option('--range <start-end>', 'New slice index range, e.g. 150-249')
     .option('--path <path>', 'New worktree directory path')
-    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .action(
+    .option('-o, --override', 'Allow overlapping index ranges (skip range chopping)');
+  withProjectOption(updateCmd);
+  updateCmd.action(
       async (
         nameOrId: string | undefined,
         opts: { name?: string; range?: string; path?: string; override?: boolean; project?: string },
@@ -369,12 +368,10 @@ export function registerWorktreeCommand(program: Command): void {
     );
 
   // ── cf worktree rm ──────────────────────────────────────────────────────────
-  worktree
-    .command('rm [nameOrId]')
-    .description('Remove a worktree context from the active project')
-    .option('--project <name|id>', 'Project name or ID (overrides default)')
-    .option('--yes', 'Skip confirmation prompt')
-    .action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
+  const rmCmd = worktree.command('rm [nameOrId]').description('Remove a worktree context from the active project');
+  withProjectOption(rmCmd);
+  withYesOption(rmCmd);
+  rmCmd.action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
       try {
         const store = new FileProjectStore();
         const resolved = await resolveProjectWorktree({ project: opts.project }, store);

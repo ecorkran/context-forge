@@ -6,6 +6,7 @@ import type { ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withJsonOption, withProjectOption, withRawOption } from '../options.js';
 import { printJson, printRaw } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { getPhaseShorthands, resolvePhaseInput } from '../utils/phaseShorthand.js';
@@ -36,12 +37,10 @@ export function registerPromptCommand(program: Command): void {
     .command('prompt')
     .description('Access prompt templates with variable substitution');
 
-  cmd
-    .command('list')
-    .description('List available prompt templates')
-    .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+  const listCmd = cmd.command('list').description('List available prompt templates');
+  withJsonOption(listCmd);
+  withProjectOption(listCmd);
+  listCmd.action(async (opts: { json?: boolean; project?: string }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
@@ -91,12 +90,10 @@ export function registerPromptCommand(program: Command): void {
       }
     });
 
-  cmd
-    .command('get <phase>')
-    .description('Get a prompt template with project variables substituted')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--raw', 'Output raw template without variable substitution')
-    .action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
+  const getCmd = cmd.command('get <phase>').description('Get a prompt template with project variables substituted');
+  withProjectOption(getCmd);
+  withRawOption(getCmd);
+  getCmd.action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);

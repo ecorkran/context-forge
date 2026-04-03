@@ -4,6 +4,7 @@ import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { withJsonOption, withProjectOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 
@@ -97,19 +98,20 @@ export async function buildAndPrint(opts: BuildAndPrintOpts): Promise<void> {
 }
 
 export function registerBuildCommand(program: Command): void {
-  program
+  const buildCmd = program
     .command('build')
-    .description('Generate a context prompt')
-    .option('--project <id>', 'Project ID or name (overrides default)')
+    .description('Generate a context prompt');
+  withProjectOption(buildCmd);
+  buildCmd
     .option('--phase <phase>', 'Override development phase')
     .option('--slice <slice>', 'Override slice name')
     .option('--instruction <instruction>', 'Override instruction type')
     .option('--instruction-type <type>', 'Override instruction type for profile lookup (without persisting)')
     .option('--it <type>', 'Shorthand for --instruction-type')
     .option('--tasks <tasks>', 'Override task file name')
-    .option('--additional <text>', 'Additional instructions to append')
-    .option('--json', 'Output context as JSON to stdout')
-    .action(async (opts: BuildOpts) => {
+    .option('--additional <text>', 'Additional instructions to append');
+  withJsonOption(buildCmd);
+  buildCmd.action(async (opts: BuildOpts) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);

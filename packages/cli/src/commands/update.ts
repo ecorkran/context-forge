@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { handleError } from '../utils/errors.js';
+import { withJsonOption, withYesOption } from '../options.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { label, value, dim, success, warn } from '../output/styles.js';
@@ -108,12 +109,12 @@ export function runUpdate(method: 'npm' | 'pnpm'): void {
 
 /** Register the `cf update` command. */
 export function registerUpdateCommand(program: Command): void {
-  program
+  const updateCmd = program
     .command('update')
-    .description('Check for updates and install the latest version')
-    .option('--yes', 'Skip confirmation prompt and auto-install')
-    .option('--json', 'Output version info as JSON (no side effects)')
-    .action(async (opts: { yes?: boolean; json?: boolean }) => {
+    .description('Check for updates and install the latest version');
+  withYesOption(updateCmd);
+  withJsonOption(updateCmd);
+  updateCmd.action(async (opts: { yes?: boolean; json?: boolean }) => {
       try {
         const install = detectInstallMethod();
 

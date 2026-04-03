@@ -3,18 +3,19 @@ import { FileProjectStore, FutureWorkCollector } from '@context-forge/core/node'
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withJsonOption, withAllOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success } from '../output/styles.js';
 
 export function registerFutureCommand(program: Command): void {
-  program
+  const futureCmd = program
     .command('future')
-    .description('Show consolidated future work across slice plans')
-    .option('--json', 'Output as JSON')
-    .option('--all', 'Show future work from all worktrees')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--status <filter>', 'Filter by status: all, pending, completed', 'all')
-    .action(async (opts: { json?: boolean; all?: boolean; project?: string; status: string }) => {
+    .description('Show consolidated future work across slice plans');
+  withJsonOption(futureCmd);
+  withAllOption(futureCmd);
+  withProjectOption(futureCmd);
+  futureCmd.option('--status <filter>', 'Filter by status: all, pending, completed', 'all');
+  futureCmd.action(async (opts: { json?: boolean; all?: boolean; project?: string; status: string }) => {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);

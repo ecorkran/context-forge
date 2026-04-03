@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import { FileProjectStore, GuideDetector, GUIDE_RELATIVE_PATH } from '@context-forge/core/node';
 import { resolveProjectId } from '../utils/project.js';
+import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 
 const VALID_TARGETS = ['claude'] as const;
@@ -104,13 +105,13 @@ export async function setupIdeAction(
 }
 
 export function registerSetupIdeCommand(program: Command): void {
-  program
+  const ideCmd = program
     .command('setup-ide')
     .description('Configure IDE-specific AI integration files for the current project')
-    .argument('<target>', `IDE target: ${VALID_TARGETS.join(', ')}`)
-    .option('--project <name|id>', 'Project name or ID')
-    .option('--yes', 'Skip confirmation prompts')
-    .action(async (target: string, opts: { project?: string; yes?: boolean }) => {
+    .argument('<target>', `IDE target: ${VALID_TARGETS.join(', ')}`);
+  withProjectOption(ideCmd);
+  withYesOption(ideCmd);
+  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {
       try {
         // Validate target early (before project resolution for fast failure)
         if (!VALID_TARGETS.includes(target as Target)) {

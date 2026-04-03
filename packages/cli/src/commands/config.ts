@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { ConfigManager } from '@context-forge/core/node';
 import { handleError } from '../utils/errors.js';
+import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success } from '../output/styles.js';
 
@@ -9,12 +10,10 @@ export function registerConfigCommand(program: Command): void {
     .command('config')
     .description('Manage Context Forge configuration (get, set)');
 
-  cmd
-    .command('get [key]')
-    .description('Get a configuration key, or show all keys if none specified')
-    .option('--json', 'Output as JSON')
-    .option('--project <path>', 'Include project-level config from this path')
-    .action(async (key: string | undefined, opts: { json?: boolean; project?: string }) => {
+  const getCmd = cmd.command('get [key]').description('Get a configuration key, or show all keys if none specified');
+  withJsonOption(getCmd);
+  withProjectOption(getCmd);
+  getCmd.action(async (key: string | undefined, opts: { json?: boolean; project?: string }) => {
       try {
         const cm = new ConfigManager(opts.project);
 
@@ -52,11 +51,9 @@ export function registerConfigCommand(program: Command): void {
       }
     });
 
-  cmd
-    .command('set <key> <value>')
-    .description('Set a configuration value')
-    .option('--project <path>', 'Write to project-level config at this path')
-    .action(async (key: string, val: string, opts: { project?: string }) => {
+  const setCmd = cmd.command('set <key> <value>').description('Set a configuration value');
+  withProjectOption(setCmd);
+  setCmd.action(async (key: string, val: string, opts: { project?: string }) => {
       try {
         const scope = opts.project ? 'project' : 'user';
         const cm = new ConfigManager(opts.project);
