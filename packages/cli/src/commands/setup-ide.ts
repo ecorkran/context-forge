@@ -4,6 +4,7 @@ import * as readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import { FileProjectStore, GuideDetector, GUIDE_RELATIVE_PATH } from '@context-forge/core/node';
+import type { ProjectData } from '@context-forge/core';
 import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -104,6 +105,61 @@ export async function setupIdeAction(
   console.error(`IDE setup complete for ${target}.`);
 }
 
+/**
+ * Propagate IDE-generated files from the project root to all registered worktrees.
+ *
+ * The setup-ide script always writes to the project root (its find_project_root()
+ * walks up to the nearest directory containing project-documents/, which is always
+ * the root). Worktrees share the same guides submodule source but have independent
+ * working trees, so without propagation their CLAUDE.md and .claude/ config files
+ * go stale after every root setup-ide run.
+ *
+ * Files propagated (claude target):
+ *   CLAUDE.md               — compiled from alwaysApply rules
+ *   .claude/rules/          — modular (non-alwaysApply) rule files
+ *   .claude/agents/         — agent definition files
+ *   .claude/skills/         — skill definition files
+ *
+ * Files intentionally NOT propagated:
+ *   .claude/settings.local.json  — worktree-specific user settings
+ *   .claude/worktrees/           — cf worktree registry, root-only
+ */
+function propagateToWorktrees(project: ProjectData, target: string): void {
+  const worktrees = (project.worktrees ?? []).filter((wt) => wt.worktreePath && fs.existsSync(wt.worktreePath));
+  if (worktrees.length === 0) return;
+
+  const rootPath = project.projectPath!;
+
+  for (const wt of worktrees) {
+    const wtPath = wt.worktreePath!;
+    console.log(`  → propagating to worktree: ${wt.name ?? wt.id} (${wtPath})`);
+
+    if (target === 'claude') {
+      // CLAUDE.md
+      const srcMd = path.join(rootPath, 'CLAUDE.md');
+      if (fs.existsSync(srcMd)) {
+        fs.copyFileSync(srcMd, path.join(wtPath, 'CLAUDE.md'));
+      }
+
+      // .claude/{rules,agents,skills}
+      for (const dir of ['rules', 'agents', 'skills']) {
+        const srcDir = path.join(rootPath, '.claude', dir);
+        const dstDir = path.join(wtPath, '.claude', dir);
+        if (!fs.existsSync(srcDir)) continue;
+        fs.mkdirSync(dstDir, { recursive: true });
+        for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+          if (entry.isFile()) {
+            fs.copyFileSync(path.join(srcDir, entry.name), path.join(dstDir, entry.name));
+          }
+        }
+      }
+    }
+    // Future targets (cursor, windsurf) would propagate their own dirs here.
+  }
+
+  console.log(`  Propagated to ${worktrees.length} worktree${worktrees.length !== 1 ? 's' : ''}.`);
+}
+
 export function registerSetupIdeCommand(program: Command): void {
   const ideCmd = program
     .command('setup-ide')
@@ -136,6 +192,7 @@ export function registerSetupIdeCommand(program: Command): void {
         }
 
         await setupIdeAction(project.projectPath, target, { yes: opts.yes });
+        propagateToWorktrees(project, target);
       } catch (err) {
         handleError(err);
       }

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.38] - 20260403
+
+### Fixed
+- `cf setup-ide claude` now propagates generated files (`CLAUDE.md`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/`) to all registered worktrees after updating the project root. Worktrees do not maintain independent IDE config — they receive a copy from root. `.claude/settings.local.json` and `.claude/worktrees/` are intentionally excluded (worktree-specific).
+
 ## [0.6.37] - 20260402
 
 ### Added

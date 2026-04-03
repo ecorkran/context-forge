@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-04-03
+
+### setup-ide worktree propagation (v0.6.38)
+- `cf setup-ide claude` now propagates `CLAUDE.md`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/` to all registered worktrees after updating root
+- Root is always the source of truth; worktrees receive copies (no independent IDE config)
+- `.claude/settings.local.json` and `.claude/worktrees/` intentionally excluded
+- Fixes stale CLAUDE.md/rules in worktrees after every root setup-ide run
+
+---
+
 ## 2026-04-02
 
 ### workflow_next improvements (v0.6.36)
