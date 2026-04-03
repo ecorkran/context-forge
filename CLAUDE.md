@@ -5,19 +5,33 @@
 ## Core Principles
 
 - Always resist adding complexity. Ensure it is truly necessary.
-- Never use silent fallback values. Fail explicitly with errors or 
-  obviously-placeholder values.
+- Never use silent fallback values. Fail explicitly with errors or obviously-placeholder values.
 - Never use cheap hacks or well-known anti-patterns.
-- Never include credentials, API keys, or secrets in source code 
-  or comments. Load from environment variables; ensure .env is 
-  in .gitignore. Raise an issue if violations are found.
+- Never include credentials, API keys, or secrets in source code or comments. Load from environment variables; ensure .env is in .gitignore. Raise an issue if violations are found.
+- When debugging a failure, get the actual error message before attempting any fix. Never apply more than one speculative fix without first obtaining concrete evidence (logs, error text, stack trace) that diagnoses the root cause. If you cannot get the evidence yourself, ask the Project Manager for it.
 
 ## Code Structure
 
-- Keep source files to ~300 lines, functions to ~50 lines 
-  (excluding whitespace).
-- Avoid hard-coded constants and duplicated values.
+- Keep source files to ~300 lines, functions to ~50 lines (excluding whitespace) where practical.
+- Program to interfaces (contracts).  Maintain clear separation between components.
+- Do not duplicate logic.  Respect DRY (don't repeat yourself).
 - Provide meaningful but concise comments in relevant places.
+
+- Never scatter comparison values across code. If a value is used in 
+  conditionals, switch cases, or lookups, define it once (enum, constant, 
+  or config) and reference that definition everywhere. Changing a value 
+  should require editing exactly one place.
+- Do not hard-code magic defaults.  In the example below, the defaults for model and n are both wrong.  If such defaults are needed they should be centralized at the config level.  This applies in all languages.
+```python
+  async def _model_start(promt:str) -> str {
+    model = self._config.model or "gpt-5.3-codex"
+    n = self._config.index or 1234
+  }
+```
+- NEVER use user-accessible labels as logical structure.  They are fragile.
+
+
+## Source Control and Builds
 - Keep commits semantic; build after all changes.
 - Git add and commit from project root at least once per task.
 - Confirm your current working directory before file/shell commands.
@@ -77,6 +91,7 @@ Types:
 - `style` — Formatting, whitespace, linting (no logic change)
 - `guides` - Update or addition to project guides (system/project level)
 - `docs` — Update or addition to user/ guides or documentation (slices, readme, etc)
+- `review` — Code review, design review, or audit documentation
 - `package` - Updates related to packaging, npm, package.json, PyPi, etc
 - `chore` — Build config, dependencies, tooling, CI
 

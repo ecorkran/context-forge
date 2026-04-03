@@ -7,7 +7,7 @@ project: squadron
 verdict: CONCERNS
 sourceDocument: project-documents/user/tasks/221-tasks.server-package-and-daemon-lifecycle.md
 aiModel: minimax/minimax-m2.7
-status: addressed
+status: complete
 dateCreated: 20260331
 dateUpdated: 20260331
 ---
