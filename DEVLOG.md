@@ -16,10 +16,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - 8 new tests, backfilled CHANGELOG for 0.6.26–0.6.36
 - Commits: `4091b2c` feat, `915612b` bump, `988e855` changelog
 
-### Slice 907: CLI Short-Form Options — Design
+### Slice 907: CLI Short-Form Options — Design & Tasks
 - Slice overview added to 900-slices plan, design document created
 - Centralizes 78 inline option registrations into shared `options.ts` helpers
 - Adds `-j`, `-p`, `-y`, `-f`, `-a`, `-r` short flags
+- Task breakdown: 4 sections, 18 tasks — create module, migrate 14 files, verify
+- Commits: `698787b` design
 
 ---
 
