@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.37] - 20260402
+
 ### Added
 - Short-form flags for common CLI options: `-j` (`--json`), `-p` (`--project`), `-y` (`--yes`), `-f` (`--fix`), `-a` (`--all`), `-r` (`--raw`)
 - New `packages/cli/src/options.ts` module with 7 composable helper functions (`withJsonOption`, `withProjectOption`, `withYesOption`, `withFixOption`, `withAllOption`, `withRawOption`, `withProjectLevelOption`)
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Migrated all 14 CLI command files to use shared option helpers from `options.ts` (removed ~70 inline option registrations)
 - Normalized `--project` option description to "Project ID or name (overrides default)" across all commands
+
+### Fixed
+- `cf check --fix` now reports "No fixable findings — nothing to apply." when no findings are auto-fixable, instead of silently showing check-only output
+- Version flag changed from `-V` to `-v` (`--version`)
 
 ## [0.6.36] - 20260402
 
