@@ -176,7 +176,9 @@ export function registerCheckCommand(program: Command): void {
           const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
 
           if (fixableCount === 0) {
-            result = dryRun;
+            printCheckOutput(dryRun, project.name, false);
+            console.log(dim('No fixable findings — nothing to apply.'));
+            return;
           } else if (!opts.yes) {
             printCheckOutput(dryRun, project.name, false);
             const confirmed = await askConfirmation(

@@ -31,7 +31,7 @@ const program = new Command();
 
 program
   .name('cf')
-  .version(version)
+  .version(version, '-v, --version', 'Output the version number')
   .description('Context Forge CLI — terminal access to context assembly, project management, and workflow navigation')
   .configureHelp({
     styleTitle: (str) => chalk.bold(str),
