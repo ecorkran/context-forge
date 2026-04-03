@@ -16,12 +16,13 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - 8 new tests, backfilled CHANGELOG for 0.6.26–0.6.36
 - Commits: `4091b2c` feat, `915612b` bump, `988e855` changelog
 
-### Slice 907: CLI Short-Form Options — Design & Tasks
-- Slice overview added to 900-slices plan, design document created
-- Centralizes 78 inline option registrations into shared `options.ts` helpers
-- Adds `-j`, `-p`, `-y`, `-f`, `-a`, `-r` short flags
-- Task breakdown: 4 sections, 18 tasks — create module, migrate 14 files, verify
-- Commits: `698787b` design
+### Slice 907: CLI Short-Form Options — Complete
+- Created `packages/cli/src/options.ts` with 7 composable helpers (`withJsonOption`, `withProjectOption`, `withYesOption`, `withFixOption`, `withAllOption`, `withRawOption`, `withProjectLevelOption`)
+- Migrated all 14 CLI command files to use shared helpers; removed ~70 inline option registrations
+- Short-form flags added: `-j`, `-p`, `-y`, `-f`, `-a`, `-r`
+- 22 unit tests for shared helpers (short flags, long flags, chaining, no-short-flag for project-level)
+- All 400 CLI tests, 767 core tests, 183 MCP tests passing
+- Commits: `698787b` design, `9c6581b` tasks, `0ae8f35` feat(module), `d1bd899` refactor(high-use), `4853423` refactor(remaining)
 
 ---
 

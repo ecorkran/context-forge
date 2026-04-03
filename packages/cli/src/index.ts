@@ -124,11 +124,11 @@ registerSetupIdeCommand(program);
 registerUpdateCommand(program);
 
 // Version introspection
-program
+const versionCmd = program
   .command('version')
-  .description('Show version information (use --json for machine-readable output)')
-  .option('--json', 'Output as JSON with guide version and breaking changes')
-  .action(async (opts: { json?: boolean }) => {
+  .description('Show version information (use --json for machine-readable output)');
+withJsonOption(versionCmd);
+versionCmd.action(async (opts: { json?: boolean }) => {
     if (opts.json) {
       let guideVersion: string | null = null;
       try {
@@ -152,11 +152,11 @@ program
   });
 
 // Machine-readable help
-program
+const helpCmd = program
   .command('help')
-  .description('Display help information (use --json for machine-readable catalog)')
-  .option('--json', 'Output command catalog as JSON')
-  .action((opts: { json?: boolean }) => {
+  .description('Display help information (use --json for machine-readable catalog)');
+withJsonOption(helpCmd);
+helpCmd.action((opts: { json?: boolean }) => {
     if (opts.json) {
       const catalog = buildCommandCatalog(program, version);
       process.stdout.write(JSON.stringify(catalog, null, 2) + '\n');

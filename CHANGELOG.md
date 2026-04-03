@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Short-form flags for common CLI options: `-j` (`--json`), `-p` (`--project`), `-y` (`--yes`), `-f` (`--fix`), `-a` (`--all`), `-r` (`--raw`)
+- New `packages/cli/src/options.ts` module with 7 composable helper functions (`withJsonOption`, `withProjectOption`, `withYesOption`, `withFixOption`, `withAllOption`, `withRawOption`, `withProjectLevelOption`)
+
+### Changed
+- Migrated all 14 CLI command files to use shared option helpers from `options.ts` (removed ~70 inline option registrations)
+- Normalized `--project` option description to "Project ID or name (overrides default)" across all commands
+
 ## [0.6.36] - 20260402
 
 ### Added
