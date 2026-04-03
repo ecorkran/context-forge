@@ -7,6 +7,22 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-04-02
+
+### workflow_next improvements (v0.6.36)
+- `cf next` suggests `cf set phase` when current phase doesn't match recommended phase
+- Index band mismatch warning when slice is outside arch's hundred-block
+- Arch-missing detection for active slice path (Priority 2.5)
+- 8 new tests, backfilled CHANGELOG for 0.6.26–0.6.36
+- Commits: `4091b2c` feat, `915612b` bump, `988e855` changelog
+
+### Slice 907: CLI Short-Form Options — Design
+- Slice overview added to 900-slices plan, design document created
+- Centralizes 78 inline option registrations into shared `options.ts` helpers
+- Adds `-j`, `-p`, `-y`, `-f`, `-a`, `-r` short flags
+
+---
+
 ## 2026-03-31
 
 ### Slice 906: CLI Self-Update Command — Complete
