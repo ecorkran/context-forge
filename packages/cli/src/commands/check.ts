@@ -12,6 +12,7 @@ import type {
   ConsistencyFinding,
 } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -111,15 +112,15 @@ interface CheckOpts {
 }
 
 export function registerCheckCommand(program: Command): void {
-  program
+  const checkCmd = program
     .command('check')
-    .description('Run consistency checks on project artifacts')
-    .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--fix', 'Apply non-destructive corrections (when available)')
-    .option('--slice <index>', 'Check only a specific slice by index')
-    .option('--yes', 'Skip confirmation prompt in fix mode')
-    .action(async (opts: CheckOpts) => {
+    .description('Run consistency checks on project artifacts');
+  withJsonOption(checkCmd);
+  withProjectOption(checkCmd);
+  withFixOption(checkCmd);
+  checkCmd.option('--slice <index>', 'Check only a specific slice by index');
+  withYesOption(checkCmd);
+  checkCmd.action(async (opts: CheckOpts) => {
       try {
         const store = new FileProjectStore();
         const { id } = await resolveProjectWorktree({ project: opts.project }, store);

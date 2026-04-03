@@ -18,6 +18,7 @@ import {
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
+import { withJsonOption, withProjectOption, withYesOption, withProjectLevelOption } from '../options.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, getWorktreeRangeOverride, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -562,38 +563,32 @@ export function registerProjectCommand(program: Command): void {
       }
     });
 
-  cmd
-    .command('list')
-    .description('List all projects')
-    .option('--json', 'Output as JSON')
-    .action(async (opts: { json?: boolean }) => {
-      try {
-        await projectListAction(opts);
-      } catch (err) {
-        handleError(err);
-      }
-    });
+  const listCmd = cmd.command('list').description('List all projects');
+  withJsonOption(listCmd);
+  listCmd.action(async (opts: { json?: boolean }) => {
+    try {
+      await projectListAction(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
 
-  cmd
-    .command('get')
-    .description('Get details for the active project')
-    .option('--json', 'Output as JSON')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--project-level', 'Show project-level fields only (skip worktree overlay)')
-    .action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
-      try {
-        await projectGetAction(opts);
-      } catch (err) {
-        handleError(err);
-      }
-    });
+  const getCmd = cmd.command('get').description('Get details for the active project');
+  withJsonOption(getCmd);
+  withProjectOption(getCmd);
+  withProjectLevelOption(getCmd);
+  getCmd.action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
+    try {
+      await projectGetAction(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
 
-  cmd
-    .command('set [field] [value]')
-    .description('Update a field on the active project')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--project-level', 'Force update at project level (skip worktree routing)')
-    .addHelpText('after', buildSettableFieldsHelp)
+  const setCmd = cmd.command('set [field] [value]').description('Update a field on the active project');
+  withProjectOption(setCmd);
+  withProjectLevelOption(setCmd);
+  setCmd.addHelpText('after', buildSettableFieldsHelp)
     .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
       // Allow `cf project set date` (no value) as shorthand for `cf project set date now`
       const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
@@ -608,12 +603,10 @@ export function registerProjectCommand(program: Command): void {
       }
     });
 
-  cmd
-    .command('unset [field]')
-    .description('Unset (clear) a field on the active project')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--project-level', 'Force unset at project level (skip worktree routing)')
-    .action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
+  const unsetCmd = cmd.command('unset [field]').description('Unset (clear) a field on the active project');
+  withProjectOption(unsetCmd);
+  withProjectLevelOption(unsetCmd);
+  unsetCmd.action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
       if (!field) {
         console.log(`Usage: cf project unset [options] <field>  —  run cf project unset --help for details`);
         return;
@@ -625,12 +618,10 @@ export function registerProjectCommand(program: Command): void {
       }
     });
 
-  cmd
-    .command('rm [nameOrId]')
-    .description('Remove a project from Context Forge (files on disk are not deleted)')
-    .option('--project <id>', 'Project ID or name (overrides default)')
-    .option('--yes', 'Skip confirmation prompt')
-    .action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
+  const rmCmd = cmd.command('rm [nameOrId]').description('Remove a project from Context Forge (files on disk are not deleted)');
+  withProjectOption(rmCmd);
+  withYesOption(rmCmd);
+  rmCmd.action(async (nameOrId: string | undefined, opts: { project?: string; yes?: boolean }) => {
       try {
         const store = new FileProjectStore();
         const { id } = await resolveProjectId(nameOrId ?? opts.project, store);

@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { FileProjectStore, GuideManager, ConfigManager } from '@context-forge/core/node';
 import type { GuideMethod } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { withJsonOption, withProjectOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success, warn } from '../output/styles.js';
@@ -92,10 +93,10 @@ export function registerGuidesCommand(program: Command): void {
 
   // cf guides info (also the default for bare `cf guides`)
   const infoCmd = new Command('info')
-    .description('Show guide installation status (default)')
-    .option('--json', 'Output as JSON')
-    .option('--project <name|id>', 'Project name or ID')
-    .action(async (opts: { json?: boolean; project?: string }) => {
+    .description('Show guide installation status (default)');
+  withJsonOption(infoCmd);
+  withProjectOption(infoCmd);
+  infoCmd.action(async (opts: { json?: boolean; project?: string }) => {
       try {
         await showStatus(opts);
       } catch (err) {
@@ -106,13 +107,13 @@ export function registerGuidesCommand(program: Command): void {
   cmd.addCommand(infoCmd, { isDefault: true });
 
   // cf guides install
-  cmd
+  const installCmd = cmd
     .command('install')
     .description('Install the AI project guide')
     .option('--strategy <method>', 'Installation strategy: submodule, clone, or manual')
-    .option('--source <url>', 'Source repository URL')
-    .option('--project <name|id>', 'Project name or ID')
-    .action(async (opts: { strategy?: string; source?: string; project?: string }) => {
+    .option('--source <url>', 'Source repository URL');
+  withProjectOption(installCmd);
+  installCmd.action(async (opts: { strategy?: string; source?: string; project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
         await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
@@ -122,11 +123,11 @@ export function registerGuidesCommand(program: Command): void {
     });
 
   // cf guides uninstall
-  cmd
+  const uninstallCmd = cmd
     .command('uninstall')
-    .description('Uninstall the AI project guide (deinits submodule if applicable)')
-    .option('--project <name|id>', 'Project name or ID')
-    .action(async (opts: { project?: string }) => {
+    .description('Uninstall the AI project guide (deinits submodule if applicable)');
+  withProjectOption(uninstallCmd);
+  uninstallCmd.action(async (opts: { project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
         const cm = new ConfigManager(ctx.projectPath);
@@ -153,11 +154,11 @@ export function registerGuidesCommand(program: Command): void {
     });
 
   // cf guides update
-  cmd
+  const updateCmd = cmd
     .command('update')
-    .description('Update an existing guide installation')
-    .option('--project <name|id>', 'Project name or ID')
-    .action(async (opts: { project?: string }) => {
+    .description('Update an existing guide installation');
+  withProjectOption(updateCmd);
+  updateCmd.action(async (opts: { project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
         const cm = new ConfigManager(ctx.projectPath);

@@ -22,6 +22,7 @@ import { registerUpdateCommand } from './commands/update.js';
 import { handleError, setJsonMode } from './utils/errors.js';
 import { buildCommandCatalog } from './utils/commandCatalog.js';
 import { BREAKING_CHANGES } from './utils/breaking-changes.js';
+import { withJsonOption, withProjectOption, withProjectLevelOption } from './options.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
@@ -53,13 +54,13 @@ registerPromptCommand(program);
 registerStatusCommand(program);
 
 // Top-level shortcuts for project get/set/unset
-program
+const getCmd = program
   .command('get')
-  .description('Show details for the active project (shortcut for cf project get)')
-  .option('--json', 'Output as JSON')
-  .option('--project <name|id>', 'Project name or ID (overrides default)')
-  .option('--project-level', 'Show project-level fields only (skip worktree overlay)')
-  .action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
+  .description('Show details for the active project (shortcut for cf project get)');
+withJsonOption(getCmd);
+withProjectOption(getCmd);
+withProjectLevelOption(getCmd);
+getCmd.action(async (opts: { json?: boolean; project?: string; projectLevel?: boolean }) => {
     try {
       await projectGetAction(opts);
     } catch (err) {
@@ -67,12 +68,12 @@ program
     }
   });
 
-program
+const setCmd = program
   .command('set [field] [value]')
-  .description('Set a field on the active project (shortcut for cf project set)')
-  .option('--project <name|id>', 'Project name or ID (overrides default)')
-  .option('--project-level', 'Force update at project level (skip worktree routing)')
-  .addHelpText('after', buildSettableFieldsHelp)
+  .description('Set a field on the active project (shortcut for cf project set)');
+withProjectOption(setCmd);
+withProjectLevelOption(setCmd);
+setCmd.addHelpText('after', buildSettableFieldsHelp)
   .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
     // Allow `cf set date` (no value) as shorthand for `cf set date now`
     const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
@@ -87,12 +88,12 @@ program
     }
   });
 
-program
+const unsetCmd = program
   .command('unset [field]')
-  .description('Unset (clear) a field on the active project (shortcut for cf project unset)')
-  .option('--project <name|id>', 'Project name or ID (overrides default)')
-  .option('--project-level', 'Force unset at project level (skip worktree routing)')
-  .action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
+  .description('Unset (clear) a field on the active project (shortcut for cf project unset)');
+withProjectOption(unsetCmd);
+withProjectLevelOption(unsetCmd);
+unsetCmd.action(async (field: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
     if (!field) {
       console.log(`Usage: cf unset [options] <field>  —  run cf unset --help for details`);
       return;
