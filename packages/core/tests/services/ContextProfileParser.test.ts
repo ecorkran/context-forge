@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ContextProfileParser } from '../../src/services/ContextProfileParser.js';
 
-const SAMPLE_FILE = `---
+/** Expanded multi-line format (profile key + variables child) */
+const EXPANDED_FORMAT = `---
 frontmatter: here
 ---
 ## Prompts
@@ -39,16 +42,37 @@ context_profiles:
 Rest of file.
 `;
 
+/** Compact one-line format (as used in the actual prompt.ai-project.system.md) */
+const COMPACT_FORMAT = `---
+frontmatter: here
+---
+### Context Profiles
+\`\`\`yaml
+context_profiles:
+  concept-phase-0:                   []
+  initiative-plan-phase-1:           [fileConcept]
+  architecture-phase-2:              [fileConcept, fileArch]
+  slice-planning-phase-3:            [fileArch, fileSlicePlan]
+  slice-design-phase-4:              [fileArch, fileSlicePlan, fileSlice]
+  task-breakdown-phase-5:            [fileSlice, fileTasks]
+  implementation-phase-6:            [fileSlice, fileTasks]
+  slice-integration-phase-7:         [fileArch, fileSlicePlan, fileSlice, fileTasks]
+  maintenance-task:                  [fileTasks]
+  maintenance-routine:               [fileSlice, fileTasks]
+  analysis-processing:               [fileSlice, fileTasks]
+  _default:                          [fileArch, fileSlicePlan, fileSlice, fileTasks]
+\`\`\`
+`;
+
 describe('ContextProfileParser', () => {
   const parser = new ContextProfileParser();
 
-  describe('parseProfiles', () => {
-    it('parses profiles from a file with a context-profiles block', () => {
-      const profiles = parser.parseProfiles(SAMPLE_FILE);
-      expect(profiles).toHaveProperty('implementation-phase-6');
-      expect(profiles['implementation-phase-6'].variables).toEqual(['fileSlice', 'fileTasks']);
-      expect(profiles['maintenance-task'].variables).toEqual(['fileTasks']);
-      expect(profiles['_default'].variables).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice', 'fileTasks']);
+  describe('parseProfiles — expanded format', () => {
+    it('parses profiles and returns correct variable lists', () => {
+      const profiles = parser.parseProfiles(EXPANDED_FORMAT);
+      expect(profiles['implementation-phase-6']).toEqual(['fileSlice', 'fileTasks']);
+      expect(profiles['maintenance-task']).toEqual(['fileTasks']);
+      expect(profiles['_default']).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice', 'fileTasks']);
     });
 
     it('returns empty map when block is absent', () => {
@@ -63,8 +87,56 @@ describe('ContextProfileParser', () => {
     });
 
     it('parses all 12 profiles', () => {
-      const profiles = parser.parseProfiles(SAMPLE_FILE);
+      const profiles = parser.parseProfiles(EXPANDED_FORMAT);
       expect(Object.keys(profiles)).toHaveLength(12);
+    });
+  });
+
+  describe('parseProfiles — compact format', () => {
+    it('parses profiles and returns correct variable lists', () => {
+      const profiles = parser.parseProfiles(COMPACT_FORMAT);
+      expect(profiles['implementation-phase-6']).toEqual(['fileSlice', 'fileTasks']);
+      expect(profiles['maintenance-task']).toEqual(['fileTasks']);
+      expect(profiles['_default']).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice', 'fileTasks']);
+    });
+
+    it('parses all 12 profiles', () => {
+      const profiles = parser.parseProfiles(COMPACT_FORMAT);
+      expect(Object.keys(profiles)).toHaveLength(12);
+    });
+
+    it('slice-design-phase-4 excludes fileTasks', () => {
+      const profiles = parser.parseProfiles(COMPACT_FORMAT);
+      expect(profiles['slice-design-phase-4']).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice']);
+      expect(profiles['slice-design-phase-4']).not.toContain('fileTasks');
+    });
+
+    it('concept-phase-0 has empty variable list', () => {
+      const profiles = parser.parseProfiles(COMPACT_FORMAT);
+      expect(profiles['concept-phase-0']).toEqual([]);
+    });
+  });
+
+  describe('parseProfiles — real prompt file', () => {
+    it('parses the actual project prompt file successfully', () => {
+      const promptPath = join(__dirname, '..', '..', '..', '..', 'project-documents',
+        'ai-project-guide', 'project-guides', 'prompt.ai-project.system.md');
+      let content: string;
+      try {
+        content = readFileSync(promptPath, 'utf-8');
+      } catch {
+        // Skip if prompt file not installed (CI without guides)
+        return;
+      }
+
+      const profiles = parser.parseProfiles(content);
+      // Must parse at least several profiles
+      expect(Object.keys(profiles).length).toBeGreaterThanOrEqual(8);
+      // Phase 4 must not include fileTasks
+      expect(profiles['slice-design-phase-4']).toBeDefined();
+      expect(profiles['slice-design-phase-4']).not.toContain('fileTasks');
+      // _default must exist
+      expect(profiles['_default']).toBeDefined();
     });
   });
 
@@ -72,7 +144,7 @@ describe('ContextProfileParser', () => {
     let profiles: ReturnType<typeof parser.parseProfiles>;
 
     beforeAll(() => {
-      profiles = parser.parseProfiles(SAMPLE_FILE);
+      profiles = parser.parseProfiles(COMPACT_FORMAT);
     });
 
     it('resolves full phase string "Phase 6: Implementation" to implementation profile', () => {
@@ -93,6 +165,11 @@ describe('ContextProfileParser', () => {
     it('resolves "Phase 1: Initiative Plan" to initiative-plan profile', () => {
       const vars = parser.getProfileForInstruction('Phase 1: Initiative Plan', profiles);
       expect(vars).toEqual(['fileConcept']);
+    });
+
+    it('resolves "Phase 4: Slice Design" excludes fileTasks', () => {
+      const vars = parser.getProfileForInstruction('Phase 4: Slice Design', profiles);
+      expect(vars).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice']);
     });
 
     it('resolves "Maintenance Task" to maintenance-task profile', () => {

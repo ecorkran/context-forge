@@ -5,7 +5,7 @@ project: context-forge
 archIndex: 900
 slice: cli-usability-improvements
 component: cli
-status: complete
+status: in_progress
 dateCreated: 20260404
 dateUpdated: 20260404
 ---
@@ -17,7 +17,8 @@ dateUpdated: 20260404
 Catch-all slice for small CLI UX wins that don't warrant their own slice. Items are added to the backlog as discovered and implemented incrementally. Each item is a self-contained task — the slice remains open until PM closes it.
 
 **Backlog** (items to implement, in priority order):
-1. `cf list arch` / `cf list initiatives` — initiative-plan-aware listing (current item)
+1. ~~`cf list arch` / `cf list initiatives` — initiative-plan-aware listing~~ (complete)
+2. Context profile filtering broken — parser doesn't handle compact YAML format (current item)
 
 ---
 
@@ -109,6 +110,49 @@ cf list arch --json
 # Verify fallback: on a project with no initiative plan, cf list arch
 # should still work (current buildModel behavior)
 ```
+
+---
+
+## Item B: Context Profile Filtering Fix
+
+### Problem
+
+`ContextProfileParser.parseProfilesYaml()` only handled an expanded multi-line YAML format:
+
+```yaml
+  profile-name:
+    variables: [field1, field2]
+```
+
+The actual prompt file (`prompt.ai-project.system.md`) uses a compact one-line format:
+
+```yaml
+  profile-name:              [field1, field2]
+```
+
+The parser silently returned empty variable lists for every profile, which caused `applyProfileFiltering` in `ContextIntegrator` to skip filtering entirely. Result: all artifact fields (including `fileTasks`) were included in every phase's context, regardless of what the context profile specified.
+
+This affected all consumers: CLI `cf build`, MCP `context_build`, and `/cf:build`.
+
+### Design
+
+1. **Simplify `ProfileMap`** from `Record<string, { variables: string[] }>` to `Record<string, string[]>`. The `{ variables: ... }` wrapper anticipated additional per-profile fields that never materialized.
+
+2. **Rewrite `parseProfilesYaml`** to use a single-pass state machine that extracts `key: [values]` regardless of whether the bracket list is on the same line as the key (compact) or on a child `variables:` line (expanded). No indent-counting — the parser distinguishes cases by checking whether the key is `variables` (child line of a pending profile) or a profile name (starts a new profile).
+
+3. **Add compact-format test fixture** matching the actual prompt file layout, plus a test that parses the real `prompt.ai-project.system.md` from the project directory.
+
+### Files Affected
+
+- `packages/core/src/services/ContextProfileParser.ts` — type simplification + parser rewrite
+- `packages/core/tests/services/ContextProfileParser.test.ts` — new fixtures and tests
+
+### Success Criteria
+
+- Both compact and expanded YAML formats parse identically
+- Phase 4 (Slice Design) context excludes `fileTasks`
+- Real prompt file parses successfully in tests
+- No indent-depth logic in parser
 
 ---
 

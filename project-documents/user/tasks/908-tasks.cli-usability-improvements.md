@@ -4,7 +4,7 @@ layer: project
 project: context-forge
 slice: cli-usability-improvements
 archIndex: 900
-status: complete
+status: in_progress
 dateCreated: 20260404
 dateUpdated: 20260404
 ---
@@ -36,3 +36,16 @@ dateUpdated: 20260404
 - [x] Add unit tests for the updated action (with and without initiative plan)
 
 **Commit:** `feat(cli): drive cf list arch from initiative plan`
+
+## Item B: Context Profile Filtering Fix
+
+### B1. Simplify ProfileMap and rewrite parser
+
+- [x] Simplify `ProfileMap` type from `Record<string, { variables: string[] }>` to `Record<string, string[]>`
+- [x] Rewrite `parseProfilesYaml` to handle both compact and expanded formats without indent-counting
+- [x] Update `getProfileForInstruction` and `parseProfiles` for simplified type
+- [x] Update test fixtures: add compact format, add real prompt file test, remove `.variables` accessors
+- [x] Verify ContextIntegrator filtering tests still pass (expanded format fixture unchanged)
+- [x] Build and all tests pass
+
+**Commit:** `fix(core): context profile parser handles compact YAML format`
