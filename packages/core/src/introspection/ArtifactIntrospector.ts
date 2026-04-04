@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
@@ -15,6 +16,22 @@ import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
+
+/**
+ * Locate the initiative plan file for a project.
+ * Convention: project-documents/user/project-guides/001-initiative-plan.*.md
+ * Returns the full path, or null if not found.
+ */
+export async function resolveInitiativePlanPath(projectPath: string): Promise<string | null> {
+  const guidesDir = join(projectPath, 'project-documents/user/project-guides');
+  try {
+    const files = await readdir(guidesDir);
+    const match = files.find((f) => /^001-initiative-plan\..*\.md$/i.test(f));
+    return match ? join(guidesDir, match) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Orchestrator that delegates to individual parser functions.

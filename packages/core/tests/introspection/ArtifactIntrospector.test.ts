@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { ArtifactIntrospector } from '../../src/introspection/ArtifactIntrospector.js';
+import { ArtifactIntrospector, resolveInitiativePlanPath } from '../../src/introspection/ArtifactIntrospector.js';
 import type { ProjectData } from '../../src/types/project.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
@@ -19,6 +19,26 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     ...overrides,
   };
 }
+
+describe('resolveInitiativePlanPath', () => {
+  it('returns full path when initiative plan exists', async () => {
+    const result = await resolveInitiativePlanPath(PROJECT_ROOT);
+    expect(result).not.toBeNull();
+    expect(result).toContain('001-initiative-plan.test-project.md');
+  });
+
+  it('returns null when no initiative plan file exists', async () => {
+    // A valid project directory but no initiative plan in project-guides
+    const projectWithoutPlan = join(FIXTURES, 'introspection');
+    const result = await resolveInitiativePlanPath(projectWithoutPlan);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when project-guides directory is missing', async () => {
+    const result = await resolveInitiativePlanPath('/tmp/nonexistent-project-abc123');
+    expect(result).toBeNull();
+  });
+});
 
 describe('ArtifactIntrospector', () => {
   const introspector = new ArtifactIntrospector();

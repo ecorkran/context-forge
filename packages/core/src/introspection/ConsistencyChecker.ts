@@ -16,6 +16,7 @@ import type {
 } from './types.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
+import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -637,19 +638,9 @@ export class ConsistencyChecker {
   }
 
 
-  /**
-   * Find the initiative plan file for a project.
-   * Convention: project-documents/user/project-guides/001-initiative-plan.*.md
-   */
+  /** Find the initiative plan file for a project. Delegates to shared utility. */
   private async findInitiativePlan(projectPath: string): Promise<string | null> {
-    const guidesDir = join(projectPath, 'project-documents/user/project-guides');
-    try {
-      const files = await readdir(guidesDir);
-      const match = files.find((f) => /^001-initiative-plan\..*\.md$/i.test(f));
-      return match ? join(guidesDir, match) : null;
-    } catch {
-      return null;
-    }
+    return resolveInitiativePlanPath(projectPath);
   }
 
   /** Rule 13: Initiative plan entry checkbox vs. arch doc status */
