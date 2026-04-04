@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.39] - 20260404
+
+### Added
+- `cf check` Rule 13 (`initiative-entry-vs-arch`): flags mismatch between initiative plan entry checkbox and corresponding arch doc `status` — warns and auto-fixes in both directions
+- `cf check` Rule 14 (`initiative-plan-status-vs-entries`): flags initiative plan frontmatter `status` vs. all-entries-checked state (mirrors Rule 7 for slice plans)
+
+### Fixed
+- `cf check` aggregate rules (stale-worktree-path, frontmatter-schema, initiative plan rules) were silently skipped when no slice plans existed; removed early-return guard that blocked them
+
 ## [0.6.38] - 20260403
 
 ### Fixed
