@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.41] - 20260404
+
+### Fixed
+- Context profile filtering was silently disabled — `ContextProfileParser` only handled the expanded multi-line YAML format but the actual prompt file uses compact one-liners; all artifact fields (including `fileTasks`) were included in every phase regardless of profile configuration
+- Affects `cf build`, MCP `context_build`, and `/cf:build` slash command
+
+### Changed
+- `ProfileMap` type simplified from `Record<string, { variables: string[] }>` to `Record<string, string[]>`
+- `parseProfilesYaml` rewritten as format-agnostic state machine — no indent-depth logic
+
 ## [0.6.40] - 20260404
 
 ### Added
