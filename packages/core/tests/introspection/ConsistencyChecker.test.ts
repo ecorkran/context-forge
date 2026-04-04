@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ConsistencyChecker } from '../../src/introspection/ConsistencyChecker.js';
 import type { IArtifactIntrospector } from '../../src/introspection/interfaces.js';
 import type { ProjectData } from '../../src/types/project.js';
@@ -1152,6 +1152,236 @@ describe('ConsistencyChecker', () => {
       expect(schemaFindings).toHaveLength(0);
 
       mockReaddir.mockRejectedValue(new Error('ENOENT'));
+    });
+
+    // --- Rules 13 & 14: Initiative plan rules ---
+
+    describe('Rule 13: initiative-entry-vs-arch', () => {
+      const INITIATIVE_PLAN_PATH = '/fake/project/project-documents/user/project-guides/001-initiative-plan.test-project.md';
+      const ARCH_PATH = '/fake/project/project-documents/user/architecture/140-arch.test-system.md';
+
+      function setupInitiativeMocks(
+        initiativeEntries: Array<{ index: number; name: string; isChecked: boolean }>,
+        archStatus: string,
+        overrides: Partial<IArtifactIntrospector> = {},
+      ) {
+        mockReaddir.mockImplementation(async (dir: string) => {
+          if (dir.endsWith('/architecture')) return ['140-arch.test-system.md', '140-slices.test-system.md'];
+          if (dir.endsWith('/project-guides')) return ['001-initiative-plan.test-project.md'];
+          throw new Error('ENOENT');
+        });
+
+        const mock = makeMockIntrospector({
+          parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('001-initiative-plan')) {
+                return {
+                  filePath: INITIATIVE_PLAN_PATH,
+                  entries: initiativeEntries.map((e, i) => ({
+                    ...e, status: e.isChecked ? 'complete' : 'in-progress', lineIndex: i,
+                  })),
+                  totalSlices: initiativeEntries.length,
+                  completedSlices: initiativeEntries.filter((e) => e.isChecked).length,
+                };
+              }
+              // Default: slice plan with no entries
+              return { filePath: path, entries: [], totalSlices: 0, completedSlices: 0 };
+            },
+          ),
+          parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('140-arch')) {
+                return { filePath: ARCH_PATH, found: true, data: { status: archStatus } };
+              }
+              if (path.includes('001-initiative-plan')) {
+                return { filePath: INITIATIVE_PLAN_PATH, found: true, data: { status: 'in_progress' } };
+              }
+              return { filePath: path, found: true, data: { status: 'in-progress' } };
+            },
+          ),
+          ...overrides,
+        });
+
+        return mock;
+      }
+
+      afterEach(() => {
+        mockReaddir.mockRejectedValue(new Error('ENOENT'));
+      });
+
+      it('warns when arch is complete but initiative entry is unchecked', async () => {
+        const mock = setupInitiativeMocks(
+          [{ index: 140, name: 'MCP Server Architecture', isChecked: false }],
+          'complete',
+        );
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const finding = result.findings.find((f) => f.rule === 'initiative-entry-vs-arch');
+        expect(finding).toBeDefined();
+        expect(finding!.severity).toBe('warning');
+        expect(finding!.description).toContain('is complete');
+        expect(finding!.description).toContain('unchecked');
+        expect(finding!.fixable).toBe(true);
+        expect(finding!.fixAction?.type).toBe('update-checkbox');
+        expect(finding!.fixAction?.filePath).toBe(INITIATIVE_PLAN_PATH);
+      });
+
+      it('warns when initiative entry is checked but arch is not complete', async () => {
+        const mock = setupInitiativeMocks(
+          [{ index: 140, name: 'MCP Server Architecture', isChecked: true }],
+          'in-progress',
+        );
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const finding = result.findings.find((f) => f.rule === 'initiative-entry-vs-arch');
+        expect(finding).toBeDefined();
+        expect(finding!.severity).toBe('warning');
+        expect(finding!.description).toContain('is checked');
+        expect(finding!.description).toContain('"in-progress"');
+        expect(finding!.fixable).toBe(true);
+        expect(finding!.fixAction?.type).toBe('update-frontmatter');
+        expect(finding!.fixAction?.filePath).toBe(ARCH_PATH);
+      });
+
+      it('produces no finding when arch is complete and entry is checked', async () => {
+        const mock = setupInitiativeMocks(
+          [{ index: 140, name: 'MCP Server Architecture', isChecked: true }],
+          'complete',
+        );
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const findings = result.findings.filter((f) => f.rule === 'initiative-entry-vs-arch');
+        expect(findings).toHaveLength(0);
+      });
+
+      it('skips initiative entries with no corresponding arch file', async () => {
+        const mock = setupInitiativeMocks(
+          [{ index: 999, name: 'No Arch Initiative', isChecked: false }],
+          'complete',
+        );
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const findings = result.findings.filter((f) => f.rule === 'initiative-entry-vs-arch');
+        expect(findings).toHaveLength(0);
+      });
+
+      it('produces no finding when no initiative plan file exists', async () => {
+        mockReaddir.mockImplementation(async (dir: string) => {
+          if (dir.endsWith('/architecture')) return ['140-arch.test-system.md', '140-slices.test-system.md'];
+          // No project-guides directory
+          throw new Error('ENOENT');
+        });
+        const mock = makeMockIntrospector();
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const findings = result.findings.filter((f) => f.rule === 'initiative-entry-vs-arch');
+        expect(findings).toHaveLength(0);
+        mockReaddir.mockRejectedValue(new Error('ENOENT'));
+      });
+    });
+
+    describe('Rule 14: initiative-plan-status-vs-entries', () => {
+      const INITIATIVE_PLAN_PATH = '/fake/project/project-documents/user/project-guides/001-initiative-plan.test-project.md';
+
+      afterEach(() => {
+        mockReaddir.mockRejectedValue(new Error('ENOENT'));
+      });
+
+      it('warns when all entries checked but plan status is not complete', async () => {
+        mockReaddir.mockImplementation(async (dir: string) => {
+          if (dir.endsWith('/architecture')) return [];
+          if (dir.endsWith('/project-guides')) return ['001-initiative-plan.test-project.md'];
+          throw new Error('ENOENT');
+        });
+
+        const mock = makeMockIntrospector({
+          parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('001-initiative-plan')) {
+                return {
+                  filePath: INITIATIVE_PLAN_PATH,
+                  entries: [
+                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0 },
+                    { index: 160, name: 'Init B', status: 'complete', isChecked: true, lineIndex: 1 },
+                  ],
+                  totalSlices: 2,
+                  completedSlices: 2,
+                };
+              }
+              return { filePath: path, entries: [], totalSlices: 0, completedSlices: 0 };
+            },
+          ),
+          parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('001-initiative-plan')) {
+                return { filePath: INITIATIVE_PLAN_PATH, found: true, data: { status: 'in_progress' } };
+              }
+              return { filePath: path, found: true, data: { status: 'in-progress' } };
+            },
+          ),
+        });
+
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const finding = result.findings.find((f) => f.rule === 'initiative-plan-status-vs-entries');
+        expect(finding).toBeDefined();
+        expect(finding!.severity).toBe('warning');
+        expect(finding!.description).toContain('All 2 initiative entries');
+        expect(finding!.fixable).toBe(true);
+        expect(finding!.fixAction?.type).toBe('update-frontmatter');
+        expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'complete' });
+      });
+
+      it('warns when plan status is complete but entries are not all checked', async () => {
+        mockReaddir.mockImplementation(async (dir: string) => {
+          if (dir.endsWith('/architecture')) return [];
+          if (dir.endsWith('/project-guides')) return ['001-initiative-plan.test-project.md'];
+          throw new Error('ENOENT');
+        });
+
+        const mock = makeMockIntrospector({
+          parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('001-initiative-plan')) {
+                return {
+                  filePath: INITIATIVE_PLAN_PATH,
+                  entries: [
+                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0 },
+                    { index: 160, name: 'Init B', status: 'in-progress', isChecked: false, lineIndex: 1 },
+                  ],
+                  totalSlices: 2,
+                  completedSlices: 1,
+                };
+              }
+              return { filePath: path, entries: [], totalSlices: 0, completedSlices: 0 };
+            },
+          ),
+          parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(
+            async (path: string) => {
+              if (path.includes('001-initiative-plan')) {
+                return { filePath: INITIATIVE_PLAN_PATH, found: true, data: { status: 'complete' } };
+              }
+              return { filePath: path, found: true, data: { status: 'in-progress' } };
+            },
+          ),
+        });
+
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const finding = result.findings.find((f) => f.rule === 'initiative-plan-status-vs-entries');
+        expect(finding).toBeDefined();
+        expect(finding!.severity).toBe('warning');
+        expect(finding!.description).toContain('only 1/2 entries are checked');
+        expect(finding!.fixable).toBe(true);
+        expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+      });
     });
   });
 });

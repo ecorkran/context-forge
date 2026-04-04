@@ -96,11 +96,6 @@ export class ConsistencyChecker {
       }
     }
 
-    // If no plans found or all plans empty, return empty result
-    if (uniqueEntries.size === 0) {
-      return this.emptyResult(projectPath);
-    }
-
     const allFindings: ConsistencyFinding[] = [];
 
     // Run rules 1-5 for each unique slice entry across all plans
@@ -137,6 +132,22 @@ export class ConsistencyChecker {
     allFindings.push(
       ...await this.ruleStaleWorktreePath(project, projectPath),
     );
+
+    // Rules 13 & 14: initiative plan checks
+    const initiativePlanPath = await this.findInitiativePlan(projectPath);
+    if (initiativePlanPath) {
+      try {
+        const initiativePlanResult = await this.introspector.parseSlicePlan(initiativePlanPath);
+        allFindings.push(
+          ...await this.ruleInitiativePlanStatusVsEntries(initiativePlanPath, initiativePlanResult),
+        );
+        allFindings.push(
+          ...await this.ruleInitiativeEntryVsArch(initiativePlanPath, initiativePlanResult, projectPath),
+        );
+      } catch {
+        // Skip if initiative plan is unparseable
+      }
+    }
 
     // Rule 12: frontmatter schema validation across all documents
     allFindings.push(
@@ -625,6 +636,145 @@ export class ConsistencyChecker {
     return findings;
   }
 
+
+  /**
+   * Find the initiative plan file for a project.
+   * Convention: project-documents/user/project-guides/001-initiative-plan.*.md
+   */
+  private async findInitiativePlan(projectPath: string): Promise<string | null> {
+    const guidesDir = join(projectPath, 'project-documents/user/project-guides');
+    try {
+      const files = await readdir(guidesDir);
+      const match = files.find((f) => /^001-initiative-plan\..*\.md$/i.test(f));
+      return match ? join(guidesDir, match) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Rule 13: Initiative plan entry checkbox vs. arch doc status */
+  private async ruleInitiativeEntryVsArch(
+    initiativePlanPath: string,
+    initiativePlanResult: SlicePlanResult,
+    projectPath: string,
+  ): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+
+    // Build index → arch file map
+    const archFiles = await this.discoverAllArchFiles(projectPath);
+    const archByIndex = new Map<number, string>();
+    for (const archPath of archFiles) {
+      const idx = ConsistencyChecker.extractFileIndex(archPath);
+      if (idx !== null) archByIndex.set(idx, archPath);
+    }
+
+    for (const entry of initiativePlanResult.entries) {
+      const archPath = archByIndex.get(entry.index);
+      if (!archPath) continue;
+
+      let archFrontmatter: FrontmatterResult;
+      try {
+        archFrontmatter = await this.introspector.parseFrontmatter(archPath);
+      } catch {
+        continue;
+      }
+
+      if (!archFrontmatter.found || !archFrontmatter.data.status) continue;
+
+      const archStatus = archFrontmatter.data.status.toLowerCase();
+      const archComplete = archStatus === 'complete';
+
+      if (archComplete && !entry.isChecked) {
+        findings.push({
+          rule: 'initiative-entry-vs-arch',
+          severity: 'warning',
+          location: initiativePlanPath,
+          description: `Architecture (${entry.index}) is complete but initiative plan entry "${entry.name}" is unchecked`,
+          suggestedFix: `Check the initiative plan entry for (${entry.index})`,
+          fixable: true,
+          fixAction: {
+            type: 'update-checkbox',
+            filePath: initiativePlanPath,
+            detail: { lineIndex: entry.lineIndex, checked: true, entryIndex: entry.index },
+          },
+        });
+      }
+
+      if (entry.isChecked && !archComplete) {
+        findings.push({
+          rule: 'initiative-entry-vs-arch',
+          severity: 'warning',
+          location: archPath,
+          description: `Initiative plan entry "${entry.name}" (${entry.index}) is checked but architecture status is "${archStatus}"`,
+          suggestedFix: 'Update architecture frontmatter status to "complete"',
+          fixable: true,
+          fixAction: {
+            type: 'update-frontmatter',
+            filePath: archPath,
+            detail: { key: 'status', value: 'complete' },
+          },
+        });
+      }
+    }
+
+    return findings;
+  }
+
+  /** Rule 14: Initiative plan frontmatter status vs. all entries checked */
+  private async ruleInitiativePlanStatusVsEntries(
+    initiativePlanPath: string,
+    initiativePlanResult: SlicePlanResult,
+  ): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+
+    let planFrontmatter: FrontmatterResult;
+    try {
+      planFrontmatter = await this.introspector.parseFrontmatter(initiativePlanPath);
+    } catch {
+      return findings;
+    }
+
+    if (!planFrontmatter.found || !planFrontmatter.data.status) return findings;
+
+    const planStatus = planFrontmatter.data.status.toLowerCase();
+    const allComplete =
+      initiativePlanResult.totalSlices > 0 &&
+      initiativePlanResult.completedSlices === initiativePlanResult.totalSlices;
+
+    if (planStatus === 'complete' && !allComplete) {
+      findings.push({
+        rule: 'initiative-plan-status-vs-entries',
+        severity: 'warning',
+        location: initiativePlanPath,
+        description: `Initiative plan status is "complete" but only ${initiativePlanResult.completedSlices}/${initiativePlanResult.totalSlices} entries are checked`,
+        suggestedFix: 'Update initiative plan frontmatter status to "in-progress"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: initiativePlanPath,
+          detail: { key: 'status', value: 'in-progress' },
+        },
+      });
+    }
+
+    if (planStatus !== 'complete' && allComplete) {
+      findings.push({
+        rule: 'initiative-plan-status-vs-entries',
+        severity: 'warning',
+        location: initiativePlanPath,
+        description: `All ${initiativePlanResult.totalSlices} initiative entries are checked but plan status is "${planStatus}"`,
+        suggestedFix: 'Update initiative plan frontmatter status to "complete"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: initiativePlanPath,
+          detail: { key: 'status', value: 'complete' },
+        },
+      });
+    }
+
+    return findings;
+  }
 
   /** Rule 10: Stale worktree paths — worktree path missing or not a git worktree */
   private async ruleStaleWorktreePath(
