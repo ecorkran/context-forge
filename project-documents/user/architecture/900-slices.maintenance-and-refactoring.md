@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/900-arch.maintenance-and-refactoring.md
 project: context-forge
 dateCreated: 20260325
-dateUpdated: 20260402
+dateUpdated: 20260404
 status: in_progress
 ---
 
@@ -23,6 +23,7 @@ status: in_progress
 5. [x] **(905) Frontmatter Schema Validation** — Define required and optional YAML frontmatter fields per `docType` (e.g., `slice-plan` requires `status`, `docType`, `parent`; `slice` requires `status`, `docType`, `parent`, `slice`; `tasks` requires `status`, `slice`, `project`). Implement a schema registry in `packages/core` that maps `docType` values to field requirements with types and allowed values. Extend `ConsistencyChecker` to validate all project documents against their schema — detecting missing required fields, unknown fields, and invalid values. Currently Rule 9 hard-codes a check for missing `status` on slice plans; this would generalize that pattern to all document types and all required fields. The schema registry should be data-driven (e.g., a config file or typed constant) so adding new document types or fields doesn't require rule code changes. Dependencies: none. Risk: Low. Effort: 3/5
 6. [x] **(906) CLI Self-Update Command** — Add top-level `cf update` command that checks npm for newer versions and prompts the user to install. Supports `--yes` for non-interactive use. No automatic update checks on startup — explicit invocation only. Separate from `cf guides update` (tool vs guide). Dependencies: none. Risk: Low. Effort: 2/5
 7. [x] **(907) CLI Short-Form Options & Option Centralization** — Add standard short-form flags (`-j`/`--json`, `-p`/`--project`, `-y`/`--yes`, `-f`/`--fix`, `-a`/`--all`, `-r`/`--raw`) and centralize the ~70 inline `.option()` registrations into shared helpers. Currently 78 option registrations are copy-pasted across 16 command files with zero centralization and inconsistent descriptions (e.g., "Project ID or name" vs "Project name or ID"). Create a shared `options.ts` module with composable helpers (e.g., `withJsonOption`, `withProjectOption`) so adding or changing a common option is a one-line edit instead of 16. Dependencies: none. Risk: Low. Effort: 2/5
+8. [ ] **(908) Initiative-Plan-Aware `cf list arch`** — `cf list arch` (and alias `cf list initiatives`) currently lists only discovered arch files with minimal info. Upgrade it to drive from the initiative plan (`001-initiative-plan.*.md`) the same way `cf list slices` drives from the slice plan: show all initiative entries with name, index, status (from initiative plan checkbox + arch frontmatter), and file path when the arch doc exists. Entries without an arch file are shown as "not started". Dependencies: none. Risk: Low. Effort: 2/5
 
 ## Integration Work
 
