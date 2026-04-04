@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.40] - 20260404
+
+### Added
+- `cf list arch` / `cf list initiatives` now drives from the initiative plan (`001-initiative-plan.*.md`) when present, showing all entries with index, name, status, and arch file per entry — mirrors `cf list slices` behavior
+- Entries without an arch file show `not_started`; entries with an arch file but unchecked show `in_progress`; checked entries show `complete`
+- `cf list arch --json` emits structured array with `index`, `name`, `status`, `archFile`, `isActive` fields
+- `resolveInitiativePlanPath(projectPath)` exported from `@context-forge/core/node` — shared utility for locating initiative plan files
+
+### Changed
+- `cf list arch` falls back to `buildModel()`-based output on projects without a formal initiative plan (no behavior change for those projects)
+
 ## [0.6.39] - 20260404
 
 ### Added
