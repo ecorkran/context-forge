@@ -49,3 +49,15 @@ dateUpdated: 20260404
 - [x] Build and all tests pass
 
 **Commit:** `fix(core): context profile parser handles compact YAML format`
+
+## Item C: `cf check` Noise Reduction
+
+### C1. Frontmatter auto-fix coverage and noise reduction
+
+- [x] Add `draft` as alias for `not_started` in `validateFrontmatter` value normalization
+- [x] Auto-fix missing `dateUpdated` by defaulting to `dateCreated` when present
+- [x] Gate Rule 3 "missing task file" finding on slice design existence (suppress backlog noise)
+- [x] Add unit tests: `draft` alias, `dateUpdated` fix (with and without dateCreated), suppressed Rule 3 case
+- [x] Verify on real project: `cf check` no longer reports the noise
+
+**Commit:** `fix(core): cf check noise reduction and auto-fix coverage`

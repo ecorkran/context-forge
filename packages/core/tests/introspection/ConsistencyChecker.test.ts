@@ -284,7 +284,7 @@ describe('ConsistencyChecker', () => {
       expect(finding!.fixable).toBe(false);
     });
 
-    it('Rule 3: info when plan entry exists but no task file', async () => {
+    it('Rule 3: info when slice design exists but no task file', async () => {
       const mock = makeMockIntrospector({
         detectDocuments: vi.fn().mockResolvedValue({
           sliceDesign: 'project-documents/user/slices/165-slice.test-feature.md',
@@ -302,6 +302,32 @@ describe('ConsistencyChecker', () => {
       expect(finding).toBeDefined();
       expect(finding!.severity).toBe('info');
       expect(finding!.fixable).toBe(false);
+    });
+
+    it('Rule 3: silent when plan entry exists with NO slice design and NO task file (normal pre-design state)', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        detectDocuments: vi.fn().mockResolvedValue({
+          sliceDesign: null,
+          taskFile: null,
+          architecture: null,
+          slicePlan: null,
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find(
+        (f) => f.rule === 'missing-artifact' && f.description.includes('no task file'),
+      );
+      expect(finding).toBeUndefined();
     });
 
     // --- Rule 4: Plan checkbox vs. slice frontmatter status ---

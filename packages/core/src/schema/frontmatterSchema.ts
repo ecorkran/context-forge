@@ -213,6 +213,8 @@ export function validateFrontmatter(
       let fixValue: string | undefined;
       if (field === 'status') {
         fixValue = 'not_started';
+      } else if (field === 'dateUpdated' && data.dateCreated && String(data.dateCreated).trim() !== '') {
+        fixValue = String(data.dateCreated).trim();
       } else if (field === 'project' && options?.projectName) {
         fixValue = options.projectName;
       } else if (inferred[field]) {
@@ -250,6 +252,8 @@ export function validateFrontmatter(
       effectiveValue = effectiveValue.replace(/[-\s]/g, '_');
       if (effectiveValue === 'completed') effectiveValue = 'complete';
       if (effectiveValue === 'active') effectiveValue = 'in_progress';
+      // 'draft' is semantically equivalent to not_started — work hasn't begun
+      if (effectiveValue === 'draft') effectiveValue = 'not_started';
     }
 
     if (!def.values.includes(effectiveValue)) {

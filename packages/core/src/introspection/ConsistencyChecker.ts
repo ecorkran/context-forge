@@ -363,6 +363,7 @@ export class ConsistencyChecker {
     const findings: ConsistencyFinding[] = [];
 
     const hasTaskFile = docs?.taskFile !== null && docs?.taskFile !== undefined;
+    const hasSliceDesign = docs?.sliceDesign !== null && docs?.sliceDesign !== undefined;
     const hasPlanEntry = planEntry !== null;
 
     if (hasTaskFile && !hasPlanEntry) {
@@ -376,13 +377,16 @@ export class ConsistencyChecker {
       });
     }
 
-    if (hasPlanEntry && !hasTaskFile) {
+    // Only flag missing task file when a slice design exists — otherwise the
+    // slice is in normal pre-work state (planned but not yet designed), which
+    // generates noise on every project with a long backlog.
+    if (hasPlanEntry && hasSliceDesign && !hasTaskFile) {
       findings.push({
         rule: 'missing-artifact',
         severity: 'info',
         location: `slice plan entry ${sliceIndex}`,
-        description: `Slice plan entry exists for ${sliceIndex} (${planEntry.name}) but no task file found`,
-        suggestedFix: 'Create a task file when ready to begin implementation',
+        description: `Slice ${sliceIndex} (${planEntry.name}) has a design but no task file`,
+        suggestedFix: 'Create a task file to begin implementation',
         fixable: false,
       });
     }

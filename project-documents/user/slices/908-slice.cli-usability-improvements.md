@@ -18,7 +18,8 @@ Catch-all slice for small CLI UX wins that don't warrant their own slice. Items 
 
 **Backlog** (items to implement, in priority order):
 1. ~~`cf list arch` / `cf list initiatives` — initiative-plan-aware listing~~ (complete)
-2. Context profile filtering broken — parser doesn't handle compact YAML format (current item)
+2. ~~Context profile filtering broken — parser doesn't handle compact YAML format~~ (complete)
+3. `cf check` noise reduction — auto-fix more frontmatter cases, suppress backlog noise (current item)
 
 ---
 
@@ -153,6 +154,41 @@ This affected all consumers: CLI `cf build`, MCP `context_build`, and `/cf:build
 - Phase 4 (Slice Design) context excludes `fileTasks`
 - Real prompt file parses successfully in tests
 - No indent-depth logic in parser
+
+---
+
+## Item C: `cf check` Noise Reduction & Auto-fix Coverage
+
+### Problem
+
+`cf check` produced findings that were either trivially fixable but emitted as unfixable warnings, or pure noise on backlogs:
+
+1. **`status: draft`** triggered an "Invalid value" warning even though `draft` is the universal English for "not started yet".
+2. **Missing `dateUpdated`** emitted an unfixable warning, even when `dateCreated` was present and could trivially serve as a default.
+3. **"Slice plan entry exists but no task file found"** fired for every backlog entry — flooding output. There's no inconsistency in having a planned slice without a task file; that's the normal pre-design state. The warning is only meaningful once a slice design exists.
+
+On context-forge itself this was producing 4 fixable-but-unfixed warnings and 17 backlog notices.
+
+### Design
+
+1. **`draft` → `not_started` alias** in `validateFrontmatter` value-normalization step. Joins existing `completed → complete` and `active → in_progress` aliases. No fix written to file — the value passes validation as-is.
+
+2. **`dateUpdated` auto-fix from `dateCreated`** in the missing-required-field block. Only applies when `dateCreated` itself is present and non-empty. If both are missing, no fix is offered (the `dateCreated` finding remains as-is for human attention).
+
+3. **Rule 3 gating** in `ConsistencyChecker.ruleMissingArtifacts`: only emit "missing task file" finding when a slice design exists. The other half of the rule (task file without plan entry) is unchanged.
+
+### Files Affected
+
+- `packages/core/src/schema/frontmatterSchema.ts` — `draft` alias + `dateUpdated` fix
+- `packages/core/src/introspection/ConsistencyChecker.ts` — Rule 3 gating
+- `packages/core/tests/schema/frontmatterSchema.test.ts` — 3 new tests
+- `packages/core/tests/introspection/ConsistencyChecker.test.ts` — 1 new test (suppressed case)
+
+### Success Criteria
+
+- `cf check` on context-forge no longer reports `draft`, missing `dateUpdated`, or backlog "no task file" notices
+- All previously-passing tests still pass
+- New tests cover each behavior change
 
 ---
 

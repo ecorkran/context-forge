@@ -131,6 +131,44 @@ describe('validateFrontmatter', () => {
     expect(findings[0].description).toContain("'project'");
   });
 
+  it('accepts draft as alias for not_started (work has not begun)', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'concept',
+      project: 'test',
+      status: 'draft',
+      dateCreated: '20260101',
+      dateUpdated: '20260301',
+    });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('includes fixAction for missing dateUpdated, defaulting to dateCreated', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'concept',
+      project: 'test',
+      status: 'in_progress',
+      dateCreated: '20260101',
+    });
+    const dateFinding = findings.find((f) => f.description.includes("'dateUpdated'"));
+    expect(dateFinding).toBeDefined();
+    expect(dateFinding!.fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'dateUpdated',
+      value: '20260101',
+    });
+  });
+
+  it('no fixAction for missing dateUpdated when dateCreated is also missing', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'concept',
+      project: 'test',
+      status: 'in_progress',
+    });
+    const dateFinding = findings.find((f) => f.description.includes("'dateUpdated'"));
+    expect(dateFinding).toBeDefined();
+    expect(dateFinding!.fixAction).toBeUndefined();
+  });
+
   it('accepts in-progress (hyphenated) as alias for in_progress', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',
