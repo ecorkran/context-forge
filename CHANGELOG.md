@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.42] - 20260406
+
+### Fixed
+- `cf check` no longer flags `status: draft` — now treated as alias for `not_started` (work hasn't begun)
+- `cf check` auto-fixes missing `dateUpdated` by defaulting to `dateCreated` when present
+- `cf check` no longer floods output with "plan entry but no task file" notices for backlog entries — only flagged when a slice design exists (the only state where missing tasks is actually inconsistent)
+
 ## [0.6.41] - 20260404
 
 ### Fixed
