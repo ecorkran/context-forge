@@ -9,7 +9,10 @@ Terminal interface for Context Forge — context assembly, project management, w
 ## Installation
 
 ```bash
-# Install globally
+# Install globally (recommended: meta-package installs both CLI and MCP server)
+npm install -g @context-forge/context-forge
+
+# Or install the CLI alone
 npm install -g @context-forge/cli
 
 # Initialize a project (from the project root)

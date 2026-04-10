@@ -29,8 +29,8 @@ https://github.com/ecorkran/context-visualizer
 ## Get Started
 
 ```bash
-# 1. Install globally
-npm install -g @context-forge/mcp @context-forge/cli
+# 1. Install globally (one package gets you everything)
+npm install -g @context-forge/context-forge
 
 # 2. Add the MCP server (strongly recommended)
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
@@ -179,10 +179,11 @@ pnpm monorepo, four packages:
 
 ```
 packages/
-  core/       @context-forge/core    — context engine, project state, introspection, workflow
-  mcp-server/ @context-forge/mcp     — MCP protocol server ([nn] tools)
-  cli/        @context-forge/cli     — terminal interface (cf command)
-  electron/   @context-forge/electron — desktop app
+  context-forge/ @context-forge/context-forge — meta-package (installs cli + mcp)
+  core/          @context-forge/core          — context engine, project state, introspection, workflow
+  mcp-server/    @context-forge/mcp           — MCP protocol server ([nn] tools)
+  cli/           @context-forge/cli           — terminal interface (cf command)
+  electron/      @context-forge/electron      — desktop app
 ```
 
 All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.
@@ -199,6 +200,7 @@ All interfaces consume `@context-forge/core` directly. The MCP server and CLI pr
 
 ## Published Packages
 
+- [`@context-forge/context-forge`](https://www.npmjs.com/package/@context-forge/context-forge) — meta-package (installs cli + mcp)
 - [`@context-forge/mcp`](https://www.npmjs.com/package/@context-forge/mcp)
 - [`@context-forge/cli`](https://www.npmjs.com/package/@context-forge/cli)
 - [`@context-forge/core`](https://www.npmjs.com/package/@context-forge/core)

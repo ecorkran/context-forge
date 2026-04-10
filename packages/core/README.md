@@ -69,9 +69,11 @@ This entry point includes filesystem-dependent services. Use it in main processe
 
 ```
 packages/
-  core/         ← this package
-  mcp-server/   depends on @context-forge/core (workspace:*)
-  electron/     depends on @context-forge/core (workspace:*)
+  context-forge/ @context-forge/context-forge — meta-package (installs cli + mcp)
+  core/          ← this package
+  cli/           depends on @context-forge/core (workspace:*)
+  mcp-server/    depends on @context-forge/core (workspace:*)
+  electron/      depends on @context-forge/core (workspace:*)
 ```
 
 The MCP server, CLI, and Electron app import types from `@context-forge/core` and Node.js services from `@context-forge/core/node`.

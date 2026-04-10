@@ -19,11 +19,14 @@ Context Forge eliminates that overhead. You configure your project once — temp
 ### Install
 
 ```bash
-# Run directly (no install needed)
-npx @context-forge/mcp
+# Recommended: meta-package installs both MCP server and CLI
+npm install -g @context-forge/context-forge
 
-# Or install globally
+# Or install the MCP server alone
 npm install -g @context-forge/mcp
+
+# Or run directly (no install needed)
+npx @context-forge/mcp
 ```
 
 ### Configure for Claude Code
