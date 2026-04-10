@@ -1,0 +1,30 @@
+{
+  "name": "@context-forge/context-forge",
+  "version": "0.6.42",
+  "description": "Context Forge — AI project context generation. Installs both the CLI and MCP server.",
+  "keywords": [
+    "cli",
+    "mcp",
+    "context",
+    "ai",
+    "claude",
+    "cursor",
+    "prompt",
+    "context-forge"
+  ],
+  "author": "Manta Templates",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ecorkran/context-forge.git",
+    "directory": "packages/context-forge"
+  },
+  "homepage": "https://github.com/ecorkran/context-forge#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@context-forge/cli": "workspace:*",
+    "@context-forge/mcp": "workspace:*"
+  }
+}
