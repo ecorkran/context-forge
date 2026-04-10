@@ -1,6 +1,6 @@
 {
   "name": "@context-forge/cli",
-  "version": "0.6.42",
+  "version": "0.6.43",
   "description": "CLI for Context Forge — terminal access to context assembly, project management, workflow navigation, and configuration",
   "type": "module",
   "main": "dist/index.js",
