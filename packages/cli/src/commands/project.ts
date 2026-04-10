@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { readdirSync } from 'node:fs';
 import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
-import type { ProjectData } from '@context-forge/core';
+import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import {
   resolveFieldName,
   resolvePhaseValue,
@@ -433,6 +433,49 @@ export async function projectUnsetAction(
   }
 }
 
+/**
+ * Build a schema-filtered view of a project for `cf get`. Both the JSON and
+ * table outputs consume this same structure so they can never drift apart.
+ * Only fields declared in PROJECT_FIELDS are included; stale legacy keys on
+ * the stored record (e.g. pre-rename `slice`/`taskFile`/`projectDate`) are
+ * silently dropped.
+ */
+interface ProjectGetView {
+  values: Record<string, unknown>;
+  customData: Record<string, unknown>;
+  worktree?: WorktreeContext;
+}
+
+function buildProjectGetView(
+  project: ProjectData,
+  worktree: WorktreeContext | undefined,
+): ProjectGetView {
+  const overlaid: ProjectData = worktree
+    ? applyWorktreeOverlay(project, worktree.id)
+    : project;
+  const overlaidRecord = overlaid as unknown as Record<string, unknown>;
+  const sourceCustom = overlaid.customData as Record<string, unknown> | undefined;
+
+  const values: Record<string, unknown> = {};
+  const customData: Record<string, unknown> = {};
+  for (const f of PROJECT_FIELDS) {
+    if (f.field.startsWith('customData.')) {
+      const subField = f.field.split('.')[1];
+      customData[subField] = sourceCustom?.[subField];
+    } else {
+      values[f.field] = overlaidRecord[f.field];
+    }
+  }
+  return worktree ? { values, customData, worktree } : { values, customData };
+}
+
+/** Flatten the schema-filtered view into a single top-level object for JSON output. */
+function flattenProjectGetView(view: ProjectGetView): Record<string, unknown> {
+  const flat: Record<string, unknown> = { ...view.values, customData: view.customData };
+  if (view.worktree) flat.worktree = view.worktree;
+  return flat;
+}
+
 /** Shared action handler for `cf get` and `cf project get`. */
 export async function projectGetAction(
   opts: { json?: boolean; project?: string; projectLevel?: boolean },
@@ -450,13 +493,10 @@ export async function projectGetAction(
     ? (project.worktrees ?? []).find((wt) => wt.id === worktreeId)
     : undefined;
 
+  const view = buildProjectGetView(project, worktree);
+
   if (opts.json) {
-    const data = worktreeId ? applyWorktreeOverlay(project, worktreeId) : project;
-    if (worktree) {
-      printJson({ ...data, worktree });
-    } else {
-      printJson(data);
-    }
+    printJson(flattenProjectGetView(view));
     return;
   }
 
@@ -468,46 +508,24 @@ export async function projectGetAction(
     custom: 'Custom',
   };
 
-  // Show worktree header when active
-  if (worktree) {
+  if (view.worktree) {
     console.log(`\n${label('Worktree')}`);
-    console.log(`  ${label('Name:'.padEnd(16))}${valueStyle(worktree.name)}`);
-    console.log(`  ${label('Range:'.padEnd(16))}${valueStyle(`${worktree.indexRange[0]}-${worktree.indexRange[1]}`)}`);
-    if (worktree.worktreePath) {
-      console.log(`  ${label('Path:'.padEnd(16))}${valueStyle(worktree.worktreePath)}`);
+    console.log(`  ${label('Name:'.padEnd(16))}${valueStyle(view.worktree.name)}`);
+    console.log(`  ${label('Range:'.padEnd(16))}${valueStyle(`${view.worktree.indexRange[0]}-${view.worktree.indexRange[1]}`)}`);
+    if (view.worktree.worktreePath) {
+      console.log(`  ${label('Path:'.padEnd(16))}${valueStyle(view.worktree.worktreePath)}`);
     }
   }
 
-  // Build a worktree overlay map for worktree-scoped fields
-  const wtOverlay: Record<string, string | undefined> = {};
-  if (worktree) {
-    wtOverlay['developmentPhase'] = worktree.developmentPhase;
-    wtOverlay['instruction'] = worktree.instruction;
-    wtOverlay['workType'] = worktree.workType;
-    wtOverlay['fileArch'] = worktree.archDoc;
-    wtOverlay['fileSlicePlan'] = worktree.slicePlan;
-    wtOverlay['fileSlice'] = worktree.activeSlice;
-    wtOverlay['fileTasks'] = worktree.activeTaskFile;
-  }
-
-  const projectRecord = project as unknown as Record<string, unknown>;
-  const customData = project.customData as Record<string, unknown> | undefined;
-
   for (const group of FIELD_GROUPS) {
     const groupFields = PROJECT_FIELDS.filter((f) => f.group === group);
-
     console.log(`\n${label(groupLabels[group])}`);
-
     for (const f of groupFields) {
       let v: unknown;
       if (f.field.startsWith('customData.')) {
-        const subField = f.field.split('.')[1];
-        v = customData?.[subField];
-      } else if (worktree && isWorktreeField(f.field)) {
-        // Worktree overlay: use worktree value directly, no fallback to project
-        v = wtOverlay[f.field];
+        v = view.customData[f.field.split('.')[1]];
       } else {
-        v = projectRecord[f.field];
+        v = view.values[f.field];
       }
       const hasValue = v !== undefined && v !== null && v !== '';
       const display = hasValue ? valueStyle(String(v)) : dim('—');

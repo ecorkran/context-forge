@@ -6,7 +6,6 @@ import type {
   CreateProjectData,
   UpdateProjectData,
 } from '../types/project.js';
-import type { WorktreeContext } from '../types/worktree.js';
 import type { IProjectStore } from './interfaces.js';
 import { FileStorageService } from './FileStorageService.js';
 import { getStoragePath, getLegacyElectronPath } from './storagePaths.js';
@@ -15,43 +14,6 @@ const PROJECTS_FILE = 'projects.json';
 
 function generateProjectId(): string {
   return `project_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-}
-
-/** Apply field-migration defaults for projects missing newer fields. */
-function migrateProjectFields(project: Record<string, unknown>): ProjectData {
-  const base = project as unknown as ProjectData;
-  const migrated = {
-    ...base,
-    // Renamed fields: prefer new name, fall back to old name
-    fileSlice: (project.fileSlice ?? project.slice ?? '') as string,
-    fileTasks: (project.fileTasks ?? project.taskFile ?? '') as string,
-    dateProject: (project.dateProject ?? project.projectDate) as string | undefined,
-    // New artifact fields: undefined when absent
-    fileHLD: project.fileHLD as string | undefined,
-    fileArch: project.fileArch as string | undefined,
-    fileSlicePlan: project.fileSlicePlan as string | undefined,
-    fileSpec: project.fileSpec as string | undefined,
-    instruction:
-      typeof project.instruction === 'string'
-        ? base.instruction
-        : 'implementation',
-    customData:
-      project.customData && typeof project.customData === 'object'
-        ? base.customData
-        : {},
-    // Worktree contexts: preserve if present
-    worktrees: project.worktrees as WorktreeContext[] | undefined,
-  };
-
-  // Strip legacy monorepo fields
-  const result = migrated as Record<string, unknown>;
-  delete result.isMonorepo;
-  delete result.isMonorepoEnabled;
-  if (migrated.customData) {
-    delete (migrated.customData as Record<string, unknown>).monorepoNote;
-  }
-
-  return migrated;
 }
 
 /**
@@ -89,9 +51,7 @@ export class FileProjectStore implements IProjectStore {
         return [];
       }
 
-      return parsed.map((p: Record<string, unknown>) =>
-        migrateProjectFields(p)
-      );
+      return parsed as ProjectData[];
     } catch (err) {
       // File not found — empty store
       if (
