@@ -7,6 +7,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-04-11
+
+### Slice 210: GitHub Copilot / VS Code IDE support — Complete
+- `cf setup-ide copilot` and `cf init --ide copilot` add a second IDE target for VS Code Copilot users
+- Always-on rules compile to `.github/copilot-instructions.md` + `AGENTS.md`; scoped rules to `.github/instructions/*.instructions.md` with `applyTo`; skills to `.github/prompts/*.prompt.md`
+- `isManagedCopilotFiles()` safety check mirrors Claude path; unmanaged files backed up before overwrite
+- Worktree propagation extended; 26 new unit tests; guides script adds `copilot` case alongside existing `claude`
+- Commits: `11a2229` feat(cli), `ef33a3c` feat(guides), `4502331` docs
+
+---
+
 ## 2026-04-03
 
 ### setup-ide worktree propagation (v0.6.38)
