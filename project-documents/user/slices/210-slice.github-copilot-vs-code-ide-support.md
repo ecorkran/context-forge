@@ -128,6 +128,108 @@ When `paths` is absent (alwaysApply rules), translation defaults to `applyTo: "*
 - `VALID_TARGETS` includes `copilot` — invalid target still errors with clear message listing valid targets
 - `cf init --ide copilot` integration: creates project + runs copilot setup end-to-end (manual verification; CI can verify target validation at minimum)
 
+## Verification Walkthrough
+
+### 1. Fresh install via cf init
+
+```bash
+mkdir /tmp/test-copilot-210 && cd /tmp/test-copilot-210
+cf init --ide copilot --name "Copilot Test"
+```
+
+Expected output (approximate):
+```
+✓ git initialized
+✓ Project 'Copilot Test' registered
+✓ Guides installed (vX.Y.Z)
+✓ Commands installed (N files → ~/.claude/commands/cf/)
+✓ IDE configured for copilot
+──────────────────────────────────────
+Your project is ready. Run cf next to see recommended next steps.
+```
+
+Verify files were created:
+```bash
+ls .github/
+# copilot-instructions.md  instructions/  prompts/
+cat AGENTS.md | head -5
+# Should contain the context-forge managed marker
+cat .github/copilot-instructions.md | head -5
+# Should contain the context-forge managed marker + compiled always-on rules
+ls .github/instructions/
+# One .instructions.md file per scoped rule (e.g. typescript.instructions.md, testing.instructions.md)
+ls .github/prompts/
+# One .prompt.md file per skill (e.g. commit.prompt.md)
+```
+
+Verify `.claude/` was NOT touched:
+```bash
+ls .claude/ 2>/dev/null && echo "EXISTS" || echo "NOT CREATED — correct"
+```
+
+### 2. Re-run is silent (managed files)
+
+```bash
+cf setup-ide copilot
+```
+
+Expected: runs without prompting, completes silently. No backup files created. Output: `IDE setup complete for copilot.`
+
+### 3. Claude path still works independently
+
+```bash
+cf setup-ide claude
+```
+
+Expected: generates `CLAUDE.md` and `.claude/` as normal. Copilot files in `.github/` are untouched. Verify:
+
+```bash
+ls CLAUDE.md .claude/rules/
+# Both present
+diff .github/copilot-instructions.md AGENTS.md
+# Should be identical (same compiled content)
+```
+
+### 4. Unmanaged file protection
+
+```bash
+mkdir /tmp/test-copilot-unmanaged && cd /tmp/test-copilot-unmanaged
+git init && echo "# My custom instructions" > .github/copilot-instructions.md
+cf guides install
+cf setup-ide copilot
+```
+
+Expected: prompts "Warning: Copilot IDE files already exist and will be overwritten. Continue? (y/N)". Answer `n` → prints "Aborted." and exits. Answer `y` → creates `.github/copilot-instructions.md.bak`, overwrites with managed content.
+
+### 5. Worktree propagation
+
+From a project with a registered worktree:
+```bash
+cf setup-ide copilot
+ls <worktree-path>/.github/
+# Should contain copilot-instructions.md, instructions/, prompts/
+ls <worktree-path>/AGENTS.md
+# Should be present
+```
+
+### 6. Instruction file frontmatter
+
+Inspect a generated scoped instruction file:
+```bash
+head -10 .github/instructions/typescript.instructions.md
+```
+
+Expected frontmatter:
+```yaml
+---
+name: TypeScript rules
+description: ...
+applyTo: "**/*.ts,**/*.tsx"
+---
+```
+
+Verify `applyTo` is a comma-separated string (not a YAML array), and matches the `paths` from the original `.claude/rules/typescript.md`.
+
 ## Risks
 
 **Guides submodule dependency** — The compilation logic lives in ai-project-guide scripts. If the submodule doesn't have a `copilot` case in `setup-ide`, `cf setup-ide copilot` will fail at the script step with a clear error. This is the highest-risk coupling; the CF CLI change is straightforward, but the guide script change requires the submodule to be updated and released in sync.
