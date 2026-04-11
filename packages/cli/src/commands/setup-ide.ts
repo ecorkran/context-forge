@@ -9,7 +9,7 @@ import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 
-const VALID_TARGETS = ['claude'] as const;
+const VALID_TARGETS = ['claude', 'copilot'] as const;
 type Target = (typeof VALID_TARGETS)[number];
 
 /** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
@@ -28,6 +28,31 @@ export function isManagedClaudeMd(filePath: string): boolean {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n').slice(0, 20);
   return lines.some((line) => line.trim() === '[//]: # (context-forge:managed)');
+}
+
+const COPILOT_MANAGED_MARKER = '[//]: # (context-forge:managed)';
+
+/**
+ * Returns true if the Copilot IDE install is managed by context-forge.
+ * Checks the first 20 lines of .github/copilot-instructions.md and AGENTS.md.
+ * Returns true if at least one of those files exists and contains the marker.
+ */
+export function isManagedCopilotFiles(projectPath: string): boolean {
+  const filesToCheck = [
+    path.join(projectPath, '.github', 'copilot-instructions.md'),
+    path.join(projectPath, 'AGENTS.md'),
+  ];
+
+  for (const filePath of filesToCheck) {
+    if (!fs.existsSync(filePath)) continue;
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n').slice(0, 20);
+    if (lines.some((line) => line.trim() === COPILOT_MANAGED_MARKER)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /** Run IDE setup for a project. Errors propagate to the caller. */
@@ -67,26 +92,61 @@ export async function setupIdeAction(
   const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
   const claudeMdBakPath = path.join(projectPath, 'CLAUDE.md.bak');
 
-  if (fs.existsSync(claudeMdPath)) {
-    if (isManagedClaudeMd(claudeMdPath)) {
-      // Managed file — skip backup silently
-    } else {
-      // Not managed — possibly prompt, then backup logic
-      if (!opts?.yes) {
-        console.error('Warning: CLAUDE.md already exists and will be overwritten.');
-        const confirmed = await askConfirmation('Continue? (y/N) ');
-        if (!confirmed) {
-          console.error('Aborted.');
-          return;
+  if (target === 'claude') {
+    if (fs.existsSync(claudeMdPath)) {
+      if (isManagedClaudeMd(claudeMdPath)) {
+        // Managed file — skip backup silently
+      } else {
+        // Not managed — possibly prompt, then backup logic
+        if (!opts?.yes) {
+          console.error('Warning: CLAUDE.md already exists and will be overwritten.');
+          const confirmed = await askConfirmation('Continue? (y/N) ');
+          if (!confirmed) {
+            console.error('Aborted.');
+            return;
+          }
+        }
+        if (!fs.existsSync(claudeMdBakPath)) {
+          fs.copyFileSync(claudeMdPath, claudeMdBakPath);
+          console.log('Backed up CLAUDE.md → CLAUDE.md.bak');
+        } else {
+          console.log('existing backup preserved at CLAUDE.md.bak');
         }
       }
-      if (!fs.existsSync(claudeMdBakPath)) {
-        fs.copyFileSync(claudeMdPath, claudeMdBakPath);
-        console.log('Backed up CLAUDE.md → CLAUDE.md.bak');
-      } else {
-        console.log('existing backup preserved at CLAUDE.md.bak');
+    }
+  } else if (target === 'copilot') {
+    // Copilot safety check: only prompt when unmanaged files exist
+    if (!isManagedCopilotFiles(projectPath)) {
+      const copilotInstructionsPath = path.join(projectPath, '.github', 'copilot-instructions.md');
+      const agentsMdPath = path.join(projectPath, 'AGENTS.md');
+      const eitherExists = fs.existsSync(copilotInstructionsPath) || fs.existsSync(agentsMdPath);
+
+      if (eitherExists) {
+        if (!opts?.yes) {
+          console.error('Warning: Copilot IDE files already exist and will be overwritten.');
+          const confirmed = await askConfirmation('Continue? (y/N) ');
+          if (!confirmed) {
+            console.error('Aborted.');
+            return;
+          }
+        }
+        // Backup each file if it exists and no .bak already present
+        for (const [src, bak] of [
+          [copilotInstructionsPath, `${copilotInstructionsPath}.bak`],
+          [agentsMdPath, `${agentsMdPath}.bak`],
+        ] as [string, string][]) {
+          if (fs.existsSync(src)) {
+            if (!fs.existsSync(bak)) {
+              fs.copyFileSync(src, bak);
+              console.log(`Backed up ${path.relative(projectPath, src)} → ${path.relative(projectPath, bak)}`);
+            } else {
+              console.log(`existing backup preserved at ${path.relative(projectPath, bak)}`);
+            }
+          }
+        }
       }
     }
+    // Managed or no files: proceed silently
   }
 
   // Run the setup-ide script
@@ -153,6 +213,32 @@ function propagateToWorktrees(project: ProjectData, target: string): void {
           }
         }
       }
+    } else if (target === 'copilot') {
+      // AGENTS.md
+      const srcAgents = path.join(rootPath, 'AGENTS.md');
+      if (fs.existsSync(srcAgents)) {
+        fs.copyFileSync(srcAgents, path.join(wtPath, 'AGENTS.md'));
+      }
+
+      // .github/copilot-instructions.md
+      const srcInstructions = path.join(rootPath, '.github', 'copilot-instructions.md');
+      if (fs.existsSync(srcInstructions)) {
+        fs.mkdirSync(path.join(wtPath, '.github'), { recursive: true });
+        fs.copyFileSync(srcInstructions, path.join(wtPath, '.github', 'copilot-instructions.md'));
+      }
+
+      // .github/instructions/ and .github/prompts/
+      for (const dir of ['instructions', 'prompts']) {
+        const srcDir = path.join(rootPath, '.github', dir);
+        const dstDir = path.join(wtPath, '.github', dir);
+        if (!fs.existsSync(srcDir)) continue;
+        fs.mkdirSync(dstDir, { recursive: true });
+        for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+          if (entry.isFile()) {
+            fs.copyFileSync(path.join(srcDir, entry.name), path.join(dstDir, entry.name));
+          }
+        }
+      }
     }
     // Future targets (cursor, windsurf) would propagate their own dirs here.
   }
@@ -164,7 +250,7 @@ export function registerSetupIdeCommand(program: Command): void {
   const ideCmd = program
     .command('setup-ide')
     .description('Configure IDE-specific AI integration files for the current project')
-    .argument('<target>', `IDE target: ${VALID_TARGETS.join(', ')}`);
+    .argument('<target>', 'IDE target: claude, copilot');
   withProjectOption(ideCmd);
   withYesOption(ideCmd);
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {

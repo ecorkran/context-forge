@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
-import { registerSetupIdeCommand, setupIdeAction } from '../../src/commands/setup-ide.js';
+import {
+  registerSetupIdeCommand,
+  setupIdeAction,
+  isManagedCopilotFiles,
+} from '../../src/commands/setup-ide.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
@@ -9,6 +13,12 @@ const mockExistsSync = vi.fn();
 const mockCopyFileSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockExecFileSync = vi.fn();
+const mockMkdirSync = vi.fn();
+const mockReaddirSync = vi.fn();
+
+// readline mock — controls user input simulation
+const mockQuestion = vi.fn();
+const mockRlClose = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -33,10 +43,14 @@ vi.mock('node:fs', async (importOriginal) => {
       existsSync: (...args: unknown[]) => mockExistsSync(...args),
       copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
       readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+      mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
+      readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
     },
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
     copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
     readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+    mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
+    readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
   };
 });
 
@@ -44,19 +58,37 @@ vi.mock('node:child_process', () => ({
   execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
 }));
 
+vi.mock('node:readline', () => ({
+  createInterface: vi.fn().mockImplementation(() => ({
+    question: mockQuestion,
+    close: mockRlClose,
+  })),
+}));
+
+// ─── Test fixtures ────────────────────────────────────────────────────────────
+
 const sampleProject = {
   id: 'proj_001',
   name: 'test-project',
   projectPath: '/tmp/test',
 };
 
+const sampleProjectWithWorktrees = {
+  ...sampleProject,
+  worktrees: [{ id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' }],
+};
+
 const guidePath = '/tmp/test/project-documents/ai-project-guide';
 const scriptPath = `${guidePath}/scripts/setup-ide`;
 const claudeMdPath = '/tmp/test/CLAUDE.md';
 const claudeMdBakPath = '/tmp/test/CLAUDE.md.bak';
+const copilotInstructionsPath = '/tmp/test/.github/copilot-instructions.md';
+const copilotInstructionsBakPath = '/tmp/test/.github/copilot-instructions.md.bak';
+const agentsMdPath = '/tmp/test/AGENTS.md';
+const agentsMdBakPath = '/tmp/test/AGENTS.md.bak';
 
-const MANAGED_CONTENT = '[//]: # (context-forge:managed)\n\n# CLAUDE.md content';
-const UNMANAGED_CONTENT = '# My custom CLAUDE.md\n\nSome instructions here.';
+const MANAGED_CONTENT = '[//]: # (context-forge:managed)\n\n# Content';
+const UNMANAGED_CONTENT = '# My custom instructions\n\nSome content here.';
 
 function createProgram(): Command {
   const program = new Command();
@@ -64,6 +96,8 @@ function createProgram(): Command {
   registerSetupIdeCommand(program);
   return program;
 }
+
+// ─── cf setup-ide command ────────────────────────────────────────────────────
 
 describe('cf setup-ide', () => {
   beforeEach(() => {
@@ -75,13 +109,23 @@ describe('cf setup-ide', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('rejects invalid target', async () => {
+  it('rejects invalid target and lists valid targets', async () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'vim']);
 
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain("Invalid target 'vim'");
     expect(output).toContain('claude');
+  });
+
+  it('VALID_TARGETS includes both claude and copilot (windsurf rejection lists both)', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'windsurf']);
+
+    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain("Invalid target 'windsurf'");
+    expect(output).toContain('claude');
+    expect(output).toContain('copilot');
   });
 
   it('errors when guides not installed', async () => {
@@ -168,25 +212,176 @@ describe('cf setup-ide', () => {
   });
 });
 
-describe('setupIdeAction', () => {
+// ─── isManagedCopilotFiles ───────────────────────────────────────────────────
+
+describe('isManagedCopilotFiles', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true when copilot-instructions.md contains managed marker', () => {
+    mockExistsSync.mockImplementation((p: string) => p === copilotInstructionsPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    expect(isManagedCopilotFiles('/tmp/test')).toBe(true);
+  });
+
+  it('returns true when AGENTS.md contains managed marker (copilot-instructions.md absent)', () => {
+    mockExistsSync.mockImplementation((p: string) => p === agentsMdPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    expect(isManagedCopilotFiles('/tmp/test')).toBe(true);
+  });
+
+  it('returns false when files exist but neither contains the marker', () => {
+    mockExistsSync.mockImplementation(
+      (p: string) => p === copilotInstructionsPath || p === agentsMdPath,
+    );
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    expect(isManagedCopilotFiles('/tmp/test')).toBe(false);
+  });
+
+  it('returns false when neither file exists', () => {
+    mockExistsSync.mockReturnValue(false);
+
+    expect(isManagedCopilotFiles('/tmp/test')).toBe(false);
+    expect(mockReadFileSync).not.toHaveBeenCalled();
+  });
+});
+
+// ─── setupIdeAction — copilot ────────────────────────────────────────────────
+
+describe('setupIdeAction — copilot target', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+    mockExecFileSync.mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('proceeds silently when managed marker present in copilot-instructions.md', async () => {
+    mockExistsSync.mockImplementation(
+      (p: string) => p === scriptPath || p === copilotInstructionsPath,
+    );
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'copilot'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('proceeds silently when no copilot files exist', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+
+    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'copilot'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('backs up unmanaged copilot-instructions.md with --yes', async () => {
     mockExistsSync.mockImplementation((p: string) => {
       if (p === scriptPath) return true;
+      if (p === copilotInstructionsPath) return true;
+      if (p === copilotInstructionsBakPath) return false;
       return false;
     });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, copilotInstructionsBakPath);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'copilot'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('Backed up');
+  });
+
+  it('prints Aborted and skips script when user denies prompt', async () => {
+    mockExistsSync.mockImplementation(
+      (p: string) => p === scriptPath || p === copilotInstructionsPath,
+    );
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    // Simulate user typing 'n'
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
+
+    await setupIdeAction('/tmp/test', 'copilot');
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('Aborted.');
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+  });
+
+  it('backs up and runs script when user confirms prompt', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === copilotInstructionsPath) return true;
+      if (p === copilotInstructionsBakPath) return false;
+      return false;
+    });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    // Simulate user typing 'y'
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('y'));
+
+    await setupIdeAction('/tmp/test', 'copilot');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, copilotInstructionsBakPath);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'copilot'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('prints preserved message and does not copy when .bak already exists', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === copilotInstructionsPath) return true;
+      if (p === copilotInstructionsBakPath) return true;
+      return false;
+    });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('existing backup preserved');
+    expect(mockExecFileSync).toHaveBeenCalled();
+  });
+});
+
+// ─── setupIdeAction — claude ─────────────────────────────────────────────────
+
+describe('setupIdeAction — claude target', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
     mockExecFileSync.mockReturnValue(undefined);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('skips backup when managed marker present, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return true;
-      return false;
-    });
+    mockExistsSync.mockImplementation(
+      (p: string) => p === scriptPath || p === claudeMdPath,
+    );
     mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
 
     await setupIdeAction('/tmp/test', 'claude', { yes: true });
@@ -200,11 +395,7 @@ describe('setupIdeAction', () => {
   });
 
   it('skips backup when no CLAUDE.md, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return false;
-      return false;
-    });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
 
     await setupIdeAction('/tmp/test', 'claude', { yes: true });
 
@@ -246,5 +437,118 @@ describe('setupIdeAction', () => {
     expect(mockCopyFileSync).not.toHaveBeenCalled();
     const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(logOutput).toContain('existing backup preserved at CLAUDE.md.bak');
+  });
+});
+
+// ─── propagateToWorktrees — copilot (via command action) ────────────────────
+
+describe('propagateToWorktrees — copilot target', () => {
+  const wtPath = '/tmp/wt1';
+  const wtAgentsPath = `${wtPath}/AGENTS.md`;
+  const wtGithubDir = `${wtPath}/.github`;
+  const wtInstructionsPath = `${wtPath}/.github/copilot-instructions.md`;
+  const wtInstructionsDir = `${wtPath}/.github/instructions`;
+  const wtPromptsDir = `${wtPath}/.github/prompts`;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExecFileSync.mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('copies AGENTS.md to worktree', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+    mockReaddirSync.mockReturnValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, wtAgentsPath);
+  });
+
+  it('copies copilot-instructions.md to worktree (creates .github dir)', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === copilotInstructionsPath) return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+    mockReaddirSync.mockReturnValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
+
+    expect(mockMkdirSync).toHaveBeenCalledWith(wtGithubDir, { recursive: true });
+    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, wtInstructionsPath);
+  });
+
+  it('copies .github/instructions/ files to worktree', async () => {
+    const srcInstructionsDir = '/tmp/test/.github/instructions';
+    const srcFile = `${srcInstructionsDir}/typescript.instructions.md`;
+    const dstFile = `${wtInstructionsDir}/typescript.instructions.md`;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === srcInstructionsDir) return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+    mockReaddirSync.mockImplementation((p: string) => {
+      if (p === srcInstructionsDir) return [{ name: 'typescript.instructions.md', isFile: () => true }];
+      return [];
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
+
+    expect(mockMkdirSync).toHaveBeenCalledWith(wtInstructionsDir, { recursive: true });
+    expect(mockCopyFileSync).toHaveBeenCalledWith(srcFile, dstFile);
+  });
+
+  it('copies .github/prompts/ files to worktree', async () => {
+    const srcPromptsDir = '/tmp/test/.github/prompts';
+    const srcFile = `${srcPromptsDir}/commit.prompt.md`;
+    const dstFile = `${wtPromptsDir}/commit.prompt.md`;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === srcPromptsDir) return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+    mockReaddirSync.mockImplementation((p: string) => {
+      if (p === srcPromptsDir) return [{ name: 'commit.prompt.md', isFile: () => true }];
+      return [];
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
+
+    expect(mockMkdirSync).toHaveBeenCalledWith(wtPromptsDir, { recursive: true });
+    expect(mockCopyFileSync).toHaveBeenCalledWith(srcFile, dstFile);
+  });
+
+  it('skips missing source dirs and files without error', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === wtPath) return true;
+      return false; // all source files/dirs absent
+    });
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001'])
+    ).resolves.not.toThrow();
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
   });
 });
