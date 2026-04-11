@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
-dateUpdated: 20260324
+dateUpdated: 20260411
 status: complete
 ---
 
@@ -180,6 +180,45 @@ status: complete
 8. [x] **(208) Compound Workflow Commands** — Add phase-aware compound CLI commands that combine `cf set` + `cf build` into single invocations aligned with the methodology phases. Commands: `cf concept` (Phase 0 → concept doc), `cf initiatives` (Phase 1 → initiative plan), `cf arch <initiative>` (Phase 2 → architecture doc), `cf plan <initiative>` (Phase 3 → slice plan), `cf slice <slice>` (Phase 4 → slice design), `cf tasks <slice>` (Phase 5 → task breakdown), `cf implement <slice>` (Phase 6 → implementation context). Each command sets the appropriate phase and artifact fields, then runs `cf build`. Warns if the target artifact already exists (e.g., concept doc, slice design). Reduces the multi-command ceremony that currently gates every phase transition. Dependencies: None (builds on existing `cf set` and `cf build` infrastructure). Risk: Low. Effort: 2/5
 
 9. [x] **(209) AI-Agent Consumption Interface** — Make Context Forge easy for AI agents to discover and use programmatically. Addresses two gaps: (1) CLI discoverability — agents hardcode command strings that break on rename (e.g., `cf slice list` → `cf list slices`); (2) error format — agents parse human-readable error strings instead of structured codes. Deliverables: `cf help --json` (machine-readable command catalog with names, args, types, descriptions), `cf version --json` (version + breaking change signals), structured JSON error format (`{ error, code, suggestion }`) on all commands when `--json` is active, and an `agent_quickstart` MCP tool that returns capability schema and getting-started instructions for pure-machine consumers (distinct from `agent_onboard` which targets human-supervised agents). Also: audit all commands for idempotency (repeated `cf set slice 208` should not warn), and document the MCP-first integration pattern for agent authors. Dependencies: [208 — compound commands must be stable first]. Risk: Low. Effort: 3/5
+
+10. [ ] **(210) GitHub Copilot / VS Code IDE Support** — Add `copilot` as a second IDE target for `cf setup-ide` and `cf init --ide`, enabling Context Forge projects to deliver their rules, skills, and agent guidance to VS Code Copilot users. Closes the gap for users who cannot or do not use Claude Code but still want the methodology and artifact surface that Context Forge provides. Reference: `project-documents/user/tool-guides/copilot-vscode/setup-ide.md`.
+
+    **File mapping (Claude → Copilot):**
+    | Claude-format source | Copilot target | Notes |
+    |---|---|---|
+    | `CLAUDE.md` (compiled `alwaysApply` rules) | `.github/copilot-instructions.md` + `AGENTS.md` | Always-on project guidance; `AGENTS.md` provides cross-tool compatibility |
+    | `.claude/rules/*.md` (non-alwaysApply, `paths`-scoped) | `.github/instructions/*.instructions.md` (`applyTo` glob) | Convert `paths: [...]` → `applyTo: "a,b,c"` comma-separated glob |
+    | `.claude/skills/*.md` (task workflows) | `.github/prompts/*.prompt.md` | Slash-command-invoked; frontmatter fields: `name`, `description`, `argument-hint`, `agent`, `model`, `tools` |
+    | `.claude/agents/*.md` (sub-agents/personas) | Copilot custom agents | Distinct VS Code concept — document mapping, implement if backend is stable |
+
+    **Scope:**
+    - Extend `VALID_TARGETS` in `packages/cli/src/commands/setup-ide.ts` from `['claude']` to `['claude', 'copilot']`
+    - Add a `copilot` backend to the guides-side `scripts/setup-ide` script (the actual rule→file compilation lives in the ai-project-guide submodule, not CF core)
+    - Managed-marker detection: add an equivalent `[//]: # (context-forge:managed)` marker convention for Copilot target files so re-runs are safe (first-run warns before overwriting unmanaged user content; subsequent runs skip backup)
+    - Worktree propagation in `propagateToWorktrees()`: extend the `target === 'claude'` block with a `target === 'copilot'` block that copies `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` to each registered worktree
+    - Smart `cf init` integration: `cf init --ide copilot` end-to-end flow — unchanged detection matrix, just routes to the copilot setup path
+    - Frontmatter translation: Claude rule files use `paths: [...]` array (defaulting to `**`); Copilot instruction files use `applyTo: "glob1,glob2"` comma-separated string — translator must handle both forms and default to `applyTo: "**"` when source omits paths
+    - Ordering caveat: VS Code says multiple instruction files combine with no guaranteed order. Compiled always-on content belongs in a single `.github/copilot-instructions.md` (or `AGENTS.md`), not split across instruction files. Keep split `.instructions.md` files narrowly scoped and non-conflicting.
+    - Dual-write compatibility: existing Claude users can keep `CLAUDE.md` + `.claude/` untouched. Copilot target is additive, writing only to `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` — never touching `.claude/` or `CLAUDE.md`.
+
+    **Non-goals for this slice:**
+    - Cursor support (remains in Future Work item #1; architecturally similar but its own slice once Copilot is proven)
+    - Bidirectional sync (Copilot → Claude or vice versa). One-way source-of-truth → compiled target only.
+    - Copilot custom agents translation (scope as a follow-up if the instruction + prompt layer lands cleanly)
+
+    **Value:** Unblocks VS Code Copilot users from adopting Context Forge. Current real-world driver: an external user who cancelled their Claude subscription and is now on Copilot but wants to keep using CF. Establishes the pattern for future IDE targets (Cursor, Windsurf, etc.) — after Copilot ships, adding a new target becomes "add an entry to `VALID_TARGETS`, add a backend to the guides script, add a worktree propagation block."
+    **Success Criteria:**
+    - `cf setup-ide copilot` generates `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions/*.instructions.md` (from non-alwaysApply rules), and `.github/prompts/*.prompt.md` (from skills)
+    - `cf init --ide copilot` runs end-to-end on a fresh directory: git init, project create, guide install, setup-ide copilot
+    - Re-running `cf setup-ide copilot` on a project with existing managed files does not prompt (idempotent)
+    - Re-running on a project with existing unmanaged files prompts before overwriting (same safety as Claude path)
+    - `cf worktree` propagation copies Copilot files to all registered worktrees after root setup-ide
+    - Path→applyTo translation correctly converts Claude frontmatter to Copilot frontmatter for split rule files
+    - Manual verification: an AI agent in VS Code Copilot can read `.github/copilot-instructions.md` + `AGENTS.md` and follow project conventions as well as Claude does with `CLAUDE.md` + `.claude/rules/`
+    - Tool guide (`project-documents/user/tool-guides/copilot-vscode/setup-ide.md`) referenced in slice design, promoted to a proper published tool guide if needed
+    **Dependencies:** None (composes existing `cf setup-ide` infrastructure and guide-side compilation; no dependency on slices 206/207/208/209)
+    **Risk:** Med — involves the guides submodule (ai-project-guide scripts), frontmatter translation correctness, and a file layout VS Code's compatibility story is still evolving on
+    **Effort:** 3/5
 
 ## Maintenance Slices
 
