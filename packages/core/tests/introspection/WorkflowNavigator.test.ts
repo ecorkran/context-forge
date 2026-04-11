@@ -249,10 +249,24 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
-    it('recommends creating plan doc when complete, plan field set but file missing', async () => {
+    it('recommends switching to Phase 3 when complete, plan field set but file missing, wrong phase', async () => {
       const project = makeProject({
         fileSlice: '300-slice.all-done.md',
         fileSlicePlan: '999-slices.nonexistent',
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create the slice plan document');
+      expect(next.rationale).toContain('Switch to Phase 3');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 3: Slice Planning'");
+    });
+
+    it('recommends cf build when complete, plan field set but file missing, already in Phase 3', async () => {
+      const project = makeProject({
+        fileSlice: '300-slice.all-done.md',
+        fileSlicePlan: '999-slices.nonexistent',
+        developmentPhase: 'Phase 3: Slice Planning',
       });
       const next = await nav.getNext(project);
 
@@ -286,12 +300,26 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('Create or assign a slice plan');
     });
 
-    it('recommends creating plan doc when arch exists, plan field set but file missing', async () => {
+    it('recommends switching to Phase 3 when arch exists, plan field set but file missing, wrong phase', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: '999-slices.nonexistent',
         fileArch: '100-arch.test-system',
         developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Create the slice plan document');
+      expect(next.rationale).toContain('Switch to Phase 3');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 3: Slice Planning'");
+    });
+
+    it('recommends cf build when arch exists, plan field set but file missing, already in Phase 3', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: '999-slices.nonexistent',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 3: Slice Planning',
       });
       const next = await nav.getNext(project);
 

@@ -121,11 +121,16 @@ export class WorkflowNavigator {
       // Architecture exists but no slice plan
       if (!status.slicePlan) {
         if (project.fileSlicePlan) {
+          const currentPhaseNoSlice = project.developmentPhase?.trim() ?? '';
+          const inPhase3 = currentPhaseNoSlice.startsWith('Phase 3');
           return {
             recommendation: 'Create the slice plan document',
-            rationale: `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document to define deliverable increments.`,
-            suggestedCommand: 'cf build',
-            summary: 'Create the slice plan document',
+            rationale: inPhase3
+              ? `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document to define deliverable increments.`
+              : `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Switch to Phase 3 (Slice Planning) first, then run cf build to create the slice plan.`,
+            suggestedCommand: inPhase3 ? 'cf build' : "cf set phase 'Phase 3: Slice Planning'",
+            phase: 'Phase 3: Slice Planning',
+            summary: inPhase3 ? 'Create the slice plan document' : 'Switch to Phase 3 then create the slice plan document',
           };
         }
         return {
@@ -250,12 +255,18 @@ export class WorkflowNavigator {
     // Priority 7 (fallback): complete but no plan
     if (slice.status === 'complete') {
       if (project.fileSlicePlan) {
+        const inPhase3 = currentPhase.startsWith('Phase 3');
         return enrich({
           recommendation: 'Create the slice plan document',
-          rationale: `Current slice is complete. Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document.`,
-          suggestedCommand: 'cf build',
+          rationale: inPhase3
+            ? `Current slice is complete. Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document.`
+            : `Current slice is complete. Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Switch to Phase 3 (Slice Planning) first, then run cf build to create the slice plan.`,
+          suggestedCommand: inPhase3 ? 'cf build' : undefined,
+          phase: 'Phase 3: Slice Planning',
           slice: project.fileSlice,
-          summary: 'Slice complete — create the slice plan document',
+          summary: inPhase3
+            ? 'Slice complete — create the slice plan document'
+            : 'Slice complete — switch to Phase 3 then create the slice plan document',
         });
       }
       return enrich({

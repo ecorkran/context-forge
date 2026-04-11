@@ -5,12 +5,18 @@ scope: project-wide
 
 # Changelog
 
-All notable changes to Context Forge will be documented in this file.
+All notable changes to Squadron will be documented in this file.  This file should contain concise entries from user point of view and should answer the following questions:
+* What can I do now that I couldn't do before?
+* What specific bugs, if any, are fixed?
+* Were any features removed?
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+- `cf next` now recommends `cf set phase 'Phase 3: Slice Planning'` instead of `cf build` when a new slice plan file is configured but doesn't exist yet and the project is not already in Phase 3 — previously, running `cf build` from Phase 6 would have generated an implementation prompt rather than a slice planning prompt
 
 ## [0.6.42] - 20260406
 
