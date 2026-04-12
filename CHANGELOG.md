@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 20260412
+
 ### Added
 - `cf setup-ide copilot` and `cf init --ide copilot` — VS Code Copilot users can now use Context Forge. Compiles project rules and skills into the VS Code Copilot file layout: always-on rules → `.github/copilot-instructions.md` + `AGENTS.md`; scoped rules → `.github/instructions/*.instructions.md` with `applyTo` frontmatter; skills → `.github/prompts/*.prompt.md`. Existing unmanaged files are backed up before overwriting; managed files (from a previous run) are updated silently.
 
