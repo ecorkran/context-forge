@@ -34,7 +34,7 @@
     "vite",
     "context-forge"
   ],
-  "author": "Manta Templates",
+  "author": "Erik Corkran",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.33.0",

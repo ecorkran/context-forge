@@ -85,7 +85,7 @@ export function getDefaultFooterSections(): FooterSections {
     primaryContact: { email: '', location: '' },
     professionalContact: { business: '', support: '' },
     copyright: {
-      notice: '© 2025 manta.digital. MIT licensed.',
+      notice: '© 2025 Erik Corkran. MIT licensed.',
       attribution: 'Built with Next.js, Tailwind CSS, and Manta Templates.',
       lastUpdated: '2025',
     },

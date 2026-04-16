@@ -222,7 +222,7 @@ Tools to document:
   },
   "homepage": "https://github.com/ecorkran/context-forge/tree/main/packages/mcp-server#readme",
   "license": "MIT",
-  "author": "Manta Templates",
+  "author": "Erik Corkran",
   "engines": { "node": ">=18.0.0" },
   "files": ["dist", "README.md"]
 }
@@ -241,7 +241,7 @@ Tools to document:
   },
   "homepage": "https://github.com/ecorkran/context-forge/tree/main/packages/core#readme",
   "license": "MIT",
-  "author": "Manta Templates",
+  "author": "Erik Corkran",
   "engines": { "node": ">=18.0.0" },
   "files": ["dist", "README.md"]
 }

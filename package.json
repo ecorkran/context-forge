@@ -22,7 +22,7 @@
     "context-forge",
     "monorepo"
   ],
-  "author": "Manta Templates",
+  "author": "Erik Corkran",
   "license": "MIT",
   "packageManager": "pnpm@10.14.0"
 }

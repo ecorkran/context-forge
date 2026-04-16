@@ -122,7 +122,7 @@ docType: tasks
     - `repository`: `{ "type": "git", "url": "https://github.com/ecorkran/context-forge.git", "directory": "packages/mcp-server" }`
     - `homepage`: link to mcp-server README on GitHub
     - `license`: `"MIT"`
-    - `author`: `"Manta Templates"`
+    - `author`: `"Erik Corkran"`
     - `engines`: `{ "node": ">=18.0.0" }`
     - `files`: `["dist", "README.md"]`
   - [x] `"private"` field removed or set to `false`
@@ -138,7 +138,7 @@ docType: tasks
     - `repository`: `{ "type": "git", "url": "https://github.com/ecorkran/context-forge.git", "directory": "packages/core" }`
     - `homepage`: link to core README on GitHub
     - `license`: `"MIT"`
-    - `author`: `"Manta Templates"`
+    - `author`: `"Erik Corkran"`
     - `engines`: `{ "node": ">=18.0.0" }`
     - `files`: `["dist", "README.md"]`
   - [x] `"private"` field removed or set to `false`
