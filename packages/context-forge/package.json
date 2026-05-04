@@ -20,6 +20,14 @@
     "directory": "packages/context-forge"
   },
   "homepage": "https://github.com/ecorkran/context-forge#readme",
+  "type": "module",
+  "bin": {
+    "cf": "./bin/cf.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
   "engines": {
     "node": ">=18.0.0"
   },
