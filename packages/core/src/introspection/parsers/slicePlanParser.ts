@@ -82,6 +82,11 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       }
     }
 
+    // Sort by index ascending. Slice plans usually appear in order, but entries
+    // can be added out of order during planning — every consumer expects the
+    // canonical order (display, "next slice" recommendation, consistency checks).
+    entries.sort((a, b) => a.index - b.index);
+
     const completedSlices = entries.filter((e) => e.isChecked).length;
     return {
       filePath,

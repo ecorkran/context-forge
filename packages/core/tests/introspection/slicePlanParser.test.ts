@@ -120,6 +120,13 @@ describe('parseSlicePlan', () => {
     expect(result.entries[1].description).toBe('Persistent configuration layer.');
   });
 
+  it('sorts entries by index ascending even when source file is out of order', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'out-of-order-slice-plan.md'));
+    expect(result.entries.map((e) => e.index)).toEqual([101, 102, 103, 104, 105]);
+    // First unchecked must be 102 (101 is complete) — drives `cf next`.
+    expect(result.entries.find((e) => !e.isChecked)?.index).toBe(102);
+  });
+
   it('omits description when none present after name', async () => {
     // All fixture entries have descriptions, so verify via real plan
     const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
