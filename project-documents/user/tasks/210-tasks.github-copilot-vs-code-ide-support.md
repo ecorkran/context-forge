@@ -5,7 +5,7 @@ project: context-forge
 lld: user/slices/210-slice.github-copilot-vs-code-ide-support.md
 dependencies: []
 dateCreated: 20260411
-dateUpdated: 20260411
+dateUpdated: 20260512
 status: complete
 ---
 
@@ -152,24 +152,24 @@ Add `copilot` as a second IDE target for `cf setup-ide` and `cf init --ide`. The
 - [x] **6.2** Run full test suite
   - [x] `pnpm test` from repo root — all packages pass
 
-- [ ] **6.3** End-to-end smoke test (manual)
-  - [ ] `mkdir /tmp/cf-init-210-test && cd /tmp/cf-init-210-test`
-  - [ ] `cf init --ide copilot --name "Copilot Smoke Test"` — project created, guides installed, `cf setup-ide copilot` runs
-  - [ ] Verify `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions/`, `.github/prompts/` all present
-  - [ ] `cf setup-ide claude` — verify `.claude/` and `CLAUDE.md` still work independently (no cross-contamination)
-  - [ ] Re-run `cf setup-ide copilot` — silent (managed marker detected, no prompt)
+- [x] **6.3** End-to-end smoke test (manual)
+  - [x] `mkdir /tmp/cf-init-210-test && cd /tmp/cf-init-210-test`
+  - [x] `cf init --ide copilot --name "Copilot Smoke Test"` — project created, guides installed, `cf setup-ide copilot` runs
+  - [x] Verify `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions/`, `.github/prompts/` all present
+  - [x] `cf setup-ide claude` — verify `.claude/` and `CLAUDE.md` still work independently (no cross-contamination)
+  - [x] Re-run `cf setup-ide copilot` — silent (managed marker detected, no prompt)
 
 ---
 
 ## Section 7: Wrap-up
 
-- [ ] **7.1** Update slice and slice plan status
-  - [ ] `210-slice.github-copilot-vs-code-ide-support.md` → `status: complete`, `dateUpdated: today`
-  - [ ] `200-slices.developer-onboarding.md` → check off slice 210 entry, `dateUpdated: today`
+- [x] **7.1** Update slice and slice plan status
+  - [x] `210-slice.github-copilot-vs-code-ide-support.md` → `status: complete`, `dateUpdated: today`
+  - [x] `200-slices.developer-onboarding.md` → check off slice 210 entry, `dateUpdated: today`
 
-- [ ] **7.2** Final commit
-  - [ ] `git add` all changed doc files
-  - [ ] `git commit -m "docs: complete slice 210 GitHub Copilot VS Code IDE support"`
+- [x] **7.2** Final commit
+  - [x] `git add` all changed doc files
+  - [x] `git commit -m "docs: complete slice 210 GitHub Copilot VS Code IDE support"`
 
-- [ ] **7.3** Merge to main
-  - [ ] `git checkout main && git merge 210-slice.github-copilot-vs-code-ide-support --no-ff`
+- [x] **7.3** Merge to main
+  - [x] `git checkout main && git merge 210-slice.github-copilot-vs-code-ide-support --no-ff`
