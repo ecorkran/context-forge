@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 20260512
+
+### Fixed
+- `@context-forge/context-forge` (umbrella package) now exposes the `cf` command after a global install. Previously, installing the umbrella package installed `@context-forge/cli` as a dependency but did not link its binary — leaving users with no `cf` command until they manually installed `@context-forge/cli`. Fixed by adding a `bin/cf.js` forwarding script to the umbrella package.
+- `cf list slices`, `cf list tasks`, and `cf next` now correctly order slices by index regardless of the order entries appear in the slice plan file. Previously, entries added out of order during planning could cause the wrong slice to be flagged as "next".
+
 ## [0.7.0] - 20260412
 
 ### Added
