@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 20260514
+
+### Added
+- `cf build --embed` — inlines all referenced artifact files (`fileArch`, `fileSlicePlan`, `fileSlice`, `fileTasks`, `fileHLD`, `fileSpec`, `fileConcept`) and `CLAUDE.md` as labeled fenced markdown blocks appended to the context output. Produces a fully self-contained prompt for models without file-read access. Missing files emit a warning rather than failing silently. Composes with all existing flags (`--phase`, `--slice`, `--json`, etc.).
+
 ## [0.7.1] - 20260512
 
 ### Fixed
