@@ -40,3 +40,6 @@ export { GitWorktreeDiscovery } from './git/index.js';
 
 // Worktree management — uses IProjectStore (Node.js-backed)
 export { WorktreeService } from './services/WorktreeService.js';
+
+// Context embedding — inlines referenced artifact files for non-SDK models
+export { embedReferencedFiles } from './services/ContextEmbedder.js';

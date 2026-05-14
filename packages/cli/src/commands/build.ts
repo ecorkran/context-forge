@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, embedReferencedFiles } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
@@ -18,6 +18,7 @@ interface BuildOpts {
   tasks?: string;
   additional?: string;
   json?: boolean;
+  embed?: boolean;
 }
 
 interface BuildAndPrintOpts {
@@ -25,6 +26,7 @@ interface BuildAndPrintOpts {
   phase?: string;
   slice?: string;
   json?: boolean;
+  embed?: boolean;
 }
 
 /**
@@ -75,7 +77,11 @@ export async function buildAndPrint(opts: BuildAndPrintOpts): Promise<void> {
   if (opts.slice) workingCopy.fileSlice = opts.slice;
 
   const { integrator } = createContextPipeline(workingCopy.projectPath!);
-  const contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
+  let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
+
+  if (opts.embed) {
+    contextString = await embedReferencedFiles(workingCopy, workingCopy.projectPath!, contextString);
+  }
 
   if (opts.json) {
     // --json mode: structured output to stdout
@@ -109,7 +115,8 @@ export function registerBuildCommand(program: Command): void {
     .option('--instruction-type <type>', 'Override instruction type for profile lookup (without persisting)')
     .option('--it <type>', 'Shorthand for --instruction-type')
     .option('--tasks <tasks>', 'Override task file name')
-    .option('--additional <text>', 'Additional instructions to append');
+    .option('--additional <text>', 'Additional instructions to append')
+    .option('--embed', 'Inline referenced file contents for models without file-read access');
   withJsonOption(buildCmd);
   buildCmd.action(async (opts: BuildOpts) => {
       try {
@@ -155,6 +162,10 @@ export function registerBuildCommand(program: Command): void {
 
         if (opts.additional) {
           contextString = `${contextString}\n\n${opts.additional}`;
+        }
+
+        if (opts.embed) {
+          contextString = await embedReferencedFiles(workingCopy, workingCopy.projectPath!, contextString);
         }
 
         if (opts.json) {
