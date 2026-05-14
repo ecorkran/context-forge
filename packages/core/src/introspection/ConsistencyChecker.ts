@@ -710,6 +710,29 @@ export class ConsistencyChecker {
           },
         });
       }
+
+      // Check that the associated slice plan is fully complete before the initiative entry is checked
+      if (entry.isChecked) {
+        const slicePlans = await this.discoverAllSlicePlans(projectPath);
+        const slicePlanPath = slicePlans.find((p) => {
+          const base = p.split('/').pop() ?? '';
+          return new RegExp(`^${entry.index}-slices\\.`).test(base);
+        });
+        if (slicePlanPath) {
+          const slicePlan = await this.introspector.parseSlicePlan(slicePlanPath);
+          const incomplete = slicePlan.totalSlices - slicePlan.completedSlices;
+          if (incomplete > 0) {
+            findings.push({
+              rule: 'initiative-entry-vs-arch',
+              severity: 'warning',
+              location: initiativePlanPath,
+              description: `Initiative plan entry "${entry.name}" (${entry.index}) is checked but slice plan has ${incomplete} incomplete slice${incomplete !== 1 ? 's' : ''}`,
+              suggestedFix: `Uncheck the initiative entry or complete the remaining ${incomplete} slice${incomplete !== 1 ? 's' : ''}`,
+              fixable: false,
+            });
+          }
+        }
+      }
     }
 
     return findings;

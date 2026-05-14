@@ -1283,6 +1283,50 @@ describe('ConsistencyChecker', () => {
         expect(findings).toHaveLength(0);
       });
 
+      it('warns when initiative entry is checked but slice plan has incomplete slices', async () => {
+        const mock = setupInitiativeMocks(
+          [{ index: 140, name: 'MCP Server Architecture', isChecked: true }],
+          'complete',
+          {
+            parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(
+              async (path: string) => {
+                if (path.includes('001-initiative-plan')) {
+                  return {
+                    filePath: path,
+                    entries: [{ index: 140, name: 'MCP Server Architecture', isChecked: true, status: 'complete', lineIndex: 0 }],
+                    totalSlices: 1,
+                    completedSlices: 1,
+                  };
+                }
+                if (path.includes('140-slices')) {
+                  return {
+                    filePath: path,
+                    entries: [
+                      { index: 141, name: 'Slice A', isChecked: true, status: 'complete', lineIndex: 0 },
+                      { index: 142, name: 'Slice B', isChecked: false, status: 'not-started', lineIndex: 1 },
+                      { index: 143, name: 'Slice C', isChecked: false, status: 'not-started', lineIndex: 2 },
+                    ],
+                    totalSlices: 3,
+                    completedSlices: 1,
+                  };
+                }
+                return { filePath: path, entries: [], totalSlices: 0, completedSlices: 0 };
+              },
+            ),
+          },
+        );
+        const checker = new ConsistencyChecker(mock);
+        const result = await checker.checkAll(makeProject());
+
+        const finding = result.findings.find(
+          (f) => f.rule === 'initiative-entry-vs-arch' && f.description.includes('incomplete slice'),
+        );
+        expect(finding).toBeDefined();
+        expect(finding!.severity).toBe('warning');
+        expect(finding!.description).toContain('2 incomplete slices');
+        expect(finding!.fixable).toBe(false);
+      });
+
       it('skips initiative entries with no corresponding arch file', async () => {
         const mock = setupInitiativeMocks(
           [{ index: 999, name: 'No Arch Initiative', isChecked: false }],
