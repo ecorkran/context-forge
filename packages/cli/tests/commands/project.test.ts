@@ -317,8 +317,9 @@ describe('cf project set', () => {
       '--project', 'proj_001',
     ]);
 
+    // Full paths are normalized to bare stem (directory stripped, .md removed)
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
-      fileArch: 'some/path.md',
+      fileArch: 'path',
     });
   });
 
@@ -454,9 +455,9 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // Single update with both primary and derived fields
+    // .md suffix is normalized away before storage
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
-      fileSlice: '200-slice.new-feature.md',
+      fileSlice: '200-slice.new-feature',
       fileTasks: '200-tasks.new-feature.md',
     });
     const output = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
@@ -476,10 +477,10 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
-    // Single merged update
+    // .md suffix is normalized away before storage
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', {
-      fileSlice: '999-slice.no-tasks.md',
+      fileSlice: '999-slice.no-tasks',
       fileTasks: '999-tasks.no-tasks.md',
     });
   });
@@ -495,8 +496,9 @@ describe('cf project set — auto-set fileTasks from fileSlice', () => {
       '--project', 'proj_001',
     ]);
 
+    // .md suffix is normalized away before storage
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new.md' });
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileTasks: '200-tasks.new' });
   });
 });
 

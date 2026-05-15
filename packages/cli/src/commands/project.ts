@@ -265,6 +265,20 @@ export async function projectSetAction(
     );
   }
 
+  // Normalize artifact values: strip directory prefix and .md suffix so that
+  // full paths (e.g. "project-documents/user/architecture/100-arch.foo.md")
+  // and stems with extensions ("100-arch.foo.md") are reduced to bare stems
+  // ("100-arch.foo") before storage. This prevents resolveArtifactPath from
+  // doubling the directory when the value is used later.
+  if (fieldDef?.group === 'artifacts') {
+    const basename = resolvedValue.includes('/') ? resolvedValue.split('/').pop()! : resolvedValue;
+    const stripped = basename.endsWith('.md') ? basename.slice(0, -3) : basename;
+    if (stripped !== resolvedValue) {
+      process.stderr.write(`  Normalized '${resolvedValue}' → '${stripped}'\n`);
+      resolvedValue = stripped;
+    }
+  }
+
   if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && opPath) {
     // Use worktree-resolved project for slice plan lookup (project-level fields
     // may be cleared after migration, but the worktree context has the values)
