@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 20260514
+
+### Fixed
+- `cf set` now normalizes artifact field values to bare stems before storage. Full paths (e.g. `project-documents/user/architecture/100-arch.foo.md`) and stems with `.md` suffix were stored as-is, causing `resolveArtifactPath` to construct an invalid doubled path — making `cf next`, `cf check`, and `cf build` silently fail to detect files on disk.
+- `cf check` now warns when an initiative plan entry is checked but its associated slice plan still has incomplete slices, rather than only comparing the initiative checkbox against the architecture document status.
+
 ## [0.8.0] - 20260514
 
 ### Added
