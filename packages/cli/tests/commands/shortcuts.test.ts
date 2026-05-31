@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerProjectCommand, projectSetAction, projectGetAction, buildSettableFieldsHelp } from '../../src/commands/project.js';
 import { handleError } from '../../src/utils/errors.js';
+import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
@@ -18,6 +19,7 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
+  normalizeArtifactValue: (value: string) => normalizeArtifactValue(value),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
   computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
 }));

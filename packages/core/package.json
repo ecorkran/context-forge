@@ -13,6 +13,10 @@
     "./node": {
       "types": "./dist/node.d.ts",
       "default": "./dist/node.js"
+    },
+    "./schema/*": {
+      "types": "./dist/schema/*.d.ts",
+      "default": "./dist/schema/*.js"
     }
   },
   "files": [

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerListCommand } from '../../src/commands/list.js';
 import type { ProjectModel } from '@context-forge/core';
+import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
 
 // ──────────────────────────────────────────────────
 // Shared mocks
@@ -33,13 +34,15 @@ vi.mock('@context-forge/core/node', () => ({
     const m = /^(\d+)-/.exec(v ?? '');
     return m ? parseInt(m[1], 10) : null;
   }),
+  normalizeArtifactValue: (value: string) => normalizeArtifactValue(value),
   resolveArtifactPath: vi.fn((field: string, stem: string) => {
     const dirs: Record<string, string> = {
       fileSlicePlan: 'project-documents/user/architecture',
       fileTasks: 'project-documents/user/tasks',
     };
     const dir = dirs[field];
-    return dir ? `${dir}/${stem}.md` : null;
+    const normalized = normalizeArtifactValue(stem);
+    return dir ? `${dir}/${normalized}.md` : null;
   }),
   ArtifactIntrospector: vi.fn().mockImplementation(() => ({
     parseSlicePlan: mockParseSlicePlanIntrospector,

@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PROJECT_FIELDS } from './projectSchema.js';
+import { normalizeArtifactValue } from './normalizeArtifactValue.js';
 
 /** Maps artifact field names to their directory and file prefix pattern. */
 const ARTIFACT_DIR_MAP: Record<string, { dir: string; prefixes: string[] }> = {
@@ -102,5 +103,6 @@ export function deriveArtifactStem(field: string, index: string, name: string): 
 export function resolveArtifactPath(field: string, stem: string): string | null {
   const mapping = ARTIFACT_DIR_MAP[field];
   if (!mapping) return null;
-  return join(mapping.dir, `${stem}.md`);
+  const normalized = normalizeArtifactValue(stem);
+  return join(mapping.dir, `${normalized}.md`);
 }

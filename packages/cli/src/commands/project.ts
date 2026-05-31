@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { readdirSync } from 'node:fs';
-import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
+import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields, normalizeArtifactValue } from '@context-forge/core/node';
 import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -271,8 +271,7 @@ export async function projectSetAction(
   // ("100-arch.foo") before storage. This prevents resolveArtifactPath from
   // doubling the directory when the value is used later.
   if (fieldDef?.group === 'artifacts') {
-    const basename = resolvedValue.includes('/') ? resolvedValue.split('/').pop()! : resolvedValue;
-    const stripped = basename.endsWith('.md') ? basename.slice(0, -3) : basename;
+    const stripped = normalizeArtifactValue(resolvedValue);
     if (stripped !== resolvedValue) {
       process.stderr.write(`  Normalized '${resolvedValue}' → '${stripped}'\n`);
       resolvedValue = stripped;

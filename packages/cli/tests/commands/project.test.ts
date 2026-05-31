@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerProjectCommand } from '../../src/commands/project.js';
+import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
@@ -26,6 +27,7 @@ vi.mock('@context-forge/core/node', () => ({
     updateWorktree: mockUpdateWorktree,
   })),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
+  normalizeArtifactValue: (value: string) => normalizeArtifactValue(value),
   computeAutoSetFields: (...args: unknown[]) => mockComputeAutoSetFields(...args),
 }));
 

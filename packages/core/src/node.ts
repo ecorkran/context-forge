@@ -18,6 +18,7 @@ export * from './guides/index.js';
 
 // Schema — fs-dependent helpers (index-based file resolution)
 export { resolveFileByIndex, resolveArtifactPath, deriveArtifactStem } from './schema/resolveFileByIndex.js';
+export { normalizeArtifactValue } from './schema/normalizeArtifactValue.js';
 
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector, resolveInitiativePlanPath } from './introspection/ArtifactIntrospector.js';

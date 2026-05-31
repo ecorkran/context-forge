@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { projectSetAction, projectGetAction } from '../../src/commands/project.js';
+import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ vi.mock('@context-forge/core/node', () => ({
   WorktreeService: vi.fn().mockImplementation(() => ({
     updateWorktree: mockUpdateWorktree,
   })),
+  normalizeArtifactValue: (value: string) => normalizeArtifactValue(value),
   resolveFileByIndex: (...args: unknown[]) => mockResolveFileByIndex(...args),
   resolveArtifactPath: vi.fn(),
   deriveArtifactStem: vi.fn(),
@@ -103,34 +105,34 @@ describe('projectSetAction — worktree-scoped', () => {
 
   it('routes fileArch to WorktreeService with archDoc', async () => {
     await projectSetAction('fileArch', '180-arch.new.md', { project: 'test-project' });
-    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', { archDoc: '180-arch.new.md' });
+    expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', { archDoc: '180-arch.new' });
   });
 
   it('auto-sets slicePlan when archDoc changes on worktree', async () => {
     mockComputeAutoSetFields.mockReturnValueOnce({
-      derivedUpdates: { fileSlicePlan: '180-slices.derived.md' },
+      derivedUpdates: { fileSlicePlan: '180-slices.derived' },
       descriptions: ['slice plan'],
     });
     await projectSetAction('fileArch', '180-arch.new.md', { project: 'test-project' });
     // Single merged call: archDoc + slicePlan (fileSlicePlan maps to slicePlan via PROJECT_TO_WORKTREE_FIELD)
     expect(mockUpdateWorktree).toHaveBeenCalledTimes(1);
     expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', {
-      archDoc: '180-arch.new.md',
-      slicePlan: '180-slices.derived.md',
+      archDoc: '180-arch.new',
+      slicePlan: '180-slices.derived',
     });
   });
 
   it('auto-sets activeTaskFile when activeSlice changes on worktree', async () => {
     mockComputeAutoSetFields.mockReturnValueOnce({
-      derivedUpdates: { fileTasks: '200-tasks.feature.md' },
+      derivedUpdates: { fileTasks: '200-tasks.feature' },
       descriptions: ['task file'],
     });
     await projectSetAction('fileSlice', '200-slice.feature.md', { project: 'test-project' });
     // Single merged call: activeSlice + activeTaskFile (fileTasks maps to activeTaskFile via PROJECT_TO_WORKTREE_FIELD)
     expect(mockUpdateWorktree).toHaveBeenCalledTimes(1);
     expect(mockUpdateWorktree).toHaveBeenCalledWith('proj_001', 'wt_001', {
-      activeSlice: '200-slice.feature.md',
-      activeTaskFile: '200-tasks.feature.md',
+      activeSlice: '200-slice.feature',
+      activeTaskFile: '200-tasks.feature',
     });
   });
 
