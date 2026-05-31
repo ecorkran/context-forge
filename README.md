@@ -1,5 +1,7 @@
 # Context Forge
 
+<!-- Claude: please find code analysis details in user/analysis/940-analysis.initial-codebase.md -->
+
 Context Forge massively speeds the development of large projects with AI agents while maintaining high quality.  
 
 It multiplies your cognitive abilities and doesn't try to replace them. Not another "Hey AI, build me an app" framework, and it may be overkill for building simple gadgets. Development is managed through a structured process, starting with broad initiatives and breaking functionality into vertical slices and individual tasks.  It maintains traceable, hierarchical project state so that every AI session starts with full awareness of where things stand and what's next.
@@ -77,7 +79,7 @@ Requirements: Node.js 18+.
 Context Forge is built around a structured development methodology called [ai-project-guide](https://github.com/ecorkran/ai-project-guide). 
 
 Projects progress through phases:
-**Concept → Architecture → Slice Planning → Slice Design → Task Breakdown → Implementation → Integration**
+**Concept → Initiative Plan → Architecture → Slice Planning → Slice Design → Task Breakdown → Implementation → Integration**
 
 Each phase produces documents. Documents reference each other. Slices decompose into tasks. Tasks track completion. The whole thing is a hierarchy you can navigate, introspect, and hand off between humans and agents without losing state.
 
@@ -135,13 +137,13 @@ Four interfaces — use whichever fits your workflow:
 | `cf init` | Initialize project: git, guides, IDE config, slash commands |
 | `cf status` | Workflow status (phase, slice, task progress) |
 | `cf next` | Recommended next action with rationale |
-| `cf build` | Assemble context prompt for AI session |
+| `cf build` | Assemble context prompt for AI session (`--embed` inlines artifact files for non-SDK models) |
 | `cf set <field> <value>` | Set a project field |
 | `cf get` | Show all project fields |
 | `cf check` | Run consistency checks (`--fix`, `--slice`) |
 | **Listing** | **Browse project artifacts** |
 | `cf list projects` | All registered projects |
-| `cf list initiatives` | Architecture initiatives with slice counts |
+| `cf list initiatives` | Architecture initiatives with slice counts (alias: `cf list arch`) |
 | `cf list plans` | Slice plan files with progress |
 | `cf list slices` | Slices from the active plan with status |
 | `cf list tasks` | Task files with completion counts |
@@ -155,7 +157,9 @@ Four interfaces — use whichever fits your workflow:
 | `cf guides install\|status\|update\|uninstall` | ai-project-guide template management |
 | `cf setup-ide claude` | Configure Claude Code integration |
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
+| `cf install-commands` | Install/uninstall Claude Code slash commands |
 | `cf backup` | Versioned project data backup (keeps last 10) |
+| `cf update` | Update the CLI to the latest published version |
 
 ### Claude Code Slash Commands
 
@@ -169,12 +173,13 @@ Installed via `cf install-commands`. Available directly in Claude Code sessions:
 | `/cf:get` | Show all project fields |
 | `/cf:set` | Set a project field |
 | `/cf:next` | Recommended next action |
+| `/cf:check` | Run consistency checks on project artifacts |
 | `/cf:prompt` | Get or list prompt templates |
 | `/cf:project` | Manage projects |
 
 ### Electron Desktop App
 
-Visual interface for project management, template editing, and context preview. Multi-project support, split-pane editor, light/dark themes.  This has been relegated to 2nd priority.  If you notice issues, please let us know.
+> **Status: unmaintained.** The Electron app is not currently being developed and is not built or shipped as part of releases. The package still exists in the repo (`packages/electron/`) but its typecheck currently fails and dependencies are out of date. We are evaluating whether to revive, archive, or remove it — feedback welcome via [issues](https://github.com/ecorkran/context-forge/issues). All current functionality is available through the CLI, MCP server, and slash commands.
 
 ## Architecture
 
@@ -184,7 +189,7 @@ pnpm monorepo, four packages:
 packages/
   context-forge/ @context-forge/context-forge — meta-package (installs cli + mcp)
   core/          @context-forge/core          — context engine, project state, introspection, workflow
-  mcp-server/    @context-forge/mcp           — MCP protocol server ([nn] tools)
+  mcp-server/    @context-forge/mcp           — MCP protocol server (34 tools)
   cli/           @context-forge/cli           — terminal interface (cf command)
   electron/      @context-forge/electron      — desktop app
 ```
