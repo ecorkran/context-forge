@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Claude local settings
+.claude/local/
+
 # Package build output
 packages/*/dist/
 packages/electron/out/
