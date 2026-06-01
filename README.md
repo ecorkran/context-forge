@@ -154,7 +154,7 @@ Four interfaces — use whichever fits your workflow:
 | `cf config get\|set` | Two-tier configuration |
 | `cf future` | Consolidated future work across all plans |
 | `cf prompt list\|get <phase>` | Prompt templates with variable substitution |
-| `cf guides install\|status\|update\|uninstall` | ai-project-guide template management |
+| `cf guides install\|info\|update\|uninstall` | ai-project-guide template management |
 | `cf setup-ide claude` | Configure Claude Code integration |
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
 | `cf install-commands` | Install/uninstall Claude Code slash commands |
