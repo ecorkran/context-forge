@@ -600,5 +600,62 @@ describe('WorkflowNavigator', () => {
 
       expect(next.warnings).toBeUndefined();
     });
+
+    it('no band warning when worktree indexRange spans multiple hundred-blocks and contains the slice', async () => {
+      // Worktree [100, 799] explicitly owns slice 209 even though hundredBlock(209) ≠ hundredBlock(100).
+      // Regression test for #48.
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [
+          {
+            id: 'wt_default',
+            name: 'default',
+            indexRange: [100, 799],
+          },
+        ],
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
+    });
+
+    it('warns against worktree ranges (not arch hundred-block) when slice is outside every worktree', async () => {
+      const project = makeProject({
+        fileSlice: '850-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [
+          {
+            id: 'wt_default',
+            name: 'default',
+            indexRange: [100, 799],
+          },
+        ],
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('outside all configured worktree ranges');
+      expect(next.warnings![0]).toContain('default [100–799]');
+      expect(next.warnings![0]).not.toContain('hundred');
+      expect(next.warnings![0]).not.toContain('100-band');
+    });
+
+    it('legacy hundred-block check still applies when no worktrees are configured', async () => {
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        // worktrees: undefined
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('outside the 100-band');
+    });
   });
 });
