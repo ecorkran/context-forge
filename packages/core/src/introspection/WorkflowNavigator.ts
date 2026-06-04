@@ -161,13 +161,35 @@ export class WorkflowNavigator {
       ? existsSync(join(project.projectPath, archRelPath))
       : false;
 
-    // Index band mismatch: warn when slice index is in a different hundred-block than arch/plan
+    // Index band mismatch: warn when the slice index is outside the declared range.
+    // Source of truth, in order:
+    //   1. If worktrees are configured, the active slice should fall inside some worktree's
+    //      indexRange. A worktree's range may span multiple hundred-blocks (e.g. [100, 799]),
+    //      so the legacy hundred-block check below is wrong in that case.
+    //   2. If no worktrees are configured, fall back to comparing the slice's hundred-block
+    //      against the architecture's hundred-block (legacy behaviour).
     if (slice.index !== null) {
-      const archIndex = extractSliceIndex(project.fileArch);
-      if (archIndex !== null && hundredBlock(slice.index) !== hundredBlock(archIndex)) {
-        warnings.push(
-          `Slice ${slice.index} is outside the ${hundredBlock(archIndex)}-band of architecture '${project.fileArch}'.`,
+      const sliceIdx = slice.index;
+      const worktrees = project.worktrees ?? [];
+      if (worktrees.length > 0) {
+        const owningWorktree = worktrees.find(
+          (wt) => sliceIdx >= wt.indexRange[0] && sliceIdx <= wt.indexRange[1],
         );
+        if (!owningWorktree) {
+          const ranges = worktrees
+            .map((wt) => `${wt.name} [${wt.indexRange[0]}–${wt.indexRange[1]}]`)
+            .join(', ');
+          warnings.push(
+            `Slice ${sliceIdx} is outside all configured worktree ranges (${ranges}).`,
+          );
+        }
+      } else {
+        const archIndex = extractSliceIndex(project.fileArch);
+        if (archIndex !== null && hundredBlock(sliceIdx) !== hundredBlock(archIndex)) {
+          warnings.push(
+            `Slice ${sliceIdx} is outside the ${hundredBlock(archIndex)}-band of architecture '${project.fileArch}'.`,
+          );
+        }
       }
     }
 
