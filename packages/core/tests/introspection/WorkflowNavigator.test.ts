@@ -412,7 +412,23 @@ describe('WorkflowNavigator', () => {
       expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Initiative Plan'");
     });
 
-    it('Phase 1, no arch, no plan → cf build for initiative plan', async () => {
+    it('Phase 1, initiative plan absent on disk → cf build for initiative plan', async () => {
+      // projectPath without a 001-initiative-plan.*.md file → plan not yet created
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: 'Phase 1: Initiative Plan',
+        projectPath: '/nonexistent/path',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('Phase 1 (Initiative Plan)');
+      expect(next.suggestedCommand).toBe('cf build');
+    });
+
+    it('Phase 1, initiative plan exists on disk → advance to Phase 2', async () => {
+      // Default PROJECT_ROOT fixture contains 001-initiative-plan.test-project.md
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
@@ -421,8 +437,8 @@ describe('WorkflowNavigator', () => {
       });
       const next = await nav.getNext(project);
 
-      expect(next.recommendation).toContain('Phase 1 (Initiative Plan)');
-      expect(next.suggestedCommand).toBe('cf build');
+      expect(next.recommendation).toContain('Advance to Phase 2');
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 2: Architecture'");
     });
 
     it('Phase 2, no arch, no plan → cf build --phase architecture', async () => {

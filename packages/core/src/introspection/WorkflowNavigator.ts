@@ -12,6 +12,7 @@ import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
+import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -101,8 +102,20 @@ export class WorkflowNavigator {
         ? existsSync(join(project.projectPath, archRelPath))
         : false;
 
+      // Determine whether the initiative plan file actually exists on disk.
+      // This is the only signal that distinguishes a completed Phase 1 from a
+      // not-started one — architecture and slice plan are Phase 2/3 outputs and
+      // never exist yet at the end of Phase 1, so they cannot disambiguate it.
+      const initiativePlanExists =
+        (await resolveInitiativePlanPath(project.projectPath)) !== null;
+
       // First-run guidance: enriched recommendations for sparse/fresh project states (FR-1–FR-4)
-      const firstRunAction = this.detectFirstRunContext(project, archFileExists, status);
+      const firstRunAction = this.detectFirstRunContext(
+        project,
+        archFileExists,
+        initiativePlanExists,
+        status,
+      );
       if (firstRunAction !== null) {
         return firstRunAction;
       }
@@ -307,6 +320,7 @@ export class WorkflowNavigator {
   private detectFirstRunContext(
     project: ProjectData,
     archFileExists: boolean,
+    initiativePlanExists: boolean,
     status: WorkflowStatus,
   ): NextAction | null {
     // Only applies to projects without both arch and slice plan
@@ -355,18 +369,29 @@ export class WorkflowNavigator {
       };
     }
 
-    // Phase 1, no initiative plan → create initiative plan
-    if (
-      phase.startsWith('Phase 1') &&
-      !archFileExists &&
-      status.slicePlan === null
-    ) {
+    // Phase 1, initiative plan not yet created → create it.
+    // Gate strictly on the initiative plan file. Do NOT gate on architecture or
+    // slice-plan absence: those are Phase 2/3 outputs and never exist yet at this
+    // point, so including them would make this branch fire even after the plan is done.
+    if (phase.startsWith('Phase 1') && !initiativePlanExists) {
       return {
         recommendation: 'Your project is in Phase 1 (Initiative Plan). Create an initiative plan from your concept.',
         rationale:
           'The initiative plan decomposes your concept into named initiatives with index assignments and dependencies. This drives all subsequent architecture work.',
         suggestedCommand: 'cf build',
         summary: 'Start Phase 1 — generate an initiative plan prompt with cf build',
+      };
+    }
+
+    // Phase 1, initiative plan exists → advance to Phase 2 (Architecture).
+    // Mirrors the Phase 0 → Phase 1 advancement branch above.
+    if (phase.startsWith('Phase 1') && initiativePlanExists && !archFileExists) {
+      return {
+        recommendation: 'Initiative plan exists. Advance to Phase 2 (Architecture).',
+        rationale:
+          'Your initiative plan is complete. The next step is to define the high-level structure — set your phase to Phase 2 (Architecture) and create an architecture document.',
+        suggestedCommand: "cf set phase 'Phase 2: Architecture'",
+        summary: 'Advance to Phase 2 — set phase and create an architecture document',
       };
     }
 
