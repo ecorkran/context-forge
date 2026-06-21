@@ -90,6 +90,38 @@ describe('buildModel', () => {
     expect(actual!.planned).toBeUndefined();
   });
 
+  it('plan-only initiative: plan entry without arch/slices doc appears as planned: true', async () => {
+    const model = await buildModel(PROJECT_ROOT);
+    const init = model.initiatives['400'];
+    expect(init).toBeDefined();
+    expect(init.planned).toBe(true);
+    expect(init.name).toBe('Plan Only Initiative');
+    expect(init.status).toBe('not-started');
+    expect(init.description).toContain('Exists only in the plan');
+    expect(init.slices).toEqual([]);
+    expect(init.arch).toBeUndefined();
+    expect(init.slicePlan).toBeUndefined();
+  });
+
+  it('plan-only initiative: arch/slices-backed initiative (100) is not marked planned', async () => {
+    const model = await buildModel(PROJECT_ROOT);
+    const init = model.initiatives['100'];
+    expect(init.planned).toBeUndefined();
+    // The plan entry must not overwrite the richer arch/slicePlan-backed model.
+    expect(init.arch).toBeDefined();
+    expect(init.slicePlan).toBeDefined();
+  });
+
+  it('plan-only initiative: 900+ plan entry flows into maintenanceInitiatives', async () => {
+    const model = await buildModel(PROJECT_ROOT);
+    const maint = model.maintenanceInitiatives['900'];
+    expect(maint).toBeDefined();
+    expect(maint.planned).toBe(true);
+    expect(maint.name).toBe('Maintenance');
+    // Plan-only initiatives never land in the regular initiatives map.
+    expect(model.initiatives['900']).toBeUndefined();
+  });
+
   it('task merging: split task files merge into single task entry', async () => {
     const model = await buildModel(PROJECT_ROOT);
     const init = model.initiatives['100'];

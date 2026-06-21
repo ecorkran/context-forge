@@ -121,13 +121,24 @@ export interface SlicePlanBlock extends DocSummary {
   futureWork: FutureWorkItem[];
 }
 
-/** An initiative (base index in 100-799 with arch/slices doc) */
+/**
+ * An initiative. Normally a base index in 100-799 backed by an arch or slices
+ * doc. Initiatives that exist only in the initiative plan (named there but with
+ * no arch/slices file written yet) are also surfaced, carrying `status` and
+ * `description` from the plan entry and marked `planned`.
+ */
 export interface Initiative {
   name: string;
   slices: SliceModelEntry[];
   features: DocSummary[];
   arch?: DocSummary;
   slicePlan?: SlicePlanBlock;
+  /** Status from the initiative-plan entry. Set when no arch/slicePlan provides one. */
+  status?: string;
+  /** Overview/description text from the initiative-plan entry. */
+  description?: string;
+  /** True when the initiative exists only in the plan (no arch/slices doc yet). */
+  planned?: true;
 }
 
 /** Standalone feature not claimed by any slice */

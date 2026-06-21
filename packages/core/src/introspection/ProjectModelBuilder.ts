@@ -6,6 +6,7 @@ import { parseTaskItems } from './parsers/taskFileParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
+import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type {
   TaskItem,
   ProjectModel,
@@ -439,6 +440,32 @@ export async function buildModel(
     }
 
     model.initiatives[pad(base)] = initiative;
+  }
+
+  // --- Plan-only initiatives ---
+  // The initiative plan is the authoritative roadmap: it names initiatives
+  // before any arch or slices doc exists. Surface those so the model reflects
+  // what is planned, not just what has been started. The plan uses the same
+  // `N. [ ] **(NNN) Name** — overview` entry format as a slice plan. Entries at
+  // 900+ flow into maintenanceInitiatives via the partition below, matching the
+  // arch/slices loop (which also has no upper bound).
+  const planPath = await resolveInitiativePlanPath(projectPath);
+  if (planPath) {
+    const { entries } = await parseSlicePlan(planPath);
+    for (const entry of entries) {
+      if (entry.index < 100) continue; // foundation/project-arch bands are not initiatives
+      const key = pad(entry.index);
+      if (model.initiatives[key]) continue; // arch/slices doc already produced it
+      const initiative: Initiative = {
+        name: titleCase(entry.name),
+        slices: [],
+        features: [],
+        status: entry.status,
+        planned: true,
+      };
+      if (entry.description) initiative.description = entry.description;
+      model.initiatives[key] = initiative;
+    }
   }
 
   // --- Partition 900+ initiatives into maintenanceInitiatives ---
