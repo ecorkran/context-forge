@@ -4,7 +4,7 @@ layer: project
 project: context-forge
 source: user/project-guides/000-concept.context-builder-2.md
 dateCreated: 20260323
-dateUpdated: 20260325
+dateUpdated: 20260620
 status: in_progress
 ---
 
@@ -28,13 +28,17 @@ Variable gaps based on expected initiative breadth. The project predates formal 
 
 5. [ ] **(220) Event-Driven Pipeline** — Persistent MCP server daemon with Streamable HTTP transport, storage-layer event emission, server-initiated notifications for multi-client coordination and event-driven automation. Dependencies: [140]. Status: active (slice 221 in progress)
 
-6. [ ] **(900) Maintenance & Refactoring** (perpetual) — Ongoing maintenance initiative for cross-cutting improvements: pattern consolidation, hard-coding reduction, code quality audits, and refactoring work that doesn't belong to a feature initiative. Dependencies: none. Status: not_started
+6. [ ] **(240) Review-Aware Workflow Gating** — Teach the workflow state machine (`workflow_next` / `workflow_check`) to gate on reviews deterministically, with **no AI in the loop**. Today `cf next` reasons over artifact existence and frontmatter status but knows nothing about reviews; it will happily recommend *advance* on a slice whose review is missing or failing. This initiative adds a config-driven review gate: which states require a review artifact (`workflow.review_required`) and what verdict/score clears the bar (`workflow.review_threshold`), mirroring the existing `workflow.auto_advance` / `workflow.auto_fix` knobs. The gate reads the review artifact's frontmatter — **the verdict/score/criteria/provenance contract standardized by Squadron slice 300** — and, when a required review is absent or below threshold, makes the next recommended action *review* (or *block*) rather than *advance*. Pure deterministic logic: a state-machine concern, not a judgment one; it routes *to* a review, it does not perform one. Usable standalone via `cf next` without any external orchestrator; Amoeba's Runner consumes the same gate later rather than reimplementing it. v1 threshold is conservative (verdict ≠ fail passes); numeric-score gating activates once Squadron's judge-enforcement layer (slice 301) emits a score. The review-artifact frontmatter schema is the cross-project seam — kept a documented contract so CF and Squadron stay decoupled. Dependencies: [160]. Status: not_started
+
+7. [ ] **(900) Maintenance & Refactoring** (perpetual) — Ongoing maintenance initiative for cross-cutting improvements: pattern consolidation, hard-coding reduction, code quality audits, and refactoring work that doesn't belong to a feature initiative. Dependencies: none. Status: not_started
 
 ## Cross-Initiative Dependencies
 - 160 depends on 140: requires MCP infrastructure, standardized types, and filesystem-based storage from the v2 restructure
 - 180 depends on 160: requires config infrastructure and artifact reference fields from the workflow system
 - 200 depends on 140, 160, 180: requires MCP infrastructure, config system, and worktree management for full onboarding flow
 - 220 depends on 140: requires MCP server factory and tool registration infrastructure
+- 240 depends on 160: extends the workflow navigation engine (`workflow_next`) and config system established by the Project Workflow System; the review gate is a new rule + two config keys on that machine
+- 240 ↔ external: reads the **review-artifact frontmatter contract** (verdict/score/criteria/provenance) owned by Squadron (slice 300); numeric-score gating is unblocked by Squadron slice 301. This is a cross-project data contract, not a CF-internal dependency — CF only depends on the frontmatter schema being stable, not on Squadron's code.
 
 ## Notes
 - Initiative 050 (Prompt System Decoupling) was removed — the original architecture is obsolete and any future decoupling work would require a new design.
