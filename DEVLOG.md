@@ -7,6 +7,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-06-21 – 2026-06-24
+
+### Initiative 240: Review-Aware Workflow Gating — Phase 2 Architecture Complete
+- Authored `240-arch.review-aware-workflow-gating.md`; iterated through full arch review cycle (8 findings, all resolved via PM discussion)
+- Decisions locked: `workflow.review_enabled` / `review_threshold` / `review_unknown_as` config keys; `pending-review` and `review-failed` as first-class slice status values; gate inserts between Priority 5 and Priority 6 in `WorkflowNavigator.getNext()`; existing `NNN-review.{reviewType}.{slug}.md` convention used as-is; initiative-level gate (`pre-slice-plan`) defined in arch, gate logic deferred to later slice
+- Commits: `6c667b7` docs(arch+review), `f96fea1` guides(CLAUDE.md+python rules+submodule)
+
+---
+
 ## 2026-04-11
 
 ### Slice 210: GitHub Copilot / VS Code IDE support — Complete
