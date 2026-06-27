@@ -18,15 +18,15 @@ This is the foundation slice for initiative 240 (Review-Aware Workflow Gating). 
 
 1. A `review` discovery slot in `DocumentDetectionResult`, plus a detection rule in `documentDetector.ts` that locates a slice's review artifact by index and review type.
 2. The three global review config keys (`workflow.review_enabled`, `workflow.review_threshold`, `workflow.review_unknown_as`) in `ConfigKeys.ts`, with `validate`/`enum` enforcement, plus the per-gate override (`workflow.review_gates.*`) namespace decision and structure.
-3. A renumbering of the `getNext()` priority cascade comments to open a labeled insertion point between current Priority 5 (`in-implementation`) and Priority 6 (`complete → advance`), where slice 241 will add the gate branch.
+3. A renaming of the `getNext()` branch comments from fragile ordinals (`Priority 1` … `2.5` … `7`) to named, category-prefixed branches (`GUARD:` / `LIFECYCLE:`), opening a labeled `review-gate` slot between `in-implementation` and `complete → advance` where slice 241 will add the gate branch.
 
-After this slice, `cf next` / `workflow_next` behave **identically to today** — the new config keys default to off, the `review` slot is populated but read by nobody, and the cascade renumbering is comment-only. The slice is observable only through unit tests and `cf config list`.
+After this slice, `cf next` / `workflow_next` behave **identically to today** — the new config keys default to off, the `review` slot is populated but read by nobody, and the branch renaming is comment-only. The slice is observable only through unit tests and `cf config list`.
 
 ## Value
 
 Architectural enablement. This slice unblocks slices 241 (gate logic), 242 (consistency rule), and 244 (initiative-level gate) by giving each a stable interface to build on:
 
-- 241 reads `detectionResult.review` and the three config keys to derive `pending-review` / `review-failed` and insert its branch at the labeled cascade point.
+- 241 reads `detectionResult.review` and the three config keys to derive `pending-review` / `review-failed` and fills the reserved `LIFECYCLE: review-gate` branch.
 - 242 reads the same detection slot and config to emit consistency findings.
 - 244 reuses the detection rule with `reviewType = "arch"` at a different cascade point.
 
@@ -40,7 +40,7 @@ Delivering these as one isolated foundation slice keeps the higher-risk gate-log
 - Add a review-artifact detection rule to `detectDocuments()` (`packages/core/src/introspection/parsers/documentDetector.ts`) that scans `project-documents/user/reviews/` for `NNN-review.{reviewType}.*.md`.
 - Add the three global config keys to `CONFIG_KEYS` (`packages/core/src/config/ConfigKeys.ts`) with `enum`/`validate` enforcement.
 - Define the `workflow.review_gates.*` per-gate override config approach (decision documented below) and add its key definitions.
-- Renumber / relabel the `getNext()` priority cascade comments to reserve the gate insertion point.
+- Rename the `getNext()` branch comments (ordinals → named `GUARD:`/`LIFECYCLE:` branches) to reserve the gate insertion point.
 - Unit tests for the detection rule and config-key validation.
 
 **Explicitly excluded (owned by later slices):**
@@ -73,7 +73,7 @@ Three independent edit sites, no new modules:
 | `DocumentDetectionResult` | `introspection/types.ts` | add `review` field |
 | `detectDocuments()` | `introspection/parsers/documentDetector.ts` | add reviews-dir scan + match |
 | `CONFIG_KEYS` | `config/ConfigKeys.ts` | add review keys |
-| `getNext()` cascade | `introspection/WorkflowNavigator.ts` | renumber priority comments only |
+| `getNext()` branches | `introspection/WorkflowNavigator.ts` | rename branch comments only (ordinals → named) |
 
 ### Data Flow
 
@@ -167,30 +167,42 @@ Existing callers of `detectDocuments` pass two arguments and are unaffected (the
 - Threshold vocabulary is **lowercase config tokens** (`pass`, `concerns`), distinct from the **uppercase verdict vocabulary** (`PASS`, `CONCERNS`, `FAIL`, `UNKNOWN`) that 241 reads from frontmatter. Keeping config tokens lowercase matches the existing `guide.git_strategy` enum style and avoids implying the config value is a verdict. The case-mapping between them is gate logic (241).
 - Defaults encode "conservative by default": gating off; when on, `concerns` clears PASS/CONCERNS; UNKNOWN fails.
 
-### TD-4: Cascade renumbering — comments only, no logic change
+### TD-4: Name the cascade branches — comments only, no logic change
 
-`getNext()` is a priority-ordered chain of early-return branches: it checks conditions top to bottom and returns on the first match. The branches are labeled only by comments (`// Priority 1` … `// Priority 7`); nothing reads those numbers — the **order of branches in the file** is what determines priority. The labels are a map for human readers.
+`getNext()` is a chain of early-return branches: it checks conditions top to bottom and returns the first matching recommendation. The branches are labeled only by comments, currently as ordinals (`// Priority 1` … `// Priority 7`, plus a wedged-in fraction `// Priority 2.5` at `WorkflowNavigator.ts:187`). Nothing reads these labels — they appear only as inline comments and one doc-comment cross-reference (`:318`), never in any `NextAction` field, CLI output, MCP response, or log. The **order of branches in the file** is what determines precedence; the labels are purely a map for whoever reads the source (human or AI).
 
-The current cascade already carries a fractional label: `Priority 2.5` (`WorkflowNavigator.ts:187`, the "arch set but file missing" branch) was wedged between 2 and 3. Initiative 240 needs to insert the review gate between current Priority 5 (`in-implementation`) and Priority 6 (`complete → advance`) — and there is no integer label free for it. Inventing another fraction (`5.5`) would compound the existing smell.
+**Problem with the ordinals.** They are labels standing in for logical structure — fragile by the project's own rule against that. Inserting the review gate between `in-implementation` and `complete → advance` leaves no integer free, and the existing `2.5` shows where that road leads. They also flatten two genuinely different kinds of branch into one "priority" list, which can mislead a reader (or an AI editing the file) into thinking each branch is a numbered workflow state.
 
-**Renumbering = re-label the entire sequence to clean integers** so the new gate branch gets a real number **and the existing `2.5` fraction is retired** — with zero logic change. No branch is added, removed, or reordered; only the comment labels change:
+**Decision: replace the ordinals with named branches, prefixed by category so the distinction is explicit.** Two categories:
+
+- `GUARD:` — preconditions and routing checks. **Not** cf workflow phases. They run before (or instead of) any slice-lifecycle reasoning.
+- `LIFECYCLE:` — branches that track a selected slice progressing through its work. Some map to a stock cf phase (noted inline); the review gate and the advance branch do **not** — the prefix deliberately avoids `PHASE:` so nothing implies they are stock cf phases.
 
 ```
-current (fractional)         after renumber (integers)
-P1   no projectPath          P1  no projectPath
-P2   no fileSlice            P2  no fileSlice
-P2.5 arch missing       →    P3  arch missing            ← fraction retired
-P3   needs-design            P4  needs-design
-P4   needs-tasks             P5  needs-tasks
-P5   in-implementation       P6  in-implementation
-                             P7  [reserved: review gate — added in slice 241]
-P6   complete → advance      P8  complete → advance
-P7   complete, no plan       P9  complete, no plan
+current label            →  named branch                    category / note
+Priority 1   no projectPath   // GUARD: no-project-path       precondition, not a cf phase
+Priority 2   no fileSlice      // GUARD: no-active-slice       routing — dispatches to first-run / arch / plan / pick-slice
+Priority 2.5 arch missing      // GUARD: arch-file-missing     precondition — slice selected but arch absent (fraction retired)
+Priority 3   needs-design      // LIFECYCLE: needs-design      cf Phase 4
+Priority 4   needs-tasks       // LIFECYCLE: needs-tasks       cf Phase 5
+Priority 5   in-implementation // LIFECYCLE: in-implementation cf Phase 6
+(insertion point)              // LIFECYCLE: review-gate       initiative 240 review gate (added slice 241) — NOT a stock cf phase
+Priority 6   complete→advance  // LIFECYCLE: complete-advance  slice complete → recommend next slice (not a phase)
+Priority 7   complete, no plan // GUARD: complete-no-plan      fallback — slice complete but no slice plan
 ```
 
-This slice makes the renumbering change and inserts a `// P7 reserved for review gate (initiative 240, slice 241)` placeholder comment at the insertion point. Because the branches are unchanged in order and content, behavior is byte-for-byte identical. This isolates the (purely cosmetic) relabeling churn from 241's logic diff, keeping 241's review focused on the decision matrix.
+This slice performs the rename and inserts a placeholder comment at the gate's home:
 
-**Why this lands in 240, not 241:** retiring the `2.5` fraction and reserving the slot is foundation/structure with no behavioral effect; folding it into 241 would mix a large comment-only diff into the gate-logic review and obscure the actual decision matrix being added.
+```
+// LIFECYCLE: review-gate — reserved for initiative 240 review gate (added in slice 241).
+// Not a stock cf workflow phase. No branch logic here yet.
+```
+
+It also updates the one stale cross-reference at `:318` ("falls through to standard Priority 2 logic" → "falls through to the `no-active-slice` guard"). No branch is added, removed, or reordered; the doc-comment at `:81` describing the function may be reworded but its meaning is unchanged. Behavior is byte-for-byte identical.
+
+**Why named, not renumbered:** a named slot never needs re-labeling when the next branch is inserted, the `GUARD:`/`LIFECYCLE:` split stops a future editor from reading a routing guard as a workflow phase, and it satisfies the project rule against labels-as-logical-structure. The fraction is retired as a side effect, not as the goal.
+
+**Why this lands in 240, not 241:** the rename is foundation/structure with no behavioral effect; folding it into 241 would bury a large comment-only diff inside the gate-logic review and obscure the actual decision matrix being added. 241 only fills the reserved `review-gate` slot with logic.
 
 ## Implementation Details
 
@@ -207,7 +219,7 @@ This slice makes the renumbering change and inserts a `// P7 reserved for review
 - **`DocumentDetectionResult.review: string | null`** — the relative path to the resolved review artifact (or null). Consumed by 241, 242, 244.
 - **`detectDocuments(path, index, reviewType?)`** — the discovery entry point. 241/244 pass a gate-resolved `reviewType`.
 - **`workflow.review_enabled | review_threshold | review_unknown_as`** and **`workflow.review_gates.{transition}.{review_type|threshold}`** config keys — readable via `ConfigManager.get`. 241 consumes the global keys and the override resolution; 242 reads `review_enabled`.
-- **Reserved P7 cascade slot** — the labeled, integer-numbered insertion point for 241's branch (created by renumbering the cascade and retiring the old `2.5` fraction; see TD-4).
+- **Reserved `LIFECYCLE: review-gate` slot** — the named insertion point for 241's branch (created by renaming the cascade branches and retiring the old `2.5` fraction; see TD-4).
 
 ### Consumes from Other Slices
 
@@ -221,7 +233,7 @@ Nothing. Foundation slice.
 - `cf config list` shows the three new `workflow.review_*` keys with their defaults and descriptions.
 - `cf config set workflow.review_threshold bogus` fails with a validation error naming the allowed values; `cf config set workflow.review_threshold pass` succeeds.
 - The four `workflow.review_gates.*.{review_type,threshold}` keys are settable and round-trip through `.context-forge.toml` as a nested table.
-- `cf next` / `workflow_next` output is unchanged from before this slice for any project (gating off by default; cascade renumber is comment-only).
+- `cf next` / `workflow_next` output is unchanged from before this slice for any project (gating off by default; branch rename is comment-only).
 
 ### Technical Requirements
 
@@ -291,7 +303,7 @@ Suggested order (each step independently testable):
 1. `types.ts` — add `review` field. (Compiles; existing detector returns object missing the field → TS error guides next step.)
 2. `documentDetector.ts` — add `reviews/` scan, optional `reviewType`, last-match selection; populate `review`. Add tests.
 3. `ConfigKeys.ts` — add the three global keys + four gate-override key pairs with enum/validate. Add config-validation tests.
-4. `WorkflowNavigator.ts` — renumber cascade comments, insert reserved-slot placeholder comment. Add/confirm the `cf next` regression test.
+4. `WorkflowNavigator.ts` — rename branch comments (ordinals → `GUARD:`/`LIFECYCLE:`), insert the reserved `review-gate` placeholder comment, fix the stale `:318` cross-reference. Add/confirm the `cf next` regression test.
 5. `pnpm build && pnpm test`.
 
 ### Special Considerations
