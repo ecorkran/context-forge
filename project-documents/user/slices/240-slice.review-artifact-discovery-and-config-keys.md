@@ -169,21 +169,28 @@ Existing callers of `detectDocuments` pass two arguments and are unaffected (the
 
 ### TD-4: Cascade renumbering — comments only, no logic change
 
-The `getNext()` branches are labeled by integer comments (`// Priority 1` … `// Priority 7`). To reserve the gate's home between current Priority 5 (`in-implementation`) and Priority 6 (`complete → advance`) without fractional numbers, renumber so the reserved slot is explicit:
+`getNext()` is a priority-ordered chain of early-return branches: it checks conditions top to bottom and returns on the first match. The branches are labeled only by comments (`// Priority 1` … `// Priority 7`); nothing reads those numbers — the **order of branches in the file** is what determines priority. The labels are a map for human readers.
+
+The current cascade already carries a fractional label: `Priority 2.5` (`WorkflowNavigator.ts:187`, the "arch set but file missing" branch) was wedged between 2 and 3. Initiative 240 needs to insert the review gate between current Priority 5 (`in-implementation`) and Priority 6 (`complete → advance`) — and there is no integer label free for it. Inventing another fraction (`5.5`) would compound the existing smell.
+
+**Renumbering = re-label the entire sequence to clean integers** so the new gate branch gets a real number **and the existing `2.5` fraction is retired** — with zero logic change. No branch is added, removed, or reordered; only the comment labels change:
 
 ```
-P1 no projectPath            P1 no projectPath
-P2 no fileSlice              P2 no fileSlice
-P2.5 arch missing            P2.5 arch missing
-P3 needs-design              P3 needs-design
-P4 needs-tasks         →     P4 needs-tasks
-P5 in-implementation         P5 in-implementation
-P6 complete → advance        P6 [reserved: review gate — added in slice 241]
-P7 complete, no plan         P7 complete → advance
-                             P8 complete, no plan
+current (fractional)         after renumber (integers)
+P1   no projectPath          P1  no projectPath
+P2   no fileSlice            P2  no fileSlice
+P2.5 arch missing       →    P3  arch missing            ← fraction retired
+P3   needs-design            P4  needs-design
+P4   needs-tasks             P5  needs-tasks
+P5   in-implementation       P6  in-implementation
+                             P7  [reserved: review gate — added in slice 241]
+P6   complete → advance      P8  complete → advance
+P7   complete, no plan       P9  complete, no plan
 ```
 
-This slice makes the renumbering change with a `// P6 reserved for review gate (initiative 240, slice 241)` placeholder comment at the insertion point. No branch is added, removed, or reordered; behavior is byte-for-byte identical. This isolates the (purely cosmetic) renaming churn from 241's logic diff, keeping 241's review focused on the decision matrix.
+This slice makes the renumbering change and inserts a `// P7 reserved for review gate (initiative 240, slice 241)` placeholder comment at the insertion point. Because the branches are unchanged in order and content, behavior is byte-for-byte identical. This isolates the (purely cosmetic) relabeling churn from 241's logic diff, keeping 241's review focused on the decision matrix.
+
+**Why this lands in 240, not 241:** retiring the `2.5` fraction and reserving the slot is foundation/structure with no behavioral effect; folding it into 241 would mix a large comment-only diff into the gate-logic review and obscure the actual decision matrix being added.
 
 ## Implementation Details
 
@@ -200,7 +207,7 @@ This slice makes the renumbering change with a `// P6 reserved for review gate (
 - **`DocumentDetectionResult.review: string | null`** — the relative path to the resolved review artifact (or null). Consumed by 241, 242, 244.
 - **`detectDocuments(path, index, reviewType?)`** — the discovery entry point. 241/244 pass a gate-resolved `reviewType`.
 - **`workflow.review_enabled | review_threshold | review_unknown_as`** and **`workflow.review_gates.{transition}.{review_type|threshold}`** config keys — readable via `ConfigManager.get`. 241 consumes the global keys and the override resolution; 242 reads `review_enabled`.
-- **Reserved P6 cascade slot** — the labeled insertion point for 241's branch.
+- **Reserved P7 cascade slot** — the labeled, integer-numbered insertion point for 241's branch (created by renumbering the cascade and retiring the old `2.5` fraction; see TD-4).
 
 ### Consumes from Other Slices
 
