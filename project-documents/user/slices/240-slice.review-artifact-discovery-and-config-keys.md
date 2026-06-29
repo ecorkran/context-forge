@@ -4,9 +4,9 @@ slice: review-artifact-discovery-and-config-keys
 project: context-forge
 parent: project-documents/user/architecture/240-slices.review-aware-workflow-gating.md
 dependencies: []
-interfaces: [241, 242, 244]
+interfaces: [241, 242, 243, 244]
 dateCreated: 20260626
-dateUpdated: 20260626
+dateUpdated: 20260628
 status: not_started
 ---
 
@@ -118,7 +118,7 @@ Rationale:
 - It fits the existing `ConfigManager` machinery with **zero changes** — `resolveKey`/`setKey` already walk dotted paths into nested TOML tables, and each leaf is a scalar `string`, exactly what `ConfigKeyDefinition` supports today.
 - Extending `ConfigKeyDefinition` to model nested object shapes would add `validate`/`enum`/`type` complexity for a four-row override map — disproportionate to the need, and against the project principle to resist complexity.
 - The dotted keys still render as a nested `[workflow.review_gates.pre_advance]` table in `.context-forge.toml`, so the user-facing TOML reads naturally.
-- TOML bare keys disallow `-`, so transition names use `_` (`pre_advance`, `pre_slice_plan`, `pre_tasks`, `pre_implementation`). This is the one deviation from the arch doc's illustrative `pre-advance` spelling and must be reflected in slice 243 docs.
+- TOML bare keys disallow `-`, so transition names use `_` (`pre_advance`, `pre_slice_plan`, `pre_tasks`, `pre_implementation`). This is the one deviation from the arch doc's illustrative `pre-advance` spelling. It is a documentation obligation handed to slice 243 — see "Provides to Other Slices" below, where the requirement is captured explicitly so it is not lost. (243 is listed in this slice's `interfaces`.)
 
 **Scope boundary for 240 vs 241:** this slice adds the *key definitions* for the four known gate transitions' `review_type` and `threshold` (as enum/validated scalar keys, defaulting empty = "use the global key"). Slice 241 owns *consuming* them — the resolution rule "per-gate override else `workflow.review_threshold`" is gate logic and is implemented and tested there. 240 ships the keys inert.
 
@@ -220,10 +220,15 @@ It also updates the one stale cross-reference at `:318` ("falls through to stand
 - **`detectDocuments(path, index, reviewType?)`** — the discovery entry point. 241/244 pass a gate-resolved `reviewType`.
 - **`workflow.review_enabled | review_threshold | review_unknown_as`** and **`workflow.review_gates.{transition}.{review_type|threshold}`** config keys — readable via `ConfigManager.get`. 241 consumes the global keys and the override resolution; 242 reads `review_enabled`.
 - **Reserved `LIFECYCLE: review-gate` slot** — the named insertion point for 241's branch (created by renaming the cascade branches and retiring the old `2.5` fraction; see TD-4).
+- **To slice 243 (documentation): the TOML underscore-spelling obligation.** The per-gate transition names ship as `pre_advance`, `pre_slice_plan`, `pre_tasks`, `pre_implementation` (underscores, not the arch's illustrative `pre-advance` hyphens — TOML bare keys disallow `-`; see TD-1). Slice 243 must document the keys with the underscore spelling and explain the deviation from the arch's illustrative form, so users do not copy the hyphenated examples. This is the cross-slice commitment that resolves review finding F008.
 
 ### Consumes from Other Slices
 
 Nothing. Foundation slice.
+
+### Deferred to Other Slices
+
+- **File-read / parse failure handling → slice 241 (per arch §Technical Considerations).** The arch requires that a review file which exists but cannot be parsed (malformed YAML, unreadable encoding, permission error) must **not** silently pass — it is treated as `UNKNOWN` and `review_unknown_as` applies. This slice deliberately does not parse review frontmatter; `detectDocuments` only *locates* the file and returns its path (or `null` when absent). All verdict reading and the UNKNOWN/unparseable failure-mode evaluation are gate logic owned by slice 241. 240 does not implement, partially handle, or silently swallow these cases — it never opens the file. This explicit acknowledgment resolves review finding F009.
 
 ## Success Criteria
 
