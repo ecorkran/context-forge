@@ -33,4 +33,21 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     default: false,
     description: 'Automatically apply non-destructive corrections when running consistency checks',
   },
+  'git.branch_root': {
+    type: 'string',
+    default: '',
+    description:
+      'Optional path prefix prepended to work branch names (e.g. "myroot" yields "myroot/910-slice.foo"). Empty means no prefix. Relative and contained: must not be absolute or escape via "..".',
+    validate: (value) => {
+      if (typeof value !== 'string') return 'must be a string';
+      if (value === '') return null; // empty = no prefix (identity default)
+      if (value.startsWith('/')) return 'must be relative, not absolute';
+      if (value.startsWith('\\') || /^[A-Za-z]:/.test(value)) {
+        return 'must be relative, not an absolute Windows path';
+      }
+      if (value.split(/[/\\]/).includes('..')) return 'must not contain ".." segments';
+      if (value.endsWith('/') || value.endsWith('\\')) return 'must not have a trailing slash';
+      return null;
+    },
+  },
 };

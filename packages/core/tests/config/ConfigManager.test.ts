@@ -166,6 +166,48 @@ describe('ConfigManager', () => {
       );
     });
 
+    it('accepts a valid relative branch root', async () => {
+      const cm = new ConfigManager();
+      await cm.set('git.branch_root', 'myroot/sub', 'user');
+      const result = await cm.get('git.branch_root');
+      expect(result.value).toBe('myroot/sub');
+    });
+
+    it('accepts empty branch root (no prefix)', async () => {
+      const cm = new ConfigManager();
+      await cm.set('git.branch_root', '', 'user');
+      const result = await cm.get('git.branch_root');
+      expect(result.value).toBe('');
+    });
+
+    it('defaults branch root to empty when unset', async () => {
+      const cm = new ConfigManager();
+      const result = await cm.get('git.branch_root');
+      expect(result.value).toBe('');
+      expect(result.source).toBe('default');
+    });
+
+    it('rejects an absolute branch root', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('git.branch_root', '/abs/path', 'user')).rejects.toThrow(
+        'must be relative'
+      );
+    });
+
+    it('rejects a branch root with ".." segments', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('git.branch_root', 'foo/../bar', 'user')).rejects.toThrow(
+        '".." segments'
+      );
+    });
+
+    it('rejects a branch root with a trailing slash', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('git.branch_root', 'myroot/', 'user')).rejects.toThrow(
+        'trailing slash'
+      );
+    });
+
     it('round-trip string value', async () => {
       const cm = new ConfigManager();
       await cm.set('guide.source', 'https://example.com', 'user');
@@ -197,13 +239,14 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(5);
+      expect(entries).toHaveLength(6);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
       expect(keys).toContain('guide.git_strategy');
       expect(keys).toContain('workflow.auto_advance');
       expect(keys).toContain('workflow.auto_fix');
+      expect(keys).toContain('git.branch_root');
       for (const entry of entries) {
         expect(entry.source).toBe('default');
         expect(entry.type).toBeDefined();
