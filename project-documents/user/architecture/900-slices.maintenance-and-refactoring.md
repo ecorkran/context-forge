@@ -3,7 +3,7 @@ docType: slice-plan
 parent: user/architecture/900-arch.maintenance-and-refactoring.md
 project: context-forge
 dateCreated: 20260325
-dateUpdated: 20260404
+dateUpdated: 20260628
 status: in_progress
 ---
 
@@ -24,6 +24,7 @@ status: in_progress
 6. [x] **(906) CLI Self-Update Command** — Add top-level `cf update` command that checks npm for newer versions and prompts the user to install. Supports `--yes` for non-interactive use. No automatic update checks on startup — explicit invocation only. Separate from `cf guides update` (tool vs guide). Dependencies: none. Risk: Low. Effort: 2/5
 7. [x] **(907) CLI Short-Form Options & Option Centralization** — Add standard short-form flags (`-j`/`--json`, `-p`/`--project`, `-y`/`--yes`, `-f`/`--fix`, `-a`/`--all`, `-r`/`--raw`) and centralize the ~70 inline `.option()` registrations into shared helpers. Currently 78 option registrations are copy-pasted across 16 command files with zero centralization and inconsistent descriptions (e.g., "Project ID or name" vs "Project name or ID"). Create a shared `options.ts` module with composable helpers (e.g., `withJsonOption`, `withProjectOption`) so adding or changing a common option is a one-line edit instead of 16. Dependencies: none. Risk: Low. Effort: 2/5
 8. [ ] **(908) CLI Usability Improvements** — Catch-all slice for small CLI UX wins that don't warrant their own slice. Items are added here as discovered and worked incrementally. Current backlog: (a) `cf list arch` / `cf list initiatives` — drive from initiative plan (`001-initiative-plan.*.md`) the way `cf list slices` drives from the slice plan: show all entries with index, name, status, and arch file path when it exists; entries with no arch file shown as not started. Dependencies: none. Risk: Low. Effort: 2/5
+9. [x] **(909) Configurable Branch Root Prefix** — Optional per-project prefix prepended to work branch names (e.g. `myroot/910-slice.foo`), so branches can live under a chosen root without affecting document/artifact resolution. CF side: added `git.branch_root` config key (project-scoped, default empty = no prefix) with validation rejecting absolute, `..`-escaping, and trailing-slash values (`packages/core/src/config/ConfigKeys.ts` + tests). Convention side: the branch-naming rule in `ai-project-guide/project-guides/rules/git.md` instructs agents to read `cf config get git.branch_root` and prefix when non-empty — this change lives in the **ai-project-guide submodule (upstream)**, not in this repo; it lands here when the submodule pointer is next updated. Originally scoped as initiative 910 (configurable root directory) but collapsed to this note once the real need turned out to be a branch-name prefix, not a filesystem relocation. Dependencies: upstream `git.md` guide change. Risk: Low. Effort: 1/5
 
 ## Integration Work
 
