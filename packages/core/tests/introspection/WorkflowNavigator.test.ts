@@ -183,6 +183,28 @@ describe('WorkflowNavigator', () => {
       expect(next.phase).toBe('Phase 6: Implementation');
     });
 
+    // Regression test (slice 240 / TD-4): the getNext() cascade branch comments
+    // were renamed from ordinals (Priority 1..7) to named GUARD:/LIFECYCLE:
+    // branches, and a reserved review-gate slot was inserted between
+    // in-implementation and complete-advance. This asserts the in-implementation
+    // recommendation — the Task 1.2 baseline fixture, adjacent to the new slot —
+    // is byte-for-byte identical to its pre-rename value.
+    it('produces an unchanged recommendation for in-implementation after the branch rename (240 baseline)', async () => {
+      const project = makeProject({
+        fileSlice: '100-slice.test-feature.md',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next).toEqual({
+        recommendation: 'Continue implementation — 2 tasks remaining',
+        rationale: 'Slice 100 is in progress with 2 tasks left to complete.',
+        slice: '100-slice.test-feature.md',
+        phase: 'Phase 6: Implementation',
+        summary: 'Continue slice 100 — 2 tasks remaining',
+        suggestedCommand: "cf set phase 'Phase 6: Implementation'",
+      });
+    });
+
     it('suggests cf set phase when current phase does not match recommended phase', async () => {
       // Slice is in-implementation (Phase 6) but project phase is set to Phase 4
       const project = makeProject({

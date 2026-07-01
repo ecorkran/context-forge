@@ -10,8 +10,8 @@ projectState: >-
   DocumentDetectionResult has no review field; CONFIG_KEYS has no review keys;
   getNext() branches are labeled with ordinal comments (Priority 1..7, plus 2.5).
 dateCreated: 20260630
-dateUpdated: 20260630
-status: not_started
+dateUpdated: 20260701
+status: complete
 ---
 
 ## Context Summary
@@ -39,100 +39,100 @@ Reference the slice design (`lld` above) rather than re-deriving decisions. Rele
 
 ### 1. Setup and baseline
 
-- [ ] **1.1 Confirm working branch** — Effort: 1/5
-  - [ ] On branch `240-slice.review-artifact-discovery-and-config-keys` (Phase 6 implementation) per Git Rules. Confirm with `git branch --show-current`.
-  - [ ] Success: working tree clean.
+- [x] **1.1 Confirm working branch** — Effort: 1/5
+  - [x] On branch `240-slice.review-artifact-discovery-and-config-keys` (Phase 6 implementation) per Git Rules. Confirm with `git branch --show-current`.
+  - [x] Success: working tree clean.
 
-- [ ] **1.2 Capture the `cf next` regression baseline** — Effort: 1/5
-  - [ ] Identify the existing `getNext()` test fixture/sample project used by `packages/core/tests/introspection/WorkflowNavigator.test.ts`.
-  - [ ] Note (do not yet add a test) the current recommendation+rationale for one representative project state, to assert unchanged after the branch rename in Task 8.
-  - [ ] Success: a documented expected `NextAction` for at least one fixture state, referenced by Task 8's regression test.
+- [x] **1.2 Capture the `cf next` regression baseline** — Effort: 1/5
+  - [x] Identify the existing `getNext()` test fixture/sample project used by `packages/core/tests/introspection/WorkflowNavigator.test.ts`.
+  - [x] Note (do not yet add a test) the current recommendation+rationale for one representative project state, to assert unchanged after the branch rename in Task 8.
+  - [x] Success: a documented expected `NextAction` for at least one fixture state, referenced by Task 8's regression test.
 
 ### 2. DocumentDetectionResult.review field
 
-- [ ] **2.1 Add `review` field to `DocumentDetectionResult`** — Effort: 1/5
-  - [ ] In `packages/core/src/introspection/types.ts`, add `review: string | null;` to the `DocumentDetectionResult` interface (sibling to `sliceDesign`/`architecture`/`slicePlan`).
-  - [ ] Do not change any other field.
-  - [ ] Success: `pnpm --filter @context-forge/core typecheck` now reports an error in `documentDetector.ts` (the returned object is missing `review`). This expected error guides Task 3 and confirms the field is wired into the type.
+- [x] **2.1 Add `review` field to `DocumentDetectionResult`** — Effort: 1/5
+  - [x] In `packages/core/src/introspection/types.ts`, add `review: string | null;` to the `DocumentDetectionResult` interface (sibling to `sliceDesign`/`architecture`/`slicePlan`).
+  - [x] Do not change any other field.
+  - [x] Success: `pnpm --filter @context-forge/core typecheck` now reports an error in `documentDetector.ts` (the returned object is missing `review`). This expected error guides Task 3 and confirms the field is wired into the type.
 
 ### 3. Review-artifact detection rule
 
-- [ ] **3.1 Extend `detectDocuments` with optional `reviewType` and reviews scan** — Effort: 3/5
-  - [ ] In `packages/core/src/introspection/parsers/documentDetector.ts`, add a third optional parameter `reviewType?: string` to `detectDocuments` (signature per TD-2). Keep the explicit `Promise<DocumentDetectionResult>` return type.
-  - [ ] Add `reviews` to the existing `Promise.all` `safeReaddir` batch (do **not** add a separate `await`) — matches the current concurrency pattern. Use `join(projectPath, USER_DOCS, 'reviews')`.
-  - [ ] When `reviewType` is provided, match with the existing `matchFiles(reviewFiles, \`${idx}-review.${reviewType}.\`, join(USER_DOCS, 'reviews'))` and set `review` to the **lexicographically last** match (`matches.at(-1) ?? null`).
-  - [ ] When `reviewType` is omitted, set `review = null` without scanning/matching. The detector never infers a review type.
-  - [ ] Add the `review` field to the returned object.
-  - [ ] Add an inline comment at the selection site explaining `at(-1)` (last/most-recent) vs sibling detectors' `[0]`, so a future reader does not "fix" it (per Special Considerations).
-  - [ ] No `any`; `review` is `string | null`.
-  - [ ] Success: typecheck passes (Task 2.1 error resolved); existing two-arg callers compile unchanged.
+- [x] **3.1 Extend `detectDocuments` with optional `reviewType` and reviews scan** — Effort: 3/5
+  - [x] In `packages/core/src/introspection/parsers/documentDetector.ts`, add a third optional parameter `reviewType?: string` to `detectDocuments` (signature per TD-2). Keep the explicit `Promise<DocumentDetectionResult>` return type.
+  - [x] Add `reviews` to the existing `Promise.all` `safeReaddir` batch (do **not** add a separate `await`) — matches the current concurrency pattern. Use `join(projectPath, USER_DOCS, 'reviews')`.
+  - [x] When `reviewType` is provided, match with the existing `matchFiles(reviewFiles, \`${idx}-review.${reviewType}.\`, join(USER_DOCS, 'reviews'))` and set `review` to the **lexicographically last** match (`matches.at(-1) ?? null`).
+  - [x] When `reviewType` is omitted, set `review = null` without scanning/matching. The detector never infers a review type.
+  - [x] Add the `review` field to the returned object.
+  - [x] Add an inline comment at the selection site explaining `at(-1)` (last/most-recent) vs sibling detectors' `[0]`, so a future reader does not "fix" it (per Special Considerations).
+  - [x] No `any`; `review` is `string | null`.
+  - [x] Success: typecheck passes (Task 2.1 error resolved); existing two-arg callers compile unchanged.
 
-- [ ] **3.2 Unit tests for the detection rule** — Effort: 2/5
-  - [ ] In `packages/core/tests/introspection/documentDetector.test.ts`, add a fixture (or temp dir) containing `project-documents/user/reviews/` with review files for a test index.
-  - [ ] Cover the cases from Success Criteria → Technical Requirements:
+- [x] **3.2 Unit tests for the detection rule** — Effort: 2/5
+  - [x] In `packages/core/tests/introspection/documentDetector.test.ts`, add a fixture (or temp dir) containing `project-documents/user/reviews/` with review files for a test index.
+  - [x] Cover the cases from Success Criteria → Technical Requirements:
     1. single match found with `reviewType` supplied → returns that path
     2. multiple matches → **last** (lexicographic) wins
     3. `reviewType` omitted → `review` is `null` (even when matching files exist)
     4. empty/missing `reviews/` dir → `null`
     5. non-matching index → `null`
-  - [ ] Add/confirm a test that an existing two-arg `detectDocuments(path, idx)` call returns `review: null` and is otherwise unchanged.
-  - [ ] Success: `pnpm --filter @context-forge/core test documentDetector` passes all new + existing cases.
+  - [x] Add/confirm a test that an existing two-arg `detectDocuments(path, idx)` call returns `review: null` and is otherwise unchanged.
+  - [x] Success: `pnpm --filter @context-forge/core test documentDetector` passes all new + existing cases.
 
 ### 4. Global review config keys
 
-- [ ] **4.1 Add `workflow.review_enabled`** — Effort: 1/5
-  - [ ] In `packages/core/src/config/ConfigKeys.ts`, add the boolean key with `default: false` and the description from TD-3, placed in the existing `workflow.*` ordering.
-  - [ ] Success: key present with correct type/default/description; file still valid TS.
+- [x] **4.1 Add `workflow.review_enabled`** — Effort: 1/5
+  - [x] In `packages/core/src/config/ConfigKeys.ts`, add the boolean key with `default: false` and the description from TD-3, placed in the existing `workflow.*` ordering.
+  - [x] Success: key present with correct type/default/description; file still valid TS.
 
-- [ ] **4.2 Add `workflow.review_threshold`** — Effort: 1/5
-  - [ ] Add the string key with `default: 'concerns'`, `enum: ['pass', 'concerns']`, and the TD-3 description (lowercase tokens).
-  - [ ] Success: key present with enum enforcement via the existing `validate`/`enum` path.
+- [x] **4.2 Add `workflow.review_threshold`** — Effort: 1/5
+  - [x] Add the string key with `default: 'concerns'`, `enum: ['pass', 'concerns']`, and the TD-3 description (lowercase tokens).
+  - [x] Success: key present with enum enforcement via the existing `validate`/`enum` path.
 
-- [ ] **4.3 Add `workflow.review_unknown_as`** — Effort: 1/5
-  - [ ] Add the string key with `default: 'fail'`, `enum: ['fail', 'concern', 'pass']`, and the TD-3 description.
-  - [ ] Success: key present with enum enforcement.
+- [x] **4.3 Add `workflow.review_unknown_as`** — Effort: 1/5
+  - [x] Add the string key with `default: 'fail'`, `enum: ['fail', 'concern', 'pass']`, and the TD-3 description.
+  - [x] Success: key present with enum enforcement.
 
-- [ ] **4.4 Unit tests for global key validation** — Effort: 2/5
-  - [ ] In `packages/core/tests/config/` (extend `ConfigManager.test.ts` or add a `ConfigKeys` test consistent with the existing setup), cover Success Criteria → Technical Requirements:
+- [x] **4.4 Unit tests for global key validation** — Effort: 2/5
+  - [x] In `packages/core/tests/config/` (extend `ConfigManager.test.ts` or add a `ConfigKeys` test consistent with the existing setup), cover Success Criteria → Technical Requirements:
     - valid + invalid `review_threshold` (e.g. `pass` ok, `bogus` rejected with a message naming allowed values)
     - valid + invalid `review_unknown_as`
     - `review_enabled` type check (boolean accepted, non-boolean rejected)
-  - [ ] Success: `pnpm --filter @context-forge/core test` passes the new validation cases.
+  - [x] Success: `pnpm --filter @context-forge/core test` passes the new validation cases.
 
 ### 5. Per-gate override config keys (flat dotted scalars — TD-1)
 
-- [ ] **5.1 Add `pre_advance` override key pair** — Effort: 1/5
-  - [ ] Add `workflow.review_gates.pre_advance.review_type` and `workflow.review_gates.pre_advance.threshold` as flat scalar string keys, `default: ''` (empty = "use the global key"). Apply the same enum as the global `review_threshold` to the `.threshold` key; `.review_type` is a free string for now (its vocabulary is gate logic, 241).
-  - [ ] Success: both keys present; empty default; no consumer added.
+- [x] **5.1 Add `pre_advance` override key pair** — Effort: 1/5
+  - [x] Add `workflow.review_gates.pre_advance.review_type` and `workflow.review_gates.pre_advance.threshold` as flat scalar string keys, `default: ''` (empty = "use the global key"). Apply the same enum as the global `review_threshold` to the `.threshold` key; `.review_type` is a free string for now (its vocabulary is gate logic, 241).
+  - [x] Success: both keys present; empty default; no consumer added.
 
-- [ ] **5.2 Add `pre_slice_plan` override key pair** — Effort: 1/5
-  - [ ] Mirror 5.1 for `workflow.review_gates.pre_slice_plan.{review_type,threshold}`.
-  - [ ] Success: both keys present.
+- [x] **5.2 Add `pre_slice_plan` override key pair** — Effort: 1/5
+  - [x] Mirror 5.1 for `workflow.review_gates.pre_slice_plan.{review_type,threshold}`.
+  - [x] Success: both keys present.
 
-- [ ] **5.3 Add `pre_tasks` override key pair** — Effort: 1/5
-  - [ ] Mirror 5.1 for `workflow.review_gates.pre_tasks.{review_type,threshold}`.
-  - [ ] Success: both keys present.
+- [x] **5.3 Add `pre_tasks` override key pair** — Effort: 1/5
+  - [x] Mirror 5.1 for `workflow.review_gates.pre_tasks.{review_type,threshold}`.
+  - [x] Success: both keys present.
 
-- [ ] **5.4 Add `pre_implementation` override key pair** — Effort: 1/5
-  - [ ] Mirror 5.1 for `workflow.review_gates.pre_implementation.{review_type,threshold}`.
-  - [ ] Success: both keys present. (Underscore spelling per TD-1 — do not use hyphens.)
+- [x] **5.4 Add `pre_implementation` override key pair** — Effort: 1/5
+  - [x] Mirror 5.1 for `workflow.review_gates.pre_implementation.{review_type,threshold}`.
+  - [x] Success: both keys present. (Underscore spelling per TD-1 — do not use hyphens.)
 
-- [ ] **5.5 Unit test for override key round-trip** — Effort: 2/5
-  - [ ] Add a test that setting `workflow.review_gates.pre_advance.review_type` and `.threshold` persists and reads back via `ConfigManager.get`, and renders as a nested `[workflow.review_gates.pre_advance]` table in `.context-forge.toml` (read the written TOML in the test).
-  - [ ] Confirm the `.threshold` override rejects an out-of-enum value if the enum is applied.
-  - [ ] Success: round-trip test passes; nested-table rendering verified.
+- [x] **5.5 Unit test for override key round-trip** — Effort: 2/5
+  - [x] Add a test that setting `workflow.review_gates.pre_advance.review_type` and `.threshold` persists and reads back via `ConfigManager.get`, and renders as a nested `[workflow.review_gates.pre_advance]` table in `.context-forge.toml` (read the written TOML in the test).
+  - [x] Confirm the `.threshold` override rejects an out-of-enum value if the enum is applied.
+  - [x] Success: round-trip test passes; nested-table rendering verified.
 
 ### 6. Checkpoint commit (additive interfaces complete)
 
-- [ ] **6.1 Build, test, commit** — Effort: 1/5
-  - [ ] `pnpm -r build && pnpm -r test` green.
-  - [ ] Commit from project root. Suggested: `feat(core): add review detection slot and review config keys`.
-  - [ ] Success: clean buildable checkpoint before the comment-only WorkflowNavigator change.
+- [x] **6.1 Build, test, commit** — Effort: 1/5
+  - [x] `pnpm -r build && pnpm -r test` green.
+  - [x] Commit from project root. Suggested: `feat(core): add review detection slot and review config keys`.
+  - [x] Success: clean buildable checkpoint before the comment-only WorkflowNavigator change.
 
 ### 7. Rename getNext() cascade branches (comment-only — TD-4)
 
-- [ ] **7.1 Replace ordinal branch comments with named `GUARD:`/`LIFECYCLE:` labels** — Effort: 2/5
-  - [ ] In `packages/core/src/introspection/WorkflowNavigator.ts`, rename the branch comments exactly per the TD-4 mapping table:
+- [x] **7.1 Replace ordinal branch comments with named `GUARD:`/`LIFECYCLE:` labels** — Effort: 2/5
+  - [x] In `packages/core/src/introspection/WorkflowNavigator.ts`, rename the branch comments exactly per the TD-4 mapping table:
     - `Priority 1` → `GUARD: no-project-path`
     - `Priority 2` → `GUARD: no-active-slice`
     - `Priority 2.5` → `GUARD: arch-file-missing` (fraction retired)
@@ -141,29 +141,29 @@ Reference the slice design (`lld` above) rather than re-deriving decisions. Rele
     - `Priority 5` → `LIFECYCLE: in-implementation` (cf Phase 6)
     - `Priority 6` → `LIFECYCLE: complete-advance`
     - `Priority 7` → `GUARD: complete-no-plan`
-  - [ ] **Do not add, remove, or reorder any branch.** Comments only. Branch order (precedence) is unchanged.
-  - [ ] Success: all `Priority N` comments gone; no logic diff (verify with `git diff` showing only comment lines changed).
+  - [x] **Do not add, remove, or reorder any branch.** Comments only. Branch order (precedence) is unchanged.
+  - [x] Success: all `Priority N` comments gone; no logic diff (verify with `git diff` showing only comment lines changed).
 
-- [ ] **7.2 Insert the reserved `review-gate` placeholder comment** — Effort: 1/5
-  - [ ] Between the `LIFECYCLE: in-implementation` branch and the `LIFECYCLE: complete-advance` branch, insert the placeholder comment block from TD-4 (reserved for initiative 240 review gate, added in slice 241; not a stock cf phase; no branch logic here yet).
-  - [ ] Success: placeholder present at the correct insertion point; no executable code added.
+- [x] **7.2 Insert the reserved `review-gate` placeholder comment** — Effort: 1/5
+  - [x] Between the `LIFECYCLE: in-implementation` branch and the `LIFECYCLE: complete-advance` branch, insert the placeholder comment block from TD-4 (reserved for initiative 240 review gate, added in slice 241; not a stock cf phase; no branch logic here yet).
+  - [x] Success: placeholder present at the correct insertion point; no executable code added.
 
-- [ ] **7.3 Fix the stale cross-reference and reword the doc-comment** — Effort: 1/5
-  - [ ] Update the `:318` cross-reference: "falls through to standard Priority 2 logic" → "falls through to the `no-active-slice` guard".
-  - [ ] Optionally reword the function doc-comment at `:81` if it references ordinals; meaning must stay unchanged.
-  - [ ] Success: no remaining references to the retired ordinals anywhere in the file.
+- [x] **7.3 Fix the stale cross-reference and reword the doc-comment** — Effort: 1/5
+  - [x] Update the `:318` cross-reference: "falls through to standard Priority 2 logic" → "falls through to the `no-active-slice` guard".
+  - [x] Optionally reword the function doc-comment at `:81` if it references ordinals; meaning must stay unchanged.
+  - [x] Success: no remaining references to the retired ordinals anywhere in the file.
 
-- [ ] **7.4 `cf next` regression test (no behavioral change)** — Effort: 2/5
-  - [ ] In `packages/core/tests/introspection/WorkflowNavigator.test.ts`, add (or confirm) a test asserting the recommendation+rationale for the Task 1.2 baseline fixture is **identical** to the pre-change value.
-  - [ ] Success: regression test passes, proving the rename is behavior-preserving.
+- [x] **7.4 `cf next` regression test (no behavioral change)** — Effort: 2/5
+  - [x] In `packages/core/tests/introspection/WorkflowNavigator.test.ts`, add (or confirm) a test asserting the recommendation+rationale for the Task 1.2 baseline fixture is **identical** to the pre-change value.
+  - [x] Success: regression test passes, proving the rename is behavior-preserving.
 
 ### 8. Final validation and commit
 
-- [ ] **8.1 Full build + test + behavioral check** — Effort: 1/5
-  - [ ] `pnpm -r build && pnpm -r test` green.
-  - [ ] Run the Verification Walkthrough steps 1–4 from the design (config keys list/validate, override round-trip, detector unit test, `cf next` unchanged). Step 5 (build) is covered above.
-  - [ ] Confirm no `any` introduced and explicit return types on changed exported functions.
-  - [ ] Success: all walkthrough checks pass; suite green.
+- [x] **8.1 Full build + test + behavioral check** — Effort: 1/5
+  - [x] `pnpm -r build && pnpm -r test` green.
+  - [x] Run the Verification Walkthrough steps 1–4 from the design (config keys list/validate, override round-trip, detector unit test, `cf next` unchanged). Step 5 (build) is covered above.
+  - [x] Confirm no `any` introduced and explicit return types on changed exported functions.
+  - [x] Success: all walkthrough checks pass; suite green.
 
 - [ ] **8.2 Commit** — Effort: 1/5
   - [ ] Commit from project root. Suggested: `refactor(core): name getNext branches and reserve review-gate slot`.

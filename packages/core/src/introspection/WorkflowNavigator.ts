@@ -81,7 +81,7 @@ export class WorkflowNavigator {
    * Uses a priority-ordered state machine based on getStatus().
    */
   async getNext(project: ProjectData): Promise<NextAction> {
-    // Priority 1: No projectPath
+    // GUARD: no-project-path
     if (!project.projectPath) {
       return {
         recommendation: 'Set projectPath',
@@ -94,7 +94,7 @@ export class WorkflowNavigator {
     const status = await this.getStatus(project);
     const slice = status.activeSlice;
 
-    // Priority 2: No fileSlice
+    // GUARD: no-active-slice
     if (!slice || slice.status === 'no-active-slice') {
       // Determine whether the arch file actually exists on disk
       const archRelPath = project.fileArch ? resolveArtifactPath('fileArch', project.fileArch) : null;
@@ -184,7 +184,7 @@ export class WorkflowNavigator {
       }
     }
 
-    // Priority 2.5: Arch set but file doesn't exist — recommend creating arch first
+    // GUARD: arch-file-missing — arch set but file doesn't exist; recommend creating arch first
     if (project.fileArch && !archFileExists) {
       return {
         recommendation: 'Create architecture document',
@@ -209,7 +209,7 @@ export class WorkflowNavigator {
       return result;
     };
 
-    // Priority 3: needs-design
+    // LIFECYCLE: needs-design (cf Phase 4)
     if (slice.status === 'needs-design') {
       return enrich({
         recommendation: 'Create slice design (Phase 4)',
@@ -220,7 +220,7 @@ export class WorkflowNavigator {
       });
     }
 
-    // Priority 4: needs-tasks
+    // LIFECYCLE: needs-tasks (cf Phase 5)
     if (slice.status === 'needs-tasks') {
       return enrich({
         recommendation: 'Create task breakdown (Phase 5)',
@@ -231,7 +231,7 @@ export class WorkflowNavigator {
       });
     }
 
-    // Priority 5: in-implementation
+    // LIFECYCLE: in-implementation (cf Phase 6)
     if (slice.status === 'in-implementation') {
       const remaining = slice.taskProgress
         ? slice.taskProgress.total - slice.taskProgress.completed
@@ -245,7 +245,10 @@ export class WorkflowNavigator {
       });
     }
 
-    // Priority 6: complete → check for next slice in plan
+    // LIFECYCLE: review-gate — reserved for initiative 240 review gate (added in slice 241).
+    // Not a stock cf workflow phase. No branch logic here yet.
+
+    // LIFECYCLE: complete-advance — slice complete → recommend next slice (not a phase)
     if (slice.status === 'complete' && status.slicePlan) {
       const nextEntry = status.slicePlan.entries.find((e) => !e.isChecked);
       if (nextEntry) {
@@ -265,7 +268,7 @@ export class WorkflowNavigator {
       });
     }
 
-    // Priority 7 (fallback): complete but no plan
+    // GUARD: complete-no-plan (fallback) — slice complete but no slice plan
     if (slice.status === 'complete') {
       if (project.fileSlicePlan) {
         const inPhase3 = currentPhase.startsWith('Phase 3');
@@ -315,7 +318,7 @@ export class WorkflowNavigator {
   /**
    * Returns enriched guidance for sparse/fresh project states (FR-1–FR-4).
    * Only called when no active slice is set AND the project lacks established artifacts.
-   * Returns null if no first-run condition matches (falls through to standard Priority 2 logic).
+   * Returns null if no first-run condition matches (falls through to the `no-active-slice` guard).
    */
   private detectFirstRunContext(
     project: ProjectData,
