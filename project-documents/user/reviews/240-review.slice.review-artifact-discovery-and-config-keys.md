@@ -8,115 +8,95 @@ verdict: PASS
 sourceDocument: project-documents/user/slices/240-slice.review-artifact-discovery-and-config-keys.md
 aiModel: minimax/minimax-m2.7
 status: complete
-dateCreated: 20260626
-dateUpdated: 20260628
+dateCreated: 20260630
+dateUpdated: 20260630
 findings:
   - id: F001
-    severity: pass
-    category: uncategorized
-    summary: "Correct slice plan assignment"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#Overview
+    severity: note
+    category: documentation-consistency
+    summary: "Config token mismatch between architecture example and slice implementation"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-3
   - id: F002
     severity: pass
-    category: uncategorized
-    summary: "Architecture open item correctly resolved"
+    category: design-choices
+    summary: "Flat dotted-key namespace decision resolves the architecture's open config schema item"
     location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-1
   - id: F003
     severity: pass
-    category: uncategorized
-    summary: "Conservative defaults match architecture intent"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-3
+    category: design-choices
+    summary: "TOML underscore-spelling decision correctly adapts architecture examples to technical constraint"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-1
   - id: F004
     severity: pass
-    category: uncategorized
-    summary: "Scope correctly bounded — no gate logic"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#Technical-Scope
+    category: design-choices
+    summary: "Branch naming cleanly resolves architecture's priority-renumbering concern"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-4
   - id: F005
     severity: pass
-    category: uncategorized
-    summary: "No-behavioral-change commitment honors \"Extend, don't replace\""
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#Overview
+    category: error-handling
+    summary: "File-read failure modes fully deferred to slice 241"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#Deferred-to-Other-Slices
   - id: F006
     severity: pass
-    category: uncategorized
-    summary: "Detection rule design aligns with architecture"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-2
+    category: error-handling
+    summary: "Enum validation enforces architecture's fail-fast requirement"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-3
   - id: F007
     severity: pass
-    category: uncategorized
-    summary: "No new dependencies to 160 interfaces"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#Dependencies
+    category: design-choices
+    summary: "Conservative defaults correctly implement architecture's \"Conservative by default\" design goal"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-3
   - id: F008
-    severity: concern
-    category: uncategorized
-    summary: "TOML key spelling deviation documentation gap"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#TD-1
-    resolution: "Resolved 20260628. Slice 243 added to interfaces; TD-1 and a new 'Provides to Other Slices' bullet capture the underscore-spelling documentation obligation explicitly."
+    severity: pass
+    category: scope-management
+    summary: "Scope correctly bounded to detection and config; no gate logic included"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#Technical-Scope
   - id: F009
-    severity: concern
-    category: uncategorized
-    summary: "File-read failure modes deferred without explicit acknowledgment"
-    location: 240-slice.review-artifact-discovery-and-config-keys.md#Integration-Points
-    resolution: "Resolved 20260628. New 'Deferred to Other Slices' section states file-read/parse-failure handling (UNKNOWN per arch) is owned by slice 241; this slice only locates the file and never opens it."
+    severity: pass
+    category: metadata-format
+    summary: "Interfaces field correctly identifies slice plan as parent, not architecture document"
+    location: 240-slice.review-artifact-discovery-and-config-keys.md#header
 ---
 
 # Review: slice — slice 240
 
-**Verdict:** PASS _(was CONCERNS; both concerns resolved 20260628 — see resolution notes on F008/F009)_
+**Verdict:** PASS
 **Model:** minimax/minimax-m2.7
 
 ## Findings
 
-### [PASS] Correct slice plan assignment
+### [NOTE] Config token mismatch between architecture example and slice implementation
 
-The slice correctly identifies itself as the "Review artifact discovery and config keys" foundation slice from the arch's "Anticipated Slices" section. The three deliverables (review slot, config keys, branch renaming) map precisely to the arch's description.
+The architecture's Technical Considerations section uses `review_unknown_as = "concern"` in prose describing the interaction with `review_threshold`. The slice's TD-3 defines the enum as `['fail', 'concern', 'pass']` (no trailing 's'). The slice's enum and default value (`'fail'`) are internally consistent, so this is not a functional error. However, the architecture's prose example for `"concern"` is ambiguous — it could be a typo for `"concerns"` (matching `review_threshold`'s vocabulary) or it could mean the slice's lowercase `"concern"` value. Given the architecture explicitly states the threshold vocabulary is `"pass"` / `"concerns"`, the `"concern"` example may have been intended to reference the same value and accidentally omitted the 's'. This is informational; no change required in this slice.
 
-### [PASS] Architecture open item correctly resolved
+### [PASS] Flat dotted-key namespace decision resolves the architecture's open config schema item
 
-The arch explicitly flagged "Config schema for `review_gates`" as an open decision requiring resolution at slice design time. The slice resolves it with a flat dotted-key namespace, providing a sound rationale: fits existing `ConfigManager` machinery with zero changes, avoids disproportionate complexity for a four-row map, and still renders as a nested TOML table to users. This is appropriate.
+The architecture's Technical Considerations flagged an open decision: the per-transition override map uses a nested TOML table, but `ConfigKeyDefinition` models scalar keys. The slice resolves this by using flat dotted keys (`workflow.review_gates.pre_advance.review_type`, `workflow.review_gates.pre_advance.threshold`). This requires zero changes to `ConfigManager` machinery, fits the existing `ConfigKeyDefinition` interface as-is, and still renders naturally as nested TOML tables in `.context-forge.toml`. The decision to defer a nested-object extension to `ConfigKeyDefinition` is explicitly justified and follows the project principle to resist complexity until needed.
 
-### [PASS] Conservative defaults match architecture intent
+### [PASS] TOML underscore-spelling decision correctly adapts architecture examples to technical constraint
 
-The three global config keys correctly implement the arch's "Conservative by default" principle:
-- `review_enabled = false` (gating off by default)
-- `review_threshold = "concerns"` (passes PASS or CONCERNS)
-- `review_unknown_as = "fail"` (UNKNOWN blocks by default)
+The architecture illustrates `review_gates` keys with TOML bare keys containing hyphens (`pre-slice-plan`, `pre-tasks`, `pre-implementation`, `pre-advance`). The slice correctly notes that TOML bare keys disallow `-` and adopts underscore spelling (`pre_advance`, `pre_slice_plan`, `pre_tasks`, `pre_implementation`). The cross-slice obligation to slice 243 is captured explicitly under "Provides to Other Slices," satisfying the review resolution requirement F008. This is a correct and necessary adaptation.
 
-The enum/validate enforcement aligns with the arch's "Fail-fast on configuration errors" principle.
+### [PASS] Branch naming cleanly resolves architecture's priority-renumbering concern
 
-### [PASS] Scope correctly bounded — no gate logic
+The architecture's Technical Considerations states: "Adding a new branch between 5 and 6 requires renumbering to avoid fractional priorities. The slice implementing the gate logic should renumber the full cascade (or convert to named stages) as part of the same change." The slice resolves this by converting to named stages (`GUARD:` / `LIFECYCLE:` prefixes), retiring the `Priority 2.5` fraction as a side effect, and inserting a placeholder `LIFECYCLE: review-gate` slot. The rename is comment-only with zero behavioral change, satisfying the "extend, don't replace" principle and ensuring 241 can slot logic into the named position without further cascade surgery.
 
-The explicit exclusions are correct and align with the arch's "Anticipated Slices" assignment:
-- No `SliceStatus` enum changes, no `deriveSliceStatus()` changes (→ 241)
-- No verdict reading or threshold comparison (→ 241)
-- No `ConsistencyChecker` rule (→ 242)
-- No initiative-level gating (→ 244)
-- No documentation beyond config descriptions (→ 243)
+### [PASS] File-read failure modes fully deferred to slice 241
 
-### [PASS] No-behavioral-change commitment honors "Extend, don't replace"
+The architecture requires that a review file which exists but cannot be parsed must not silently pass — treated as `UNKNOWN` with `review_unknown_as` applying. The slice explicitly defers this to slice 241, noting that `detectDocuments` only *locates* the file and returns its path (or `null` when absent). The file is never opened, so failure modes (malformed YAML, unreadable encoding, permission error) cannot occur in this slice. This is the correct architectural boundary — the detector's job ends at artifact discovery; verdict parsing and failure evaluation are gate logic. The explicit acknowledgment satisfies review finding F009.
 
-"After this slice, `cf next` / `workflow_next` behave **identically to today**" directly satisfies the arch's "Extend, don't replace" principle. The branch renaming is comment-only, the new config keys default to off, and the success criteria include a regression test asserting unchanged recommendations.
+### [PASS] Enum validation enforces architecture's fail-fast requirement
 
-### [PASS] Detection rule design aligns with architecture
+The architecture states: "Fail-fast on configuration errors. An invalid `workflow.review_threshold` value or an unrecognized per-gate config is a config error surfaced immediately." The slice implements `enum: ['pass', 'concerns']` on `review_threshold` and `enum: ['fail', 'concern', 'pass']` on `review_unknown_as`, routing through the existing `validateValue` path. This ensures `cf config set workflow.review_threshold bogus` fails at set time with named allowed values, not at evaluation time with silent behavior.
 
-The optional `reviewType` parameter with explicit null-return when omitted honors the arch's "Do not guess" principle. The lexicographically-last selection (`at(-1)`) is correctly differentiated from the sibling detectors' first-match (`[0]`) with a documented rationale. The `reviews/` directory path matches the arch's specification.
+### [PASS] Conservative defaults correctly implement architecture's "Conservative by default" design goal
 
-### [PASS] No new dependencies to 160 interfaces
+The architecture's design goals specify: "Review gating is off unless `workflow.review_enabled = true`. When enabled, the default threshold (`concerns`) passes on `PASS` or `CONCERNS` and blocks on `FAIL` or `UNKNOWN`." The slice implements: `review_enabled: default false`, `review_threshold: default 'concerns'`, `review_unknown_as: default 'fail'`. The claim "after this slice, `cf next` / `workflow_next` behave **identically to today**" is therefore structurally guaranteed — gating is off by default and no consumer reads the `review` slot.
 
-"None. This slice is purely additive to initiative 160's infrastructure" is correct. The slice reuses `detectDocuments`, `CONFIG_KEYS`, and `ConfigManager` without changing their signatures in backward-incompatible ways (the `reviewType?` parameter is optional).
+### [PASS] Scope correctly bounded to detection and config; no gate logic included
 
-### [RESOLVED] TOML key spelling deviation documentation gap
+The slice's "Explicitly excluded" list correctly defers all gate logic to slice 241, consistency rules to 242, initiative-level detection to 244, and documentation updates to 243. The slice makes no changes to `SliceStatus` enum, `deriveSliceStatus()`, verdict reading, threshold comparison, or `review_unknown_as` evaluation. The scope is cleanly additive to initiative 160's infrastructure with no interface changes.
 
-_Originally CONCERN. Resolved 20260628._
+### [PASS] Interfaces field correctly identifies slice plan as parent, not architecture document
 
-The arch uses hyphenated names in its illustrative TOML (`pre-slice-plan`, `pre-advance`) while TOML bare keys prohibit hyphens, requiring underscores (`pre_advance`, `pre_slice_plan`). The slice correctly documents this technical constraint. However, the statement "This is the one deviation from the arch doc's illustrative `pre-advance` spelling and must be reflected in slice 243 docs" places the remediation in slice 243 (documentation) without confirming that slice 243 is aware of this requirement. Given that interfaces: [241, 242, 244] are listed but 243 is not, this cross-slice documentation commitment should be explicitly captured in a dependency or interface note so it is not lost.
-
-**Resolution:** Slice 243 was added to the slice's `interfaces` list (`[241, 242, 243, 244]`). TD-1 now states the underscore spelling is a documentation obligation handed to 243, cross-referencing a new explicit bullet under "Provides to Other Slices" that directs 243 to document the underscore keys and the deviation from the arch's illustrative hyphenated form. The commitment is now captured in a place 243's author will see.
-
-### [RESOLVED] File-read failure modes deferred without explicit acknowledgment
-
-_Originally CONCERN. Resolved 20260628._
-
-The architecture states: "A review file that exists but cannot be parsed (malformed YAML, unreadable encoding, permission error) must not silently pass. It is treated as `UNKNOWN` and `review_unknown_as` applies." The slice correctly defers parsing to slice 241 since this is a foundation layer. However, the slice does not explicitly acknowledge this gap — it does not say "file-read failures during review artifact parsing are handled in slice 241 per arch §Technical Considerations." This is acceptable for a foundation slice but creates an implicit dependency on 241 to handle the arch's explicit failure mode enumeration. Consider adding a note under "Provides to Other Slices" or "Special Considerations" that documents this expectation.
-
-**Resolution:** A new "Deferred to Other Slices" subsection under Integration Points now states explicitly that file-read/parse-failure handling (treating an existing-but-unparseable review as `UNKNOWN`, per arch §Technical Considerations) is gate logic owned by slice 241. It clarifies that this foundation slice only *locates* the file via `detectDocuments` and never opens it — so it neither partially handles nor silently swallows the failure modes; 241 owns the full enumeration.
+The `parent` field is `project-documents/user/architecture/240-slices.review-aware-workflow-gating.md` (the slice plan document) rather than the architecture document `240-arch.review-aware-workflow-gating.md`. Per the review instructions, this is expected and is not an error. The architecture document is the semantic parent; the slice plan is the operational parent.
