@@ -44,6 +44,47 @@ describe('detectDocuments', () => {
     expect(result.architecture).toBeNull();
     expect(result.slicePlan).toBeNull();
   });
+
+  it('returns review: null for existing two-arg callers (unaffected by reviewType)', async () => {
+    const result = await detectDocuments(PROJECT_ROOT, 100);
+    expect(result.review).toBeNull();
+  });
+
+  describe('review detection (reviewType)', () => {
+    it('returns null when reviewType is omitted, even when matching review files exist', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100);
+      expect(result.review).toBeNull();
+    });
+
+    it('returns the single match when exactly one review exists for a type', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100, 'arch');
+      expect(result.review).toBe(
+        'project-documents/user/reviews/100-review.arch.only-pass.md',
+      );
+    });
+
+    it('returns the lexicographically last match when multiple reviews exist for a type', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100, 'code');
+      expect(result.review).toBe(
+        'project-documents/user/reviews/100-review.code.second-pass.md',
+      );
+    });
+
+    it('returns null for a non-matching reviewType', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100, 'tasks');
+      expect(result.review).toBeNull();
+    });
+
+    it('returns null for a non-matching index', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 999, 'code');
+      expect(result.review).toBeNull();
+    });
+
+    it('returns null when the reviews directory is missing', async () => {
+      const result = await detectDocuments('/nonexistent/project', 100, 'code');
+      expect(result.review).toBeNull();
+    });
+  });
 });
 
 describe('checkFileExists', () => {

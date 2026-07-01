@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
@@ -233,19 +233,129 @@ describe('ConfigManager', () => {
     });
   });
 
+  // --- review config keys (slice 240) ---
+
+  describe('review config keys', () => {
+    it('defaults workflow.review_enabled to false', async () => {
+      const cm = new ConfigManager();
+      const result = await cm.get('workflow.review_enabled');
+      expect(result.value).toBe(false);
+      expect(result.source).toBe('default');
+    });
+
+    it('rejects a non-boolean workflow.review_enabled', async () => {
+      const cm = new ConfigManager();
+      await expect(
+        cm.set('workflow.review_enabled', 'yes' as unknown as boolean, 'user')
+      ).rejects.toThrow('expects type "boolean"');
+    });
+
+    it('defaults workflow.review_threshold to concerns', async () => {
+      const cm = new ConfigManager();
+      const result = await cm.get('workflow.review_threshold');
+      expect(result.value).toBe('concerns');
+      expect(result.source).toBe('default');
+    });
+
+    it('accepts a valid workflow.review_threshold', async () => {
+      const cm = new ConfigManager();
+      await cm.set('workflow.review_threshold', 'pass', 'user');
+      const result = await cm.get('workflow.review_threshold');
+      expect(result.value).toBe('pass');
+    });
+
+    it('rejects an invalid workflow.review_threshold, naming allowed values', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('workflow.review_threshold', 'bogus', 'user')).rejects.toThrow(
+        'must be one of ["pass", "concerns"]'
+      );
+    });
+
+    it('defaults workflow.review_unknown_as to fail', async () => {
+      const cm = new ConfigManager();
+      const result = await cm.get('workflow.review_unknown_as');
+      expect(result.value).toBe('fail');
+      expect(result.source).toBe('default');
+    });
+
+    it('accepts a valid workflow.review_unknown_as', async () => {
+      const cm = new ConfigManager();
+      await cm.set('workflow.review_unknown_as', 'concern', 'user');
+      const result = await cm.get('workflow.review_unknown_as');
+      expect(result.value).toBe('concern');
+    });
+
+    it('rejects an invalid workflow.review_unknown_as, naming allowed values', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('workflow.review_unknown_as', 'bogus', 'user')).rejects.toThrow(
+        'must be one of ["fail", "concern", "pass"]'
+      );
+    });
+  });
+
+  // --- per-gate override keys (slice 240, TD-1) ---
+
+  describe('review_gates override keys', () => {
+    it('round-trips pre_advance.review_type and .threshold and renders as a nested TOML table', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('workflow.review_gates.pre_advance.review_type', 'code', 'project');
+      await cm.set('workflow.review_gates.pre_advance.threshold', 'concerns', 'project');
+
+      const reviewType = await cm.get('workflow.review_gates.pre_advance.review_type');
+      const threshold = await cm.get('workflow.review_gates.pre_advance.threshold');
+      expect(reviewType.value).toBe('code');
+      expect(reviewType.source).toBe('project');
+      expect(threshold.value).toBe('concerns');
+      expect(threshold.source).toBe('project');
+
+      const tomlContent = await readFile(getProjectConfigPath(projectDir), 'utf-8');
+      expect(tomlContent).toContain('[workflow.review_gates.pre_advance]');
+      expect(tomlContent).toMatch(/review_type\s*=\s*"code"/);
+      expect(tomlContent).toMatch(/threshold\s*=\s*"concerns"/);
+    });
+
+    it('defaults all four override key pairs to empty string', async () => {
+      const cm = new ConfigManager();
+      for (const transition of ['pre_advance', 'pre_slice_plan', 'pre_tasks', 'pre_implementation']) {
+        const reviewType = await cm.get(`workflow.review_gates.${transition}.review_type`);
+        const threshold = await cm.get(`workflow.review_gates.${transition}.threshold`);
+        expect(reviewType.value).toBe('');
+        expect(threshold.value).toBe('');
+      }
+    });
+
+    it('rejects an out-of-enum .threshold override value', async () => {
+      const cm = new ConfigManager();
+      await expect(
+        cm.set('workflow.review_gates.pre_advance.threshold', 'bogus', 'user')
+      ).rejects.toThrow('must be one of');
+    });
+  });
+
   // --- list() tests ---
 
   describe('list()', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(6);
+      expect(entries).toHaveLength(17);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
       expect(keys).toContain('guide.git_strategy');
       expect(keys).toContain('workflow.auto_advance');
       expect(keys).toContain('workflow.auto_fix');
+      expect(keys).toContain('workflow.review_enabled');
+      expect(keys).toContain('workflow.review_threshold');
+      expect(keys).toContain('workflow.review_unknown_as');
+      expect(keys).toContain('workflow.review_gates.pre_advance.review_type');
+      expect(keys).toContain('workflow.review_gates.pre_advance.threshold');
+      expect(keys).toContain('workflow.review_gates.pre_slice_plan.review_type');
+      expect(keys).toContain('workflow.review_gates.pre_slice_plan.threshold');
+      expect(keys).toContain('workflow.review_gates.pre_tasks.review_type');
+      expect(keys).toContain('workflow.review_gates.pre_tasks.threshold');
+      expect(keys).toContain('workflow.review_gates.pre_implementation.review_type');
+      expect(keys).toContain('workflow.review_gates.pre_implementation.threshold');
       expect(keys).toContain('git.branch_root');
       for (const entry of entries) {
         expect(entry.source).toBe('default');
