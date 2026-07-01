@@ -39,10 +39,9 @@ Reference the slice design (`lld` above) rather than re-deriving decisions. Rele
 
 ### 1. Setup and baseline
 
-- [ ] **1.1 Confirm working branch and clean baseline** — Effort: 1/5
-  - [ ] On branch `240-planning.review-aware-workflow-gating` (planning artifacts) per Git Rules. Confirm with `git branch --show-current`.
-  - [ ] `pnpm -r build` and `pnpm -r test` pass before any change (establishes the green baseline this slice must preserve).
-  - [ ] Success: build + full suite green; working tree clean.
+- [ ] **1.1 Confirm working branch** — Effort: 1/5
+  - [ ] On branch `240-slice.review-artifact-discovery-and-config-keys` (Phase 6 implementation) per Git Rules. Confirm with `git branch --show-current`.
+  - [ ] Success: working tree clean.
 
 - [ ] **1.2 Capture the `cf next` regression baseline** — Effort: 1/5
   - [ ] Identify the existing `getNext()` test fixture/sample project used by `packages/core/tests/introspection/WorkflowNavigator.test.ts`.
