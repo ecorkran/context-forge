@@ -165,9 +165,9 @@ Reference the slice design (`lld` above) rather than re-deriving decisions. Rele
   - [x] Confirm no `any` introduced and explicit return types on changed exported functions.
   - [x] Success: all walkthrough checks pass; suite green.
 
-- [ ] **8.2 Commit** — Effort: 1/5
-  - [ ] Commit from project root. Suggested: `refactor(core): name getNext branches and reserve review-gate slot`.
-  - [ ] Success: working tree clean; both checkpoints (Task 6, Task 8) recorded.
+- [x] **8.2 Commit** — Effort: 1/5
+  - [x] Commit from project root. Suggested: `refactor(core): name getNext branches and reserve review-gate slot`.
+  - [x] Success: working tree clean; both checkpoints (Task 6, Task 8) recorded.
 
 ---
 
