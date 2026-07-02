@@ -49,8 +49,8 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: 'fail',
     description:
-      'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concern" treats as CONCERNS, "pass" clears',
-    enum: ['fail', 'concern', 'pass'],
+      'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concerns" treats as CONCERNS, "pass" clears',
+    enum: ['fail', 'concerns', 'pass'],
   },
   'workflow.review_gates.pre_advance.review_type': {
     type: 'string',

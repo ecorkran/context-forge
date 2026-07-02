@@ -56,6 +56,11 @@ describe('detectDocuments', () => {
       expect(result.review).toBeNull();
     });
 
+    it('returns null when reviewType is an empty string (per-gate override default), even when matching review files exist', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100, '');
+      expect(result.review).toBeNull();
+    });
+
     it('returns the single match when exactly one review exists for a type', async () => {
       const result = await detectDocuments(PROJECT_ROOT, 100, 'arch');
       expect(result.review).toBe(

@@ -79,13 +79,15 @@ export async function detectDocuments(
   const slicePlan = planMatches.length > 0 ? planMatches[0] : null;
 
   // reviews/{index}-review.{reviewType}.*.md → review
-  // A missing reviewType means "don't guess" — review stays null rather than
-  // matching any review type. When a type is supplied, reviews accrue over
-  // re-runs, so the lexicographically last match (most recent) wins — unlike
-  // sibling detectors above, which take the first match ([0]) because those
-  // documents are singular.
+  // A missing or empty reviewType means "don't guess" — review stays null
+  // rather than matching any review type. (Empty string is the default value
+  // of every per-gate override key, so it must be treated the same as
+  // undefined, not passed through into a malformed match prefix.) When a type
+  // is supplied, reviews accrue over re-runs, so the lexicographically last
+  // match (most recent) wins — unlike sibling detectors above, which take the
+  // first match ([0]) because those documents are singular.
   let review: string | null = null;
-  if (reviewType !== undefined) {
+  if (reviewType !== undefined && reviewType !== '') {
     const reviewMatches = matchFiles(
       reviewFiles,
       `${idx}-review.${reviewType}.`,

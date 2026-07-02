@@ -280,15 +280,15 @@ describe('ConfigManager', () => {
 
     it('accepts a valid workflow.review_unknown_as', async () => {
       const cm = new ConfigManager();
-      await cm.set('workflow.review_unknown_as', 'concern', 'user');
+      await cm.set('workflow.review_unknown_as', 'concerns', 'user');
       const result = await cm.get('workflow.review_unknown_as');
-      expect(result.value).toBe('concern');
+      expect(result.value).toBe('concerns');
     });
 
     it('rejects an invalid workflow.review_unknown_as, naming allowed values', async () => {
       const cm = new ConfigManager();
       await expect(cm.set('workflow.review_unknown_as', 'bogus', 'user')).rejects.toThrow(
-        'must be one of ["fail", "concern", "pass"]'
+        'must be one of ["fail", "concerns", "pass"]'
       );
     });
   });

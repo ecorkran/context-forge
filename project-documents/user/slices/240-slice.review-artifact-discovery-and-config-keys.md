@@ -158,12 +158,13 @@ Existing callers of `detectDocuments` pass two arguments and are unaffected (the
 'workflow.review_unknown_as': {
   type: 'string',
   default: 'fail',
-  description: 'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concern" treats as CONCERNS, "pass" clears',
-  enum: ['fail', 'concern', 'pass'],
+  description: 'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concerns" treats as CONCERNS, "pass" clears',
+  enum: ['fail', 'concerns', 'pass'],
 },
 ```
 
 - `enum` gives fail-fast validation through the existing `validateValue` path (arch "Fail-fast on configuration errors" — the `validate`/`enum` hook is the enforcement point). An invalid `review_threshold` is rejected at `cf set`, not silently passed.
+- **Post-implementation correction (code review F002):** `review_unknown_as` originally used the enum value `'concern'` (singular) while `review_threshold` uses `'concerns'` (plural) for the same conceptual level, forcing 241 to remember a string mismatch between the two keys. Per the project's single-source-of-truth rule for comparison values, `review_unknown_as`'s enum was aligned to `'concerns'` before any consumer existed.
 - Threshold vocabulary is **lowercase config tokens** (`pass`, `concerns`), distinct from the **uppercase verdict vocabulary** (`PASS`, `CONCERNS`, `FAIL`, `UNKNOWN`) that 241 reads from frontmatter. Keeping config tokens lowercase matches the existing `guide.git_strategy` enum style and avoids implying the config value is a verdict. The case-mapping between them is gate logic (241).
 - Defaults encode "conservative by default": gating off; when on, `concerns` clears PASS/CONCERNS; UNKNOWN fails.
 
