@@ -46,17 +46,20 @@ function matchFiles(files: string[], prefix: string, dir: string): string[] {
 export async function detectDocuments(
   projectPath: string,
   sliceIndex: number,
+  reviewType?: string,
 ): Promise<DocumentDetectionResult> {
   const idx = String(sliceIndex);
 
   const slicesDir = join(projectPath, USER_DOCS, 'slices');
   const tasksDir = join(projectPath, USER_DOCS, 'tasks');
   const archDir = join(projectPath, USER_DOCS, 'architecture');
+  const reviewsDir = join(projectPath, USER_DOCS, 'reviews');
 
-  const [sliceFiles, taskFiles, archFiles] = await Promise.all([
+  const [sliceFiles, taskFiles, archFiles, reviewFiles] = await Promise.all([
     safeReaddir(slicesDir),
     safeReaddir(tasksDir),
     safeReaddir(archDir),
+    safeReaddir(reviewsDir),
   ]);
 
   // slices/{index}-slice.*.md → sliceDesign
@@ -75,5 +78,23 @@ export async function detectDocuments(
   const planMatches = matchFiles(archFiles, `${idx}-slices.`, join(USER_DOCS, 'architecture'));
   const slicePlan = planMatches.length > 0 ? planMatches[0] : null;
 
-  return { sliceDesign, taskFile, architecture, slicePlan };
+  // reviews/{index}-review.{reviewType}.*.md → review
+  // A missing or empty reviewType means "don't guess" — review stays null
+  // rather than matching any review type. (Empty string is the default value
+  // of every per-gate override key, so it must be treated the same as
+  // undefined, not passed through into a malformed match prefix.) When a type
+  // is supplied, reviews accrue over re-runs, so the lexicographically last
+  // match (most recent) wins — unlike sibling detectors above, which take the
+  // first match ([0]) because those documents are singular.
+  let review: string | null = null;
+  if (reviewType !== undefined && reviewType !== '') {
+    const reviewMatches = matchFiles(
+      reviewFiles,
+      `${idx}-review.${reviewType}.`,
+      join(USER_DOCS, 'reviews'),
+    );
+    review = reviewMatches.at(-1) ?? null;
+  }
+
+  return { sliceDesign, taskFile, architecture, slicePlan, review };
 }

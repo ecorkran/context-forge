@@ -70,6 +70,7 @@ export interface DocumentDetectionResult {
   taskFile: string[] | null;
   architecture: string | null;
   slicePlan: string | null;
+  review: string | null;
 }
 
 // --- ProjectModel types (for buildModel output, matching parse.py) ---

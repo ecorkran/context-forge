@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/240-slices.review-aware-workflow-gat
 dependencies: []
 interfaces: [241, 242, 243, 244]
 dateCreated: 20260626
-dateUpdated: 20260628
-status: not_started
+dateUpdated: 20260701
+status: complete
 ---
 
 # Slice Design: Review Artifact Discovery and Config Keys
@@ -158,12 +158,13 @@ Existing callers of `detectDocuments` pass two arguments and are unaffected (the
 'workflow.review_unknown_as': {
   type: 'string',
   default: 'fail',
-  description: 'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concern" treats as CONCERNS, "pass" clears',
-  enum: ['fail', 'concern', 'pass'],
+  description: 'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concerns" treats as CONCERNS, "pass" clears',
+  enum: ['fail', 'concerns', 'pass'],
 },
 ```
 
 - `enum` gives fail-fast validation through the existing `validateValue` path (arch "Fail-fast on configuration errors" — the `validate`/`enum` hook is the enforcement point). An invalid `review_threshold` is rejected at `cf set`, not silently passed.
+- **Post-implementation correction (code review F002):** `review_unknown_as` originally used the enum value `'concern'` (singular) while `review_threshold` uses `'concerns'` (plural) for the same conceptual level, forcing 241 to remember a string mismatch between the two keys. Per the project's single-source-of-truth rule for comparison values, `review_unknown_as`'s enum was aligned to `'concerns'` before any consumer existed.
 - Threshold vocabulary is **lowercase config tokens** (`pass`, `concerns`), distinct from the **uppercase verdict vocabulary** (`PASS`, `CONCERNS`, `FAIL`, `UNKNOWN`) that 241 reads from frontmatter. Keeping config tokens lowercase matches the existing `guide.git_strategy` enum style and avoids implying the config value is a verdict. The case-mapping between them is gate logic (241).
 - Defaults encode "conservative by default": gating off; when on, `concerns` clears PASS/CONCERNS; UNKNOWN fails.
 
@@ -251,52 +252,76 @@ Nothing. Foundation slice.
 
 ### Verification Walkthrough
 
-This is the demo script proving the slice delivers its (foundation-level) value. It will be refined after Phase 6.
+This is the demo script proving the slice delivers its (foundation-level) value. Verified during Phase 6 implementation; commands and output below are what actually ran.
 
 1. **Config keys exist and validate.**
+
+   Correction from the original draft: the CLI has no `cf config list` subcommand. Listing all keys is `cf config get` with no key argument (per `cf config --help`: "Get a configuration key, or show all keys if none specified").
+
    ```bash
-   cd packages/cli   # or wherever cf is invoked
-   cf config list | grep workflow.review
-   # expect:
-   #   workflow.review_enabled      false     (default)
-   #   workflow.review_threshold    concerns  (default)
-   #   workflow.review_unknown_as   fail      (default)
+   cd packages/cli
+   node dist/index.js config get | grep workflow.review
+   # actual output:
+   #   workflow.review_enabled                               false      default
+   #   workflow.review_threshold                             concerns   default
+   #   workflow.review_unknown_as                            fail       default
+   #   workflow.review_gates.pre_advance.review_type                    default
+   #   workflow.review_gates.pre_advance.threshold                      default
+   #   workflow.review_gates.pre_slice_plan.review_type                 default
+   #   workflow.review_gates.pre_slice_plan.threshold                   default
+   #   workflow.review_gates.pre_tasks.review_type                      default
+   #   workflow.review_gates.pre_tasks.threshold                        default
+   #   workflow.review_gates.pre_implementation.review_type             default
+   #   workflow.review_gates.pre_implementation.threshold               default
 
-   cf config set workflow.review_threshold bogus
-   # expect: error — must be one of ["pass", "concerns"]
+   node dist/index.js config set workflow.review_threshold bogus
+   # actual output:
+   #   Error: Config key "workflow.review_threshold" must be one of ["pass", "concerns"], got "bogus"
 
-   cf config set workflow.review_threshold pass
-   cf config get workflow.review_threshold        # → pass (source: project)
+   node dist/index.js config set workflow.review_threshold pass --project <scratch-dir>
+   node dist/index.js config get workflow.review_threshold --project <scratch-dir>
+   # actual output:
+   #   Key:     workflow.review_threshold
+   #   Value:   pass
+   #   Source:  project
    ```
+   Caveat: use a scratch/throwaway `--project` dir for this step (or a disposable user config) — `set` persists to real config files.
 
 2. **Per-gate override round-trips as nested TOML.**
    ```bash
-   cf config set workflow.review_gates.pre_advance.review_type code
-   cf config set workflow.review_gates.pre_advance.threshold concerns
-   grep -A2 'review_gates' .context-forge.toml
-   # expect a [workflow.review_gates.pre_advance] table with review_type/threshold
+   node dist/index.js config set workflow.review_gates.pre_advance.review_type code --project <scratch-dir>
+   node dist/index.js config set workflow.review_gates.pre_advance.threshold concerns --project <scratch-dir>
+   grep -A2 'review_gates' <scratch-dir>/.context-forge.toml
+   # actual output:
+   #   [workflow.review_gates.pre_advance]
+   #   review_type = "code"
+   #   threshold = "concerns"
    ```
 
 3. **Detection rule (unit-level, since no surface consumes `review` yet).**
-   Run the detector test that points at a fixture project containing
-   `project-documents/user/reviews/210-review.code.demo.md` and asserts
-   `detectDocuments(path, 210, 'code').review` returns that path, while
-   `detectDocuments(path, 210).review` (no type) returns `null`.
+
+   Correction: the fixture uses index 100 (the existing shared introspection fixture), not 210 — three files were added under `packages/core/tests/fixtures/introspection/project/project-documents/user/reviews/`: `100-review.code.first-pass.md`, `100-review.code.second-pass.md`, `100-review.arch.only-pass.md`. `detectDocuments(path, 100, 'code').review` resolves to the `second-pass` file (lexicographically last); `detectDocuments(path, 100).review` (no type) returns `null`.
    ```bash
    pnpm --filter @context-forge/core test documentDetector
+   # actual: 15 passed (15)
    ```
 
 4. **No behavioral change to `cf next`.**
-   On any existing project with gating left at defaults:
+   Confirmed via the full existing `WorkflowNavigator.test.ts` suite (49 pre-existing `getNext()`/status tests, all asserting full recommendation objects) plus one explicit regression test added for this slice (`produces an unchanged recommendation for in-implementation after the branch rename (240 baseline)`), asserting the complete `NextAction` object is unchanged after the `Priority N` → `GUARD:`/`LIFECYCLE:` comment rename.
    ```bash
-   cf next
-   # expect identical recommendation/rationale to pre-slice output
+   pnpm --filter @context-forge/core test WorkflowNavigator
+   # actual: 50 passed (50)
    ```
-   Confirmed by the regression test asserting an unchanged recommendation.
 
 5. **Build is clean.**
    ```bash
-   pnpm build && pnpm test
+   pnpm -r build   # actual: all 5 workspace packages built clean
+   pnpm -r test    # actual: only 7 pre-existing failures unrelated to this slice —
+                   # 3 in packages/core/tests/storage/FileProjectStore.test.ts (field-migration
+                   # regression from commit 88d9364, already on main) and 4 in
+                   # packages/cli/tests/commands/list.test.ts ("cf list initiatives", also
+                   # pre-existing on main, zero diff in packages/cli/ from this slice).
+                   # All 826 other core tests pass, all 183 mcp tests pass.
    ```
 
 ## Implementation Notes

@@ -80,8 +80,8 @@ hallucination trap.
 ### Branch Naming
 A branch corresponds to one unit of work, named by its index family and type:`{index}-{type}.{name}` (the document name without the `.md` extension, with the numeric index prefix). Two types of work get branches:
 
-- **Slice work** (Phase 6 implementation) → `{index}-slice.{name}`, where `{index}` is the slice's index.
-- **Planning work** (Phases 0–5: concept, initiative plan, architecture, slice plan, slice design, task breakdown, and reviews of those artifacts) → `{index}-planning.{name}`, where `{index}` is:
+- Slice work (Phase 6 implementation) → {index}-slice.{name}, where {index} is the slice's index. This is also where a planning branch's implementation phase moves to — see below.
+- **Planning work** (Phases 0–5 ONLY: concept, initiative plan, architecture, slice plan, slice design, task breakdown, and reviews of those artifacts) → `{index}-planning.{name}`, where `{index}` is:
   - index 000 for project setup (concept / initiative plan), or
   - the initiative base index for an initiative's architecture, slice plan, slice designs, and task breakdowns.
 

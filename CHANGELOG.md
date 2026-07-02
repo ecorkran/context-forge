@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Foundation for review-aware workflow gating (initiative 240): `workflow.review_enabled`, `workflow.review_threshold`, and `workflow.review_unknown_as` config keys, plus per-gate override keys (`workflow.review_gates.{pre_advance,pre_slice_plan,pre_tasks,pre_implementation}.{review_type,threshold}`). All keys default to off/empty and have no effect yet — no command reads them. Introduced to unblock upcoming gate-logic slices.
+
 ## [0.8.1] - 20260514
 
 ### Fixed
