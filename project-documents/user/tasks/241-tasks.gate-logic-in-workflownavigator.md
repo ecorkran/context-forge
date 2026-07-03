@@ -38,7 +38,7 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
 ## Task 1 — Branch and baseline
 
 - [ ] 1.1 Confirm working branch and clean baseline
-  - Verify you are on the slice branch for implementation. Per Git Rules, Phase 6 implementation of slice 241 belongs on `{root}/241-slice.gate-logic-in-workflownavigator` (read `cf config get git.branch_root` for `{root}`; it is currently `dev/erik`). If the branch does not exist, create it from `main`: `git checkout -b dev/erik/241-slice.gate-logic-in-workflownavigator main`.
+  - Verify you are on the slice branch for implementation. Per Git Rules, Phase 6 implementation of slice 241 belongs on `{root}/241-slice.gate-logic-in-workflownavigator` (read `cf config get git.branch_root` for `{root}`). **Correction (20260703):** `git.branch_root` resolves empty/default (`config.toml` is empty) — the note below assuming `dev/erik` was stale. Branch created as `241-slice.gate-logic-in-workflownavigator` (no prefix), confirmed with PM. If the branch does not exist, create it from `main`: `git checkout -b 241-slice.gate-logic-in-workflownavigator main`.
   - Run `pnpm -r build` and note the current state. Known pre-existing failures (NOT introduced here, do not fix in this slice): 3 in `packages/core/tests/storage/FileProjectStore.test.ts`, 4 in `packages/cli/tests/commands/list.test.ts`.
   - Success: on the correct slice branch; build green; the 7 known failures are the only failures.
 
