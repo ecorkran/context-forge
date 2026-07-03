@@ -1,0 +1,140 @@
+import type { ConfigManager } from '../config/ConfigManager.js';
+
+/** Frontmatter verdict vocabulary (uppercase, untrusted external data) */
+export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
+
+/** Config token for the verdict floor that clears a gate (lowercase, project policy) */
+export type ThresholdToken = 'pass' | 'concerns';
+
+/** Config token for how to treat an UNKNOWN/absent/unparseable verdict */
+export type UnknownPolicy = 'fail' | 'concerns' | 'pass';
+
+/** Outcome of evaluating a present review's verdict against policy */
+export type GateOutcome = 'clears' | 'pending' | 'failed';
+
+/** A lifecycle boundary at which a review may be owed */
+export type Boundary = 'preSlicePlan' | 'preTasks' | 'preImplementation' | 'preAdvance';
+
+/** Boundary → review type. Single source of truth: position derives the type, never configured. */
+const BOUNDARY_REVIEW_TYPE = {
+  preSlicePlan: 'arch',
+  preTasks: 'slice',
+  preImplementation: 'tasks',
+  preAdvance: 'code',
+} as const;
+
+/** Per-gate threshold override config key, keyed by boundary. Mirrors ConfigKeys.ts. */
+const BOUNDARY_THRESHOLD_KEY: Record<Boundary, string> = {
+  preSlicePlan: 'workflow.review_gates.pre_slice_plan.threshold',
+  preTasks: 'workflow.review_gates.pre_tasks.threshold',
+  preImplementation: 'workflow.review_gates.pre_implementation.threshold',
+  preAdvance: 'workflow.review_gates.pre_advance.threshold',
+};
+
+const KNOWN_VERDICTS: readonly Verdict[] = ['PASS', 'CONCERNS', 'FAIL', 'UNKNOWN'];
+const KNOWN_THRESHOLDS: readonly ThresholdToken[] = ['pass', 'concerns'];
+const KNOWN_UNKNOWN_POLICIES: readonly UnknownPolicy[] = ['fail', 'concerns', 'pass'];
+
+/** Maps a lifecycle boundary to the review type owed at that boundary. */
+export function positionToReviewType(boundary: Boundary): string {
+  return BOUNDARY_REVIEW_TYPE[boundary];
+}
+
+/**
+ * Normalizes a raw frontmatter verdict to the known vocabulary.
+ * Untrusted external data: anything absent or unrecognized degrades to UNKNOWN, never throws.
+ */
+export function normalizeVerdict(raw: string | undefined): Verdict {
+  if (raw === undefined) return 'UNKNOWN';
+  const upper = raw.trim().toUpperCase();
+  return (KNOWN_VERDICTS as readonly string[]).includes(upper) ? (upper as Verdict) : 'UNKNOWN';
+}
+
+function parseThresholdToken(raw: string, key: string): ThresholdToken {
+  if ((KNOWN_THRESHOLDS as readonly string[]).includes(raw)) {
+    return raw as ThresholdToken;
+  }
+  throw new Error(
+    `Config key "${key}" must be one of [${KNOWN_THRESHOLDS.map((v) => `"${v}"`).join(', ')}], got "${raw}"`
+  );
+}
+
+function parseUnknownPolicy(raw: string, key: string): UnknownPolicy {
+  if ((KNOWN_UNKNOWN_POLICIES as readonly string[]).includes(raw)) {
+    return raw as UnknownPolicy;
+  }
+  throw new Error(
+    `Config key "${key}" must be one of [${KNOWN_UNKNOWN_POLICIES.map((v) => `"${v}"`).join(', ')}], got "${raw}"`
+  );
+}
+
+/**
+ * The verdict decision matrix (design TD-2). Returns only 'clears'/'failed' — the
+ * 'pending' outcome belongs to the caller, derived from the absent-artifact signal.
+ */
+export function evaluateVerdict(
+  verdict: Verdict,
+  threshold: ThresholdToken,
+  unknownAs: UnknownPolicy
+): GateOutcome {
+  switch (verdict) {
+    case 'PASS':
+      return 'clears';
+    case 'FAIL':
+      return 'failed';
+    case 'CONCERNS':
+      return threshold === 'concerns' ? 'clears' : 'failed';
+    case 'UNKNOWN': {
+      const standIn: Verdict = unknownAs === 'fail' ? 'FAIL' : unknownAs === 'concerns' ? 'CONCERNS' : 'PASS';
+      return evaluateVerdict(standIn, threshold, unknownAs);
+    }
+  }
+}
+
+/** Resolved gate policy, ready for the navigator to evaluate any boundary. */
+export interface ResolvedGate {
+  threshold: ThresholdToken;
+  unknownAs: UnknownPolicy;
+  thresholdFor(boundary: Boundary): ThresholdToken;
+}
+
+/**
+ * Reads gate config and resolves policy. Returns null when gating is off (caller skips
+ * — no artifact lookup). A missing config file is not a failure (ConfigManager already
+ * falls through to the built-in default, i.e. gating off). A genuine read/parse failure
+ * propagates (TD-8a). An out-of-vocabulary token throws a descriptive error (TD-8b) —
+ * config is the project's own declared policy, so it fails fast rather than degrading
+ * to UNKNOWN the way an untrusted frontmatter verdict does.
+ */
+export async function resolveGateConfig(config: ConfigManager): Promise<ResolvedGate | null> {
+  const enabled = await config.get('workflow.review_enabled');
+  if (enabled.value !== true) {
+    return null;
+  }
+
+  const globalThresholdRaw = await config.get('workflow.review_threshold');
+  const unknownAsRaw = await config.get('workflow.review_unknown_as');
+  const globalThreshold = parseThresholdToken(
+    String(globalThresholdRaw.value),
+    'workflow.review_threshold'
+  );
+  const unknownAs = parseUnknownPolicy(String(unknownAsRaw.value), 'workflow.review_unknown_as');
+
+  const overrides = new Map<Boundary, ThresholdToken>();
+  for (const boundary of Object.keys(BOUNDARY_THRESHOLD_KEY) as Boundary[]) {
+    const key = BOUNDARY_THRESHOLD_KEY[boundary];
+    const overrideRaw = await config.get(key);
+    const overrideValue = String(overrideRaw.value);
+    if (overrideValue !== '') {
+      overrides.set(boundary, parseThresholdToken(overrideValue, key));
+    }
+  }
+
+  return {
+    threshold: globalThreshold,
+    unknownAs,
+    thresholdFor(boundary: Boundary): ThresholdToken {
+      return overrides.get(boundary) ?? globalThreshold;
+    },
+  };
+}
