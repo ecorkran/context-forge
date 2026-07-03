@@ -65,7 +65,9 @@ Slice 242 (consistency rule) reuses this slice's `reviewGate.ts` evaluator direc
 - No sweep of pre-existing `NormalizedStatus` literals (→ 910). This slice only *introduces* `STATUS` and uses it in new code.
 - No numeric `score` enforcement (out of v1 per arch).
 
-**Retired by this slice's model:** the separately-planned slice **244** (initiative-level pre-slice-plan gate) is folded in here — with reviewType position-derived, the `arch` boundary is just one more case of the single mechanism, not a distinct slice.
+**Retired by this slice's model:** the separately-planned slice **244** (initiative-level pre-slice-plan gate) is folded in here — with reviewType position-derived, the `arch` boundary is just one more case of the single mechanism, not a distinct slice. The architecture's original v1 deferral of the `pre-slice-plan` transition is withdrawn; the arch doc has been updated to authorize this (Scope revision note, 20260702).
+
+**Cascade renumbering already done (arch Technical Considerations).** The architecture asks that "the slice implementing the gate logic should renumber the full cascade (or convert to named stages)." This was completed in **slice 240's TD-4** — the `getNext()` branches were renamed from ordinals (`Priority 1…7`, `2.5`) to named `GUARD:`/`LIFECYCLE:` branches, and the `LIFECYCLE: review-gate` slot was reserved. 241 fills that reserved slot; no further renumbering is needed here.
 
 ## Dependencies
 
@@ -77,7 +79,7 @@ Slice 242 (consistency rule) reuses this slice's `reviewGate.ts` evaluator direc
 
 - `detectDocuments(projectPath, sliceIndex, reviewType?)` — 241 passes the position-derived `reviewType`.
 - `parseFrontmatter(filePath)` (`introspection/parsers/frontmatterParser.ts`) — reads the `verdict` field. **This parser never throws** — it returns `{ found: false, data: {} }` on any read/parse error. That is exactly the behavior the gate needs: a read failure and a missing frontmatter both surface as "no `verdict` present," which the gate maps to `UNKNOWN`.
-- `ConfigManager.get(key)` — resolves `workflow.review_*` through the project → user → default chain (worktree-scoped when the surface passes a worktree-resolved path).
+- `ConfigManager.get(key)` — resolves `workflow.review_*` through the project → user → default chain (worktree-scoped when the surface passes a worktree-resolved path). **Note two behaviors that shape TD-8:** (1) a *missing* config file is not an error — `readToml` maps ENOENT to `{}`, so `get()` returns the built-in default (gating off); (2) `get()` does **not** validate the value it reads — `validateValue` runs only in `set()`. Both are handled explicitly in TD-8.
 - The `workflow.review_*` config keys shipped by 240.
 
 ## Architecture
@@ -188,7 +190,7 @@ type Boundary = 'preSlicePlan' | 'preTasks' | 'preImplementation' | 'preAdvance'
 - `positionToReviewType(boundary): string` — `BOUNDARY_REVIEW_TYPE[boundary]`.
 - `normalizeVerdict(raw: string | undefined): Verdict` — uppercase + match known set; absent/unrecognized → `UNKNOWN`.
 - `evaluateVerdict(verdict, threshold, unknownAs): GateOutcome` — the matrix (TD-2).
-- `resolveGateConfig(config): ResolvedGate | null` — reads `review_enabled` + `review_threshold` + `review_unknown_as`; returns `null` when gating off (caller skips). If per-gate threshold overrides are retained (TD-4), the boundary-specific threshold is resolved here.
+- `resolveGateConfig(config): ResolvedGate | null` — reads `review_enabled` + `review_threshold` + `review_unknown_as`; returns `null` when gating off (caller skips). If per-gate threshold overrides are retained (TD-4), the boundary-specific threshold is resolved here. Its I/O failure and invalid-value handling are specified in **TD-8** (a read error or an out-of-vocabulary value is not silently accepted).
 
 Keeping this out of the navigator satisfies DRY and lets 242 import the same evaluator rather than re-deriving it.
 
@@ -267,6 +269,20 @@ review-failed → {
 
 The rationale must always name the review type; for `review-failed`, also the verdict and threshold that produced the block. `slice`/`warnings` populated via the existing `enrich()` helper. Exact strings finalized in implementation.
 
+### TD-8: Config read failures and invalid values — explicit, fail-fast (resolves review F002/F003)
+
+`resolveGateConfig` adds a new I/O path (`ConfigManager.get()` reads `.context-forge.toml`). Two failure classes must be handled explicitly rather than left to implicit behavior; neither may silently pass or silently block a gate.
+
+**(a) Read/parse failure of the config file** (corrupt TOML, permission error, `ConfigManager.get()` throws). This is distinct from a *missing* config file — `ConfigManager` already treats a missing file as "fall through to defaults" (ENOENT → `{}`), which correctly yields `review_enabled = false` (gating off, no behavior change). A genuine read/parse failure, by contrast, means CF cannot determine whether gating is even configured.
+
+Decision: **a config-read failure is surfaced, not swallowed.** `resolveGateConfig` does not catch-and-default a thrown `ConfigManager.get()`. The navigator lets the error propagate to the surface (CLI `next`/`status`, MCP `workflow_next`), where the existing `handleError` path reports it — the same way a corrupt project file is reported today. Rationale: silently skipping gating on an unreadable config would violate conservative-by-default (a project that *intended* to gate would silently advance); silently blocking would be an equally opaque failure. The honest outcome is "your config could not be read," surfaced immediately. This does **not** regress the gating-off default: a missing config file is not a failure (it is the default path), so ungated projects never hit this.
+
+**(b) Invalid value read from config.** `ConfigManager.get()` validates only on `set()`, **not** on `get()` (confirmed: `validateValue` is called solely in `ConfigManager.set`). So a value hand-edited into the TOML, or one that was valid under an older enum, can reach `resolveGateConfig` out-of-vocabulary (e.g. `review_threshold = "foobar"`, `review_unknown_as = "maybe"`). The architecture requires this be "surfaced immediately, not a silent pass or silent block."
+
+Decision: **`resolveGateConfig` validates every value it reads against the known token set and throws a descriptive config error on any mismatch** (naming the key, the bad value, and the allowed values — mirroring `ConfigManager`'s own `validateValue` message). It does not coerce to a default. `normalizeVerdict` narrows the *frontmatter* verdict (untrusted external data → `UNKNOWN` on anything unrecognized); config tokens are *the project's own declared policy* and a bad one is a configuration error, so they fail fast rather than degrading to `UNKNOWN`. The narrowing helper is small and shared: a `parseThresholdToken(raw): ThresholdToken` / `parseUnknownPolicy(raw): UnknownPolicy` that throws on miss, keeping the check in one place per token type (no scattered comparisons).
+
+Together: **missing config → gating off (silent, correct); unreadable config → surfaced error; readable-but-invalid value → surfaced error.** No path silently passes or silently blocks. Unit tests cover all three (missing, unreadable/throwing stub, invalid-token stub).
+
 ## Implementation Details
 
 ### Patterns and Conventions
@@ -308,6 +324,7 @@ The rationale must always name the review type; for `review-failed`, also the ve
 - The same clears/pending/failed behavior holds at the `slice`, `tasks`, and `arch` boundaries with their respective review types.
 - Per-boundary `threshold` override (if set) takes precedence over global `review_threshold`; empty → global. `review_type` per-gate keys are inert (position determines type).
 - An unparseable/unreadable review file that exists is treated as `UNKNOWN` (never silently cleared) and follows `review_unknown_as`.
+- **Config error handling (TD-8):** a *missing* config file leaves gating off (no error, no behavior change); an *unreadable/corrupt* config file surfaces an error through the CLI/MCP error path (not silently skipped or blocked); an *invalid* config token (`review_threshold`/`review_unknown_as` out of vocabulary) surfaces a descriptive config error naming the key, bad value, and allowed values (not coerced to a default).
 
 ### Technical Requirements
 
