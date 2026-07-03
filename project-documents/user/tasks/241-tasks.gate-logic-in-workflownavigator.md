@@ -139,7 +139,7 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
 
 Fixtures come **before** the navigator work: the navigator gate tests (Task 5) point `project.projectPath` at these fixtures, so they must exist first. The `reviewGate` unit tests (Task 3) needed no fixtures (they inject stubs), which is why fixtures land here rather than earlier.
 
-- [ ] 4.1 Add verdict-bearing review fixtures
+- [x] 4.1 Add verdict-bearing review fixtures
   - The slice 240 fixtures under `core/tests/fixtures/introspection/project/.../reviews/` carry NO `verdict` field (discovery-only). Add fixtures with `verdict` frontmatter for the boundaries under test. At minimum, for the `code` type: a `PASS`, a `CONCERNS`, a `FAIL`, and a **present-but-no-`verdict`** artifact (a file that exists with valid frontmatter but no `verdict:` key — for the UNKNOWN path); plus an absent-file case (simply do not create the file for that index). Add at least one `arch` and one `slice` verdict fixture to exercise those boundaries.
   - Keep fixtures small; mirror the real frontmatter shape (`verdict: FAIL`, uppercase). Choose indices that do not collide with existing fixture expectations, or extend the existing fixture project consistently (update any hardcoded doc-count assertions if the shared fixture tree is walked — as happened in slice 240 with `ProjectModelBuilder.test.ts`).
   - Success: fixtures exist (including the present-but-no-`verdict` one); no unrelated fixture-count test breaks (fix counts if the shared tree grew).
