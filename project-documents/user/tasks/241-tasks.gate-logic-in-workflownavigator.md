@@ -46,11 +46,11 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
 
 ## Task 2 — Types: new statuses and the STATUS constant (design TD-6)
 
-- [ ] 2.1 Add `pending-review` and `review-failed` to `SliceStatus`
+- [x] 2.1 Add `pending-review` and `review-failed` to `SliceStatus`
   - In `core/src/introspection/types.ts`, extend the `SliceStatus.status` union (currently `'needs-design' | 'needs-tasks' | 'in-implementation' | 'complete' | 'no-active-slice'`) to add `'pending-review'` and `'review-failed'`.
   - Success: type compiles; TypeScript may flag non-exhaustive switches over status elsewhere — that is expected and guides later tasks.
 
-- [ ] 2.2 Introduce the `STATUS` const and derive `NormalizedStatus`
+- [x] 2.2 Introduce the `STATUS` const and derive `NormalizedStatus`
   - In `types.ts`, add:
     ```ts
     export const STATUS = {
@@ -65,11 +65,11 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
   - Do **not** sweep the ~50 existing literal sites — that is maintenance slice 910. Only introduce the const here.
   - Success: `NormalizedStatus` unchanged in shape; `pnpm --filter @context-forge/core build` clean.
 
-- [ ] 2.3 Test: types/STATUS
+- [x] 2.3 Test: types/STATUS
   - Add a small unit test asserting `STATUS.Complete === 'complete'` (and the other three), and a type-level check that `NormalizedStatus` still admits exactly the four values (a compile-time assignment test is sufficient).
   - Success: test passes; confirms the const↔union equivalence.
 
-- [ ] 2.4 Commit checkpoint — types + STATUS
+- [x] 2.4 Commit checkpoint — types + STATUS
   - Commit the type changes and the STATUS const (Tasks 2.1–2.3) on the slice branch (e.g. `feat(core): add review slice statuses and STATUS const`). Small coherent unit; a save point before the new module.
   - Success: committed; `pnpm --filter @context-forge/core build` clean.
 
