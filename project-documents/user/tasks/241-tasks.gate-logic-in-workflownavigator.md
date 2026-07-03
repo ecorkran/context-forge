@@ -77,7 +77,7 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
 
 ## Task 3 — `reviewGate.ts` evaluator (design TD-1, TD-2, TD-4)
 
-- [ ] 3.1 Create the module scaffold and type vocabulary
+- [x] 3.1 Create the module scaffold and type vocabulary
   - Create `core/src/introspection/reviewGate.ts`. Define the named unions and the boundary→type map (single source of truth, no magic strings):
     ```ts
     export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
@@ -92,27 +92,27 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
     ```
   - Success: module compiles; exports the types.
 
-- [ ] 3.2 Implement `positionToReviewType` and `normalizeVerdict`
+- [x] 3.2 Implement `positionToReviewType` and `normalizeVerdict`
   - `positionToReviewType(boundary: Boundary): string` → `BOUNDARY_REVIEW_TYPE[boundary]`.
   - `normalizeVerdict(raw: string | undefined): Verdict` → uppercase, match the known set, anything absent/unrecognized → `'UNKNOWN'`. This narrows **untrusted external** frontmatter (TD-8: verdict degrades to UNKNOWN, does not throw).
   - Success: explicit return types; no `any`.
 
-- [ ] 3.3 Test: `positionToReviewType` and `normalizeVerdict`
+- [x] 3.3 Test: `positionToReviewType` and `normalizeVerdict`
   - Each boundary maps to its type (`preAdvance`→`code`, `preTasks`→`slice`, `preImplementation`→`tasks`, `preSlicePlan`→`arch`).
   - `normalizeVerdict`: `'PASS'`/`'pass'`/`' concerns '`(trimmed?) map correctly; `undefined`, `''`, `'garbage'` → `UNKNOWN`. (Decide and test whether whitespace/case tolerance is in scope — the frontmatter parser already trims values; document the choice.)
   - Success: all cases covered.
 
-- [ ] 3.4 Implement `evaluateVerdict` (the decision matrix, TD-2)
+- [x] 3.4 Implement `evaluateVerdict` (the decision matrix, TD-2)
   - `evaluateVerdict(verdict: Verdict, threshold: ThresholdToken, unknownAs: UnknownPolicy): GateOutcome`.
   - `PASS` → `clears`. `FAIL` → `failed`. `CONCERNS` → `clears` if `threshold==='concerns'`, else `failed`. `UNKNOWN` → substitute the stand-in verdict per `unknownAs` (`fail`→FAIL, `concerns`→CONCERNS, `pass`→PASS) then apply the same table.
   - Returns only `clears`/`failed` here (the `pending` outcome is the navigator's, from the absent-artifact signal). Use an exhaustive `switch` over `Verdict`.
   - Success: matrix implemented; no fall-through defaults masking a missing case.
 
-- [ ] 3.5 Test: `evaluateVerdict` full matrix
+- [x] 3.5 Test: `evaluateVerdict` full matrix
   - Cover `{PASS, CONCERNS, FAIL, UNKNOWN} × {threshold: pass, concerns} × {unknownAs: fail, concerns, pass}` where meaningful. Explicitly assert: `CONCERNS`+`pass`→`failed`; `CONCERNS`+`concerns`→`clears`; `UNKNOWN`+`unknownAs=concerns`+`threshold=concerns`→`clears`; `UNKNOWN`+`unknownAs=concerns`+`threshold=pass`→`failed`; `UNKNOWN`+`unknownAs=fail`→`failed`; `UNKNOWN`+`unknownAs=pass`→`clears`.
   - Success: every documented cell of the matrix has an assertion.
 
-- [ ] 3.6 Implement `resolveGateConfig` with fail-fast validation (TD-4, TD-8)
+- [x] 3.6 Implement `resolveGateConfig` with fail-fast validation (TD-4, TD-8)
   - `resolveGateConfig(config: ConfigManager): Promise<ResolvedGate | null>`.
   - Read `workflow.review_enabled`; narrow with `=== true`. If not true → return `null` (gating off; caller skips — no artifact lookup).
   - Read `workflow.review_threshold` and `workflow.review_unknown_as`. Validate each against its token set via small `parseThresholdToken`/`parseUnknownPolicy` helpers that **throw a descriptive config error** (naming key, bad value, allowed values) on mismatch — do NOT coerce to default (TD-8 (b): config is the project's own policy, fail fast).
@@ -121,7 +121,7 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
   - `ResolvedGate` shape: `{ threshold: ThresholdToken; unknownAs: UnknownPolicy; thresholdFor(boundary): ThresholdToken }` (or equivalent) — expose enough for the navigator to evaluate any boundary.
   - Success: explicit types; invalid token throws; missing config yields `null`; read failure propagates.
 
-- [ ] 3.7 Test: `resolveGateConfig`
+- [x] 3.7 Test: `resolveGateConfig`
   - Use a stub/fake `ConfigManager` (inject values) — no real filesystem.
   - `review_enabled=false` (and default/missing) → `null`.
   - `review_enabled=true`, valid tokens → populated `ResolvedGate`; per-gate threshold override beats global; empty override falls back to global.
@@ -129,7 +129,7 @@ Slice 241 fills the reserved `LIFECYCLE: review-gate` branch with the full revie
   - A `config.get` that rejects/throws (unreadable config) → `resolveGateConfig` propagates (does not return `null`, does not swallow).
   - Success: all three TD-8 outcomes (missing→off, invalid→throw, unreadable→propagate) asserted.
 
-- [ ] 3.8 Commit checkpoint — reviewGate module
+- [x] 3.8 Commit checkpoint — reviewGate module
   - Commit the `reviewGate.ts` module and its unit tests (Tasks 3.1–3.7) on the slice branch with a semantic message (e.g. `feat(core): add reviewGate evaluator for review gating`). This is a coherent, independently testable unit — a save point before touching the navigator.
   - Success: module + tests committed; suite green for the new tests.
 
