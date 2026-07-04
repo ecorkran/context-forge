@@ -148,12 +148,12 @@ Fixtures come **before** the navigator work: the navigator gate tests (Task 5) p
 
 ## Task 5 — WorkflowNavigator: config injection and gate evaluation (design TD-3, TD-5)
 
-- [ ] 5.1 Add optional `ConfigManager` constructor dependency
+- [x] 5.1 Add optional `ConfigManager` constructor dependency
   - In `WorkflowNavigator.ts`, add `constructor(private readonly config?: ConfigManager) {}`. Import `ConfigManager` (and `reviewGate` helpers) via the core config/introspection paths.
   - No behavior change yet — the field is unused until 5.2.
   - Success: compiles; all existing no-arg `new WorkflowNavigator()` call sites still valid.
 
-- [ ] 5.2 Evaluate the gate inside `deriveSliceStatus()` (code + slice + tasks boundaries)
+- [x] 5.2 Evaluate the gate inside `deriveSliceStatus()` (code + slice + tasks boundaries)
   - Introduce a private helper (e.g. `evaluateGate(project, projectPath, boundary): Promise<GateStatus | null>`) that: calls `resolveGateConfig(this.config)`; if `null` (gating off or no config) returns `null` (caller keeps existing status). Otherwise derives the reviewType via `positionToReviewType(boundary)`, calls `detectDocuments(projectPath, index, reviewType)`, and:
     - `review === null` → outcome `pending` → return `pending-review`.
     - else `parseFrontmatter(join(projectPath, review))` → `evaluateVerdict(normalizeVerdict(data.verdict), threshold, unknownAs)`; `clears` → `null` (keep going/complete), `failed` → return `review-failed`. Note: a present file whose `verdict` is absent/unrecognized/unreadable normalizes to `UNKNOWN` here and is resolved by `unknownAs` — it must never be treated as `pending` (that would imply "not yet reviewed") and must never silently clear (TD-2/TD-8).
@@ -164,27 +164,27 @@ Fixtures come **before** the navigator work: the navigator gate tests (Task 5) p
   - Use `STATUS.Complete` (not the literal) for the completion comparison. Keep gating strictly behind "config present AND enabled" so the gating-off path is byte-identical.
   - Success: statuses set correctly per boundary; gating-off path unchanged.
 
-- [ ] 5.3 Evaluate the pre-slice-plan (`arch`) boundary in the no-active-slice path
+- [x] 5.3 Evaluate the pre-slice-plan (`arch`) boundary in the no-active-slice path
   - In `getNext()`'s `no-active-slice` / "architecture exists but no slice plan" branch, evaluate the `preSlicePlan` gate (reviewType `arch`, index = the arch/initiative index) before recommending slice-plan creation. When it gates, surface `pending-review`/`review-failed` routing rather than the create-slice-plan recommendation.
   - Note: this path is not a `SliceStatus` on an active slice — decide (per design) whether to represent it via the same recommendation routing directly here. Keep the gating-off behavior identical.
   - Success: arch gate fires only when enabled and configured; otherwise the existing slice-plan recommendation is unchanged.
 
-- [ ] 5.4 Fill the reserved `LIFECYCLE: review-gate` branch in `getNext()` (TD-7)
+- [x] 5.4 Fill the reserved `LIFECYCLE: review-gate` branch in `getNext()` (TD-7)
   - Replace the reserved placeholder comment (between `in-implementation` and `complete-advance`) with the routing branch: when `slice.status === 'pending-review'` return the `review` recommendation; when `'review-failed'` return the `blocked` recommendation. Use `enrich()` and the warnings pattern like sibling branches.
   - Rationale strings must name the review type; `review-failed` also names the verdict and threshold (TD-7). No new field on `NextAction` — additive `recommendation` strings only.
   - Success: both statuses route to their recommendations; `NextAction` shape unchanged.
 
-- [ ] 5.5 Test: navigator gate behavior (all boundaries)
+- [x] 5.5 Test: navigator gate behavior (all boundaries)
   - Construct the navigator with a stub `ConfigManager` and point `project.projectPath` at the Task 4 fixtures. For each boundary assert: absent artifact → `pending-review`/`review`; `FAIL` → `review-failed`/`blocked`; clearing verdict → prior status/recommendation unchanged; correct reviewType is sought per boundary.
   - **Present-but-no-`verdict` path (integration-level, per review F002):** using the present-but-no-`verdict` fixture, assert that under default `unknownAs=fail` the boundary produces `review-failed` (NOT `pending-review`, NOT silently cleared); and under `unknownAs=pass` the same fixture clears. This confirms the "present file, missing/malformed verdict → UNKNOWN → unknownAs" guarantee end-to-end at the navigator, not just in the `reviewGate` unit tests.
   - Assert `review-failed` rationale contains the verdict and threshold; `pending-review` rationale names the review type.
   - Success: each boundary has clears/pending/failed coverage, plus the present-but-no-verdict UNKNOWN assertion.
 
-- [ ] 5.6 Test: gating-off regression (conservative-by-default)
+- [x] 5.6 Test: gating-off regression (conservative-by-default)
   - Construct the navigator (a) with no config, and (b) with a stub where `review_enabled=false`. Assert the full set of existing `getNext` recommendations for representative fixtures (needs-design, needs-tasks, in-implementation, complete→advance) is **unchanged** from pre-241 (extend the 240 baseline test). Assert no artifact lookup occurs when gating is off.
   - Success: byte-identical recommendations with gating off.
 
-- [ ] 5.7 Commit checkpoint — navigator gate
+- [x] 5.7 Commit checkpoint — navigator gate
   - Commit the navigator changes and their tests (Tasks 5.1–5.6) on the slice branch (e.g. `feat(core): wire review gate into WorkflowNavigator`). Coherent save point before surface wiring.
   - Success: navigator work committed; suite green (modulo the 7 known pre-existing failures).
 
