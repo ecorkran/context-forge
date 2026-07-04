@@ -8,11 +8,31 @@ import type {
   SlicePlanResult,
   TaskFileResult,
 } from './types.js';
+import { STATUS } from './types.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
+import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
+import type { ConfigManager } from '../config/ConfigManager.js';
+import {
+  positionToReviewType,
+  normalizeVerdict,
+  evaluateVerdict,
+  resolveGateConfig,
+  type Boundary,
+} from './reviewGate.js';
+
+/** Gated status a boundary evaluation can produce, or null to keep the caller's existing status. */
+type GateStatus = 'pending-review' | 'review-failed';
+
+/** Result of evaluating a gate at a boundary: the status plus a human-readable rationale. */
+interface GateEvaluation {
+  status: GateStatus;
+  reviewType: string;
+  rationale: string;
+}
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -46,6 +66,8 @@ function extractSliceName(fileSlice: string): string {
  * from project data and filesystem state.
  */
 export class WorkflowNavigator {
+  constructor(private readonly config?: ConfigManager) {}
+
   /**
    * Derive the full workflow status for a project.
    */
@@ -108,6 +130,30 @@ export class WorkflowNavigator {
       // never exist yet at the end of Phase 1, so they cannot disambiguate it.
       const initiativePlanExists =
         (await resolveInitiativePlanPath(project.projectPath)) !== null;
+
+      // pre-slice-plan / 'arch' gate — evaluated before first-run guidance because every
+      // first-run branch for "arch exists, no slice plan yet" (FR-3b, FR-4, and the
+      // fallback below) is exactly this boundary; the gate must intercept all of them,
+      // not just the fallback that runs after detectFirstRunContext returns null.
+      if (archFileExists && status.slicePlan === null) {
+        const archIndex = extractSliceIndex(project.fileArch);
+        if (archIndex !== null) {
+          const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
+          if (gate) {
+            return gate.status === 'pending-review'
+              ? {
+                  recommendation: 'Review required before creating the slice plan',
+                  rationale: gate.rationale,
+                  summary: `Architecture ${archIndex} needs an ${gate.reviewType} review before the slice plan can be created`,
+                }
+              : {
+                  recommendation: `Blocked: review verdict does not clear threshold`,
+                  rationale: gate.rationale,
+                  summary: `Architecture ${archIndex} review does not clear — blocked before slice plan creation`,
+                };
+          }
+        }
+      }
 
       // First-run guidance: enriched recommendations for sparse/fresh project states (FR-1–FR-4)
       const firstRunAction = this.detectFirstRunContext(
@@ -245,8 +291,25 @@ export class WorkflowNavigator {
       });
     }
 
-    // LIFECYCLE: review-gate — reserved for initiative 240 review gate (added in slice 241).
-    // Not a stock cf workflow phase. No branch logic here yet.
+    // LIFECYCLE: review-gate — routes the pending-review/review-failed statuses that
+    // deriveSliceStatus() already computed (TD-3: status derivation is the single source
+    // of truth; this branch only routes, it does not re-evaluate the gate).
+    if (slice.status === 'pending-review') {
+      return enrich({
+        recommendation: 'Review required before advancing',
+        rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} requires a review before proceeding.`,
+        slice: project.fileSlice,
+        summary: `Review required for slice ${slice.index ?? slice.name}`,
+      });
+    }
+    if (slice.status === 'review-failed') {
+      return enrich({
+        recommendation: 'Blocked: review verdict does not clear threshold',
+        rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} is blocked by a review that does not clear.`,
+        slice: project.fileSlice,
+        summary: `Blocked — slice ${slice.index ?? slice.name} review does not clear`,
+      });
+    }
 
     // LIFECYCLE: complete-advance — slice complete → recommend next slice (not a phase)
     if (slice.status === 'complete' && status.slicePlan) {
@@ -470,8 +533,16 @@ export class WorkflowNavigator {
         return { ...base, status: 'needs-design' };
       }
 
-      // Design exists but no task file → needs-tasks
+      // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
       if (!docs.taskFile) {
+        const gate = await this.evaluateGate(projectPath, index, 'preTasks');
+        if (gate) {
+          return {
+            ...base,
+            status: gate.status,
+            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+          };
+        }
         return { ...base, status: 'needs-tasks' };
       }
 
@@ -489,14 +560,79 @@ export class WorkflowNavigator {
         inferredStatus: taskResult.inferredStatus,
       };
 
-      if (taskResult.inferredStatus === 'complete') {
+      if (taskResult.inferredStatus === STATUS.Complete) {
+        // pre-advance / 'code' gate — implementation done, code review owed before advancing
+        const gate = await this.evaluateGate(projectPath, index, 'preAdvance');
+        if (gate) {
+          return {
+            ...base,
+            status: gate.status,
+            taskProgress,
+            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+          };
+        }
         return { ...base, status: 'complete', taskProgress };
+      }
+
+      // Task file freshly created (zero progress) → pre-implementation / 'tasks' gate.
+      // Fires only at the transition into implementation, not on every partial-progress call.
+      if (taskResult.completedTasks === 0) {
+        const gate = await this.evaluateGate(projectPath, index, 'preImplementation');
+        if (gate) {
+          return {
+            ...base,
+            status: gate.status,
+            taskProgress,
+            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+          };
+        }
       }
 
       return { ...base, status: 'in-implementation', taskProgress };
     } catch {
       return base;
     }
+  }
+
+  /**
+   * Evaluates the review gate for a boundary. Returns null when gating is off (no config,
+   * or review_enabled false) — caller keeps its existing status, byte-identical to pre-241
+   * behavior. Returns a GateEvaluation when the boundary's review is absent (pending-review)
+   * or present-but-not-clearing (review-failed).
+   */
+  private async evaluateGate(
+    projectPath: string,
+    index: number,
+    boundary: Boundary,
+  ): Promise<GateEvaluation | null> {
+    if (!this.config) return null;
+
+    const resolved = await resolveGateConfig(this.config);
+    if (resolved === null) return null;
+
+    const reviewType = positionToReviewType(boundary);
+    const docs = await detectDocuments(projectPath, index, reviewType);
+
+    if (docs.review === null) {
+      return {
+        status: 'pending-review',
+        reviewType,
+        rationale: `Slice ${index} requires a ${reviewType} review before proceeding — no review artifact found.`,
+      };
+    }
+
+    const frontmatter = await parseFrontmatter(join(projectPath, docs.review));
+    const verdict = normalizeVerdict(frontmatter.data.verdict);
+    const threshold = resolved.thresholdFor(boundary);
+    const outcome = evaluateVerdict(verdict, threshold, resolved.unknownAs);
+
+    if (outcome === 'clears') return null;
+
+    return {
+      status: 'review-failed',
+      reviewType,
+      rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index}.`,
+    };
   }
 
   private async parseTaskFileSafe(taskPaths: string[]): Promise<TaskFileResult | null> {

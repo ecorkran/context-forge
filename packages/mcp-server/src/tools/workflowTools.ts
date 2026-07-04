@@ -151,7 +151,8 @@ export function registerWorkflowTools(server: McpServer): void {
           );
         }
 
-        const nav = new WorkflowNavigator();
+        const config = new ConfigManager(project.projectPath);
+        const nav = new WorkflowNavigator(config);
         const status = await nav.getStatus(project);
         const result = project.resolvedWorktree
           ? { ...status, worktree: project.resolvedWorktree }
@@ -197,7 +198,8 @@ export function registerWorkflowTools(server: McpServer): void {
           );
         }
 
-        const nav = new WorkflowNavigator();
+        const config = new ConfigManager(project.projectPath);
+        const nav = new WorkflowNavigator(config);
         const next = await nav.getNext(project);
         const result = project.resolvedWorktree
           ? { ...next, worktree: project.resolvedWorktree }

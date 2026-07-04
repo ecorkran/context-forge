@@ -13,7 +13,11 @@ describe('scanDirectory', () => {
     //              050-arch.hld, 002-spec, 900-tasks.maintenance, 780-slices.future.test-future,
     //              200-slice.design-only, 300-slice.all-done, 300-tasks.all-done,
     //              100-review.code.first-pass, 100-review.code.second-pass, 100-review.arch.only-pass
-    expect(docs.length).toBe(15);
+    //              (15 above, from slice 240) plus slice 241's verdict-bearing gate fixtures:
+    //              400-slice/tasks/review.gate-code-fail, 401-slice/tasks/review.gate-code-clears,
+    //              402-slice/tasks/review.gate-code-unknown, 403-slice/review.gate-slice-fail,
+    //              404-arch/review.gate-arch-concerns (13 more)
+    expect(docs.length).toBe(28);
   });
 
   it('each DocEntry has expected fields', async () => {

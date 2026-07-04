@@ -1,5 +1,12 @@
 /** Normalized status values used across introspection results */
-export type NormalizedStatus = 'complete' | 'in-progress' | 'not-started' | 'deprecated';
+export const STATUS = {
+  Complete: 'complete',
+  InProgress: 'in-progress',
+  NotStarted: 'not-started',
+  Deprecated: 'deprecated',
+} as const;
+
+export type NormalizedStatus = (typeof STATUS)[keyof typeof STATUS];
 
 /** Result of parsing a single slice plan entry */
 export interface SlicePlanEntry {
@@ -255,11 +262,23 @@ export interface ConsistencyFixResult extends ConsistencyCheckResult {
 export interface SliceStatus {
   name: string;
   index: number | null;
-  status: 'needs-design' | 'needs-tasks' | 'in-implementation' | 'complete' | 'no-active-slice';
+  status:
+    | 'needs-design'
+    | 'needs-tasks'
+    | 'in-implementation'
+    | 'complete'
+    | 'no-active-slice'
+    | 'pending-review'
+    | 'review-failed';
   taskProgress?: {
     completed: number;
     total: number;
     inferredStatus: NormalizedStatus;
+  };
+  /** Set when status is 'pending-review' or 'review-failed'; carries the gate's rationale for getNext() to route without recomputing the gate. */
+  gateInfo?: {
+    reviewType: string;
+    rationale: string;
   };
 }
 

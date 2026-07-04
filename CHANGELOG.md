@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Foundation for review-aware workflow gating (initiative 240): `workflow.review_enabled`, `workflow.review_threshold`, and `workflow.review_unknown_as` config keys, plus per-gate override keys (`workflow.review_gates.{pre_advance,pre_slice_plan,pre_tasks,pre_implementation}.{review_type,threshold}`). All keys default to off/empty and have no effect yet — no command reads them. Introduced to unblock upcoming gate-logic slices.
+- The review gate is now active behind `workflow.review_enabled` (default off — no behavior change unless explicitly turned on). When enabled, `cf next`/`cf status` (and their MCP equivalents `workflow_next`/`workflow_status`) automatically look for the review owed at the slice's current lifecycle position — `arch` before a slice plan, `slice` before task breakdown, `tasks` before implementation, `code` before advancing — and report `pending-review` or `review-failed` instead of the usual recommendation when that review is missing or its verdict doesn't clear the configured threshold. Per-gate `threshold` overrides are honored; the `review_type` per-gate keys from 240 are inert (the review type is always derived from position, never configured).
+
+### Fixed
+- `cf config get/set --project <name>` now resolves the project name to its actual `projectPath` before reading/writing config, instead of treating the raw name as a literal directory. A bare registered project name previously caused `.context-forge.toml` to be silently written to the wrong (nonexistent) path.
 
 ## [0.8.1] - 20260514
 

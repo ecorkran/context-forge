@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { FileProjectStore, WorkflowNavigator } from '@context-forge/core/node';
+import { FileProjectStore, WorkflowNavigator, ConfigManager } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -23,7 +23,8 @@ export function registerNextCommand(program: Command): void {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
         }
 
-        const nav = new WorkflowNavigator();
+        const config = new ConfigManager(project.projectPath);
+        const nav = new WorkflowNavigator(config);
         const result = await nav.getNext(project);
 
         if (opts.json) {
