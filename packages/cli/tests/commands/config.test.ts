@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerConfigCommand } from '../../src/commands/config.js';
+import { resolveProject } from '@context-forge/core';
+import { resolveProjectWorktree } from '../../src/utils/project.js';
 
 // Mock ConfigManager
 const mockGet = vi.fn();
@@ -13,6 +15,17 @@ vi.mock('@context-forge/core/node', () => ({
     set: mockSet,
     list: mockList,
   })),
+  FileProjectStore: vi.fn().mockImplementation(() => ({})),
+}));
+
+// Default: no registered project resolves — resolveConfigProjectPath falls through to
+// its raw-existing-directory fallback (or user scope when --project is omitted). Tests
+// that need registry resolution override these with mockResolvedValueOnce.
+vi.mock('@context-forge/core', () => ({
+  resolveProject: vi.fn().mockResolvedValue(null),
+}));
+vi.mock('../../src/utils/project.js', () => ({
+  resolveProjectWorktree: vi.fn().mockRejectedValue(new Error('not found')),
 }));
 
 function createProgram(): Command {
@@ -110,14 +123,33 @@ describe('cf config set', () => {
     expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://example.com', 'user');
   });
 
-  it('calls ConfigManager.set with project scope when --project is set', async () => {
+  it('calls ConfigManager.set with project scope when --project is an existing directory', async () => {
     const program = createProgram();
     await program.parseAsync([
       'node', 'cf', 'config', 'set', 'guide.source', 'local',
-      '--project', '/my/project',
+      '--project', process.cwd(),
     ]);
 
     expect(mockSet).toHaveBeenCalledWith('guide.source', 'local', 'project');
+  });
+
+  it('resolves a bare registered project name to its projectPath (not treated as a literal path)', async () => {
+    vi.mocked(resolveProjectWorktree).mockResolvedValueOnce({ id: 'proj_001', source: 'flag' });
+    vi.mocked(resolveProject).mockResolvedValueOnce({
+      id: 'proj_001',
+      name: 'gate-walkthrough',
+      projectPath: '/real/registered/path',
+    } as never);
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'config', 'set', 'workflow.review_enabled', 'true',
+      '--project', 'gate-walkthrough',
+    ]);
+
+    const { ConfigManager } = await import('@context-forge/core/node');
+    expect(vi.mocked(ConfigManager)).toHaveBeenCalledWith('/real/registered/path');
+    expect(mockSet).toHaveBeenCalledWith('workflow.review_enabled', true, 'project');
   });
 
   it('coerces boolean values', async () => {
