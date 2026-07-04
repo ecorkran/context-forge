@@ -5,18 +5,22 @@ import { registerNextCommand } from '../../src/commands/next.js';
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGetNext = vi.fn();
+const mockNavigatorCtor = vi.fn();
+const mockConfigManagerCtor = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
-  WorkflowNavigator: vi.fn().mockImplementation(() => ({
-    getNext: mockGetNext,
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: '' }),
-  })),
+  WorkflowNavigator: vi.fn().mockImplementation((...args: unknown[]) => {
+    mockNavigatorCtor(...args);
+    return { getNext: mockGetNext };
+  }),
+  ConfigManager: vi.fn().mockImplementation((...args: unknown[]) => {
+    mockConfigManagerCtor(...args);
+    return { get: vi.fn().mockResolvedValue({ value: '' }) };
+  }),
 }));
 
 const sampleProject = {
@@ -98,5 +102,25 @@ describe('cf next', () => {
     const parsed = JSON.parse(raw);
     expect(parsed.recommendation).toBeDefined();
     expect(parsed.slice).toBe('100-slice.auth');
+  });
+
+  it('constructs ConfigManager at project path and passes it to WorkflowNavigator, surfacing a blocked recommendation end-to-end', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGetNext.mockResolvedValue({
+      recommendation: 'Blocked: review verdict does not clear threshold',
+      rationale: "Review artifact present but verdict FAIL does not clear threshold 'concerns' for slice 100.",
+      slice: '100-slice.auth',
+      summary: 'Blocked — slice 100 review does not clear',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'next', '--project', 'proj_001']);
+
+    expect(mockConfigManagerCtor).toHaveBeenCalledWith(sampleProject.projectPath);
+    expect(mockNavigatorCtor).toHaveBeenCalledWith(expect.objectContaining({ get: expect.any(Function) }));
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Blocked');
+    expect(output).toContain('does not clear threshold');
   });
 });

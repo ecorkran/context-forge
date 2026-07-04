@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath } from '@context-forge/core/node';
+import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath, ConfigManager } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
@@ -116,7 +116,8 @@ export function registerStatusCommand(program: Command): void {
           ? (rawProject.worktrees ?? []).find((w) => w.id === resolvedWorktreeId)
           : undefined;
 
-        const nav = new WorkflowNavigator();
+        const config = new ConfigManager(project.projectPath);
+        const nav = new WorkflowNavigator(config);
         const status = await nav.getStatus(project);
 
         if (opts.json) {
