@@ -3,7 +3,7 @@ import { existsSync, statSync } from 'node:fs';
 import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { handleError } from '../utils/errors.js';
+import { handleError, UserError } from '../utils/errors.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success } from '../output/styles.js';
@@ -23,8 +23,11 @@ async function resolveConfigProjectPath(project?: string): Promise<string | unde
     const { id, worktreeId } = await resolveProjectWorktree({ project }, store);
     const resolved = await resolveProject(store, id, worktreeId);
     if (resolved?.projectPath) return resolved.projectPath;
-  } catch {
-    // Registry resolution failed — fall through to the raw-path fallback below.
+  } catch (err) {
+    // resolveProjectWorktree throws UserError when no project matches — expected when
+    // --project is a raw directory rather than a registered name; fall through to the
+    // raw-path fallback below. Any other error (e.g. a corrupt project store) propagates.
+    if (!(err instanceof UserError)) throw err;
   }
   if (project && existsSync(project) && statSync(project).isDirectory()) {
     return project;

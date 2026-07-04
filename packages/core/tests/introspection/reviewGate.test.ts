@@ -8,7 +8,7 @@ import {
   type ThresholdToken,
   type UnknownPolicy,
 } from '../../src/introspection/reviewGate.js';
-import type { ConfigManager, ConfigResult } from '../../src/config/ConfigManager.js';
+import { makeStubConfig } from '../helpers/stubConfig.js';
 
 describe('positionToReviewType', () => {
   it('maps each boundary to its review type', () => {
@@ -64,22 +64,6 @@ describe('evaluateVerdict', () => {
     expect(evaluateVerdict('UNKNOWN', 'concerns', 'pass')).toBe('clears');
   });
 });
-
-function makeStubConfig(values: Record<string, unknown>): ConfigManager {
-  return {
-    get: vi.fn(async (key: string): Promise<ConfigResult> => {
-      if (!(key in values)) {
-        throw new Error(`Unexpected config key requested in test: "${key}"`);
-      }
-      return {
-        key,
-        value: values[key] as string | boolean | number,
-        source: 'default',
-        description: '',
-      };
-    }),
-  } as unknown as ConfigManager;
-}
 
 const BASE_VALUES = {
   'workflow.review_enabled': true,

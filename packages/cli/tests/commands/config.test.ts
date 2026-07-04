@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { registerConfigCommand } from '../../src/commands/config.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../../src/utils/project.js';
+import { UserError } from '../../src/utils/errors.js';
 
 // Mock ConfigManager
 const mockGet = vi.fn();
@@ -20,13 +21,18 @@ vi.mock('@context-forge/core/node', () => ({
 
 // Default: no registered project resolves — resolveConfigProjectPath falls through to
 // its raw-existing-directory fallback (or user scope when --project is omitted). Tests
-// that need registry resolution override these with mockResolvedValueOnce.
+// that need registry resolution override these with mockResolvedValueOnce. Rejects with
+// UserError to match resolveProjectWorktree's real "not found" behavior — the config.ts
+// catch block only swallows UserError and rethrows anything else.
 vi.mock('@context-forge/core', () => ({
   resolveProject: vi.fn().mockResolvedValue(null),
 }));
-vi.mock('../../src/utils/project.js', () => ({
-  resolveProjectWorktree: vi.fn().mockRejectedValue(new Error('not found')),
-}));
+vi.mock('../../src/utils/project.js', async () => {
+  const { UserError: RealUserError } = await import('../../src/utils/errors.js');
+  return {
+    resolveProjectWorktree: vi.fn().mockRejectedValue(new RealUserError('not found')),
+  };
+});
 
 function createProgram(): Command {
   const program = new Command();

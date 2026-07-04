@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
 import { WorkflowNavigator } from '../../src/introspection/WorkflowNavigator.js';
 import type { ProjectData } from '../../src/types/project.js';
-import type { ConfigManager, ConfigResult } from '../../src/config/ConfigManager.js';
+import { makeStubConfig } from '../helpers/stubConfig.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
 
@@ -641,17 +641,6 @@ describe('WorkflowNavigator', () => {
     });
   });
 });
-
-function makeStubConfig(values: Record<string, unknown>): ConfigManager {
-  return {
-    get: vi.fn(async (key: string): Promise<ConfigResult> => {
-      if (!(key in values)) {
-        throw new Error(`Unexpected config key requested in test: "${key}"`);
-      }
-      return { key, value: values[key] as string | boolean | number, source: 'default', description: '' };
-    }),
-  } as unknown as ConfigManager;
-}
 
 const GATE_ENABLED_DEFAULTS = {
   'workflow.review_enabled': true,
