@@ -10,7 +10,9 @@ projectState: >
   reserved LIFECYCLE: review-gate branch in getNext() all exist. WorkflowNavigator currently
   takes no config and getNext(project) reads only ProjectData + filesystem. This slice adds
   the review gate covering all four lifecycle boundaries, with reviewType derived from position.
-status: not_started
+dateCreated: 20260702
+dateUpdated: 20260704
+status: complete
 ---
 
 # Tasks: Gate Logic in WorkflowNavigator (Slice 241)
@@ -208,15 +210,15 @@ Fixtures come **before** the navigator work: the navigator gate tests (Task 5) p
 
 ## Task 7 — Build, full suite, and design walkthrough
 
-- [ ] 7.1 Build and run the full suite
+- [x] 7.1 Build and run the full suite
   - `pnpm -r build` (clean). `pnpm --filter @context-forge/core test reviewGate` and `... test WorkflowNavigator` green. Full `pnpm -r test`: only the 7 known pre-existing failures remain; zero new failures. Fix any fixture-count assertions this slice perturbed.
   - Success: build clean; no new failures.
 
-- [ ] 7.2 Execute the design Verification Walkthrough
+- [x] 7.2 Execute the design Verification Walkthrough
   - Run the design's Verification Walkthrough (steps 1–8) against a scratch project (`--project <scratch>` so real config is untouched): gating-off no-change; enable; pre-advance pending→FAIL blocked→CONCERNS clears; pre-tasks slice-type; tighten threshold to `pass`. Capture actual output; correct the walkthrough in the design doc if any command/output differs (as was needed in slice 240).
   - Success: walkthrough reproduces; design doc walkthrough matches reality.
 
-- [ ] 7.3 Update docs/frontmatter and commit
+- [x] 7.3 Update docs/frontmatter and commit
   - Add a CHANGELOG `[Unreleased]` entry (review gate now active behind `workflow.review_enabled`; new `pending-review`/`review-failed` statuses and `review`/`blocked` recommendations). Set the slice design and this task file frontmatter `status: complete`, `dateUpdated` to the implementation date. Delegate checkbox updates to `task-checker`.
   - Final commit checkpoint: commit the surface wiring (Task 6), fixtures (Task 4 if not already), CHANGELOG, and frontmatter on the slice branch with a semantic message. (Earlier checkpoints at 2.4, 3.8, 5.7 already saved types/reviewGate/navigator.) Do NOT run the code review here — that is a separate step.
   - Success: docs updated; all work committed on the slice branch across the distributed checkpoints.
