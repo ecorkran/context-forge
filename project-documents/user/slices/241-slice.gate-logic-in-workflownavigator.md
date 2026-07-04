@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/240-slices.review-aware-workflow-gat
 dependencies: [240]
 interfaces: [242, 243, 910]
 dateCreated: 20260702
-dateUpdated: 20260702
-status: not-started
+dateUpdated: 20260704
+status: complete
 ---
 
 # Slice Design: Gate Logic in WorkflowNavigator
@@ -339,57 +339,76 @@ Together: **missing config → gating off (silent, correct); unreadable config �
 
 ### Verification Walkthrough
 
-Draft demo script (refined in Phase 6). Uses a scratch project so `cf config set` does not touch real config.
+Reproduced 20260704 against a scratch project (`cf init` in an empty directory, registered as `gate-walkthrough`) using the locally built CLI (`node packages/cli/dist/index.js ...`). Actual commands and output below; all 8 steps reproduced as designed.
 
-1. **Gating off — no change.** Any existing project with `review_enabled` unset:
+**Caveat found and fixed during this walkthrough:** `cf config get/set --project <name>` previously passed the raw `--project` value straight into `ConfigManager`'s constructor without resolving it to the project's registered `projectPath` first. A bare registered project name (e.g. `gate-walkthrough`) was silently treated as a relative directory, so `.context-forge.toml` was written to a bogus nested path instead of the project root — `cf next`/`cf status` (which resolve `projectPath` correctly) would then never see the config the walkthrough had just set. Fixed in `packages/cli/src/commands/config.ts`: `--project` now resolves through the registry (name/id, then CWD) first, falling back to treating the value as a literal existing directory only when registry resolution fails (preserving `cf config`'s traditional "point at any directory, registered or not" ergonomics). See commit `3de9589`.
+
+1. **Gating off — no change.**
    ```bash
-   cf next            # unchanged: recommends advance when the active slice is complete
+   cf next --project gate-walkthrough
+   # Next:      Your project is in Phase 0 (Concept). Start by describing what you want to build.
+   # (unchanged first-run behavior; no gate fires)
    ```
 
-2. **Enable gating** (scratch project):
+2. **Enable gating** (scratch project, bare registered name):
    ```bash
-   cf config set workflow.review_enabled true --project <scratch>
+   cf config set workflow.review_enabled true --project gate-walkthrough
+   # Set workflow.review_enabled = true (project)
    # threshold left default (concerns); review type is NOT configured — derived from position
    ```
 
 3. **pre-advance: complete slice, no code review → pending-review.**
-   Active slice tasks all checked, no `NNN-review.code.*.md`:
+   Slice 100 with tasks all checked, no `100-review.code.*.md`:
    ```bash
-   cf status          # active slice: pending-review
-   cf next            # Next: Review required before advancing
-                      # Rationale: ... requires a code review ... no review artifact found.
+   cf status --project gate-walkthrough
+   # Status:   pending-review
+   cf next --project gate-walkthrough
+   # Next:      Review required before advancing
+   # Rationale: Slice 100 requires a code review before proceeding — no review artifact found.
    ```
 
 4. **Add a FAIL code review → review-failed / blocked.**
-   Drop `NNN-review.code.first.md` with `verdict: FAIL`:
+   Added `100-review.code.first.md` with `verdict: FAIL`:
    ```bash
-   cf status          # active slice: review-failed
-   cf next            # Next: Blocked ... verdict FAIL does not clear threshold 'concerns'
+   cf status --project gate-walkthrough
+   # Status:   review-failed
+   cf next --project gate-walkthrough
+   # Next:      Blocked: review verdict does not clear threshold
+   # Rationale: Review artifact present but verdict FAIL does not clear threshold 'concerns' for slice 100.
    ```
 
 5. **Replace with CONCERNS → clears → advance.**
-   Add `NNN-review.code.second.md` with `verdict: CONCERNS` (lexicographically later → wins):
+   Added `100-review.code.second.md` with `verdict: CONCERNS` (lexicographically later → wins):
    ```bash
-   cf next            # Next: Advance to slice <next> ...  (gate cleared)
+   cf next --project gate-walkthrough
+   # Next:      Create or assign a slice plan
+   # (gate cleared; falls through to the pre-241 "complete, no plan" recommendation)
    ```
 
 6. **pre-tasks boundary: design present, no tasks, no slice review → pending-review (slice type).**
-   On a slice with a design file but no task file, gating on:
+   Slice 200 with a design file but no task file, gating still on:
    ```bash
-   cf next            # Next: Review required — looks for a 'slice' review, not 'code'
+   cf set slice 200 --project gate-walkthrough
+   cf next --project gate-walkthrough
+   # Next:      Review required before advancing
+   # Rationale: Slice 200 requires a slice review before proceeding — no review artifact found.
    ```
 
 7. **Tighten global threshold to pass → CONCERNS no longer clears.**
+   Back on slice 100 (which has the CONCERNS review from step 5):
    ```bash
-   cf config set workflow.review_threshold pass --project <scratch>
-   cf next            # Next: Blocked ... verdict CONCERNS does not clear threshold 'pass'
+   cf config set workflow.review_threshold pass --project gate-walkthrough
+   cf next --project gate-walkthrough
+   # Next:      Blocked: review verdict does not clear threshold
+   # Rationale: Review artifact present but verdict CONCERNS does not clear threshold 'pass' for slice 100.
    ```
 
 8. **Build and tests.**
    ```bash
-   pnpm -r build
-   pnpm --filter @context-forge/core test reviewGate
-   pnpm --filter @context-forge/core test WorkflowNavigator
+   pnpm -r build                                        # clean across all 5 packages
+   pnpm --filter @context-forge/core test reviewGate     # 15/15 passing
+   pnpm --filter @context-forge/core test WorkflowNavigator  # 63/63 passing
+   pnpm -r test    # only the 7 known pre-existing failures remain (3 FileProjectStore, 4 list.test.ts); zero new failures
    ```
 
 ## Implementation Notes
