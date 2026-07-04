@@ -192,15 +192,15 @@ Fixtures come **before** the navigator work: the navigator gate tests (Task 5) p
 
 ## Task 6 — Surface wiring (CLI + MCP)
 
-- [ ] 6.1 Wire `ConfigManager` into CLI `next` and `status`
+- [x] 6.1 Wire `ConfigManager` into CLI `next` and `status`
   - In `cli/src/commands/next.ts` and `status.ts`, construct `new ConfigManager(project.projectPath)` (using the already-worktree-resolved project path) and pass it to `new WorkflowNavigator(config)`.
   - Success: `cf next` / `cf status` read gate config at project/worktree scope.
 
-- [ ] 6.2 Wire `ConfigManager` into MCP workflow tools
+- [x] 6.2 Wire `ConfigManager` into MCP workflow tools
   - In `mcp-server/src/tools/workflowTools.ts`, at both `new WorkflowNavigator()` sites (getStatus ~:154, getNext ~:200), construct and pass `new ConfigManager(project.projectPath)`.
   - Success: `workflow_next` / `workflow_status` inherit the gate identically.
 
-- [ ] 6.3 Test: surfaces pass config; existing CLI/MCP tests pass
+- [x] 6.3 Test: surfaces pass config; existing CLI/MCP tests pass
   - Confirm existing CLI (`next`, `status`) and MCP (`workflowTools`) tests still pass with the wiring. Add one CLI or MCP test that, with gating enabled + a FAIL review fixture, the surface reports the `blocked` recommendation end-to-end.
   - Success: no regressions; one end-to-end gated assertion.
 
