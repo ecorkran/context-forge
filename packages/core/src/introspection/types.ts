@@ -275,6 +275,11 @@ export interface SliceStatus {
     total: number;
     inferredStatus: NormalizedStatus;
   };
+  /** Set when status is 'pending-review' or 'review-failed'; carries the gate's rationale for getNext() to route without recomputing the gate. */
+  gateInfo?: {
+    reviewType: string;
+    rationale: string;
+  };
 }
 
 /** Full workflow status for a project */
