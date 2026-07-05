@@ -3,7 +3,7 @@ docType: slice-plan
 parent: project-documents/user/architecture/240-arch.review-aware-workflow-gating.md
 project: context-forge
 dateCreated: 20260624
-dateUpdated: 20260624
+dateUpdated: 20260704
 status: not_started
 ---
 
