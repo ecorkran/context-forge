@@ -513,12 +513,12 @@ export class ConsistencyChecker {
     slicePlanPath: string | null,
     resolvedGate: ResolvedGate | null,
   ): Promise<ConsistencyFinding[]> {
-    if (resolvedGate === null) return [];
+    if (!this.config || resolvedGate === null) return [];
     if (!planEntry?.isChecked) return [];
     if (slicePlanPath === null) return [];
 
     const result = await evaluateReviewGate(
-      projectPath, sliceIndex, 'preAdvance', this.config!, resolvedGate,
+      projectPath, sliceIndex, 'preAdvance', this.config, resolvedGate,
     );
     if (result === null) return [];
 
