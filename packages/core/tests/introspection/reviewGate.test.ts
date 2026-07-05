@@ -1,14 +1,18 @@
+import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import {
   positionToReviewType,
   normalizeVerdict,
   evaluateVerdict,
   resolveGateConfig,
+  evaluateReviewGate,
   type Boundary,
   type ThresholdToken,
   type UnknownPolicy,
 } from '../../src/introspection/reviewGate.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
+
+const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
 
 describe('positionToReviewType', () => {
   it('maps each boundary to its review type', () => {
@@ -130,5 +134,48 @@ describe('resolveGateConfig', () => {
       }),
     } as unknown as ConfigManager;
     await expect(resolveGateConfig(config)).rejects.toThrow(/disk read error/);
+  });
+});
+
+describe('evaluateReviewGate', () => {
+  it('returns null when gating is off', async () => {
+    const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_enabled': false });
+    const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
+    expect(result).toBeNull();
+  });
+
+  it('returns pending-review with no artifactPath when the review is absent', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe('pending-review');
+    expect(result?.reviewType).toBe('code');
+    expect(result?.artifactPath).toBeUndefined();
+  });
+
+  it('returns review-failed with artifactPath when the verdict does not clear', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const result = await evaluateReviewGate(PROJECT_ROOT, 400, 'preAdvance', config);
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe('review-failed');
+    expect(result?.rationale).toContain('FAIL');
+    expect(result?.artifactPath).toBe('project-documents/user/reviews/400-review.code.first.md');
+  });
+
+  it('returns null when the verdict clears the threshold', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const result = await evaluateReviewGate(PROJECT_ROOT, 401, 'preAdvance', config);
+    expect(result).toBeNull();
+  });
+
+  it('accepts a pre-resolved ResolvedGate and skips re-reading config', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const resolved = await resolveGateConfig(config);
+    expect(resolved).not.toBeNull();
+
+    vi.mocked(config.get).mockClear();
+    const result = await evaluateReviewGate(PROJECT_ROOT, 400, 'preAdvance', config, resolved!);
+    expect(result?.status).toBe('review-failed');
+    expect(config.get).not.toHaveBeenCalled();
   });
 });

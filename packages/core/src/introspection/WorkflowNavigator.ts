@@ -12,27 +12,10 @@ import { STATUS } from './types.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
-import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import {
-  positionToReviewType,
-  normalizeVerdict,
-  evaluateVerdict,
-  resolveGateConfig,
-  type Boundary,
-} from './reviewGate.js';
-
-/** Gated status a boundary evaluation can produce, or null to keep the caller's existing status. */
-type GateStatus = 'pending-review' | 'review-failed';
-
-/** Result of evaluating a gate at a boundary: the status plus a human-readable rationale. */
-interface GateEvaluation {
-  status: GateStatus;
-  reviewType: string;
-  rationale: string;
-}
+import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -606,33 +589,7 @@ export class WorkflowNavigator {
     boundary: Boundary,
   ): Promise<GateEvaluation | null> {
     if (!this.config) return null;
-
-    const resolved = await resolveGateConfig(this.config);
-    if (resolved === null) return null;
-
-    const reviewType = positionToReviewType(boundary);
-    const docs = await detectDocuments(projectPath, index, reviewType);
-
-    if (docs.review === null) {
-      return {
-        status: 'pending-review',
-        reviewType,
-        rationale: `Slice ${index} requires a ${reviewType} review before proceeding — no review artifact found.`,
-      };
-    }
-
-    const frontmatter = await parseFrontmatter(join(projectPath, docs.review));
-    const verdict = normalizeVerdict(frontmatter.data.verdict);
-    const threshold = resolved.thresholdFor(boundary);
-    const outcome = evaluateVerdict(verdict, threshold, resolved.unknownAs);
-
-    if (outcome === 'clears') return null;
-
-    return {
-      status: 'review-failed',
-      reviewType,
-      rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index}.`,
-    };
+    return evaluateReviewGate(projectPath, index, boundary, this.config);
   }
 
   private async parseTaskFileSafe(taskPaths: string[]): Promise<TaskFileResult | null> {

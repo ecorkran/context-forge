@@ -1,4 +1,7 @@
+import { join } from 'node:path';
 import type { ConfigManager } from '../config/ConfigManager.js';
+import { detectDocuments } from './parsers/documentDetector.js';
+import { parseFrontmatter } from './parsers/frontmatterParser.js';
 
 /** Frontmatter verdict vocabulary (uppercase, untrusted external data) */
 export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
@@ -136,5 +139,62 @@ export async function resolveGateConfig(config: ConfigManager): Promise<Resolved
     thresholdFor(boundary: Boundary): ThresholdToken {
       return overrides.get(boundary) ?? globalThreshold;
     },
+  };
+}
+
+/** Gated status a boundary evaluation can produce, or null to keep the caller's existing status. */
+type GateStatus = 'pending-review' | 'review-failed';
+
+/** Result of evaluating a gate at a boundary: the status plus a human-readable rationale. */
+export interface GateEvaluation {
+  status: GateStatus;
+  reviewType: string;
+  rationale: string;
+  /** Relative path (from projectPath) to the review artifact, when one was found.
+   *  Absent for pending-review (no artifact exists yet). Lets callers point a
+   *  finding's location at the artifact without a second detectDocuments call. */
+  artifactPath?: string;
+}
+
+/**
+ * Composite gate evaluation for one boundary of one slice/arch index.
+ * Returns null when gating is off OR the review clears — i.e. "nothing to flag."
+ * Returns a GateEvaluation when the review is absent (pending-review) or
+ * present-but-not-clearing (review-failed). Pure I/O over the pure helpers;
+ * both WorkflowNavigator and ConsistencyChecker call this.
+ */
+export async function evaluateReviewGate(
+  projectPath: string,
+  index: number,
+  boundary: Boundary,
+  config: ConfigManager,
+  resolved?: ResolvedGate,
+): Promise<GateEvaluation | null> {
+  const gate = resolved ?? (await resolveGateConfig(config));
+  if (gate === null) return null;
+
+  const reviewType = positionToReviewType(boundary);
+  const docs = await detectDocuments(projectPath, index, reviewType);
+
+  if (docs.review === null) {
+    return {
+      status: 'pending-review',
+      reviewType,
+      rationale: `Slice ${index} requires a ${reviewType} review before proceeding — no review artifact found.`,
+    };
+  }
+
+  const frontmatter = await parseFrontmatter(join(projectPath, docs.review));
+  const verdict = normalizeVerdict(frontmatter.data.verdict);
+  const threshold = gate.thresholdFor(boundary);
+  const outcome = evaluateVerdict(verdict, threshold, gate.unknownAs);
+
+  if (outcome === 'clears') return null;
+
+  return {
+    status: 'review-failed',
+    reviewType,
+    rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index}.`,
+    artifactPath: docs.review,
   };
 }
