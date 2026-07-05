@@ -255,14 +255,14 @@ export function registerWorkflowTools(server: McpServer): void {
         }
 
         const introspector = new ArtifactIntrospector();
-        const checker = new ConsistencyChecker(introspector);
+        const config = new ConfigManager(project.projectPath);
+        const checker = new ConsistencyChecker(introspector, config);
 
         // Determine fix mode: explicit arg > config key > false
         let fixMode = args.fix ?? false;
         if (!fixMode) {
           try {
-            const cm = new ConfigManager(project.projectPath);
-            const autoFixResult = await cm.get('workflow.auto_fix');
+            const autoFixResult = await config.get('workflow.auto_fix');
             if (autoFixResult.value === true) {
               fixMode = true;
             }
