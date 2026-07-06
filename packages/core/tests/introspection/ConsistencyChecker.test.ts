@@ -211,6 +211,73 @@ describe('ConsistencyChecker', () => {
       expect(finding).toBeUndefined();
     });
 
+    it('Rule 1 (slice 911): warns, not-fixable, when tasks in-progress but slice unchecked', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+          ],
+          totalSlices: 1,
+          completedSlices: 0,
+        }),
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
+          totalTasks: 2,
+          completedTasks: 1,
+          inferredStatus: 'in-progress',
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find(
+        (f) => f.rule === 'task-vs-plan' && f.severity === 'warning',
+      );
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('in progress');
+      expect(finding!.description).toContain('unchecked');
+      expect(finding!.fixable).toBe(false);
+      expect(finding!.fixAction).toBeUndefined();
+    });
+
+    it('Rule 1 (slice 911): existing complete-unchecked and checked-incomplete branches unaffected by the new in-progress branch', async () => {
+      // Complete-unchecked (pre-existing branch) still fires; the new
+      // in-progress branch must not also fire for a fully-complete task file.
+      const completeUnchecked = new ConsistencyChecker(makeMockIntrospector());
+      const r1 = await completeUnchecked.check(makeProject());
+      const findings1 = r1.findings.filter((f) => f.rule === 'task-vs-plan');
+      expect(findings1).toHaveLength(1);
+      expect(findings1[0].severity).toBe('warning');
+      expect(findings1[0].description).toContain('Tasks complete');
+
+      // Checked-incomplete (pre-existing error branch) still fires alone.
+      const checkedIncomplete = new ConsistencyChecker(
+        makeMockIntrospector({
+          parseSlicePlan: vi.fn().mockResolvedValue({
+            filePath: '/fake/plan.md',
+            entries: [
+              { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
+            ],
+            totalSlices: 1,
+            completedSlices: 1,
+          }),
+          parseTaskFile: vi.fn().mockResolvedValue({
+            filePath: '/fake/tasks.md',
+            items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
+            totalTasks: 2,
+            completedTasks: 1,
+            inferredStatus: 'in-progress',
+          }),
+        }),
+      );
+      const r2 = await checkedIncomplete.check(makeProject());
+      const findings2 = r2.findings.filter((f) => f.rule === 'task-vs-plan');
+      expect(findings2).toHaveLength(1);
+      expect(findings2[0].severity).toBe('error');
+    });
+
     // --- Rule 2: Frontmatter status vs. computed state ---
 
     it('Rule 2: errors when frontmatter "complete" but tasks incomplete', async () => {
@@ -272,6 +339,68 @@ describe('ConsistencyChecker', () => {
 
       const finding = result.findings.find((f) => f.rule === 'frontmatter-vs-computed');
       expect(finding).toBeUndefined();
+    });
+
+    it('Rule 2 (slice 911): warns and --fix flips frontmatter to in-progress when tasks in-progress but frontmatter not-started', async () => {
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'not-started' },
+        }),
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
+          totalTasks: 2,
+          completedTasks: 1,
+          inferredStatus: 'in-progress',
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+
+      const finding = result.findings.find(
+        (f) => f.rule === 'frontmatter-vs-computed' && f.severity === 'warning',
+      );
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('not-started');
+      expect(finding!.description).toContain('in progress');
+      expect(finding!.fixable).toBe(true);
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+
+      const fixResult = await checker.fix(makeProject());
+      const fixLogEntry = fixResult.fixLog.find((e) => e.rule === 'frontmatter-vs-computed');
+      expect(fixLogEntry).toBeDefined();
+    });
+
+    it('Rule 2 (slice 911): existing complete-boundary branches unaffected by the new not-started branch', async () => {
+      // "complete" frontmatter + incomplete tasks (pre-existing error branch)
+      // must not also trigger the new not-started branch.
+      const mock = makeMockIntrospector({
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'complete' },
+        }),
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [{ name: 'Task 1', done: false }],
+          totalTasks: 1,
+          completedTasks: 0,
+          inferredStatus: 'not-started',
+        }),
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 }],
+          totalSlices: 1,
+          completedSlices: 1,
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.check(makeProject());
+      const findings = result.findings.filter((f) => f.rule === 'frontmatter-vs-computed');
+      expect(findings).toHaveLength(1);
+      expect(findings[0].severity).toBe('error');
     });
 
     // --- Rule 3: Missing artifact cross-references ---
