@@ -7,6 +7,21 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-05 – 2026-07-06
+
+### Slice 911: Fix Slice-Status Derivation for Partial-Completion Slices — Complete
+- Root cause (GitHub #56): slice-plan entry status was derived purely from the plan checkbox (`isChecked ? complete : not-started`), so a slice with tasks done (or even partially done) but an unchecked plan entry read as "not started" in `cf next`/`cf list slices`/`workflow_status`, contradicting `cf status`. Reproduced against slice 242 post-completion.
+- New `deriveEntryStatus` helper (`packages/core/src/introspection/statusDerivation.ts`) implements the agreed precedence lattice: `deprecated` frontmatter > computed task completion > slice-design frontmatter > plan checkbox. Replaces five divergent inline mappings across `WorkflowNavigator.getNext()` (both find-sites), `cf list slices`, `cf list arch`, and two `ProjectModelBuilder` paths.
+- Found and fixed mid-implementation: `WorkflowNavigator.getStatus()`'s `slicePlan.entries` (what MCP `workflow_status` returns verbatim) wasn't routed through the derivation at all — was still returning the raw checkbox-only status even after `getNext`/`cf list` were fixed.
+- TD-2a (signal-resolution failures must surface, not silently degrade): `normalizeStatus()` now returns `undefined` for unrecognized input instead of silently defaulting to `not-started`; `parseTaskItems`/`parseTaskFile` now propagate genuine read failures (anything but ENOENT) instead of swallowing everything. Found and fixed the same swallow-pattern in `WorkflowNavigator.deriveSliceStatus`'s outer try/catch while implementing this.
+- Also resolves GitHub #57: `codeReview: none` slice-design frontmatter declaration (registered as an optional field in the frontmatter schema) lets `evaluateReviewGate()` skip the pre-advance code-review gate for docs-only slices. Default (absent) unchanged.
+- Two new `ConsistencyChecker` rule branches close the not-started-boundary gap the existing complete-boundary rules left open (task started but plan/frontmatter still says not-started).
+- Corrected a factual error in this slice's own design/task docs during implementation: registering `codeReview` was framed as suppressing a `cf check` "unknown field" warning — no such check exists in `validateFrontmatter()` (confirmed by reading it directly); slice 905 explicitly scoped that out as too noisy. Registered anyway for real value: `cf check` now validates the field's value.
+- Slice 243 (the design's intended live docs-only verification fixture) has no slice-design/task file written yet — flagged as a follow-up for whoever designs it.
+- 5 commits, ~40 new tests across `statusDerivation`, `WorkflowNavigator`, `ProjectModelBuilder`, `ConsistencyChecker`, `reviewGate`, `frontmatterSchema`, and CLI `cf list` derived-display coverage.
+
+---
+
 ## 2026-06-21 – 2026-06-24
 
 ### Initiative 240: Review-Aware Workflow Gating — Phase 2 Architecture Complete

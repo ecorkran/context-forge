@@ -6,8 +6,8 @@ lld: user/slices/911-slice.workflow-status-derivation.md
 dependencies: [241, 242]
 projectState: 241 (STATUS const) and 242 (evaluateReviewGate extraction) are complete on main. Slice-plan entry status is still derived purely from the plan checkbox, causing #56 (tasks-complete-but-unchecked slices read as "not started"). #57 (docs-only slices gated for a code review) is unresolved.
 dateCreated: 20260705
-dateUpdated: 20260705
-status: not_started
+dateUpdated: 20260706
+status: complete
 ---
 
 ## Context Summary
@@ -130,10 +130,10 @@ status: not_started
   - [x] Success: new tests pass; `evaluateReviewGate` test suite fully green including 242's existing test coverage (regression-free per the design's dependency on 242).
   - [x] **Commit checkpoint:** schema field + gate branch + tests. `git commit` with message `feat: add codeReview:none declaration, skip pre-advance gate for docs-only slices`.
 
-- [ ] **18. Full-suite verification and walkthrough refresh** — Final task. Effort: 2/5
-  - [ ] Run the complete test suite (`pnpm -r test` or project equivalent). Confirm the only failures are the previously-known pre-existing ones (3 core `FileProjectStore`, 4 cli `list.test.ts`) — any other failure must be investigated and fixed before this task is marked done.
-  - [ ] Run `pnpm -r build` and confirm a clean build across all packages.
-  - [ ] Manually execute the design's Verification Walkthrough steps 1-6 (reproduce #56 fixed via `cf list slices`/`cf status`/`cf next` against real slice 242 state; partial-completion display; `cf check`/`--fix` on a scratch fixture; docs-only gate against slice 243 if applicable per Task 17's finding, else a scratch fixture; gate-ordering preserved; MCP `workflow_status` parity) and record actual command output in the slice design's Verification Walkthrough section, replacing the draft.
-  - [ ] Flag to the Project Manager: whether slice 243 should retroactively receive the `codeReview: none` declaration (per Task 17's finding), and whether issue #57 should be updated/closed with the declarative-over-diff rationale per the design's TD-3 note.
-  - [ ] Success: full suite green (modulo known failures), build clean, walkthrough output captured in the design doc, PM notified of the two follow-up flags. Update this task file's frontmatter `status: complete` and the slice design's `status: complete`.
-  - [ ] **Final commit:** `git commit` with message `docs: capture verification walkthrough output for slice 911`.
+- [x] **18. Full-suite verification and walkthrough refresh** — Final task. Effort: 2/5
+  - [x] Run the complete test suite (`pnpm -r test` or project equivalent). Confirm the only failures are the previously-known pre-existing ones (3 core `FileProjectStore`, 4 cli `list.test.ts`) — any other failure must be investigated and fixed before this task is marked done.
+  - [x] Run `pnpm -r build` and confirm a clean build across all packages.
+  - [x] Manually execute the design's Verification Walkthrough steps 1-6 (reproduce #56 fixed via `cf list slices`/`cf status`/`cf next` against real slice 242 state; partial-completion display; `cf check`/`--fix` on a scratch fixture; docs-only gate against slice 243 if applicable per Task 17's finding, else a scratch fixture; gate-ordering preserved; MCP `workflow_status` parity) and record actual command output in the slice design's Verification Walkthrough section, replacing the draft.
+  - [x] Flag to the Project Manager: whether slice 243 should retroactively receive the `codeReview: none` declaration (per Task 17's finding), and whether issue #57 should be updated/closed with the declarative-over-diff rationale per the design's TD-3 note.
+  - [x] Success: full suite green (modulo known failures), build clean, walkthrough output captured in the design doc, PM notified of the two follow-up flags. Update this task file's frontmatter `status: complete` and the slice design's `status: complete`.
+  - [x] **Final commit:** `git commit` with message `docs: capture verification walkthrough output for slice 911`.

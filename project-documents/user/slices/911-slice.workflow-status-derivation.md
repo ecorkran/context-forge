@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: [241, 242]
 interfaces: []
 dateCreated: 20260705
-dateUpdated: 20260705
-status: not_started
+dateUpdated: 20260706
+status: complete
 ---
 
 # Slice Design: Fix Slice-Status Derivation for Partial-Completion Slices
@@ -215,51 +215,50 @@ Whether these are new `rule` names or additional branches inside the two existin
 
 ### Verification Walkthrough
 
-This uses **slice 242** (real tasks-complete-but-unchecked case, already on disk) and **slice 243** (docs-only case, #57) as live fixtures — no scratch project needed for the core demo.
+**Caveats found during implementation, read before following the steps below:**
 
-1. **Reproduce #56 is fixed (the headline).** On a checkout of this repo after implementation:
-   ```
-   cf list slices
-   ```
-   Expect the `(242)` row to render as complete / "tasks done" — **not** `○ not started`. Before this slice it renders `○ not started`.
-   ```
-   cf status
-   cf next
-   ```
-   `cf status` still reports 242 complete; `cf next` no longer says "advance to slice 242: next unstarted" — it moves past 242 to the first genuinely not-started entry (or recommends continuing 242 if it is the active in-progress slice).
+- **Slice 242's plan checkbox is now checked.** At design time, 242's entry in `240-slices.review-aware-workflow-gating.md` was unchecked (the exact #56 bug state). By the time this slice was implemented, that checkbox had already been manually corrected (ticked) — presumably by someone who noticed the misreport before this fix shipped. So step 1 no longer reproduces the original bug live: 242 reads correctly today regardless of this fix, because the checkbox itself now agrees with reality. **The #56 fix is verified instead by dedicated regression tests** that reconstruct 242's exact original state (task file 100% complete, plan checkbox unchecked) via scratch fixtures: `WorkflowNavigator.test.ts`'s `"#56 regression: tasks 100% complete, plan checkbox unchecked → not selected as next-unstarted"` and the MCP-parity test in the same file, plus `ProjectModelBuilder.test.ts`'s `"deriveEntryStatus parity"` block. All pass, confirming `getNext()`/`cf list slices`/`workflow_status` no longer select or display such a slice as "not started."
+- **Slice 243 does not exist.** It's an unchecked line item in `240-slices.review-aware-workflow-gating.md` ("(243) Documentation and README Updates") with no slice-design or task file ever written. Step 4 (docs-only gate) is instead verified against a purpose-built fixture (`405-slice.gate-docs-only.md` / `405-tasks.gate-docs-only.md` in the introspection test fixtures) with `codeReview: none`, exercised by `reviewGate.test.ts`'s `"docs-only declaration (#57, slice 911)"` block. **Flag for the PM:** when slice 243 is eventually designed, its plan description is plausibly docs-only — consider adding `codeReview: none` to its frontmatter at that time.
+- Live commands below were run against this repo's actual `context-forge` project (active plan `900-slices.maintenance-and-refactoring`, active slice 911) rather than switching the project's live config to point at the 240-initiative, to avoid mutating checked-in project state for a read-only check.
 
-2. **Partial completion reads in-progress.** In a scratch project (or by temporarily unchecking a task in a 242 task file on a throwaway branch), leave one task unchecked:
+1. **Reproduce #56 is fixed.** Verified via the regression tests noted above (not live 242, per the caveat). Live commands on this repo confirm the derivation is wired up correctly end-to-end:
    ```
-   cf list slices        # → the slice shows in-progress, not not-started
-   cf next               # → "continue in-progress slice N", not "advance to"
+   $ cf list slices
+   Slice Plan: 900-slices.maintenance-and-refactoring
+     #    Slice                                                      Status         File
+     901  MCP Tool Surface Cleanup                                   ✓ complete     —
+     ...
+     911  Fix Slice-Status Derivation for Partial-Completion Slices  ◐ in progress  911-slice....md ← active
    ```
+   911 (this slice, mid-implementation, plan checkbox unchecked) correctly renders `◐ in progress`, not `○ not started` — the derivation is live.
+   ```
+   $ cf next
+   Next:      Continue implementation — 7 tasks remaining
+   Slice:     911-slice.fix-slice-status-derivation-for-partial-completion-slices
+   Rationale: Slice 911 is in progress with 7 tasks left to complete.
+   ```
+   Confirms the wording fix: "Continue implementation," never "Advance to."
 
-3. **Consistency rules catch the drift.** In a scratch fixture, create a slice with a task file that has one checked task but a slice-design frontmatter `status: not_started` and an unchecked plan entry:
-   ```
-   cf check              # → reports the not-started-boundary warning(s)
-   cf check --fix        # → design frontmatter flips to in-progress; plan entry handled per rule
-   cf check              # → clean
-   ```
+2. **Partial completion reads in-progress.** Confirmed live by the same `cf list slices`/`cf next` output above (911 itself is a real partial-completion slice: 79/86 tasks at time of this check) and by `statusDerivation.test.ts`'s full lattice coverage.
 
-4. **Docs-only gate (#57).** With review gating enabled, on slice 243 (docs-only):
+3. **Consistency rules catch the drift.** Confirmed live:
    ```
-   cf set slice 243
-   cf next               # → does NOT block on a missing `code` review; advances normally
+   $ cf check --slice 911
+   Consistency Check: context-forge
+     Project-level
+     ⚠ Tasks in progress (79/86) but slice 911 is unchecked in plan
+       → No single auto-fix for in-progress — leave the slice plan entry for (911) unchecked until tasks complete
+     1 finding: 1 warning
    ```
-   Then on a normal code slice with no code review present:
-   ```
-   cf next               # → still routes to review/blocked (default gate unchanged)
-   ```
+   This is Task 12's new `ruleTaskVsPlan` in-progress branch firing on real, unstaged project data — not a scratch fixture. The `--fix` / frontmatter-drift path is covered by `ConsistencyChecker.test.ts`'s new Rule 1/Rule 2 tests (scratch-fixture, since reproducing a *frontmatter* drift live would require editing a real slice-design file).
 
-5. **Gate ordering preserved.** On a slice whose tasks are complete but whose code review is absent/failing, with gating on:
-   ```
-   cf next               # → routes to review (pending/failed), NOT "advance to next slice"
-   ```
-   confirming the derivation change did not let a complete-but-unreviewed slice skip its gate.
+4. **Docs-only gate (#57).** Verified via `reviewGate.test.ts`'s docs-only test block (see caveat above re: slice 243 not existing) — `codeReview: none` clears the pre-advance gate with zero review artifact present; a slice without the declaration still gates normally (regression-tested).
 
-6. **MCP parity.** Call `workflow_status` (via the MCP client or an integration test); the returned `slicePlan.entries` show the same derived statuses as `cf list slices` — no surface disagrees.
+5. **Gate ordering preserved.** Verified via `WorkflowNavigator.test.ts`'s `"gate-ordering regression"` test (a complete-but-unreviewed scratch fixture, gating enabled, confirms `getNext()` still routes to review rather than "advance to next slice") and live: `cf check` on this repo shows numerous `pending-review` findings for slices with completed tasks but no code review artifact, confirming the gate still fires under real gating-enabled conditions.
 
-If any step's command does not yet exist at task time, the task breakdown records it; all commands referenced here (`cf list slices`, `cf status`, `cf next`, `cf check [--fix]`, `cf set slice`, `workflow_status`) exist today.
+6. **MCP parity.** Confirmed via `WorkflowNavigator.test.ts`'s dedicated MCP-parity test (`getStatus().slicePlan.entries` shows the same derived statuses `getNext()` uses to select the next slice, using the 242-shaped scratch fixture) — this was also the mechanism that surfaced and fixed the gap where `workflow_status` had been returning the raw checkbox-only status even after `getNext`/`cf list slices` were fixed (see the Task 10/11 commit).
+
+All commands referenced here (`cf list slices`, `cf status`, `cf next`, `cf check [--fix]`, `cf set slice`, `workflow_status`) exist and were exercised, either live against this repo or via the test suite as noted per step.
 
 ## Risk Assessment
 
