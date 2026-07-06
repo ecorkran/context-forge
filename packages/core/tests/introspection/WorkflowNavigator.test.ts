@@ -102,6 +102,22 @@ describe('WorkflowNavigator', () => {
       expect(status.slicePlan!.name).toBe('100-slices.test-system');
     });
 
+    it('slicePlan.entries[].status is derived, not the raw checkbox-only SlicePlanEntry.status (MCP parity, slice 911)', async () => {
+      // Fixture: entry 100 is checked but its real task file is in-progress
+      // (2/4 done) — the derived status must read 'in-progress', not the raw
+      // checkbox-derived 'complete'. Entry 101 has no design file at all, so
+      // it degrades to the checkbox (unchecked) → 'not-started'.
+      const project = makeProject({
+        fileSlicePlan: '100-slices.test-system',
+      });
+      const status = await nav.getStatus(project);
+
+      const entry100 = status.slicePlan!.entries.find((e) => e.index === 100);
+      const entry101 = status.slicePlan!.entries.find((e) => e.index === 101);
+      expect(entry100!.status).toBe('in-progress');
+      expect(entry101!.status).toBe('not-started');
+    });
+
     it('returns null slicePlan when fileSlicePlan is not set', async () => {
       const project = makeProject({ fileSlicePlan: undefined });
       const status = await nav.getStatus(project);
@@ -898,6 +914,38 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
 
     // Must not select 242 as "next unstarted" — it is derived-complete despite the
     // unchecked box. It should instead select 250, the genuinely untouched slice.
+    expect(next.suggestedCommand).toBe('cf set slice 250');
+  });
+
+  it('MCP parity: workflow_status (getStatus) reports the same derived statuses as getNext selection for the 242-shaped fixture', async () => {
+    // getStatus() (what the MCP workflow_status tool returns verbatim) and
+    // getNext()'s entry selection both read through resolveEntryStatus/
+    // deriveEntryStatus — this pins that getStatus().slicePlan.entries doesn't
+    // silently diverge from what getNext used to pick the next slice.
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-mcp-parity-'));
+    writeSliceDesign(root, 242, 'done-unchecked', 'in-progress');
+    writeTaskFile(root, 242, 'done-unchecked', ['x', 'x']);
+    writeSliceDesign(root, 250, 'genuinely-untouched', 'not_started');
+    writeSlicePlan(
+      root,
+      '1. [ ] **(242) Done Unchecked** — tasks complete, checkbox never ticked.\n' +
+        '2. [ ] **(250) Genuinely Untouched** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const status = await nav.getStatus(project);
+    const entry242 = status.slicePlan!.entries.find((e) => e.index === 242);
+    const entry250 = status.slicePlan!.entries.find((e) => e.index === 250);
+    expect(entry242!.status).toBe('complete');
+    expect(entry250!.status).toBe('not-started');
+
+    const next = await nav.getNext(project);
     expect(next.suggestedCommand).toBe('cf set slice 250');
   });
 

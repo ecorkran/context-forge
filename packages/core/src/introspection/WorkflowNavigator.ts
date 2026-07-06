@@ -699,26 +699,39 @@ export class WorkflowNavigator {
   ): Promise<WorkflowStatus['slicePlan']> {
     if (!project.fileSlicePlan) return null;
 
+    let result: SlicePlanResult;
+    let planName: string;
     try {
       const relativePath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
       if (!relativePath) return null;
       const planPath = join(projectPath, relativePath);
-      const result: SlicePlanResult = await parseSlicePlan(planPath);
-
+      result = await parseSlicePlan(planPath);
       if (result.totalSlices === 0) return null;
-
-      // Extract filename from the path for display
-      const planName = project.fileSlicePlan.split('/').pop() ?? project.fileSlicePlan;
-
-      return {
-        name: planName,
-        completed: result.completedSlices,
-        total: result.totalSlices,
-        entries: result.entries,
-      };
+      planName = project.fileSlicePlan.split('/').pop() ?? project.fileSlicePlan;
     } catch {
+      // Slice plan file missing/unreadable — a normal "no plan yet" case.
       return null;
     }
+
+    // Route each entry's status through the derivation lattice so this surface
+    // (and workflow_status, which returns getStatus() verbatim) agrees with
+    // cf list slices/getNext instead of showing the raw, checkbox-only
+    // SlicePlanEntry.status (slice 911 MCP-parity fix). Deliberately NOT
+    // wrapped in the try/catch above: a per-entry resolution failure (TD-2a)
+    // must propagate, not be silently discarded along with the whole plan.
+    const entries = await Promise.all(
+      result.entries.map(async (entry) => ({
+        ...entry,
+        status: await this.resolveEntryStatus(projectPath, entry),
+      })),
+    );
+
+    return {
+      name: planName,
+      completed: result.completedSlices,
+      total: result.totalSlices,
+      entries,
+    };
   }
 
   private buildSummary(status: WorkflowStatus): string {

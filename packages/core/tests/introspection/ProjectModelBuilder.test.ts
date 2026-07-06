@@ -166,6 +166,9 @@ describe('buildModel', () => {
     expect(slice!.tasks!.taskCount).toBe(4);
     expect(slice!.tasks!.completedTasks).toBe(2); // Task one + Split task A
     expect(slice!.tasks!.items).toHaveLength(4);
+    // deriveEntryStatus: task signal (2/4 done → in-progress) matches the
+    // fixture's own frontmatter (status: in-progress) — no drift either way.
+    expect(slice!.tasks!.status).toBe('in-progress');
   });
 
   it('operational band: maintenance task (900) appears in maintenance[]', async () => {
@@ -230,6 +233,67 @@ function makeModel(overrides: Partial<ProjectModel> = {}): ProjectModel {
 function makeInitiative(name: string): Initiative {
   return { name, slices: [], features: [] };
 }
+
+describe('deriveEntryStatus parity (slice 911)', () => {
+  function writeSlicesDoc(root: string, base: number, name: string, body: string): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'architecture'), { recursive: true });
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'architecture', `${base}-slices.${name}.md`),
+      `---\ndocType: slices\nproject: parity-test\n---\n\n# Slice Plan\n\n${body}\n`,
+    );
+  }
+
+  function writeSliceDoc(root: string, index: number, name: string, status: string): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'slices'), { recursive: true });
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'slices', `${index}-slice.${name}.md`),
+      `---\nslice: ${name}\nstatus: ${status}\n---\n\n# Slice ${index}\n`,
+    );
+  }
+
+  function writeTasksDoc(root: string, index: number, name: string, checkboxes: string[]): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks'), { recursive: true });
+    const body = checkboxes.map((c) => `- [${c}] Task`).join('\n');
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'tasks', `${index}-tasks.${name}.md`),
+      `---\ntasks: ${name}\nstatus: not_started\n---\n\n${body}\n`,
+    );
+  }
+
+  it('task-entry path: task signal (in-progress) outranks frontmatter (not_started) — no drift vs deriveEntryStatus', async () => {
+    const root = mktempProject();
+    writeSlicesDoc(root, 800, 'parity', '1. [ ] **(801) Drifted** — frontmatter lags tasks.');
+    writeSliceDoc(root, 801, 'drifted', 'not_started');
+    writeTasksDoc(root, 801, 'drifted', ['x', ' ']);
+
+    const model = await buildModel(root);
+    const init = model.initiatives['800'];
+    const slice = init.slices.find((s) => s.index === '801');
+
+    expect(slice!.tasks!.status).toBe('in-progress');
+  });
+
+  it('plan-only path (no slice doc written): degrades to checkbox exactly as deriveEntryStatus with no signals', async () => {
+    const root = mktempProject();
+    writeSlicesDoc(
+      root,
+      800,
+      'parity',
+      '1. [x] **(802) Checked No Doc** — checkbox ticked, nothing on disk.\n' +
+        '2. [ ] **(803) Unchecked No Doc** — nothing on disk at all.',
+    );
+
+    const model = await buildModel(root);
+    const init = model.initiatives['800'];
+    const checked = init.slices.find((s) => s.index === '802');
+    const unchecked = init.slices.find((s) => s.index === '803');
+
+    expect(checked!.planned).toBe(true);
+    expect(checked!.status).toBe('complete');
+    expect(unchecked!.planned).toBe(true);
+    expect(unchecked!.status).toBe('not-started');
+  });
+});
 
 describe('mergeProjectModels', () => {
   it('throws on empty array', () => {

@@ -19,6 +19,13 @@ const mockBuildModel = vi.fn();
 const mockMergeProjectModels = vi.fn();
 const mockParseSlicePlanIntrospector = vi.fn();
 const mockDetectDocuments = vi.fn();
+// Introspector-instance parseTaskFile/parseFrontmatter, used by the derived-status
+// resolution added in slice 911 — default to "nothing found" so tests that don't
+// care about derived status still see a clean not-started/checkbox-only result.
+const mockIntrospectorParseTaskFile = vi.fn().mockResolvedValue({
+  filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not-started',
+});
+const mockIntrospectorParseFrontmatter = vi.fn().mockResolvedValue({ filePath: '', found: false, data: {} });
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -47,6 +54,8 @@ vi.mock('@context-forge/core/node', () => ({
   ArtifactIntrospector: vi.fn().mockImplementation(() => ({
     parseSlicePlan: mockParseSlicePlanIntrospector,
     detectDocuments: mockDetectDocuments,
+    parseTaskFile: mockIntrospectorParseTaskFile,
+    parseFrontmatter: mockIntrospectorParseFrontmatter,
   })),
   parseSlicePlan: vi.fn(),
   parseTaskFile: (...args: unknown[]) => mockParseTaskFile(...args),
@@ -314,6 +323,10 @@ describe('cf list slices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    mockIntrospectorParseTaskFile.mockResolvedValue({
+      filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not-started',
+    });
+    mockIntrospectorParseFrontmatter.mockResolvedValue({ filePath: '', found: false, data: {} });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
