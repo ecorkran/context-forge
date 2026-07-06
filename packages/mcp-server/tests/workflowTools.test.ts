@@ -402,6 +402,22 @@ describe('workflow_check', () => {
     fixErrors: [],
   };
 
+  it('constructs ConsistencyChecker with a ConfigManager for the project path', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT);
+
+    await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const { ConfigManager, ConsistencyChecker } = await import('@context-forge/core/node');
+    expect(ConfigManager).toHaveBeenCalledWith(MOCK_PROJECT.projectPath);
+    const configInstance = vi.mocked(ConfigManager).mock.results[0]?.value;
+    expect(ConsistencyChecker).toHaveBeenCalledWith(expect.anything(), configInstance);
+  });
+
   it('defaults to all-slices mode (calls checkAll)', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockConfigGet.mockResolvedValue({ value: false, source: 'default' });

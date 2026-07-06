@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerCheckCommand } from '../../src/commands/check.js';
+import { ConsistencyChecker, ConfigManager } from '@context-forge/core/node';
 
 const mockQuestion = vi.fn();
 const mockClose = vi.fn();
@@ -108,6 +109,18 @@ describe('cf check', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('constructs ConsistencyChecker with a ConfigManager for the project path', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCheckAll.mockResolvedValue(noFindingsResult);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001']);
+
+    expect(ConfigManager).toHaveBeenCalledWith(sampleProject.projectPath);
+    const configInstance = vi.mocked(ConfigManager).mock.results[0]?.value;
+    expect(ConsistencyChecker).toHaveBeenCalledWith(expect.anything(), configInstance);
   });
 
   it('defaults to all-slices mode (calls checkAll)', async () => {

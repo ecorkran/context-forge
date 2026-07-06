@@ -8,6 +8,7 @@ import type {
   FrontmatterResult,
   DocumentDetectionResult,
 } from '../../src/introspection/types.js';
+import { makeStubConfig } from '../helpers/stubConfig.js';
 
 // Mock GitWorktreeDiscovery for stale-worktree-path rule tests
 const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
@@ -110,6 +111,19 @@ describe('ConsistencyChecker', () => {
       const result = await checker.check(makeProject({ projectPath: undefined }));
       expect(result.totalFindings).toBe(0);
       expect(result.summary).toBe('No inconsistencies found');
+    });
+
+    it('accepts an optional ConfigManager with no behavior change (gating stays off in this fixture)', async () => {
+      const withoutConfig = new ConsistencyChecker(makeMockIntrospector());
+      const withConfig = new ConsistencyChecker(
+        makeMockIntrospector(),
+        makeStubConfig({ 'workflow.review_enabled': false }),
+      );
+
+      const resultWithout = await withoutConfig.check(makeProject());
+      const resultWith = await withConfig.check(makeProject());
+
+      expect(resultWith.findings).toEqual(resultWithout.findings);
     });
 
     it('returns empty result when fileSlice has no numeric index', async () => {

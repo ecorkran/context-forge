@@ -17,6 +17,8 @@ import type {
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
+import type { ConfigManager } from '../config/ConfigManager.js';
+import { resolveGateConfig, evaluateReviewGate, type ResolvedGate } from './reviewGate.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -32,11 +34,10 @@ function extractSliceIndex(fileSlice: string | undefined): number | null {
  * Optionally applies non-destructive corrections to fixable findings.
  */
 export class ConsistencyChecker {
-  private readonly introspector: IArtifactIntrospector;
-
-  constructor(introspector: IArtifactIntrospector) {
-    this.introspector = introspector;
-  }
+  constructor(
+    private readonly introspector: IArtifactIntrospector,
+    private readonly config?: ConfigManager,
+  ) {}
 
   /**
    * Run detection rules against the active slice and return structured findings.
@@ -54,9 +55,10 @@ export class ConsistencyChecker {
 
     const slicePlanResult = await this.safeParseSlicePlan(project, projectPath);
     const slicePlanPath = this.resolveSlicePlanPath(project, projectPath);
+    const resolvedGate = this.config ? await resolveGateConfig(this.config) : null;
 
     const findings = await this.checkSlice(
-      projectPath, sliceIndex, slicePlanResult, slicePlanPath,
+      projectPath, sliceIndex, slicePlanResult, slicePlanPath, resolvedGate,
     );
 
     return this.buildResult(projectPath, findings);
@@ -98,11 +100,12 @@ export class ConsistencyChecker {
     }
 
     const allFindings: ConsistencyFinding[] = [];
+    const resolvedGate = this.config ? await resolveGateConfig(this.config) : null;
 
     // Run rules 1-5 for each unique slice entry across all plans
     for (const [, { entry, planPath, planResult }] of uniqueEntries) {
       const sliceFindings = await this.checkSlice(
-        projectPath, entry.index, planResult, planPath,
+        projectPath, entry.index, planResult, planPath, resolvedGate,
       );
       // Prefix each finding's description with [sliceIndex] for attribution
       for (const finding of sliceFindings) {
@@ -218,6 +221,7 @@ export class ConsistencyChecker {
     sliceIndex: number,
     slicePlanResult: { entries: SlicePlanEntry[] } | null,
     slicePlanPath: string | null,
+    resolvedGate: ResolvedGate | null,
   ): Promise<ConsistencyFinding[]> {
     const docs = await this.safeDetectDocuments(projectPath, sliceIndex);
     const taskResult = await this.safeParseTaskFile(docs?.taskFile, projectPath);
@@ -244,6 +248,10 @@ export class ConsistencyChecker {
     const taskFileFrontmatter = await this.safeParseTaskFileFrontmatter(docs?.taskFile, projectPath);
     findings.push(
       ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter),
+    );
+
+    findings.push(
+      ...await this.ruleReviewGate(planEntry, sliceIndex, projectPath, slicePlanPath, resolvedGate),
     );
 
     return findings;
@@ -495,6 +503,44 @@ export class ConsistencyChecker {
     }
 
     return findings;
+  }
+
+  /** Rule: slice marked complete in the plan but its code review is absent or failing. */
+  private async ruleReviewGate(
+    planEntry: SlicePlanEntry | null,
+    sliceIndex: number,
+    projectPath: string,
+    slicePlanPath: string | null,
+    resolvedGate: ResolvedGate | null,
+  ): Promise<ConsistencyFinding[]> {
+    if (!this.config || resolvedGate === null) return [];
+    if (!planEntry?.isChecked) return [];
+    if (slicePlanPath === null) return [];
+
+    const result = await evaluateReviewGate(
+      projectPath, sliceIndex, 'preAdvance', this.config, resolvedGate,
+    );
+    if (result === null) return [];
+
+    if (result.status === 'pending-review') {
+      return [{
+        rule: 'review-gate',
+        severity: 'warning',
+        location: slicePlanPath,
+        description: result.rationale,
+        suggestedFix: `Run the code review for slice ${sliceIndex}`,
+        fixable: false,
+      }];
+    }
+
+    return [{
+      rule: 'review-gate',
+      severity: 'error',
+      location: join(projectPath, result.artifactPath!),
+      description: result.rationale,
+      suggestedFix: `Resolve the review findings or rerun the review for slice ${sliceIndex}`,
+      fixable: false,
+    }];
   }
 
   // --- Aggregate Rules (checkAll only) ---

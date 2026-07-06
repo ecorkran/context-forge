@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/240-slices.review-aware-workflow-gat
 dependencies: [240, 241]
 interfaces: [243]
 dateCreated: 20260704
-dateUpdated: 20260704
-status: not-started
+dateUpdated: 20260705
+status: complete
 ---
 
 # Slice Design: ConsistencyChecker Review Rule
@@ -188,19 +188,21 @@ cf check  (or  workflow_check)
 7. `cf check` and `workflow_check` both surface the findings (shared `ConsistencyChecker`), verified end-to-end.
 8. Full build + test sweep (core, cli, mcp, electron) shows only the known pre-existing failures — zero new.
 
-## Verification Walkthrough (draft — refined at Phase 6)
+## Verification Walkthrough (executed at Phase 6 — actual commands/output)
 
-Run against a scratch project with the locally-built CLI. Assumes `workflow.review_enabled = true`, default threshold `concerns`, default `review_unknown_as = fail`.
+Run against a scratch project (`cf init --lite`) with the locally-built CLI (`node packages/cli/dist/index.js`). `workflow.review_enabled` defaults to `false`; threshold defaults to `concerns`; `review_unknown_as` defaults to `fail`. A slice plan, slice design, and task file were created for a synthetic slice `900`, all marked complete, with no review artifact initially.
 
-1. **Baseline, gating off.** In a project with `review_enabled` unset, mark a slice complete in its plan with no review file. `cf check` → no `review-gate` finding. (Proves conservative default.)
-2. **Enable gating.** `cf config set workflow.review_enabled true`.
-3. **Absent code review → warning.** With slice `N` checked in the plan and no `reviews/N-review.code.*.md`, run `cf check`. Expect one `warning`: *"Slice N requires a code review before proceeding — no review artifact found."*
-4. **Failing verdict → error.** Add `reviews/N-review.code.first.md` with `verdict: FAIL`. `cf check` → one `error`: *"…verdict FAIL does not clear threshold 'concerns' for slice N."*
-5. **Clearing verdict → clean.** Change the verdict to `CONCERNS` (clears at default threshold). `cf check` → no review-gate finding.
-6. **Unknown verdict under default policy.** Set `verdict:` to a garbage value (or remove it). `cf check` → one `error` (UNKNOWN → `review_unknown_as: fail` → does not clear).
-7. **Incomplete slice is silent.** Uncheck the slice in the plan. `cf check` → no review-gate finding even with a failing review on disk (the rule keys off plan-completion).
-8. **Not auto-fixable.** With a failing review present, run `cf check --fix`. The error is reported but no fix is applied and no file is modified for it.
-9. **Both surfaces agree.** Run the equivalent `workflow_check` MCP tool for the same project state and confirm it reports the same finding (shared checker).
+1. **Baseline, gating off.** `cf config get workflow.review_enabled` → `false` (default). `cf check` → 5 findings, none with `rule: review-gate` (only unrelated frontmatter-schema warnings from the minimal fixtures). Confirms the conservative default.
+2. **Enable gating.** `cf config set workflow.review_enabled true` → `Set workflow.review_enabled = true (user)`.
+3. **Absent code review → warning.** Slice 900 checked in the plan, no `reviews/900-review.code.*.md`. `cf check` → one new finding: `⚠ [900] Slice 900 requires a code review before proceeding — no review artifact found.` (severity `warning`, `suggestedFix: Run the code review for slice 900`).
+4. **Failing verdict → error.** Added `reviews/900-review.code.first.md` with `verdict: FAIL`. `cf check` → `✗ [900] Review artifact present but verdict FAIL does not clear threshold 'concerns' for slice 900.` (severity `error`).
+5. **Clearing verdict → clean.** Changed `verdict:` to `CONCERNS`. `cf check` → zero `review-gate` findings (clears at default threshold `concerns`).
+6. **Unknown verdict under default policy.** Removed the `verdict:` field entirely. `cf check` → `✗ [900] Review artifact present but verdict UNKNOWN does not clear threshold 'concerns' for slice 900.` (UNKNOWN → `review_unknown_as: fail` → treated as FAIL, does not clear).
+7. **Incomplete slice is silent.** Restored `verdict: FAIL` and unchecked slice 900 in the plan (`[ ]`). `cf check` → zero `review-gate` findings even though the failing review is still on disk — only unrelated `task-vs-plan`/`plan-vs-frontmatter` findings fire (expected: those flag the plan/frontmatter mismatch created by unchecking, not a regression). Confirms the rule keys off plan-completion, not review presence.
+8. **Not auto-fixable.** Re-checked slice 900 in the plan (failing review still present). `cf check --fix` (confirmed via `y` prompt) fixed 4 unrelated findings (plan status, missing `docType` fields) but left the `review-gate` error finding in the report untouched, with `fixed` count excluding it and no modification to the review artifact's `verdict: FAIL`.
+9. **Both surfaces agree.** Invoked `ConsistencyChecker.checkAll()` directly (the same construction `workflow_check` performs: `new ConsistencyChecker(introspector, new ConfigManager(projectPath))`) against the same scratch project state. Result contained the identical `review-gate` `error` finding (same rationale, location, and severity) as `cf check` in step 4/8 — confirms shared-checker parity between the two surfaces.
+
+No corrections were needed — every step reproduced exactly as drafted.
 
 ## Effort
 
