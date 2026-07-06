@@ -18,8 +18,9 @@ describe('scanDirectory', () => {
     //              (15 above, from slice 240) plus slice 241's verdict-bearing gate fixtures:
     //              400-slice/tasks/review.gate-code-fail, 401-slice/tasks/review.gate-code-clears,
     //              402-slice/tasks/review.gate-code-unknown, 403-slice/review.gate-slice-fail,
-    //              404-arch/review.gate-arch-concerns (13 more)
-    expect(docs.length).toBe(28);
+    //              404-arch/review.gate-arch-concerns (13 more) plus slice 911's docs-only
+    //              gate fixture: 405-slice/tasks.gate-docs-only (2 more)
+    expect(docs.length).toBe(30);
   });
 
   it('each DocEntry has expected fields', async () => {

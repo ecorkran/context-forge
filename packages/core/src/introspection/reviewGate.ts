@@ -176,6 +176,17 @@ export async function evaluateReviewGate(
   const reviewType = positionToReviewType(boundary);
   const docs = await detectDocuments(projectPath, index, reviewType);
 
+  // Docs-only declaration (#57): a slice-design frontmatter of codeReview: none
+  // clears the pre-advance ('code') gate unconditionally — this slice cannot
+  // produce a code review. Absent (the default) leaves the gate unaffected.
+  // Scoped to preAdvance only; every other boundary evaluates normally.
+  if (boundary === 'preAdvance' && docs.sliceDesign) {
+    const designFrontmatter = await parseFrontmatter(join(projectPath, docs.sliceDesign));
+    if (designFrontmatter.data.codeReview === 'none') {
+      return null;
+    }
+  }
+
   if (docs.review === null) {
     return {
       status: 'pending-review',

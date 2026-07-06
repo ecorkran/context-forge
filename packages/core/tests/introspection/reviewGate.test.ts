@@ -178,4 +178,33 @@ describe('evaluateReviewGate', () => {
     expect(result?.status).toBe('review-failed');
     expect(config.get).not.toHaveBeenCalled();
   });
+
+  describe('docs-only declaration (#57, slice 911)', () => {
+    it('codeReview: none at preAdvance clears the gate even with no review artifact present', async () => {
+      // Fixture 405: complete tasks, codeReview: none, no review artifact at all.
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preAdvance', config);
+      expect(result).toBeNull();
+    });
+
+    it('codeReview: none does not affect other boundaries — preTasks still evaluates normally', async () => {
+      // Fixture 405 has no task file detection concern here; reuse 400 (gate-code-fail,
+      // no codeReview declaration) to confirm preTasks isn't accidentally short-circuited
+      // by the same code path, then confirm 405 itself still gates preTasks normally
+      // (it has a task file, so preTasts would look for a 'slice' review — absent — pending).
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preTasks', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+      expect(result?.reviewType).toBe('slice');
+    });
+
+    it('regression: a slice WITHOUT the codeReview declaration, missing a code review, still returns pending-review at preAdvance', async () => {
+      // Fixture 300: all-done, complete, no codeReview field, no review artifact.
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+  });
 });
