@@ -9,24 +9,31 @@ const MAX_NAME_LENGTH = 120;
 
 /**
  * Extract checkbox items from a single task file.
- * Never throws — returns empty array on error.
+ * A missing file (ENOENT) is a normal "no task file" signal and returns an
+ * empty array. Any other read failure (permission denied, EISDIR, etc.) is a
+ * genuine resolution failure and propagates — callers must not conflate it
+ * with "no task file" (TD-2a: a resolution failure is never coerced to absent).
  */
 export async function parseTaskItems(filePath: string): Promise<TaskItem[]> {
   const items: TaskItem[] = [];
+  let content: string;
   try {
-    const content = await readFile(filePath, 'utf-8');
-    for (const line of content.split('\n')) {
-      const m = CHECKBOX_RE.exec(line);
-      if (m) {
-        let name = m[2].trim();
-        if (name.length > MAX_NAME_LENGTH) {
-          name = name.slice(0, MAX_NAME_LENGTH - 3) + '...';
-        }
-        items.push({ name, done: m[1].toLowerCase() === 'x' });
-      }
+    content = await readFile(filePath, 'utf-8');
+  } catch (err) {
+    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+      return items;
     }
-  } catch {
-    // Missing/unreadable file: return empty
+    throw err;
+  }
+  for (const line of content.split('\n')) {
+    const m = CHECKBOX_RE.exec(line);
+    if (m) {
+      let name = m[2].trim();
+      if (name.length > MAX_NAME_LENGTH) {
+        name = name.slice(0, MAX_NAME_LENGTH - 3) + '...';
+      }
+      items.push({ name, done: m[1].toLowerCase() === 'x' });
+    }
   }
   return items;
 }
@@ -34,7 +41,8 @@ export async function parseTaskItems(filePath: string): Promise<TaskItem[]> {
 /**
  * Parse one or more task files, merge items, compute counts and inferred status.
  * For multiple files (split support): merge items in path order, use first file's path.
- * Never throws — returns empty result on error.
+ * Propagates a genuine read failure from parseTaskItems (see above); only a
+ * missing file is treated as "no tasks".
  */
 export async function parseTaskFile(filePaths: string | string[]): Promise<TaskFileResult> {
   const paths = Array.isArray(filePaths) ? filePaths : [filePaths];

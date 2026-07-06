@@ -172,7 +172,10 @@ export async function scanDirectory(userDir: string): Promise<DocEntry[]> {
 
       // Parse frontmatter
       const fm = await parseFrontmatter(filepath);
-      const status = normalizeStatus(fm.data.status);
+      // A malformed/unrecognized status must surface visibly, not be
+      // silently coerced to 'not-started' (TD-2a) — this is a bulk scan,
+      // so one bad doc degrades to 'unknown' rather than aborting the model.
+      const status = normalizeStatus(fm.data.status) ?? 'unknown';
 
       // Parse task items for task docs
       let taskItems: TaskItem[] = [];

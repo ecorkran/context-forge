@@ -7,11 +7,16 @@ import type {
   NextAction,
   SlicePlanResult,
   TaskFileResult,
+  SlicePlanEntry,
+  NormalizedStatus,
 } from './types.js';
 import { STATUS } from './types.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
+import { parseFrontmatter } from './parsers/frontmatterParser.js';
+import { normalizeStatus } from './parsers/statusNormalizer.js';
+import { deriveEntryStatus } from './statusDerivation.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
@@ -182,8 +187,11 @@ export class WorkflowNavigator {
           summary: 'Create a slice plan from the architecture',
         };
       }
-      // Slice plan exists but no active slice — suggest first unchecked entry
-      const firstEntry = status.slicePlan.entries.find((e) => !e.isChecked);
+      // Slice plan exists but no active slice — suggest first not-yet-complete entry
+      const firstEntry = await this.findFirstNotCompleteEntry(
+        project.projectPath,
+        status.slicePlan.entries,
+      );
       const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
       const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
       return {
@@ -296,8 +304,21 @@ export class WorkflowNavigator {
 
     // LIFECYCLE: complete-advance — slice complete → recommend next slice (not a phase)
     if (slice.status === 'complete' && status.slicePlan) {
-      const nextEntry = status.slicePlan.entries.find((e) => !e.isChecked);
+      const nextEntry = await this.findFirstNotCompleteEntry(
+        project.projectPath,
+        status.slicePlan.entries,
+      );
       if (nextEntry) {
+        const nextDerived = await this.resolveEntryStatus(project.projectPath, nextEntry);
+        if (nextDerived === STATUS.InProgress) {
+          return enrich({
+            recommendation: `Continue slice ${nextEntry.index}: ${nextEntry.name}`,
+            rationale: `Current slice is complete. Slice ${nextEntry.index}: ${nextEntry.name} is in progress — continue it rather than starting a new slice.`,
+            suggestedCommand: `cf set slice ${nextEntry.index}`,
+            slice: project.fileSlice,
+            summary: `Continue slice ${nextEntry.index}: ${nextEntry.name}`,
+          });
+        }
         return enrich({
           recommendation: `Advance to slice ${nextEntry.index}: ${nextEntry.name}`,
           rationale: `Current slice is complete. The next unstarted slice in the plan is ${nextEntry.index}: ${nextEntry.name}.`,
@@ -508,73 +529,74 @@ export class WorkflowNavigator {
       return base;
     }
 
-    try {
-      const docs = await detectDocuments(projectPath, index);
+    // Note: no outer try/catch swallowing here. detectDocuments and
+    // evaluateReviewGate never throw for missing files, and parseTaskFileSafe
+    // below only propagates a genuine resolution failure (task file present
+    // but unreadable) — TD-2a requires that to surface, not silently degrade
+    // this active slice's status back to a misleading `base` state.
+    const docs = await detectDocuments(projectPath, index);
 
-      // No slice design file → needs-design
-      if (!docs.sliceDesign) {
-        return { ...base, status: 'needs-design' };
-      }
-
-      // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
-      if (!docs.taskFile) {
-        const gate = await this.evaluateGate(projectPath, index, 'preTasks');
-        if (gate) {
-          return {
-            ...base,
-            status: gate.status,
-            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
-          };
-        }
-        return { ...base, status: 'needs-tasks' };
-      }
-
-      // Task file exists — parse to determine progress
-      const taskPaths = docs.taskFile.map((p) => join(projectPath, p));
-      const taskResult = await this.parseTaskFileSafe(taskPaths);
-
-      if (!taskResult || taskResult.totalTasks === 0) {
-        return { ...base, status: 'needs-tasks' };
-      }
-
-      const taskProgress = {
-        completed: taskResult.completedTasks,
-        total: taskResult.totalTasks,
-        inferredStatus: taskResult.inferredStatus,
-      };
-
-      if (taskResult.inferredStatus === STATUS.Complete) {
-        // pre-advance / 'code' gate — implementation done, code review owed before advancing
-        const gate = await this.evaluateGate(projectPath, index, 'preAdvance');
-        if (gate) {
-          return {
-            ...base,
-            status: gate.status,
-            taskProgress,
-            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
-          };
-        }
-        return { ...base, status: 'complete', taskProgress };
-      }
-
-      // Task file freshly created (zero progress) → pre-implementation / 'tasks' gate.
-      // Fires only at the transition into implementation, not on every partial-progress call.
-      if (taskResult.completedTasks === 0) {
-        const gate = await this.evaluateGate(projectPath, index, 'preImplementation');
-        if (gate) {
-          return {
-            ...base,
-            status: gate.status,
-            taskProgress,
-            gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
-          };
-        }
-      }
-
-      return { ...base, status: 'in-implementation', taskProgress };
-    } catch {
-      return base;
+    // No slice design file → needs-design
+    if (!docs.sliceDesign) {
+      return { ...base, status: 'needs-design' };
     }
+
+    // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
+    if (!docs.taskFile) {
+      const gate = await this.evaluateGate(projectPath, index, 'preTasks');
+      if (gate) {
+        return {
+          ...base,
+          status: gate.status,
+          gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+        };
+      }
+      return { ...base, status: 'needs-tasks' };
+    }
+
+    // Task file exists — parse to determine progress
+    const taskPaths = docs.taskFile.map((p) => join(projectPath, p));
+    const taskResult = await this.parseTaskFileSafe(taskPaths);
+
+    if (!taskResult || taskResult.totalTasks === 0) {
+      return { ...base, status: 'needs-tasks' };
+    }
+
+    const taskProgress = {
+      completed: taskResult.completedTasks,
+      total: taskResult.totalTasks,
+      inferredStatus: taskResult.inferredStatus,
+    };
+
+    if (taskResult.inferredStatus === STATUS.Complete) {
+      // pre-advance / 'code' gate — implementation done, code review owed before advancing
+      const gate = await this.evaluateGate(projectPath, index, 'preAdvance');
+      if (gate) {
+        return {
+          ...base,
+          status: gate.status,
+          taskProgress,
+          gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+        };
+      }
+      return { ...base, status: 'complete', taskProgress };
+    }
+
+    // Task file freshly created (zero progress) → pre-implementation / 'tasks' gate.
+    // Fires only at the transition into implementation, not on every partial-progress call.
+    if (taskResult.completedTasks === 0) {
+      const gate = await this.evaluateGate(projectPath, index, 'preImplementation');
+      if (gate) {
+        return {
+          ...base,
+          status: gate.status,
+          taskProgress,
+          gateInfo: { reviewType: gate.reviewType, rationale: gate.rationale },
+        };
+      }
+    }
+
+    return { ...base, status: 'in-implementation', taskProgress };
   }
 
   /**
@@ -592,12 +614,83 @@ export class WorkflowNavigator {
     return evaluateReviewGate(projectPath, index, boundary, this.config);
   }
 
+  /**
+   * Parses a task file, returning null only when the file is genuinely
+   * absent. A resolution failure (permission denied, EISDIR, etc.) is not
+   * "absent" (TD-2a) and propagates rather than being coerced to null.
+   */
   private async parseTaskFileSafe(taskPaths: string[]): Promise<TaskFileResult | null> {
     try {
       return await parseTaskFile(taskPaths);
-    } catch {
-      return null;
+    } catch (err) {
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+        return null;
+      }
+      throw err;
     }
+  }
+
+  /**
+   * Resolve a plan entry's derived status by looking up its task file and
+   * slice-design frontmatter (if present), then applying deriveEntryStatus.
+   *
+   * TD-2a: a signal that exists but fails to resolve (task file present but
+   * unreadable, frontmatter status present but unrecognized) is a resolution
+   * failure, not an absent signal — it propagates rather than falling through
+   * to the checkbox. A signal that is genuinely absent (no task file, no
+   * slice design) is a normal `undefined` input to the lattice.
+   */
+  private async resolveEntryStatus(
+    projectPath: string,
+    entry: SlicePlanEntry,
+  ): Promise<NormalizedStatus> {
+    const docs = await detectDocuments(projectPath, entry.index);
+
+    let taskInferredStatus: NormalizedStatus | undefined;
+    if (docs.taskFile) {
+      const taskPaths = docs.taskFile.map((p) => join(projectPath, p));
+      const taskResult = await parseTaskFile(taskPaths);
+      taskInferredStatus = taskResult.inferredStatus;
+    }
+
+    let frontmatterStatus: NormalizedStatus | undefined;
+    if (docs.sliceDesign) {
+      const fm = await parseFrontmatter(join(projectPath, docs.sliceDesign));
+      if (fm.found) {
+        const normalized = normalizeStatus(fm.data.status);
+        if (normalized === undefined) {
+          throw new Error(
+            `Slice ${entry.index}: slice-design frontmatter status "${fm.data.status}" is not a recognized status`,
+          );
+        }
+        frontmatterStatus = normalized;
+      }
+    }
+
+    return deriveEntryStatus({
+      frontmatterStatus,
+      taskInferredStatus,
+      isChecked: entry.isChecked,
+    });
+  }
+
+  /**
+   * Find the first plan entry whose derived status is not complete/deprecated.
+   * Replaces the old `entries.find((e) => !e.isChecked)` — the direct #56 fix:
+   * a slice with all tasks complete but an unchecked plan checkbox is no
+   * longer selected as "next unstarted".
+   */
+  private async findFirstNotCompleteEntry(
+    projectPath: string,
+    entries: SlicePlanEntry[],
+  ): Promise<SlicePlanEntry | undefined> {
+    for (const entry of entries) {
+      const derived = await this.resolveEntryStatus(projectPath, entry);
+      if (derived !== STATUS.Complete && derived !== STATUS.Deprecated) {
+        return entry;
+      }
+    }
+    return undefined;
   }
 
   private async parseSlicePlanSafe(

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { buildModel, scanDirectory, mergeProjectModels } from '../../src/introspection/ProjectModelBuilder.js';
 import type { ProjectModel, Initiative } from '../../src/introspection/types.js';
 
@@ -48,7 +50,34 @@ describe('scanDirectory', () => {
     const docs = await scanDirectory('/tmp/nonexistent-dir-12345');
     expect(docs).toEqual([]);
   });
+
+  it('doc with unrecognized frontmatter status gets status "unknown", scan completes', async () => {
+    const root = mktempProject();
+    const userDir = join(root, 'project-documents', 'user');
+    const slicesDir = join(userDir, 'slices');
+    mkdirSync(slicesDir, { recursive: true });
+    writeFileSync(
+      join(slicesDir, '500-slice.garbage-status.md'),
+      '---\nslice: garbage-status\nstatus: not-a-real-status\n---\n\n# Slice 500\n',
+    );
+    writeFileSync(
+      join(slicesDir, '501-slice.normal.md'),
+      '---\nslice: normal\nstatus: complete\n---\n\n# Slice 501\n',
+    );
+
+    const docs = await scanDirectory(userDir);
+    const garbage = docs.find((d) => d.index === 500);
+    const normal = docs.find((d) => d.index === 501);
+    expect(garbage).toBeDefined();
+    expect(garbage!.status).toBe('unknown');
+    expect(normal).toBeDefined();
+    expect(normal!.status).toBe('complete');
+  });
 });
+
+function mktempProject(): string {
+  return mkdtempSync(join(tmpdir(), 'cf-project-model-builder-'));
+}
 
 describe('buildModel', () => {
   it('foundation band: spec doc (002) appears in foundation[]', async () => {
