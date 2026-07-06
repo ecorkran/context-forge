@@ -130,6 +130,21 @@ The helper takes already-resolved signals rather than a project path + index. Ra
 
 Task checkboxes are ground truth (the axiom). Frontmatter status is a hand-maintained mirror — a cache for human readability, validated by `cf check`, never a decision input when the computed source is available (process journal, 20260706). `deprecated`, however, is a *declaration of intent* that checkboxes cannot express (a fully-checked slice can still be deprecated), so it sits above task completion. Order: `deprecated` > task completion > frontmatter (no tasks) > checkbox (nothing on disk).
 
+### TD-2a — Signal *resolution* failure is surfaced, never silently treated as absent
+
+The helper is pure, but routing five consumers through it introduces per-entry I/O at call sites that previously did none (`getNext`'s two finds, `ProjectModelBuilder`'s paths): each must resolve `detectDocuments` / `parseTaskFile` / `parseFrontmatter` for the entry. Two states must not be conflated:
+
+- **Signal absent** — the document does not exist (no task file, no slice design). This is a normal lattice input: the helper falls through to the next-priority signal by design. `undefined` in the `signals` object means exactly this.
+- **Signal resolution failed** — the document *exists* but could not be read/parsed (a task file that fails to parse, slice-design frontmatter with a malformed or unrecognized `status`, or `detectDocuments` erroring mid-listing). Treating this as "absent" and falling through is a **silent fallback** — it both misreports status (the precise bug class this slice exists to kill) and violates the CLAUDE.md "never use silent fallback values" rule.
+
+**Rule:** a resolution *failure* is never coerced to `undefined`. Per signal:
+
+- **Task file present but unparseable** → surface an error (the resolving caller propagates it), or — where a single bad entry must not abort a whole listing (`cf list slices`) — render a distinct degraded indicator for that row (e.g. `⚠ unreadable`) rather than `not started`. The choice per call site (propagate vs. degrade-visibly) is a task-breakdown decision, but "fall through to a lower-priority signal" is **not** an option.
+- **Slice-design frontmatter `status` present but not a valid `NormalizedStatus`** → this is already a `cf check` finding class (905 schema validation); the helper treats an unrecognized frontmatter status as a resolution failure for that signal, not as absent. It does not silently drop to the checkbox.
+- **`detectDocuments` throws** for an entry → surfaced/degraded per the same rule, never swallowed into an absent-signal result.
+
+The task breakdown must include at least one malformed-input test per signal (unparseable task file; invalid frontmatter status) asserting the surfaced-error / degraded-indicator behavior, not a silent status downgrade. The helper's own signature stays `undefined = absent`; the *distinction* between absent and failed is enforced at the resolve step in each caller, which is where the I/O and its errors live.
+
 ### TD-3 — #57 is a declaration, not a diff
 
 Docs-only status is a set-once frontmatter field on the slice design (proposed name `codeReview: none`, default absent ⇒ required — **task breakdown finalizes the exact key/value**). It records design-time intent and does not drift as work progresses, so it is legitimate frontmatter (unlike a computed mirror). Git-diff detection is rejected: CF operates on artifacts, and a slice's "diff" is undefined post-merge and across multiple slices. Enforcement is a single branch in `evaluateReviewGate()` at the `preAdvance` boundary: if the slice declares docs-only, the `code` gate returns `null` (clears). Default unchanged. Per PM, the declarative-over-diff rationale is to be recorded on issue #57 when it is closed.
@@ -189,13 +204,14 @@ Whether these are new `rule` names or additional branches inside the two existin
 - `cf check` flags (and `--fix` corrects) a task file with partial completion whose plan entry / design frontmatter still says not-started.
 - A slice declaring itself docs-only is not blocked at the pre-advance gate for a missing `code` review; a normal slice still is (default unchanged).
 - The review gate still fires before the complete-advance branch — a pending/failed review is never bypassed by the derivation change.
+- A signal that fails to resolve (task file present but unparseable, frontmatter `status` invalid, `detectDocuments` error) is surfaced or shown as a distinct degraded indicator — **never** silently downgraded to `not-started` by falling through the lattice (TD-2a).
 
 ### Technical Requirements
 
 - Exactly one implementation of the (signals → status) lattice; the previously-inline sites reference it.
 - Helper returns `STATUS.*`; no new bare status literals introduced.
 - Full existing test suite passes except the known pre-existing failures (3 core `FileProjectStore`, 4 cli `list.test.ts`).
-- New unit tests: every lattice branch; both new rule branches (fires / auto-fixes / silent); docs-only gate skip; the gate-ordering regression.
+- New unit tests: every lattice branch; both new rule branches (fires / auto-fixes / silent); docs-only gate skip; the gate-ordering regression; **at least one malformed-input test per signal** (unparseable task file, invalid frontmatter `status`) asserting surfaced-error / degraded-indicator, not silent fallthrough (TD-2a).
 
 ### Verification Walkthrough
 
@@ -273,4 +289,5 @@ Suggested order:
 ### Special Considerations
 
 - **Display vs. logic separation** is non-negotiable here: the "tasks done, unchecked" vs "signed-off complete" distinction is a *rendering* choice; `getNext` and the rules branch on the `NormalizedStatus`, never on the label.
-- **Finalize two names in task breakdown:** the docs-only frontmatter key/value (against the review schema `reviewType` vocabulary) and whether the two new rules are new `rule` ids or branches inside the existing two rule functions.
+- **Finalize two names in task breakdown:** the docs-only frontmatter key/value and whether the two new rules are new `rule` ids or branches inside the existing two rule functions.
+- **Accepted per-entry cost.** `cf next`, `cf list slices`, and `workflow_status` move from a checkbox scan to per-entry document detection plus task-file/frontmatter parsing across the whole plan. The parent architecture states no NFRs; this is an accepted cost at current project sizes (tens of slices), documented here as the baseline for any future large-plan regression. Note `cf list slices` already pays the `detectDocuments`-per-entry cost today ([slice.ts:66](../../../packages/cli/src/commands/slice.ts)); the added cost there is the task/frontmatter parse, not a new directory walk.
