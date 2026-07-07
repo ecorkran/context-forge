@@ -20,6 +20,8 @@ const mockCheckAll = vi.fn();
 const mockFixAll = vi.fn();
 const mockApplyFixes = vi.fn();
 const mockConfigGet = vi.fn();
+const mockDetectDocuments = vi.fn();
+const mockUpdateFrontmatterField = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -37,6 +39,8 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
   })),
+  detectDocuments: (...args: unknown[]) => mockDetectDocuments(...args),
+  updateFrontmatterField: (...args: unknown[]) => mockUpdateFrontmatterField(...args),
 }));
 
 const sampleProject = {
@@ -225,5 +229,109 @@ describe('cf check', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Aborted');
+  });
+});
+
+describe('cf check --set-review-none', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('writes codeReview: none to the detected slice-design file', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockDetectDocuments.mockResolvedValue({
+      sliceDesign: 'project-documents/user/slices/100-slice.auth.md',
+      taskFile: null,
+      architecture: null,
+      slicePlan: null,
+      review: null,
+    });
+    mockUpdateFrontmatterField.mockResolvedValue({
+      rule: '',
+      action: 'update-frontmatter',
+      filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
+      field: 'codeReview',
+      before: '',
+      after: 'none',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '100']);
+
+    expect(mockDetectDocuments).toHaveBeenCalledWith('/tmp/test', 100);
+    expect(mockUpdateFrontmatterField).toHaveBeenCalledWith(
+      expect.stringContaining('100-slice.auth.md'),
+      'codeReview',
+      'none',
+    );
+    // Must never touch the checker/fix pipeline — this is a direct mutation.
+    expect(mockCheck).not.toHaveBeenCalled();
+    expect(mockCheckAll).not.toHaveBeenCalled();
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('codeReview: none');
+    expect(output).toContain('slice 100');
+  });
+
+  it('errors when no slice-design file exists for the index', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockDetectDocuments.mockResolvedValue({
+      sliceDesign: null,
+      taskFile: null,
+      architecture: null,
+      slicePlan: null,
+      review: null,
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '999']);
+
+    expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('No slice-design file found'));
+  });
+
+  it('errors on a non-numeric index', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', 'abc']);
+
+    expect(mockDetectDocuments).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Invalid slice index'));
+  });
+
+  it('outputs JSON with --json flag', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockDetectDocuments.mockResolvedValue({
+      sliceDesign: 'project-documents/user/slices/100-slice.auth.md',
+      taskFile: null,
+      architecture: null,
+      slicePlan: null,
+      review: null,
+    });
+    mockUpdateFrontmatterField.mockResolvedValue({
+      rule: '',
+      action: 'update-frontmatter',
+      filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
+      field: 'codeReview',
+      before: '',
+      after: 'none',
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '100', '--json',
+    ]);
+
+    const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw);
+    expect(parsed.slice).toBe(100);
+    expect(parsed.field).toBe('codeReview');
+    expect(parsed.after).toBe('none');
   });
 });

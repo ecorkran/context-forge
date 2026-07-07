@@ -99,6 +99,8 @@ export interface ResolvedGate {
   threshold: ThresholdToken;
   unknownAs: UnknownPolicy;
   thresholdFor(boundary: Boundary): ThresholdToken;
+  /** YYYYMMDD cutoff, or '' for no cutoff. Grandfathers artifacts dated earlier out of every boundary. */
+  effectiveDate: string;
 }
 
 /**
@@ -133,9 +135,13 @@ export async function resolveGateConfig(config: ConfigManager): Promise<Resolved
     }
   }
 
+  const effectiveDateRaw = await config.get('workflow.review_gate_effective_date');
+  const effectiveDate = String(effectiveDateRaw.value);
+
   return {
     threshold: globalThreshold,
     unknownAs,
+    effectiveDate,
     thresholdFor(boundary: Boundary): ThresholdToken {
       return overrides.get(boundary) ?? globalThreshold;
     },
@@ -176,15 +182,32 @@ export async function evaluateReviewGate(
   const reviewType = positionToReviewType(boundary);
   const docs = await detectDocuments(projectPath, index, reviewType);
 
+  // preSlicePlan gates an architecture index; every other boundary gates a
+  // slice index — read whichever artifact's frontmatter is relevant to this
+  // boundary, once, shared by both checks below.
+  const gatedArtifactPath = boundary === 'preSlicePlan' ? docs.architecture : docs.sliceDesign;
+  const gatedArtifactFrontmatter = gatedArtifactPath
+    ? await parseFrontmatter(join(projectPath, gatedArtifactPath))
+    : null;
+
+  // Effective-date grandfather cutoff: a slice/architecture designed before this
+  // date is exempt from every gate boundary, uniformly, so turning on gating on
+  // a project with existing history doesn't retroactively demand reviews for
+  // work that predates the gate. Checked before the docs-only declaration below
+  // since a grandfathered slice needs no declaration at all.
+  if (gate.effectiveDate !== '' && gatedArtifactFrontmatter) {
+    const dateCreated = gatedArtifactFrontmatter.data.dateCreated;
+    if (dateCreated && dateCreated < gate.effectiveDate) {
+      return null;
+    }
+  }
+
   // Docs-only declaration (#57): a slice-design frontmatter of codeReview: none
   // clears the pre-advance ('code') gate unconditionally — this slice cannot
   // produce a code review. Absent (the default) leaves the gate unaffected.
   // Scoped to preAdvance only; every other boundary evaluates normally.
-  if (boundary === 'preAdvance' && docs.sliceDesign) {
-    const designFrontmatter = await parseFrontmatter(join(projectPath, docs.sliceDesign));
-    if (designFrontmatter.data.codeReview === 'none') {
-      return null;
-    }
+  if (boundary === 'preAdvance' && gatedArtifactFrontmatter?.data.codeReview === 'none') {
+    return null;
   }
 
   if (docs.review === null) {

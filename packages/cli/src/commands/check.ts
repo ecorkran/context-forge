@@ -1,10 +1,13 @@
 import * as readline from 'node:readline';
+import { join } from 'node:path';
 import { Command } from 'commander';
 import {
   FileProjectStore,
   ArtifactIntrospector,
   ConsistencyChecker,
   ConfigManager,
+  detectDocuments,
+  updateFrontmatterField,
 } from '@context-forge/core/node';
 import type {
   ConsistencyCheckResult,
@@ -109,6 +112,47 @@ interface CheckOpts {
   fix?: boolean;
   slice?: string;
   yes?: boolean;
+  setReviewNone?: string;
+}
+
+/**
+ * Declare a slice docs-only (#57): writes codeReview: none to its slice-design
+ * frontmatter, so evaluateReviewGate() skips the pre-advance code-review gate
+ * for it. A direct, single-purpose mutation — not part of the check/fix
+ * pipeline, since it doesn't depend on any finding having been detected first.
+ */
+async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<void> {
+  const index = parseInt(indexArg, 10);
+  if (isNaN(index)) {
+    throw new UserError(`Invalid slice index: '${indexArg}'`);
+  }
+
+  const store = new FileProjectStore();
+  const { id } = await resolveProjectWorktree({ project: opts.project }, store);
+  const project = await store.getById(id);
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+  }
+  if (!project.projectPath) {
+    throw new UserError('No projectPath configured. Set one with: cf set projectPath /path/to/project');
+  }
+
+  const docs = await detectDocuments(project.projectPath, index);
+  if (!docs.sliceDesign) {
+    throw new UserError(
+      `No slice-design file found for slice ${index}. codeReview: none is set on the slice design, not the task file.`,
+    );
+  }
+
+  const filePath = join(project.projectPath, docs.sliceDesign);
+  const entry = await updateFrontmatterField(filePath, 'codeReview', 'none');
+
+  if (opts.json) {
+    printJson({ slice: index, filePath: docs.sliceDesign, field: 'codeReview', before: entry.before, after: entry.after });
+    return;
+  }
+  console.log(label(`Set codeReview: none on slice ${index}`));
+  console.log(dim(`  ${docs.sliceDesign}`));
 }
 
 export function registerCheckCommand(program: Command): void {
@@ -119,9 +163,15 @@ export function registerCheckCommand(program: Command): void {
   withProjectOption(checkCmd);
   withFixOption(checkCmd);
   checkCmd.option('--slice <index>', 'Check only a specific slice by index');
+  checkCmd.option('--set-review-none <index>', 'Declare a slice docs-only (writes codeReview: none to its slice design)');
   withYesOption(checkCmd);
   checkCmd.action(async (opts: CheckOpts) => {
       try {
+        if (opts.setReviewNone !== undefined) {
+          await setReviewNoneAction(opts.setReviewNone, opts);
+          return;
+        }
+
         const store = new FileProjectStore();
         const { id } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);

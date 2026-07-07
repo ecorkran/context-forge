@@ -104,6 +104,18 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       'Per-gate override: verdict floor for the pre-implementation review gate (empty = use workflow.review_threshold)',
     enum: ['', 'pass', 'concerns'],
   },
+  'workflow.review_gate_effective_date': {
+    type: 'string',
+    default: '',
+    description:
+      'Grandfathers slices/architecture designed before this date (YYYYMMDD, compared against the artifact\'s own dateCreated) out of every review gate boundary. Empty (default) applies no cutoff — every slice is subject to gating. Lets a project turn on review_enabled without retroactively demanding reviews for work completed before the gate existed.',
+    validate: (value) => {
+      if (typeof value !== 'string') return 'must be a string';
+      if (value === '') return null; // empty = no cutoff (identity default)
+      if (!/^\d{8}$/.test(value)) return 'must be in YYYYMMDD format (e.g. "20260701")';
+      return null;
+    },
+  },
   'git.branch_root': {
     type: 'string',
     default: '',

@@ -675,6 +675,7 @@ const GATE_ENABLED_DEFAULTS = {
   'workflow.review_gates.pre_tasks.threshold': '',
   'workflow.review_gates.pre_implementation.threshold': '',
   'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gate_effective_date': '',
 };
 
 const GATE_DISABLED_CONFIG = makeStubConfig({
