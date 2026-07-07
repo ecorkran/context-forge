@@ -51,7 +51,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
 
 ## TD-1 — #58: Correct the stale-phase remediation command
 
-- [ ] **Task 1.1 — Export a canonical architecture-phase constant from `projectSchema.ts`**
+- [x] **Task 1.1 — Export a canonical architecture-phase constant from `projectSchema.ts`**
   - In `packages/core/src/schema/projectSchema.ts`, export a named constant for the
     architecture phase string (e.g. `export const ARCHITECTURE_PHASE = 'Phase 2: Architecture'`),
     derived from / consistent with the existing `PHASE_STRINGS` tuple so it stays the single
@@ -60,7 +60,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     and `PHASE_STRINGS` still resolve `'Phase 2: Architecture'` byte-identically (no behavior change).
   - Effort: 1/5
 
-- [ ] **Task 1.2 — Make the no-active-slice `suggestedCommand` conditional (TD-1)**
+- [x] **Task 1.2 — Make the no-active-slice `suggestedCommand` conditional (TD-1)**
   - In `WorkflowNavigator.ts`, the no-active-slice branch at `if (!archFileExists && !status.slicePlan)`
     (~line 158): make `suggestedCommand` and the `phase` field branch on the same `project.fileArch`
     predicate the `rationale` already uses.
@@ -73,7 +73,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     suggests the phase-advance.
   - Effort: 1/5
 
-- [ ] **Task 1.3 — Test the #58 fix**
+- [x] **Task 1.3 — Test the #58 fix**
   - In the WorkflowNavigator test file, add cases for the no-active-slice + arch-file-missing state:
     - `fileArch` set, file missing → `suggestedCommand` is `cf set phase 'Phase 2: Architecture'`
       and `NextAction.phase === 'Phase 2: Architecture'`.
@@ -84,14 +84,14 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: both cases pass; the fallback case proves no regression.
   - Effort: 2/5
 
-- [ ] **Commit checkpoint** — after 1.3: `fix: correct cf next stale-phase remediation (#58)`.
+- [x] **Commit checkpoint** — after 1.3: `fix: correct cf next stale-phase remediation (#58)`.
   TD-1 is self-contained (constant export + one branch fix + tests).
 
 ---
 
 ## TD-2 — #59 Gap 1: Un-orphan the arch review gate
 
-- [ ] **Task 2.1 — Drop the `slicePlan === null` clause from the arch gate guard (TD-2)**
+- [x] **Task 2.1 — Drop the `slicePlan === null` clause from the arch gate guard (TD-2)**
   - In `WorkflowNavigator.getNext()`, the arch-gate block at
     `if (archFileExists && status.slicePlan === null)` (~line 126): remove `&& status.slicePlan === null`
     so the gate evaluates whenever `archFileExists` is true and an `archIndex` resolves, still
@@ -103,7 +103,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     (gate returns `null`).
   - Effort: 1/5
 
-- [ ] **Task 2.2 — Test the un-orphaned arch gate**
+- [x] **Task 2.2 — Test the un-orphaned arch gate**
   - Add WorkflowNavigator cases using a scratch fixture (mkdtemp, mirroring existing gate tests):
     - arch file present, slice plan present, no active slice, no arch review, gating on →
       `cf next` surfaces the pending arch review ("Review required before creating the slice plan").
@@ -113,7 +113,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: all three pass; the plan-present case is the one that failed before this slice.
   - Effort: 2/5
 
-- [ ] **Commit checkpoint** — after 2.2: `fix: un-orphan the arch review gate in cf next (#59)`.
+- [x] **Commit checkpoint** — after 2.2: `fix: un-orphan the arch review gate in cf next (#59)`.
 
 ---
 

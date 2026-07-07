@@ -163,8 +163,13 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
 
     const result = await checker.checkAll(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe('error');
+    // checkAll() now also surfaces the widened per-slice boundaries (preTasks/preImplementation,
+    // slice 912 TD-3) and the project-wide arch aggregate rule (ruleArchReviewGate), so filter down
+    // to the specific code-boundary finding for slice 400 that check() also produces.
+    const codeFinding = result.findings.find(
+      (f) => f.rule === 'review-gate' && f.description.includes('slice 400') && f.suggestedFix.includes('code'),
+    );
+    expect(codeFinding).toBeDefined();
+    expect(codeFinding!.severity).toBe('error');
   });
 });

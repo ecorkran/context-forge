@@ -18,7 +18,14 @@ import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import { resolveGateConfig, evaluateReviewGate, type ResolvedGate } from './reviewGate.js';
+import {
+  resolveGateConfig,
+  evaluateReviewGate,
+  positionToReviewType,
+  type Boundary,
+  type GateEvaluation,
+  type ResolvedGate,
+} from './reviewGate.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -131,6 +138,11 @@ export class ConsistencyChecker {
         ...await this.ruleArchStatusVsPlans(archPath, planResult),
       );
     }
+
+    // Rule 9: pre-slice-plan (arch) review gate — every discovered arch file, not just paired ones
+    allFindings.push(
+      ...await this.ruleArchReviewGate(project, projectPath, resolvedGate),
+    );
 
     // Rule 10: stale worktree paths
     allFindings.push(
@@ -251,7 +263,7 @@ export class ConsistencyChecker {
     );
 
     findings.push(
-      ...await this.ruleReviewGate(planEntry, sliceIndex, projectPath, slicePlanPath, resolvedGate),
+      ...await this.ruleReviewGate(planEntry, sliceIndex, projectPath, slicePlanPath, resolvedGate, docs),
     );
 
     return findings;
@@ -540,41 +552,95 @@ export class ConsistencyChecker {
   }
 
   /** Rule: slice marked complete in the plan but its code review is absent or failing. */
+  /**
+   * Wraps a single evaluateReviewGate() call so a throw (e.g. malformed review-gate
+   * frontmatter) degrades to one error-severity finding instead of aborting the whole
+   * check/checkAll run. Follows the safe*() convention used elsewhere in this class.
+   */
+  private async safeEvaluateGate(
+    projectPath: string,
+    index: number,
+    boundary: Boundary,
+    resolvedGate: ResolvedGate,
+    fallbackLocation: string,
+  ): Promise<{ gate: GateEvaluation | null; errorFinding: ConsistencyFinding | null }> {
+    try {
+      const gate = await evaluateReviewGate(
+        projectPath, index, boundary, this.config!, resolvedGate,
+      );
+      return { gate, errorFinding: null };
+    } catch (err) {
+      const reviewType = positionToReviewType(boundary);
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        gate: null,
+        errorFinding: {
+          rule: 'review-gate',
+          severity: 'error',
+          location: fallbackLocation,
+          description: `Failed to evaluate the ${reviewType} review gate for ${index}: ${message}`,
+          suggestedFix: `Fix the frontmatter for ${index} and re-run the check`,
+          fixable: false,
+        },
+      };
+    }
+  }
+
   private async ruleReviewGate(
     planEntry: SlicePlanEntry | null,
     sliceIndex: number,
     projectPath: string,
     slicePlanPath: string | null,
     resolvedGate: ResolvedGate | null,
+    docs: { taskFile: string[] | null; sliceDesign: string | null } | null,
   ): Promise<ConsistencyFinding[]> {
     if (!this.config || resolvedGate === null) return [];
-    if (!planEntry?.isChecked) return [];
     if (slicePlanPath === null) return [];
 
-    const result = await evaluateReviewGate(
-      projectPath, sliceIndex, 'preAdvance', this.config, resolvedGate,
-    );
-    if (result === null) return [];
+    const findings: ConsistencyFinding[] = [];
 
-    if (result.status === 'pending-review') {
-      return [{
+    const boundaries: { boundary: Boundary; guard: boolean }[] = [
+      { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
+      { boundary: 'preImplementation', guard: !!docs?.taskFile && docs.taskFile.length > 0 },
+      { boundary: 'preAdvance', guard: !!planEntry?.isChecked },
+    ];
+
+    for (const { boundary, guard } of boundaries) {
+      if (!guard) continue;
+
+      const { gate: result, errorFinding } = await this.safeEvaluateGate(
+        projectPath, sliceIndex, boundary, resolvedGate, slicePlanPath,
+      );
+      if (errorFinding) {
+        findings.push(errorFinding);
+        continue;
+      }
+      if (result === null) continue;
+
+      const reviewType = positionToReviewType(boundary);
+      if (result.status === 'pending-review') {
+        findings.push({
+          rule: 'review-gate',
+          severity: 'warning',
+          location: slicePlanPath,
+          description: result.rationale,
+          suggestedFix: `Run the ${reviewType} review for slice ${sliceIndex}`,
+          fixable: false,
+        });
+        continue;
+      }
+
+      findings.push({
         rule: 'review-gate',
-        severity: 'warning',
-        location: slicePlanPath,
+        severity: 'error',
+        location: join(projectPath, result.artifactPath!),
         description: result.rationale,
-        suggestedFix: `Run the code review for slice ${sliceIndex}`,
+        suggestedFix: `Resolve the review findings or rerun the ${reviewType} review for slice ${sliceIndex}`,
         fixable: false,
-      }];
+      });
     }
 
-    return [{
-      rule: 'review-gate',
-      severity: 'error',
-      location: join(projectPath, result.artifactPath!),
-      description: result.rationale,
-      suggestedFix: `Resolve the review findings or rerun the review for slice ${sliceIndex}`,
-      fixable: false,
-    }];
+    return findings;
   }
 
   // --- Aggregate Rules (checkAll only) ---
@@ -661,6 +727,66 @@ export class ConsistencyChecker {
           filePath: slicePlanPath,
           detail: { key: 'status', value: 'complete' },
         },
+      });
+    }
+
+    return findings;
+  }
+
+  /**
+   * Rule 9: pre-slice-plan (arch) review gate — checkAll() only. The arch boundary
+   * is keyed by arch index, not slice index, so it doesn't belong in per-slice
+   * ruleReviewGate(); it audits every discovered architecture file the same way
+   * ruleArchStatusVsPlans does.
+   */
+  private async ruleArchReviewGate(
+    project: ProjectData,
+    projectPath: string,
+    resolvedGate: ResolvedGate | null,
+  ): Promise<ConsistencyFinding[]> {
+    if (!this.config || resolvedGate === null) return [];
+
+    const archFiles = await this.discoverAllArchFiles(projectPath);
+    const allArchPaths = new Set(archFiles);
+    if (project.fileArch) {
+      const configuredArchRel = resolveArtifactPath('fileArch', project.fileArch);
+      if (configuredArchRel) allArchPaths.add(join(projectPath, configuredArchRel));
+    }
+
+    const findings: ConsistencyFinding[] = [];
+
+    for (const archPath of allArchPaths) {
+      const archIndex = ConsistencyChecker.extractFileIndex(archPath);
+      if (archIndex === null) continue;
+
+      const { gate: result, errorFinding } = await this.safeEvaluateGate(
+        projectPath, archIndex, 'preSlicePlan', resolvedGate, archPath,
+      );
+      if (errorFinding) {
+        findings.push(errorFinding);
+        continue;
+      }
+      if (result === null) continue;
+
+      if (result.status === 'pending-review') {
+        findings.push({
+          rule: 'review-gate',
+          severity: 'warning',
+          location: archPath,
+          description: result.rationale,
+          suggestedFix: `Run the arch review for architecture ${archIndex}`,
+          fixable: false,
+        });
+        continue;
+      }
+
+      findings.push({
+        rule: 'review-gate',
+        severity: 'error',
+        location: join(projectPath, result.artifactPath!),
+        description: result.rationale,
+        suggestedFix: `Resolve the review findings or rerun the arch review for architecture ${archIndex}`,
+        fixable: false,
       });
     }
 
