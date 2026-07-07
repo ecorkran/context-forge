@@ -18,6 +18,7 @@ import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
 import { deriveEntryStatus } from './statusDerivation.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
+import { ARCHITECTURE_PHASE } from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
@@ -119,11 +120,13 @@ export class WorkflowNavigator {
       const initiativePlanExists =
         (await resolveInitiativePlanPath(project.projectPath)) !== null;
 
-      // pre-slice-plan / 'arch' gate — evaluated before first-run guidance because every
-      // first-run branch for "arch exists, no slice plan yet" (FR-3b, FR-4, and the
-      // fallback below) is exactly this boundary; the gate must intercept all of them,
-      // not just the fallback that runs after detectFirstRunContext returns null.
-      if (archFileExists && status.slicePlan === null) {
+      // pre-slice-plan / 'arch' gate — evaluated before first-run guidance, and regardless
+      // of whether a slice plan already exists, because the arch review requirement does not
+      // expire once planning moves on (#59 Gap 1). Every first-run branch downstream (FR-3b,
+      // FR-4, and the fallback below) sits inside this same no-active-slice guard, so the gate
+      // must intercept all of them, not just the fallback that runs after
+      // detectFirstRunContext returns null.
+      if (archFileExists) {
         const archIndex = extractSliceIndex(project.fileArch);
         if (archIndex !== null) {
           const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
@@ -161,7 +164,10 @@ export class WorkflowNavigator {
           rationale: project.fileArch
             ? `Architecture is set to '${project.fileArch}' but the file does not exist yet. Create the architecture document before planning slices.`
             : 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
-          suggestedCommand: 'cf set arch <index>',
+          suggestedCommand: project.fileArch
+            ? `cf set phase '${ARCHITECTURE_PHASE}'`
+            : 'cf set arch <index>',
+          ...(project.fileArch ? { phase: ARCHITECTURE_PHASE } : {}),
           summary: 'Create an architecture document to define project structure',
         };
       }

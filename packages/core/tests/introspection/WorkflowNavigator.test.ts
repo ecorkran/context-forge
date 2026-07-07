@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { WorkflowNavigator } from '../../src/introspection/WorkflowNavigator.js';
 import type { ProjectData } from '../../src/types/project.js';
@@ -385,6 +385,47 @@ describe('WorkflowNavigator', () => {
 
       expect(next.recommendation).toContain('Create architecture');
       expect(next.rationale).toContain('does not exist yet');
+    });
+
+    it('#58: fileArch set but file missing, stale phase → suggests phase advance, not a no-op arch set', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '999-arch.nonexistent.md',
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.suggestedCommand).toBe("cf set phase 'Phase 2: Architecture'");
+      expect(next.phase).toBe('Phase 2: Architecture');
+      expect(next.suggestedCommand).not.toBe('cf set arch <index>');
+    });
+
+    it('#58 fallback: fileArch unset → still suggests cf set arch <index>', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: undefined,
+        developmentPhase: 'Phase 6: Implementation',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.suggestedCommand).toBe('cf set arch <index>');
+      expect(next.phase).toBeUndefined();
+    });
+
+    it('#58: the no-active-slice branch references ARCHITECTURE_PHASE, not a bare literal', () => {
+      const source = readFileSync(
+        join(__dirname, '..', '..', 'src', 'introspection', 'WorkflowNavigator.ts'),
+        'utf-8',
+      );
+      const noArchBlockMatch = /No architecture \(or arch set but file not yet created\)[\s\S]*?^\s{6}\};/m.exec(
+        source,
+      );
+      expect(noArchBlockMatch).not.toBeNull();
+      const block = noArchBlockMatch![0];
+      expect(block).toContain('ARCHITECTURE_PHASE');
+      expect(block).not.toContain("'Phase 2: Architecture'");
     });
   });
 
@@ -804,6 +845,53 @@ describe('WorkflowNavigator — review gate (slice 241)', () => {
       const next = await nav.getNext(project);
       expect(next.recommendation).not.toContain('Blocked');
       expect(next.recommendation).not.toContain('Review required');
+    });
+
+    it('#59 Gap 1: arch gate still fires when a slice plan already exists (previously orphaned)', async () => {
+      const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+      const nav = new WorkflowNavigator(config);
+      // Arch 050 has no review artifact at all; slice plan is present (the previously-orphaning state).
+      const project = makeProject({
+        fileSlice: '',
+        fileArch: '050-arch.hld-test-project',
+        fileSlicePlan: '100-slices.test-system',
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+
+      const next = await nav.getNext(project);
+      expect(next.recommendation).toContain('Review required before creating the slice plan');
+    });
+
+    it('#59 Gap 1: arch gate clears when the arch review exists and passes, slice plan present', async () => {
+      // Fixture 100's arch review has no verdict field (UNKNOWN); treat UNKNOWN as pass here
+      // so this test isolates the "review present, gate clears" case from verdict-threshold behavior.
+      const config = makeStubConfig({ ...GATE_ENABLED_DEFAULTS, 'workflow.review_unknown_as': 'pass' });
+      const nav = new WorkflowNavigator(config);
+      // Arch 100 has a passing review; pair with its own slice plan (also present).
+      const project = makeProject({
+        fileSlice: '',
+        fileArch: '100-arch.test-system',
+        fileSlicePlan: '100-slices.test-system',
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+
+      const next = await nav.getNext(project);
+      expect(next.recommendation).not.toContain('Review required');
+      expect(next.recommendation).not.toContain('Blocked');
+    });
+
+    it('#59 Gap 1 regression: arch gate still fires when no slice plan exists (pre-existing case, unaffected)', async () => {
+      const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+      const nav = new WorkflowNavigator(config);
+      const project = makeProject({
+        fileSlice: '',
+        fileArch: '050-arch.hld-test-project',
+        fileSlicePlan: undefined,
+        developmentPhase: 'Phase 3: Slice Planning',
+      });
+
+      const next = await nav.getNext(project);
+      expect(next.recommendation).toContain('Review required before creating the slice plan');
     });
   });
 

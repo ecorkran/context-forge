@@ -29,6 +29,9 @@ const PHASE_STRINGS = [
   'Phase 7: Integration',
 ] as const;
 
+/** Canonical architecture-phase display string — single source of truth for callers that need it. */
+export const ARCHITECTURE_PHASE: (typeof PHASE_STRINGS)[2] = PHASE_STRINGS[2];
+
 const SPECIAL_PHASES = ['Ad-Hoc Tasks', 'Custom Instruction'] as const;
 
 const ALL_PHASE_VALUES: string[] = [...PHASE_STRINGS, ...SPECIAL_PHASES];
