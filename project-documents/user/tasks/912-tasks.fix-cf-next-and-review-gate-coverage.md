@@ -119,7 +119,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
 
 ## TD-3 / TD-5 — #59 Gap 2: cf check covers all four boundaries, with error isolation
 
-- [ ] **Task 3.1 — Add a shared safe-gate helper (TD-5)**
+- [x] **Task 3.1 — Add a shared safe-gate helper (TD-5)**
   - In `ConsistencyChecker.ts`, add a private helper that wraps a single `evaluateReviewGate()`
     call in try/catch: on success it returns the `GateEvaluation | null`; on throw it returns a
     synthetic `error`-severity, non-fixable `review-gate` finding for that index (description names
@@ -134,7 +134,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     duplicate coverage. Implement it before those tests so they exercise it directly.
   - Effort: 2/5
 
-- [ ] **Task 3.2 — Widen `ruleReviewGate()` to the three slice-keyed boundaries (TD-3)**
+- [x] **Task 3.2 — Widen `ruleReviewGate()` to the three slice-keyed boundaries (TD-3)**
   - Change `ruleReviewGate()` to evaluate `preTasks` (`slice`), `preImplementation` (`tasks`),
     and `preAdvance` (`code`) — not just `preAdvance`. Route each call through the Task 3.1 helper.
   - Guard each boundary on the relevant artifact's existence, derived from the `detectDocuments`
@@ -149,7 +149,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     per-type wording, each gated on artifact existence.
   - Effort: 3/5
 
-- [ ] **Task 3.3 — Test the widened per-slice rule**
+- [x] **Task 3.3 — Test the widened per-slice rule**
   - Add ConsistencyChecker cases (scratch fixtures):
     - slice-design present, no slice review, gating on → finding names the **slice** review.
     - task file present, no tasks review → finding names the **tasks** review.
@@ -158,7 +158,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: each boundary produces a correctly-worded finding only when its artifact exists.
   - Effort: 3/5
 
-- [ ] **Task 3.4 — Add the `ruleArchReviewGate` aggregate rule (TD-3)**
+- [x] **Task 3.4 — Add the `ruleArchReviewGate` aggregate rule (TD-3)**
   - Add a `checkAll()`-only aggregate rule that, for each discovered arch index (reuse
     `discoverArchPlanPairs` / the existing arch discovery), calls the Task 3.1 safe helper with
     `'preSlicePlan'` and emits a finding when the arch review is pending/failed. Guard on the arch
@@ -169,7 +169,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     a passing arch review; single-slice `check()` is unaffected.
   - Effort: 2/5
 
-- [ ] **Task 3.5 — Test the arch aggregate rule + error isolation (TD-5)**
+- [x] **Task 3.5 — Test the arch aggregate rule + error isolation (TD-5)**
   - Add ConsistencyChecker cases:
     - arch file present, no arch review, gating on → `checkAll()` reports a pending **arch** review.
     - arch review present-and-passing → no finding.
@@ -180,7 +180,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     without aborting the run.
   - Effort: 3/5
 
-- [ ] **Commit checkpoint** — after 3.5: `feat: widen cf check review-gate coverage to all four boundaries (#59)`.
+- [x] **Commit checkpoint** — after 3.5: `feat: widen cf check review-gate coverage to all four boundaries (#59)`.
   Covers the safe helper, the widened per-slice rule, the arch aggregate rule, and their tests.
 
 ---

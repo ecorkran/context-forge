@@ -7,7 +7,7 @@ dependencies: [240, 241, 242, 911]
 interfaces: []
 dateCreated: 20260706
 dateUpdated: 20260707
-status: not-started
+status: complete
 ---
 
 # Slice Design: Fix cf next Stale-Phase Remediation and Review-Gate Coverage Gaps
@@ -145,62 +145,106 @@ Every arrow into `evaluateReviewGate()` inherits the effective-date cutoff and t
 
 ## Verification Walkthrough
 
-> Draft demo script — to be refined with actual command output at Phase 6 completion. Run from the repo root against a scratch project fixture (or this repo, noting live-state caveats as slice 911's walkthrough did).
+> Executed end-to-end against a real scratch project (`cf init --lite` in an empty git repo) after all Phase 6 tasks landed. Commands and output below are copied from that run, with only the scratch project's absolute path elided. All work happened at **user-scope** config (no `--project` flag) — the two config keys touched (`workflow.review_enabled`, `workflow.review_gate_effective_date`) were reverted to their defaults afterward so the walkthrough doesn't leak into other projects on the same machine.
 
-**Setup.** A scratch project with `workflow.review_enabled: true` and an arch file `140-arch.demo.md` whose `dateCreated` is *after* any effective-date cutoff used below.
+**Caveat discovered during the walkthrough.** `cf set arch <index>` validates the index against an initiative plan entry and refuses to set a pointer with no matching entry (`No file matching index '140' ... Searched 'initiative plan'`). The design's Part A setup (`cf set arch 140` with `140-arch.demo.md` not yet existing) assumed the plain `cf set arch` form; the walkthrough instead used `cf project set arch 140-arch.demo`, which sets the field directly without that validation — the correct tool for "point the arch field at a file that doesn't exist yet," which is exactly the #58 repro. Note `cf project set arch` also auto-sets `fileSlicePlan` from the arch stem as a side effect (pre-existing project behavior, unrelated to this slice).
 
 **Part A — #58 (stale-phase remediation).**
 ```
-cf set arch 140          # arch pointer set; file 140-arch.demo.md does NOT exist yet
-cf set phase 6           # stale phase from a prior initiative
-cf next
-#   expect Run: cf set phase 'Phase 2: Architecture'   (NOT cf set arch 140)
-cf set arch ""           # or a fixture with fileArch unset
-cf next
-#   expect Run: cf set arch <index>                    (fallback unchanged)
+$ cf project set arch 140-arch.demo
+Updated fileSlicePlan = 140-slices.demo (auto-set from fileArch)
+Updated arch = 140-arch.demo on project walkthrough-912
+
+$ cf set phase 6
+Updated instruction = Phase 6: Implementation (auto-set from developmentPhase)
+Updated phase = Phase 6: Implementation on project walkthrough-912
+
+$ cf next
+Next:      Create architecture document
+Phase:     Phase 2: Architecture
+Rationale: Architecture is set to '140-arch.demo' but the file does not exist yet. Create the architecture document before planning slices.
+Run:       cf set phase 'Phase 2: Architecture'
+
+$ cf project unset arch
+Unset arch on project walkthrough-912
+
+$ cf next
+Next:      Create architecture document
+Rationale: No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.
+Run:       cf set arch <index>
 ```
+Confirmed: fileArch set + file missing → phase-advance command (not the no-op). fileArch unset → fallback unchanged.
 
 **Part B — #59 Gap 1 (arch gate not orphaned).**
 ```
-# arch file exists, a slice plan exists, no arch-review artifact, no active slice
-cf next
-#   expect: "Review required before creating the slice plan" surfacing the pending arch review
-# add a passing arch review artifact, re-run:
-cf next
-#   expect: arch review no longer surfaced (gate clears)
+# arch file + slice plan written to disk, workflow.review_enabled=true, no arch review yet
+$ cf next
+Next:      Review required before creating the slice plan
+Rationale: Slice 140 requires a arch review before proceeding — no review artifact found.
+
+# add project-documents/user/reviews/140-review.arch.first.md with verdict: PASS
+$ cf next
+Next:      You have a slice plan but no active slice. Pick your first slice to begin.
+Rationale: Choose the first unchecked slice from your plan. Then advance your phase: cf set phase 4
+Run:       cf set slice 141
 ```
+Confirmed: the arch gate now fires even though a slice plan already exists (the previously-orphaned state) — and clears once a passing review is added.
 
 **Part C — #59 Gap 2 (cf check covers all boundaries).**
 ```
-# slice with a slice-design file but no slice-review artifact, gating on
-cf check
-#   expect a review-gate finding naming the *slice* review (not "code review")
-# repeat with a task file present but no tasks review → finding names the tasks review
-# repeat with the plan entry checked but no code review → finding names the code review (existing behavior)
-# arch file present, no arch review → cf check (checkAll path) reports a pending arch review
+# slice 141: design present, no slice review
+$ cf check
+  ⚠ [141] Slice 141 requires a slice review before proceeding — no review artifact found.
+    → Run the slice review for slice 141
+
+# add slice review; add task file (no tasks review)
+$ cf check
+  ⚠ [141] Slice 141 requires a tasks review before proceeding — no review artifact found.
+    → Run the tasks review for slice 141
+
+# add tasks review; check the plan entry's checkbox (no code review)
+$ cf check
+  ⚠ [141] Slice 141 requires a code review before proceeding — no review artifact found.
+    → Run the code review for slice 141
+
+# add a second, unreviewed arch file (240-arch.second.md)
+$ cf check
+  ⚠ [141] Slice 141 requires a code review before proceeding — no review artifact found.
+    → Run the code review for slice 141
+  ⚠ Slice 240 requires a arch review before proceeding — no review artifact found.
+    → Run the arch review for architecture 240
 ```
+Confirmed: each boundary's finding names the correct review type (never "code review" for a non-code boundary), each only fires once its artifact exists, and the project-wide `ruleArchReviewGate` aggregate (`checkAll()`, which is what plain `cf check` runs by default) discovers arch 240 independently of any slice-plan pairing.
 
 **Part D — cutoff is boundary-agnostic.**
 ```
-cf config set workflow.review_gate_effective_date <date-after-the-fixtures'-dateCreated>
-cf check
-#   expect: zero review-gate findings for the grandfathered slice/arch across ALL four boundaries
-cf next
-#   expect: no pending arch review for the grandfathered architecture
-```
+$ cf config set workflow.review_gate_effective_date 20260702
+# (fixtures' dateCreated: 20260701 — one day before the cutoff)
 
-**Part E — malformed frontmatter isolation (TD-5).**
+$ cf check
+# zero review-gate findings (only unrelated frontmatter-schema warnings from the minimal fixtures)
+
+$ cf next
+Next:      Slice plan complete. Review architecture for next initiative
+Slice:     141-slice.first-feature
+Rationale: All slices in the current plan are complete. Review the architecture for the next body of work.
+# no pending-arch-review recommendation — the gate cleared via the cutoff, not a passing review
 ```
-# corrupt one slice's review-artifact frontmatter (e.g. an unterminated YAML block)
-cf check
-#   expect: an error-severity review-gate finding naming that slice/index,
-#           AND findings for every other slice still present — the run did not abort
-```
+Confirmed: grandfathering by `dateCreated` holds across all four boundaries in both `cf check` and `cf next`, with zero cutoff code added by this slice.
+
+**Part E — malformed frontmatter isolation (TD-5) — verified at the unit level, not via a live repro.**
+During the walkthrough, corrupting a review artifact's frontmatter (unterminated YAML block, no closing `---`) did **not** throw — `parseFrontmatter` (`frontmatterParser.ts`) is intentionally lenient per this project's parsing rule and degrades unparseable content to `{ found: false }` / an `UNKNOWN` verdict, which `evaluateReviewGate` already handles as a normal `review-failed` finding, not an exception. `detectDocuments` is similarly exception-free (every `readdir` call is wrapped). So today, `evaluateReviewGate()` has no reachable throw path from real markdown content — TD-5's isolation is genuinely defensive (it protects against a config-resolution throw or a future less-lenient parser), not something a live fixture can currently exercise.
+
+The `safeEvaluateGate()` contract is instead verified directly in `ConsistencyChecker.reviewGateWidened.test.ts` (`describe('error isolation (TD-5)')`) by mocking `evaluateReviewGate` to throw for one boundary/index and asserting: (a) the throw is caught and surfaces as its own `error`-severity `review-gate` finding naming the boundary and underlying message, (b) sibling boundaries for the same slice still evaluate normally, and (c) sibling arch indices in the `checkAll()` aggregate rule still evaluate normally. Both tests pass.
 
 **Part F — regression.**
 ```
-pnpm -r build          # clean
-# run core + cli + mcp-server test suites; only the documented pre-existing failures remain
+$ pnpm -r build
+# clean across core, cli, mcp-server, electron
+
+$ pnpm --filter @context-forge/core test
+# 931 passed, 3 failed — the pre-existing FileProjectStore failures documented in DEVLOG
+# (unrelated to this slice; present on main before this work started)
 ```
 
 ## Effort
