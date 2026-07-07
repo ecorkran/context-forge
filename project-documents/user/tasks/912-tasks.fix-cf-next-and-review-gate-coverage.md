@@ -84,6 +84,9 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: both cases pass; the fallback case proves no regression.
   - Effort: 2/5
 
+- [ ] **Commit checkpoint** — after 1.3: `fix: correct cf next stale-phase remediation (#58)`.
+  TD-1 is self-contained (constant export + one branch fix + tests).
+
 ---
 
 ## TD-2 — #59 Gap 1: Un-orphan the arch review gate
@@ -110,6 +113,8 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: all three pass; the plan-present case is the one that failed before this slice.
   - Effort: 2/5
 
+- [ ] **Commit checkpoint** — after 2.2: `fix: un-orphan the arch review gate in cf next (#59)`.
+
 ---
 
 ## TD-3 / TD-5 — #59 Gap 2: cf check covers all four boundaries, with error isolation
@@ -124,6 +129,9 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     `safeDetectDocuments`/`safeParseFrontmatter`.
   - Success: a throwing gate evaluation yields a finding, not an exception; a clearing gate yields
     `null`; a pending/failed gate yields its normal finding.
+  - Note: this private helper has no dedicated test task by design — its behavior (including the
+    throw→finding path) is verified through its public callers in Tasks 3.3 and 3.5, avoiding
+    duplicate coverage. Implement it before those tests so they exercise it directly.
   - Effort: 2/5
 
 - [ ] **Task 3.2 — Widen `ruleReviewGate()` to the three slice-keyed boundaries (TD-3)**
@@ -172,6 +180,9 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
     without aborting the run.
   - Effort: 3/5
 
+- [ ] **Commit checkpoint** — after 3.5: `feat: widen cf check review-gate coverage to all four boundaries (#59)`.
+  Covers the safe helper, the widened per-slice rule, the arch aggregate rule, and their tests.
+
 ---
 
 ## Verification
@@ -197,5 +208,10 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
 - [ ] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries (the #58 remediation fix, the arch-gate coverage, the widened
     `cf check` boundaries + correct wording) and a developer-facing DEVLOG session entry.
+  - Note: this is standard project practice, not tied to a specific success criterion (the slice
+    design lists no documentation deliverable); included for release hygiene, consistent with 911.
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
+
+- [ ] **Commit checkpoint** — after 4.2/4.3: `docs: slice 912 verification + changelog/devlog`
+  (or fold the docs into the final feature commit). Verification and doc updates close the slice.
