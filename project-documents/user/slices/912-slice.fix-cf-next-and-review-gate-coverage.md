@@ -6,7 +6,7 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: [240, 241, 242, 911]
 interfaces: []
 dateCreated: 20260706
-dateUpdated: 20260706
+dateUpdated: 20260707
 status: not-started
 ---
 
@@ -101,6 +101,17 @@ The `arch` (`preSlicePlan`) boundary keys off an **arch index**, not the slice i
 
 This slice adds no config keys, no frontmatter schema fields, and no new functions in `reviewGate.ts`. It rewires existing callers of `evaluateReviewGate()` and corrects one `suggestedCommand`. The single new symbol is the exported phase constant in `projectSchema.ts` (TD-1). Keeping the surface this small is deliberate: the review-gate primitive and the cutoff are already correct and centralized (911); the bugs are entirely in *how the callers invoke them*.
 
+### TD-5 — error handling for the new `cf check` evaluation paths
+
+TD-3 adds new I/O that can throw on malformed frontmatter: a per-slice loop over three boundaries, and the aggregate `ruleArchReviewGate` that calls `evaluateReviewGate()` for every discovered arch index. Today these `checkAll()` loops have **no per-iteration isolation** — an `await` that throws propagates straight out of `check()`/`checkAll()`, so one unparseable review or arch document would abort the entire run and every other slice's findings with it. That is the wrong failure mode for an audit command, and it is what F004 correctly flags as unstated.
+
+**Decision — follow the existing `safe*` convention, do not invent a new one.** `checkSlice()` already reads every artifact through `safeDetectDocuments`/`safeParseTaskFile`/`safeParseFrontmatter` wrappers ([ConsistencyChecker.ts:226-228](../../../packages/core/src/introspection/ConsistencyChecker.ts)): a malformed file degrades *that one signal* and the remaining rules still run. The new review-gate paths adopt the same posture:
+
+- **Per boundary / per arch index, a throwing `evaluateReviewGate()` is caught at the call site and surfaced as its own `error`-severity, non-fixable finding** for that index (`rule: 'review-gate'`, description naming the boundary and the parse failure, `location` pointing at the offending artifact when known). It is not silently swallowed — that would violate the project's exception-handling rule — and it does not abort sibling evaluations.
+- **Remaining boundaries and remaining slice/arch indices continue to evaluate.** `checkAll()` is an audit: a single corrupt document must not blind the whole report.
+
+This applies uniformly to the three slice boundaries in `ruleReviewGate()` and to `ruleArchReviewGate()`. Concretely: wrap each `evaluateReviewGate()` call in a try/catch that converts a throw into an error finding (a small shared helper, since both rules need identical treatment) rather than letting it escape. `check()` (single active slice) inherits the same helper, so a malformed active-slice review reports as a finding instead of failing the command. Note this also *tightens* today's behavior: the existing `preAdvance`-only `ruleReviewGate()` currently lets an `evaluateReviewGate()` throw escape uncaught — this TD brings that pre-existing path under the same isolation as the new ones.
+
 ## Data Flows & Component Interactions
 
 ```
@@ -129,7 +140,8 @@ Every arrow into `evaluateReviewGate()` inherits the effective-date cutoff and t
 3. **#59 Gap 1 fixed.** With an arch file present, no active slice, a slice plan that *does* exist, and no arch review artifact (and the arch not grandfathered), `cf next` surfaces the pending arch review. Removing the plan does not change this. If the arch review exists and passes, `cf next` does not surface it.
 4. **#59 Gap 2 fixed.** `cf check`/`workflow_check` on a project with gating enabled reports pending/failed reviews for `arch`, `slice`, `tasks`, and `code` boundaries (each only when the corresponding artifact exists), with the finding's `suggestedFix` naming the correct review type. A boundary whose artifact does not yet exist produces no finding.
 5. **Cutoff holds across all boundaries.** With `workflow.review_gate_effective_date` set to a date after a slice's/arch's `dateCreated`, none of the four boundaries produce a finding for that slice/arch in either `cf next` or `cf check`.
-6. **No regressions.** The full core + cli + mcp-server suites pass (modulo the known pre-existing failures documented in DEVLOG), and `pnpm -r build` is clean.
+6. **Malformed frontmatter is isolated (TD-5).** In `checkAll()`, a slice or arch document whose review-gate frontmatter fails to parse produces its own `error`-severity `review-gate` finding for that index; every other slice and boundary still evaluates and reports normally. The run does not abort.
+7. **No regressions.** The full core + cli + mcp-server suites pass (modulo the known pre-existing failures documented in DEVLOG), and `pnpm -r build` is clean.
 
 ## Verification Walkthrough
 
@@ -177,7 +189,15 @@ cf next
 #   expect: no pending arch review for the grandfathered architecture
 ```
 
-**Part E — regression.**
+**Part E — malformed frontmatter isolation (TD-5).**
+```
+# corrupt one slice's review-artifact frontmatter (e.g. an unterminated YAML block)
+cf check
+#   expect: an error-severity review-gate finding naming that slice/index,
+#           AND findings for every other slice still present — the run did not abort
+```
+
+**Part F — regression.**
 ```
 pnpm -r build          # clean
 # run core + cli + mcp-server test suites; only the documented pre-existing failures remain
