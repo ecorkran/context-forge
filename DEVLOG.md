@@ -7,6 +7,20 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-07
+
+### Convention: `.context-forge.toml` is committed project policy — use `--project` to write it
+- `.context-forge.toml` holds project workflow policy (guide source, review-gate thresholds, `git.branch_root`, `review_gate_effective_date`, etc.) — **no secrets**. It is the CF analogue of `tsconfig.json`/`.editorconfig`: **commit it**, do not gitignore it, so every clone / agent / CI resolves `cf next`/`cf check` identically. If it lived only on one machine, teammates' workflow guidance would silently drift from yours on the same repo.
+- CF splits config by scope. **`cf config set --project <key> <val>`** writes the project-scoped `.context-forge.toml` (shared, checked in). **`cf config set <key> <val>`** (no `--project`) writes the *user*-scoped config under the home dir (personal, never in the repo). Rule of thumb: project policy → `--project`; personal/experimental toggles → user scope, so they stay out of version control.
+- Note: this repo currently has no `.context-forge.toml` (runs on defaults) — that's fine; create + commit one only when you actually set project policy here.
+
+### Slice 912: design (Phase 4) + a bugfix surfaced while dogfooding it
+- Authored the slice 912 low-level design (folds GitHub #58 + #59): #58 `cf next` conditional `suggestedCommand` (phase-advance when `arch` already set), #59 gap 1 (arch gate evaluated independent of slice-plan existence), #59 gap 2 (`ruleReviewGate` widened to all four boundaries + a per-arch-index aggregate rule). Confirmed the 911 effective-date cutoff already covers all boundaries — no new plumbing. Added TD-5 (error isolation for the new `cf check` gate paths, via the existing `safe*` convention) to resolve the slice review's one concern (F004).
+- Fixed a real `cf config set` bug found while setting `workflow.review_gate_effective_date` on Squadron: the CLI blindly `Number()`-coerced any all-digit argument *before* the type check, so a YYYYMMDD date (a string-typed key) was rejected as `number`. Shell strips quotes, so quoting didn't help. Now coerces toward the key's declared type via `CONFIG_KEYS`; no config key is numeric today, so the old branch could only ever break string keys. +1 regression test. (`packages/cli/src/commands/config.ts`)
+- 3 commits on `912-slice` branch; slice not yet implemented (Phase 5 task breakdown pending).
+
+---
+
 ## 2026-07-05 – 2026-07-06
 
 ### Slice 911: Fix Slice-Status Derivation for Partial-Completion Slices — Complete
