@@ -6,6 +6,7 @@ import { parseTaskItems } from './parsers/taskFileParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
+import { deriveEntryStatus } from './statusDerivation.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type {
   TaskItem,
@@ -19,7 +20,9 @@ import type {
   DocSummary,
   FutureSliceEntry,
   MaintenanceEntry,
+  NormalizedStatus,
 } from './types.js';
+import { STATUS } from './types.js';
 
 /** Deduplicate DocSummary-like arrays by name field (first wins). */
 function dedupeByName<T extends { name: string }>(items: T[]): T[] {
@@ -172,7 +175,10 @@ export async function scanDirectory(userDir: string): Promise<DocEntry[]> {
 
       // Parse frontmatter
       const fm = await parseFrontmatter(filepath);
-      const status = normalizeStatus(fm.data.status);
+      // A malformed/unrecognized status must surface visibly, not be
+      // silently coerced to 'not-started' (TD-2a) — this is a bulk scan,
+      // so one bad doc degrades to 'unknown' rather than aborting the model.
+      const status = normalizeStatus(fm.data.status) ?? 'unknown';
 
       // Parse task items for task docs
       let taskItems: TaskItem[] = [];
@@ -241,12 +247,28 @@ function buildTaskEntry(taskDocs: DocEntry[]): TaskModelEntry {
   const taskCount = allItems.length;
   const completedTasks = allItems.filter((t) => t.done).length;
 
-  // Infer status from checkboxes if frontmatter says not-started
-  let status = first.status;
-  if (status === 'not-started' && taskCount > 0) {
-    if (completedTasks === taskCount) status = 'complete';
-    else if (completedTasks > 0) status = 'in-progress';
+  // Task doc's own frontmatter status. scanDirectory sets DocEntry.status to
+  // either normalizeStatus()'s result or the literal 'unknown' (TD-2a) — never
+  // any other raw string — so once 'unknown' is excluded, the remainder is a
+  // genuine NormalizedStatus. 'unknown' is a resolution failure, not an absent
+  // signal, and is surfaced as-is below rather than fed into the lattice.
+  const frontmatterStatus: NormalizedStatus | undefined =
+    first.status === 'unknown' ? undefined : (first.status as NormalizedStatus);
+
+  let taskInferredStatus: NormalizedStatus | undefined;
+  if (taskCount > 0) {
+    taskInferredStatus =
+      completedTasks === taskCount
+        ? STATUS.Complete
+        : completedTasks > 0
+          ? STATUS.InProgress
+          : STATUS.NotStarted;
   }
+
+  const status =
+    first.status === 'unknown'
+      ? 'unknown'
+      : deriveEntryStatus({ frontmatterStatus, taskInferredStatus, isChecked: false });
 
   const entry: TaskModelEntry = {
     index: pad(first.index),
@@ -412,13 +434,15 @@ export async function buildModel(
       initiative.slices.push(entry);
     }
 
-    // Fill planned-but-unwritten slices from slice plan main body (matching parse.py)
+    // Fill planned-but-unwritten slices from slice plan main body (matching parse.py).
+    // No slice doc exists yet, so neither a task nor frontmatter signal is
+    // available — deriveEntryStatus degrades to the checkbox branch, same as before.
     for (const entry of planEntries) {
       if (entry.index >= base && entry.index < upper && !sliceIndices.has(entry.index)) {
         initiative.slices.push({
           index: pad(entry.index),
           name: entry.name,
-          status: entry.isChecked ? 'complete' : 'not-started',
+          status: deriveEntryStatus({ isChecked: entry.isChecked }),
           planned: true,
         });
       }

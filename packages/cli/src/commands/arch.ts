@@ -9,7 +9,7 @@ import {
 } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { resolveProject } from '@context-forge/core';
+import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@context-forge/core';
 import {
   resolveOperationPath,
   getWorktreeIndexRange,
@@ -20,6 +20,7 @@ import { UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, success, dim } from '../output/styles.js';
+import { renderEntryStatus, type DisplayStatus } from '../output/entryStatusDisplay.js';
 
 /** Shared action handler for listing architecture initiatives. */
 export async function archListAction(opts: { json?: boolean; all?: boolean; project?: string }): Promise<void> {
@@ -86,10 +87,16 @@ async function archListFromPlan(
   // Active arch index — compare against fileArch on the project
   const activeArchIndex = extractSliceIndex(project.fileArch);
 
-  // Resolve per-entry arch file existence
+  // Resolve per-entry arch file existence and derived status. Arch entries have
+  // no task file, so taskInferredStatus is always absent here — only
+  // frontmatterStatus (from the arch file, if found) and isChecked feed the
+  // lattice. Per TD-2a: frontmatterStatus is the only non-checkbox signal
+  // available, so a resolution failure on it (unrecognized status value) must
+  // not silently fall through to the checkbox — it renders as degraded instead.
   const entries = await Promise.all(
     filteredEntries.map(async (entry) => {
       let archFile: string | null = null;
+      let status: DisplayStatus = entry.isChecked ? STATUS.Complete : STATUS.NotStarted;
       try {
         const archDir = join(operationPath, 'project-documents/user/architecture');
         const files = await readdir(archDir);
@@ -97,16 +104,19 @@ async function archListFromPlan(
         const found = files.find((f) => pattern.test(f));
         if (found) {
           archFile = found;
+          const fm = await introspector.parseFrontmatter(join(archDir, found));
+          if (fm.found) {
+            const normalized = normalizeStatus(fm.data.status);
+            status = normalized === undefined
+              ? 'degraded'
+              : deriveEntryStatus({ frontmatterStatus: normalized, isChecked: entry.isChecked });
+          } else {
+            status = deriveEntryStatus({ isChecked: entry.isChecked });
+          }
         }
       } catch {
-        // directory missing or unreadable — leave archFile null
+        // directory missing or unreadable — leave archFile null, status as checkbox default
       }
-
-      const status = entry.isChecked
-        ? 'complete'
-        : archFile
-          ? 'in_progress'
-          : 'not_started';
 
       const isActive = activeArchIndex !== null && entry.index === activeArchIndex;
 
@@ -116,6 +126,7 @@ async function archListFromPlan(
         status,
         archFile,
         isActive,
+        isChecked: entry.isChecked,
       };
     }),
   );
@@ -129,12 +140,7 @@ async function archListFromPlan(
   console.log(label(`\nArchitecture Initiatives: ${planName}`));
 
   const rows = entries.map((e) => {
-    const statusLabel =
-      e.status === 'complete'
-        ? success('✓ complete')
-        : e.status === 'in_progress'
-          ? dim('◑ in progress')
-          : dim('○ not started');
+    const statusLabel = renderEntryStatus(e.status, e.isChecked);
     const file = e.archFile ? dim(e.archFile) : dim('—');
     const indicator = e.isActive ? success(' ← active') : '';
     return [String(e.index), e.name, statusLabel, file + indicator];

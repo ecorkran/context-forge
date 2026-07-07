@@ -306,6 +306,21 @@ export class ConsistencyChecker {
       });
     }
 
+    // Not-started boundary (TD-4): tasks have started (any checked, not all) but
+    // the plan entry is still unchecked. Not fixable — there is no single correct
+    // auto-fix for "in progress" (don't check the box; there's no in-progress
+    // checkbox state to write).
+    if (taskResult.inferredStatus === 'in-progress' && !sliceChecked) {
+      findings.push({
+        rule: 'task-vs-plan',
+        severity: 'warning',
+        location: slicePlanPath,
+        description: `Tasks in progress (${taskResult.completedTasks}/${taskResult.totalTasks}) but slice ${sliceIndex} is unchecked in plan`,
+        suggestedFix: `No single auto-fix for in-progress — leave the slice plan entry for (${sliceIndex}) unchecked until tasks complete`,
+        fixable: false,
+      });
+    }
+
     return findings;
   }
 
@@ -355,6 +370,25 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
           detail: { key: 'status', value: 'complete' },
+        },
+      });
+    }
+
+    // Not-started boundary (TD-4): tasks have started but design frontmatter
+    // still says not-started. Mirrors the branch above — same fix-action shape,
+    // different target value.
+    if (fmStatus === 'not-started' && taskResult.inferredStatus === 'in-progress') {
+      findings.push({
+        rule: 'frontmatter-vs-computed',
+        severity: 'warning',
+        location: sliceDesignFullPath,
+        description: `Frontmatter status is "not-started" but tasks are in progress (${taskResult.completedTasks}/${taskResult.totalTasks})`,
+        suggestedFix: 'Update frontmatter status to "in-progress"',
+        fixable: true,
+        fixAction: {
+          type: 'update-frontmatter',
+          filePath: sliceDesignFullPath,
+          detail: { key: 'status', value: 'in-progress' },
         },
       });
     }

@@ -55,21 +55,25 @@ describe('normalizeStatus', () => {
     });
   });
 
-  describe('unknown and empty values', () => {
-    it('returns "not-started" for unknown values', () => {
-      expect(normalizeStatus('unknown')).toBe('not-started');
+  describe('unrecognized and empty values return undefined', () => {
+    it('returns undefined for an unmapped string', () => {
+      expect(normalizeStatus('garbage')).toBeUndefined();
     });
 
-    it('returns "not-started" for empty string', () => {
-      expect(normalizeStatus('')).toBe('not-started');
+    it('returns undefined for empty string', () => {
+      expect(normalizeStatus('')).toBeUndefined();
     });
 
-    it('returns "not-started" for undefined', () => {
-      expect(normalizeStatus(undefined)).toBe('not-started');
+    it('returns undefined for undefined input', () => {
+      expect(normalizeStatus(undefined)).toBeUndefined();
     });
 
-    it('returns "not-started" for null', () => {
-      expect(normalizeStatus(null)).toBe('not-started');
+    it('returns undefined for null', () => {
+      expect(normalizeStatus(null)).toBeUndefined();
+    });
+
+    it('returns undefined for "deferred" (no NormalizedStatus equivalent)', () => {
+      expect(normalizeStatus('deferred')).toBeUndefined();
     });
   });
 });

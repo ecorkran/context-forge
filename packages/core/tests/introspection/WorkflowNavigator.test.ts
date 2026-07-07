@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { WorkflowNavigator } from '../../src/introspection/WorkflowNavigator.js';
 import type { ProjectData } from '../../src/types/project.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
@@ -98,6 +100,22 @@ describe('WorkflowNavigator', () => {
       expect(status.slicePlan!.completed).toBe(1);
       expect(status.slicePlan!.entries).toHaveLength(2);
       expect(status.slicePlan!.name).toBe('100-slices.test-system');
+    });
+
+    it('slicePlan.entries[].status is derived, not the raw checkbox-only SlicePlanEntry.status (MCP parity, slice 911)', async () => {
+      // Fixture: entry 100 is checked but its real task file is in-progress
+      // (2/4 done) — the derived status must read 'in-progress', not the raw
+      // checkbox-derived 'complete'. Entry 101 has no design file at all, so
+      // it degrades to the checkbox (unchecked) → 'not-started'.
+      const project = makeProject({
+        fileSlicePlan: '100-slices.test-system',
+      });
+      const status = await nav.getStatus(project);
+
+      const entry100 = status.slicePlan!.entries.find((e) => e.index === 100);
+      const entry101 = status.slicePlan!.entries.find((e) => e.index === 101);
+      expect(entry100!.status).toBe('in-progress');
+      expect(entry101!.status).toBe('not-started');
     });
 
     it('returns null slicePlan when fileSlicePlan is not set', async () => {
@@ -230,7 +248,9 @@ describe('WorkflowNavigator', () => {
     });
 
     it('does not overwrite explicit suggestedCommand with phase suggestion', async () => {
-      // Slice 300 is complete, plan has unchecked entry → suggestedCommand = "cf set slice 101"
+      // Slice 300 is complete. Plan entry 100 is checked but its real task file is
+      // in-progress (2/4 done) — deriveEntryStatus now correctly selects 100 first
+      // (task signal outranks the checkbox), not 101 (which is genuinely untouched).
       const project = makeProject({
         fileSlice: '300-slice.all-done.md',
         fileSlicePlan: '100-slices.test-system',
@@ -238,19 +258,22 @@ describe('WorkflowNavigator', () => {
       });
       const next = await nav.getNext(project);
 
-      expect(next.suggestedCommand).toBe('cf set slice 101');
+      expect(next.suggestedCommand).toBe('cf set slice 100');
     });
 
-    it('recommends advancing to next slice when complete with plan', async () => {
-      // Fixture: slice 300 is complete, plan has entry 101 unchecked
+    it('recommends continuing next in-progress slice when complete with plan', async () => {
+      // Fixture: slice 300 is complete. Plan entry 100 is checked but its real task
+      // file is in-progress (2/4 done) — the derived-status fix (#56) means this is
+      // selected as "next" over unchecked-but-untouched 101, with "Continue" wording
+      // (not "Advance to") because its derived status is in-progress, not not-started.
       const project = makeProject({
         fileSlice: '300-slice.all-done.md',
         fileSlicePlan: '100-slices.test-system',
       });
       const next = await nav.getNext(project);
 
-      expect(next.recommendation).toContain('Advance to slice 101');
-      expect(next.suggestedCommand).toBe('cf set slice 101');
+      expect(next.recommendation).toContain('Continue slice 100');
+      expect(next.suggestedCommand).toBe('cf set slice 100');
     });
 
     it('recommends reviewing architecture when plan is complete', async () => {
@@ -530,7 +553,7 @@ describe('WorkflowNavigator', () => {
       expect(next.recommendation).toContain('slice plan but no active slice');
     });
 
-    it('FR-5: slice plan exists but no active slice → suggests first unchecked slice by index', async () => {
+    it('FR-5: slice plan exists but no active slice → suggests first not-complete slice by derived status', async () => {
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: '100-slices.test-system',
@@ -539,8 +562,10 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('slice plan but no active slice');
-      // Fixture plan: entry 100 checked, 101 unchecked — expects specific index
-      expect(next.suggestedCommand).toBe('cf set slice 101');
+      // Fixture plan: entry 100 is checked but its real task file is in-progress
+      // (2/4 done) — deriveEntryStatus selects it over 101 (genuinely untouched)
+      // because task completion outranks the checkbox (#56 fix).
+      expect(next.suggestedCommand).toBe('cf set slice 100');
     });
 
     it('FR-4 with plan field set but file missing → recommends creating plan doc', async () => {
@@ -650,6 +675,7 @@ const GATE_ENABLED_DEFAULTS = {
   'workflow.review_gates.pre_tasks.threshold': '',
   'workflow.review_gates.pre_implementation.threshold': '',
   'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gate_effective_date': '',
 };
 
 const GATE_DISABLED_CONFIG = makeStubConfig({
@@ -823,5 +849,203 @@ describe('WorkflowNavigator — review gate (slice 241)', () => {
       const project = makeProject({ fileSlice: '300-slice.all-done.md' });
       await expect(nav.getStatus(project)).resolves.toBeDefined();
     });
+  });
+});
+
+describe('WorkflowNavigator — derived-status entry selection (slice 911)', () => {
+  function makeScratchProject(root: string, overrides: Partial<ProjectData> = {}): ProjectData {
+    return {
+      id: 'scratch-1',
+      name: 'scratch-project',
+      template: 'default',
+      fileSlice: '900-slice.active.md',
+      fileTasks: '900-tasks.active.md',
+      fileSlicePlan: '800-slices.scratch-plan',
+      instruction: 'implementation',
+      createdAt: '2026-01-01',
+      updatedAt: '2026-02-28',
+      projectPath: root,
+      ...overrides,
+    };
+  }
+
+  function writeSlicePlan(root: string, body: string): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'architecture'), { recursive: true });
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'architecture', '800-slices.scratch-plan.md'),
+      `---\ndocType: slice-plan\nproject: scratch-project\n---\n\n# Slice Plan: Scratch\n\n${body}\n`,
+    );
+  }
+
+  function writeSliceDesign(root: string, index: number, name: string, status = 'in-progress'): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'slices'), { recursive: true });
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'slices', `${index}-slice.${name}.md`),
+      `---\nslice: ${name}\nstatus: ${status}\n---\n\n# Slice ${index}\n`,
+    );
+  }
+
+  function writeTaskFile(root: string, index: number, name: string, checkboxes: string[]): void {
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks'), { recursive: true });
+    const body = checkboxes.map((c) => `- [${c}] Task`).join('\n');
+    writeFileSync(
+      join(root, 'project-documents', 'user', 'tasks', `${index}-tasks.${name}.md`),
+      `---\nslice: ${name}\nstatus: in-progress\n---\n\n${body}\n`,
+    );
+  }
+
+  it('#56 regression: tasks 100% complete, plan checkbox unchecked → not selected as next-unstarted', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-'));
+    writeSliceDesign(root, 242, 'done-unchecked', 'in-progress');
+    writeTaskFile(root, 242, 'done-unchecked', ['x', 'x']);
+    writeSliceDesign(root, 250, 'genuinely-untouched', 'not_started');
+    writeSlicePlan(
+      root,
+      '1. [ ] **(242) Done Unchecked** — tasks complete, checkbox never ticked.\n' +
+        '2. [ ] **(250) Genuinely Untouched** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+    const next = await nav.getNext(project);
+
+    // Must not select 242 as "next unstarted" — it is derived-complete despite the
+    // unchecked box. It should instead select 250, the genuinely untouched slice.
+    expect(next.suggestedCommand).toBe('cf set slice 250');
+  });
+
+  it('MCP parity: workflow_status (getStatus) reports the same derived statuses as getNext selection for the 242-shaped fixture', async () => {
+    // getStatus() (what the MCP workflow_status tool returns verbatim) and
+    // getNext()'s entry selection both read through resolveEntryStatus/
+    // deriveEntryStatus — this pins that getStatus().slicePlan.entries doesn't
+    // silently diverge from what getNext used to pick the next slice.
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-mcp-parity-'));
+    writeSliceDesign(root, 242, 'done-unchecked', 'in-progress');
+    writeTaskFile(root, 242, 'done-unchecked', ['x', 'x']);
+    writeSliceDesign(root, 250, 'genuinely-untouched', 'not_started');
+    writeSlicePlan(
+      root,
+      '1. [ ] **(242) Done Unchecked** — tasks complete, checkbox never ticked.\n' +
+        '2. [ ] **(250) Genuinely Untouched** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const status = await nav.getStatus(project);
+    const entry242 = status.slicePlan!.entries.find((e) => e.index === 242);
+    const entry250 = status.slicePlan!.entries.find((e) => e.index === 250);
+    expect(entry242!.status).toBe('complete');
+    expect(entry250!.status).toBe('not-started');
+
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 250');
+  });
+
+  it('wording: active in-progress slice recommends "Continue", not "Advance to"', async () => {
+    // The active slice itself (900) is in-implementation with partial progress —
+    // exercises the pre-existing in-implementation branch, confirming its wording
+    // still reads "Continue" (not "Advance to") after the derivation routing change.
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-wording-'));
+    writeSliceDesign(root, 900, 'active', 'in-progress');
+    writeTaskFile(root, 900, 'active', ['x', ' ']);
+    writeSlicePlan(root, '1. [ ] **(900) Active** — in progress.');
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root);
+    const next = await nav.getNext(project);
+
+    expect(next.recommendation).toContain('Continue');
+    expect(next.recommendation).not.toContain('Advance to');
+  });
+
+  it('wording: complete active slice with an in-progress next entry recommends "Continue slice N"', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-wording-next-'));
+    writeSliceDesign(root, 900, 'active', 'in-progress');
+    writeTaskFile(root, 900, 'active', ['x', 'x']);
+    writeSliceDesign(root, 901, 'partial', 'in-progress');
+    writeTaskFile(root, 901, 'partial', ['x', ' ']);
+    writeSlicePlan(
+      root,
+      '1. [x] **(900) Active** — complete.\n2. [ ] **(901) Partial** — partially done.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root);
+    const next = await nav.getNext(project);
+
+    expect(next.recommendation).toContain('Continue slice 901');
+    expect(next.recommendation).not.toContain('Advance to');
+    expect(next.suggestedCommand).toBe('cf set slice 901');
+  });
+
+  it('gate-ordering regression: complete-but-unreviewed slice still routes to review, not "advance to next slice"', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-gate-'));
+    writeSliceDesign(root, 900, 'active', 'in-progress');
+    writeTaskFile(root, 900, 'active', ['x', 'x']);
+    writeSliceDesign(root, 901, 'untouched', 'not_started');
+    writeSlicePlan(
+      root,
+      '1. [ ] **(900) Active** — tasks complete, no review yet.\n2. [ ] **(901) Untouched** — nothing done.',
+    );
+
+    const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+    const nav = new WorkflowNavigator(config);
+    const project = makeScratchProject(root);
+
+    const status = await nav.getStatus(project);
+    expect(status.activeSlice!.status).toBe('pending-review');
+
+    const next = await nav.getNext(project);
+    expect(next.recommendation).toContain('Review required');
+    expect(next.recommendation).not.toContain('Advance to slice 901');
+  });
+
+  it('TD-2a propagation: a plan entry with an unreadable task file surfaces an error, not a silent fallthrough to checkbox', async () => {
+    // Active slice (900) is complete, so getNext reaches the complete-advance
+    // branch and must resolve entry 901's status via findFirstNotCompleteEntry.
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-td2a-'));
+    writeSliceDesign(root, 900, 'active', 'in-progress');
+    writeTaskFile(root, 900, 'active', ['x', 'x']);
+    writeSliceDesign(root, 901, 'broken', 'in-progress');
+    // Entry 901's task file path is a directory, not a file — parseTaskItems'
+    // readFile call throws EISDIR, which now propagates (only ENOENT is treated
+    // as "no file"). This must surface, not silently fall through to the checkbox.
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks'), { recursive: true });
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks', '901-tasks.broken.md'));
+    writeSlicePlan(
+      root,
+      '1. [x] **(900) Active** — complete.\n2. [ ] **(901) Broken** — task file is unreadable.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root);
+
+    await expect(nav.getNext(project)).rejects.toThrow();
+  });
+
+  it('TD-2a propagation: the ACTIVE slice itself with an unreadable task file surfaces an error via getStatus/deriveSliceStatus', async () => {
+    // Distinct from the entry-resolution path above: this exercises
+    // deriveSliceStatus's own parseTaskFileSafe, which previously swallowed
+    // any error (including genuine resolution failures) and silently
+    // returned 'needs-tasks'. It must now propagate instead.
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-td2a-active-'));
+    writeSliceDesign(root, 900, 'active', 'in-progress');
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks'), { recursive: true });
+    mkdirSync(join(root, 'project-documents', 'user', 'tasks', '900-tasks.active.md'));
+    writeSlicePlan(root, '1. [ ] **(900) Active** — task file is unreadable.');
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root);
+
+    await expect(nav.getStatus(project)).rejects.toThrow();
   });
 });

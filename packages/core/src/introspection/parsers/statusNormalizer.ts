@@ -18,8 +18,16 @@ const STATUS_MAP: Record<string, NormalizedStatus> = {
   deprecated: 'deprecated',
 };
 
-/** Normalize a raw status string to one of the canonical values */
-export function normalizeStatus(raw: string | undefined | null): NormalizedStatus {
+/**
+ * Normalize a raw status string to one of the canonical values.
+ *
+ * Returns `undefined` when the input was present but not recognized —
+ * this is distinct from a real `not-started` and must not be conflated
+ * with it. `deferred` is intentionally absent from `STATUS_MAP` (it has
+ * no `NormalizedStatus` equivalent) and therefore also normalizes to
+ * `undefined`.
+ */
+export function normalizeStatus(raw: string | undefined | null): NormalizedStatus | undefined {
   const key = (raw ?? '').toLowerCase().trim();
-  return STATUS_MAP[key] ?? 'not-started';
+  return STATUS_MAP[key];
 }

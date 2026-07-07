@@ -208,6 +208,27 @@ describe('ConfigManager', () => {
       );
     });
 
+    it('accepts a valid YYYYMMDD review_gate_effective_date', async () => {
+      const cm = new ConfigManager();
+      await cm.set('workflow.review_gate_effective_date', '20260701', 'user');
+      const result = await cm.get('workflow.review_gate_effective_date');
+      expect(result.value).toBe('20260701');
+    });
+
+    it('defaults review_gate_effective_date to empty (no cutoff) when unset', async () => {
+      const cm = new ConfigManager();
+      const result = await cm.get('workflow.review_gate_effective_date');
+      expect(result.value).toBe('');
+      expect(result.source).toBe('default');
+    });
+
+    it('rejects a non-YYYYMMDD review_gate_effective_date', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.set('workflow.review_gate_effective_date', '2026-07-01', 'user')).rejects.toThrow(
+        'YYYYMMDD'
+      );
+    });
+
     it('round-trip string value', async () => {
       const cm = new ConfigManager();
       await cm.set('guide.source', 'https://example.com', 'user');
@@ -338,7 +359,7 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(17);
+      expect(entries).toHaveLength(18);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
@@ -356,6 +377,7 @@ describe('ConfigManager', () => {
       expect(keys).toContain('workflow.review_gates.pre_tasks.threshold');
       expect(keys).toContain('workflow.review_gates.pre_implementation.review_type');
       expect(keys).toContain('workflow.review_gates.pre_implementation.threshold');
+      expect(keys).toContain('workflow.review_gate_effective_date');
       expect(keys).toContain('git.branch_root');
       for (const entry of entries) {
         expect(entry.source).toBe('default');

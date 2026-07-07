@@ -337,3 +337,32 @@ describe('validateFrontmatter — field inference', () => {
     expect(findings[0].fixAction).toBeUndefined();
   });
 });
+
+describe('validateFrontmatter — codeReview field (#57, slice 911)', () => {
+  const baseSliceDesign = {
+    docType: 'slice-design',
+    slice: 'docs-only-example',
+    project: 'test',
+    status: 'complete',
+    dateCreated: '20260101',
+    dateUpdated: '20260301',
+  };
+
+  it('codeReview absent produces no finding (default: code review required)', () => {
+    const findings = validateFrontmatter('/test.md', baseSliceDesign);
+    expect(findings).toHaveLength(0);
+  });
+
+  it('codeReview: none produces no finding', () => {
+    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, codeReview: 'none' });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('an unrecognized codeReview value produces an invalid-value finding', () => {
+    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, codeReview: 'skip' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'skip'");
+    expect(findings[0].description).toContain('codeReview');
+    expect(findings[0].description).toContain('Invalid value');
+  });
+});

@@ -1,4 +1,6 @@
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { describe, it, expect, vi } from 'vitest';
 import {
   positionToReviewType,
@@ -77,6 +79,7 @@ const BASE_VALUES = {
   'workflow.review_gates.pre_tasks.threshold': '',
   'workflow.review_gates.pre_implementation.threshold': '',
   'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gate_effective_date': '',
 };
 
 describe('resolveGateConfig', () => {
@@ -177,5 +180,108 @@ describe('evaluateReviewGate', () => {
     const result = await evaluateReviewGate(PROJECT_ROOT, 400, 'preAdvance', config, resolved!);
     expect(result?.status).toBe('review-failed');
     expect(config.get).not.toHaveBeenCalled();
+  });
+
+  describe('docs-only declaration (#57, slice 911)', () => {
+    it('codeReview: none at preAdvance clears the gate even with no review artifact present', async () => {
+      // Fixture 405: complete tasks, codeReview: none, no review artifact at all.
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preAdvance', config);
+      expect(result).toBeNull();
+    });
+
+    it('codeReview: none does not affect other boundaries — preTasks still evaluates normally', async () => {
+      // Fixture 405 has no task file detection concern here; reuse 400 (gate-code-fail,
+      // no codeReview declaration) to confirm preTasks isn't accidentally short-circuited
+      // by the same code path, then confirm 405 itself still gates preTasks normally
+      // (it has a task file, so preTasts would look for a 'slice' review — absent — pending).
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preTasks', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+      expect(result?.reviewType).toBe('slice');
+    });
+
+    it('regression: a slice WITHOUT the codeReview declaration, missing a code review, still returns pending-review at preAdvance', async () => {
+      // Fixture 300: all-done, complete, no codeReview field, no review artifact.
+      const config = makeStubConfig(BASE_VALUES);
+      const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+  });
+
+  describe('effective-date grandfather cutoff (slice 911)', () => {
+    function writeSliceDesign(root: string, index: number, name: string, dateCreated: string): void {
+      mkdirSync(join(root, 'project-documents', 'user', 'slices'), { recursive: true });
+      writeFileSync(
+        join(root, 'project-documents', 'user', 'slices', `${index}-slice.${name}.md`),
+        `---\nslice: ${name}\nstatus: complete\ndateCreated: ${dateCreated}\n---\n\n# Slice ${index}\n`,
+      );
+    }
+
+    function writeArchDoc(root: string, index: number, name: string, dateCreated: string): void {
+      mkdirSync(join(root, 'project-documents', 'user', 'architecture'), { recursive: true });
+      writeFileSync(
+        join(root, 'project-documents', 'user', 'architecture', `${index}-arch.${name}.md`),
+        `---\ndocType: architecture\nproject: test\ndateCreated: ${dateCreated}\n---\n\n# Arch ${index}\n`,
+      );
+    }
+
+    it('preAdvance: a slice dated before the cutoff clears the gate with no review artifact present', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-'));
+      writeSliceDesign(root, 900, 'old-slice', '20260101');
+      const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const result = await evaluateReviewGate(root, 900, 'preAdvance', config);
+      expect(result).toBeNull();
+    });
+
+    it('preAdvance: a slice dated on/after the cutoff still gates normally (pending-review)', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-'));
+      writeSliceDesign(root, 900, 'new-slice', '20260701');
+      const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const result = await evaluateReviewGate(root, 900, 'preAdvance', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+
+    it('preSlicePlan: an architecture dated before the cutoff clears the gate (reads docs.architecture, not docs.sliceDesign)', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-arch-'));
+      writeArchDoc(root, 900, 'old-arch', '20260101');
+      const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const result = await evaluateReviewGate(root, 900, 'preSlicePlan', config);
+      expect(result).toBeNull();
+    });
+
+    it('preSlicePlan: an architecture dated on/after the cutoff still gates normally', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-arch-'));
+      writeArchDoc(root, 900, 'new-arch', '20260701');
+      const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const result = await evaluateReviewGate(root, 900, 'preSlicePlan', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+
+    it('empty cutoff (default) applies no grandfathering — an old-dated slice still gates normally', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-default-'));
+      writeSliceDesign(root, 900, 'ancient-slice', '20200101');
+      const config = makeStubConfig(BASE_VALUES); // effective_date: '' from BASE_VALUES
+      const result = await evaluateReviewGate(root, 900, 'preAdvance', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+
+    it('a pre-resolved ResolvedGate carries the cutoff without re-reading config', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-preresolved-'));
+      writeSliceDesign(root, 900, 'old-slice', '20260101');
+      const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const resolved = await resolveGateConfig(config);
+      expect(resolved?.effectiveDate).toBe('20260601');
+
+      vi.mocked(config.get).mockClear();
+      const result = await evaluateReviewGate(root, 900, 'preAdvance', config, resolved!);
+      expect(result).toBeNull();
+      expect(config.get).not.toHaveBeenCalled();
+    });
   });
 });
