@@ -13,7 +13,7 @@ projectState: >
   gate primitive, config key, or frontmatter field.
 dateCreated: 20260707
 dateUpdated: 20260707
-status: not_started
+status: complete
 ---
 
 # Tasks: Fix cf next Stale-Phase Remediation and Review-Gate Coverage Gaps
@@ -187,7 +187,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
 
 ## Verification
 
-- [ ] **Task 4.1 — Cutoff-across-all-boundaries integration check**
+- [x] **Task 4.1 — Cutoff-across-all-boundaries integration check**
   - Add a test (or extend an existing gate integration test) proving that with
     `workflow.review_gate_effective_date` set after a slice's/arch's `dateCreated`, none of the four
     boundaries produce a finding for that slice/arch, in both the navigator (`getNext`) and checker
@@ -196,7 +196,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: grandfathered slice/arch produce zero review-gate findings across all four boundaries.
   - Effort: 2/5
 
-- [ ] **Task 4.2 — Full build + suite + walkthrough**
+- [x] **Task 4.2 — Full build + suite + walkthrough**
   - Run `pnpm -r build` (clean) and the core / cli / mcp-server test suites; confirm only the
     documented pre-existing failures remain (success criterion 7).
   - Execute the design's Verification Walkthrough (Parts A–F) against a scratch fixture or this repo
@@ -205,7 +205,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: build clean, no new failures, walkthrough parts A–F confirmed.
   - Effort: 2/5
 
-- [ ] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
+- [x] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries (the #58 remediation fix, the arch-gate coverage, the widened
     `cf check` boundaries + correct wording) and a developer-facing DEVLOG session entry.
   - Note: this is standard project practice, not tied to a specific success criterion (the slice
@@ -213,5 +213,5 @@ Test suites run via `pnpm --filter @context-forge/core test <file>`; full build 
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 4.2/4.3: `docs: slice 912 verification + changelog/devlog`
+- [x] **Commit checkpoint** — after 4.2/4.3: `docs: slice 912 verification + changelog/devlog`
   (or fold the docs into the final feature commit). Verification and doc updates close the slice.
