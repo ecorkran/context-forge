@@ -17,6 +17,16 @@ vi.mock('@context-forge/core/node', () => ({
     list: mockList,
   })),
   FileProjectStore: vi.fn().mockImplementation(() => ({})),
+  // The set command consults CONFIG_KEYS to coerce the raw string argument
+  // toward each key's declared type (a string-typed key must NOT be number-coerced
+  // even when its value is all digits, e.g. a YYYYMMDD date). Mirror just the
+  // keys the tests exercise, with their real declared types.
+  CONFIG_KEYS: {
+    'guide.source': { type: 'string', default: '', description: '' },
+    'workflow.review_enabled': { type: 'boolean', default: false, description: '' },
+    'workflow.review_gate_effective_date': { type: 'string', default: '', description: '' },
+    'some.flag': { type: 'boolean', default: false, description: '' },
+  },
 }));
 
 // Default: no registered project resolves — resolveConfigProjectPath falls through to
@@ -163,6 +173,18 @@ describe('cf config set', () => {
     await program.parseAsync(['node', 'cf', 'config', 'set', 'some.flag', 'true']);
 
     expect(mockSet).toHaveBeenCalledWith('some.flag', true, 'user');
+  });
+
+  it('keeps an all-digit value a string for a string-typed key (YYYYMMDD date)', async () => {
+    // Regression: the shell strips quotes, so a YYYYMMDD date reaches the CLI as a
+    // bare digit string. Blindly Number()-coercing it made ConfigManager.set reject
+    // it against the string-typed key. Coercion must consult the declared type.
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'config', 'set', 'workflow.review_gate_effective_date', '20260706',
+    ]);
+
+    expect(mockSet).toHaveBeenCalledWith('workflow.review_gate_effective_date', '20260706', 'user');
   });
 
   it('prints success message', async () => {

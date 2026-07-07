@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { existsSync, statSync } from 'node:fs';
-import { ConfigManager, FileProjectStore } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, CONFIG_KEYS } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -93,11 +93,20 @@ export function registerConfigCommand(program: Command): void {
         const projectPath = await resolveConfigProjectPath(opts.project);
         const cm = new ConfigManager(projectPath);
 
-        // Coerce booleans and numbers
+        // Coerce the raw string argument to the key's declared type. The shell
+        // strips quotes, so an all-digit string like a YYYYMMDD date reaches us
+        // indistinguishable from a numeric literal — blind Number() coercion would
+        // reject it against a string-typed key. Consult the registry and coerce
+        // only toward the declared type. Unknown keys are left as-is so cm.set
+        // produces its normal "unknown key" error rather than a mis-coerced value.
+        const declaredType = CONFIG_KEYS[key]?.type;
         let coerced: string | boolean | number = val;
-        if (val === 'true') coerced = true;
-        else if (val === 'false') coerced = false;
-        else if (/^\d+(\.\d+)?$/.test(val)) coerced = Number(val);
+        if (declaredType === 'boolean') {
+          if (val === 'true') coerced = true;
+          else if (val === 'false') coerced = false;
+        } else if (declaredType === 'number') {
+          if (/^\d+(\.\d+)?$/.test(val)) coerced = Number(val);
+        }
 
         await cm.set(key, coerced, scope);
         console.log(success(`Set ${key} = ${String(coerced)} (${scope})`));
