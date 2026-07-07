@@ -20,6 +20,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - Slice 243 (the design's intended live docs-only verification fixture) has no slice-design/task file written yet — flagged as a follow-up for whoever designs it.
 - 5 commits, ~40 new tests across `statusDerivation`, `WorkflowNavigator`, `ProjectModelBuilder`, `ConsistencyChecker`, `reviewGate`, `frontmatterSchema`, and CLI `cf list` derived-display coverage.
 
+### Follow-up: review-gate migration friction (same session)
+- Dogfooding 911 on this repo (`cf check` with `review_enabled` on) surfaced 63 findings — almost all "missing code review" for slices 1-12/161-210/901-911, none of which ever existed under the review-gate system. Added `workflow.review_gate_effective_date` (YYYYMMDD grandfather cutoff, resolved once in `ResolvedGate` so it's free for pre-resolved callers) and `cf check --set-review-none <index>` (direct convenience command, writes `codeReview: none` to the slice-design file).
+- Filed [#59](https://github.com/ecorkran/context-forge/issues/59): the `preSlicePlan`/arch gate in `getNext()` only fires while no slice plan exists yet (orphaned once one is created — this is why completing Phase 2 didn't surface a pending arch review), and `cf check`'s `ruleReviewGate` hardcodes `preAdvance` only, never checking `arch`/`slice`/`tasks`. Out of scope for 911; noted that the effective-date cutoff must cover all four boundaries once #59 widens coverage (it already does, since it's centralized in `evaluateReviewGate()`).
+- 1 commit, 4 new tests across `reviewGate`, `ConfigManager`, and CLI `check` coverage.
+
 ---
 
 ## 2026-06-21 – 2026-06-24
