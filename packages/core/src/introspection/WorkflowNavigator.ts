@@ -232,8 +232,8 @@ export class WorkflowNavigator {
       return {
         recommendation: 'Create architecture document',
         rationale: `Architecture '${project.fileArch}' is set but the file does not exist. Create the architecture document before designing slices.`,
-        suggestedCommand: "cf set phase 'Phase 2: Architecture'",
-        phase: 'Phase 2: Architecture',
+        suggestedCommand: `cf set phase '${ARCHITECTURE_PHASE}'`,
+        phase: ARCHITECTURE_PHASE,
         slice: project.fileSlice,
         summary: `Create architecture '${project.fileArch}' before proceeding with slice ${slice.index ?? slice.name}`,
         ...(warnings.length > 0 ? { warnings } : {}),
@@ -466,7 +466,7 @@ export class WorkflowNavigator {
         recommendation: 'Initiative plan exists. Advance to Phase 2 (Architecture).',
         rationale:
           'Your initiative plan is complete. The next step is to define the high-level structure — set your phase to Phase 2 (Architecture) and create an architecture document.',
-        suggestedCommand: "cf set phase 'Phase 2: Architecture'",
+        suggestedCommand: `cf set phase '${ARCHITECTURE_PHASE}'`,
         summary: 'Advance to Phase 2 — set phase and create an architecture document',
       };
     }

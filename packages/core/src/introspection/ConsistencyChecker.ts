@@ -586,6 +586,40 @@ export class ConsistencyChecker {
     }
   }
 
+  /**
+   * Builds the pending-review/review-failed finding for a resolved (non-null, non-error)
+   * gate evaluation. Shared by ruleReviewGate (slice boundaries) and ruleArchReviewGate
+   * (arch boundary) — they differ only in entity label and pending-review location.
+   */
+  private buildGateFinding(
+    result: GateEvaluation,
+    boundary: Boundary,
+    entityLabel: string,
+    index: number,
+    projectPath: string,
+    pendingLocation: string,
+  ): ConsistencyFinding {
+    const reviewType = positionToReviewType(boundary);
+    if (result.status === 'pending-review') {
+      return {
+        rule: 'review-gate',
+        severity: 'warning',
+        location: pendingLocation,
+        description: result.rationale,
+        suggestedFix: `Run the ${reviewType} review for ${entityLabel} ${index}`,
+        fixable: false,
+      };
+    }
+    return {
+      rule: 'review-gate',
+      severity: 'error',
+      location: join(projectPath, result.artifactPath!),
+      description: result.rationale,
+      suggestedFix: `Resolve the review findings or rerun the ${reviewType} review for ${entityLabel} ${index}`,
+      fixable: false,
+    };
+  }
+
   private async ruleReviewGate(
     planEntry: SlicePlanEntry | null,
     sliceIndex: number,
@@ -617,27 +651,9 @@ export class ConsistencyChecker {
       }
       if (result === null) continue;
 
-      const reviewType = positionToReviewType(boundary);
-      if (result.status === 'pending-review') {
-        findings.push({
-          rule: 'review-gate',
-          severity: 'warning',
-          location: slicePlanPath,
-          description: result.rationale,
-          suggestedFix: `Run the ${reviewType} review for slice ${sliceIndex}`,
-          fixable: false,
-        });
-        continue;
-      }
-
-      findings.push({
-        rule: 'review-gate',
-        severity: 'error',
-        location: join(projectPath, result.artifactPath!),
-        description: result.rationale,
-        suggestedFix: `Resolve the review findings or rerun the ${reviewType} review for slice ${sliceIndex}`,
-        fixable: false,
-      });
+      findings.push(
+        this.buildGateFinding(result, boundary, 'slice', sliceIndex, projectPath, slicePlanPath),
+      );
     }
 
     return findings;
@@ -768,26 +784,9 @@ export class ConsistencyChecker {
       }
       if (result === null) continue;
 
-      if (result.status === 'pending-review') {
-        findings.push({
-          rule: 'review-gate',
-          severity: 'warning',
-          location: archPath,
-          description: result.rationale,
-          suggestedFix: `Run the arch review for architecture ${archIndex}`,
-          fixable: false,
-        });
-        continue;
-      }
-
-      findings.push({
-        rule: 'review-gate',
-        severity: 'error',
-        location: join(projectPath, result.artifactPath!),
-        description: result.rationale,
-        suggestedFix: `Resolve the review findings or rerun the arch review for architecture ${archIndex}`,
-        fixable: false,
-      });
+      findings.push(
+        this.buildGateFinding(result, 'preSlicePlan', 'architecture', archIndex, projectPath, archPath),
+      );
     }
 
     return findings;
