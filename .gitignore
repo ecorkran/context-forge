@@ -31,6 +31,7 @@ out/*
 
 # Sensitive / internal-only files
 project-documents/user/slices/120-slice.plugins-1.md
+*-gitleaks-*.json
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "CF phase identifiers and test fixtures"
+regexes = [
+  '''implementation-phase-\d+''',
+]
+paths = [
+  '''packages/cli/tests/''',
+]
+
