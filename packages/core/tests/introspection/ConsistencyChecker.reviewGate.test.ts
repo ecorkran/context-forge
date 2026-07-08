@@ -13,10 +13,10 @@ const GATE_ENABLED_DEFAULTS = {
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',
-  'workflow.review_gates.pre_slice_plan.threshold': '',
-  'workflow.review_gates.pre_tasks.threshold': '',
-  'workflow.review_gates.pre_implementation.threshold': '',
-  'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gates.arch.threshold': '',
+  'workflow.review_gates.slice.threshold': '',
+  'workflow.review_gates.tasks.threshold': '',
+  'workflow.review_gates.code.threshold': '',
   'workflow.review_gate_effective_date': '',
 };
 
@@ -57,8 +57,12 @@ function makeIntrospectorWithPlanEntry(entry: Partial<SlicePlanEntry> & { index:
     completedSlices: planEntry.isChecked ? 1 : 0,
   };
   return {
-    ...real,
     parseSlicePlan: async () => planResult,
+    parseTaskFile: real.parseTaskFile.bind(real),
+    parseFrontmatter: real.parseFrontmatter.bind(real),
+    parseFutureWork: real.parseFutureWork.bind(real),
+    detectDocuments: real.detectDocuments.bind(real),
+    summarize: real.summarize.bind(real),
   };
 }
 
@@ -70,11 +74,11 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
 
     const result = await checker.check(makeProject({ fileSlice: '300-slice.all-done', fileTasks: '300-tasks.all-done' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe('warning');
-    expect(findings[0].fixable).toBe(false);
-    expect(findings[0].fixAction).toBeUndefined();
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeDefined();
+    expect(codeFinding!.severity).toBe('warning');
+    expect(codeFinding!.fixable).toBe(false);
+    expect(codeFinding!.fixAction).toBeUndefined();
   });
 
   it('failing verdict → error finding, not fixable', async () => {
@@ -84,33 +88,39 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
 
     const result = await checker.check(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe('error');
-    expect(findings[0].fixable).toBe(false);
-    expect(findings[0].location).toContain('400-review.code.first.md');
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeDefined();
+    expect(codeFinding!.severity).toBe('error');
+    expect(codeFinding!.fixable).toBe(false);
+    expect(codeFinding!.location).toContain('400-review.code.first.md');
   });
 
-  it('clearing verdict → no review-gate finding', async () => {
+  it('clearing verdict → no code-boundary review-gate finding', async () => {
     const introspector = makeIntrospectorWithPlanEntry({ index: 401, isChecked: true });
     const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
     const checker = new ConsistencyChecker(introspector, config);
 
     const result = await checker.check(makeProject({ fileSlice: '401-slice.gate-code-clears', fileTasks: '401-tasks.gate-code-clears' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(0);
+    // Fixture 401 has no slice/tasks reviews on disk, so preTasks/preImplementation
+    // still surface their own pending-review findings — only the code (preAdvance)
+    // boundary is under test here, and it must clear.
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeUndefined();
   });
 
-  it('incomplete slice (isChecked=false) → no finding regardless of review state', async () => {
+  it('incomplete slice (isChecked=false) → no code-boundary finding regardless of review state', async () => {
     const introspector = makeIntrospectorWithPlanEntry({ index: 400, isChecked: false });
     const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
     const checker = new ConsistencyChecker(introspector, config);
 
     const result = await checker.check(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(0);
+    // isChecked only guards the preAdvance/code boundary (ConsistencyChecker.ts:605);
+    // preTasks/preImplementation still fire independently for this fixture (no
+    // slice/tasks reviews on disk) and are out of scope for this test.
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeUndefined();
   });
 
   it('gating off (no config) → no review-gate finding, identical to pre-242 rule set', async () => {
@@ -139,9 +149,9 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
 
     const result = await checker.check(makeProject({ fileSlice: '402-slice.gate-code-unknown', fileTasks: '402-tasks.gate-code-unknown' }));
 
-    const findings = result.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe('error');
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeDefined();
+    expect(codeFinding!.severity).toBe('error');
   });
 
   it('cf check --fix does not touch the review-gate finding or its files', async () => {
@@ -151,8 +161,8 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
 
     const fixResult = await checker.fix(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' }));
 
-    const findings = fixResult.findings.filter((f) => f.rule === 'review-gate');
-    expect(findings).toHaveLength(1);
+    const codeFinding = fixResult.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeDefined();
     expect(fixResult.fixLog.some((entry) => entry.rule === 'review-gate')).toBe(false);
   });
 
