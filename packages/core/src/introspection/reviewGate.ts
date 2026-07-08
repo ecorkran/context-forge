@@ -26,12 +26,16 @@ const BOUNDARY_REVIEW_TYPE = {
   preAdvance: 'code',
 } as const;
 
-/** Per-gate threshold override config key, keyed by boundary. Mirrors ConfigKeys.ts. */
+/**
+ * Per-gate threshold override config key, keyed by boundary. Mirrors ConfigKeys.ts.
+ * Key segments match BOUNDARY_REVIEW_TYPE's values (arch/slice/tasks/code), not the
+ * boundary names, for consistency with the review-type vocabulary used elsewhere.
+ */
 const BOUNDARY_THRESHOLD_KEY: Record<Boundary, string> = {
-  preSlicePlan: 'workflow.review_gates.pre_slice_plan.threshold',
-  preTasks: 'workflow.review_gates.pre_tasks.threshold',
-  preImplementation: 'workflow.review_gates.pre_implementation.threshold',
-  preAdvance: 'workflow.review_gates.pre_advance.threshold',
+  preSlicePlan: 'workflow.review_gates.arch.threshold',
+  preTasks: 'workflow.review_gates.slice.threshold',
+  preImplementation: 'workflow.review_gates.tasks.threshold',
+  preAdvance: 'workflow.review_gates.code.threshold',
 };
 
 const KNOWN_VERDICTS: readonly Verdict[] = ['PASS', 'CONCERNS', 'FAIL', 'UNKNOWN'];

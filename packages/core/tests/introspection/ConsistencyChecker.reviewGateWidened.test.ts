@@ -13,10 +13,10 @@ const GATE_ENABLED_DEFAULTS = {
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',
-  'workflow.review_gates.pre_slice_plan.threshold': '',
-  'workflow.review_gates.pre_tasks.threshold': '',
-  'workflow.review_gates.pre_implementation.threshold': '',
-  'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gates.arch.threshold': '',
+  'workflow.review_gates.slice.threshold': '',
+  'workflow.review_gates.tasks.threshold': '',
+  'workflow.review_gates.code.threshold': '',
   'workflow.review_gate_effective_date': '',
 };
 

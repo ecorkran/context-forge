@@ -317,30 +317,23 @@ describe('ConfigManager', () => {
   // --- per-gate override keys (slice 240, TD-1) ---
 
   describe('review_gates override keys', () => {
-    it('round-trips pre_advance.review_type and .threshold and renders as a nested TOML table', async () => {
+    it('round-trips code.threshold and renders as a nested TOML table', async () => {
       const cm = new ConfigManager(projectDir);
-      await cm.set('workflow.review_gates.pre_advance.review_type', 'code', 'project');
-      await cm.set('workflow.review_gates.pre_advance.threshold', 'concerns', 'project');
+      await cm.set('workflow.review_gates.code.threshold', 'concerns', 'project');
 
-      const reviewType = await cm.get('workflow.review_gates.pre_advance.review_type');
-      const threshold = await cm.get('workflow.review_gates.pre_advance.threshold');
-      expect(reviewType.value).toBe('code');
-      expect(reviewType.source).toBe('project');
+      const threshold = await cm.get('workflow.review_gates.code.threshold');
       expect(threshold.value).toBe('concerns');
       expect(threshold.source).toBe('project');
 
       const tomlContent = await readFile(getProjectConfigPath(projectDir), 'utf-8');
-      expect(tomlContent).toContain('[workflow.review_gates.pre_advance]');
-      expect(tomlContent).toMatch(/review_type\s*=\s*"code"/);
+      expect(tomlContent).toContain('[workflow.review_gates.code]');
       expect(tomlContent).toMatch(/threshold\s*=\s*"concerns"/);
     });
 
-    it('defaults all four override key pairs to empty string', async () => {
+    it('defaults all four override keys to empty string', async () => {
       const cm = new ConfigManager();
-      for (const transition of ['pre_advance', 'pre_slice_plan', 'pre_tasks', 'pre_implementation']) {
-        const reviewType = await cm.get(`workflow.review_gates.${transition}.review_type`);
-        const threshold = await cm.get(`workflow.review_gates.${transition}.threshold`);
-        expect(reviewType.value).toBe('');
+      for (const reviewType of ['code', 'arch', 'slice', 'tasks']) {
+        const threshold = await cm.get(`workflow.review_gates.${reviewType}.threshold`);
         expect(threshold.value).toBe('');
       }
     });
@@ -348,7 +341,7 @@ describe('ConfigManager', () => {
     it('rejects an out-of-enum .threshold override value', async () => {
       const cm = new ConfigManager();
       await expect(
-        cm.set('workflow.review_gates.pre_advance.threshold', 'bogus', 'user')
+        cm.set('workflow.review_gates.code.threshold', 'bogus', 'user')
       ).rejects.toThrow('must be one of');
     });
   });
@@ -359,7 +352,7 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(18);
+      expect(entries).toHaveLength(14);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
@@ -369,14 +362,10 @@ describe('ConfigManager', () => {
       expect(keys).toContain('workflow.review_enabled');
       expect(keys).toContain('workflow.review_threshold');
       expect(keys).toContain('workflow.review_unknown_as');
-      expect(keys).toContain('workflow.review_gates.pre_advance.review_type');
-      expect(keys).toContain('workflow.review_gates.pre_advance.threshold');
-      expect(keys).toContain('workflow.review_gates.pre_slice_plan.review_type');
-      expect(keys).toContain('workflow.review_gates.pre_slice_plan.threshold');
-      expect(keys).toContain('workflow.review_gates.pre_tasks.review_type');
-      expect(keys).toContain('workflow.review_gates.pre_tasks.threshold');
-      expect(keys).toContain('workflow.review_gates.pre_implementation.review_type');
-      expect(keys).toContain('workflow.review_gates.pre_implementation.threshold');
+      expect(keys).toContain('workflow.review_gates.code.threshold');
+      expect(keys).toContain('workflow.review_gates.arch.threshold');
+      expect(keys).toContain('workflow.review_gates.slice.threshold');
+      expect(keys).toContain('workflow.review_gates.tasks.threshold');
       expect(keys).toContain('workflow.review_gate_effective_date');
       expect(keys).toContain('git.branch_root');
       for (const entry of entries) {

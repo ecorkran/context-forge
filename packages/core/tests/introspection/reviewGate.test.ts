@@ -75,10 +75,10 @@ const BASE_VALUES = {
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns' as ThresholdToken,
   'workflow.review_unknown_as': 'fail' as UnknownPolicy,
-  'workflow.review_gates.pre_slice_plan.threshold': '',
-  'workflow.review_gates.pre_tasks.threshold': '',
-  'workflow.review_gates.pre_implementation.threshold': '',
-  'workflow.review_gates.pre_advance.threshold': '',
+  'workflow.review_gates.arch.threshold': '',
+  'workflow.review_gates.slice.threshold': '',
+  'workflow.review_gates.tasks.threshold': '',
+  'workflow.review_gates.code.threshold': '',
   'workflow.review_gate_effective_date': '',
 };
 
@@ -105,7 +105,7 @@ describe('resolveGateConfig', () => {
   it('per-gate threshold override beats the global threshold', async () => {
     const config = makeStubConfig({
       ...BASE_VALUES,
-      'workflow.review_gates.pre_advance.threshold': 'pass',
+      'workflow.review_gates.code.threshold': 'pass',
     });
     const resolved = await resolveGateConfig(config);
     expect(resolved?.thresholdFor('preAdvance')).toBe('pass');

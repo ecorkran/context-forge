@@ -52,56 +52,32 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       'How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concerns" treats as CONCERNS, "pass" clears',
     enum: ['fail', 'concerns', 'pass'],
   },
-  'workflow.review_gates.pre_advance.review_type': {
+  'workflow.review_gates.code.threshold': {
     type: 'string',
     default: '',
     description:
-      'Per-gate override: review type required before advancing past this slice (empty = use the global default; gate logic added in slice 241)',
-  },
-  'workflow.review_gates.pre_advance.threshold': {
-    type: 'string',
-    default: '',
-    description:
-      'Per-gate override: verdict floor for the pre-advance review gate (empty = use workflow.review_threshold)',
+      'Per-gate override: verdict floor for the code (pre-advance) review gate (empty = use workflow.review_threshold)',
     enum: ['', 'pass', 'concerns'],
   },
-  'workflow.review_gates.pre_slice_plan.review_type': {
+  'workflow.review_gates.arch.threshold': {
     type: 'string',
     default: '',
     description:
-      'Per-gate override: review type required before generating the slice plan (empty = use the global default; gate logic added in slice 241)',
-  },
-  'workflow.review_gates.pre_slice_plan.threshold': {
-    type: 'string',
-    default: '',
-    description:
-      'Per-gate override: verdict floor for the pre-slice-plan review gate (empty = use workflow.review_threshold)',
+      'Per-gate override: verdict floor for the arch (pre-slice-plan) review gate (empty = use workflow.review_threshold)',
     enum: ['', 'pass', 'concerns'],
   },
-  'workflow.review_gates.pre_tasks.review_type': {
+  'workflow.review_gates.slice.threshold': {
     type: 'string',
     default: '',
     description:
-      'Per-gate override: review type required before generating tasks (empty = use the global default; gate logic added in slice 241)',
-  },
-  'workflow.review_gates.pre_tasks.threshold': {
-    type: 'string',
-    default: '',
-    description:
-      'Per-gate override: verdict floor for the pre-tasks review gate (empty = use workflow.review_threshold)',
+      'Per-gate override: verdict floor for the slice (pre-tasks) review gate (empty = use workflow.review_threshold)',
     enum: ['', 'pass', 'concerns'],
   },
-  'workflow.review_gates.pre_implementation.review_type': {
+  'workflow.review_gates.tasks.threshold': {
     type: 'string',
     default: '',
     description:
-      'Per-gate override: review type required before implementation begins (empty = use the global default; gate logic added in slice 241)',
-  },
-  'workflow.review_gates.pre_implementation.threshold': {
-    type: 'string',
-    default: '',
-    description:
-      'Per-gate override: verdict floor for the pre-implementation review gate (empty = use workflow.review_threshold)',
+      'Per-gate override: verdict floor for the tasks (pre-implementation) review gate (empty = use workflow.review_threshold)',
     enum: ['', 'pass', 'concerns'],
   },
   'workflow.review_gate_effective_date': {
