@@ -41,7 +41,7 @@ export interface TaskFileResult {
   totalTasks: number;
   completedTasks: number;
   /** Inferred status based on checkbox state */
-  inferredStatus: 'complete' | 'in-progress' | 'not-started';
+  inferredStatus: NormalizedStatus;
 }
 
 /** Extracted YAML frontmatter fields */

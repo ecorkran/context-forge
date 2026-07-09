@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { STATUS } from '../types.js';
 import type { TaskItem, TaskFileResult } from '../types.js';
 
 /** Matches `- [ ] text` and `- [x] text` at any indentation level (from parse.py) */
@@ -59,13 +60,13 @@ export async function parseTaskFile(filePaths: string | string[]): Promise<TaskF
 
   let inferredStatus: TaskFileResult['inferredStatus'];
   if (totalTasks === 0) {
-    inferredStatus = 'not-started';
+    inferredStatus = STATUS.NotStarted;
   } else if (completedTasks === totalTasks) {
-    inferredStatus = 'complete';
+    inferredStatus = STATUS.Complete;
   } else if (completedTasks > 0) {
-    inferredStatus = 'in-progress';
+    inferredStatus = STATUS.InProgress;
   } else {
-    inferredStatus = 'not-started';
+    inferredStatus = STATUS.NotStarted;
   }
 
   return {
