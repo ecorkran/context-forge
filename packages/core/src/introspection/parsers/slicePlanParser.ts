@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { STATUS } from '../types.js';
 import type { SlicePlanEntry, SlicePlanResult } from '../types.js';
 
 /** Matches `N. [ ] **(NNN) Slice Name** — description` — indexed format */
@@ -57,7 +58,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
         entries.push({
           index: parseInt(indexed[3], 10),
           name: indexed[4].trim(),
-          status: isChecked ? 'complete' : 'not-started',
+          status: isChecked ? STATUS.Complete : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
           ...(description && { description }),
@@ -74,7 +75,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
         entries.push({
           index: unindexedCounter,
           name: unindexed[3].trim(),
-          status: isChecked ? 'complete' : 'not-started',
+          status: isChecked ? STATUS.Complete : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
           ...(description && { description }),
