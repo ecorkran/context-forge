@@ -5,6 +5,7 @@ import type { ProjectData } from '../types/project.js';
 import type { WorktreeInfo } from '../types/git.js';
 import { validateFrontmatter } from '../schema/frontmatterSchema.js';
 import type { IArtifactIntrospector } from './interfaces.js';
+import { STATUS } from './types.js';
 import type {
   ConsistencyFinding,
   ConsistencyCheckResult,
@@ -283,7 +284,7 @@ export class ConsistencyChecker {
 
     if (!taskResult || !planEntry || !slicePlanPath || !slicePlanResult) return findings;
 
-    const tasksComplete = taskResult.inferredStatus === 'complete';
+    const tasksComplete = taskResult.inferredStatus === STATUS.Complete;
     const sliceChecked = planEntry.isChecked;
 
     if (tasksComplete && !sliceChecked) {
@@ -322,7 +323,7 @@ export class ConsistencyChecker {
     // the plan entry is still unchecked. Not fixable — there is no single correct
     // auto-fix for "in progress" (don't check the box; there's no in-progress
     // checkbox state to write).
-    if (taskResult.inferredStatus === 'in-progress' && !sliceChecked) {
+    if (taskResult.inferredStatus === STATUS.InProgress && !sliceChecked) {
       findings.push({
         rule: 'task-vs-plan',
         severity: 'warning',
@@ -349,12 +350,12 @@ export class ConsistencyChecker {
     if (!taskResult) return findings;
 
     const fmStatus = frontmatter.data.status.toLowerCase();
-    const tasksComplete = taskResult.inferredStatus === 'complete';
+    const tasksComplete = taskResult.inferredStatus === STATUS.Complete;
     const sliceDesignFullPath = sliceDesignRelPath
       ? join(projectPath, sliceDesignRelPath)
       : frontmatter.filePath;
 
-    if (fmStatus === 'complete' && !tasksComplete) {
+    if (fmStatus === STATUS.Complete && !tasksComplete) {
       findings.push({
         rule: 'frontmatter-vs-computed',
         severity: 'error',
@@ -365,12 +366,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
-          detail: { key: 'status', value: 'in-progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
 
-    if ((fmStatus === 'in-progress' || fmStatus === 'not-started') && tasksComplete) {
+    if ((fmStatus === STATUS.InProgress || fmStatus === STATUS.NotStarted) && tasksComplete) {
       findings.push({
         rule: 'frontmatter-vs-computed',
         severity: 'warning',
@@ -381,7 +382,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
@@ -389,7 +390,7 @@ export class ConsistencyChecker {
     // Not-started boundary (TD-4): tasks have started but design frontmatter
     // still says not-started. Mirrors the branch above — same fix-action shape,
     // different target value.
-    if (fmStatus === 'not-started' && taskResult.inferredStatus === 'in-progress') {
+    if (fmStatus === STATUS.NotStarted && taskResult.inferredStatus === STATUS.InProgress) {
       findings.push({
         rule: 'frontmatter-vs-computed',
         severity: 'warning',
@@ -400,7 +401,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
-          detail: { key: 'status', value: 'in-progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
@@ -466,7 +467,7 @@ export class ConsistencyChecker {
       ? join(projectPath, sliceDesignRelPath)
       : frontmatter.filePath;
 
-    if (planChecked && fmStatus !== 'complete') {
+    if (planChecked && fmStatus !== STATUS.Complete) {
       findings.push({
         rule: 'plan-vs-frontmatter',
         severity: 'warning',
@@ -477,12 +478,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
 
-    if (!planChecked && fmStatus === 'complete' && slicePlanPath) {
+    if (!planChecked && fmStatus === STATUS.Complete && slicePlanPath) {
       findings.push({
         rule: 'plan-vs-frontmatter',
         severity: 'warning',
@@ -511,12 +512,12 @@ export class ConsistencyChecker {
     if (!taskResult || !taskFrontmatter?.found || !taskFrontmatter.data.status) return findings;
 
     const fmStatus = taskFrontmatter.data.status.toLowerCase().replace(/_/g, '-');
-    const computed = taskResult.inferredStatus; // 'complete' | 'in-progress' | 'not-started'
+    const computed = taskResult.inferredStatus;
     const taskFilePath = taskFrontmatter.filePath;
 
     // Map task file status values to normalized form for comparison
     // Task files use not_started/in_progress/complete in frontmatter
-    if (fmStatus === 'complete' && computed !== 'complete') {
+    if (fmStatus === STATUS.Complete && computed !== STATUS.Complete) {
       findings.push({
         rule: 'task-file-status',
         severity: 'error',
@@ -532,7 +533,7 @@ export class ConsistencyChecker {
       });
     }
 
-    if (fmStatus !== 'complete' && computed === 'complete') {
+    if (fmStatus !== STATUS.Complete && computed === STATUS.Complete) {
       findings.push({
         rule: 'task-file-status',
         severity: 'warning',
@@ -543,7 +544,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: taskFilePath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
@@ -714,7 +715,7 @@ export class ConsistencyChecker {
 
     const planStatus = planFrontmatter.data.status.toLowerCase();
 
-    if (planStatus === 'complete' && !allComplete) {
+    if (planStatus === STATUS.Complete && !allComplete) {
       findings.push({
         rule: 'plan-status-vs-entries',
         severity: 'warning',
@@ -725,12 +726,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: slicePlanPath,
-          detail: { key: 'status', value: 'in-progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
 
-    if (planStatus !== 'complete' && allComplete && slicePlanResult.totalSlices > 0) {
+    if (planStatus !== STATUS.Complete && allComplete && slicePlanResult.totalSlices > 0) {
       findings.push({
         rule: 'plan-status-vs-entries',
         severity: 'warning',
@@ -741,7 +742,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: slicePlanPath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
@@ -811,7 +812,7 @@ export class ConsistencyChecker {
     const archStatus = archFrontmatter.data.status.toLowerCase();
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
 
-    if (archStatus === 'complete' && !allComplete) {
+    if (archStatus === STATUS.Complete && !allComplete) {
       findings.push({
         rule: 'arch-status-vs-plans',
         severity: 'warning',
@@ -822,12 +823,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: archPath,
-          detail: { key: 'status', value: 'in-progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
 
-    if (archStatus !== 'complete' && allComplete && slicePlanResult.totalSlices > 0) {
+    if (archStatus !== STATUS.Complete && allComplete && slicePlanResult.totalSlices > 0) {
       findings.push({
         rule: 'arch-status-vs-plans',
         severity: 'warning',
@@ -838,7 +839,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: archPath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
@@ -882,7 +883,7 @@ export class ConsistencyChecker {
       if (!archFrontmatter.found || !archFrontmatter.data.status) continue;
 
       const archStatus = archFrontmatter.data.status.toLowerCase();
-      const archComplete = archStatus === 'complete';
+      const archComplete = archStatus === STATUS.Complete;
 
       if (archComplete && !entry.isChecked) {
         findings.push({
@@ -911,7 +912,7 @@ export class ConsistencyChecker {
           fixAction: {
             type: 'update-frontmatter',
             filePath: archPath,
-            detail: { key: 'status', value: 'complete' },
+            detail: { key: 'status', value: STATUS.Complete },
           },
         });
       }
@@ -964,7 +965,7 @@ export class ConsistencyChecker {
       initiativePlanResult.totalSlices > 0 &&
       initiativePlanResult.completedSlices === initiativePlanResult.totalSlices;
 
-    if (planStatus === 'complete' && !allComplete) {
+    if (planStatus === STATUS.Complete && !allComplete) {
       findings.push({
         rule: 'initiative-plan-status-vs-entries',
         severity: 'warning',
@@ -975,12 +976,12 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: initiativePlanPath,
-          detail: { key: 'status', value: 'in-progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
 
-    if (planStatus !== 'complete' && allComplete) {
+    if (planStatus !== STATUS.Complete && allComplete) {
       findings.push({
         rule: 'initiative-plan-status-vs-entries',
         severity: 'warning',
@@ -991,7 +992,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: initiativePlanPath,
-          detail: { key: 'status', value: 'complete' },
+          detail: { key: 'status', value: STATUS.Complete },
         },
       });
     }
