@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Internal: `NormalizedStatus` values (`complete`/`in-progress`/`not-started`/`deprecated`) are now referenced via the `STATUS` constant everywhere in `packages/core`, replacing ~65 scattered bare-string literals. No behavior change — purely a maintainability/type-safety refactor (a typo like `STATUS.Compelte` is now a compile error instead of a silent runtime mismatch).
+
 ### Added
 - Foundation for review-aware workflow gating (initiative 240): `workflow.review_enabled`, `workflow.review_threshold`, and `workflow.review_unknown_as` config keys, plus per-gate override keys (`workflow.review_gates.{pre_advance,pre_slice_plan,pre_tasks,pre_implementation}.{review_type,threshold}`). All keys default to off/empty and have no effect yet — no command reads them. Introduced to unblock upcoming gate-logic slices.
 - The review gate is now active behind `workflow.review_enabled` (default off — no behavior change unless explicitly turned on). When enabled, `cf next`/`cf status` (and their MCP equivalents `workflow_next`/`workflow_status`) automatically look for the review owed at the slice's current lifecycle position — `arch` before a slice plan, `slice` before task breakdown, `tasks` before implementation, `code` before advancing — and report `pending-review` or `review-failed` instead of the usual recommendation when that review is missing or its verdict doesn't clear the configured threshold. Per-gate `threshold` overrides are honored; the `review_type` per-gate keys from 240 are inert (the review type is always derived from position, never configured).

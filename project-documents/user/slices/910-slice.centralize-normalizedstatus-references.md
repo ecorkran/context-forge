@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/900-arch.maintenance-and-refactoring
 dependencies: [241]
 interfaces: []
 dateCreated: 20260707
-dateUpdated: 20260707
-status: not_started
+dateUpdated: 20260709
+status: complete
 ---
 
 # Slice Design: Centralize NormalizedStatus References
@@ -147,19 +147,36 @@ Same reasoning as TD-2: `SliceStatus.status` (workflow-position statuses like `n
 1. **Before/after literal count.**
    ```bash
    grep -roE "'(complete|in-progress|not-started|deprecated)'" --include="*.ts" packages/core/src | grep -v '.test.ts' | wc -l
-   # Before: ~75 (includes the 4-site STATUS definition + 8 out-of-scope sites in frontmatterSchema.ts/types.ts SliceStatus)
-   # After: 4 (only the STATUS const definition itself in types.ts) + the intentionally-excluded frontmatterSchema.ts (3) and SliceStatus.status (4) sites
    ```
-2. **Type safety spot-check.** Temporarily typo one swept reference (e.g. `STATUS.Compelte`) and confirm `pnpm --filter @context-forge/core build` fails at compile time — demonstrating the compiler now catches what used to be a silent string mismatch. Revert.
+   - Before (Task 0 baseline, recorded pre-sweep): **75** — matched the design's estimate exactly.
+   - After: **14** remaining matches, all confirmed out-of-scope by direct inspection:
+     - `introspection/types.ts` — 5 matches: the 4-site `STATUS` const definition + 1 site that is the `SliceStatus.status` union's `'complete'` member (TD-3, excluded).
+     - `introspection/WorkflowNavigator.ts` — 3 matches: all `SliceStatus.status` comparisons (`slice.status === 'complete'` / `status: 'complete'` in a `SliceStatus`-typed return), not `NormalizedStatus`. Confirmed with Project Manager during implementation (see Implementation Note below) and left untouched.
+     - `introspection/ProjectModelBuilder.ts` — 1 match: inside a code comment only (`// ... coerced to 'not-started' (TD-2a) ...`), zero actual code sites. Matches design's "0" count for this file.
+     - `introspection/parsers/statusNormalizer.ts` — 2 matches: `STATUS_MAP` **keys** (`'in-progress'`, `'not-started'`), explicitly excluded — values are already all `STATUS.*`.
+     - `schema/frontmatterSchema.ts` — 3 matches: `VALID_STATUSES` entries + one alias-normalization literal, confirmed different vocabulary (TD-2, excluded).
+   - This exactly matches Success Criteria's expected exclusion set (STATUS definition + frontmatterSchema.ts + SliceStatus.status), with the raw count (14, not the originally-estimated ~11) fully explained by the two additional legitimately-excluded categories above (statusNormalizer.ts map keys, a comment-only mention).
+
+2. **Type safety spot-check.** Temporarily typo'd `STATUS.Complete` → `STATUS.Compelte` in `taskFileParser.ts`. `pnpm --filter @context-forge/core build` failed with `TS2551: Property 'Compelte' does not exist on type '{ readonly Complete: "complete"; ... }'. Did you mean 'Complete'?` — confirming the compiler now catches what used to be a silent string mismatch. Reverted; build confirmed clean again afterward.
+
 3. **Behavior unchanged.**
    ```bash
-   pnpm -r build
+   pnpm -r build   # Clean across all packages (core, cli, mcp-server, electron).
    pnpm -r test
-   # Same pass/fail counts as pre-sweep baseline; zero new failures.
    ```
-4. **Spot-check a live command** unaffected in output:
+   - core: 931/934 passing (3 pre-existing `FileProjectStore` failures — identical to pre-sweep baseline).
+   - cli: 428/432 passing (4 pre-existing `list.test.ts` failures — identical to pre-sweep baseline).
+   - mcp: 184/184 passing.
+   - Zero new failures anywhere; zero test files edited.
+   - `git diff main -- packages/core/src | grep -E '(as any|: any)'` returned no matches — zero `any`/type assertions introduced (TR-6).
+
+4. **Live command spot-check.**
    ```bash
    cf status --project context-forge
    cf list slices --project context-forge
-   # Output identical to pre-sweep (status strings render the same, since STATUS.X === 'x').
    ```
+   `cf status` rendered `Status: pending-review` and `Progress: 86/86 tasks (complete)` correctly — status strings render identically to pre-sweep, confirming `STATUS.X === 'x'` at runtime. `cf list slices` (no `--plan` flag exists; it always lists the project's currently active plan) returned an empty entries table for the active plan (160) — a pre-existing condition of that specific plan's file, unrelated to this slice's changes (confirmed by the identical, unchanged `cf check` pre-existing review-gate warning baseline below).
+
+### Implementation Note: WorkflowNavigator.ts scope correction
+
+Task 9 as originally written stated "Locate all 3 bare-string `'complete'` comparison/assignment sites and replace each with `STATUS.Complete`." On inspection, the file's 3 bare `'complete'` literal sites (then at lines 312, 345, 588) were **all** `SliceStatus.status` comparisons/assignments — the workflow-position union explicitly excluded by TD-3 — not `NormalizedStatus` sites. All genuine `NormalizedStatus` comparisons in this file (`nextDerived === STATUS.InProgress`, `taskResult.inferredStatus === STATUS.Complete`, `derived !== STATUS.Complete && derived !== STATUS.Deprecated`) already used `STATUS.*` from slice 241's own code. Confirmed with the Project Manager during implementation: left the file unmodified. The task file's "3 sites" count was stale/incorrect relative to the actual codebase at implementation time — likely counted the same 3 grep hits without checking which union they belonged to. `WorkflowNavigator.test.ts`'s 77 tests pass unchanged, consistent with a no-op.

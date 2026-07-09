@@ -1,21 +1,22 @@
+import { STATUS } from '../types.js';
 import type { NormalizedStatus } from '../types.js';
 
 /** Maps variant status spellings to normalized values (ported from parse.py _STATUS) */
 const STATUS_MAP: Record<string, NormalizedStatus> = {
-  complete: 'complete',
-  completed: 'complete',
-  done: 'complete',
-  in_progress: 'in-progress',
-  'in-progress': 'in-progress',
-  'in progress': 'in-progress',
-  active: 'in-progress',
-  not_started: 'not-started',
-  'not-started': 'not-started',
-  'not started': 'not-started',
-  ready: 'not-started',
-  pending: 'not-started',
-  planned: 'not-started',
-  deprecated: 'deprecated',
+  complete: STATUS.Complete,
+  completed: STATUS.Complete,
+  done: STATUS.Complete,
+  in_progress: STATUS.InProgress,
+  'in-progress': STATUS.InProgress,
+  'in progress': STATUS.InProgress,
+  active: STATUS.InProgress,
+  not_started: STATUS.NotStarted,
+  'not-started': STATUS.NotStarted,
+  'not started': STATUS.NotStarted,
+  ready: STATUS.NotStarted,
+  pending: STATUS.NotStarted,
+  planned: STATUS.NotStarted,
+  deprecated: STATUS.Deprecated,
 };
 
 /**
