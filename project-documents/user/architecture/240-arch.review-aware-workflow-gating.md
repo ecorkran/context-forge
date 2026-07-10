@@ -5,7 +5,7 @@ project: context-forge
 archIndex: 240
 component: review-aware-workflow-gating
 dateCreated: 20260621
-dateUpdated: 20260624
+dateUpdated: 20260709
 status: active
 relatedSlices: []
 riskLevel: low
@@ -68,6 +68,24 @@ Priority 6 (`:248–266`) takes a slice whose `inferredStatus === 'complete'` an
 ## Envisioned State
 
 ### Config keys
+
+> **Implementation reconciliation (Phase 6, 20260709):** The as-originally-envisioned config below was superseded on three points once 241 adopted the position-derived `reviewType` model (see the Phase 4 scope-revision note above) and 911/912 extended the surface after this document was written. Shipped reality:
+> 1. **No `reviewType` field.** Review type is derived from lifecycle position, never configured — the per-transition `reviewType` overrides shown below were never built.
+> 2. **Flat, threshold-only per-gate keys.** The shipped shape is `workflow.review_gates.{code,arch,slice,tasks}.threshold` — one key per boundary, threshold-only, named by review type rather than by transition. An interim `review_type` per-gate key did ship in 240 and was then **removed** in commit `92ead91` (#60) once position-derivation made it redundant.
+> 3. **Two keys post-date this document.** `workflow.review_gate_effective_date` (912) grandfathers pre-cutoff artifacts out of every boundary; `codeReview: none` slice-design frontmatter (911/912, with `cf check --set-review-none <index>`) exempts a docs-only slice from the `code` gate alone.
+>
+> The shipped shape:
+> ```toml
+> workflow.review_enabled = false               # global on/off; default false
+> workflow.review_threshold = "concerns"         # verdict floor: PASS or CONCERNS clears (default)
+> workflow.review_unknown_as = "fail"            # policy for UNKNOWN verdict; default "fail"
+> workflow.review_gates.code.threshold = ""      # per-gate override; empty = use review_threshold
+> workflow.review_gates.arch.threshold = ""
+> workflow.review_gates.slice.threshold = ""
+> workflow.review_gates.tasks.threshold = ""
+> workflow.review_gate_effective_date = ""       # YYYYMMDD cutoff; empty = no cutoff
+> ```
+> See [`docs/REVIEW-GATING.md`](../../../docs/REVIEW-GATING.md) for the authoritative current surface. The original design text below is preserved as originally envisioned.
 
 Three new keys in `ConfigKeys.ts`, following the existing pattern:
 
