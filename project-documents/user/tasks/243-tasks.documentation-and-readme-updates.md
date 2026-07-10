@@ -111,6 +111,10 @@ Two primary deliverables plus three reconciliations:
 - **Success:** worked example present; effective-date, docs-only, and four-boundary behaviors each observed to match their documentation; any divergence resolved doc-side.
 - **Effort:** 3/5
 
+### ✅ Commit checkpoint — Deliverable A
+
+- [ ] Commit the completed reference doc from the project root: `git add docs/REVIEW-GATING.md && git commit -m "docs: add REVIEW-GATING.md reference (243)"`. This is a natural rollback point before moving to the README.
+
 ---
 
 ## Deliverable B — README "Review Gating" summary
@@ -127,6 +131,10 @@ Two primary deliverables plus three reconciliations:
 - [ ] Confirm the README's new link path is exactly `docs/REVIEW-GATING.md` and is a correct relative link (design Verification Walkthrough step 6). Confirm the file it points to exists.
 - **Success:** the relative link path is correct and the target file exists (link would render/resolve on GitHub).
 - **Effort:** 1/5
+
+### ✅ Commit checkpoint — Deliverable B
+
+- [ ] Commit the README changes: `git add README.md && git commit -m "docs: add Review Gating section + link to README (243)"`.
 
 ---
 
@@ -155,6 +163,10 @@ Two primary deliverables plus three reconciliations:
 - **Success:** the arch Envisioned State no longer presents `reviewType` override syntax as shipped; the `review_type` removal is recorded; both post-design keys are accounted for; original design text remains legible; this stays a `.md`-only edit.
 - **Effort:** 2/5
 
+### ✅ Commit checkpoint — Reconciliations
+
+- [ ] Commit the reconciled artifacts: `git add CHANGELOG.md project-documents/user/architecture/240-slices.review-aware-workflow-gating.md project-documents/user/architecture/240-arch.review-aware-workflow-gating.md && git commit -m "docs: reconcile CHANGELOG + 240 arch/plan with shipped review-gating surface (243)"`. (The slice-plan Note from Task 11 was already committed in `dcdb619`; include it here only if Task 11 made a further edit.)
+
 ---
 
 ## Closeout
@@ -162,7 +174,7 @@ Two primary deliverables plus three reconciliations:
 ### Task 13 — Full cross-check sweep and docs-only diff verification
 
 - [ ] Re-run the design Verification Walkthrough end to end (steps 1–7): all 8 keys match source (Task 4), no phantom `review_type` key, effective-date + docs-only + four-boundary behaviors match their docs (Task 7), README link resolves (Task 9), arch reconciliation present and faithful (Task 12).
-- [ ] **Docs-only diff gate** (design criterion 9, Verification Walkthrough step 8): `git diff main --name-only` must list **only** `.md` files — expected set: `docs/REVIEW-GATING.md`, `README.md`, `CHANGELOG.md`, `240-slices...md` (already committed), `240-arch...md`, plus the 243 slice/task/review docs. **Any non-`.md` file means scope leaked into code — STOP and reassess.**
+- [ ] **Docs-only diff gate** (design criterion 9, Verification Walkthrough step 8): `git diff main --name-only` lists every file changed on this branch since `main` — including the checkpoint commits already made, so the list is non-empty by design. It must contain **only** `.md` files — expected set: `docs/REVIEW-GATING.md`, `README.md`, `CHANGELOG.md`, `240-slices...md` (already committed), `240-arch...md`, plus the 243 slice/task/review docs. **Any non-`.md` file means scope leaked into code — STOP and reassess.** (Each checkpoint stages explicit named paths, never `git add -A`, so a code file cannot have been swept in — this gate is the backstop that proves it.)
 - [ ] Confirm no `ConfigKeys.ts`, `reviewGate.ts`, `frontmatterSchema.ts`, `check.ts`, or any source/test file appears in the diff.
 - **Success:** every documented fact verified against source; `git diff` touches only markdown; zero code/test files changed.
 - **Effort:** 2/5
@@ -172,19 +184,20 @@ Two primary deliverables plus three reconciliations:
 - [ ] At implementation completion, set the 243 slice design and this task file frontmatter to `status: complete` and update `dateUpdated`.
 - [ ] **Dogfood `codeReview: none`** (design Verification Walkthrough step 9): because 243 is itself docs-only and produces no code to review, add `codeReview: none` to the **243 slice-design** frontmatter — this clears its own pre-advance gate and validates the escape hatch it documents. (Register-safe: `frontmatterSchema.ts` already accepts `codeReview` as an optional slice-design field.)
 - [ ] Delegate checklist check-off to the `task-checker` agent per project convention (or check off directly if unavailable).
-- **Success:** slice + task frontmatter marked complete with updated dates; `243` slice design carries `codeReview: none`; all task checkboxes checked.
+- [ ] **Closeout commit** from the project root: `git add project-documents/user/slices/243-slice.documentation-and-readme-updates.md project-documents/user/tasks/243-tasks.documentation-and-readme-updates.md && git commit -m "docs: close out slice 243 (documentation and README updates)"`. This is the final commit; combined with the three checkpoint commits above, the slice lands as four granular commits rather than one batch.
+- **Success:** slice + task frontmatter marked complete with updated dates; `243` slice design carries `codeReview: none`; all task checkboxes checked; closeout committed.
 - **Effort:** 1/5
 
 ---
 
 ## Task Dependencies & Sequencing
 
-Sequential, with each deliverable's cross-check immediately following its authoring (test-with pattern):
+Sequential, with each deliverable's cross-check immediately following its authoring (test-with pattern) and a **commit checkpoint after each logical unit** (so the slice lands as four granular commits, not one end-of-slice batch — resolves review F001):
 
 - **Task 0** (pre-flight) → gates everything.
-- **Deliverable A:** 1 → 2 → 3 → **4 (verify A keys)** → 5 → 6 → **7 (verify A behaviors + example)**.
-- **Deliverable B:** 8 → **9 (verify link)**.
-- **Reconciliations:** 10 (CHANGELOG) → 11 (verify plan note) → 12 (arch, TD-6).
-- **Closeout:** 13 (full sweep + docs-only diff gate) → 14 (frontmatter + dogfood).
+- **Deliverable A:** 1 → 2 → 3 → **4 (verify A keys)** → 5 → 6 → **7 (verify A behaviors + example)** → **commit A**.
+- **Deliverable B:** 8 → **9 (verify link)** → **commit B**.
+- **Reconciliations:** 10 (CHANGELOG) → 11 (verify plan note) → 12 (arch, TD-6) → **commit reconciliations**.
+- **Closeout:** 13 (full sweep + docs-only diff gate) → 14 (frontmatter + dogfood + **closeout commit**).
 
-Deliverable A must precede B and the README link tasks (the link target must exist). Reconciliations C/E can be done in parallel with A/B in principle, but the sequential order above keeps a junior implementer on a single clean path. Task 13's docs-only diff gate is the hard stop that enforces design TD-1.
+Deliverable A must precede B and the README link tasks (the link target must exist). Reconciliations C/E can be done in parallel with A/B in principle, but the sequential order above keeps a junior implementer on a single clean path. Task 13's docs-only diff gate is the hard stop that enforces design TD-1 — run it **before** the closeout commit so no code file is ever committed. The commit checkpoints provide per-deliverable rollback points and keep the git history readable.
