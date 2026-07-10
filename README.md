@@ -93,6 +93,16 @@ It manages multiple projects simultaneously. Each one has its own slice plan, it
 
 For larger projects with parallel initiatives — running architecture and a feature slice at the same time, for example — worktrees let you run multiple AI sessions in separate git worktrees, each with its own phase/slice/task context, without conflicts.
 
+## Review Gating
+
+Optionally require a review artifact (with a clearing verdict) before Context Forge recommends advancing past a lifecycle boundary — deterministic, AI-free routing with **zero behavior change unless you turn it on**:
+
+```bash
+cf config set workflow.review_enabled true
+```
+
+Off by default. See the [Review Gating reference](docs/REVIEW-GATING.md) for the full config-key surface, decision matrix, and escape hatches (grandfathering old work, exempting docs-only slices).
+
 ## Design Philosophy
  
 Context Forge resists the urge to be clever on your behalf.
@@ -205,6 +215,8 @@ All interfaces consume `@context-forge/core` directly. The MCP server and CLI pr
 **[ai-project-guide](https://github.com/ecorkran/ai-project-guide)** — The methodology framework. Phases, guides, prompt templates, review rules, IDE configuration. This is what Context Forge's structure is built on. Install it with `cf guides install`.
 
 **[Agent Integration Guide](docs/AGENT-INTEGRATION.md)** — How to integrate with Context Forge from an AI agent, orchestrator, or CI pipeline. Covers MCP tools, CLI `--json` mode, structured errors, and command discovery.
+
+**[Review Gating](docs/REVIEW-GATING.md)** — Config-key reference, decision matrix, workflow states, and escape hatches for the optional review-gate feature.
 
 ## Published Packages
 
