@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 20260711
+
+### Changed
+- The `git.branch_root` config key is renamed to `git.integration_branch`, to match its intended meaning as a long-lived integration branch that work branches fork from and merge into (rather than a plain name prefix on branches that still fork from/merge to `main`). This is a clean rename with no deprecated alias — `git.branch_root` no longer resolves.
+- A slice design's docs-only declaration is renamed from `codeReview: none` to `review: none`, and now exempts the slice from the `slice`, `tasks`, and `code` review gates uniformly (previously it only exempted the `code` gate, so a minimal-documentation slice with no task file yet could still be blocked at the `slice` review boundary with no way to declare itself exempt). It does not affect the `arch` (architecture) review gate, which applies to a different document. `cf check --set-review-none <index>` now writes `review: none`.
+
 ## [0.9.0] - 20260711
 
 ### Changed
