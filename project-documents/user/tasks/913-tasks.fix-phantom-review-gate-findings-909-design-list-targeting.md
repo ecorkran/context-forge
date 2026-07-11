@@ -18,7 +18,7 @@ projectState: >
   to main; no new gate primitive, config key, or frontmatter field from any TD.
 dateCreated: 20260710
 dateUpdated: 20260711
-status: in_progress
+status: complete
 ---
 
 # Tasks: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting
@@ -299,14 +299,14 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
 
 ## Verification
 
-- [ ] **Task 4.1 — Full build + suite**
+- [x] **Task 4.1 — Full build + suite**
   - Run `pnpm -r build` (clean across core, cli, mcp-server, electron) and the core + cli
     test suites; confirm only pre-existing DEVLOG-documented failures remain (success
     criterion 9).
   - Success: build clean, no new test failures introduced by this slice.
   - Effort: 1/5
 
-- [ ] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
+- [x] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
   - Run Parts A–E from the slice design against this repo (or a scratch fixture where a
     real repro is impractical, noting the caveat as prior slices' walkthroughs did):
     Part A (phantom findings gone), Part B (regression fixture run), Part C (909 targeting
@@ -319,7 +319,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     Walkthrough section updated accordingly.
   - Effort: 2/5
 
-- [ ] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
+- [x] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries (phantom review-gate findings fixed, 909 artifact
     trail closed, `cf list slices`/`cf list tasks` `[archIndex]` targeting, code-review
     gate no longer false-flags artifact-less slices, zero-padded index lookup fixed) and
@@ -328,6 +328,6 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog
+- [x] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog
   (TD-5/TD-6 follow-up)` (or fold into the final feature commit). Verification and doc
   updates close the slice.
