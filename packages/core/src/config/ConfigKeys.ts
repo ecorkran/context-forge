@@ -92,11 +92,11 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       return null;
     },
   },
-  'git.branch_root': {
+  'git.integration_branch': {
     type: 'string',
     default: '',
     description:
-      'Optional path prefix prepended to work branch names (e.g. "myroot" yields "myroot/910-slice.foo"). Empty means no prefix. Relative and contained: must not be absolute or escape via "..".',
+      'Optional long-lived integration branch that work branches fork from and merge into instead of main (e.g. "dev/erik" yields "dev/erik/910-slice.foo", forked from and merged into "dev/erik"). Empty means no integration branch — work branches fork from and merge into main directly. Relative and contained: must not be absolute or escape via "..".',
     validate: (value) => {
       if (typeof value !== 'string') return 'must be a string';
       if (value === '') return null; // empty = no prefix (identity default)

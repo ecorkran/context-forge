@@ -166,44 +166,44 @@ describe('ConfigManager', () => {
       );
     });
 
-    it('accepts a valid relative branch root', async () => {
+    it('accepts a valid relative integration branch', async () => {
       const cm = new ConfigManager();
-      await cm.set('git.branch_root', 'myroot/sub', 'user');
-      const result = await cm.get('git.branch_root');
+      await cm.set('git.integration_branch', 'myroot/sub', 'user');
+      const result = await cm.get('git.integration_branch');
       expect(result.value).toBe('myroot/sub');
     });
 
-    it('accepts empty branch root (no prefix)', async () => {
+    it('accepts empty integration branch (no integration branch)', async () => {
       const cm = new ConfigManager();
-      await cm.set('git.branch_root', '', 'user');
-      const result = await cm.get('git.branch_root');
+      await cm.set('git.integration_branch', '', 'user');
+      const result = await cm.get('git.integration_branch');
       expect(result.value).toBe('');
     });
 
-    it('defaults branch root to empty when unset', async () => {
+    it('defaults integration branch to empty when unset', async () => {
       const cm = new ConfigManager();
-      const result = await cm.get('git.branch_root');
+      const result = await cm.get('git.integration_branch');
       expect(result.value).toBe('');
       expect(result.source).toBe('default');
     });
 
-    it('rejects an absolute branch root', async () => {
+    it('rejects an absolute integration branch', async () => {
       const cm = new ConfigManager();
-      await expect(cm.set('git.branch_root', '/abs/path', 'user')).rejects.toThrow(
+      await expect(cm.set('git.integration_branch', '/abs/path', 'user')).rejects.toThrow(
         'must be relative'
       );
     });
 
-    it('rejects a branch root with ".." segments', async () => {
+    it('rejects an integration branch with ".." segments', async () => {
       const cm = new ConfigManager();
-      await expect(cm.set('git.branch_root', 'foo/../bar', 'user')).rejects.toThrow(
+      await expect(cm.set('git.integration_branch', 'foo/../bar', 'user')).rejects.toThrow(
         '".." segments'
       );
     });
 
-    it('rejects a branch root with a trailing slash', async () => {
+    it('rejects an integration branch with a trailing slash', async () => {
       const cm = new ConfigManager();
-      await expect(cm.set('git.branch_root', 'myroot/', 'user')).rejects.toThrow(
+      await expect(cm.set('git.integration_branch', 'myroot/', 'user')).rejects.toThrow(
         'trailing slash'
       );
     });
@@ -367,7 +367,7 @@ describe('ConfigManager', () => {
       expect(keys).toContain('workflow.review_gates.slice.threshold');
       expect(keys).toContain('workflow.review_gates.tasks.threshold');
       expect(keys).toContain('workflow.review_gate_effective_date');
-      expect(keys).toContain('git.branch_root');
+      expect(keys).toContain('git.integration_branch');
       for (const entry of entries) {
         expect(entry.source).toBe('default');
         expect(entry.type).toBeDefined();
