@@ -7,7 +7,7 @@ dependencies: [240, 241, 242, 911, 912]
 interfaces: []
 dateCreated: 20260710
 dateUpdated: 20260710
-status: not-started
+status: complete
 ---
 
 # Slice Design: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting
@@ -121,65 +121,134 @@ cf list tasks [archIndex] ──► taskListAction ──► listTaskFiles
 
 ## Verification Walkthrough
 
-> Draft plan — to be executed and replaced with actual commands/output during Phase 6, per this repo's convention (see slices 911/912/243).
+> Executed during Phase 6 implementation on this repo (branch
+> `913-slice.fix-phantom-review-gate-findings-909-design-list-targeting`),
+> per this repo's convention (see slices 911/912/243). Commands and output
+> below are real, captured after all three TDs were implemented.
 
 **Part A — phantom findings (TD-1).**
 ```
-# Before fix, on this repo:
 $ cf check
-  ⚠ [1] Slice 1 requires a code review before proceeding — no review artifact found.
-  ⚠ [2] Slice 2 requires a code review before proceeding — no review artifact found.
-  ... (through Slice 12)
+Consistency Check: context-forge
 
-# After fix:
-$ cf check
-  # zero findings referencing Slice 1–12 (140's legacy entries excluded from aggregation)
-  # real low-index slices, if any exist in the active plan, still report normally
+  Slice 185
+  ⚠ [185] Slice 185 requires a code review before proceeding — no review artifact found.
+  ...
+  Slice 909
+  ℹ [909] Slice 909 (Configurable Branch Root Prefix) has a design but no task file
+  ...
+  Slice 913
+  ⚠ [913] Tasks in progress (14/21) but slice 913 is unchecked in plan
+  ...
+  Project-level
+  ⚠ All 4 entries are checked but plan status is "not_started"
+  ⚠ All 4 plan entries are checked but architecture status is "active"
+  ⚠ Slice 50 requires a arch review before proceeding — no review artifact found.
+
+14 findings: 13 warnings, 1 info
 ```
+Zero findings reference `140-slices.context-forge-restructure.md` or any
+Slice 1–12 index (confirmed via `cf check | grep -i "140\|Slice 1[^0-9]\|Slice [2-9][^0-9]"`
+— no matches). All 14 findings are attributable to real, active-plan slices
+or genuine project-level frontmatter inconsistencies — none are phantom.
 
 **Part B — regression fixture (TD-1).**
 ```
-$ pnpm --filter @context-forge/core test -- ConsistencyChecker.crossPlanAggregation
-# new test: two-plan fixture, one indexed (real indices 1-3), one unindexed
-# (140's exact list format) with colliding sequential 1-3 — asserts zero
-# findings from the unindexed plan's synthetic indices, real plan's findings intact
+$ pnpm --filter @context-forge/core exec vitest run tests/introspection/ConsistencyChecker.test.ts -t "140-style"
+ ✓ tests/introspection/ConsistencyChecker.test.ts (1 test | 61 skipped)
+ Test Files  1 passed (1)
+      Tests  1 passed | 61 skipped (62)
 ```
+Caveat: `checkAll()`'s cross-plan merge test uses a mocked `parseSlicePlan`
+(hand-crafted entries whose shape mirrors real parser output) rather than
+real file reads, because this test file globally mocks `node:fs/promises`
+for its `readdir`-based multi-plan discovery tests, which would silently
+break real `readFile` calls too. The real-parser collision (both fixture
+files under `tests/fixtures/introspection/collision/` actually parsed by
+`parseSlicePlan()`, proving the sequential-fallback-vs-real-index collision
+exists at the parser level) is covered separately and unmocked in
+`slicePlanParser.test.ts`'s `'reproduces the real 140-plan collision'` test.
 
 **Part C — 909 retroactive design (TD-2).**
 ```
 $ ls project-documents/user/slices/909-slice.configurable-branch-root-prefix.md
-# file exists
+project-documents/user/slices/909-slice.configurable-branch-root-prefix.md
 
 $ cf check --set-review-none 909
-# no longer refuses — writes/confirms the review-gate declaration field (or reports
-# the file already has no code-review requirement pending PM decision)
+Set codeReview: none on slice 909
+  project-documents/user/slices/909-slice.configurable-branch-root-prefix.md
 ```
+Confirmed via PM decision (909's shipped code — a config key, validator, and
+45 lines of test coverage — judged low-risk enough to exempt from a
+retroactive review rather than commission one). Frontmatter now carries
+`codeReview: none`.
 
 **Part D — list targeting without state mutation (TD-3).**
 ```
-$ cf project get   # capture current arch/slicePlan/slice fields
+$ cf project get   # before
+  Architecture:   900-arch.maintenance-and-refactoring
+  Slice Plan:     900-slices.maintenance-and-refactoring
+  Slice:          913-slice.fix-phantom-...-plan-targeting
+
 $ cf list slices 140
-# prints 140's 12 entries directly
-$ cf project get   # unchanged — same arch/slicePlan/slice as before
+
+Slice Plan: 140-slices.context-forge-restructure
+  #   Slice                            Status      File
+  ──  ───────────────────────────────  ──────────  ────
+  1   Monorepo Scaffolding             ✓ complete  —
+  2   Core Types Extraction            ✓ complete  —
+  ...
+  12  Documentation and Packaging      ✓ complete  —
+
+$ cf project get   # after — byte-identical to before
+  Architecture:   900-arch.maintenance-and-refactoring
+  Slice Plan:     900-slices.maintenance-and-refactoring
+  Slice:          913-slice.fix-phantom-...-plan-targeting
 
 $ cf list tasks 140
-# prints 140's task file summaries directly, no state touched
+
+Task Files
+# (140 predates the tasks convention — no task files exist for it; empty
+# listing is correct, not an error)
 
 $ cf list slices 999
-Error: No slice plan found for index '999' (searched project-documents/user/architecture/)
+No slice plan found for index '999' (searched project-documents/user/architecture/).
 
 $ cf list tasks 140 --all
-Error: cannot combine an explicit index with --all
+cannot combine an explicit index with --all — --all lists tasks across worktrees of the active plan
 ```
+Automated equivalents of the byte-identical state-snapshot assertion live in
+`packages/cli/tests/commands/list-arch-index-targeting.test.ts` (JSON
+`stringify` before/after comparison for both `sliceListAction` and
+`taskListAction`).
 
 **Part E — regression.**
 ```
 $ pnpm -r build
+Scope: 5 of 6 workspace projects
+packages/core build: Done
+packages/mcp-server build: Done
+packages/cli build: Done
+packages/electron build: Done
 # clean across core, cli, mcp-server, electron
 
 $ pnpm --filter @context-forge/core test
+ Test Files  1 failed | 47 passed (48)
+      Tests  3 failed | 941 passed (944)
+# 3 failures are pre-existing FileProjectStore field-migration tests,
+# documented in DEVLOG.md ("only the pre-documented pre-existing failures
+# remain (3 FileProjectStore, 4 CLI list.test.ts)") — confirmed via
+# `git stash` comparison against main before this slice's changes.
+
 $ pnpm --filter @context-forge/cli test
-# full pass modulo pre-existing DEVLOG-documented failures
+ Test Files  1 failed | 29 passed (30)
+      Tests  4 failed | 436 passed (440)
+# 4 failures are the same pre-existing `cf list initiatives` failures
+# (unrelated to slices/tasks) documented in DEVLOG.md.
+
+$ pnpm --filter @context-forge/mcp test
+ Test Files  13 passed (13)
+      Tests  184 passed (184)
 ```
 
 ## Effort

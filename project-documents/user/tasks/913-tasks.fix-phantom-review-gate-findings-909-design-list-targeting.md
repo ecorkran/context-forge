@@ -15,7 +15,7 @@ projectState: >
   primitive, config key, or frontmatter field.
 dateCreated: 20260710
 dateUpdated: 20260710
-status: not_started
+status: complete
 ---
 
 # Tasks: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting
@@ -233,21 +233,21 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
   - Success: all cases pass.
   - Effort: 2/5
 
-- [ ] **Commit checkpoint** — after 3.7: `feat: add optional archIndex targeting to cf list slices/tasks`.
+- [x] **Commit checkpoint** — after 3.7: `feat: add optional archIndex targeting to cf list slices/tasks`.
   Covers the core helper, its tests, both CLI wirings, and their tests.
 
 ---
 
 ## Verification
 
-- [ ] **Task 4.1 — Full build + suite**
+- [x] **Task 4.1 — Full build + suite**
   - Run `pnpm -r build` (clean across core, cli, mcp-server, electron) and the core + cli
     test suites; confirm only pre-existing DEVLOG-documented failures remain (success
     criterion 7).
   - Success: build clean, no new test failures introduced by this slice.
   - Effort: 1/5
 
-- [ ] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
+- [x] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
   - Run Parts A–E from the slice design against this repo (or a scratch fixture where a
     real repro is impractical, noting the caveat as prior slices' walkthroughs did):
     Part A (phantom findings gone), Part B (regression fixture run), Part C (909 targeting
@@ -259,12 +259,12 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     Walkthrough section updated accordingly.
   - Effort: 2/5
 
-- [ ] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
+- [x] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries (phantom review-gate findings fixed, 909 artifact
     trail closed, `cf list slices`/`cf list tasks` `[archIndex]` targeting) and a
     developer-facing DEVLOG session entry.
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog`
+- [x] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog`
   (or fold into the final feature commit). Verification and doc updates close the slice.

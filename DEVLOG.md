@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-10
+
+### Slice 913: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting — Complete
+- TD-1 root cause (found while dogfooding `cf check` on this repo post-243): `ConsistencyChecker.checkAll()` merges every discovered `*-slices.*.md` plan's entries into one global `index`-keyed map, "first occurrence wins." `slicePlanParser.ts`'s unindexed-entry fallback assigns a per-file sequential counter as `index` — fine for a single plan read in isolation, but `checkAll()`'s cross-plan merge treated that counter as a real project-wide index. `140-slices.context-forge-restructure.md` (12 fully-complete legacy entries, all unindexed, predating the `(NNN)` convention) produced synthetic indices 1–12 that collided with real low-numbered slices once merged, generating phantom "Slice 1"–"Slice 12" review-gate findings.
+- Fix: new `indexSource: 'explicit' | 'fallback'` field on `SlicePlanEntry`, tagged at both parser construction sites (`slicePlanParser.ts`); `checkAll()`'s merge loop now skips `'fallback'` entries before inserting into `uniqueEntries`, so they never enter the cross-plan index space. Scoped narrowly — single-plan consumers (`check()`, `cf list slices`, `parseSlicePlan()` itself) are unaffected by design; per-plan aggregate rules (e.g. `plan-status-vs-entries`) still legitimately evaluate a legacy plan's own internal consistency.
+- Regression fixture reproduces the real collision using 140's actual list format (`N. [x] **Name** — desc`, no bolded index) against a sibling indexed plan with colliding real indices 1-3 — split across two test files: the real (unmocked) `parseSlicePlan()` collision itself in `slicePlanParser.test.ts`, and `checkAll()`'s merge-loop exclusion (mocked introspector, since `ConsistencyChecker.test.ts` globally mocks `node:fs/promises` for its `readdir`-based discovery tests, which would silently break real `readFile` too) in `ConsistencyChecker.test.ts`.
+- TD-2: wrote a retroactive minimal slice-design for 909 (`909-slice.configurable-branch-root-prefix.md`, backdated to `20260628` — the commit date, not the authoring date) citing shipped commit `713d0c0`. Deliberately omits Technical Decisions/Data Flow/Verification sections (nothing was planned, so nothing to document there) and leaves `codeReview` undeclared at design time — a PM call, not an architectural default. Confirmed via `cf check --set-review-none 909`: PM opted to exempt (low-risk shipped code: one config key + validator + 45 lines of test coverage), now `codeReview: none`.
+- TD-3: new `resolveSlicePlanPathByIndex(projectPath, archIndex)` core helper (`resolveFileByIndex.ts`, same file as `resolveArtifactPath` — same "index → path" concern), backing an optional `[archIndex]` positional argument on `cf list slices` / `cf list tasks`. Lets either command target a non-active initiative's plan directly (`cf list slices 140`) without the previous four-step `cf set arch` round-trip, and without any project-state mutation — verified both by an executed real-CLI before/after `cf project get` diff and an automated byte-identical JSON-snapshot assertion in `list-arch-index-targeting.test.ts`. `[archIndex]` + `--all` on `cf list tasks` is a `UserError`, not silently ignored.
+- 2 commits on `913-slice` branch (TD-1+TD-2 bundle, TD-3 bundle); full monorepo build clean; only the pre-documented pre-existing failures remain (3 `FileProjectStore`, 4 CLI `list.test.ts`).
+
+---
+
 ## 2026-07-07
 
 ### Convention: `.context-forge.toml` is committed project policy — use `--project` to write it
