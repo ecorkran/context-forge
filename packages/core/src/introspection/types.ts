@@ -18,6 +18,13 @@ export interface SlicePlanEntry {
   lineIndex: number;
   /** Overview/description text from after the bold name (e.g., " — Summary text...") */
   description?: string;
+  /**
+   * Whether `index` came from a bolded `(NNN)` in the source ('explicit') or was
+   * synthesized as a per-file sequential counter for unindexed entries ('fallback').
+   * Fallback indices are not stable across files and must not enter cross-plan
+   * aggregation (see ConsistencyChecker.checkAll()).
+   */
+  indexSource: 'explicit' | 'fallback';
 }
 
 /** Result of parsing a slice plan document */

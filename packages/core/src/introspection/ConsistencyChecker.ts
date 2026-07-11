@@ -98,6 +98,11 @@ export class ConsistencyChecker {
         const planResult = await this.introspector.parseSlicePlan(planPath);
         parsedPlans.set(planPath, planResult);
         for (const entry of planResult.entries) {
+          // Fallback (unindexed-format) indices are per-file sequential counters,
+          // not real project-wide slice indices — they must never enter the
+          // cross-plan index space, or they collide with real indices from other
+          // plans (see slice 913 TD-1).
+          if (entry.indexSource === 'fallback') continue;
           if (!uniqueEntries.has(entry.index)) {
             uniqueEntries.set(entry.index, { entry, planPath, planResult });
           }

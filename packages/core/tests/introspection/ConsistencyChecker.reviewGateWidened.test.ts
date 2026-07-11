@@ -49,6 +49,7 @@ function makeIntrospectorWithPlanEntry(entry: Partial<SlicePlanEntry> & { index:
     status: 'complete',
     isChecked: true,
     lineIndex: 0,
+    indexSource: 'explicit',
     ...entry,
   };
   const planResult: SlicePlanResult = {

@@ -73,7 +73,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
 
 ## TD-1 — Exclude unindexed-fallback entries from cross-plan aggregation
 
-- [ ] **Task 1.1 — Add `indexSource` to `SlicePlanEntry` and tag it in the parser**
+- [x] **Task 1.1 — Add `indexSource` to `SlicePlanEntry` and tag it in the parser**
   - In `packages/core/src/introspection/types.ts`, add `indexSource: 'explicit' | 'fallback'`
     to the `SlicePlanEntry` interface.
   - In `packages/core/src/introspection/parsers/slicePlanParser.ts`, set
@@ -83,7 +83,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     mixing both formats produces entries correctly tagged per-entry (not per-file).
   - Effort: 1/5
 
-- [ ] **Task 1.2 — Test the parser tagging**
+- [x] **Task 1.2 — Test the parser tagging**
   - Extend `slicePlanParser` unit tests: an indexed-format entry → `indexSource: 'explicit'`;
     an unindexed-format entry → `indexSource: 'fallback'`; a plan with both formats mixed
     (one line indexed, one line unindexed) → each entry tagged independently and correctly.
@@ -91,7 +91,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     (field is additive, not a behavior change to parsing itself).
   - Effort: 1/5
 
-- [ ] **Task 1.3 — Exclude `'fallback'` entries from `checkAll()`'s cross-plan merge**
+- [x] **Task 1.3 — Exclude `'fallback'` entries from `checkAll()`'s cross-plan merge**
   - In `ConsistencyChecker.checkAll()`'s merge loop (~[ConsistencyChecker.ts:94-104]), skip
     entries with `indexSource === 'fallback'` before inserting into `uniqueEntries` — they
     must never enter the cross-plan index space.
@@ -102,7 +102,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     mask, or generate a cross-plan finding against a real slice index.
   - Effort: 2/5
 
-- [ ] **Task 1.4 — Regression fixture: reproduce and fix the real 140-plan collision**
+- [x] **Task 1.4 — Regression fixture: reproduce and fix the real 140-plan collision**
   - Add a `ConsistencyChecker` test fixture (mkdtemp scratch project, mirroring existing
     `checkAll()` test conventions): two slice plans — one indexed-format plan with real
     entries at indices 1–3 (mirroring `900-slices.*.md`-style), one unindexed-format plan
@@ -116,7 +116,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     reason through the collision explicitly in the test's setup comment.
   - Effort: 3/5
 
-- [ ] **Task 1.5 — Regression: existing cross-plan rules still fire correctly**
+- [x] **Task 1.5 — Regression: existing cross-plan rules still fire correctly**
   - Run (or extend if needed) the existing cross-plan aggregation tests — duplicate-index
     detection, `ruleArchStatusVsPlans`, `ruleInitiativeEntryVsArch` — against plans using
     only the indexed `(NNN)` format. Confirm no change in behavior (success criterion 2).
@@ -124,7 +124,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     existing indexed-format test needs to change its expected output.
   - Effort: 1/5
 
-- [ ] **Task 1.6 — Regression: single-plan unindexed reads unaffected**
+- [x] **Task 1.6 — Regression: single-plan unindexed reads unaffected**
   - Add or confirm a `cf list slices` / `parseSlicePlan()` test against a plan using only
     the unindexed format in isolation (no colliding sibling plan) — entries still display
     with sequential indices, unchanged from today (success criterion 3).

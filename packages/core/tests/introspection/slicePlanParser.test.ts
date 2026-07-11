@@ -15,6 +15,7 @@ describe('parseSlicePlan', () => {
       status: 'complete',
       isChecked: true,
       lineIndex: 15,
+      indexSource: 'explicit',
       description: 'Initialize data models and core types.',
     });
 
@@ -24,6 +25,7 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 21,
+      indexSource: 'explicit',
       description: 'First feature implementation.',
     });
   });
@@ -98,6 +100,7 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 12,
+      indexSource: 'fallback',
       description: 'Python project setup, FastAPI skeleton.',
     });
 
@@ -107,11 +110,55 @@ describe('parseSlicePlan', () => {
       status: 'not-started',
       isChecked: false,
       lineIndex: 20,
+      indexSource: 'fallback',
       description: 'Minimal web UI for chat.',
     });
 
     // Integration Work entry is also parsed (not in excluded headings)
     expect(result.entries[5].name).toBe('Operational Hardening');
+  });
+
+  it('tags every entry indexSource: fallback when the plan uses only the unindexed format', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'unindexed-slice-plan.md'));
+    expect(result.entries.every((e) => e.indexSource === 'fallback')).toBe(true);
+  });
+
+  it('tags every entry indexSource: explicit when the plan uses only the indexed format', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
+    expect(result.entries.every((e) => e.indexSource === 'explicit')).toBe(true);
+  });
+
+  it('tags each entry independently in a plan mixing indexed and unindexed formats', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'mixed-index-slice-plan.md'));
+    const bySource = new Map(result.entries.map((e) => [e.name, e.indexSource]));
+    expect(bySource.get('Schema Setup')).toBe('explicit');
+    expect(bySource.get('Config System')).toBe('fallback');
+  });
+
+  it('reproduces the real 140-plan collision: sequential fallback indices match a sibling indexed plan\'s real indices', async () => {
+    // Regression for slice 913 TD-1's root cause: a legacy plan using only the
+    // unindexed format (mirroring 140-slices.context-forge-restructure.md's
+    // exact list format) produces sequential fallback indices 1-3 that
+    // numerically collide with a sibling plan's real (NNN)-indexed 1-3 —
+    // proving the collision exists at the parser level before checkAll()'s
+    // merge-loop filter (tested separately in ConsistencyChecker.test.ts).
+    const legacy = await parseSlicePlan(
+      join(FIXTURES, 'collision', 'project-documents', 'user', 'architecture', '140-slices.legacy-plan.md'),
+    );
+    const real = await parseSlicePlan(
+      join(FIXTURES, 'collision', 'project-documents', 'user', 'architecture', '900-slices.real-plan.md'),
+    );
+
+    expect(legacy.entries.every((e) => e.indexSource === 'fallback')).toBe(true);
+    expect(real.entries.every((e) => e.indexSource === 'explicit')).toBe(true);
+
+    const legacyIndices = legacy.entries.map((e) => e.index).sort();
+    const realIndices = real.entries.map((e) => e.index).sort();
+    expect(legacyIndices).toEqual([1, 2, 3]);
+    expect(realIndices).toEqual([1, 2, 3]);
+    // The collision: same numeric indices, different indexSource — this is
+    // exactly what checkAll()'s merge loop must disambiguate.
+    expect(legacyIndices).toEqual(realIndices);
   });
 
   it('captures description text after bold name', async () => {
