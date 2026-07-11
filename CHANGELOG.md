@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 20260711
+
 ### Changed
 - Internal: `NormalizedStatus` values (`complete`/`in-progress`/`not-started`/`deprecated`) are now referenced via the `STATUS` constant everywhere in `packages/core`, replacing ~65 scattered bare-string literals. No behavior change — purely a maintainability/type-safety refactor (a typo like `STATUS.Compelte` is now a compile error instead of a silent runtime mismatch).
 
