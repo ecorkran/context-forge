@@ -6,16 +6,19 @@ parent: project-documents/user/slices/913-slice.fix-phantom-review-gate-findings
 lldReference: project-documents/user/slices/913-slice.fix-phantom-review-gate-findings-909-design-list-targeting.md
 dependencies: [240, 241, 242, 911, 912]
 projectState: >
-  Slice 913 design (Phase 4) complete, reviewed (CONCERNS, both findings resolved:
-  F001 grouping rationale added to Overview, F002 automated test commitment added
-  to TD-3). 909's retroactive slice-design (909-slice.configurable-branch-root-prefix.md)
-  already written and exists on disk as a design-time deliverable, not a task in this
-  file — Task 2.1 only verifies it, does not create it. TD-1/TD-3 build on existing
-  ConsistencyChecker/list-command machinery already merged to main; no new gate
-  primitive, config key, or frontmatter field.
+  TD-1/TD-2/TD-3 implemented and committed. Reopened after PM review of cf check
+  output surfaced two further pre-existing bugs: TD-5 (preAdvance code-review
+  guard false-flags checked plan entries with no slice-design/task-file — no
+  code exists to review) and TD-6 (zero-padded artifact filenames like
+  050-arch.*.md fail matchFiles()'s exact-prefix lookup, which silently skips
+  the effective-date cutoff check for them since gatedArtifactFrontmatter
+  resolves null before the cutoff is ever consulted). Both are narrow,
+  independent fixes in ConsistencyChecker.ts/documentDetector.ts. TD-1/TD-3
+  build on existing ConsistencyChecker/list-command machinery already merged
+  to main; no new gate primitive, config key, or frontmatter field from any TD.
 dateCreated: 20260710
-dateUpdated: 20260710
-status: complete
+dateUpdated: 20260711
+status: in_progress
 ---
 
 # Tasks: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting
@@ -238,33 +241,93 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
 
 ---
 
+## TD-5 — Code-review gate requires a reviewable artifact to exist
+
+- [x] **Task 5.1 — Guard `preAdvance` on `docs?.sliceDesign` existence**
+  - In `packages/core/src/introspection/ConsistencyChecker.ts`'s `ruleReviewGate()`
+    (~lines 642-646), change the `preAdvance` boundary's guard from `!!planEntry?.isChecked`
+    alone to also require `docs?.sliceDesign !== null && docs?.sliceDesign !== undefined`,
+    mirroring the `preTasks` guard's pattern immediately above it.
+  - Do not change `preTasks`/`preImplementation` guards — already correct.
+  - Success: a checked plan entry with no slice-design file produces zero `preAdvance`
+    (code-review) findings; a checked plan entry WITH a slice-design file and no review
+    artifact still produces the finding (no regression to the legitimate case).
+  - Effort: 1/5
+
+- [x] **Task 5.2 — Test the guard fix**
+  - Unit test in `ConsistencyChecker.test.ts`: checked plan entry + no `docs.sliceDesign`
+    → zero `preAdvance` findings. Checked plan entry + `docs.sliceDesign` present + no
+    review → `preAdvance` finding still fires (regression guard for slices 908/910/911/913's
+    class of legitimate finding).
+  - Success: both cases pass.
+  - Effort: 1/5
+
+---
+
+## TD-6 — Zero-padded artifact index lookup fails, defeating the effective-date cutoff
+
+- [x] **Task 6.1 — Make `matchFiles()` tolerant of leading zeros on the index**
+  - In `packages/core/src/introspection/parsers/documentDetector.ts`, change the prefix
+    match in `matchFiles()`/`detectDocuments()` from an exact literal (`${idx}-`) to a
+    regex allowing optional leading zeros (`^0*${idx}-`), applied consistently across all
+    5 call sites (slice, tasks, arch, slicePlan, review).
+  - Do not change `extractFileIndex()`, `evaluateReviewGate()`, or the cutoff-comparison
+    logic — those are already correct; this is purely a filename-matching fix.
+  - Success: `detectDocuments(projectPath, 50, ...)` correctly resolves
+    `050-arch.design-decisions.md` as `architecture`.
+  - Effort: 2/5
+
+- [x] **Task 6.2 — Test the zero-padded match fix**
+  - Unit test in `documentDetector.test.ts` (or `ConsistencyChecker.test.ts` if no
+    dedicated test file exists yet): a fixture with a zero-padded filename (e.g.
+    `050-arch.foo.md`) is correctly matched when queried by its numeric index (`50`).
+    A non-padded index (e.g. `140-arch.foo.md` queried as `140`) continues to match
+    unchanged (no regression). A near-miss (e.g. `1400-arch.foo.md` queried as `140`)
+    does NOT match (guards the existing suffix-boundary behavior).
+  - End-to-end regression: architecture 050 in this repo, once matched, correctly falls
+    through the effective-date cutoff (`dateCreated: 20260531` <
+    `workflow.review_gate_effective_date: 20260701`) and produces zero review-gate
+    findings.
+  - Success: all three matching cases pass; 050 is confirmed cutoff-exempt end-to-end.
+  - Effort: 2/5
+
+- [x] **Commit checkpoint** — after 6.2: `fix: exclude artifact-less slices from code-review
+  gate and fix zero-padded index lookup`. Covers TD-5 and TD-6 together (both found in the
+  same PM review pass, both narrow ConsistencyChecker/documentDetector fixes).
+
+---
+
 ## Verification
 
-- [x] **Task 4.1 — Full build + suite**
+- [ ] **Task 4.1 — Full build + suite**
   - Run `pnpm -r build` (clean across core, cli, mcp-server, electron) and the core + cli
     test suites; confirm only pre-existing DEVLOG-documented failures remain (success
-    criterion 7).
+    criterion 9).
   - Success: build clean, no new test failures introduced by this slice.
   - Effort: 1/5
 
-- [x] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
+- [ ] **Task 4.2 — Execute the design's Verification Walkthrough and update it with real output**
   - Run Parts A–E from the slice design against this repo (or a scratch fixture where a
     real repro is impractical, noting the caveat as prior slices' walkthroughs did):
     Part A (phantom findings gone), Part B (regression fixture run), Part C (909 targeting
     — fold in Task 2.1's captured output), Part D (list targeting + error paths), Part E
-    (full regression).
+    (full regression). Add Part F (TD-5: artifact-less slices no longer flagged) and
+    Part G (TD-6: 050 correctly cutoff-exempt).
   - Replace the design document's draft walkthrough with the actual commands and output
     executed, per this repo's established convention (see slices 911/912/243).
-  - Success: all five parts confirmed with real command output; design doc's Verification
+  - Success: all seven parts confirmed with real command output; design doc's Verification
     Walkthrough section updated accordingly.
   - Effort: 2/5
 
-- [x] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
+- [ ] **Task 4.3 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries (phantom review-gate findings fixed, 909 artifact
-    trail closed, `cf list slices`/`cf list tasks` `[archIndex]` targeting) and a
-    developer-facing DEVLOG session entry.
+    trail closed, `cf list slices`/`cf list tasks` `[archIndex]` targeting, code-review
+    gate no longer false-flags artifact-less slices, zero-padded index lookup fixed) and
+    a developer-facing DEVLOG session entry (append to the existing 913 entry or add a
+    follow-up entry per this repo's convention).
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [x] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog`
-  (or fold into the final feature commit). Verification and doc updates close the slice.
+- [ ] **Commit checkpoint** — after 4.2/4.3: `docs: slice 913 verification + changelog/devlog
+  (TD-5/TD-6 follow-up)` (or fold into the final feature commit). Verification and doc
+  updates close the slice.

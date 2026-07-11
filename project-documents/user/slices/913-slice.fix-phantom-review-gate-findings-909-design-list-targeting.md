@@ -6,8 +6,8 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: [240, 241, 242, 911, 912]
 interfaces: []
 dateCreated: 20260710
-dateUpdated: 20260710
-status: complete
+dateUpdated: 20260711
+status: in-progress
 ---
 
 # Slice Design: Fix Phantom Review-Gate Findings, 909's Missing Slice-Design, and List-Command Plan Targeting
@@ -81,6 +81,26 @@ This closes the artifact gap without inventing a new exemption mechanism — 909
 
 TD-1 adds one field to the in-memory `SlicePlanEntry` type (not persisted, not user-facing frontmatter — internal to plan parsing). TD-2 adds one ordinary slice-design markdown file, no new frontmatter field. TD-3 adds one CLI positional argument and one new exported helper function. No config keys, no schema registry changes, no new gate primitives — all three fixes are narrow and additive to existing machinery.
 
+### TD-5 — code-review gate requires a reviewable artifact to exist
+
+**Found during PM review of TD-1's `cf check` output on this repo.** Slices 185, 901, 903, 904 — each `[x]`-checked in their slice plan but with **no** slice-design file, task file, or review artifact on disk anywhere in `project-documents/` — were flagged: `"Slice N requires a code review before proceeding — no review artifact found."` This is a false positive: there is no code to review, because there is no slice design and no task file. By contrast, slices 908/910/911/913 (which have real design/task artifacts) are correctly flagged and stay flagged after this fix.
+
+**Root cause:** `ruleReviewGate()`'s `preAdvance` boundary guard ([ConsistencyChecker.ts:642-646](../../../packages/core/src/introspection/ConsistencyChecker.ts)) only checks `planEntry?.isChecked` before evaluating the code-review gate — unlike the `preTasks` guard (requires `docs.sliceDesign`) and `preImplementation` guard (requires `docs.taskFile`), which both already require their gated artifact to exist before checking whether it was reviewed. `preAdvance` has no equivalent existence check, so a checked plan entry with zero downstream artifacts still triggers "code review needed."
+
+**Decision:** add the same existence pattern to the `preAdvance` guard: require `docs?.sliceDesign` (the artifact whose code the review is actually about) in addition to `planEntry?.isChecked`. This mirrors the two guards immediately above it — no new concept, just closing a gap in an existing per-boundary pattern. A checked plan entry with no slice-design file genuinely has nothing for a code review to be about; TD-2's `codeReview: none` declaration mechanism is a different, deliberate opt-out and stays unchanged — this fix addresses artifacts that never got that far, not artifacts that exist and are exempted.
+
+**Scope boundary:** only `preAdvance`'s guard changes. `preTasks`/`preImplementation` guards are already correct and untouched. `ruleArchReviewGate` (the `preSlicePlan`/arch boundary) has its own, separate lack of guarding — addressed in TD-6, not here, since it's a distinct root cause (see below).
+
+### TD-6 — zero-padded artifact index lookup fails, defeating the effective-date cutoff
+
+**Found during PM review.** Architecture 050 (`050-arch.design-decisions.md`, `dateCreated: 20260531`) is flagged: `"Slice 50 requires a arch review before proceeding — no review artifact found."` — even though the project's `workflow.review_gate_effective_date` is `20260701` and 050 predates it, which should exempt it from every review-gate boundary per the effective-date cutoff introduced in slice 911.
+
+**Root cause (confirmed by reading source, not inferred):** this is not a cutoff-logic bug — the cutoff comparison itself is correct. It's an index/filename round-trip bug upstream of it. `extractFileIndex()` ([ConsistencyChecker.ts:1202-1206](../../../packages/core/src/introspection/ConsistencyChecker.ts)) parses `"050-arch...."` via `parseInt("050", 10)` → the number `50` (leading zero stripped, correctly, since it's a numeric type everywhere downstream — `SlicePlanEntry.index: number`, `evaluateReviewGate(..., sliceIndex: number, ...)`). But `detectDocuments()` ([documentDetector.ts:51](../../../packages/core/src/introspection/parsers/documentDetector.ts)) re-derives a **string** prefix from that number — `idx = String(50) = "50"` — and `matchFiles()` ([documentDetector.ts:34-39](../../../packages/core/src/introspection/parsers/documentDetector.ts)) filters filenames via `f.startsWith("50-arch.")`. `"050-arch.design-decisions.md"` does not start with `"50-arch."` (there's a `0` where a `-` would need to be), so the match fails, `docs.architecture` resolves to `null`, and `evaluateReviewGate()`'s effective-date guard ([reviewGate.ts:202](../../../packages/core/src/introspection/reviewGate.ts)) — which only runs `if (... && gatedArtifactFrontmatter)` — is skipped entirely because there's no frontmatter to read. The gate falls through to "no review artifact found" without ever consulting the cutoff.
+
+**Decision:** make `matchFiles()`'s prefix match tolerant of leading zeros on the index, since the index is numeric everywhere except this one string-matching call site. Change the prefix construction from an exact literal (`${idx}-`) to a regex allowing optional leading zeros (`^0*${idx}-`), applied consistently across all 5 `matchFiles()` call sites in `detectDocuments()` (slice, tasks, arch, slicePlan, review). This is a general fix, not arch-specific or cutoff-specific — it would affect any zero-padded artifact number (e.g. future `00N`-indexed foundation docs), and benefits all four review boundaries uniformly since they all route through `detectDocuments()`. No change to `extractFileIndex()`, `evaluateReviewGate()`, or the cutoff-comparison logic itself — those are already correct.
+
+**Why not preserve the zero-padded string instead of fixing the matcher:** threading a zero-padded string alongside the numeric index through `SlicePlanEntry`, `evaluateReviewGate()`, `ruleReviewGate()`, and `ruleArchReviewGate()` would touch far more call sites for the same outcome, and would still need a canonical numeric form for indexing (`Map<number, ...>`, sorting, comparisons) — the fix belongs at the one place that does string-based filename matching, not throughout the numeric-index pipeline.
+
 ## Data Flows & Component Interactions
 
 ```
@@ -117,7 +137,9 @@ cf list tasks [archIndex] ──► taskListAction ──► listTaskFiles
 4. **TD-2 — 909 has a slice-design file.** `909-slice.configurable-branch-root-prefix.md` exists, cites commit `713d0c0`, and `cf check --set-review-none 909` (or the plain project-manager review workflow) can now target it instead of refusing with "no file found."
 5. **TD-3 — cross-initiative listing without state mutation.** `cf list slices 140` (or any other initiative's index) prints that plan's entries without altering `project.fileArch`/`fileSlicePlan`/`fileSlice` — confirmed by reading project state before and after and asserting no diff. Same for `cf list tasks 140`.
 6. **TD-3 — error path.** `cf list slices 999` (no matching plan) exits with a `UserError` naming the index, not an empty/silent success. `cf list tasks 140 --all` (index + `--all` together) is rejected with a clear error.
-7. **No regressions.** Full core + cli + mcp-server test suites pass (modulo pre-existing documented failures in DEVLOG); `pnpm -r build` is clean.
+7. **TD-5 — no false code-review findings on artifact-less slices.** `cf check` on this repo produces zero "requires a code review" findings for checked plan entries that have no slice-design file (e.g. 185, 901, 903, 904). Slices with real design/task artifacts (908, 910, 911, 913) continue to be flagged correctly.
+8. **TD-6 — zero-padded index lookup works.** `cf check` correctly resolves `050-arch.design-decisions.md` for architecture index 50 (and any other zero-padded artifact), and the effective-date cutoff is honored for it — no "no review artifact found" finding for an architecture that predates `workflow.review_gate_effective_date`.
+9. **No regressions.** Full core + cli + mcp-server test suites pass (modulo pre-existing documented failures in DEVLOG); `pnpm -r build` is clean.
 
 ## Verification Walkthrough
 
@@ -250,6 +272,68 @@ $ pnpm --filter @context-forge/mcp test
  Test Files  13 passed (13)
       Tests  184 passed (184)
 ```
+
+**Part F — no false code-review findings on artifact-less slices (TD-5).**
+
+> Added after PM review of TD-1-3's `cf check` output surfaced this as a further
+> pre-existing bug: slices 185, 901, 903, 904 (checked plan entries, zero
+> slice-design/task-file/review artifacts anywhere in `project-documents/`)
+> were falsely flagged `"requires a code review... no review artifact found"`.
+
+```
+# Before fix:
+$ cf check
+  Slice 185
+  ⚠ [185] Slice 185 requires a code review before proceeding — no review artifact found.
+  Slice 901 / 903 / 904 — same pattern
+
+# After fix:
+$ cf check
+# zero findings for 185, 901, 903, 904 — confirmed via:
+$ cf check | grep -i "185\|901\|903\|904"
+# (no output)
+
+# Slices with real artifacts continue to be flagged correctly (908/910/911
+# untouched by this fix — verified same findings before/after):
+  Slice 908
+  ⚠ [908] Slice plan entry is checked but frontmatter status is "in_progress"
+  Slice 910
+  ⚠ [910] Tasks complete (86/86) but slice 910 is unchecked in plan
+  ⚠ [910] Frontmatter status is "complete" but slice plan entry is unchecked
+  Slice 911
+  ⚠ [911] Slice 911 requires a code review before proceeding — no review artifact found.
+```
+Automated regression: `ConsistencyChecker.reviewGateWidened.test.ts`'s
+`'plan entry checked, no slice-design file at all → no preAdvance finding'` —
+confirmed to fail without the fix and pass with it.
+
+**Part G — zero-padded architecture index correctly cutoff-exempt (TD-6).**
+
+```
+# Before fix:
+$ cf check
+  Project-level
+  ⚠ Slice 50 requires a arch review before proceeding — no review artifact found.
+
+# After fix:
+$ cf check | grep -i "Slice 50"
+# (no output) — 050-arch.design-decisions.md (dateCreated 20260531) is now
+# correctly matched by detectDocuments() and correctly exempted by the
+# effective-date cutoff (workflow.review_gate_effective_date: 20260701)
+```
+Automated regression: `documentDetector.test.ts`'s zero-padded matching suite
+(matches `050-arch.*.md` by numeric index 50; non-padded 100-arch unaffected;
+near-miss `1400-arch.*.md` correctly rejected for index 140) plus an
+end-to-end `ConsistencyChecker.reviewGateWidened.test.ts` test proving
+architecture 050 (`dateCreated: 20260101`) is exempted by a `20260201`
+cutoff — both confirmed to fail without the `documentDetector.ts` fix and
+pass with it.
+
+**Combined real-repo result:** `cf check` findings dropped from 16 (2 errors,
+13 warnings, 1 info — the 2 errors were a separate pre-existing bug in this
+slice's own frontmatter status, fixed alongside TD-5/TD-6) to 8 (0 errors, 7
+warnings, 1 info) — all 8 remaining findings independently confirmed correct
+by the Project Manager.
 
 ## Effort
 

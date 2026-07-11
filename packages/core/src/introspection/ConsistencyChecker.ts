@@ -642,7 +642,10 @@ export class ConsistencyChecker {
     const boundaries: { boundary: Boundary; guard: boolean }[] = [
       { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
       { boundary: 'preImplementation', guard: !!docs?.taskFile && docs.taskFile.length > 0 },
-      { boundary: 'preAdvance', guard: !!planEntry?.isChecked },
+      {
+        boundary: 'preAdvance',
+        guard: !!planEntry?.isChecked && docs?.sliceDesign !== null && docs?.sliceDesign !== undefined,
+      },
     ];
 
     for (const { boundary, guard } of boundaries) {

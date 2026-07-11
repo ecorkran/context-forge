@@ -135,6 +135,21 @@ describe('ConsistencyChecker — widened review-gate coverage (slice 912 TD-3/TD
       const codeFinding = findings.find((f) => f.suggestedFix.includes('code review'));
       expect(codeFinding).toBeDefined();
     });
+
+    it('plan entry checked, no slice-design file at all → no preAdvance finding (slice 913 TD-5)', async () => {
+      // Index 500 has no 500-slice.*.md fixture — a checked plan entry with no
+      // slice-design (and therefore no code) must not be flagged for a missing
+      // code review, since there is no code to review.
+      const introspector = makeIntrospectorWithPlanEntry({ index: 500, isChecked: true });
+      const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+      const checker = new ConsistencyChecker(introspector, config);
+
+      const result = await checker.check(makeProject({ fileSlice: '500-slice.no-artifacts', fileTasks: undefined }));
+
+      const findings = result.findings.filter((f) => f.rule === 'review-gate');
+      const codeFinding = findings.find((f) => f.suggestedFix.includes('code review'));
+      expect(codeFinding).toBeUndefined();
+    });
   });
 
   describe('all three slice-keyed boundaries together', () => {
@@ -170,6 +185,26 @@ describe('ConsistencyChecker — widened review-gate coverage (slice 912 TD-3/TD
       );
       expect(archFinding).toBeDefined();
       expect(archFinding!.severity).toBe('warning');
+    });
+
+    it('zero-padded arch file (050-arch.*.md, dateCreated 20260101) is correctly exempted by an effective-date cutoff of 20260201 (slice 913 TD-6)', async () => {
+      // Regression for the real bug: before the fix, matchFiles()'s exact-prefix
+      // match failed for "050-arch..." queried by numeric index 50, so
+      // gatedArtifactFrontmatter never resolved and the cutoff check was
+      // skipped entirely — falling through to a false "no review found" finding
+      // even though 050 predates the configured cutoff.
+      const introspector = makeIntrospectorWithPlanEntry({ index: 300, isChecked: false });
+      const config = makeStubConfig({ ...GATE_ENABLED_DEFAULTS, 'workflow.review_gate_effective_date': '20260201' });
+      const checker = new ConsistencyChecker(introspector, config);
+
+      const result = await checker.checkAll(
+        makeProject({ fileSlice: '', fileTasks: undefined, fileArch: '050-arch.hld-test-project' }),
+      );
+
+      const archFinding = result.findings.find(
+        (f) => f.rule === 'review-gate' && f.suggestedFix.includes('arch review') && f.suggestedFix.includes('50'),
+      );
+      expect(archFinding).toBeUndefined();
     });
 
     it('arch review present-and-passing → no finding for that arch', async () => {
