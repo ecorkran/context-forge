@@ -28,12 +28,17 @@ async function safeReaddir(dirPath: string): Promise<string[]> {
 }
 
 /**
- * Find files in a directory matching a prefix pattern like `NNN-type.`.
+ * Find files in a directory matching an index-prefixed pattern like `140-slice.`.
+ * Tolerates leading zeros on the index in the filename (e.g. an `idx` of `50`
+ * matches both `50-arch.foo.md` and `050-arch.foo.md`) since the index is a
+ * plain number everywhere except this filename-matching call site.
  * Returns full relative paths from projectPath.
  */
-function matchFiles(files: string[], prefix: string, dir: string): string[] {
+function matchFiles(files: string[], idx: string, suffix: string, dir: string): string[] {
+  const escapedSuffix = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^0*${idx}${escapedSuffix}`);
   return files
-    .filter((f) => f.startsWith(prefix) && f.endsWith('.md'))
+    .filter((f) => pattern.test(f) && f.endsWith('.md'))
     .sort()
     .map((f) => join(dir, f));
 }
@@ -63,19 +68,19 @@ export async function detectDocuments(
   ]);
 
   // slices/{index}-slice.*.md → sliceDesign
-  const sliceMatches = matchFiles(sliceFiles, `${idx}-slice.`, join(USER_DOCS, 'slices'));
+  const sliceMatches = matchFiles(sliceFiles, idx, '-slice.', join(USER_DOCS, 'slices'));
   const sliceDesign = sliceMatches.length > 0 ? sliceMatches[0] : null;
 
   // tasks/{index}-tasks.*.md → taskFile (array, supports split files)
-  const taskMatches = matchFiles(taskFiles, `${idx}-tasks.`, join(USER_DOCS, 'tasks'));
+  const taskMatches = matchFiles(taskFiles, idx, '-tasks.', join(USER_DOCS, 'tasks'));
   const taskFile = taskMatches.length > 0 ? taskMatches : null;
 
   // architecture/{index}-arch.*.md → architecture
-  const archMatches = matchFiles(archFiles, `${idx}-arch.`, join(USER_DOCS, 'architecture'));
+  const archMatches = matchFiles(archFiles, idx, '-arch.', join(USER_DOCS, 'architecture'));
   const architecture = archMatches.length > 0 ? archMatches[0] : null;
 
   // architecture/{index}-slices.*.md → slicePlan
-  const planMatches = matchFiles(archFiles, `${idx}-slices.`, join(USER_DOCS, 'architecture'));
+  const planMatches = matchFiles(archFiles, idx, '-slices.', join(USER_DOCS, 'architecture'));
   const slicePlan = planMatches.length > 0 ? planMatches[0] : null;
 
   // reviews/{index}-review.{reviewType}.*.md → review
@@ -90,7 +95,8 @@ export async function detectDocuments(
   if (reviewType !== undefined && reviewType !== '') {
     const reviewMatches = matchFiles(
       reviewFiles,
-      `${idx}-review.${reviewType}.`,
+      idx,
+      `-review.${reviewType}.`,
       join(USER_DOCS, 'reviews'),
     );
     review = reviewMatches.at(-1) ?? null;

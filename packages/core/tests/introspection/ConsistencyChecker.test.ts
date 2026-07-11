@@ -4,9 +4,11 @@ import type { IArtifactIntrospector } from '../../src/introspection/interfaces.j
 import type { ProjectData } from '../../src/types/project.js';
 import type {
   SlicePlanResult,
+  SlicePlanEntry,
   TaskFileResult,
   FrontmatterResult,
   DocumentDetectionResult,
+  NormalizedStatus,
 } from '../../src/introspection/types.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
 
@@ -70,7 +72,7 @@ function makeMockIntrospector(overrides: Partial<IArtifactIntrospector> = {}): I
     parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockResolvedValue({
       filePath: '/fake/plan.md',
       entries: [
-        { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0 },
+        { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
       ],
       totalSlices: 1,
       completedSlices: 0,
@@ -169,7 +171,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
+            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -216,7 +218,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -258,7 +260,7 @@ describe('ConsistencyChecker', () => {
           parseSlicePlan: vi.fn().mockResolvedValue({
             filePath: '/fake/plan.md',
             entries: [
-              { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
+              { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
             ],
             totalSlices: 1,
             completedSlices: 1,
@@ -296,7 +298,7 @@ describe('ConsistencyChecker', () => {
         }),
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
-          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 }],
+          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' }],
           totalSlices: 1,
           completedSlices: 1,
         }),
@@ -391,7 +393,7 @@ describe('ConsistencyChecker', () => {
         }),
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
-          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 }],
+          entries: [{ index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' }],
           totalSlices: 1,
           completedSlices: 1,
         }),
@@ -410,7 +412,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+            { index: 999, name: 'other-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -452,7 +454,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0 },
+            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -480,7 +482,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0 },
+            { index: 165, name: 'test-feature', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -631,7 +633,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other', status: 'not-started', isChecked: false, lineIndex: 0 },
+            { index: 999, name: 'other', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -729,9 +731,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0 },
-            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0 },
-            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -762,9 +764,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false, lineIndex: 0 },
-            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false, lineIndex: 0 },
-            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -795,8 +797,8 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: true, lineIndex: 0 },
-            { index: 171, name: 'b', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 170, name: 'a', status: 'in-progress', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 2,
           completedSlices: 1,
@@ -824,8 +826,8 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
-            { index: 171, name: 'b', status: 'complete', isChecked: true, lineIndex: 0 },
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 2,
           completedSlices: 2,
@@ -855,7 +857,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 170, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -887,7 +889,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0 },
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 1,
@@ -926,7 +928,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 165, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0 },
+                { index: 165, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -936,7 +938,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 185, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0 },
+                { index: 185, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -975,11 +977,11 @@ describe('ConsistencyChecker', () => {
           return {
             filePath: path,
             entries: [
-              { index: 165, name: 'shared-slice', status: 'in-progress', isChecked: false, lineIndex: 0 },
+              { index: 165, name: 'shared-slice', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ...(path.includes('180-slices') ? [
-                { index: 186, name: 'unique-slice', status: 'in-progress', isChecked: false, lineIndex: 1 },
+                { index: 186, name: 'unique-slice', status: 'in-progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
               ] : []),
-            ],
+            ] as SlicePlanEntry[],
             totalSlices: path.includes('180-slices') ? 2 : 1,
             completedSlices: 0,
           };
@@ -1029,7 +1031,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 185, name: 'other-slice', status: 'in-progress', isChecked: false, lineIndex: 0 },
+                { index: 185, name: 'other-slice', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -1077,6 +1079,72 @@ describe('ConsistencyChecker', () => {
       );
       expect(otherPrefixed.length).toBe(0);
     });
+
+    it('excludes a legacy unindexed plan\'s synthetic indices from cross-plan aggregation (140-style collision)', async () => {
+      // Entry shapes below are exactly what parseSlicePlan() produces for the
+      // two fixtures in tests/fixtures/introspection/collision/ (verified via
+      // slicePlanParser.test.ts's real-parser collision test): a real
+      // indexed-format plan with indices 1-3, and an unindexed-format plan
+      // mirroring 140-slices.context-forge-restructure.md's exact list format
+      // (no bolded index), whose sequential fallback indices also land on 1-3.
+      mockReaddir.mockResolvedValueOnce(['140-slices.legacy-plan.md', '900-slices.real-plan.md']);
+
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('140-slices.legacy-plan')) {
+            return {
+              filePath: path,
+              entries: [
+                { index: 1, name: 'Monorepo Scaffolding', status: 'complete', isChecked: true, lineIndex: 14, indexSource: 'fallback' },
+                { index: 2, name: 'Core Types Extraction', status: 'complete', isChecked: true, lineIndex: 16, indexSource: 'fallback' },
+                { index: 3, name: 'Core Services Extraction', status: 'complete', isChecked: true, lineIndex: 18, indexSource: 'fallback' },
+              ],
+              totalSlices: 3,
+              completedSlices: 3,
+            };
+          }
+          if (path.includes('900-slices.real-plan')) {
+            return {
+              filePath: path,
+              entries: [
+                { index: 1, name: 'Real Slice One', status: 'complete', isChecked: true, lineIndex: 12, indexSource: 'explicit' },
+                { index: 2, name: 'Real Slice Two', status: 'not-started', isChecked: false, lineIndex: 14, indexSource: 'explicit' },
+                { index: 3, name: 'Real Slice Three', status: 'not-started', isChecked: false, lineIndex: 16, indexSource: 'explicit' },
+              ],
+              totalSlices: 3,
+              completedSlices: 1,
+            };
+          }
+          throw new Error('unexpected plan path');
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'in-progress' },
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileSlicePlan: undefined }));
+
+      // The legacy plan's unindexed entries must never enter the cross-plan
+      // index space — the [N]-prefixed per-slice findings (from checkSlice(),
+      // driven by uniqueEntries) for indices 1-3 must come from the REAL plan
+      // only, proving first-occurrence-wins now skips fallback-indexed entries
+      // rather than the legacy plan's synthetic indices winning the collision.
+      const crossPlanFindings = result.findings.filter((f) => /^\[[123]\]/.test(f.description));
+      expect(crossPlanFindings.length).toBeGreaterThan(0);
+      for (const finding of crossPlanFindings) {
+        expect(finding.location).not.toContain('legacy-plan');
+      }
+
+      // Per-plan aggregate rules (e.g. plan-status-vs-entries) still legitimately
+      // evaluate the legacy plan's own internal consistency — that's unrelated
+      // to the cross-plan collision and stays in scope per the design's
+      // boundary (single-plan consumers are unaffected by this fix).
+      const legacyCrossPlanFindings = crossPlanFindings.filter((f) => f.location.includes('legacy-plan'));
+      expect(legacyCrossPlanFindings).toHaveLength(0);
+    });
   });
 
     // (Rule 11: missing-arch-status — removed, subsumed by Rule 12 frontmatter-schema)
@@ -1087,7 +1155,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0 },
+            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -1347,7 +1415,10 @@ describe('ConsistencyChecker', () => {
                 return {
                   filePath: INITIATIVE_PLAN_PATH,
                   entries: initiativeEntries.map((e, i) => ({
-                    ...e, status: e.isChecked ? 'complete' : 'in-progress', lineIndex: i,
+                    ...e,
+                    status: (e.isChecked ? 'complete' : 'in-progress') as NormalizedStatus,
+                    lineIndex: i,
+                    indexSource: 'explicit' as const,
                   })),
                   totalSlices: initiativeEntries.length,
                   completedSlices: initiativeEntries.filter((e) => e.isChecked).length,
@@ -1436,7 +1507,7 @@ describe('ConsistencyChecker', () => {
                 if (path.includes('001-initiative-plan')) {
                   return {
                     filePath: path,
-                    entries: [{ index: 140, name: 'MCP Server Architecture', isChecked: true, status: 'complete', lineIndex: 0 }],
+                    entries: [{ index: 140, name: 'MCP Server Architecture', isChecked: true, status: 'complete', lineIndex: 0, indexSource: 'explicit' }],
                     totalSlices: 1,
                     completedSlices: 1,
                   };
@@ -1445,9 +1516,9 @@ describe('ConsistencyChecker', () => {
                   return {
                     filePath: path,
                     entries: [
-                      { index: 141, name: 'Slice A', isChecked: true, status: 'complete', lineIndex: 0 },
-                      { index: 142, name: 'Slice B', isChecked: false, status: 'not-started', lineIndex: 1 },
-                      { index: 143, name: 'Slice C', isChecked: false, status: 'not-started', lineIndex: 2 },
+                      { index: 141, name: 'Slice A', isChecked: true, status: 'complete', lineIndex: 0, indexSource: 'explicit' },
+                      { index: 142, name: 'Slice B', isChecked: false, status: 'not-started', lineIndex: 1, indexSource: 'explicit' },
+                      { index: 143, name: 'Slice C', isChecked: false, status: 'not-started', lineIndex: 2, indexSource: 'explicit' },
                     ],
                     totalSlices: 3,
                     completedSlices: 1,
@@ -1519,8 +1590,8 @@ describe('ConsistencyChecker', () => {
                 return {
                   filePath: INITIATIVE_PLAN_PATH,
                   entries: [
-                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0 },
-                    { index: 160, name: 'Init B', status: 'complete', isChecked: true, lineIndex: 1 },
+                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+                    { index: 160, name: 'Init B', status: 'complete', isChecked: true, lineIndex: 1, indexSource: 'explicit' },
                   ],
                   totalSlices: 2,
                   completedSlices: 2,
@@ -1565,8 +1636,8 @@ describe('ConsistencyChecker', () => {
                 return {
                   filePath: INITIATIVE_PLAN_PATH,
                   entries: [
-                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0 },
-                    { index: 160, name: 'Init B', status: 'in-progress', isChecked: false, lineIndex: 1 },
+                    { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+                    { index: 160, name: 'Init B', status: 'in-progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
                   ],
                   totalSlices: 2,
                   completedSlices: 1,

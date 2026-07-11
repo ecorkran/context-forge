@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectDocuments, checkFileExists } from '../../src/introspection/parsers/documentDetector.js';
 
@@ -43,6 +45,30 @@ describe('detectDocuments', () => {
     expect(result.taskFile).toBeNull();
     expect(result.architecture).toBeNull();
     expect(result.slicePlan).toBeNull();
+  });
+
+  describe('zero-padded index matching (slice 913 TD-6)', () => {
+    it('matches a zero-padded filename (050-arch.*.md) when queried by its numeric index (50)', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 50);
+      expect(result.architecture).toBe('project-documents/user/architecture/050-arch.hld-test-project.md');
+    });
+
+    it('still matches a non-padded filename (100-arch.*.md) when queried by its numeric index (100) — no regression', async () => {
+      const result = await detectDocuments(PROJECT_ROOT, 100);
+      expect(result.architecture).toBe('project-documents/user/architecture/100-arch.test-system.md');
+    });
+
+    it('does not match a near-miss index sharing a numeric prefix (140 vs 1400)', async () => {
+      // Guards the existing suffix-boundary behavior: an index of 140 must not
+      // match a 1400-arch.*.md file just because "1400" starts with "140".
+      const root = mkdtempSync(join(tmpdir(), 'document-detector-nearmiss-'));
+      const archDir = join(root, 'project-documents', 'user', 'architecture');
+      mkdirSync(archDir, { recursive: true });
+      writeFileSync(join(archDir, '1400-arch.decoy.md'), '---\narch: decoy\n---\n');
+
+      const result = await detectDocuments(root, 140);
+      expect(result.architecture).toBeNull();
+    });
   });
 
   it('returns review: null for existing two-arg callers (unaffected by reviewType)', async () => {

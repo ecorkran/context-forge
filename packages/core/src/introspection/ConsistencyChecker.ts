@@ -98,6 +98,11 @@ export class ConsistencyChecker {
         const planResult = await this.introspector.parseSlicePlan(planPath);
         parsedPlans.set(planPath, planResult);
         for (const entry of planResult.entries) {
+          // Fallback (unindexed-format) indices are per-file sequential counters,
+          // not real project-wide slice indices — they must never enter the
+          // cross-plan index space, or they collide with real indices from other
+          // plans (see slice 913 TD-1).
+          if (entry.indexSource === 'fallback') continue;
           if (!uniqueEntries.has(entry.index)) {
             uniqueEntries.set(entry.index, { entry, planPath, planResult });
           }
@@ -637,7 +642,10 @@ export class ConsistencyChecker {
     const boundaries: { boundary: Boundary; guard: boolean }[] = [
       { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
       { boundary: 'preImplementation', guard: !!docs?.taskFile && docs.taskFile.length > 0 },
-      { boundary: 'preAdvance', guard: !!planEntry?.isChecked },
+      {
+        boundary: 'preAdvance',
+        guard: !!planEntry?.isChecked && docs?.sliceDesign !== null && docs?.sliceDesign !== undefined,
+      },
     ];
 
     for (const { boundary, guard } of boundaries) {

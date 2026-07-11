@@ -1,4 +1,5 @@
 import { readdirSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PROJECT_FIELDS } from './projectSchema.js';
 import { normalizeArtifactValue } from './normalizeArtifactValue.js';
@@ -105,4 +106,37 @@ export function resolveArtifactPath(field: string, stem: string): string | null 
   if (!mapping) return null;
   const normalized = normalizeArtifactValue(stem);
   return join(mapping.dir, `${normalized}.md`);
+}
+
+/**
+ * Resolve a bare architecture index to the full path of its slice plan file,
+ * independent of the project's currently-configured plan. Scans
+ * project-documents/user/architecture/ for a file matching
+ * `{archIndex}-slices.*.md` — the same pattern ConsistencyChecker's
+ * discoverAllSlicePlans() uses, narrowed to one index. Tolerates leading
+ * zeros on the index (e.g. archIndex 70 matches `070-slices.*.md`), matching
+ * documentDetector.ts's matchFiles() convention.
+ *
+ * @returns The matching file's full path, or null if none exists.
+ */
+export async function resolveSlicePlanPathByIndex(
+  projectPath: string,
+  archIndex: number,
+): Promise<string | null> {
+  const archDir = join(projectPath, 'project-documents/user/architecture');
+  let files: string[];
+  try {
+    files = await readdir(archDir);
+  } catch {
+    return null;
+  }
+
+  const pattern = new RegExp(`^0*${archIndex}-slices\\..*\\.md$`, 'i');
+  const matches = files.filter((f) => pattern.test(f)).sort();
+
+  if (matches.length === 0) return null;
+
+  // Deterministic tie-break for a malformed project with multiple candidates:
+  // first alphabetically after sort(), same convention as discoverAllSlicePlans().
+  return join(archDir, matches[0]);
 }

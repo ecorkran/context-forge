@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolveFileByIndex } from '../../src/schema/resolveFileByIndex.js';
+import { resolveFileByIndex, resolveSlicePlanPathByIndex } from '../../src/schema/resolveFileByIndex.js';
 
 vi.mock('node:fs', () => ({
   readdirSync: vi.fn(),
 }));
 
+vi.mock('node:fs/promises', () => ({
+  readdir: vi.fn(),
+}));
+
 import { readdirSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 const mockReaddir = vi.mocked(readdirSync);
+const mockReaddirAsync = vi.mocked(readdir);
 
 describe('resolveFileByIndex', () => {
   beforeEach(() => {
@@ -75,5 +81,65 @@ describe('resolveFileByIndex', () => {
       '171-slice.project-schema.bak',
     ] as unknown as ReturnType<typeof readdirSync>);
     expect(resolveFileByIndex('/project', 'fileSlice', '171')).toBe('171-slice.project-schema');
+  });
+});
+
+describe('resolveSlicePlanPathByIndex', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns the full path when a matching plan file is found', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '140-slices.context-forge-restructure.md',
+      '900-slices.maintenance-and-refactoring.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 140);
+    expect(result).toBe('/project/project-documents/user/architecture/140-slices.context-forge-restructure.md');
+  });
+
+  it('returns null when no matching plan file exists', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '900-slices.maintenance-and-refactoring.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 999);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the architecture directory does not exist', async () => {
+    mockReaddirAsync.mockRejectedValue(new Error('ENOENT'));
+
+    const result = await resolveSlicePlanPathByIndex('/project', 140);
+    expect(result).toBeNull();
+  });
+
+  it('deterministically picks the first alphabetical match when multiple candidates exist for the same index', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '140-slices.zeta-plan.md',
+      '140-slices.alpha-plan.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 140);
+    expect(result).toBe('/project/project-documents/user/architecture/140-slices.alpha-plan.md');
+  });
+
+  it('does not match a different index that shares a prefix', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '1400-slices.other-plan.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 140);
+    expect(result).toBeNull();
+  });
+
+  it('matches a zero-padded filename when queried by its numeric index (slice 913 review F001)', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '070-slices.zero-padded-plan.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 70);
+    expect(result).toBe('/project/project-documents/user/architecture/070-slices.zero-padded-plan.md');
   });
 });

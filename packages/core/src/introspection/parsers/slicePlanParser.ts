@@ -61,6 +61,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           status: isChecked ? STATUS.Complete : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
+          indexSource: 'explicit',
           ...(description && { description }),
         });
         continue;
@@ -78,6 +79,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           status: isChecked ? STATUS.Complete : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
+          indexSource: 'fallback',
           ...(description && { description }),
         });
       }
