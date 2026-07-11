@@ -5,7 +5,7 @@ project: context-forge
 archIndex: 900
 slice: cli-usability-improvements
 component: cli
-status: in_progress
+status: complete
 dateCreated: 20260404
 dateUpdated: 20260404
 ---
