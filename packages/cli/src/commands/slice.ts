@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector, resolveArtifactPath, resolveSlicePlanPathByIndex } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@context-forge/core';
@@ -12,7 +12,7 @@ import { label, success, dim } from '../output/styles.js';
 import { renderEntryStatus, type DisplayStatus } from '../output/entryStatusDisplay.js';
 
 /** Shared action handler for listing slices from the active slice plan. */
-export async function sliceListAction(opts: { json?: boolean; project?: string }): Promise<void> {
+export async function sliceListAction(opts: { json?: boolean; project?: string; archIndex?: string }): Promise<void> {
   const store = new FileProjectStore();
   const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
   const rawProject = await store.getById(id);
@@ -26,12 +26,6 @@ export async function sliceListAction(opts: { json?: boolean; project?: string }
     throw new UserError(`Project not found: '${id}'.`);
   }
 
-  if (!project.fileSlicePlan) {
-    throw new UserError(
-      'No slice plan configured. Set one with: cf set slicePlan <path>',
-    );
-  }
-
   if (!project.projectPath) {
     throw new UserError(
       'No projectPath configured. Set one with: cf set projectPath /path/to/project',
@@ -39,26 +33,54 @@ export async function sliceListAction(opts: { json?: boolean; project?: string }
   }
 
   const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
-  const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-
-  const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
-  if (!planRelPath) {
-    throw new UserError('Could not resolve slice plan path.');
-  }
-  const planPath = join(operationPath, planRelPath);
   const introspector = new ArtifactIntrospector();
-  const planResult = await introspector.parseSlicePlan(planPath);
+
+  let planPath: string;
+  let filteredEntries: Awaited<ReturnType<typeof introspector.parseSlicePlan>>['entries'];
+  let planResult: Awaited<ReturnType<typeof introspector.parseSlicePlan>>;
+
+  if (opts.archIndex !== undefined) {
+    // An explicit index request is an intentional cross-initiative look — it
+    // always shows the full target plan and never touches project state.
+    const archIndex = Number(opts.archIndex);
+    if (!Number.isInteger(archIndex) || archIndex < 0) {
+      throw new UserError(`Invalid archIndex '${opts.archIndex}' — must be a non-negative integer.`);
+    }
+    const resolvedPath = await resolveSlicePlanPathByIndex(operationPath, archIndex);
+    if (!resolvedPath) {
+      throw new UserError(
+        `No slice plan found for index '${archIndex}' (searched project-documents/user/architecture/).`,
+      );
+    }
+    planPath = resolvedPath;
+    planResult = await introspector.parseSlicePlan(planPath);
+    filteredEntries = planResult.entries;
+  } else {
+    if (!project.fileSlicePlan) {
+      throw new UserError(
+        'No slice plan configured. Set one with: cf set slicePlan <path>',
+      );
+    }
+
+    const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
+    const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+    if (!planRelPath) {
+      throw new UserError('Could not resolve slice plan path.');
+    }
+    planPath = join(operationPath, planRelPath);
+    planResult = await introspector.parseSlicePlan(planPath);
+
+    // Filter entries by worktree index range — but skip filtering when the plan itself
+    // is outside the range (user explicitly switched to a different initiative)
+    const planBaseIndex = /^(\d+)-/.exec(project.fileSlicePlan ?? '')?.[1];
+    const planOutsideRange = planBaseIndex && indexRange && !isInIndexRange(parseInt(planBaseIndex, 10), indexRange);
+    filteredEntries = planOutsideRange
+      ? planResult.entries
+      : planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
+  }
 
   // Determine active slice index
   const activeIndex = extractSliceIndex(project.fileSlice);
-
-  // Filter entries by worktree index range — but skip filtering when the plan itself
-  // is outside the range (user explicitly switched to a different initiative)
-  const planBaseIndex = /^(\d+)-/.exec(project.fileSlicePlan ?? '')?.[1];
-  const planOutsideRange = planBaseIndex && indexRange && !isInIndexRange(parseInt(planBaseIndex, 10), indexRange);
-  const filteredEntries = planOutsideRange
-    ? planResult.entries
-    : planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
 
   // Check for design files, task files, and derived status per entry.
   // TD-2a: a signal that exists but fails to resolve (task file present but
@@ -123,8 +145,9 @@ export async function sliceListAction(opts: { json?: boolean; project?: string }
     }
   }
 
+  const planName = (planPath.split('/').pop() ?? planPath).replace(/\.md$/, '');
+
   if (opts.json) {
-    const planName = project.fileSlicePlan.split('/').pop() ?? project.fileSlicePlan;
     printJson({
       slicePlan: planName,
       total: planResult.totalSlices,
@@ -143,7 +166,6 @@ export async function sliceListAction(opts: { json?: boolean; project?: string }
   }
 
   // Render table
-  const planName = project.fileSlicePlan.split('/').pop() ?? project.fileSlicePlan;
   console.log(label(`\nSlice Plan: ${planName}`));
 
   const rows = entries.map((e) => {

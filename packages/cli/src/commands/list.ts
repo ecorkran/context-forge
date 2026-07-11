@@ -58,24 +58,28 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const slicesCmd = cmd.command('slices').description('List slices from active plan');
+  const slicesCmd = cmd.command('slices')
+    .description('List slices from active plan')
+    .argument('[archIndex]', 'Architecture index to target a non-active slice plan (no state mutation)');
   withJsonOption(slicesCmd);
   withProjectOption(slicesCmd);
-  slicesCmd.action(async (opts: { json?: boolean; project?: string }) => {
+  slicesCmd.action(async (archIndex: string | undefined, opts: { json?: boolean; project?: string }) => {
     try {
-      await sliceListAction(opts);
+      await sliceListAction({ ...opts, archIndex });
     } catch (err) {
       handleError(err);
     }
   });
 
-  const tasksCmd = cmd.command('tasks').description('List task files from plan');
+  const tasksCmd = cmd.command('tasks')
+    .description('List task files from plan')
+    .argument('[archIndex]', 'Architecture index to target a non-active slice plan (no state mutation)');
   withJsonOption(tasksCmd);
   withAllOption(tasksCmd);
   withProjectOption(tasksCmd);
-  tasksCmd.action(async (opts: { json?: boolean; all?: boolean; project?: string }) => {
+  tasksCmd.action(async (archIndex: string | undefined, opts: { json?: boolean; all?: boolean; project?: string }) => {
     try {
-      await taskListAction(opts);
+      await taskListAction({ ...opts, archIndex });
     } catch (err) {
       handleError(err);
     }

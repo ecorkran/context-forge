@@ -131,7 +131,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
   - Success: single-plan unindexed display behavior is provably unchanged by this slice.
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 1.6: `fix: exclude unindexed-fallback plan entries from cross-plan review-gate aggregation`.
+- [x] **Commit checkpoint** — after 1.6: `fix: exclude unindexed-fallback plan entries from cross-plan review-gate aggregation`.
   TD-1 is self-contained (type field + parser tagging + merge-loop filter + regression fixture).
 
 ---
@@ -160,7 +160,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
 
 ## TD-3 — `[archIndex]` positional argument for `cf list slices` / `cf list tasks`
 
-- [ ] **Task 3.1 — Add `resolveSlicePlanPathByIndex()` core helper**
+- [x] **Task 3.1 — Add `resolveSlicePlanPathByIndex()` core helper**
   - In `packages/core/src/schema/resolveFileByIndex.ts` (co-located with
     `resolveArtifactPath`), add `resolveSlicePlanPathByIndex(projectPath: string, archIndex: number): Promise<string | null>`.
   - Reads `project-documents/user/architecture/`, finds the file matching
@@ -173,14 +173,14 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     for a normal project.
   - Effort: 2/5
 
-- [ ] **Task 3.2 — Test `resolveSlicePlanPathByIndex()`**
+- [x] **Task 3.2 — Test `resolveSlicePlanPathByIndex()`**
   - Unit tests (scratch fixture): matching file found → correct path; no matching file →
     `null`; two candidate files for the same index → deterministic single result matching
     the documented tie-break.
   - Success: all three cases pass.
   - Effort: 2/5
 
-- [ ] **Task 3.3 — Add `[archIndex]` positional argument to `cf list slices` / `cf list tasks`**
+- [x] **Task 3.3 — Add `[archIndex]` positional argument to `cf list slices` / `cf list tasks`**
   - In `packages/cli/src/commands/list.ts`, add an optional positional `[archIndex]` to
     both the `slices` and `tasks` subcommands (commander `.argument('[archIndex]', ...)`),
     threading it into `sliceListAction`/`taskListAction`'s options object.
@@ -191,7 +191,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     and Task 3.6's responsibility, exercised end-to-end by Tasks 3.5/3.7.
   - Effort: 1/5
 
-- [ ] **Task 3.4 — Wire `archIndex` into `sliceListAction`**
+- [x] **Task 3.4 — Wire `archIndex` into `sliceListAction`**
   - In `packages/cli/src/commands/slice.ts`, when `archIndex` is provided: resolve the plan
     path via `resolveSlicePlanPathByIndex()` instead of
     `resolveArtifactPath('fileSlicePlan', project.fileSlicePlan)`, and skip worktree
@@ -204,7 +204,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     is unchanged before/after; missing index produces the named error.
   - Effort: 2/5
 
-- [ ] **Task 3.5 — Test `sliceListAction` with `archIndex`**
+- [x] **Task 3.5 — Test `sliceListAction` with `archIndex`**
   - CLI-level tests: valid `archIndex` returns the target plan's entries without reading
     `project.fileSlicePlan`; missing/unmatched `archIndex` throws the named `UserError`;
     a project-state snapshot taken before and after an indexed call is byte-identical
@@ -212,7 +212,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
   - Success: all cases pass, including the byte-identical state-snapshot assertion.
   - Effort: 2/5
 
-- [ ] **Task 3.6 — Wire `archIndex` into `taskListAction`/`listTaskFiles`**
+- [x] **Task 3.6 — Wire `archIndex` into `taskListAction`/`listTaskFiles`**
   - In `packages/cli/src/commands/task.ts`, when `archIndex` is provided: resolve the plan
     via `resolveSlicePlanPathByIndex()` and read task files from the single project path
     only (no worktree/`--all` aggregation).
@@ -225,7 +225,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     `<archIndex> --all` together is rejected; project state unchanged before/after.
   - Effort: 2/5
 
-- [ ] **Task 3.7 — Test `taskListAction`/`listTaskFiles` with `archIndex`**
+- [x] **Task 3.7 — Test `taskListAction`/`listTaskFiles` with `archIndex`**
   - CLI-level tests mirroring Task 3.5: valid `archIndex` returns target-plan task
     summaries without touching `project.fileSlicePlan`; missing `archIndex` throws the
     named `UserError`; `archIndex` + `--all` throws the mutual-exclusion `UserError`;
