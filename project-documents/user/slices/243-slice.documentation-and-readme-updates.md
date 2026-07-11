@@ -8,7 +8,7 @@ interfaces: []
 dateCreated: 20260709
 dateUpdated: 20260709
 status: complete
-codeReview: none
+review: none
 ---
 
 # Slice Design: Documentation and README Updates

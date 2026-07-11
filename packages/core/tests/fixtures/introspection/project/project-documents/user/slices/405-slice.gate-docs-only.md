@@ -1,7 +1,7 @@
 ---
 slice: gate-docs-only
 status: complete
-codeReview: none
+review: none
 ---
 
 # Slice 405: Gate Docs Only

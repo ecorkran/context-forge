@@ -8,7 +8,7 @@ interfaces: []
 dateCreated: 20260628
 dateUpdated: 20260710
 status: complete
-codeReview: none
+review: none
 ---
 
 # Slice Design: Configurable Branch Root Prefix

@@ -206,11 +206,12 @@ export async function evaluateReviewGate(
     }
   }
 
-  // Docs-only declaration (#57): a slice-design frontmatter of codeReview: none
-  // clears the pre-advance ('code') gate unconditionally — this slice cannot
-  // produce a code review. Absent (the default) leaves the gate unaffected.
-  // Scoped to preAdvance only; every other boundary evaluates normally.
-  if (boundary === 'preAdvance' && gatedArtifactFrontmatter?.data.codeReview === 'none') {
+  // Review-exempt declaration (#57): a slice-design frontmatter of review: none
+  // clears every slice-scoped gate unconditionally — this slice cannot produce
+  // slice/tasks/code reviews (docs, analysis, minimal-doc, etc). Absent (the
+  // default) leaves gates unaffected. Does not apply to preSlicePlan, which
+  // gates the architecture index, a different document from this slice-design.
+  if (boundary !== 'preSlicePlan' && gatedArtifactFrontmatter?.data.review === 'none') {
     return null;
   }
 
