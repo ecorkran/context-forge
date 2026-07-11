@@ -12,6 +12,7 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { UserError } from '../utils/errors.js';
+import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
 
@@ -45,10 +46,7 @@ export async function taskListAction(opts: { json?: boolean; all?: boolean; proj
   if (opts.archIndex !== undefined) {
     // An explicit index request targets one specific plan directly, never
     // touching project state — no worktree/--all aggregation.
-    const archIndex = Number(opts.archIndex);
-    if (!Number.isInteger(archIndex) || archIndex < 0) {
-      throw new UserError(`Invalid archIndex '${opts.archIndex}' — must be a non-negative integer.`);
-    }
+    const archIndex = parseArchIndex(opts.archIndex);
     const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
     const resolvedPath = await resolveSlicePlanPathByIndex(operationPath, archIndex);
     if (!resolvedPath) {

@@ -133,4 +133,13 @@ describe('resolveSlicePlanPathByIndex', () => {
     const result = await resolveSlicePlanPathByIndex('/project', 140);
     expect(result).toBeNull();
   });
+
+  it('matches a zero-padded filename when queried by its numeric index (slice 913 review F001)', async () => {
+    mockReaddirAsync.mockResolvedValue([
+      '070-slices.zero-padded-plan.md',
+    ] as unknown as Awaited<ReturnType<typeof readdir>>);
+
+    const result = await resolveSlicePlanPathByIndex('/project', 70);
+    expect(result).toBe('/project/project-documents/user/architecture/070-slices.zero-padded-plan.md');
+  });
 });

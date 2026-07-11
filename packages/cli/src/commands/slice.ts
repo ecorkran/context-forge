@@ -6,6 +6,7 @@ import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@con
 import type { NormalizedStatus } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { UserError } from '../utils/errors.js';
+import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { label, success, dim } from '../output/styles.js';
@@ -42,10 +43,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
   if (opts.archIndex !== undefined) {
     // An explicit index request is an intentional cross-initiative look — it
     // always shows the full target plan and never touches project state.
-    const archIndex = Number(opts.archIndex);
-    if (!Number.isInteger(archIndex) || archIndex < 0) {
-      throw new UserError(`Invalid archIndex '${opts.archIndex}' — must be a non-negative integer.`);
-    }
+    const archIndex = parseArchIndex(opts.archIndex);
     const resolvedPath = await resolveSlicePlanPathByIndex(operationPath, archIndex);
     if (!resolvedPath) {
       throw new UserError(
