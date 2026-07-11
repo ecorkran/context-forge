@@ -141,7 +141,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
 
 ## TD-2 — Verify 909's retroactive slice-design is usable
 
-- [ ] **Task 2.1 — Confirm 909's slice-design file and CLI targeting**
+- [x] **Task 2.1 — Confirm 909's slice-design file and CLI targeting**
   - Confirm `project-documents/user/slices/909-slice.configurable-branch-root-prefix.md`
     exists (already authored at design time), has `docType: slice-design`,
     `status: complete`, and cites commit `713d0c0`.
@@ -156,7 +156,7 @@ Test suites run via `pnpm --filter @context-forge/core test <file>` and
     tooling.
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — none required; TD-2 makes no code changes. Fold its verification
+- [x] **Commit checkpoint** — none required; TD-2 makes no code changes. Fold its verification
   note into the final verification-walkthrough commit (Task 4.2).
 
 ---

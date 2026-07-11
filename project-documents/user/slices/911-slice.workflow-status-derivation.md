@@ -8,6 +8,7 @@ interfaces: []
 dateCreated: 20260705
 dateUpdated: 20260706
 status: complete
+codeReview: none
 ---
 
 # Slice Design: Fix Slice-Status Derivation for Partial-Completion Slices
