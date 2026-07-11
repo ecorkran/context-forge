@@ -116,10 +116,11 @@ interface CheckOpts {
 }
 
 /**
- * Declare a slice docs-only (#57): writes codeReview: none to its slice-design
- * frontmatter, so evaluateReviewGate() skips the pre-advance code-review gate
- * for it. A direct, single-purpose mutation — not part of the check/fix
- * pipeline, since it doesn't depend on any finding having been detected first.
+ * Declare a slice review-exempt (#57): writes review: none to its slice-design
+ * frontmatter, so evaluateReviewGate() skips the slice/tasks/code review gates
+ * for it (not the architecture gate, which is a different document). A direct,
+ * single-purpose mutation — not part of the check/fix pipeline, since it
+ * doesn't depend on any finding having been detected first.
  */
 async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<void> {
   const index = parseInt(indexArg, 10);
@@ -140,18 +141,18 @@ async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<v
   const docs = await detectDocuments(project.projectPath, index);
   if (!docs.sliceDesign) {
     throw new UserError(
-      `No slice-design file found for slice ${index}. codeReview: none is set on the slice design, not the task file.`,
+      `No slice-design file found for slice ${index}. review: none is set on the slice design, not the task file.`,
     );
   }
 
   const filePath = join(project.projectPath, docs.sliceDesign);
-  const entry = await updateFrontmatterField(filePath, 'codeReview', 'none');
+  const entry = await updateFrontmatterField(filePath, 'review', 'none');
 
   if (opts.json) {
-    printJson({ slice: index, filePath: docs.sliceDesign, field: 'codeReview', before: entry.before, after: entry.after });
+    printJson({ slice: index, filePath: docs.sliceDesign, field: 'review', before: entry.before, after: entry.after });
     return;
   }
-  console.log(label(`Set codeReview: none on slice ${index}`));
+  console.log(label(`Set review: none on slice ${index}`));
   console.log(dim(`  ${docs.sliceDesign}`));
 }
 
@@ -163,7 +164,7 @@ export function registerCheckCommand(program: Command): void {
   withProjectOption(checkCmd);
   withFixOption(checkCmd);
   checkCmd.option('--slice <index>', 'Check only a specific slice by index');
-  checkCmd.option('--set-review-none <index>', 'Declare a slice docs-only (writes codeReview: none to its slice design)');
+  checkCmd.option('--set-review-none <index>', 'Declare a slice review-exempt (writes review: none to its slice design)');
   withYesOption(checkCmd);
   checkCmd.action(async (opts: CheckOpts) => {
       try {

@@ -338,7 +338,7 @@ describe('validateFrontmatter — field inference', () => {
   });
 });
 
-describe('validateFrontmatter — codeReview field (#57, slice 911)', () => {
+describe('validateFrontmatter — review field (#57, slice 911; renamed from codeReview, slice 914)', () => {
   const baseSliceDesign = {
     docType: 'slice-design',
     slice: 'docs-only-example',
@@ -348,21 +348,21 @@ describe('validateFrontmatter — codeReview field (#57, slice 911)', () => {
     dateUpdated: '20260301',
   };
 
-  it('codeReview absent produces no finding (default: code review required)', () => {
+  it('review absent produces no finding (default: reviews required)', () => {
     const findings = validateFrontmatter('/test.md', baseSliceDesign);
     expect(findings).toHaveLength(0);
   });
 
-  it('codeReview: none produces no finding', () => {
-    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, codeReview: 'none' });
+  it('review: none produces no finding', () => {
+    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, review: 'none' });
     expect(findings).toHaveLength(0);
   });
 
-  it('an unrecognized codeReview value produces an invalid-value finding', () => {
-    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, codeReview: 'skip' });
+  it('an unrecognized review value produces an invalid-value finding', () => {
+    const findings = validateFrontmatter('/test.md', { ...baseSliceDesign, review: 'skip' });
     expect(findings).toHaveLength(1);
     expect(findings[0].description).toContain("'skip'");
-    expect(findings[0].description).toContain('codeReview');
+    expect(findings[0].description).toContain('review');
     expect(findings[0].description).toContain('Invalid value');
   });
 });

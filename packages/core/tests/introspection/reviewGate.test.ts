@@ -182,28 +182,25 @@ describe('evaluateReviewGate', () => {
     expect(config.get).not.toHaveBeenCalled();
   });
 
-  describe('docs-only declaration (#57, slice 911)', () => {
-    it('codeReview: none at preAdvance clears the gate even with no review artifact present', async () => {
-      // Fixture 405: complete tasks, codeReview: none, no review artifact at all.
+  describe('review-exempt declaration (#57, slice 911; widened to all slice-scoped boundaries, slice 914)', () => {
+    it('review: none at preAdvance clears the gate even with no review artifact present', async () => {
+      // Fixture 405: complete tasks, review: none, no review artifact at all.
       const config = makeStubConfig(BASE_VALUES);
       const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preAdvance', config);
       expect(result).toBeNull();
     });
 
-    it('codeReview: none does not affect other boundaries — preTasks still evaluates normally', async () => {
-      // Fixture 405 has no task file detection concern here; reuse 400 (gate-code-fail,
-      // no codeReview declaration) to confirm preTasks isn't accidentally short-circuited
-      // by the same code path, then confirm 405 itself still gates preTasks normally
-      // (it has a task file, so preTasts would look for a 'slice' review — absent — pending).
+    it('review: none also clears preTasks and preImplementation — a review-exempt slice needs no reviews at all', async () => {
+      // Fixture 405: review: none applies to every slice-scoped boundary, not just preAdvance.
       const config = makeStubConfig(BASE_VALUES);
-      const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preTasks', config);
-      expect(result).not.toBeNull();
-      expect(result?.status).toBe('pending-review');
-      expect(result?.reviewType).toBe('slice');
+      const preTasks = await evaluateReviewGate(PROJECT_ROOT, 405, 'preTasks', config);
+      expect(preTasks).toBeNull();
+      const preImplementation = await evaluateReviewGate(PROJECT_ROOT, 405, 'preImplementation', config);
+      expect(preImplementation).toBeNull();
     });
 
-    it('regression: a slice WITHOUT the codeReview declaration, missing a code review, still returns pending-review at preAdvance', async () => {
-      // Fixture 300: all-done, complete, no codeReview field, no review artifact.
+    it('regression: a slice WITHOUT the review declaration, missing a code review, still returns pending-review at preAdvance', async () => {
+      // Fixture 300: all-done, complete, no review field, no review artifact.
       const config = makeStubConfig(BASE_VALUES);
       const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
       expect(result).not.toBeNull();
@@ -257,6 +254,20 @@ describe('evaluateReviewGate', () => {
       const root = mkdtempSync(join(tmpdir(), 'cf-gate-cutoff-arch-'));
       writeArchDoc(root, 900, 'new-arch', '20260701');
       const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
+      const result = await evaluateReviewGate(root, 900, 'preSlicePlan', config);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('pending-review');
+    });
+
+    it('preSlicePlan: review: none on the slice-design does not clear it — that boundary reads docs.architecture, not docs.sliceDesign', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-review-exempt-arch-'));
+      writeArchDoc(root, 900, 'new-arch', '20260701');
+      mkdirSync(join(root, 'project-documents', 'user', 'slices'), { recursive: true });
+      writeFileSync(
+        join(root, 'project-documents', 'user', 'slices', '900-slice.exempt.md'),
+        '---\nslice: exempt\nstatus: complete\nreview: none\n---\n\n# Slice 900\n',
+      );
+      const config = makeStubConfig(BASE_VALUES);
       const result = await evaluateReviewGate(root, 900, 'preSlicePlan', config);
       expect(result).not.toBeNull();
       expect(result?.status).toBe('pending-review');

@@ -82,10 +82,12 @@ export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
       status: { required: true, values: [...VALID_STATUSES] },
       dateCreated: { required: true },
       dateUpdated: { required: true },
-      // Docs-only declaration (#57): absent (default) means code review is
-      // required before advancing; 'none' lets evaluateReviewGate() skip that
-      // gate for a slice that cannot produce a code review (docs, analysis, etc).
-      codeReview: { required: false, values: ['none'] },
+      // Review-exempt declaration (#57): absent (default) means the slice/tasks/code
+      // review gates apply normally; 'none' lets evaluateReviewGate() skip all three
+      // for a slice that cannot produce them (docs, analysis, minimal-doc, etc).
+      // Does not affect the architecture (preSlicePlan) gate — that gates a
+      // different document (the architecture index), not this slice-design.
+      review: { required: false, values: ['none'] },
     },
   },
   tasks: {

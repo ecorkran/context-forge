@@ -242,7 +242,7 @@ describe('cf check --set-review-none', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
-  it('writes codeReview: none to the detected slice-design file', async () => {
+  it('writes review: none to the detected slice-design file', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockDetectDocuments.mockResolvedValue({
       sliceDesign: 'project-documents/user/slices/100-slice.auth.md',
@@ -255,7 +255,7 @@ describe('cf check --set-review-none', () => {
       rule: '',
       action: 'update-frontmatter',
       filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
-      field: 'codeReview',
+      field: 'review',
       before: '',
       after: 'none',
     });
@@ -266,7 +266,7 @@ describe('cf check --set-review-none', () => {
     expect(mockDetectDocuments).toHaveBeenCalledWith('/tmp/test', 100);
     expect(mockUpdateFrontmatterField).toHaveBeenCalledWith(
       expect.stringContaining('100-slice.auth.md'),
-      'codeReview',
+      'review',
       'none',
     );
     // Must never touch the checker/fix pipeline — this is a direct mutation.
@@ -274,7 +274,7 @@ describe('cf check --set-review-none', () => {
     expect(mockCheckAll).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('codeReview: none');
+    expect(output).toContain('review: none');
     expect(output).toContain('slice 100');
   });
 
@@ -318,7 +318,7 @@ describe('cf check --set-review-none', () => {
       rule: '',
       action: 'update-frontmatter',
       filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
-      field: 'codeReview',
+      field: 'review',
       before: '',
       after: 'none',
     });
@@ -331,7 +331,7 @@ describe('cf check --set-review-none', () => {
     const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw);
     expect(parsed.slice).toBe(100);
-    expect(parsed.field).toBe('codeReview');
+    expect(parsed.field).toBe('review');
     expect(parsed.after).toBe('none');
   });
 });
