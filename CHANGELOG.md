@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 20260712
+
+### Fixed
+- `cf status`/`cf next` no longer abort when a slice-design has an unrecognized frontmatter `status` value — that slice is now reported with a distinct, clearly-labeled warning instead of erroring out the whole command. `cf list slices` already handled this correctly; `cf status`/`cf next` now match.
+
 ## [0.9.1] - 20260711
 
 ### Changed
