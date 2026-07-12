@@ -131,6 +131,25 @@ describe('cf status', () => {
     const parsed = JSON.parse(raw);
     expect(parsed.resolutionSource).toBe('flag');
   });
+
+  it('#62: renders TD-2a resolution-failure warnings distinctly and still prints the rest of the status', async () => {
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGetStatus.mockResolvedValue({
+      ...sampleStatus,
+      warnings: ['Slice 127: slice-design frontmatter status "design" is not a recognized status'],
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    // The command must not throw and must still print the normal status fields.
+    expect(output).toContain('test-project');
+    expect(output).toContain('3/5 tasks');
+    // Warnings are visually distinct (⚠-prefixed) from the status fields above them.
+    expect(output).toContain('Warnings:');
+    expect(output).toContain('⚠ Slice 127');
+  });
 });
 
 describe('cf status first-run suggestion', () => {

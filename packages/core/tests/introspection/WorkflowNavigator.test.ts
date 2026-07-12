@@ -1038,6 +1038,38 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     expect(next.suggestedCommand).toBe('cf set slice 250');
   });
 
+  it('#62: an unrecognized slice-design status degrades that entry instead of throwing, for both getStatus and getNext', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-62-'));
+    writeSliceDesign(root, 125, 'done', 'complete');
+    writeSliceDesign(root, 127, 'bad-status', 'design'); // "design" is not a recognized status
+    writeSlicePlan(
+      root,
+      '1. [x] **(125) Done** — complete.\n' +
+        '2. [ ] **(127) Bad Status** — has an unrecognized frontmatter status.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    // getStatus must not throw — the whole command must keep running (cf status).
+    const status = await nav.getStatus(project);
+    const entry127 = status.slicePlan!.entries.find((e) => e.index === 127);
+    expect(entry127!.status).toBe('degraded');
+    expect(status.warnings).toBeDefined();
+    expect(status.warnings!.some((w) => w.includes('Slice 127') && w.includes('not a recognized status'))).toBe(true);
+
+    // getNext must also not throw, and must surface the same warning rather than
+    // silently skipping the degraded entry (cf next).
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 127');
+    expect(next.warnings).toBeDefined();
+    expect(next.warnings!.some((w) => w.includes('Slice 127') && w.includes('not a recognized status'))).toBe(true);
+  });
+
   it('wording: active in-progress slice recommends "Continue", not "Advance to"', async () => {
     // The active slice itself (900) is in-implementation with partial progress —
     // exercises the pre-existing in-implementation branch, confirming its wording
@@ -1097,16 +1129,22 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     expect(next.recommendation).not.toContain('Advance to slice 901');
   });
 
-  it('TD-2a propagation: a plan entry with an unreadable task file surfaces an error, not a silent fallthrough to checkbox', async () => {
+  it('#62: a plan entry with an unreadable task file degrades that entry (warning) rather than aborting getNext', async () => {
     // Active slice (900) is complete, so getNext reaches the complete-advance
     // branch and must resolve entry 901's status via findFirstNotCompleteEntry.
+    // Originally (slice 911) this propagated as a thrown error; #62 established
+    // that a single bad entry must not abort the whole command — it now degrades
+    // that entry and surfaces the failure as a warning instead (see
+    // resolveEntryStatusSafe). The underlying failure is still surfaced, not
+    // silently discarded — just no longer fatal to the whole command.
     const root = mkdtempSync(join(tmpdir(), 'cf-nav-911-td2a-'));
     writeSliceDesign(root, 900, 'active', 'in-progress');
     writeTaskFile(root, 900, 'active', ['x', 'x']);
     writeSliceDesign(root, 901, 'broken', 'in-progress');
     // Entry 901's task file path is a directory, not a file — parseTaskItems'
     // readFile call throws EISDIR, which now propagates (only ENOENT is treated
-    // as "no file"). This must surface, not silently fall through to the checkbox.
+    // as "no file"). This must surface as a warning, not a silent fallthrough
+    // to the checkbox and not an aborted command.
     mkdirSync(join(root, 'project-documents', 'user', 'tasks'), { recursive: true });
     mkdirSync(join(root, 'project-documents', 'user', 'tasks', '901-tasks.broken.md'));
     writeSlicePlan(
@@ -1117,7 +1155,10 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     const nav = new WorkflowNavigator();
     const project = makeScratchProject(root);
 
-    await expect(nav.getNext(project)).rejects.toThrow();
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 901');
+    expect(next.warnings).toBeDefined();
+    expect(next.warnings!.some((w) => w.includes('EISDIR'))).toBe(true);
   });
 
   it('TD-2a propagation: the ACTIVE slice itself with an unreadable task file surfaces an error via getStatus/deriveSliceStatus', async () => {

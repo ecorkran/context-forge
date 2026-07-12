@@ -8,6 +8,14 @@ export const STATUS = {
 
 export type NormalizedStatus = (typeof STATUS)[keyof typeof STATUS];
 
+/**
+ * A derived status, or the TD-2a degraded case for a signal that exists but
+ * failed to resolve (e.g. an unrecognized frontmatter status value). Used
+ * wherever a per-entry resolution failure must not abort the whole caller —
+ * the entry is rendered/reported as degraded instead of throwing.
+ */
+export type DisplayStatus = NormalizedStatus | 'degraded';
+
 /** Result of parsing a single slice plan entry */
 export interface SlicePlanEntry {
   index: number;
@@ -289,6 +297,11 @@ export interface SliceStatus {
   };
 }
 
+/** A slice-plan entry with its status resolved through the derivation lattice (TD-3). */
+export interface ResolvedSlicePlanEntry extends Omit<SlicePlanEntry, 'status'> {
+  status: DisplayStatus;
+}
+
 /** Full workflow status for a project */
 export interface WorkflowStatus {
   project: string;
@@ -298,9 +311,11 @@ export interface WorkflowStatus {
     name: string;
     completed: number;
     total: number;
-    entries: SlicePlanEntry[];
+    entries: ResolvedSlicePlanEntry[];
   } | null;
   summary: string;
+  /** Non-blocking warnings about entries that failed to resolve (TD-2a) — see DisplayStatus. */
+  warnings?: string[];
 }
 
 /** Recommended next action from the workflow navigator */

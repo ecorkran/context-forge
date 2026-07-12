@@ -169,6 +169,18 @@ export function registerStatusCommand(program: Command): void {
           console.log(label('Slice Plan'));
           console.log(dim(`  ${status.slicePlan.completed}/${status.slicePlan.total} slices complete`));
         }
+
+        // TD-2a: per-entry resolution failures (e.g. an unrecognized slice-design
+        // status) are collected as warnings rather than aborting the command (#62).
+        // Prefixed distinctly from the status fields above so a human or an agent
+        // parsing this output can tell "here's your status" from "here's what's wrong".
+        if (status.warnings && status.warnings.length > 0) {
+          console.log('');
+          console.log(warn('Warnings:'));
+          for (const w of status.warnings) {
+            console.log(warn(`  ⚠ ${w}`));
+          }
+        }
       } catch (err) {
         // First-run messaging: suggest cf worktree init if CWD is a git worktree of a known project
         if (err instanceof UserError) {

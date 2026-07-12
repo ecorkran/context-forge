@@ -8,7 +8,9 @@ import type {
   SlicePlanResult,
   TaskFileResult,
   SlicePlanEntry,
+  ResolvedSlicePlanEntry,
   NormalizedStatus,
+  DisplayStatus,
 } from './types.js';
 import { STATUS } from './types.js';
 import { parseSlicePlan } from './parsers/slicePlanParser.js';
@@ -78,8 +80,13 @@ export class WorkflowNavigator {
     // Derive active slice status
     status.activeSlice = await this.deriveSliceStatus(project, projectPath);
 
-    // Parse slice plan if set
-    status.slicePlan = await this.parseSlicePlanSafe(project, projectPath);
+    // Parse slice plan if set. Per-entry resolution failures (TD-2a) are
+    // collected here rather than thrown — #62: cf status must keep running.
+    const warnings: string[] = [];
+    status.slicePlan = await this.parseSlicePlanSafe(project, projectPath, warnings);
+    if (warnings.length > 0) {
+      status.warnings = warnings;
+    }
 
     // Build summary
     status.summary = this.buildSummary(status);
@@ -104,6 +111,10 @@ export class WorkflowNavigator {
 
     const status = await this.getStatus(project);
     const slice = status.activeSlice;
+    // Seeded from getStatus()'s TD-2a resolution-failure warnings so cf next
+    // surfaces the same non-fatal degradations cf status does (#62), rather
+    // than re-deriving (and potentially double-warning) independently.
+    const navWarnings: string[] = status.warnings ? [...status.warnings] : [];
 
     // GUARD: no-active-slice
     if (!slice || slice.status === 'no-active-slice') {
@@ -194,10 +205,8 @@ export class WorkflowNavigator {
         };
       }
       // Slice plan exists but no active slice — suggest first not-yet-complete entry
-      const firstEntry = await this.findFirstNotCompleteEntry(
-        project.projectPath,
-        status.slicePlan.entries,
-      );
+      const firstResult = this.findFirstNotCompleteEntry(status.slicePlan.entries);
+      const firstEntry = firstResult?.entry;
       const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
       const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
       return {
@@ -205,11 +214,12 @@ export class WorkflowNavigator {
         rationale: 'Choose the first unchecked slice from your plan. Then advance your phase: cf set phase 4',
         suggestedCommand: sliceCmd,
         summary: `Pick ${sliceLabel} — then cf set phase 4`,
+        ...(navWarnings.length > 0 ? { warnings: navWarnings } : {}),
       };
     }
 
     // --- Compute warnings and arch-existence for active slice path ---
-    const warnings: string[] = [];
+    const warnings: string[] = [...navWarnings];
 
     // Check if arch file exists on disk (reused below for recommendation override)
     const archRelPath = project.fileArch ? resolveArtifactPath('fileArch', project.fileArch) : null;
@@ -310,12 +320,10 @@ export class WorkflowNavigator {
 
     // LIFECYCLE: complete-advance — slice complete → recommend next slice (not a phase)
     if (slice.status === 'complete' && status.slicePlan) {
-      const nextEntry = await this.findFirstNotCompleteEntry(
-        project.projectPath,
-        status.slicePlan.entries,
-      );
+      const nextResult = this.findFirstNotCompleteEntry(status.slicePlan.entries);
+      const nextEntry = nextResult?.entry;
       if (nextEntry) {
-        const nextDerived = await this.resolveEntryStatus(project.projectPath, nextEntry);
+        const nextDerived = nextResult.status;
         if (nextDerived === STATUS.InProgress) {
           return enrich({
             recommendation: `Continue slice ${nextEntry.index}: ${nextEntry.name}`,
@@ -648,7 +656,7 @@ export class WorkflowNavigator {
    */
   private async resolveEntryStatus(
     projectPath: string,
-    entry: SlicePlanEntry,
+    entry: Pick<SlicePlanEntry, 'index' | 'isChecked'>,
   ): Promise<NormalizedStatus> {
     const docs = await detectDocuments(projectPath, entry.index);
 
@@ -681,19 +689,45 @@ export class WorkflowNavigator {
   }
 
   /**
+   * Resolve an entry's status, degrading rather than throwing on a per-entry
+   * resolution failure (TD-2a). The underlying resolution failure is still
+   * surfaced — as a pushed warning — rather than silently discarded; it just
+   * no longer aborts callers that must keep going across many entries (#62:
+   * one slice with an unrecognized frontmatter status must not take down
+   * `cf status`/`cf next` for the whole project).
+   */
+  private async resolveEntryStatusSafe(
+    projectPath: string,
+    entry: Pick<SlicePlanEntry, 'index' | 'isChecked'>,
+    warnings: string[],
+  ): Promise<DisplayStatus> {
+    try {
+      return await this.resolveEntryStatus(projectPath, entry);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      warnings.push(message);
+      return 'degraded';
+    }
+  }
+
+  /**
    * Find the first plan entry whose derived status is not complete/deprecated.
    * Replaces the old `entries.find((e) => !e.isChecked)` — the direct #56 fix:
    * a slice with all tasks complete but an unchecked plan checkbox is no
-   * longer selected as "next unstarted".
+   * longer selected as "next unstarted". A degraded entry (TD-2a) counts as
+   * not-complete so it surfaces rather than being silently skipped.
+   *
+   * Reads the already-resolved `entry.status` (computed once by getStatus's
+   * parseSlicePlanSafe) rather than re-deriving via a second filesystem pass —
+   * avoids redundant I/O and, for a degraded entry, avoids pushing the same
+   * TD-2a warning into the caller's warnings list twice (#62).
    */
-  private async findFirstNotCompleteEntry(
-    projectPath: string,
-    entries: SlicePlanEntry[],
-  ): Promise<SlicePlanEntry | undefined> {
+  private findFirstNotCompleteEntry(
+    entries: ResolvedSlicePlanEntry[],
+  ): { entry: ResolvedSlicePlanEntry; status: DisplayStatus } | undefined {
     for (const entry of entries) {
-      const derived = await this.resolveEntryStatus(projectPath, entry);
-      if (derived !== STATUS.Complete && derived !== STATUS.Deprecated) {
-        return entry;
+      if (entry.status !== STATUS.Complete && entry.status !== STATUS.Deprecated) {
+        return { entry, status: entry.status };
       }
     }
     return undefined;
@@ -702,6 +736,7 @@ export class WorkflowNavigator {
   private async parseSlicePlanSafe(
     project: ProjectData,
     projectPath: string,
+    warnings: string[],
   ): Promise<WorkflowStatus['slicePlan']> {
     if (!project.fileSlicePlan) return null;
 
@@ -722,13 +757,13 @@ export class WorkflowNavigator {
     // Route each entry's status through the derivation lattice so this surface
     // (and workflow_status, which returns getStatus() verbatim) agrees with
     // cf list slices/getNext instead of showing the raw, checkbox-only
-    // SlicePlanEntry.status (slice 911 MCP-parity fix). Deliberately NOT
-    // wrapped in the try/catch above: a per-entry resolution failure (TD-2a)
-    // must propagate, not be silently discarded along with the whole plan.
+    // SlicePlanEntry.status (slice 911 MCP-parity fix). A per-entry resolution
+    // failure (TD-2a) is surfaced as a warning rather than silently discarded,
+    // but must not abort the whole plan/command (#62) — see resolveEntryStatusSafe.
     const entries = await Promise.all(
       result.entries.map(async (entry) => ({
         ...entry,
-        status: await this.resolveEntryStatus(projectPath, entry),
+        status: await this.resolveEntryStatusSafe(projectPath, entry, warnings),
       })),
     );
 
