@@ -45,6 +45,14 @@ vi.mock('../../src/guides/strategies/TarballStrategy.js', () => ({
   })),
 }));
 
+vi.mock('../../src/guides/branchGuard.js', async () => {
+  const actual = await vi.importActual('../../src/guides/branchGuard.js');
+  return {
+    ...actual,
+    evaluateBranchGuard: vi.fn(),
+  };
+});
+
 import { mkdirSync, existsSync, rmSync } from 'fs';
 import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
@@ -52,6 +60,11 @@ import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
 import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
 import { gitExec } from '../../src/guides/gitExec.js';
 import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
+import {
+  evaluateBranchGuard,
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
+} from '../../src/guides/branchGuard.js';
 
 describe('GuideManager', () => {
   const projectPath = '/test/project';
@@ -94,6 +107,9 @@ describe('GuideManager', () => {
         throw new Error('unknown key');
       }),
     };
+    // Default to 'proceed' so pre-existing update() tests (predating the branch guard)
+    // aren't broken by the new unconditional guard call.
+    vi.mocked(evaluateBranchGuard).mockResolvedValue({ outcome: 'proceed' });
   });
 
   describe('status()', () => {
@@ -289,6 +305,119 @@ describe('GuideManager', () => {
 
       expect(mockCloneUpdate).toHaveBeenCalled();
       expect(mockSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update - branch guard', () => {
+    it('proceed verdict -> strategy.update() is called, returns normally', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({ outcome: 'proceed' });
+      const mockUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.update();
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
+    it('block verdict -> update() rejects with BranchGuardBlockedError, strategy.update() NOT called', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({
+        outcome: 'block', trunk: 'dev/erik', current: 'main',
+      });
+      const mockUpdate = vi.fn();
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.update()).rejects.toBeInstanceOf(BranchGuardBlockedError);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('warn verdict, no opts -> rejects with BranchGuardWarnError, strategy.update() NOT called', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({
+        outcome: 'warn', trunk: 'main', current: 'feature-x', ancestry: 'descends',
+      });
+      const mockUpdate = vi.fn();
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.update()).rejects.toBeInstanceOf(BranchGuardWarnError);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('warn verdict, update({ confirmed: true }) -> strategy.update() IS called, returns normally', async () => {
+      mockDetect.mockResolvedValue(installedInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({
+        outcome: 'warn', trunk: 'main', current: 'feature-x', ancestry: 'descends',
+      });
+      const mockUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.update({ confirmed: true });
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('update - TarballStrategy (manual) evaluates guard like any other strategy', () => {
+    it("info.method === 'manual', guard returns proceed -> TarballStrategy.update() is called normally", async () => {
+      const manualInstalledInfo: GuideInfo = { ...installedInfo, method: 'manual' };
+      mockDetect.mockResolvedValue(manualInstalledInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({ outcome: 'proceed' });
+      const mockTarballUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'manual',
+      });
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockTarballUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.update();
+
+      expect(mockTarballUpdate).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
+    it("info.method === 'manual', guard returns block -> TarballStrategy.update() NOT called, BranchGuardBlockedError thrown", async () => {
+      const manualInstalledInfo: GuideInfo = { ...installedInfo, method: 'manual' };
+      mockDetect.mockResolvedValue(manualInstalledInfo);
+      vi.mocked(evaluateBranchGuard).mockResolvedValue({
+        outcome: 'block', trunk: 'dev/erik', current: 'main',
+      });
+      const mockTarballUpdate = vi.fn();
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockTarballUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.update()).rejects.toBeInstanceOf(BranchGuardBlockedError);
+      expect(mockTarballUpdate).not.toHaveBeenCalled();
     });
   });
 

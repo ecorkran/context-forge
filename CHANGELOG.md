@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cf guides update` (and the `guide_update` MCP tool) now guard against committing a guide update on the wrong branch. If a `git.integration_branch` is configured and you're on `main`, the update is blocked outright with guidance on how to proceed. If you're on any branch other than the configured trunk (or `main`, when no integration branch is set), you're asked to confirm before it commits — pass `-y`/`--yes` to `cf guides update` to skip the prompt, or `confirm: true` to the MCP tool. Being on the trunk branch itself behaves exactly as before, with no new prompt.
+- `cf config unset <key>` — removes a configuration value. Defaults to the current project's config (same as `cf config set`); pass `--global` to remove a machine-wide value instead. Removing a key that isn't set is a harmless no-op, not an error.
+
+### Fixed
+- `cf config set <key> <value>` (with no `--project`/`--global` flag) now writes to the current project's config file, as it always should have — previously it silently wrote to a machine-wide file shared by every project on your machine, so a value set while working in one project could quietly leak into every other project. Writing to the machine-wide file is now an explicit opt-in via a new `--global` flag. `cf config get`/`set --project` (with no value) also now consistently resolves "the current project" from your working directory.
+
 ## [0.9.2] - 20260712
 
 ### Fixed

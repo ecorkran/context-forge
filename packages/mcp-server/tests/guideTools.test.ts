@@ -13,24 +13,35 @@ const mockSyncWorktrees = vi.fn();
 const mockCheckSyncStatus = vi.fn();
 const mockGetById = vi.fn();
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getById: mockGetById,
-    getAll: vi.fn().mockResolvedValue([]),
-  })),
-  GuideManager: vi.fn().mockImplementation(() => ({
-    status: mockStatus,
-    install: mockInstall,
-    update: mockUpdate,
-    syncWorktrees: mockSyncWorktrees,
-  })),
-  GuideDetector: vi.fn().mockImplementation(() => ({
-    checkSyncStatus: mockCheckSyncStatus,
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
-  })),
-}));
+// Real BranchGuardBlockedError/BranchGuardWarnError (via importActual) so `instanceof`
+// checks in guideTools.ts behave correctly, while the rest of the barrel stays mocked.
+vi.mock('@context-forge/core/node', async () => {
+  const actual = await vi.importActual<typeof import('@context-forge/core/node')>(
+    '@context-forge/core/node'
+  );
+  return {
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getById: mockGetById,
+      getAll: vi.fn().mockResolvedValue([]),
+    })),
+    GuideManager: vi.fn().mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+      syncWorktrees: mockSyncWorktrees,
+    })),
+    GuideDetector: vi.fn().mockImplementation(() => ({
+      checkSyncStatus: mockCheckSyncStatus,
+    })),
+    ConfigManager: vi.fn().mockImplementation(() => ({
+      get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
+    })),
+    BranchGuardBlockedError: actual.BranchGuardBlockedError,
+    BranchGuardWarnError: actual.BranchGuardWarnError,
+  };
+});
+
+import { BranchGuardBlockedError, BranchGuardWarnError } from '@context-forge/core/node';
 
 // Mock resolveProjectId to return the provided ID directly
 vi.mock('../src/tools/resolveProjectId.js', () => ({
@@ -235,6 +246,55 @@ describe('guide_update', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('not installed');
+  });
+
+  it('BranchGuardBlockedError: errorResult returned, message includes trunk/current', async () => {
+    mockUpdate.mockRejectedValue(new BranchGuardBlockedError('dev/erik', 'main'));
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('dev/erik');
+    expect(content[0].text).toContain('main');
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('BranchGuardWarnError, called without confirm: errorResult instructs retry with confirm: true, update called once', async () => {
+    mockUpdate.mockRejectedValue(new BranchGuardWarnError('main', 'feature-x', 'descends'));
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('confirm: true');
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('BranchGuardWarnError, called with confirm: true: manager.update({confirmed: true}) called, jsonResult with success shape', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project', confirm: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.newVersion).toBe('v0.13.2');
   });
 });
 

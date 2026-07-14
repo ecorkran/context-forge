@@ -8,6 +8,7 @@ import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
 import { TarballStrategy } from './strategies/TarballStrategy.js';
+import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } from './branchGuard.js';
 
 export class GuideManager {
   private readonly projectPath: string;
@@ -52,7 +53,7 @@ export class GuideManager {
   }
 
   /** Update an existing guide installation */
-  async update(): Promise<UpdateResult> {
+  async update(opts?: { confirmed?: boolean }): Promise<UpdateResult> {
     const source = await this.resolveSource();
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
 
@@ -61,6 +62,14 @@ export class GuideManager {
       throw new Error(
         'Guide is not installed. Use guide_install (or cf guides install) to install it first.'
       );
+    }
+
+    const verdict = await evaluateBranchGuard(this.projectPath, this.configManager);
+    if (verdict.outcome === 'block') {
+      throw new BranchGuardBlockedError(verdict.trunk, verdict.current);
+    }
+    if (verdict.outcome === 'warn' && opts?.confirmed !== true) {
+      throw new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry);
     }
 
     const strategy = this.getStrategy(info.method);
