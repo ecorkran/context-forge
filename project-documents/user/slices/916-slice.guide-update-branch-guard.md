@@ -6,7 +6,7 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: [914]
 interfaces: []
 dateCreated: 20260714
-dateUpdated: 20260715
+dateUpdated: 20260716
 status: not_started
 ---
 
@@ -30,6 +30,8 @@ This directly undermines 916's premise (the guard resolves `git.integration_bran
 
 **Fix**: flip `cf config set`'s default scope from user to project, resolved from CWD the same way `cf config get` already resolves it (via `resolveConfigProjectPath()`). Writing to the machine-wide scope becomes opt-in via an explicit `--global` flag rather than the default when `--project` is merely absent. The `config` command's `--project` option additionally becomes optional-value (`-p, --project [id]`, config-command-local only — not the shared `withProjectOption` used by ~30 other commands) so `--project` with no value means "the current project" (CWD-resolved) and `--project <id>` still means an explicit project by name/id; omitting `--project` entirely retains today's `get`/`set` CWD-resolution behavior. The "user" scope tier itself is **not** removed — it remains available for genuine machine-wide defaults, just no longer reachable by accident.
 
+**Also added: `cf config unset <key>`.** While diagnosing the leak, we found there is no way to remove a config key at all — `ConfigManager` has no `delete` method and the CLI has no `unset`/`remove` subcommand for `config` (unlike `cf project unset`, which already exists for project fields). Cleaning up the leaked machine-wide keys (task 0.3) would otherwise require hand-editing the TOML file directly. Since task 0.1 is already building the scope-resolution flags (`--project [id]` / `--global`) that an `unset` command needs, adding it here is a small, contained extension of the same change rather than separate follow-up work. `ConfigManager.delete(key, scope)` mirrors `set()`'s read-modify-write shape, using a new `deleteKey` helper (mirror of the existing `setKey`) that also prunes now-empty parent TOML tables. `cf config unset <key>` takes the same `-p/--project [id]` and `--global` flags as `set`. Unsetting a key not present at the target scope is a silent no-op (exit 0, neutral message) — idempotent, safe to run defensively, consistent with typical `unset`/`rm -f` semantics.
+
 **Concrete behavior change:**
 - `cf config set git.integration_branch dev/erik` (no flags) → now writes to the project resolved from CWD (was: machine-wide user scope).
 - `cf config set git.integration_branch dev/erik --global` → writes to machine-wide user scope (new, explicit opt-in).
@@ -45,6 +47,7 @@ This directly undermines 916's premise (the guard resolves `git.integration_bran
 - MCP (`guide_update` tool) surfaces the block as a tool error, and the warn case as a required `confirm: true` input parameter (no interactive stdin available in MCP context) — omitting it when a warn condition is detected returns an error describing the condition and instructing the caller to retry with `confirm: true`.
 - Unit tests for the guard function's three-way decision logic (proceed / block / warn), covering all `trunk` × current-branch combinations described below.
 - **`cf config set` default-scope fix** (see Prerequisite Fix above): flip default from user to project scope, add `--global` flag, make `config` command's `--project` option optional-value.
+- **`cf config unset <key>`** (new command, see Prerequisite Fix above): `ConfigManager.delete()` plus a CLI subcommand, reusing the same scope-resolution flags as `set`.
 
 **Out of scope:**
 - `TarballStrategy` — the guard still evaluates unconditionally for `manual`-strategy installs (no strategy-type conditional is added to skip it; not worth the extra branch for a strategy nobody uses in practice). `TarballStrategy.update()` itself does no git commit, so a `block`/`warn` verdict is moot for these users in the sense that there's nothing unsafe to prevent — but they can still see the block/warn UX (an irrelevant prompt) since the guard doesn't know or care which strategy is in play. No behavior change to `TarballStrategy.update()` itself.
@@ -165,11 +168,12 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
 
 ## CLI / MCP Interface Changes
 
-### CLI: `cf config set` / `cf config get` (Prerequisite Fix)
+### CLI: `cf config set` / `cf config get` / `cf config unset` (Prerequisite Fix)
 - `set` command: default scope flips from `user` to project-scope-resolved-from-CWD (via `resolveConfigProjectPath()`, already used by `get`).
 - New `--global` flag on `set`: writes to the machine-wide user-scope file. Mutually exclusive with `--project`.
 - `config` command's `--project` option becomes `-p, --project [id]` (optional-value), local to `config.ts` only: bare `--project` resolves from CWD (same as omitting the flag); `--project <id>` resolves the named project.
 - `get` command's existing CWD-resolution and `--project` handling is unchanged in behavior; only the flag's optional-value declaration is added for symmetry.
+- New `unset <key>` command: same `-p/--project [id]` and `--global` flags as `set`; calls `ConfigManager.delete(key, scope)`. Unsetting a key not present at the target scope is a silent no-op, exit 0.
 
 ### CLI: `cf guides update`
 - Add `-y`/`--yes` option (via existing `withYesOption` helper) to bypass the warn-confirmation non-interactively — consistent with `cf setup-ide`'s existing use of the same helper for the same purpose.
@@ -195,11 +199,13 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
 - `cf config set <key> <value>` run inside a project directory with no `--project`/`--global` flag writes to that project's `.context-forge.toml`, never the machine-wide user-scope file.
 - `cf config set <key> <value> --global` writes to the machine-wide user-scope file (unchanged mechanism, newly explicit).
 - `cf config set <key> <value> --project` (bare) resolves and writes to the project at CWD, identically to no flag.
+- `cf config unset <key>` removes the key from the project scope resolved from CWD by default, or the machine-wide scope with `--global`; unsetting a key not present at that scope is a no-op, not an error.
 
 ### Technical Requirements
 - `evaluateBranchGuard()` has full unit test coverage of the decision table: trunk unset + on main, trunk unset + on unrelated branch, trunk unset + on descendant branch, trunk set + on trunk, trunk set + on main, trunk set + on descendant-of-trunk branch, trunk set + on unrelated branch, detached HEAD (trunk unset and trunk set), and `merge-base --is-ancestor` returning exit code >1 (asserted as a thrown error, not a `warn` verdict).
 - No change to `gitExec`'s existing throw-on-nonzero contract or its existing call sites.
 - `cf config set`'s default-scope flip has unit test coverage: no flags → project scope (CWD-resolved); `--global` → user scope; `--project` bare → project scope (CWD-resolved); `--project <id>` → named project scope; `--project` and `--global` together → rejected as mutually exclusive.
+- `ConfigManager.delete()` and `cf config unset` have unit test coverage: deletes an existing key at project scope (default) and at user scope (`--global`); prunes now-empty parent TOML tables; unsetting a key not present at the target scope is a no-op (exit 0, no error); unsetting an unknown key still errors (same validation as `get`/`set`).
 - `pnpm -r build` and full test suite clean.
 
 ### Verification Walkthrough
@@ -215,6 +221,13 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
    cf config get workflow.auto_fix
    ```
    Run from a *different* project directory with no local override — Expect: `Source: user`, confirming `--global` still reaches the machine-wide file and other projects still see it as a fallback (the tier itself is unchanged, only the accidental default is fixed).
+
+   Then confirm `unset` reverses both:
+   ```bash
+   cf config unset workflow.auto_fix --global
+   cf config get workflow.auto_fix
+   ```
+   Expect: `Source: default` — the machine-wide entry is gone. Running the same `unset --global` a second time exits 0 with a neutral "not set" message, not an error.
 
 1. In a scratch git repo with context-forge initialized and the guide installed (submodule strategy):
    ```bash
