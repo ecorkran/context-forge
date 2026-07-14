@@ -13,7 +13,7 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.0] - 20260714
 
 ### Added
 - `cf guides update` (and the `guide_update` MCP tool) now guard against committing a guide update on the wrong branch. If a `git.integration_branch` is configured and you're on `main`, the update is blocked outright with guidance on how to proceed. If you're on any branch other than the configured trunk (or `main`, when no integration branch is set), you're asked to confirm before it commits — pass `-y`/`--yes` to `cf guides update` to skip the prompt, or `confirm: true` to the MCP tool. Being on the trunk branch itself behaves exactly as before, with no new prompt.
