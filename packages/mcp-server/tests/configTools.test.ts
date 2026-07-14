@@ -20,6 +20,9 @@ vi.mock('@context-forge/core/node', () => ({
   getProjectConfigPath: vi
     .fn()
     .mockReturnValue('/home/user/projects/test/.context-forge.toml'),
+  getProjectPersonalConfigPath: vi
+    .fn()
+    .mockReturnValue('/home/user/projects/test/.context-forge.local.toml'),
 }));
 
 // --- Test helpers ---
@@ -264,5 +267,70 @@ describe('config_get without key (list all)', () => {
     const guideSource = parsed.entries.find((e: { key: string }) => e.key === 'guide.source');
     expect(guideSource.source).toBe('user');
     expect(guideSource.value).toBe('https://example.com');
+  });
+
+  it('returns configPaths.projectPersonal as the .context-forge.local.toml path when projectPath is given', async () => {
+    mockList.mockResolvedValue([]);
+
+    const result = await client.callTool({
+      name: 'config_get',
+      arguments: { projectPath: '/home/user/projects/test' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.configPaths.projectPersonal).toBe('/home/user/projects/test/.context-forge.local.toml');
+    expect(parsed.configPaths.project).toBe('/home/user/projects/test/.context-forge.toml');
+  });
+
+  it('returns configPaths.projectPersonal as null when no projectPath is given', async () => {
+    mockList.mockResolvedValue([]);
+
+    const result = await client.callTool({
+      name: 'config_get',
+      arguments: {},
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.configPaths.projectPersonal).toBeNull();
+  });
+});
+
+describe('config_get for a personal-scope key', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns source: project-personal for a personal key set only in the personal file', async () => {
+    mockGet.mockResolvedValue({
+      key: 'git.integration_branch',
+      value: 'dev/erik',
+      source: 'project-personal',
+      description: 'Optional long-lived integration branch',
+    });
+
+    const result = await client.callTool({
+      name: 'config_get',
+      arguments: { key: 'git.integration_branch', projectPath: '/home/user/projects/test' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.source).toBe('project-personal');
+    expect(parsed.value).toBe('dev/erik');
   });
 });
