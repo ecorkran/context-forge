@@ -13,6 +13,11 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 20260714
+
+### Fixed
+- `deferred` is now a fully recognized slice status. It was already accepted by `cf check`'s frontmatter validation, but `cf status`, `cf next`, and `cf list slices` didn't know what to do with it and surfaced a spurious "not a recognized status" warning. A slice marked `deferred` is now treated the same way a `deprecated` one already is — it's skipped when picking the next slice to work on, instead of being reported as an error or offered as "next".
+
 ## [0.10.0] - 20260714
 
 ### Added
