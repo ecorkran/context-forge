@@ -258,17 +258,17 @@ status: complete
 
 ### 7. Wrap-up
 
-- [ ] **7.1 Update slice design status**
-  - [ ] In `user/slices/916-slice.guide-update-branch-guard.md`, update frontmatter `status: not_started` → `status: complete`
-  - [ ] Success: status updated
+- [x] **7.1 Update slice design status**
+  - [x] In `user/slices/916-slice.guide-update-branch-guard.md`, update frontmatter `status: not_started` → `status: complete`
+  - [x] Success: status updated
 
-- [ ] **7.2 Update DEVLOG**
-  - [ ] Add entry to `DEVLOG.md` for slice 916 completion, listing commit hashes
-  - [ ] Success: DEVLOG updated
+- [x] **7.2 Update DEVLOG**
+  - [x] Add entry to `DEVLOG.md` for slice 916 completion, listing commit hashes
+  - [x] Success: DEVLOG updated
 
-- [ ] **7.3 Final commit for docs**
-  - [ ] Stage and commit doc updates: `docs: complete slice 916 guide update branch guard`
-  - [ ] Success: docs commit created
+- [x] **7.3 Final commit for docs**
+  - [x] Stage and commit doc updates: `docs: complete slice 916 guide update branch guard`
+  - [x] Success: docs commit created
 
 - [ ] **7.4 Merge to target**
   - [ ] Confirm target is `main` (per `git.integration_branch` check in task 1.1 — unset for this repo)
