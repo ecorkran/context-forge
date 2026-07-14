@@ -13,7 +13,7 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.2] - 20260714
 
 ### Fixed
 - `cf check` now flags an architecture document whose frontmatter `status` isn't a recognized value — previously `cf list arch` would show it as "⚠ unreadable" but `cf check` stayed silent, because its frontmatter-schema validation used a different, narrower alias list than the one driving `cf list arch`. Both now agree on what counts as a valid status.
