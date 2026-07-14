@@ -6,7 +6,7 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: [914]
 interfaces: []
 dateCreated: 20260714
-dateUpdated: 20260714
+dateUpdated: 20260715
 status: not_started
 ---
 
@@ -22,6 +22,20 @@ This slice adds a branch guard evaluated once, immediately before `GuideManager.
 
 Closes a gap where a configured guardrail (`git.integration_branch`, added in 914 specifically to prevent direct commits to `main`) can be silently bypassed by one specific code path. Developer-facing: prevents an accidental commit to `main` when running `cf guides update` from the wrong branch, while still allowing the legitimate workflow of testing a guide update on a feature/test branch before it reaches trunk.
 
+## Prerequisite Fix: `cf config set` Default Scope Bug
+
+While preparing to implement this slice, we discovered `cf config set` silently defaults to **user (machine-wide) scope** whenever `--project` is omitted (`packages/cli/src/commands/config.ts:92`: `const scope = opts.project ? 'project' : 'user'`). The "user" scope is a single file per machine (`~/Library/Preferences/context-forge/config.toml`, via `getStoragePath()`), not namespaced by project. `cf config get` falls back to this same file whenever a key isn't set at project scope. In practice: a value set for one project (e.g. `git.integration_branch` set while working in `grizcam_mobile_ios`) silently leaked into every other project on the machine, including `context-forge` — discovered when this slice's own setup step (`cf config get git.integration_branch`) returned an unexpected value never set for this project.
+
+This directly undermines 916's premise (the guard resolves `git.integration_branch` via `ConfigManager`, which must read the correct project's config) so it is fixed as part of this slice rather than filed as separate follow-up work.
+
+**Fix**: flip `cf config set`'s default scope from user to project, resolved from CWD the same way `cf config get` already resolves it (via `resolveConfigProjectPath()`). Writing to the machine-wide scope becomes opt-in via an explicit `--global` flag rather than the default when `--project` is merely absent. The `config` command's `--project` option additionally becomes optional-value (`-p, --project [id]`, config-command-local only — not the shared `withProjectOption` used by ~30 other commands) so `--project` with no value means "the current project" (CWD-resolved) and `--project <id>` still means an explicit project by name/id; omitting `--project` entirely retains today's `get`/`set` CWD-resolution behavior. The "user" scope tier itself is **not** removed — it remains available for genuine machine-wide defaults, just no longer reachable by accident.
+
+**Concrete behavior change:**
+- `cf config set git.integration_branch dev/erik` (no flags) → now writes to the project resolved from CWD (was: machine-wide user scope).
+- `cf config set git.integration_branch dev/erik --global` → writes to machine-wide user scope (new, explicit opt-in).
+- `cf config set git.integration_branch dev/erik --project` (bare) → writes to the project resolved from CWD (same as no flag; accepted for symmetry with `get`).
+- `cf config set git.integration_branch dev/erik --project other-project` → writes to the named project (unchanged from today's `--project <id>` behavior).
+
 ## Technical Scope
 
 **In scope:**
@@ -30,12 +44,16 @@ Closes a gap where a configured guardrail (`git.integration_branch`, added in 91
 - CLI (`cf guides update`) surfaces the block as a hard error and the warn case as an interactive y/N confirmation (reusing the existing `askConfirmation` readline pattern from `setup-ide.ts`), bypassable with `--yes`.
 - MCP (`guide_update` tool) surfaces the block as a tool error, and the warn case as a required `confirm: true` input parameter (no interactive stdin available in MCP context) — omitting it when a warn condition is detected returns an error describing the condition and instructing the caller to retry with `confirm: true`.
 - Unit tests for the guard function's three-way decision logic (proceed / block / warn), covering all `trunk` × current-branch combinations described below.
+- **`cf config set` default-scope fix** (see Prerequisite Fix above): flip default from user to project scope, add `--global` flag, make `config` command's `--project` option optional-value.
 
 **Out of scope:**
 - `TarballStrategy` — the guard still evaluates unconditionally for `manual`-strategy installs (no strategy-type conditional is added to skip it; not worth the extra branch for a strategy nobody uses in practice). `TarballStrategy.update()` itself does no git commit, so a `block`/`warn` verdict is moot for these users in the sense that there's nothing unsafe to prevent — but they can still see the block/warn UX (an irrelevant prompt) since the guard doesn't know or care which strategy is in play. No behavior change to `TarballStrategy.update()` itself.
 - `cf guides install` — install always happens on whatever branch the user is on when initializing the project; this is a one-time setup action, not a recurring update, and was not identified as a bypass risk. Not gated by this slice.
 - Any change to `git.integration_branch` itself (914 already shipped it) or to the upstream `ai-project-guide` branch-naming rule.
 - Automated branch switching — the guard only blocks or asks; it never switches branches on the user's behalf.
+- Removing the "user" (machine-wide) config scope tier entirely — considered and rejected in favor of the smaller default-scope flip above; the tier remains available via the new explicit `--global` flag.
+- Widening the shared `withProjectOption` (used by ~30 other CLI commands) to optional-value — the `[id]` change is local to the `config` command's own option declaration only.
+- `config_set` MCP tool behavior — this fix is CLI-only (`cf config set`); the MCP tool already requires an explicit `scope` parameter with no default-inference bug.
 
 ## Dependencies
 
@@ -147,6 +165,12 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
 
 ## CLI / MCP Interface Changes
 
+### CLI: `cf config set` / `cf config get` (Prerequisite Fix)
+- `set` command: default scope flips from `user` to project-scope-resolved-from-CWD (via `resolveConfigProjectPath()`, already used by `get`).
+- New `--global` flag on `set`: writes to the machine-wide user-scope file. Mutually exclusive with `--project`.
+- `config` command's `--project` option becomes `-p, --project [id]` (optional-value), local to `config.ts` only: bare `--project` resolves from CWD (same as omitting the flag); `--project <id>` resolves the named project.
+- `get` command's existing CWD-resolution and `--project` handling is unchanged in behavior; only the flag's optional-value declaration is added for symmetry.
+
 ### CLI: `cf guides update`
 - Add `-y`/`--yes` option (via existing `withYesOption` helper) to bypass the warn-confirmation non-interactively — consistent with `cf setup-ide`'s existing use of the same helper for the same purpose.
 - On `BranchGuardBlockedError`: print an error naming the configured trunk and current branch, with a suggested remediation (switch to the trunk branch, or unset `git.integration_branch` if that's not actually desired). For the detached-HEAD variant (`current === 'HEAD'`), the remediation instead suggests checking out a branch before updating. Exit non-zero. No prompt — block is final.
@@ -168,13 +192,29 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
 - `cf guides update --yes` from a descends-from-trunk or unrelated-ancestry branch proceeds without prompting.
 - `guide_update` MCP tool returns an actionable error (not a silent commit) when called from `main` with an integration branch configured, and when called from a non-trunk branch without `confirm: true`.
 - `TarballStrategy`-installed guides (`manual` strategy) never have a commit blocked or altered by the guard, since `TarballStrategy.update()` does no git commit regardless of the guard's verdict. The guard still evaluates and can still surface a block/warn prompt for these users (no strategy-type skip is added — not worth the extra branch for a strategy with negligible real-world usage); this is a UX inconsistency, not a safety gap, since there is nothing unsafe to prevent on this path.
+- `cf config set <key> <value>` run inside a project directory with no `--project`/`--global` flag writes to that project's `.context-forge.toml`, never the machine-wide user-scope file.
+- `cf config set <key> <value> --global` writes to the machine-wide user-scope file (unchanged mechanism, newly explicit).
+- `cf config set <key> <value> --project` (bare) resolves and writes to the project at CWD, identically to no flag.
 
 ### Technical Requirements
 - `evaluateBranchGuard()` has full unit test coverage of the decision table: trunk unset + on main, trunk unset + on unrelated branch, trunk unset + on descendant branch, trunk set + on trunk, trunk set + on main, trunk set + on descendant-of-trunk branch, trunk set + on unrelated branch, detached HEAD (trunk unset and trunk set), and `merge-base --is-ancestor` returning exit code >1 (asserted as a thrown error, not a `warn` verdict).
 - No change to `gitExec`'s existing throw-on-nonzero contract or its existing call sites.
+- `cf config set`'s default-scope flip has unit test coverage: no flags → project scope (CWD-resolved); `--global` → user scope; `--project` bare → project scope (CWD-resolved); `--project <id>` → named project scope; `--project` and `--global` together → rejected as mutually exclusive.
 - `pnpm -r build` and full test suite clean.
 
 ### Verification Walkthrough
+
+0. Config default-scope fix, verified before the branch-guard walkthrough since later steps depend on it:
+   ```bash
+   cf config set workflow.auto_fix true                # no flags
+   cf config get workflow.auto_fix --project <scratch-repo>
+   ```
+   Expect: `Source: project` — value landed in the scratch repo's own `.context-forge.toml`, not the machine-wide file. Then:
+   ```bash
+   cf config set workflow.auto_fix true --global
+   cf config get workflow.auto_fix
+   ```
+   Run from a *different* project directory with no local override — Expect: `Source: user`, confirming `--global` still reaches the machine-wide file and other projects still see it as a fallback (the tier itself is unchanged, only the accidental default is fixed).
 
 1. In a scratch git repo with context-forge initialized and the guide installed (submodule strategy):
    ```bash

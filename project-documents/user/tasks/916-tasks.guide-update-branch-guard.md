@@ -11,7 +11,7 @@ projectState: >
   is the existing generic git runner used by all strategies. No branchGuard.ts module
   exists yet.
 dateCreated: 20260714
-dateUpdated: 20260714
+dateUpdated: 20260715
 status: not_started
 ---
 
@@ -23,16 +23,48 @@ status: not_started
 - CLI (`cf guides update`) gets a `-y`/`--yes` flag and an interactive confirmation prompt; MCP (`guide_update`) gets a `confirm` input parameter
 - No dependencies beyond 914 (complete on `main`); `TarballStrategy` and `cf guides install` are explicitly out of scope
 - Full design detail, including the decision table and failure-mode handling, lives in `user/slices/916-slice.guide-update-branch-guard.md` — tasks reference it rather than duplicating it
+- **Prerequisite fix bundled into this slice** (see slice design's "Prerequisite Fix" section): `cf config set` was found to default to machine-wide user scope whenever `--project` is omitted, causing config values set in one project to silently leak into every other project on the machine. Section 0 below fixes this before any branch-guard work begins, since the guard itself depends on `git.integration_branch` resolving correctly per-project.
 - Next planned slice: 915 (Config Key Scope Classification), per Project Manager's stated sequencing
 
 ## Tasks
 
+### 0. Prerequisite Fix: `cf config set` Default Scope
+
+- [ ] **0.1 Flip `cf config set` default scope from user to project**
+  - [ ] In `packages/cli/src/commands/config.ts`, change the `set` command's local `--project` option declaration from the shared `withProjectOption` (`-p, --project <id>`, required value) to a command-local `-p, --project [id]` (optional value) — do not modify `withProjectOption` itself or any of its other ~30 call sites
+  - [ ] Add a new `--global` boolean flag to the `set` command
+  - [ ] Replace `const scope = opts.project ? 'project' : 'user';` (currently line 92) with: `--global` present → `'user'`; otherwise → `'project'` (resolved via `resolveConfigProjectPath`, same as today's `get` command). If both `--global` and `--project` are passed, throw a clear error (mutually exclusive) rather than silently picking one
+  - [ ] Update `resolveConfigProjectPath(opts.project)` call: when `opts.project === true` (bare flag), resolve from CWD identically to `opts.project === undefined`; when `opts.project` is a string, resolve by name/id as today
+  - [ ] Also apply the `-p, --project [id]` optional-value declaration to the `get` command for symmetry (same file, same local pattern — `get` already resolves CWD correctly when `--project` is absent, this only adds the bare-flag case)
+  - [ ] Success: file saves, TypeScript compiles
+
+- [ ] **0.2 Test: config set/get default-scope behavior**
+  - [ ] In `packages/cli/tests/commands/config.test.ts` (create if it does not exist), test: `set` with no flags → writes to project scope resolved from CWD
+  - [ ] Test: `set --global` → writes to user scope
+  - [ ] Test: `set --project` (bare) → writes to project scope resolved from CWD (same result as no flags)
+  - [ ] Test: `set --project <id>` → writes to the named project's scope (unchanged behavior)
+  - [ ] Test: `set --project <id> --global` together → rejected with a clear mutually-exclusive error, no write performed
+  - [ ] Test: `get` with no flags still resolves from CWD (regression check — behavior must be unchanged)
+  - [ ] Success: `pnpm test -w packages/cli -- config` passes
+
+- [ ] **0.3 Manual cleanup of leaked machine-wide config**
+  - [ ] Inspect `~/Library/Preferences/context-forge/config.toml` (or platform equivalent) for keys that were set unintentionally via the old default-to-user behavior
+  - [ ] Confer with Project Manager before removing/editing any keys found — do not delete entries without explicit confirmation of which values are intentional machine-wide defaults vs. accidental leaks
+  - [ ] Success: machine-wide config file contains only intentional entries, confirmed by Project Manager
+
+- [ ] **0.4 Commit config scope fix**
+  - [ ] Stage `packages/cli/src/commands/config.ts`, `packages/cli/tests/commands/config.test.ts`
+  - [ ] Run `pnpm -r build` and `pnpm test` — clean
+  - [ ] Commit: `fix(cli): default config set to project scope instead of machine-wide user scope`
+  - [ ] Success: commit created, build/tests green
+
 ### 1. Setup
 
 - [ ] **1.1 Create slice branch and verify starting state**
-  - [ ] Confirm `git.integration_branch` is unset for this repo (`cf config get git.integration_branch`) — target branch is `main`
-  - [ ] Verify on `main`, working tree clean
-  - [ ] Create branch: `git checkout -b 916-slice.guide-update-branch-guard main`
+  - [ ] Confirm `git.integration_branch` reads correctly for this repo (`cf config get git.integration_branch --project context-forge` or run from repo root with no flag) — should reflect only what has been explicitly set for `context-forge` itself, not a value leaked from another project (this is now guaranteed by Section 0's fix)
+  - [ ] Determine target branch: if `context-forge` has no `git.integration_branch` set at project scope, target is `main`; if it does, target is that value — do not assume `main` without checking
+  - [ ] Verify on the target branch, working tree clean
+  - [ ] Create branch: `git checkout -b 916-slice.guide-update-branch-guard <target>`
   - [ ] Run `pnpm -r build` — succeeds
   - [ ] Run `pnpm test` — all tests pass
   - [ ] Success: on correct branch, build and tests green
