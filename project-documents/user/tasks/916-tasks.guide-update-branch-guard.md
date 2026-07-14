@@ -215,30 +215,30 @@ status: not_started
 
 ### 5. MCP: `guide_update` Tool
 
-- [ ] **5.1 Add `confirm` input parameter and error-type handling**
-  - [ ] In `packages/mcp-server/src/tools/guideTools.ts`, add `confirm: z.boolean().optional().describe(...)` to the `guide_update` tool's `inputSchema`. Describe text should explain the confirm-required flow so agent callers understand a `BranchGuardWarnError`-shaped response is not a transient failure (per the design's Special Considerations note)
-  - [ ] Update the tool's top-level `description` to mention that updates may require branch confirmation when not on the configured trunk/integration branch
-  - [ ] In the handler, wrap `manager.update()` similarly to CLI: catch `BranchGuardBlockedError` and `BranchGuardWarnError` before the general `catch`
-  - [ ] On `BranchGuardBlockedError`: return `errorResult(error.message)` — same message as CLI surfaces
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **5.1 Add `confirm` input parameter and error-type handling**
+  - [x] In `packages/mcp-server/src/tools/guideTools.ts`, add `confirm: z.boolean().optional().describe(...)` to the `guide_update` tool's `inputSchema`. Describe text should explain the confirm-required flow so agent callers understand a `BranchGuardWarnError`-shaped response is not a transient failure (per the design's Special Considerations note)
+  - [x] Update the tool's top-level `description` to mention that updates may require branch confirmation when not on the configured trunk/integration branch
+  - [x] In the handler, wrap `manager.update()` similarly to CLI: catch `BranchGuardBlockedError` and `BranchGuardWarnError` before the general `catch`
+  - [x] On `BranchGuardBlockedError`: return `errorResult(error.message)` — same message as CLI surfaces
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **5.2 Implement confirm-required response and retry**
-  - [ ] On catching `BranchGuardWarnError` and `confirm !== true`: return `errorResult(...)` with the warning message plus explicit instruction to retry the same tool call with `confirm: true`
-  - [ ] On catching `BranchGuardWarnError` and `confirm === true`: re-call `manager.update({ confirmed: true })`, then continue with the existing success path (worktree sync, `jsonResult`)
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **5.2 Implement confirm-required response and retry**
+  - [x] On catching `BranchGuardWarnError` and `confirm !== true`: return `errorResult(...)` with the warning message plus explicit instruction to retry the same tool call with `confirm: true`
+  - [x] On catching `BranchGuardWarnError` and `confirm === true`: re-call `manager.update({ confirmed: true })`, then continue with the existing success path (worktree sync, `jsonResult`)
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **5.3 Test: MCP guide_update branch guard behavior**
-  - [ ] In `packages/mcp-server/tests/guideTools.test.ts`, add test cases for `guide_update`
-  - [ ] Test: `manager.update()` throws `BranchGuardBlockedError` → `errorResult` returned, message includes trunk/current
-  - [ ] Test: `manager.update()` throws `BranchGuardWarnError`, called without `confirm` → `errorResult` returned, message instructs retry with `confirm: true`, `manager.update` called only once
-  - [ ] Test: `manager.update()` throws `BranchGuardWarnError`, called with `confirm: true` → `manager.update({ confirmed: true })` called, `jsonResult` returned with success shape
-  - [ ] Success: `pnpm test -w packages/mcp-server -- guideTools` passes
+- [x] **5.3 Test: MCP guide_update branch guard behavior**
+  - [x] In `packages/mcp-server/tests/guideTools.test.ts`, add test cases for `guide_update`
+  - [x] Test: `manager.update()` throws `BranchGuardBlockedError` → `errorResult` returned, message includes trunk/current
+  - [x] Test: `manager.update()` throws `BranchGuardWarnError`, called without `confirm` → `errorResult` returned, message instructs retry with `confirm: true`, `manager.update` called only once
+  - [x] Test: `manager.update()` throws `BranchGuardWarnError`, called with `confirm: true` → `manager.update({ confirmed: true })` called, `jsonResult` returned with success shape
+  - [x] Success: `pnpm test -w packages/mcp-server -- guideTools` passes
 
-- [ ] **5.4 Commit MCP changes**
-  - [ ] Stage `guideTools.ts`, `guideTools.test.ts`
-  - [ ] Run `pnpm -r build` and `pnpm test` — clean
-  - [ ] Commit: `feat(mcp): add branch guard confirm flow to guide_update tool`
-  - [ ] Success: commit created, build/tests green
+- [x] **5.4 Commit MCP changes**
+  - [x] Stage `guideTools.ts`, `guideTools.test.ts`
+  - [x] Run `pnpm -r build` and `pnpm test` — clean
+  - [x] Commit: `feat(mcp): add branch guard confirm flow to guide_update tool`
+  - [x] Success: commit created, build/tests green
 
 ### 6. Full Verification
 
