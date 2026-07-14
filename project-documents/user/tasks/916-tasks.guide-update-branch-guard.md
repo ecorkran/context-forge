@@ -152,36 +152,36 @@ status: not_started
 
 ### 3. Wire Guard into GuideManager
 
-- [ ] **3.1 Update `GuideManager.update()` to call the guard**
-  - [ ] In `packages/core/src/guides/GuideManager.ts`, import `evaluateBranchGuard`, `BranchGuardBlockedError`, `BranchGuardWarnError` from `./branchGuard.js`
-  - [ ] Change `update()` signature to `async update(opts?: { confirmed?: boolean }): Promise<UpdateResult>`
-  - [ ] At the start of `update()`, after resolving `source`/`targetDir` but before the `strategy.update()` call: call `evaluateBranchGuard(this.projectPath, this.configManager)`
-  - [ ] On `outcome: 'block'` → throw `new BranchGuardBlockedError(verdict.trunk, verdict.current)`
-  - [ ] On `outcome: 'warn'` and `opts?.confirmed !== true` → throw `new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry)`
-  - [ ] On `outcome: 'warn'` and `opts?.confirmed === true`, or `outcome: 'proceed'` → continue to the existing `strategy.update()` call and worktree-sync logic, unchanged
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **3.1 Update `GuideManager.update()` to call the guard**
+  - [x] In `packages/core/src/guides/GuideManager.ts`, import `evaluateBranchGuard`, `BranchGuardBlockedError`, `BranchGuardWarnError` from `./branchGuard.js`
+  - [x] Change `update()` signature to `async update(opts?: { confirmed?: boolean }): Promise<UpdateResult>`
+  - [x] At the start of `update()`, after resolving `source`/`targetDir` but before the `strategy.update()` call: call `evaluateBranchGuard(this.projectPath, this.configManager)`
+  - [x] On `outcome: 'block'` → throw `new BranchGuardBlockedError(verdict.trunk, verdict.current)`
+  - [x] On `outcome: 'warn'` and `opts?.confirmed !== true` → throw `new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry)`
+  - [x] On `outcome: 'warn'` and `opts?.confirmed === true`, or `outcome: 'proceed'` → continue to the existing `strategy.update()` call and worktree-sync logic, unchanged
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **3.2 Test: `GuideManager.update()` guard integration**
-  - [ ] In `packages/core/tests/guides/GuideManager.test.ts`, add a `describe('update - branch guard', ...)` block
-  - [ ] Mock `evaluateBranchGuard` (via `vi.mock('../../src/guides/branchGuard.js', ...)`) to return each of `proceed`, `block`, and `warn` in turn
-  - [ ] Test: `proceed` verdict → `strategy.update()` is called, returns normally
-  - [ ] Test: `block` verdict → `update()` rejects with `BranchGuardBlockedError`, `strategy.update()` is NOT called
-  - [ ] Test: `warn` verdict, `update()` called with no opts → rejects with `BranchGuardWarnError`, `strategy.update()` is NOT called
-  - [ ] Test: `warn` verdict, `update({ confirmed: true })` → `strategy.update()` IS called, returns normally
-  - [ ] Test: existing pre-guard `update()` tests (already in the file) still pass — mock `evaluateBranchGuard` to return `proceed` as the default in the shared `beforeEach` so unrelated tests aren't broken by the new call
-  - [ ] Success: `pnpm test -w packages/core -- GuideManager` passes, including pre-existing cases
+- [x] **3.2 Test: `GuideManager.update()` guard integration**
+  - [x] In `packages/core/tests/guides/GuideManager.test.ts`, add a `describe('update - branch guard', ...)` block
+  - [x] Mock `evaluateBranchGuard` (via `vi.mock('../../src/guides/branchGuard.js', ...)`) to return each of `proceed`, `block`, and `warn` in turn
+  - [x] Test: `proceed` verdict → `strategy.update()` is called, returns normally
+  - [x] Test: `block` verdict → `update()` rejects with `BranchGuardBlockedError`, `strategy.update()` is NOT called
+  - [x] Test: `warn` verdict, `update()` called with no opts → rejects with `BranchGuardWarnError`, `strategy.update()` is NOT called
+  - [x] Test: `warn` verdict, `update({ confirmed: true })` → `strategy.update()` IS called, returns normally
+  - [x] Test: existing pre-guard `update()` tests (already in the file) still pass — mock `evaluateBranchGuard` to return `proceed` as the default in the shared `beforeEach` so unrelated tests aren't broken by the new call
+  - [x] Success: `pnpm test -w packages/core -- GuideManager` passes, including pre-existing cases
 
-- [ ] **3.3 Verify `TarballStrategy` path evaluates the guard like any other strategy**
-  - [ ] Confirm (by reading, not by writing new code) that `evaluateBranchGuard()` is called unconditionally in `update()` regardless of `info.method` — no strategy-type conditional is added to skip `manual`-strategy installs (deliberate: not worth the extra branch for a strategy with negligible real-world usage, per Project Manager decision)
-  - [ ] Add one test: `info.method === 'manual'`, guard returns `proceed` → `TarballStrategy.update()` is called normally
-  - [ ] Add one test: `info.method === 'manual'`, guard returns `block` → `TarballStrategy.update()` is NOT called, `BranchGuardBlockedError` thrown (confirms a manual-strategy user does see the block/warn UX even though `TarballStrategy.update()` never commits — this is expected per the corrected slice design, not a bug)
-  - [ ] Success: tests pass; confirms the guard treats `manual` strategy identically to `submodule`/`clone` for evaluation purposes
+- [x] **3.3 Verify `TarballStrategy` path evaluates the guard like any other strategy**
+  - [x] Confirm (by reading, not by writing new code) that `evaluateBranchGuard()` is called unconditionally in `update()` regardless of `info.method` — no strategy-type conditional is added to skip `manual`-strategy installs (deliberate: not worth the extra branch for a strategy with negligible real-world usage, per Project Manager decision)
+  - [x] Add one test: `info.method === 'manual'`, guard returns `proceed` → `TarballStrategy.update()` is called normally
+  - [x] Add one test: `info.method === 'manual'`, guard returns `block` → `TarballStrategy.update()` is NOT called, `BranchGuardBlockedError` thrown (confirms a manual-strategy user does see the block/warn UX even though `TarballStrategy.update()` never commits — this is expected per the corrected slice design, not a bug)
+  - [x] Success: tests pass; confirms the guard treats `manual` strategy identically to `submodule`/`clone` for evaluation purposes
 
-- [ ] **3.4 Commit GuideManager wiring**
-  - [ ] Stage `GuideManager.ts`, `GuideManager.test.ts`
-  - [ ] Run `pnpm -r build` and `pnpm test` — clean
-  - [ ] Commit: `feat(core): wire branch guard into GuideManager.update`
-  - [ ] Success: commit created, build/tests green
+- [x] **3.4 Commit GuideManager wiring**
+  - [x] Stage `GuideManager.ts`, `GuideManager.test.ts`
+  - [x] Run `pnpm -r build` and `pnpm test` — clean
+  - [x] Commit: `feat(core): wire branch guard into GuideManager.update`
+  - [x] Success: commit created, build/tests green
 
 ### 4. CLI: `cf guides update`
 
