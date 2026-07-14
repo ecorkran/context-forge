@@ -1070,6 +1070,37 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     expect(next.warnings!.some((w) => w.includes('Slice 127') && w.includes('not a recognized status'))).toBe(true);
   });
 
+  it('a "deferred" slice-design status is recognized, does not warn, and is skipped by getNext like deprecated', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-deferred-'));
+    writeSliceDesign(root, 125, 'done', 'complete');
+    writeSliceDesign(root, 127, 'shelved', 'deferred');
+    writeSliceDesign(root, 130, 'genuinely-next', 'not-started');
+    writeSlicePlan(
+      root,
+      '1. [x] **(125) Done** — complete.\n' +
+        '2. [ ] **(127) Shelved** — deferred, not now.\n' +
+        '3. [ ] **(130) Genuinely Next** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const status = await nav.getStatus(project);
+    const entry127 = status.slicePlan!.entries.find((e) => e.index === 127);
+    expect(entry127!.status).toBe('deferred');
+    expect(status.warnings ?? []).toEqual([]);
+
+    // getNext must skip the deferred entry and land on the next real candidate,
+    // not throw and not treat deferred as "not started".
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 130');
+    expect(next.warnings ?? []).toEqual([]);
+  });
+
   it('wording: active in-progress slice recommends "Continue", not "Advance to"', async () => {
     // The active slice itself (900) is in-implementation with partial progress —
     // exercises the pre-existing in-implementation branch, confirming its wording

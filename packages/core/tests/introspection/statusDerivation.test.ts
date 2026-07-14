@@ -21,6 +21,33 @@ describe('deriveEntryStatus', () => {
     ).toBe(STATUS.Deprecated);
   });
 
+  it('deferred frontmatter wins regardless of task/checkbox state', () => {
+    expect(
+      deriveEntryStatus({
+        frontmatterStatus: STATUS.Deferred,
+        taskInferredStatus: STATUS.Complete,
+        isChecked: false,
+      }),
+    ).toBe(STATUS.Deferred);
+
+    expect(
+      deriveEntryStatus({
+        frontmatterStatus: STATUS.Deferred,
+        taskInferredStatus: STATUS.InProgress,
+        isChecked: true,
+      }),
+    ).toBe(STATUS.Deferred);
+  });
+
+  it('deprecated wins over deferred when both are somehow signaled (deprecated checked first)', () => {
+    expect(
+      deriveEntryStatus({
+        frontmatterStatus: STATUS.Deprecated,
+        isChecked: false,
+      }),
+    ).toBe(STATUS.Deprecated);
+  });
+
   it('task in-progress wins over frontmatter complete', () => {
     expect(
       deriveEntryStatus({

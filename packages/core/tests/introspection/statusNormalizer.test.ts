@@ -32,12 +32,19 @@ describe('normalizeStatus', () => {
     });
   });
 
+  describe('deferred', () => {
+    it('maps "deferred" to "deferred"', () => {
+      expect(normalizeStatus('deferred')).toBe('deferred');
+    });
+  });
+
   describe('case insensitivity', () => {
     it.each([
       ['COMPLETE', 'complete'],
       ['In-Progress', 'in-progress'],
       ['NOT_STARTED', 'not-started'],
       ['Deprecated', 'deprecated'],
+      ['Deferred', 'deferred'],
       ['DONE', 'complete'],
       ['Active', 'in-progress'],
     ])('maps "%s" to "%s"', (input, expected) => {
@@ -70,10 +77,6 @@ describe('normalizeStatus', () => {
 
     it('returns undefined for null', () => {
       expect(normalizeStatus(null)).toBeUndefined();
-    });
-
-    it('returns undefined for "deferred" (no NormalizedStatus equivalent)', () => {
-      expect(normalizeStatus('deferred')).toBeUndefined();
     });
   });
 });

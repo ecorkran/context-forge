@@ -17,6 +17,7 @@ const STATUS_MAP: Record<string, NormalizedStatus> = {
   pending: STATUS.NotStarted,
   planned: STATUS.NotStarted,
   deprecated: STATUS.Deprecated,
+  deferred: STATUS.Deferred,
 };
 
 /**
@@ -24,9 +25,7 @@ const STATUS_MAP: Record<string, NormalizedStatus> = {
  *
  * Returns `undefined` when the input was present but not recognized —
  * this is distinct from a real `not-started` and must not be conflated
- * with it. `deferred` is intentionally absent from `STATUS_MAP` (it has
- * no `NormalizedStatus` equivalent) and therefore also normalizes to
- * `undefined`.
+ * with it.
  */
 export function normalizeStatus(raw: string | undefined | null): NormalizedStatus | undefined {
   const key = (raw ?? '').toLowerCase().trim();

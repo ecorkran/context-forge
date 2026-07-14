@@ -17,6 +17,8 @@ export function renderEntryStatus(status: DisplayStatus, isChecked: boolean): st
   switch (status) {
     case STATUS.Deprecated:
       return dim('⊘ deprecated');
+    case STATUS.Deferred:
+      return dim('⏸ deferred');
     case STATUS.Complete:
       return isChecked ? success('✓ complete') : success('● tasks done');
     case STATUS.InProgress:

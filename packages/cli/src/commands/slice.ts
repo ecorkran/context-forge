@@ -127,7 +127,12 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
       }
 
       const isActive = activeIndex !== null && entry.index === activeIndex;
-      const isNext = !isActive && derivedStatus !== STATUS.Complete && derivedStatus !== STATUS.Deprecated && activeIndex === null;
+      const isNext =
+        !isActive &&
+        derivedStatus !== STATUS.Complete &&
+        derivedStatus !== STATUS.Deprecated &&
+        derivedStatus !== STATUS.Deferred &&
+        activeIndex === null;
 
       return { ...entry, designFile, derivedStatus, isActive, isNext };
     }),
@@ -136,7 +141,10 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
   // Mark first not-complete entry as next if no active match
   if (!entries.some((e) => e.isActive)) {
     const firstNotComplete = entries.find(
-      (e) => e.derivedStatus !== STATUS.Complete && e.derivedStatus !== STATUS.Deprecated,
+      (e) =>
+        e.derivedStatus !== STATUS.Complete &&
+        e.derivedStatus !== STATUS.Deprecated &&
+        e.derivedStatus !== STATUS.Deferred,
     );
     if (firstNotComplete) {
       firstNotComplete.isNext = true;

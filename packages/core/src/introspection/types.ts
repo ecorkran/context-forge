@@ -4,6 +4,7 @@ export const STATUS = {
   InProgress: 'in-progress',
   NotStarted: 'not-started',
   Deprecated: 'deprecated',
+  Deferred: 'deferred',
 } as const;
 
 export type NormalizedStatus = (typeof STATUS)[keyof typeof STATUS];

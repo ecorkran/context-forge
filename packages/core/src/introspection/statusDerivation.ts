@@ -18,12 +18,21 @@ export interface EntryStatusSignals {
 
 /**
  * Derive a slice-plan entry's status from the precedence lattice
- * (highest priority first): deprecated frontmatter > computed task
+ * (highest priority first): deprecated/deferred frontmatter > computed task
  * completion > slice-design frontmatter > plan checkbox.
+ *
+ * deprecated and deferred are both declarations of intent, not observations
+ * of progress — a slice explicitly marked deferred should read as deferred
+ * even if its task file shows partial or zero completion, the same way a
+ * deprecated slice isn't reported as "in progress" just because some tasks
+ * are checked.
  */
 export function deriveEntryStatus(signals: EntryStatusSignals): NormalizedStatus {
   if (signals.frontmatterStatus === STATUS.Deprecated) {
     return STATUS.Deprecated;
+  }
+  if (signals.frontmatterStatus === STATUS.Deferred) {
+    return STATUS.Deferred;
   }
   if (signals.taskInferredStatus !== undefined) {
     return signals.taskInferredStatus;
