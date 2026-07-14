@@ -270,7 +270,7 @@ status: complete
   - [x] Stage and commit doc updates: `docs: complete slice 916 guide update branch guard`
   - [x] Success: docs commit created
 
-- [ ] **7.4 Merge to target**
-  - [ ] Confirm target is `main` (per `git.integration_branch` check in task 1.1 — unset for this repo)
-  - [ ] Merge `916-slice.guide-update-branch-guard` into `main` per standard project git workflow
-  - [ ] Success: slice merged, branch work complete
+- [x] **7.4 Merge to target**
+  - [x] Confirm target is `main` (per `git.integration_branch` check in task 1.1 — unset for this repo)
+  - [x] Merge `916-slice.guide-update-branch-guard` into `main` per standard project git workflow
+  - [x] Success: slice merged, branch work complete
