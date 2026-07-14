@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { existsSync, statSync } from 'node:fs';
-import { ConfigManager, FileProjectStore, CONFIG_KEYS } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, CONFIG_KEYS, ConfigScope } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -164,7 +164,7 @@ export function registerConfigCommand(program: Command): void {
         }
         const cm = new ConfigManager(projectPath);
 
-        const personalKeys = Object.entries(CONFIG_KEYS).filter(([, def]) => def.scope === 'personal');
+        const personalKeys = Object.entries(CONFIG_KEYS).filter(([, def]) => def.scope === ConfigScope.Personal);
 
         type Outcome = { key: string; status: 'moved' | 'skipped' | 'failed'; detail?: string };
         const outcomes: Outcome[] = [];

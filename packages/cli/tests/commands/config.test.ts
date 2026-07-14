@@ -36,6 +36,7 @@ vi.mock('@context-forge/core/node', () => ({
     'some.flag': { type: 'boolean', default: false, description: '', scope: 'shared' },
     'git.integration_branch': { type: 'string', default: '', description: '', scope: 'personal' },
   },
+  ConfigScope: { Shared: 'shared', Personal: 'personal' },
 }));
 
 // Default: no registered project resolves — resolveConfigProjectPath falls through to

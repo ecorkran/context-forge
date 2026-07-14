@@ -573,5 +573,12 @@ describe('ConfigManager', () => {
         'no projectPath provided'
       );
     });
+
+    it('getRawProjectFileValues() throws when no projectPath is set', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.getRawProjectFileValues('git.integration_branch')).rejects.toThrow(
+        'no projectPath provided'
+      );
+    });
   });
 });

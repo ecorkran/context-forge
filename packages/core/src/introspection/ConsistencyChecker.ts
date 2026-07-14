@@ -19,7 +19,7 @@ import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import { CONFIG_KEYS } from '../config/ConfigKeys.js';
+import { CONFIG_KEYS, ConfigScope } from '../config/ConfigKeys.js';
 import { getProjectConfigPath, getProjectPersonalConfigPath } from '../config/configPaths.js';
 import {
   resolveGateConfig,
@@ -1083,7 +1083,7 @@ export class ConsistencyChecker {
     const personalPath = getProjectPersonalConfigPath(projectPath);
 
     for (const [key, def] of Object.entries(CONFIG_KEYS)) {
-      if (def.scope !== 'personal') continue;
+      if (def.scope !== ConfigScope.Personal) continue;
 
       const { shared } = await this.config.getRawProjectFileValues(key);
       if (shared === undefined) continue;

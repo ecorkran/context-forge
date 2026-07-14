@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { parse, stringify } from 'smol-toml';
-import { CONFIG_KEYS, type ConfigKeyDefinition } from './ConfigKeys.js';
+import { CONFIG_KEYS, ConfigScope, type ConfigKeyDefinition } from './ConfigKeys.js';
 import { getUserConfigPath, getProjectConfigPath, getProjectPersonalConfigPath } from './configPaths.js';
 
 export interface ConfigResult {
@@ -126,12 +126,15 @@ export class ConfigManager {
 
     // Check project config first (personal file before shared file, for personal-scope keys)
     if (this.projectPath) {
-      if (def.scope === 'personal') {
+      if (def.scope === ConfigScope.Personal) {
         const personalConfig = await readToml(getProjectPersonalConfigPath(this.projectPath));
         const personalValue = resolveKey(personalConfig, key);
         if (personalValue !== undefined) {
           return {
             key,
+            // resolveKey returns unknown (parsed TOML); safe to assert here because
+            // `key` is validated against CONFIG_KEYS above, whose values are all
+            // string | boolean | number.
             value: personalValue as string | boolean | number,
             source: 'project-personal',
             description: def.description,
@@ -225,7 +228,7 @@ export class ConfigManager {
     if (scope === 'user') {
       return getUserConfigPath();
     }
-    return def.scope === 'personal'
+    return def.scope === ConfigScope.Personal
       ? getProjectPersonalConfigPath(this.projectPath!)
       : getProjectConfigPath(this.projectPath!);
   }
@@ -246,6 +249,9 @@ export class ConfigManager {
     }
     const personalConfig = await readToml(getProjectPersonalConfigPath(this.projectPath));
     const sharedConfig = await readToml(getProjectConfigPath(this.projectPath));
+    // resolveKey returns unknown (parsed TOML); safe to assert here because `key`
+    // is expected to be a CONFIG_KEYS entry, whose values are all
+    // string | boolean | number (or absent, hence the trailing `| undefined`).
     return {
       personal: resolveKey(personalConfig, key) as string | boolean | number | undefined,
       shared: resolveKey(sharedConfig, key) as string | boolean | number | undefined,
