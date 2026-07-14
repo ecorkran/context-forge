@@ -87,7 +87,10 @@ export async function evaluateBranchGuard(
         trunk = result.value;
       }
     } catch {
-      // Fall through to default 'main'
+      // A config read failure here is non-fatal: git.integration_branch is genuinely
+      // optional, so degrading to the conventional default trunk ('main') is correct
+      // behavior, not a swallowed error — mirrors GuideManager's resolveSource()/
+      // resolveStrategy() fallback pattern for the same config source.
     }
   }
 

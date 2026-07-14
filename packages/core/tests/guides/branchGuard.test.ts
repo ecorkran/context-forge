@@ -193,6 +193,16 @@ describe('evaluateBranchGuard()', () => {
     ).rejects.toThrow(/merge-base --is-ancestor/);
   });
 
+  it('configManager.get rejects -> falls back to trunk=main, evaluates normally', async () => {
+    mockCurrentBranch('main');
+    const badConfigManager = {
+      get: vi.fn().mockRejectedValue(new Error('config corrupted')),
+    } as unknown as ConfigManager;
+
+    const verdict = await evaluateBranchGuard('/repo', badConfigManager);
+    expect(verdict).toEqual({ outcome: 'proceed' });
+  });
+
   it('configManager omitted entirely -> treated as trunk unset (main)', async () => {
     mockCurrentBranch('main');
     const verdict = await evaluateBranchGuard('/repo');

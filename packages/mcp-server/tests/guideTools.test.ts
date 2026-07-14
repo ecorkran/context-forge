@@ -13,48 +13,35 @@ const mockSyncWorktrees = vi.fn();
 const mockCheckSyncStatus = vi.fn();
 const mockGetById = vi.fn();
 
-// Real error classes (not mocked) so `instanceof` checks in guideTools.ts behave correctly.
-// Wrapped in vi.hoisted() since vi.mock factories are hoisted above regular top-level code.
-const { BranchGuardBlockedError, BranchGuardWarnError } = vi.hoisted(() => {
-  class BranchGuardBlockedError extends Error {
-    constructor(public readonly trunk: string, public readonly current: string) {
-      super(`blocked: trunk=${trunk} current=${current}`);
-      this.name = 'BranchGuardBlockedError';
-    }
-  }
-  class BranchGuardWarnError extends Error {
-    constructor(
-      public readonly trunk: string,
-      public readonly current: string,
-      public readonly ancestry: 'descends' | 'unrelated'
-    ) {
-      super(`warn: trunk=${trunk} current=${current} ancestry=${ancestry}`);
-      this.name = 'BranchGuardWarnError';
-    }
-  }
-  return { BranchGuardBlockedError, BranchGuardWarnError };
+// Real BranchGuardBlockedError/BranchGuardWarnError (via importActual) so `instanceof`
+// checks in guideTools.ts behave correctly, while the rest of the barrel stays mocked.
+vi.mock('@context-forge/core/node', async () => {
+  const actual = await vi.importActual<typeof import('@context-forge/core/node')>(
+    '@context-forge/core/node'
+  );
+  return {
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getById: mockGetById,
+      getAll: vi.fn().mockResolvedValue([]),
+    })),
+    GuideManager: vi.fn().mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+      syncWorktrees: mockSyncWorktrees,
+    })),
+    GuideDetector: vi.fn().mockImplementation(() => ({
+      checkSyncStatus: mockCheckSyncStatus,
+    })),
+    ConfigManager: vi.fn().mockImplementation(() => ({
+      get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
+    })),
+    BranchGuardBlockedError: actual.BranchGuardBlockedError,
+    BranchGuardWarnError: actual.BranchGuardWarnError,
+  };
 });
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getById: mockGetById,
-    getAll: vi.fn().mockResolvedValue([]),
-  })),
-  GuideManager: vi.fn().mockImplementation(() => ({
-    status: mockStatus,
-    install: mockInstall,
-    update: mockUpdate,
-    syncWorktrees: mockSyncWorktrees,
-  })),
-  GuideDetector: vi.fn().mockImplementation(() => ({
-    checkSyncStatus: mockCheckSyncStatus,
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
-  })),
-  BranchGuardBlockedError,
-  BranchGuardWarnError,
-}));
+import { BranchGuardBlockedError, BranchGuardWarnError } from '@context-forge/core/node';
 
 // Mock resolveProjectId to return the provided ID directly
 vi.mock('../src/tools/resolveProjectId.js', () => ({
