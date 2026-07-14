@@ -1,9 +1,15 @@
 import { Command } from 'commander';
-import { FileProjectStore, GuideManager, ConfigManager } from '@context-forge/core/node';
+import {
+  FileProjectStore,
+  GuideManager,
+  ConfigManager,
+  BranchGuardWarnError,
+} from '@context-forge/core/node';
 import type { GuideMethod } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { withJsonOption, withProjectOption } from '../options.js';
+import { withJsonOption, withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success, warn } from '../output/styles.js';
 
@@ -158,13 +164,33 @@ export function registerGuidesCommand(program: Command): void {
     .command('update')
     .description('Update an existing guide installation');
   withProjectOption(updateCmd);
-  updateCmd.action(async (opts: { project?: string }) => {
+  withYesOption(updateCmd);
+  updateCmd.action(async (opts: { project?: string; yes?: boolean }) => {
       try {
         const ctx = await getGuideContext(opts.project);
         const cm = new ConfigManager(ctx.projectPath);
         const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
 
-        const result = await manager.update();
+        let result;
+        try {
+          result = await manager.update();
+        } catch (err) {
+          if (err instanceof BranchGuardWarnError) {
+            if (opts.yes) {
+              result = await manager.update({ confirmed: true });
+            } else {
+              console.error(warn(err.message));
+              const confirmed = await askConfirmation('Continue? (y/N) ');
+              if (!confirmed) {
+                console.log('Update cancelled.');
+                return;
+              }
+              result = await manager.update({ confirmed: true });
+            }
+          } else {
+            throw err;
+          }
+        }
 
         if (result.previousVersion === result.newVersion) {
           console.log(success('Guide is already at the latest version.'));

@@ -10,15 +10,41 @@ const {
   mockUpdate,
   MockGuideManager,
   mockResolveProjectWorktree,
-} = vi.hoisted(() => ({
-  mockGetAll: vi.fn(),
-  mockGetById: vi.fn(),
-  mockStatus: vi.fn(),
-  mockInstall: vi.fn(),
-  mockUpdate: vi.fn(),
-  MockGuideManager: vi.fn(),
-  mockResolveProjectWorktree: vi.fn(),
-}));
+  mockAskConfirmation,
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
+} = vi.hoisted(() => {
+  // Real error classes (not mocked) so `instanceof` checks in guides.ts behave correctly.
+  class BranchGuardBlockedError extends Error {
+    constructor(public readonly trunk: string, public readonly current: string) {
+      super(`blocked: trunk=${trunk} current=${current}`);
+      this.name = 'BranchGuardBlockedError';
+    }
+  }
+  class BranchGuardWarnError extends Error {
+    constructor(
+      public readonly trunk: string,
+      public readonly current: string,
+      public readonly ancestry: 'descends' | 'unrelated'
+    ) {
+      super(`warn: trunk=${trunk} current=${current} ancestry=${ancestry}`);
+      this.name = 'BranchGuardWarnError';
+    }
+  }
+
+  return {
+    mockGetAll: vi.fn(),
+    mockGetById: vi.fn(),
+    mockStatus: vi.fn(),
+    mockInstall: vi.fn(),
+    mockUpdate: vi.fn(),
+    MockGuideManager: vi.fn(),
+    mockResolveProjectWorktree: vi.fn(),
+    mockAskConfirmation: vi.fn(),
+    BranchGuardBlockedError,
+    BranchGuardWarnError,
+  };
+});
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -29,10 +55,16 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
 }));
 
 vi.mock('../../src/utils/project.js', () => ({
   resolveProjectWorktree: (...args: unknown[]) => mockResolveProjectWorktree(...args),
+}));
+
+vi.mock('../../src/utils/confirm.js', () => ({
+  askConfirmation: (...args: unknown[]) => mockAskConfirmation(...args),
 }));
 
 const sampleProject = {
@@ -260,6 +292,65 @@ describe('cf guides update', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('already at the latest');
+  });
+
+  it('BranchGuardBlockedError: exits non-zero, error message printed, no retry attempted', async () => {
+    mockUpdate.mockRejectedValue(new BranchGuardBlockedError('dev/erik', 'main'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
+    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('dev/erik');
+    expect(output).toContain('main');
+  });
+
+  it('BranchGuardWarnError with --yes: retries with confirmed: true, success path reached, no prompt', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001', '--yes']);
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('updated successfully');
+  });
+
+  it('BranchGuardWarnError, no --yes, confirmation true: retries with confirmed: true', async () => {
+    mockAskConfirmation.mockResolvedValue(true);
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(mockAskConfirmation).toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('updated successfully');
+  });
+
+  it('BranchGuardWarnError, no --yes, confirmation false: update NOT retried, exits without error', async () => {
+    mockAskConfirmation.mockResolvedValue(false);
+    mockUpdate.mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(process.exit).not.toHaveBeenCalled();
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('cancelled');
   });
 });
 

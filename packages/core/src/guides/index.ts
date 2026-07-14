@@ -13,3 +13,9 @@ export {
   GUIDE_RELATIVE_PATH,
   VERSION_MARKER_FILE,
 } from './types.js';
+export {
+  type BranchGuardVerdict,
+  evaluateBranchGuard,
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
+} from './branchGuard.js';
