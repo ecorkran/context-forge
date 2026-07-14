@@ -3,7 +3,21 @@ import { mkdtemp, rm, writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
-import { getUserConfigPath, getProjectConfigPath } from '../../src/config/configPaths.js';
+import {
+  getUserConfigPath,
+  getProjectConfigPath,
+  getProjectPersonalConfigPath,
+} from '../../src/config/configPaths.js';
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await readFile(path, 'utf-8');
+    return true;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw err;
+  }
+}
 
 describe('ConfigManager', () => {
   let tempDir: string;
@@ -451,6 +465,89 @@ describe('ConfigManager', () => {
       const gitStrategy = entries.find((e) => e.key === 'guide.git_strategy')!;
       expect(guideSource.source).toBe('user');
       expect(gitStrategy.source).toBe('project');
+    });
+  });
+
+  // --- personal-scope key routing (slice 915) ---
+
+  describe('personal-scope key routing', () => {
+    it('set() writes a personal-scope key to the personal file, not the shared file', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+
+      const personalContent = await readFile(getProjectPersonalConfigPath(projectDir), 'utf-8');
+      expect(personalContent).toMatch(/integration_branch\s*=\s*"dev\/erik"/);
+      expect(await fileExists(getProjectConfigPath(projectDir))).toBe(false);
+    });
+
+    it('set() writes a shared-scope key to the shared file, not the personal file (unchanged behavior)', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('workflow.review_enabled', true, 'project');
+
+      const sharedContent = await readFile(getProjectConfigPath(projectDir), 'utf-8');
+      expect(sharedContent).toMatch(/review_enabled\s*=\s*true/);
+      expect(await fileExists(getProjectPersonalConfigPath(projectDir))).toBe(false);
+    });
+
+    it('get() resolves a personal key found only in the personal file, source: project-personal', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+      const result = await cm.get('git.integration_branch');
+      expect(result.value).toBe('dev/erik');
+      expect(result.source).toBe('project-personal');
+    });
+
+    it('get() falls back to the shared file for a personal key found only there (pre-migration case)', async () => {
+      await mkdir(projectDir, { recursive: true });
+      await writeFile(
+        getProjectConfigPath(projectDir),
+        '[git]\nintegration_branch = "legacy/value"\n',
+        'utf-8'
+      );
+      const cm = new ConfigManager(projectDir);
+      const result = await cm.get('git.integration_branch');
+      expect(result.value).toBe('legacy/value');
+      expect(result.source).toBe('project');
+    });
+
+    it('get() prefers the personal file when the key exists in both (personal wins)', async () => {
+      await mkdir(projectDir, { recursive: true });
+      await writeFile(
+        getProjectConfigPath(projectDir),
+        '[git]\nintegration_branch = "legacy/value"\n',
+        'utf-8'
+      );
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+
+      const result = await cm.get('git.integration_branch');
+      expect(result.value).toBe('dev/erik');
+      expect(result.source).toBe('project-personal');
+    });
+
+    it('delete() removes a personal key from the personal file, leaves the shared file untouched', async () => {
+      await mkdir(projectDir, { recursive: true });
+      await writeFile(
+        getProjectConfigPath(projectDir),
+        '[git]\nintegration_branch = "legacy/value"\n',
+        'utf-8'
+      );
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+      await cm.delete('git.integration_branch', 'project');
+
+      const result = await cm.get('git.integration_branch');
+      expect(result.value).toBe('legacy/value');
+      expect(result.source).toBe('project');
+    });
+
+    it('list() reports the correct source for a personal-scope key', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+      const entries = await cm.list();
+      const entry = entries.find((e) => e.key === 'git.integration_branch')!;
+      expect(entry.value).toBe('dev/erik');
+      expect(entry.source).toBe('project-personal');
     });
   });
 });

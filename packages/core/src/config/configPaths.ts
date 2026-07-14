@@ -10,3 +10,8 @@ export function getUserConfigPath(): string {
 export function getProjectConfigPath(projectPath: string): string {
   return join(projectPath, '.context-forge.toml');
 }
+
+/** Returns the project-level personal config file path: {projectPath}/.context-forge.local.toml */
+export function getProjectPersonalConfigPath(projectPath: string): string {
+  return join(projectPath, '.context-forge.local.toml');
+}
