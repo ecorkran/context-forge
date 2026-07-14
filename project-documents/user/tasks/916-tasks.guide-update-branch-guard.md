@@ -85,14 +85,16 @@ status: not_started
   - [ ] Success: all cases in `pnpm test -w packages/core -- branchGuard` pass
 
 - [ ] **2.5 Implement `BranchGuardBlockedError` and `BranchGuardWarnError`**
-  - [ ] In `branchGuard.ts`, add `export class BranchGuardBlockedError extends Error` with `readonly trunk: string` and `readonly current: string`, constructed with a message naming both (distinguish the detached-HEAD case in the message text, e.g. mention "detached HEAD" when `current === 'HEAD'`)
+  - [ ] In `branchGuard.ts`, add `export class BranchGuardBlockedError extends Error` with `readonly trunk: string` and `readonly current: string`
+  - [ ] Message must name both `trunk` and `current`, AND include a concrete remediation instruction per the slice design's CLI Interface Changes section: for the normal case, suggest switching to the trunk branch OR unsetting `git.integration_branch` if that's not actually desired; for the detached-HEAD case (`current === 'HEAD'`), suggest checking out a branch before updating instead. This message is the single source of remediation text — CLI and MCP surface it as-is, they do not add their own remediation wording (see task 4.1's note on this)
   - [ ] Add `export class BranchGuardWarnError extends Error` with `readonly trunk: string`, `readonly current: string`, `readonly ancestry: 'descends' | 'unrelated'`, constructed with ancestry-appropriate message text (softer wording for `descends`, stronger for `unrelated`)
   - [ ] Set `this.name` on each class (e.g. `'BranchGuardBlockedError'`) so `instanceof` checks and error logging both work correctly
   - [ ] Success: file saves, TypeScript compiles
 
 - [ ] **2.6 Test: error class construction**
   - [ ] Test: `BranchGuardBlockedError` constructed with trunk/current — `.trunk`, `.current`, `.message`, `instanceof Error` all correct
-  - [ ] Test: `BranchGuardBlockedError` with `current: 'HEAD'` — message mentions detached HEAD
+  - [ ] Test: `BranchGuardBlockedError` normal case — message includes remediation text mentioning both switching to the trunk branch and unsetting `git.integration_branch`
+  - [ ] Test: `BranchGuardBlockedError` with `current: 'HEAD'` — message mentions detached HEAD AND its distinct remediation (checking out a branch), not the normal-case remediation
   - [ ] Test: `BranchGuardWarnError` with `ancestry: 'descends'` and with `ancestry: 'unrelated'` — both produce distinguishable message text
   - [ ] Success: tests pass
 
@@ -123,10 +125,11 @@ status: not_started
   - [ ] Test: existing pre-guard `update()` tests (already in the file) still pass — mock `evaluateBranchGuard` to return `proceed` as the default in the shared `beforeEach` so unrelated tests aren't broken by the new call
   - [ ] Success: `pnpm test -w packages/core -- GuideManager` passes, including pre-existing cases
 
-- [ ] **3.3 Verify `TarballStrategy` path is unaffected**
-  - [ ] Confirm (by reading, not by writing new code) that `evaluateBranchGuard()` is called unconditionally in `update()` regardless of `info.method`, so a `manual`-strategy project still gets guard evaluation even though `TarballStrategy.update()` itself does no git commit
-  - [ ] Add one test: `info.method === 'manual'`, guard returns `proceed` → `TarballStrategy.update()` is called normally (confirms the guard doesn't special-case or skip tarball installs, and doesn't break them)
-  - [ ] Success: test passes; confirms design's "TarballStrategy is unaffected" claim holds for the guard's unconditional-evaluation behavior, not just its no-commit behavior
+- [ ] **3.3 Verify `TarballStrategy` path evaluates the guard like any other strategy**
+  - [ ] Confirm (by reading, not by writing new code) that `evaluateBranchGuard()` is called unconditionally in `update()` regardless of `info.method` — no strategy-type conditional is added to skip `manual`-strategy installs (deliberate: not worth the extra branch for a strategy with negligible real-world usage, per Project Manager decision)
+  - [ ] Add one test: `info.method === 'manual'`, guard returns `proceed` → `TarballStrategy.update()` is called normally
+  - [ ] Add one test: `info.method === 'manual'`, guard returns `block` → `TarballStrategy.update()` is NOT called, `BranchGuardBlockedError` thrown (confirms a manual-strategy user does see the block/warn UX even though `TarballStrategy.update()` never commits — this is expected per the corrected slice design, not a bug)
+  - [ ] Success: tests pass; confirms the guard treats `manual` strategy identically to `submodule`/`clone` for evaluation purposes
 
 - [ ] **3.4 Commit GuideManager wiring**
   - [ ] Stage `GuideManager.ts`, `GuideManager.test.ts`
@@ -140,7 +143,7 @@ status: not_started
   - [ ] In `packages/cli/src/commands/guides.ts`, import `withYesOption` from `../options.js` and `BranchGuardBlockedError`, `BranchGuardWarnError` from `@context-forge/core/node` (confirm these are exported from the core package's node entrypoint; add to the export barrel if not already present)
   - [ ] Apply `withYesOption(updateCmd)` to the `update` command definition
   - [ ] In the `update` action handler, wrap `manager.update()` in a way that catches `BranchGuardWarnError` specifically (before the general `catch (err) { handleError(err) }`)
-  - [ ] On `BranchGuardBlockedError`: let it propagate to `handleError(err)` — no special handling needed, `handleError` already prints message and exits non-zero. Confirm the error message text (from task 2.5) is sufficiently actionable as-is (names trunk and current branch, or detached-HEAD condition); if not, adjust the error message in `branchGuard.ts` rather than adding CLI-side remediation text, to keep remediation text in one place
+  - [ ] On `BranchGuardBlockedError`: let it propagate to `handleError(err)` — no special handling needed, `handleError` already prints message and exits non-zero. The error's `.message` (constructed in task 2.5) already contains the full remediation text; do NOT add CLI-side remediation wording — remediation text lives in exactly one place (`branchGuard.ts`)
   - [ ] Success: file saves, TypeScript compiles
 
 - [ ] **4.2 Implement warn-and-confirm flow**

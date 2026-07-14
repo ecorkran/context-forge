@@ -32,7 +32,7 @@ Closes a gap where a configured guardrail (`git.integration_branch`, added in 91
 - Unit tests for the guard function's three-way decision logic (proceed / block / warn), covering all `trunk` × current-branch combinations described below.
 
 **Out of scope:**
-- `TarballStrategy` — does no git commit, unaffected, no guard needed.
+- `TarballStrategy` — the guard still evaluates unconditionally for `manual`-strategy installs (no strategy-type conditional is added to skip it; not worth the extra branch for a strategy nobody uses in practice). `TarballStrategy.update()` itself does no git commit, so a `block`/`warn` verdict is moot for these users in the sense that there's nothing unsafe to prevent — but they can still see the block/warn UX (an irrelevant prompt) since the guard doesn't know or care which strategy is in play. No behavior change to `TarballStrategy.update()` itself.
 - `cf guides install` — install always happens on whatever branch the user is on when initializing the project; this is a one-time setup action, not a recurring update, and was not identified as a bypass risk. Not gated by this slice.
 - Any change to `git.integration_branch` itself (914 already shipped it) or to the upstream `ai-project-guide` branch-naming rule.
 - Automated branch switching — the guard only blocks or asks; it never switches branches on the user's behalf.
@@ -167,7 +167,7 @@ Both live in `branchGuard.ts` alongside `evaluateBranchGuard`. CLI and MCP both 
 - Running `cf guides update` from a branch that descends from trunk (e.g. a slice branch cut from `main`, or from a configured integration branch) produces a confirmation prompt; answering `y` proceeds and commits on the current branch as before; answering anything else aborts cleanly with no commit and a non-zero-free "aborted" message (not an error).
 - `cf guides update --yes` from a descends-from-trunk or unrelated-ancestry branch proceeds without prompting.
 - `guide_update` MCP tool returns an actionable error (not a silent commit) when called from `main` with an integration branch configured, and when called from a non-trunk branch without `confirm: true`.
-- `TarballStrategy`-installed guides (`manual` strategy) are entirely unaffected — no guard evaluation overhead or behavior change, since that strategy never commits.
+- `TarballStrategy`-installed guides (`manual` strategy) never have a commit blocked or altered by the guard, since `TarballStrategy.update()` does no git commit regardless of the guard's verdict. The guard still evaluates and can still surface a block/warn prompt for these users (no strategy-type skip is added — not worth the extra branch for a strategy with negligible real-world usage); this is a UX inconsistency, not a safety gap, since there is nothing unsafe to prevent on this path.
 
 ### Technical Requirements
 - `evaluateBranchGuard()` has full unit test coverage of the decision table: trunk unset + on main, trunk unset + on unrelated branch, trunk unset + on descendant branch, trunk set + on trunk, trunk set + on main, trunk set + on descendant-of-trunk branch, trunk set + on unrelated branch, detached HEAD (trunk unset and trunk set), and `merge-base --is-ancestor` returning exit code >1 (asserted as a thrown error, not a `warn` verdict).
