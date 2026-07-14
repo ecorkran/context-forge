@@ -185,33 +185,33 @@ status: not_started
 
 ### 4. CLI: `cf guides update`
 
-- [ ] **4.1 Add `--yes` option and error-type handling**
-  - [ ] In `packages/cli/src/commands/guides.ts`, import `withYesOption` from `../options.js` and `BranchGuardBlockedError`, `BranchGuardWarnError` from `@context-forge/core/node` (confirm these are exported from the core package's node entrypoint; add to the export barrel if not already present)
-  - [ ] Apply `withYesOption(updateCmd)` to the `update` command definition
-  - [ ] In the `update` action handler, wrap `manager.update()` in a way that catches `BranchGuardWarnError` specifically (before the general `catch (err) { handleError(err) }`)
-  - [ ] On `BranchGuardBlockedError`: let it propagate to `handleError(err)` — no special handling needed, `handleError` already prints message and exits non-zero. The error's `.message` (constructed in task 2.5) already contains the full remediation text; do NOT add CLI-side remediation wording — remediation text lives in exactly one place (`branchGuard.ts`)
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **4.1 Add `--yes` option and error-type handling**
+  - [x] In `packages/cli/src/commands/guides.ts`, import `withYesOption` from `../options.js` and `BranchGuardBlockedError`, `BranchGuardWarnError` from `@context-forge/core/node` (confirm these are exported from the core package's node entrypoint; add to the export barrel if not already present)
+  - [x] Apply `withYesOption(updateCmd)` to the `update` command definition
+  - [x] In the `update` action handler, wrap `manager.update()` in a way that catches `BranchGuardWarnError` specifically (before the general `catch (err) { handleError(err) }`)
+  - [x] On `BranchGuardBlockedError`: let it propagate to `handleError(err)` — no special handling needed, `handleError` already prints message and exits non-zero. The error's `.message` (constructed in task 2.5) already contains the full remediation text; do NOT add CLI-side remediation wording — remediation text lives in exactly one place (`branchGuard.ts`)
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **4.2 Implement warn-and-confirm flow**
-  - [ ] On catching `BranchGuardWarnError`: if `opts.yes` is true, immediately re-call `manager.update({ confirmed: true })` and continue with the normal success-reporting logic (no prompt)
-  - [ ] If `opts.yes` is false/undefined: print the warning message (from the caught error), then call `askConfirmation('Continue? (y/N) ')` — reuse the existing helper pattern from `packages/cli/src/commands/setup-ide.ts` (extract it to a shared location, e.g. `packages/cli/src/utils/prompt.ts`, if not already shared — check first whether extracting vs. duplicating is more consistent with existing CLI conventions)
-  - [ ] If confirmed: re-call `manager.update({ confirmed: true })`, continue with normal success-reporting logic
-  - [ ] If declined: print a neutral "Update cancelled." message (or similar) and exit 0 — this is a user choice, not a failure
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **4.2 Implement warn-and-confirm flow**
+  - [x] On catching `BranchGuardWarnError`: if `opts.yes` is true, immediately re-call `manager.update({ confirmed: true })` and continue with the normal success-reporting logic (no prompt)
+  - [x] If `opts.yes` is false/undefined: print the warning message (from the caught error), then call `askConfirmation('Continue? (y/N) ')` — reuse the existing helper pattern from `packages/cli/src/commands/setup-ide.ts` (extract it to a shared location, e.g. `packages/cli/src/utils/prompt.ts`, if not already shared — check first whether extracting vs. duplicating is more consistent with existing CLI conventions)
+  - [x] If confirmed: re-call `manager.update({ confirmed: true })`, continue with normal success-reporting logic
+  - [x] If declined: print a neutral "Update cancelled." message (or similar) and exit 0 — this is a user choice, not a failure
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **4.3 Test: CLI guide update branch guard behavior**
-  - [ ] In `packages/cli/tests/commands/guides.test.ts`, add test cases for the `update` command
-  - [ ] Test: `manager.update()` throws `BranchGuardBlockedError` → command exits non-zero, error message printed, no retry attempted
-  - [ ] Test: `manager.update()` throws `BranchGuardWarnError`, `--yes` passed → `manager.update({ confirmed: true })` is called, success path reached
-  - [ ] Test: `manager.update()` throws `BranchGuardWarnError`, no `--yes`, confirmation mocked to return `true` → `manager.update({ confirmed: true })` is called
-  - [ ] Test: `manager.update()` throws `BranchGuardWarnError`, no `--yes`, confirmation mocked to return `false` → `manager.update` is NOT called a second time, command exits without error
-  - [ ] Success: `pnpm test -w packages/cli -- guides` passes
+- [x] **4.3 Test: CLI guide update branch guard behavior**
+  - [x] In `packages/cli/tests/commands/guides.test.ts`, add test cases for the `update` command
+  - [x] Test: `manager.update()` throws `BranchGuardBlockedError` → command exits non-zero, error message printed, no retry attempted
+  - [x] Test: `manager.update()` throws `BranchGuardWarnError`, `--yes` passed → `manager.update({ confirmed: true })` is called, success path reached
+  - [x] Test: `manager.update()` throws `BranchGuardWarnError`, no `--yes`, confirmation mocked to return `true` → `manager.update({ confirmed: true })` is called
+  - [x] Test: `manager.update()` throws `BranchGuardWarnError`, no `--yes`, confirmation mocked to return `false` → `manager.update` is NOT called a second time, command exits without error
+  - [x] Success: `pnpm test -w packages/cli -- guides` passes
 
-- [ ] **4.4 Commit CLI changes**
-  - [ ] Stage `guides.ts`, `guides.test.ts`, and any extracted prompt utility file
-  - [ ] Run `pnpm -r build` and `pnpm test` — clean
-  - [ ] Commit: `feat(cli): add branch guard confirmation flow to guides update`
-  - [ ] Success: commit created, build/tests green
+- [x] **4.4 Commit CLI changes**
+  - [x] Stage `guides.ts`, `guides.test.ts`, and any extracted prompt utility file
+  - [x] Run `pnpm -r build` and `pnpm test` — clean
+  - [x] Commit: `feat(cli): add branch guard confirmation flow to guides update`
+  - [x] Success: commit created, build/tests green
 
 ### 5. MCP: `guide_update` Tool
 
