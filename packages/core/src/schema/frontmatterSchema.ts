@@ -4,6 +4,8 @@
  * Source of truth derived from file-naming-conventions.md.
  */
 
+import { normalizeStatus } from '../introspection/parsers/statusNormalizer.js';
+
 /** Definition of a single frontmatter field's constraints. */
 export interface FrontmatterFieldDef {
   required: boolean;
@@ -252,14 +254,21 @@ export function validateFrontmatter(
     if (value === undefined || value === null || String(value).trim() === '') continue;
 
     const normalizedValue = String(value).trim();
-    // For status field: normalize common aliases
+    // For status field: delegate to the same alias set cf list arch uses (normalizeStatus),
+    // so a status cf list arch would call "unreadable" also fails schema validation here.
+    // normalizeStatus's canonical vocabulary (STATUS.*) is hyphenated (e.g. 'in-progress',
+    // 'not-started'); VALID_STATUSES here is underscored — translate before comparing.
     let effectiveValue = normalizedValue;
     if (field === 'status') {
-      effectiveValue = effectiveValue.replace(/[-\s]/g, '_');
-      if (effectiveValue === 'completed') effectiveValue = 'complete';
-      if (effectiveValue === 'active') effectiveValue = 'in_progress';
-      // 'draft' is semantically equivalent to not_started — work hasn't begun
-      if (effectiveValue === 'draft') effectiveValue = 'not_started';
+      // 'draft' is semantically equivalent to not_started — work hasn't begun — but isn't
+      // in normalizeStatus's alias set since it's a frontmatter-only convention, not a
+      // workflow status ever produced by tooling.
+      if (effectiveValue.toLowerCase() === 'draft') {
+        effectiveValue = 'not_started';
+      } else {
+        const normalized = normalizeStatus(effectiveValue);
+        effectiveValue = normalized ? normalized.replace(/-/g, '_') : effectiveValue.replace(/[-\s]/g, '_');
+      }
     }
 
     if (!def.values.includes(effectiveValue)) {
