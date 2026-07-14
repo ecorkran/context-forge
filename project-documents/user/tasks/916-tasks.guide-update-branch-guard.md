@@ -242,19 +242,19 @@ status: not_started
 
 ### 6. Full Verification
 
-- [ ] **6.1 Full build and test suite**
-  - [ ] Run `pnpm -r build` from project root — all packages build
-  - [ ] Run `pnpm test` from project root — all tests pass, no regressions in unrelated suites
-  - [ ] Success: clean build, all tests green
+- [x] **6.1 Full build and test suite**
+  - [x] Run `pnpm -r build` from project root — all packages build
+  - [x] Run `pnpm test` from project root — all tests pass, no regressions in unrelated suites
+  - [x] Success: clean build, all tests green
 
-- [ ] **6.2 Manual verification walkthrough**
-  - [ ] Follow the Verification Walkthrough steps in `user/slices/916-slice.guide-update-branch-guard.md` (steps 1–5) in a scratch git repo with context-forge initialized and the guide installed via submodule strategy
-  - [ ] Confirm: block case (trunk configured, on `main`) fails with no commit
-  - [ ] Confirm: proceed case (on trunk) behaves identically to pre-slice behavior
-  - [ ] Confirm: warn case (descendant branch) prompts, `y` proceeds and commits, declining aborts cleanly
-  - [ ] Confirm: `--yes` skips the prompt
-  - [ ] Confirm: same three-way behavior holds with `git.integration_branch` unset (trunk = `main`)
-  - [ ] Success: all five walkthrough steps behave as documented in the slice design
+- [x] **6.2 Manual verification walkthrough**
+  - [x] Follow the Verification Walkthrough steps in `user/slices/916-slice.guide-update-branch-guard.md` (steps 1–5) in a scratch git repo with context-forge initialized and the guide installed via submodule strategy
+  - [x] Confirm: block case (trunk configured, on `main`) fails with no commit
+  - [x] Confirm: proceed case (on trunk) behaves identically to pre-slice behavior
+  - [x] Confirm: warn case (descendant branch) prompts, `y` proceeds and commits, declining aborts cleanly
+  - [x] Confirm: `--yes` skips the prompt
+  - [x] Confirm: same three-way behavior holds with `git.integration_branch` unset (trunk = `main`)
+  - [x] Success: all five walkthrough steps behave as documented in the slice design
 
 ### 7. Wrap-up
 
