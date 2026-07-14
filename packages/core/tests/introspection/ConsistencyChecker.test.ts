@@ -1145,6 +1145,53 @@ describe('ConsistencyChecker', () => {
       const legacyCrossPlanFindings = crossPlanFindings.filter((f) => f.location.includes('legacy-plan'));
       expect(legacyCrossPlanFindings).toHaveLength(0);
     });
+
+    // --- Rule 15: personal-config-in-shared-file ---
+
+    it('Rule 15: flags a personal key found in the shared config file', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
+      });
+      const config = makeStubConfig(
+        { 'workflow.review_enabled': false },
+        { 'git.integration_branch': { shared: 'legacy/value' } }
+      );
+      const checker = new ConsistencyChecker(mock, config);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'personal-config-in-shared-file');
+      expect(finding).toBeDefined();
+      expect(finding!.severity).toBe('warning');
+      expect(finding!.fixable).toBe(false);
+      expect(finding!.description).toContain('git.integration_branch');
+    });
+
+    it('Rule 15: no finding when no personal key is present in the shared file', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
+      });
+      const config = makeStubConfig({ 'workflow.review_enabled': false }, {});
+      const checker = new ConsistencyChecker(mock, config);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'personal-config-in-shared-file');
+      expect(finding).toBeUndefined();
+    });
+
+    it('Rule 15: still fires when the personal file also has a (possibly different) value — detection is shared-file presence only', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
+      });
+      const config = makeStubConfig(
+        { 'workflow.review_enabled': false },
+        { 'git.integration_branch': { shared: 'legacy/value', personal: 'dev/erik' } }
+      );
+      const checker = new ConsistencyChecker(mock, config);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'personal-config-in-shared-file');
+      expect(finding).toBeDefined();
+    });
   });
 
     // (Rule 11: missing-arch-status — removed, subsumed by Rule 12 frontmatter-schema)

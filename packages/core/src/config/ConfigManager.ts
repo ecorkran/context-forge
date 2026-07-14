@@ -230,6 +230,28 @@ export class ConfigManager {
       : getProjectConfigPath(this.projectPath!);
   }
 
+  /**
+   * Reads a key's raw value directly from each project-scope file, bypassing the
+   * fallback-merged result `get()` returns. Used where a caller must distinguish
+   * "absent from personal" vs. "present in shared" independently — e.g. the
+   * personal-config-in-shared-file consistency check and `cf config migrate-personal`,
+   * both of which need to know what each file actually contains, not just the
+   * precedence-resolved value.
+   */
+  async getRawProjectFileValues(
+    key: string
+  ): Promise<{ personal: string | boolean | number | undefined; shared: string | boolean | number | undefined }> {
+    if (!this.projectPath) {
+      throw new Error('Cannot read project-scoped config: no projectPath provided');
+    }
+    const personalConfig = await readToml(getProjectPersonalConfigPath(this.projectPath));
+    const sharedConfig = await readToml(getProjectConfigPath(this.projectPath));
+    return {
+      personal: resolveKey(personalConfig, key) as string | boolean | number | undefined,
+      shared: resolveKey(sharedConfig, key) as string | boolean | number | undefined,
+    };
+  }
+
   async list(): Promise<ConfigListEntry[]> {
     const results: ConfigListEntry[] = [];
     for (const [key, def] of Object.entries(CONFIG_KEYS)) {

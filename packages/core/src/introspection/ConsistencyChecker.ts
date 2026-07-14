@@ -19,6 +19,8 @@ import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
+import { CONFIG_KEYS } from '../config/ConfigKeys.js';
+import { getProjectConfigPath, getProjectPersonalConfigPath } from '../config/configPaths.js';
 import {
   resolveGateConfig,
   evaluateReviewGate,
@@ -174,6 +176,11 @@ export class ConsistencyChecker {
     // Rule 12: frontmatter schema validation across all documents
     allFindings.push(
       ...await this.ruleFrontmatterSchema(projectPath, project.name),
+    );
+
+    // Rule 15: personal-scope config keys committed to the shared project file
+    allFindings.push(
+      ...await this.rulePersonalConfigInSharedFile(projectPath),
     );
 
     return this.buildResult(projectPath, allFindings);
@@ -1055,6 +1062,40 @@ export class ConsistencyChecker {
           fixable: false,
         });
       }
+    }
+
+    return findings;
+  }
+
+  /**
+   * Rule 15: personal-scope config keys present in the shared project file.
+   * Detects the pre-migration case (a personal key committed to
+   * .context-forge.toml before this classification existed, or set there by
+   * an older/buggy scope-resolution path). Not fixable here by design — the
+   * fix is a cross-file move (`cf config migrate-personal`), which doesn't
+   * fit the update-checkbox/update-frontmatter fixAction shape.
+   */
+  private async rulePersonalConfigInSharedFile(projectPath: string): Promise<ConsistencyFinding[]> {
+    if (!this.config) return [];
+
+    const findings: ConsistencyFinding[] = [];
+    const sharedPath = getProjectConfigPath(projectPath);
+    const personalPath = getProjectPersonalConfigPath(projectPath);
+
+    for (const [key, def] of Object.entries(CONFIG_KEYS)) {
+      if (def.scope !== 'personal') continue;
+
+      const { shared } = await this.config.getRawProjectFileValues(key);
+      if (shared === undefined) continue;
+
+      findings.push({
+        rule: 'personal-config-in-shared-file',
+        severity: 'warning',
+        location: sharedPath,
+        description: `Personal-scope key "${key}" is present in the shared config file (${sharedPath}); it belongs in the personal config file (${personalPath})`,
+        suggestedFix: 'Run cf config migrate-personal to move it to the personal config file',
+        fixable: false,
+      });
     }
 
     return findings;
