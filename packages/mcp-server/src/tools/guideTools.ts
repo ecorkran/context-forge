@@ -1,6 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, GuideManager, ConfigManager } from '@context-forge/core/node';
+import {
+  FileProjectStore,
+  GuideManager,
+  ConfigManager,
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
+} from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { GuideDetector } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
@@ -124,21 +130,48 @@ export function registerGuideTools(server: McpServer): void {
       description:
         'Update an existing AI project guide installation to the latest version. ' +
         'Uses the same strategy that was used for installation. ' +
-        'Error if the guide is not installed — use guide_install first.',
+        'Error if the guide is not installed — use guide_install first. ' +
+        'Updates may require branch confirmation: if the current branch is not the configured ' +
+        'trunk/integration branch, this tool returns an error asking you to retry with ' +
+        'confirm: true. That response is not a transient failure — it is the expected first ' +
+        'step of a two-call confirmation flow (there is no interactive prompt in this context).',
       inputSchema: {
         projectId: z
           .string()
           .optional()
           .describe('Project ID or name. Omit to resolve from CWD.'),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe(
+            'Set to true to proceed with an update from a branch that is not the configured ' +
+              'trunk/integration branch. Omit on the first call; if the response asks for ' +
+              'confirmation, retry the same call with confirm: true.'
+          ),
       },
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
-    async ({ projectId }) => {
+    async ({ projectId, confirm }) => {
       try {
         const { projectPath, project } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
-        const result = await manager.update();
+
+        let result;
+        try {
+          result = await manager.update();
+        } catch (error) {
+          if (error instanceof BranchGuardWarnError) {
+            if (confirm !== true) {
+              return errorResult(`${error.message} Retry this call with confirm: true to proceed.`);
+            }
+            result = await manager.update({ confirmed: true });
+          } else if (error instanceof BranchGuardBlockedError) {
+            return errorResult(error.message);
+          } else {
+            throw error;
+          }
+        }
 
         // Auto-sync all worktrees with registered paths
         let syncResults: { worktreePath: string; success: boolean; error?: string }[] | undefined;

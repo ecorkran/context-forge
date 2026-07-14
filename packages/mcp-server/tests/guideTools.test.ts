@@ -13,6 +13,28 @@ const mockSyncWorktrees = vi.fn();
 const mockCheckSyncStatus = vi.fn();
 const mockGetById = vi.fn();
 
+// Real error classes (not mocked) so `instanceof` checks in guideTools.ts behave correctly.
+// Wrapped in vi.hoisted() since vi.mock factories are hoisted above regular top-level code.
+const { BranchGuardBlockedError, BranchGuardWarnError } = vi.hoisted(() => {
+  class BranchGuardBlockedError extends Error {
+    constructor(public readonly trunk: string, public readonly current: string) {
+      super(`blocked: trunk=${trunk} current=${current}`);
+      this.name = 'BranchGuardBlockedError';
+    }
+  }
+  class BranchGuardWarnError extends Error {
+    constructor(
+      public readonly trunk: string,
+      public readonly current: string,
+      public readonly ancestry: 'descends' | 'unrelated'
+    ) {
+      super(`warn: trunk=${trunk} current=${current} ancestry=${ancestry}`);
+      this.name = 'BranchGuardWarnError';
+    }
+  }
+  return { BranchGuardBlockedError, BranchGuardWarnError };
+});
+
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getById: mockGetById,
@@ -30,6 +52,8 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '', source: 'default' }),
   })),
+  BranchGuardBlockedError,
+  BranchGuardWarnError,
 }));
 
 // Mock resolveProjectId to return the provided ID directly
@@ -235,6 +259,55 @@ describe('guide_update', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('not installed');
+  });
+
+  it('BranchGuardBlockedError: errorResult returned, message includes trunk/current', async () => {
+    mockUpdate.mockRejectedValue(new BranchGuardBlockedError('dev/erik', 'main'));
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('dev/erik');
+    expect(content[0].text).toContain('main');
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('BranchGuardWarnError, called without confirm: errorResult instructs retry with confirm: true, update called once', async () => {
+    mockUpdate.mockRejectedValue(new BranchGuardWarnError('main', 'feature-x', 'descends'));
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('confirm: true');
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('BranchGuardWarnError, called with confirm: true: manager.update({confirmed: true}) called, jsonResult with success shape', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'submodule',
+      });
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project', confirm: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.newVersion).toBe('v0.13.2');
   });
 });
 
