@@ -30,47 +30,47 @@ status: not_started
 
 ### 0. Prerequisite Fix: `cf config set` Default Scope
 
-- [ ] **0.1 Flip `cf config set` default scope from user to project**
-  - [ ] In `packages/cli/src/commands/config.ts`, change the `set` command's local `--project` option declaration from the shared `withProjectOption` (`-p, --project <id>`, required value) to a command-local `-p, --project [id]` (optional value) — do not modify `withProjectOption` itself or any of its other ~30 call sites
-  - [ ] Add a new `--global` boolean flag to the `set` command
-  - [ ] Replace `const scope = opts.project ? 'project' : 'user';` (currently line 92) with: `--global` present → `'user'`; otherwise → `'project'` (resolved via `resolveConfigProjectPath`, same as today's `get` command). If both `--global` and `--project` are passed, throw a clear error (mutually exclusive) rather than silently picking one
-  - [ ] Update `resolveConfigProjectPath(opts.project)` call: when `opts.project === true` (bare flag), resolve from CWD identically to `opts.project === undefined`; when `opts.project` is a string, resolve by name/id as today
-  - [ ] Also apply the `-p, --project [id]` optional-value declaration to the `get` command for symmetry (same file, same local pattern — `get` already resolves CWD correctly when `--project` is absent, this only adds the bare-flag case)
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **0.1 Flip `cf config set` default scope from user to project**
+  - [x] In `packages/cli/src/commands/config.ts`, change the `set` command's local `--project` option declaration from the shared `withProjectOption` (`-p, --project <id>`, required value) to a command-local `-p, --project [id]` (optional value) — do not modify `withProjectOption` itself or any of its other ~30 call sites
+  - [x] Add a new `--global` boolean flag to the `set` command
+  - [x] Replace `const scope = opts.project ? 'project' : 'user';` (currently line 92) with: `--global` present → `'user'`; otherwise → `'project'` (resolved via `resolveConfigProjectPath`, same as today's `get` command). If both `--global` and `--project` are passed, throw a clear error (mutually exclusive) rather than silently picking one
+  - [x] Update `resolveConfigProjectPath(opts.project)` call: when `opts.project === true` (bare flag), resolve from CWD identically to `opts.project === undefined`; when `opts.project` is a string, resolve by name/id as today
+  - [x] Also apply the `-p, --project [id]` optional-value declaration to the `get` command for symmetry (same file, same local pattern — `get` already resolves CWD correctly when `--project` is absent, this only adds the bare-flag case)
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **0.1b Add `ConfigManager.delete()` and `cf config unset`**
-  - [ ] In `packages/core/src/config/ConfigManager.ts`, add a `deleteKey(obj: TomlObject, key: string): void` helper mirroring `setKey` — navigates to the parent table and removes the leaf key via `delete`; after removal, walk back up and prune any now-empty parent tables (so `stringify` doesn't leave a dangling `[git]` section behind) — no-op if the key or an intermediate table doesn't exist
-  - [ ] Add `async delete(key: string, scope: 'user' | 'project'): Promise<void>` to `ConfigManager`: validate the key exists in `CONFIG_KEYS` (same error as `get`/`set` for unknown keys); resolve `filePath` the same way `set()` does; read the TOML, call `deleteKey`, write back — even when the key wasn't present (idempotent no-op write is fine, avoids a separate existence-check branch)
-  - [ ] In `packages/cli/src/commands/config.ts`, add `cmd.command('unset <key>')` with the same `-p, --project [id]` and `--global` flags and scope-resolution logic as `set` (extract the shared scope-resolution bit — `--global` present → `'user'`, else project-from-CWD/named — into a small local helper both `set` and `unset` call, rather than duplicating the mutually-exclusive check and ternary)
-  - [ ] `unset` action calls `cm.delete(key, scope)`; on success print a neutral confirmation (e.g. `Unset ${key} (${scope})`) — same message regardless of whether the key was actually present, since silent no-op is the intended behavior, not a distinguishable case
-  - [ ] Success: file saves, TypeScript compiles
+- [x] **0.1b Add `ConfigManager.delete()` and `cf config unset`**
+  - [x] In `packages/core/src/config/ConfigManager.ts`, add a `deleteKey(obj: TomlObject, key: string): void` helper mirroring `setKey` — navigates to the parent table and removes the leaf key via `delete`; after removal, walk back up and prune any now-empty parent tables (so `stringify` doesn't leave a dangling `[git]` section behind) — no-op if the key or an intermediate table doesn't exist
+  - [x] Add `async delete(key: string, scope: 'user' | 'project'): Promise<void>` to `ConfigManager`: validate the key exists in `CONFIG_KEYS` (same error as `get`/`set` for unknown keys); resolve `filePath` the same way `set()` does; read the TOML, call `deleteKey`, write back — even when the key wasn't present (idempotent no-op write is fine, avoids a separate existence-check branch)
+  - [x] In `packages/cli/src/commands/config.ts`, add `cmd.command('unset <key>')` with the same `-p, --project [id]` and `--global` flags and scope-resolution logic as `set` (extract the shared scope-resolution bit — `--global` present → `'user'`, else project-from-CWD/named — into a small local helper both `set` and `unset` call, rather than duplicating the mutually-exclusive check and ternary)
+  - [x] `unset` action calls `cm.delete(key, scope)`; on success print a neutral confirmation (e.g. `Unset ${key} (${scope})`) — same message regardless of whether the key was actually present, since silent no-op is the intended behavior, not a distinguishable case
+  - [x] Success: file saves, TypeScript compiles
 
-- [ ] **0.2 Test: config set/get/unset default-scope behavior**
-  - [ ] In `packages/cli/tests/commands/config.test.ts` (create if it does not exist), test: `set` with no flags → writes to project scope resolved from CWD
-  - [ ] Test: `set --global` → writes to user scope
-  - [ ] Test: `set --project` (bare) → writes to project scope resolved from CWD (same result as no flags)
-  - [ ] Test: `set --project <id>` → writes to the named project's scope (unchanged behavior)
-  - [ ] Test: `set --project <id> --global` together → rejected with a clear mutually-exclusive error, no write performed
-  - [ ] Test: `get` with no flags still resolves from CWD (regression check — behavior must be unchanged)
-  - [ ] Test: `unset <key>` with no flags → removes the key from project scope resolved from CWD
-  - [ ] Test: `unset <key> --global` → removes the key from user scope
-  - [ ] Test: `unset <key> --project <id> --global` together → rejected with the same mutually-exclusive error as `set`
-  - [ ] Test: `unset` on a key not present at the target scope → exits 0, neutral message, no error
-  - [ ] Test: `unset` on an unknown key → errors, same as `get`/`set` on an unknown key
-  - [ ] In `packages/core/tests/config/ConfigManager.test.ts`, test: `delete()` prunes an empty parent table left behind after removing the last key in a nested section (e.g. `git.integration_branch` alone under `[git]`)
-  - [ ] Success: `pnpm test -w packages/cli -- config` and `pnpm test -w packages/core -- ConfigManager` pass
+- [x] **0.2 Test: config set/get/unset default-scope behavior**
+  - [x] In `packages/cli/tests/commands/config.test.ts` (create if it does not exist), test: `set` with no flags → writes to project scope resolved from CWD
+  - [x] Test: `set --global` → writes to user scope
+  - [x] Test: `set --project` (bare) → writes to project scope resolved from CWD (same result as no flags)
+  - [x] Test: `set --project <id>` → writes to the named project's scope (unchanged behavior)
+  - [x] Test: `set --project <id> --global` together → rejected with a clear mutually-exclusive error, no write performed
+  - [x] Test: `get` with no flags still resolves from CWD (regression check — behavior must be unchanged)
+  - [x] Test: `unset <key>` with no flags → removes the key from project scope resolved from CWD
+  - [x] Test: `unset <key> --global` → removes the key from user scope
+  - [x] Test: `unset <key> --project <id> --global` together → rejected with the same mutually-exclusive error as `set`
+  - [x] Test: `unset` on a key not present at the target scope → exits 0, neutral message, no error
+  - [x] Test: `unset` on an unknown key → errors, same as `get`/`set` on an unknown key
+  - [x] In `packages/core/tests/config/ConfigManager.test.ts`, test: `delete()` prunes an empty parent table left behind after removing the last key in a nested section (e.g. `git.integration_branch` alone under `[git]`)
+  - [x] Success: `pnpm test -w packages/cli -- config` and `pnpm test -w packages/core -- ConfigManager` pass
 
-- [ ] **0.3 Clean up leaked machine-wide config**
-  - [ ] Inspect `~/Library/Preferences/context-forge/config.toml` (or platform equivalent) for keys that were set unintentionally via the old default-to-user behavior — currently known: `git.integration_branch`, `workflow.review_enabled`, `workflow.review_gate_effective_date`
-  - [ ] Confer with Project Manager before removing/editing any keys found — do not delete entries without explicit confirmation of which values are intentional machine-wide defaults vs. accidental leaks
-  - [ ] For any key confirmed as an accidental leak, remove it with `cf config unset <key> --global` (now available per task 0.1b) rather than hand-editing the TOML file
-  - [ ] Success: machine-wide config file contains only intentional entries, confirmed by Project Manager
+- [x] **0.3 Clean up leaked machine-wide config**
+  - [x] Inspect `~/Library/Preferences/context-forge/config.toml` (or platform equivalent) for keys that were set unintentionally via the old default-to-user behavior — currently known: `git.integration_branch`, `workflow.review_enabled`, `workflow.review_gate_effective_date`
+  - [x] Confer with Project Manager before removing/editing any keys found — do not delete entries without explicit confirmation of which values are intentional machine-wide defaults vs. accidental leaks
+  - [x] For any key confirmed as an accidental leak, remove it with `cf config unset <key> --global` (now available per task 0.1b) rather than hand-editing the TOML file
+  - [x] Success: machine-wide config file contains only intentional entries, confirmed by Project Manager
 
-- [ ] **0.4 Commit config scope fix**
-  - [ ] Stage `packages/core/src/config/ConfigManager.ts`, `packages/core/tests/config/ConfigManager.test.ts`, `packages/cli/src/commands/config.ts`, `packages/cli/tests/commands/config.test.ts`
-  - [ ] Run `pnpm -r build` and `pnpm test` — clean
-  - [ ] Commit: `fix(cli): default config set to project scope instead of machine-wide user scope`
-  - [ ] Success: commit created, build/tests green
+- [x] **0.4 Commit config scope fix**
+  - [x] Stage `packages/core/src/config/ConfigManager.ts`, `packages/core/tests/config/ConfigManager.test.ts`, `packages/cli/src/commands/config.ts`, `packages/cli/tests/commands/config.test.ts`
+  - [x] Run `pnpm -r build` and `pnpm test` — clean
+  - [x] Commit: `fix(cli): default config set to project scope instead of machine-wide user scope`
+  - [x] Success: commit created, build/tests green
 
 ### 1. Setup
 
