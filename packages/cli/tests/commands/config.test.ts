@@ -8,12 +8,14 @@ import { UserError } from '../../src/utils/errors.js';
 // Mock ConfigManager
 const mockGet = vi.fn();
 const mockSet = vi.fn();
+const mockDelete = vi.fn();
 const mockList = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockGet,
     set: mockSet,
+    delete: mockDelete,
     list: mockList,
   })),
   FileProjectStore: vi.fn().mockImplementation(() => ({})),
@@ -132,11 +134,27 @@ describe('cf config set', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  it('calls ConfigManager.set with user scope by default', async () => {
+  it('calls ConfigManager.set with project scope by default (no flags)', async () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'set', 'guide.source', 'https://example.com']);
 
+    expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://example.com', 'project');
+  });
+
+  it('calls ConfigManager.set with user scope when --global is passed', async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'config', 'set', 'guide.source', 'https://example.com', '--global',
+    ]);
+
     expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://example.com', 'user');
+  });
+
+  it('calls ConfigManager.set with project scope when --project is bare (same as no flags)', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'config', 'set', 'guide.source', 'https://example.com', '--project']);
+
+    expect(mockSet).toHaveBeenCalledWith('guide.source', 'https://example.com', 'project');
   });
 
   it('calls ConfigManager.set with project scope when --project is an existing directory', async () => {
@@ -168,11 +186,23 @@ describe('cf config set', () => {
     expect(mockSet).toHaveBeenCalledWith('workflow.review_enabled', true, 'project');
   });
 
+  it('rejects --project and --global together as mutually exclusive, without calling set', async () => {
+    const program = createProgram();
+    await expect(
+      program.parseAsync([
+        'node', 'cf', 'config', 'set', 'guide.source', 'x',
+        '--project', 'other-project', '--global',
+      ])
+    ).rejects.toThrow();
+
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
   it('coerces boolean values', async () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'set', 'some.flag', 'true']);
 
-    expect(mockSet).toHaveBeenCalledWith('some.flag', true, 'user');
+    expect(mockSet).toHaveBeenCalledWith('some.flag', true, 'project');
   });
 
   it('keeps an all-digit value a string for a string-typed key (YYYYMMDD date)', async () => {
@@ -184,7 +214,7 @@ describe('cf config set', () => {
       'node', 'cf', 'config', 'set', 'workflow.review_gate_effective_date', '20260706',
     ]);
 
-    expect(mockSet).toHaveBeenCalledWith('workflow.review_gate_effective_date', '20260706', 'user');
+    expect(mockSet).toHaveBeenCalledWith('workflow.review_gate_effective_date', '20260706', 'project');
   });
 
   it('prints success message', async () => {
@@ -193,5 +223,87 @@ describe('cf config set', () => {
 
     const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
     expect(output).toContain('Set k = v');
+  });
+});
+
+describe('cf config get (regression: CWD resolution unchanged)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('still resolves from CWD with no --project flag', async () => {
+    mockGet.mockResolvedValue({
+      key: 'guide.source',
+      value: '',
+      source: 'default',
+      description: '',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'config', 'get', 'guide.source']);
+
+    const { ConfigManager } = await import('@context-forge/core/node');
+    expect(vi.mocked(ConfigManager)).toHaveBeenCalledWith(undefined);
+    expect(mockGet).toHaveBeenCalledWith('guide.source');
+  });
+});
+
+describe('cf config unset', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('calls ConfigManager.delete with project scope by default (no flags)', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'config', 'unset', 'guide.source']);
+
+    expect(mockDelete).toHaveBeenCalledWith('guide.source', 'project');
+  });
+
+  it('calls ConfigManager.delete with user scope when --global is passed', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'config', 'unset', 'guide.source', '--global']);
+
+    expect(mockDelete).toHaveBeenCalledWith('guide.source', 'user');
+  });
+
+  it('rejects --project <id> and --global together as mutually exclusive', async () => {
+    const program = createProgram();
+    await expect(
+      program.parseAsync([
+        'node', 'cf', 'config', 'unset', 'guide.source',
+        '--project', 'other-project', '--global',
+      ])
+    ).rejects.toThrow();
+
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('exits 0 with a neutral message when the key is not present at the target scope (no-op)', async () => {
+    mockDelete.mockResolvedValue(undefined);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'config', 'unset', 'guide.source']);
+
+    expect(mockDelete).toHaveBeenCalledWith('guide.source', 'project');
+    const output = vi.mocked(console.log).mock.calls[0]?.[0] as string;
+    expect(output).toContain('Unset guide.source');
+  });
+
+  it('propagates an error for an unknown key, same as get/set', async () => {
+    mockDelete.mockRejectedValue(new Error('Unknown config key: "no_such_key"'));
+    const handleErrorSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called');
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'cf', 'config', 'unset', 'no_such_key'])
+    ).rejects.toThrow();
+
+    handleErrorSpy.mockRestore();
   });
 });

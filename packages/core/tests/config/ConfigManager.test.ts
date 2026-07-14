@@ -254,6 +254,73 @@ describe('ConfigManager', () => {
     });
   });
 
+  // --- delete() tests ---
+
+  describe('delete()', () => {
+    it('rejects unknown key', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.delete('no_such_key', 'user')).rejects.toThrow(
+        'Unknown config key: "no_such_key"'
+      );
+    });
+
+    it('deletes an existing key at user scope', async () => {
+      const cm = new ConfigManager();
+      await cm.set('guide.source', 'https://example.com', 'user');
+      await cm.delete('guide.source', 'user');
+      const result = await cm.get('guide.source');
+      expect(result.source).toBe('default');
+    });
+
+    it('deletes an existing key at project scope', async () => {
+      const cm = new ConfigManager(projectDir);
+      await cm.set('guide.source', 'proj-value', 'project');
+      await cm.delete('guide.source', 'project');
+      const result = await cm.get('guide.source');
+      expect(result.source).toBe('default');
+    });
+
+    it('is a no-op when the key is not present at the target scope (exit clean, no error)', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.delete('guide.source', 'user')).resolves.not.toThrow();
+      const result = await cm.get('guide.source');
+      expect(result.source).toBe('default');
+    });
+
+    it('rejects project scope when no projectPath provided', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.delete('guide.source', 'project')).rejects.toThrow(
+        'no projectPath provided'
+      );
+    });
+
+    it('prunes a now-empty parent table left behind after removing the last key in a nested section', async () => {
+      const cm = new ConfigManager();
+      await cm.set('git.integration_branch', 'dev/erik', 'user');
+      await cm.delete('git.integration_branch', 'user');
+
+      const userConfigPath = getUserConfigPath();
+      const tomlContent = await readFile(userConfigPath, 'utf-8');
+      expect(tomlContent).not.toContain('[git]');
+
+      const result = await cm.get('git.integration_branch');
+      expect(result.source).toBe('default');
+    });
+
+    it('does not disturb sibling keys in the same table when pruning', async () => {
+      const cm = new ConfigManager();
+      await cm.set('guide.source', 'keep-me', 'user');
+      await cm.set('guide.git_strategy', 'clone', 'user');
+      await cm.delete('guide.source', 'user');
+
+      const sourceResult = await cm.get('guide.source');
+      const strategyResult = await cm.get('guide.git_strategy');
+      expect(sourceResult.source).toBe('default');
+      expect(strategyResult.value).toBe('clone');
+      expect(strategyResult.source).toBe('user');
+    });
+  });
+
   // --- review config keys (slice 240) ---
 
   describe('review config keys', () => {

@@ -4,7 +4,7 @@ import { ConfigManager, FileProjectStore, CONFIG_KEYS } from '@context-forge/cor
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
-import { withJsonOption, withProjectOption } from '../options.js';
+import { withJsonOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, success } from '../output/styles.js';
 
@@ -38,17 +38,38 @@ async function resolveConfigProjectPath(project?: string): Promise<string | unde
   return undefined;
 }
 
+/**
+ * Resolves the --project/--global scope-selection flags shared by `set` and `unset`.
+ * `--project` is optional-value here (`-p, --project [id]`): bare means "resolve from
+ * CWD", `--project <id>` means an explicit project. Mutually exclusive with `--global`.
+ */
+async function resolveScopeAndPath(opts: {
+  project?: string | true;
+  global?: boolean;
+}): Promise<{ scope: 'user' | 'project'; projectPath: string | undefined }> {
+  if (opts.global && opts.project) {
+    throw new Error('--project and --global are mutually exclusive');
+  }
+  if (opts.global) {
+    return { scope: 'user', projectPath: undefined };
+  }
+  const projectArg = opts.project === true ? undefined : opts.project;
+  const projectPath = await resolveConfigProjectPath(projectArg);
+  return { scope: 'project', projectPath };
+}
+
 export function registerConfigCommand(program: Command): void {
   const cmd = program
     .command('config')
-    .description('Manage Context Forge configuration (get, set)');
+    .description('Manage Context Forge configuration (get, set, unset)');
 
   const getCmd = cmd.command('get [key]').description('Get a configuration key, or show all keys if none specified');
   withJsonOption(getCmd);
-  withProjectOption(getCmd);
-  getCmd.action(async (key: string | undefined, opts: { json?: boolean; project?: string }) => {
+  getCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
+  getCmd.action(async (key: string | undefined, opts: { json?: boolean; project?: string | true }) => {
       try {
-        const projectPath = await resolveConfigProjectPath(opts.project);
+        const projectArg = opts.project === true ? undefined : opts.project;
+        const projectPath = await resolveConfigProjectPath(projectArg);
         const cm = new ConfigManager(projectPath);
 
         if (!key) {
@@ -86,11 +107,11 @@ export function registerConfigCommand(program: Command): void {
     });
 
   const setCmd = cmd.command('set <key> <value>').description('Set a configuration value');
-  withProjectOption(setCmd);
-  setCmd.action(async (key: string, val: string, opts: { project?: string }) => {
+  setCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
+  setCmd.option('--global', 'Write to the machine-wide user-scope config instead of project scope');
+  setCmd.action(async (key: string, val: string, opts: { project?: string | true; global?: boolean }) => {
       try {
-        const scope = opts.project ? 'project' : 'user';
-        const projectPath = await resolveConfigProjectPath(opts.project);
+        const { scope, projectPath } = await resolveScopeAndPath(opts);
         const cm = new ConfigManager(projectPath);
 
         // Coerce the raw string argument to the key's declared type. The shell
@@ -110,6 +131,21 @@ export function registerConfigCommand(program: Command): void {
 
         await cm.set(key, coerced, scope);
         console.log(success(`Set ${key} = ${String(coerced)} (${scope})`));
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+  const unsetCmd = cmd.command('unset <key>').description('Remove a configuration value');
+  unsetCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
+  unsetCmd.option('--global', 'Remove from the machine-wide user-scope config instead of project scope');
+  unsetCmd.action(async (key: string, opts: { project?: string | true; global?: boolean }) => {
+      try {
+        const { scope, projectPath } = await resolveScopeAndPath(opts);
+        const cm = new ConfigManager(projectPath);
+
+        await cm.delete(key, scope);
+        console.log(success(`Unset ${key} (${scope})`));
       } catch (err) {
         handleError(err);
       }

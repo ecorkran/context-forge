@@ -58,6 +58,36 @@ function setKey(obj: TomlObject, key: string, value: unknown): void {
   current[parts[parts.length - 1]] = value;
 }
 
+/**
+ * Removes the leaf key at the dotted path, then prunes any now-empty parent
+ * tables left behind so `stringify` doesn't emit a dangling `[section]`
+ * header. No-op if the key or an intermediate table doesn't exist.
+ */
+function deleteKey(obj: TomlObject, key: string): void {
+  const parts = key.split('.');
+  const chain: TomlObject[] = [obj];
+  let current: TomlObject = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
+      return;
+    }
+    current = current[part] as TomlObject;
+    chain.push(current);
+  }
+  const leaf = parts[parts.length - 1];
+  if (!(leaf in current)) return;
+  delete current[leaf];
+
+  // Walk back up, pruning any table left empty by the deletion above.
+  for (let i = chain.length - 1; i > 0; i--) {
+    const table = chain[i];
+    if (Object.keys(table).length > 0) break;
+    const parent = chain[i - 1];
+    delete parent[parts[i - 1]];
+  }
+}
+
 function validateValue(
   key: string,
   value: string | boolean | number,
@@ -151,6 +181,25 @@ export class ConfigManager {
 
     const existing = await readToml(filePath);
     setKey(existing, key, value);
+    await writeToml(filePath, existing);
+  }
+
+  async delete(key: string, scope: 'user' | 'project'): Promise<void> {
+    const def = CONFIG_KEYS[key];
+    if (!def) {
+      throw new Error(`Unknown config key: "${key}"`);
+    }
+    if (scope === 'project' && !this.projectPath) {
+      throw new Error(`Cannot unset project-scoped config: no projectPath provided`);
+    }
+
+    const filePath =
+      scope === 'project'
+        ? getProjectConfigPath(this.projectPath!)
+        : getUserConfigPath();
+
+    const existing = await readToml(filePath);
+    deleteKey(existing, key);
     await writeToml(filePath, existing);
   }
 
