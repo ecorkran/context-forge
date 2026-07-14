@@ -224,25 +224,43 @@ No-op with a clear message ("No personal keys found in the shared config file.")
 
 ### Verification Walkthrough
 
-1. In a scratch project (`cf init --lite` in an empty directory), run:
+Steps run in this order deliberately: the shared-file fallback (steps 1-2) is proven
+*before* anything is ever written to the personal file, because once a value exists in
+the personal file it always wins per precedence — a later step can't demonstrate the
+fallback if an earlier step already populated the personal file for the same key. An
+earlier draft of this walkthrough set `git.integration_branch` via the personal file
+first and only then tried to demonstrate the fallback, which is unobservable once the
+personal file already holds a value; this ordering avoids that trap.
+
+Also note: `--project` is the default scope for `cf config set`/`get`/`unset` (per the
+916 prerequisite fix), so it's omitted below except where a flag is otherwise required.
+
+1. In a scratch project (`cf init --lite` in an empty directory), simulate the
+   pre-migration case: manually edit `.context-forge.toml` to add
+   `git.integration_branch = "legacy/value"` under `[git]` (as if it had been committed
+   before this slice existed). Run:
    ```
-   cf config set git.integration_branch dev/erik --project
+   cf config get git.integration_branch
    ```
-   Confirm `.context-forge.local.toml` was created with `git.integration_branch = "dev/erik"` and `.context-forge.toml` was not touched.
+   Confirm it resolves to `legacy/value` with `source: project` (not `project-personal`)
+   — proving the fallback keeps working when the personal file doesn't exist yet.
 
 2. Run:
    ```
-   cf config set workflow.review_enabled true --project
+   cf config set git.integration_branch dev/erik
+   ```
+   Confirm `.context-forge.local.toml` was created with `git.integration_branch = "dev/erik"`
+   and `.context-forge.toml` still contains the untouched `legacy/value` copy. Run
+   `cf config get git.integration_branch` again — confirm it now resolves to `dev/erik`
+   with `source: project-personal` (personal wins over the still-present shared value).
+
+3. Run:
+   ```
+   cf config set workflow.review_enabled true
    ```
    Confirm this lands in `.context-forge.toml`, unchanged from current behavior.
 
-3. Run `cat .gitignore` — confirm `.context-forge.local.toml` is present.
-
-4. Simulate the pre-migration case: manually edit `.context-forge.toml` to add `git.integration_branch = "legacy/value"` under `[git]` (as if it had been committed before this slice existed), while leaving `.context-forge.local.toml` untouched. Run:
-   ```
-   cf config get git.integration_branch --project
-   ```
-   Confirm it resolves to `legacy/value` with `source: project` (not `project-personal`) — proving the fallback keeps working.
+4. Run `cat .gitignore` — confirm `.context-forge.local.toml` is present.
 
 5. Run `cf check` (or `workflow_check` via MCP). Confirm a `warning`-severity finding names `git.integration_branch` and both file paths.
 
@@ -250,13 +268,39 @@ No-op with a clear message ("No personal keys found in the shared config file.")
    ```
    cf config migrate-personal --project <id>
    ```
-   Confirm the report shows `git.integration_branch` moved. Confirm `.context-forge.toml` no longer contains it and `.context-forge.local.toml` now does.
+   Confirm the report shows `git.integration_branch` **skipped (personal value already set)**
+   — `.context-forge.toml`'s `legacy/value` and `.context-forge.local.toml`'s `dev/erik`
+   are different, so per collision semantics neither file is touched. Confirm
+   `.context-forge.toml` still contains the stale copy and `.context-forge.local.toml`
+   still has `dev/erik`.
 
-7. Re-run `cf check` — confirm the finding is gone.
+7. Known gap (not fixed by this slice — confirmed low-risk since no project has this
+   key set in the wild yet): `cf config unset git.integration_branch --project` does
+   **not** clear the stale shared-file copy here. `unset` for a `--project`-scoped
+   personal key routes to the personal file, by the same auto-routing logic as `set`/
+   `get` — this is correct, intended behavior, not a bug, but it means there is
+   currently no CLI command that targets the shared copy specifically once
+   `migrate-personal` has skipped it on a collision. Run:
+   ```
+   cf config unset git.integration_branch --project
+   ```
+   and confirm `.context-forge.local.toml` is now empty (the personal file was cleared,
+   *not* the shared file) and `cf check` **still** reports the warning — this is the
+   expected/known behavior, not a walkthrough failure. Manually edit `.context-forge.toml`
+   to remove the stale `[git]` section instead, then re-run `cf check` and confirm the
+   finding is gone. Re-run `cf config set git.integration_branch dev/erik` to restore the
+   personal value cleared by the `unset` above, before continuing to step 8.
 
-8. Re-run `cf config get git.integration_branch --project` — confirm it still resolves to `legacy/value`, now with `source: project-personal`.
+8. Re-run `cf config get git.integration_branch` — confirm it resolves to
+   `dev/erik`, with `source: project-personal`.
 
-9. Collision case: manually re-add `git.integration_branch = "another-legacy-value"` to `.context-forge.toml` (simulating a second stale shared-file copy, now different from the personal file's `legacy/value`). Run `cf config migrate-personal --project <id>` again — confirm the report shows it `skipped (personal value already set)`, confirm `.context-forge.local.toml`'s value is untouched (`legacy/value`, not overwritten), and confirm `.context-forge.toml` still contains the stale copy (not silently deleted). Run `cf config unset git.integration_branch --project` to clear the stale shared-file copy explicitly, then confirm `cf check` is clean again.
+9. Collision-then-clean-move case: manually re-add `git.integration_branch = "dev/erik"`
+   to `.context-forge.toml` (simulating a second commit of the *same* value the personal
+   file already has). Run `cf config migrate-personal --project <id>` again — confirm the
+   report shows it moved (identical-value case deletes the now-redundant shared copy, no
+   personal-file write needed). Confirm `.context-forge.toml` no longer contains the key
+   and `.context-forge.local.toml`'s value is unchanged (`dev/erik`). Re-run `cf check` —
+   confirm it is clean.
 
 ## Risk Assessment
 

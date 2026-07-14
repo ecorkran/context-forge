@@ -252,6 +252,25 @@ export class ConfigManager {
     };
   }
 
+  /**
+   * Deletes a key from the shared project file specifically, bypassing the
+   * scope-based routing `delete()` applies. Needed by `cf config migrate-personal`:
+   * that command's whole purpose is to remove a personal-scope key from the
+   * *shared* file once it's confirmed safe to do so (identical value already in
+   * the personal file, or successfully copied there) — routed `delete()` would
+   * send a personal key's deletion to the personal file instead, deleting the
+   * very value the migration just confirmed or wrote.
+   */
+  async deleteFromSharedProjectFile(key: string): Promise<void> {
+    if (!this.projectPath) {
+      throw new Error('Cannot delete project-scoped config: no projectPath provided');
+    }
+    const filePath = getProjectConfigPath(this.projectPath);
+    const existing = await readToml(filePath);
+    deleteKey(existing, key);
+    await writeToml(filePath, existing);
+  }
+
   async list(): Promise<ConfigListEntry[]> {
     const results: ConfigListEntry[] = [];
     for (const [key, def] of Object.entries(CONFIG_KEYS)) {

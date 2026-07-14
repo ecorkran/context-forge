@@ -176,10 +176,10 @@ export function registerConfigCommand(program: Command): void {
 
             if (personal === undefined) {
               await cm.set(key, shared, 'project');
-              await cm.delete(key, 'project');
+              await cm.deleteFromSharedProjectFile(key);
               outcomes.push({ key, status: 'moved' });
             } else if (personal === shared) {
-              await cm.delete(key, 'project');
+              await cm.deleteFromSharedProjectFile(key);
               outcomes.push({ key, status: 'moved' });
             } else {
               outcomes.push({ key, status: 'skipped', detail: 'personal value already set' });

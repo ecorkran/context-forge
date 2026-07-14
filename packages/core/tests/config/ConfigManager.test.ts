@@ -549,5 +549,29 @@ describe('ConfigManager', () => {
       expect(entry.value).toBe('dev/erik');
       expect(entry.source).toBe('project-personal');
     });
+
+    it('deleteFromSharedProjectFile() removes a personal key from the shared file specifically, leaves the personal file untouched', async () => {
+      await mkdir(projectDir, { recursive: true });
+      await writeFile(
+        getProjectConfigPath(projectDir),
+        '[git]\nintegration_branch = "legacy/value"\n',
+        'utf-8'
+      );
+      const cm = new ConfigManager(projectDir);
+      await cm.set('git.integration_branch', 'dev/erik', 'project');
+
+      await cm.deleteFromSharedProjectFile('git.integration_branch');
+
+      const { personal, shared } = await cm.getRawProjectFileValues('git.integration_branch');
+      expect(shared).toBeUndefined();
+      expect(personal).toBe('dev/erik');
+    });
+
+    it('deleteFromSharedProjectFile() throws when no projectPath is set', async () => {
+      const cm = new ConfigManager();
+      await expect(cm.deleteFromSharedProjectFile('git.integration_branch')).rejects.toThrow(
+        'no projectPath provided'
+      );
+    });
   });
 });

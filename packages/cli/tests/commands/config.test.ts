@@ -11,6 +11,7 @@ const mockSet = vi.fn();
 const mockDelete = vi.fn();
 const mockList = vi.fn();
 const mockGetRawProjectFileValues = vi.fn();
+const mockDeleteFromSharedProjectFile = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
@@ -19,6 +20,7 @@ vi.mock('@context-forge/core/node', () => ({
     delete: mockDelete,
     list: mockList,
     getRawProjectFileValues: mockGetRawProjectFileValues,
+    deleteFromSharedProjectFile: mockDeleteFromSharedProjectFile,
   })),
   FileProjectStore: vi.fn().mockImplementation(() => ({})),
   // The set command consults CONFIG_KEYS to coerce the raw string argument
@@ -322,13 +324,17 @@ describe('cf config migrate-personal', () => {
   it('moves a key absent from the personal file: writes personal, deletes shared, reports moved', async () => {
     mockGetRawProjectFileValues.mockResolvedValue({ personal: undefined, shared: 'legacy/value' });
     mockSet.mockResolvedValue(undefined);
-    mockDelete.mockResolvedValue(undefined);
+    mockDeleteFromSharedProjectFile.mockResolvedValue(undefined);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
 
     expect(mockSet).toHaveBeenCalledWith('git.integration_branch', 'legacy/value', 'project');
-    expect(mockDelete).toHaveBeenCalledWith('git.integration_branch', 'project');
+    expect(mockDeleteFromSharedProjectFile).toHaveBeenCalledWith('git.integration_branch');
+    // Regression: deleting a personal key via the auto-routed delete('project') targets
+    // the personal file, not the shared one — migrate-personal must use the dedicated
+    // shared-file-only deletion instead, or it silently wipes the value it just wrote.
+    expect(mockDelete).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Moved 1 personal key');
@@ -337,13 +343,14 @@ describe('cf config migrate-personal', () => {
 
   it('identical values in both files: deletes shared copy only, reports moved', async () => {
     mockGetRawProjectFileValues.mockResolvedValue({ personal: 'a', shared: 'a' });
-    mockDelete.mockResolvedValue(undefined);
+    mockDeleteFromSharedProjectFile.mockResolvedValue(undefined);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
 
     expect(mockSet).not.toHaveBeenCalled();
-    expect(mockDelete).toHaveBeenCalledWith('git.integration_branch', 'project');
+    expect(mockDeleteFromSharedProjectFile).toHaveBeenCalledWith('git.integration_branch');
+    expect(mockDelete).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Moved 1 personal key');
@@ -356,7 +363,7 @@ describe('cf config migrate-personal', () => {
     await program.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
 
     expect(mockSet).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockDeleteFromSharedProjectFile).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('skipped (personal value already set)');
@@ -369,7 +376,7 @@ describe('cf config migrate-personal', () => {
     await program.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
 
     expect(mockSet).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockDeleteFromSharedProjectFile).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('No personal keys found in the shared config file.');
@@ -379,12 +386,12 @@ describe('cf config migrate-personal', () => {
     // First run: moved. Second run: personal now has it, shared no longer does.
     mockGetRawProjectFileValues.mockResolvedValueOnce({ personal: undefined, shared: 'legacy/value' });
     mockSet.mockResolvedValue(undefined);
-    mockDelete.mockResolvedValue(undefined);
+    mockDeleteFromSharedProjectFile.mockResolvedValue(undefined);
 
     const program1 = createProgram();
     await program1.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
     expect(mockSet).toHaveBeenCalledTimes(1);
-    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockDeleteFromSharedProjectFile).toHaveBeenCalledTimes(1);
 
     vi.clearAllMocks();
     mockGetRawProjectFileValues.mockResolvedValueOnce({ personal: 'legacy/value', shared: undefined });
@@ -393,7 +400,7 @@ describe('cf config migrate-personal', () => {
     await program2.parseAsync(['node', 'cf', 'config', 'migrate-personal', '--project', process.cwd()]);
 
     expect(mockSet).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockDeleteFromSharedProjectFile).not.toHaveBeenCalled();
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('No personal keys found in the shared config file.');
   });
