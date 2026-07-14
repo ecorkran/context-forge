@@ -142,6 +142,37 @@ describe('validateFrontmatter', () => {
     expect(findings).toHaveLength(0);
   });
 
+  it.each(['done', 'ready', 'pending', 'planned'])(
+    'accepts %s as a normalizeStatus alias (unifies with cf list arch "unreadable")',
+    (alias) => {
+      const findings = validateFrontmatter('/test.md', {
+        docType: 'architecture',
+        project: 'test',
+        status: alias,
+        archIndex: '140',
+        component: 'api-layer',
+        dateCreated: '20260101',
+        dateUpdated: '20260301',
+      });
+      expect(findings).toHaveLength(0);
+    },
+  );
+
+  it('flags an architecture status that cf list arch would call "unreadable" (#63)', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'architecture',
+      project: 'test',
+      status: 'in-progres', // typo — not a recognized alias
+      archIndex: '140',
+      component: 'api-layer',
+      dateCreated: '20260101',
+      dateUpdated: '20260301',
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'in-progres'");
+    expect(findings[0].description).toContain('Invalid value');
+  });
+
   it('includes fixAction for missing dateUpdated, defaulting to dateCreated', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',

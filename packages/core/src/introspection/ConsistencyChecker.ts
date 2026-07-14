@@ -826,14 +826,16 @@ export class ConsistencyChecker {
 
     const archStatus = archFrontmatter.data.status.toLowerCase();
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
+    const archIndex = ConsistencyChecker.extractFileIndex(archPath);
+    const archLabel = archIndex !== null ? `Architecture (${archIndex})` : `Architecture (${archPath.split('/').pop()})`;
 
     if (archStatus === STATUS.Complete && !allComplete) {
       findings.push({
         rule: 'arch-status-vs-plans',
         severity: 'warning',
         location: archPath,
-        description: `Architecture status is "complete" but plan has unchecked entries (${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices})`,
-        suggestedFix: 'Update architecture frontmatter status to "in-progress"',
+        description: `${archLabel} status is "complete" but plan has unchecked entries (${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices})`,
+        suggestedFix: `Update ${archLabel} frontmatter status to "in-progress"`,
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
@@ -848,8 +850,8 @@ export class ConsistencyChecker {
         rule: 'arch-status-vs-plans',
         severity: 'warning',
         location: archPath,
-        description: `All ${slicePlanResult.totalSlices} plan entries are checked but architecture status is "${archStatus}"`,
-        suggestedFix: 'Update architecture frontmatter status to "complete"',
+        description: `All ${slicePlanResult.totalSlices} plan entries are checked but ${archLabel} status is "${archStatus}"`,
+        suggestedFix: `Update ${archLabel} frontmatter status to "complete"`,
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',

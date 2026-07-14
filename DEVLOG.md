@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-07-14
 
+### Slice 908 Item D: Architecture Status Validation & Finding Attribution
+- Filed and fixed GitHub issue #63, found while dogfooding `cf list arch`/`cf check` on squadron (12-initiative project). Reopened catch-all maintenance slice 908 rather than starting a new standalone slice, per the lightweight-fold-in path for small maintenance items.
+- `cf check`'s frontmatter-schema rule (Rule 12, `validateFrontmatter()` in `frontmatterSchema.ts`) now delegates status-alias normalization to the same `normalizeStatus()`/`STATUS_MAP` that drives `cf list arch`'s "⚠ unreadable" label, instead of its own narrower, independently-drifted alias list. Previously an arch doc `cf list arch` correctly flagged as unreadable could pass Rule 12 silently and never surface in `cf check` at all.
+- `ConsistencyChecker.ruleArchStatusVsPlans` ("Architecture status is...") now names the architecture document by index (e.g. `Architecture (100) status is "complete" but plan has unchecked entries`), matching the naming convention already used by the sibling `ruleInitiativeEntryVsArch` rule — previously ambiguous in any project with more than one architecture initiative.
+- Verified end-to-end against a scratch project with a deliberately invalid arch status: `cf check` now reports both conditions correctly and attributably.
+
 ### Slice 915: Config Key Scope Classification (Shared vs. Personal) — Complete
 - Adds a required `scope: 'shared' | 'personal'` field to `ConfigKeyDefinition` (`packages/core/src/config/ConfigKeys.ts`), classifying all 14 keys — only `git.integration_branch` is `personal`, forcing an explicit decision on any future key at compile time. New `.context-forge.local.toml` project-scope file (`getProjectPersonalConfigPath()`) holds personal keys; `.context-forge.toml` stays purely shared/committed policy.
 - `ConfigManager.get/set/delete` route project-scope calls to the correct physical file based on the key's own `scope`, transparently — no caller (CLI, MCP, `branchGuard.ts`, `WorkflowNavigator`, etc.) changed. Read precedence: project-personal → project-shared → user → default, with a read-time fallback so a personal key already committed to the shared file (pre-existing-commit case) keeps resolving correctly instead of silently disappearing.
