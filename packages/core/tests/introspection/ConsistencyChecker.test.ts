@@ -879,6 +879,7 @@ describe('ConsistencyChecker', () => {
       const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
       expect(finding).toBeDefined();
       expect(finding!.severity).toBe('warning');
+      expect(finding!.description).toContain('Architecture (160)');
       expect(finding!.description).toContain('complete');
       expect(finding!.description).toContain('unchecked');
       expect(finding!.fixable).toBe(true);
@@ -911,6 +912,7 @@ describe('ConsistencyChecker', () => {
       const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
       expect(finding).toBeDefined();
       expect(finding!.description).toContain('All 1 plan entries');
+      expect(finding!.description).toContain('Architecture (160)');
     });
 
     // --- Multi-plan scanning ---
