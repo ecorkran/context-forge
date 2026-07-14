@@ -5,6 +5,8 @@ import { registerInitCommand } from '../../src/commands/init.js';
 const mockGetAll = vi.fn();
 const mockCreate = vi.fn();
 const mockExistsSync = vi.fn();
+const mockReadFileSync = vi.fn();
+const mockWriteFileSync = vi.fn();
 const mockExecFileSync = vi.fn();
 const mockGuidesInstallAction = vi.fn();
 const mockSetupIdeAction = vi.fn();
@@ -24,8 +26,12 @@ vi.mock('node:fs', async (importOriginal) => {
     default: {
       ...actual,
       existsSync: (...args: unknown[]) => mockExistsSync(...args),
+      readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+      writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
     },
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
+    readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+    writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
   };
 });
 
@@ -219,5 +225,74 @@ describe('cf init', () => {
     expect(logOutput).toContain('Guides install failed');
     // Should not have called process.exit, commands still ran
     expect(mockInstallCommandsAction).toHaveBeenCalled();
+  });
+
+  describe('.gitignore handling for the personal config file', () => {
+    it('creates .gitignore containing the personal config line when none exists', async () => {
+      mockGetAll.mockResolvedValue([]);
+      mockExistsSync.mockImplementation((p: string) => p.endsWith('.git')); // .gitignore absent
+
+      const program = createProgram();
+      await program.parseAsync(['init', '--lite'], { from: 'user' });
+
+      const gitignoreCall = vi.mocked(mockWriteFileSync).mock.calls.find((c) =>
+        String(c[0]).endsWith('.gitignore'),
+      );
+      expect(gitignoreCall).toBeDefined();
+      expect(gitignoreCall![1]).toBe('.context-forge.local.toml\n');
+    });
+
+    it('appends the personal config line to an existing .gitignore that lacks it', async () => {
+      mockGetAll.mockResolvedValue([]);
+      mockExistsSync.mockImplementation((p: string) => p.endsWith('.git') || p.endsWith('.gitignore'));
+      mockReadFileSync.mockImplementation((p: string) => {
+        if (String(p).endsWith('.gitignore')) return 'node_modules\n';
+        throw new Error(`unexpected readFileSync path: ${p}`);
+      });
+
+      const program = createProgram();
+      await program.parseAsync(['init', '--lite'], { from: 'user' });
+
+      const gitignoreCall = vi.mocked(mockWriteFileSync).mock.calls.find((c) =>
+        String(c[0]).endsWith('.gitignore'),
+      );
+      expect(gitignoreCall).toBeDefined();
+      expect(gitignoreCall![1]).toBe('node_modules\n.context-forge.local.toml\n');
+    });
+
+    it('inserts a newline before the appended line when the existing .gitignore has no trailing newline', async () => {
+      mockGetAll.mockResolvedValue([]);
+      mockExistsSync.mockImplementation((p: string) => p.endsWith('.git') || p.endsWith('.gitignore'));
+      mockReadFileSync.mockImplementation((p: string) => {
+        if (String(p).endsWith('.gitignore')) return 'node_modules';
+        throw new Error(`unexpected readFileSync path: ${p}`);
+      });
+
+      const program = createProgram();
+      await program.parseAsync(['init', '--lite'], { from: 'user' });
+
+      const gitignoreCall = vi.mocked(mockWriteFileSync).mock.calls.find((c) =>
+        String(c[0]).endsWith('.gitignore'),
+      );
+      expect(gitignoreCall).toBeDefined();
+      expect(gitignoreCall![1]).toBe('node_modules\n.context-forge.local.toml\n');
+    });
+
+    it('leaves .gitignore unchanged (no duplicate line) when it already contains the personal config line', async () => {
+      mockGetAll.mockResolvedValue([]);
+      mockExistsSync.mockImplementation((p: string) => p.endsWith('.git') || p.endsWith('.gitignore'));
+      mockReadFileSync.mockImplementation((p: string) => {
+        if (String(p).endsWith('.gitignore')) return 'node_modules\n.context-forge.local.toml\n';
+        throw new Error(`unexpected readFileSync path: ${p}`);
+      });
+
+      const program = createProgram();
+      await program.parseAsync(['init', '--lite'], { from: 'user' });
+
+      const gitignoreCall = vi.mocked(mockWriteFileSync).mock.calls.find((c) =>
+        String(c[0]).endsWith('.gitignore'),
+      );
+      expect(gitignoreCall).toBeUndefined();
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { existsSync, statSync } from 'node:fs';
-import { ConfigManager, FileProjectStore, CONFIG_KEYS } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, CONFIG_KEYS, ConfigScope } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -146,6 +146,67 @@ export function registerConfigCommand(program: Command): void {
 
         await cm.delete(key, scope);
         console.log(success(`Unset ${key} (${scope})`));
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+  const migratePersonalCmd = cmd
+    .command('migrate-personal')
+    .description('Move personal-scope config keys out of the shared project file into the personal file');
+  migratePersonalCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
+  migratePersonalCmd.action(async (opts: { project?: string | true }) => {
+      try {
+        const projectArg = opts.project === true ? undefined : opts.project;
+        const projectPath = await resolveConfigProjectPath(projectArg);
+        if (!projectPath) {
+          throw new Error('migrate-personal requires a project (pass --project or run from within a registered project)');
+        }
+        const cm = new ConfigManager(projectPath);
+
+        const personalKeys = Object.entries(CONFIG_KEYS).filter(([, def]) => def.scope === ConfigScope.Personal);
+
+        type Outcome = { key: string; status: 'moved' | 'skipped' | 'failed'; detail?: string };
+        const outcomes: Outcome[] = [];
+
+        for (const [key] of personalKeys) {
+          try {
+            const { personal, shared } = await cm.getRawProjectFileValues(key);
+            if (shared === undefined) continue; // nothing to migrate for this key
+
+            if (personal === undefined) {
+              await cm.set(key, shared, 'project');
+              await cm.deleteFromSharedProjectFile(key);
+              outcomes.push({ key, status: 'moved' });
+            } else if (personal === shared) {
+              await cm.deleteFromSharedProjectFile(key);
+              outcomes.push({ key, status: 'moved' });
+            } else {
+              outcomes.push({ key, status: 'skipped', detail: 'personal value already set' });
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            outcomes.push({ key, status: 'failed', detail: message });
+          }
+        }
+
+        if (outcomes.length === 0) {
+          console.log('No personal keys found in the shared config file.');
+          return;
+        }
+
+        const moved = outcomes.filter((o) => o.status === 'moved');
+        if (moved.length > 0) {
+          console.log(
+            `Moved ${moved.length} personal key${moved.length === 1 ? '' : 's'} from .context-forge.toml to .context-forge.local.toml:`
+          );
+          for (const o of moved) {
+            console.log(`  ${o.key}`);
+          }
+        }
+        for (const o of outcomes.filter((o) => o.status !== 'moved')) {
+          console.log(`  ${o.key}: ${o.status}${o.detail ? ` (${o.detail})` : ''}`);
+        }
       } catch (err) {
         handleError(err);
       }

@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-14
+
+### Slice 915: Config Key Scope Classification (Shared vs. Personal) — Complete
+- Adds a required `scope: 'shared' | 'personal'` field to `ConfigKeyDefinition` (`packages/core/src/config/ConfigKeys.ts`), classifying all 14 keys — only `git.integration_branch` is `personal`, forcing an explicit decision on any future key at compile time. New `.context-forge.local.toml` project-scope file (`getProjectPersonalConfigPath()`) holds personal keys; `.context-forge.toml` stays purely shared/committed policy.
+- `ConfigManager.get/set/delete` route project-scope calls to the correct physical file based on the key's own `scope`, transparently — no caller (CLI, MCP, `branchGuard.ts`, `WorkflowNavigator`, etc.) changed. Read precedence: project-personal → project-shared → user → default, with a read-time fallback so a personal key already committed to the shared file (pre-existing-commit case) keeps resolving correctly instead of silently disappearing.
+- New `ConsistencyChecker` rule (`personal-config-in-shared-file`) flags any personal-scope key found in the shared file; new `cf config migrate-personal` command moves it, with explicit collision semantics (absent from personal → move; identical value → delete shared copy; different value → skip both, report `skipped (personal value already set)` — never silently overwrites a developer's local value). `cf init` now ensures `.context-forge.local.toml` is gitignored (create-or-append, one line, regardless of `--lite`). MCP `config_get` surfaces both project config paths.
+- Bug found and fixed via the manual verification walkthrough (not caught by mocked unit tests): `migrate-personal`'s identical-value-collision path called the auto-routed `delete(key, 'project')`, which for a personal-scope key routes to the *personal* file by design — silently wiping the value the migration was supposed to preserve while leaving the shared file's stale copy untouched. Fixed with a new narrow `ConfigManager.deleteFromSharedProjectFile()` method that bypasses scope routing; `migrate-personal` now uses it for both its moved-and-delete-shared paths. Re-verified the full 9-step walkthrough end-to-end after the fix.
+- Walkthrough itself also had a step-ordering bug (found before running it, not after): the original order set the personal file's value in step 1, then tried to demonstrate the shared-file fallback in step 4 — unobservable once the personal file already has a value, since personal always wins. Reordered so the fallback proves out before anything is ever written to the personal file. Also documents a known, low-risk gap (confirmed acceptable — no project has this key set in the wild yet): `cf config unset --project` cannot target a personal key's stale shared-file copy directly, since `delete()` routes it to the personal file by the same logic as `set()`; the manual-edit-TOML fallback is documented instead of adding new CLI surface for a case that doesn't need solving yet.
+- 7 commits on `915-slice.config-key-scope-classification-shared-vs-personal` branch (registry+routing, ConsistencyChecker rule, migrate-personal, cf init gitignore, MCP surface, the walkthrough-driven bugfix, wrap-up); full monorepo build clean; only the pre-documented pre-existing failures remain (3 `FileProjectStore`, 4 CLI `list.test.ts`).
+
+---
+
 ## 2026-07-13
 
 ### Slice 916: Guide Update Branch Guard — Complete

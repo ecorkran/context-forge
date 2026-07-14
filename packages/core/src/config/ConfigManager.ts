@@ -1,13 +1,13 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { parse, stringify } from 'smol-toml';
-import { CONFIG_KEYS, type ConfigKeyDefinition } from './ConfigKeys.js';
-import { getUserConfigPath, getProjectConfigPath } from './configPaths.js';
+import { CONFIG_KEYS, ConfigScope, type ConfigKeyDefinition } from './ConfigKeys.js';
+import { getUserConfigPath, getProjectConfigPath, getProjectPersonalConfigPath } from './configPaths.js';
 
 export interface ConfigResult {
   key: string;
   value: string | boolean | number;
-  source: 'project' | 'user' | 'default';
+  source: 'project-personal' | 'project' | 'user' | 'default';
   description: string;
 }
 
@@ -124,8 +124,26 @@ export class ConfigManager {
       throw new Error(`Unknown config key: "${key}"`);
     }
 
-    // Check project config first
+    // Check project config first (personal file before shared file, for personal-scope keys)
     if (this.projectPath) {
+      if (def.scope === ConfigScope.Personal) {
+        const personalConfig = await readToml(getProjectPersonalConfigPath(this.projectPath));
+        const personalValue = resolveKey(personalConfig, key);
+        if (personalValue !== undefined) {
+          return {
+            key,
+            // resolveKey returns unknown (parsed TOML); safe to assert here because
+            // `key` is validated against CONFIG_KEYS above, whose values are all
+            // string | boolean | number.
+            value: personalValue as string | boolean | number,
+            source: 'project-personal',
+            description: def.description,
+          };
+        }
+      }
+
+      // Shared project file — normal case for shared keys, and the pre-migration
+      // fallback for a personal key that still lives in the shared file.
       const projectConfig = await readToml(getProjectConfigPath(this.projectPath));
       const projectValue = resolveKey(projectConfig, key);
       if (projectValue !== undefined) {
@@ -174,10 +192,7 @@ export class ConfigManager {
 
     validateValue(key, value, def);
 
-    const filePath =
-      scope === 'project'
-        ? getProjectConfigPath(this.projectPath!)
-        : getUserConfigPath();
+    const filePath = this.resolveProjectScopeFilePath(def, scope);
 
     const existing = await readToml(filePath);
     setKey(existing, key, value);
@@ -193,11 +208,70 @@ export class ConfigManager {
       throw new Error(`Cannot unset project-scoped config: no projectPath provided`);
     }
 
-    const filePath =
-      scope === 'project'
-        ? getProjectConfigPath(this.projectPath!)
-        : getUserConfigPath();
+    const filePath = this.resolveProjectScopeFilePath(def, scope);
 
+    const existing = await readToml(filePath);
+    deleteKey(existing, key);
+    await writeToml(filePath, existing);
+  }
+
+  /**
+   * Resolves the physical file for a `set`/`delete` call. `scope: 'user'` always
+   * targets the user config file regardless of the key's own classification —
+   * only `scope: 'project'` is routed further, to the personal or shared project
+   * file based on `def.scope`.
+   */
+  private resolveProjectScopeFilePath(
+    def: ConfigKeyDefinition,
+    scope: 'user' | 'project'
+  ): string {
+    if (scope === 'user') {
+      return getUserConfigPath();
+    }
+    return def.scope === ConfigScope.Personal
+      ? getProjectPersonalConfigPath(this.projectPath!)
+      : getProjectConfigPath(this.projectPath!);
+  }
+
+  /**
+   * Reads a key's raw value directly from each project-scope file, bypassing the
+   * fallback-merged result `get()` returns. Used where a caller must distinguish
+   * "absent from personal" vs. "present in shared" independently — e.g. the
+   * personal-config-in-shared-file consistency check and `cf config migrate-personal`,
+   * both of which need to know what each file actually contains, not just the
+   * precedence-resolved value.
+   */
+  async getRawProjectFileValues(
+    key: string
+  ): Promise<{ personal: string | boolean | number | undefined; shared: string | boolean | number | undefined }> {
+    if (!this.projectPath) {
+      throw new Error('Cannot read project-scoped config: no projectPath provided');
+    }
+    const personalConfig = await readToml(getProjectPersonalConfigPath(this.projectPath));
+    const sharedConfig = await readToml(getProjectConfigPath(this.projectPath));
+    // resolveKey returns unknown (parsed TOML); safe to assert here because `key`
+    // is expected to be a CONFIG_KEYS entry, whose values are all
+    // string | boolean | number (or absent, hence the trailing `| undefined`).
+    return {
+      personal: resolveKey(personalConfig, key) as string | boolean | number | undefined,
+      shared: resolveKey(sharedConfig, key) as string | boolean | number | undefined,
+    };
+  }
+
+  /**
+   * Deletes a key from the shared project file specifically, bypassing the
+   * scope-based routing `delete()` applies. Needed by `cf config migrate-personal`:
+   * that command's whole purpose is to remove a personal-scope key from the
+   * *shared* file once it's confirmed safe to do so (identical value already in
+   * the personal file, or successfully copied there) — routed `delete()` would
+   * send a personal key's deletion to the personal file instead, deleting the
+   * very value the migration just confirmed or wrote.
+   */
+  async deleteFromSharedProjectFile(key: string): Promise<void> {
+    if (!this.projectPath) {
+      throw new Error('Cannot delete project-scoped config: no projectPath provided');
+    }
+    const filePath = getProjectConfigPath(this.projectPath);
     const existing = await readToml(filePath);
     deleteKey(existing, key);
     await writeToml(filePath, existing);

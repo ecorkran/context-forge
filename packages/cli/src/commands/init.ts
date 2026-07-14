@@ -35,6 +35,32 @@ function isGitWorktreeOf(cwd: string, registeredPaths: string[]): boolean {
   }
 }
 
+const PERSONAL_CONFIG_GITIGNORE_LINE = '.context-forge.local.toml';
+
+/**
+ * Ensures the CWD's .gitignore contains a line for the personal config file.
+ * Simple line-based check (not a full gitignore-pattern parse) — matches this
+ * project's lenient-parsing convention for straightforward line-oriented files.
+ * A write failure propagates to the caller's handleError(err) catch block,
+ * consistent with every other cf init file-write failure.
+ */
+function ensurePersonalConfigGitignored(cwd: string): void {
+  const gitignorePath = path.join(cwd, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, `${PERSONAL_CONFIG_GITIGNORE_LINE}\n`, 'utf-8');
+    return;
+  }
+  const content = fs.readFileSync(gitignorePath, 'utf-8');
+  const alreadyPresent = content.split('\n').some((line) => line.trim() === PERSONAL_CONFIG_GITIGNORE_LINE);
+  if (alreadyPresent) return;
+  const needsNewline = content.length > 0 && !content.endsWith('\n');
+  fs.writeFileSync(
+    gitignorePath,
+    content + (needsNewline ? '\n' : '') + `${PERSONAL_CONFIG_GITIGNORE_LINE}\n`,
+    'utf-8'
+  );
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
@@ -81,6 +107,10 @@ export function registerInitCommand(program: Command): void {
           }) as CreateProjectData);
           console.log(success(`Project '${projectName}' registered`));
         }
+
+        // Ensure the personal config file is gitignored — repo hygiene, so this runs
+        // regardless of --lite (unlike guides/commands/IDE setup below).
+        ensurePersonalConfigGitignored(cwd);
 
         if (!opts.lite) {
           // Step 2: Install guides
