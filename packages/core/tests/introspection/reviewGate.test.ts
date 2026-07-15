@@ -43,6 +43,11 @@ describe('normalizeVerdict', () => {
     expect(normalizeVerdict('')).toBe('UNKNOWN');
     expect(normalizeVerdict('garbage')).toBe('UNKNOWN');
   });
+
+  it('recognizes a known verdict annotated with a resolution note', () => {
+    expect(normalizeVerdict('CONCERNS (resolved — see verifiedUpdate)')).toBe('CONCERNS');
+    expect(normalizeVerdict('PASS (resolved - see notes)')).toBe('PASS');
+  });
 });
 
 describe('evaluateVerdict', () => {

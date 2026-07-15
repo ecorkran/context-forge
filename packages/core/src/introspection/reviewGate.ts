@@ -50,11 +50,16 @@ export function positionToReviewType(boundary: Boundary): string {
 /**
  * Normalizes a raw frontmatter verdict to the known vocabulary.
  * Untrusted external data: anything absent or unrecognized degrades to UNKNOWN, never throws.
+ * Matches on the leading token so an annotated verdict (e.g. "CONCERNS (resolved — see
+ * verifiedUpdate)") still normalizes correctly instead of silently degrading to UNKNOWN.
  */
 export function normalizeVerdict(raw: string | undefined): Verdict {
   if (raw === undefined) return 'UNKNOWN';
   const upper = raw.trim().toUpperCase();
-  return (KNOWN_VERDICTS as readonly string[]).includes(upper) ? (upper as Verdict) : 'UNKNOWN';
+  const leadingToken = upper.split(/[\s(]/, 1)[0];
+  return (KNOWN_VERDICTS as readonly string[]).includes(leadingToken)
+    ? (leadingToken as Verdict)
+    : 'UNKNOWN';
 }
 
 function parseThresholdToken(raw: string, key: string): ThresholdToken {
