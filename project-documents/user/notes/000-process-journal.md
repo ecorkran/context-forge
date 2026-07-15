@@ -5,7 +5,7 @@ project: context-forge
 audience: [human, ai]
 description: Append-only log of process decisions and design reasoning that has no home in other document types
 dateCreated: 20260705
-dateUpdated: 20260706
+dateUpdated: 20260715
 status: in_progress
 ---
 
@@ -19,6 +19,16 @@ that drift. When the file exceeds the standard size limit, split per
 file-naming-conventions (`-1`, `-2`, …).
 
 # Entries
+
+## 20260715 — Hand-rolled "simple" parsers accrue correctness debt a standard library wouldn't
+
+**Context:** Issue #64. `frontmatterParser.ts` is a flat line-by-line scanner (not a real YAML parser) written for simplicity — every line containing a `:` is treated as a top-level key, with no concept of indentation or nesting. A real review document's frontmatter contained a nested `findings[].verdict` sub-field; the scanner's flat overwrite semantics let the last nested `verdict:` line silently clobber the true top-level `verdict`, masking an unrelated leniency fix and producing a false `cf check` block.
+
+**Decision:** Fix #64 with a minimal, contained nesting-aware patch to the existing scanner rather than swapping in a real YAML library now — verified against a corpus-diff harness so the fix's effect is measured, not assumed (slice 917). Replacing the scanner with a standard YAML parser is tracked separately (issue #65) as the correct long-term direction, deliberately deferred rather than bundled into the bug fix, since it changes every consumer's value-type contract (strings become numbers/booleans/objects) and would dilute the corpus-diff signal used to verify #64.
+
+**Rationale:** The general pattern is broader than this one file: a hand-rolled parser adopted for "simplicity" (no dependency, less code, good enough for the shapes we tested at the time) quietly narrows to handle only the input shapes its author anticipated. Input that's valid by the *real* format's rules but wasn't anticipated — nested YAML blocks, in this case — doesn't error, it silently misparses, because the hand-rolled version was never validating against the real grammar to begin with. This is the same failure shape this project's own parsing-rules guidance warns about ("a regex that silently fails on valid input... parse the semantic content, not the formatting") — it just wasn't recognized as an instance of it here because the parser predates that guidance and nothing forced a revisit. The lesson generalizes past YAML: any place this codebase hand-rolls a parser/interpreter for a well-specified external format (config formats, structured log lines, path/glob patterns, etc.) to avoid "the complexity of a real library" is taking on unbounded silent-failure risk in exchange for a bounded, known dependency cost — and the tradeoff is usually not worth it once the format is used for anything beyond the original author's test cases.
+
+**Follow-ups:** Issue #64 (fixed via slice 917); issue #65 (replace with a real YAML library — explicitly deferred, not abandoned); worth a future audit for other hand-rolled format parsers in this codebase that took the same shortcut.
 
 ## 20260706 — Latent bugs surface when workflow changes make rare states durable
 
