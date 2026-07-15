@@ -12,6 +12,15 @@ status: in_progress
 
 # Slice Design: Frontmatter Parser Nesting Fix & Corpus Verification
 
+## Scope
+
+This slice folds together two independent fixes discovered back-to-back while dogfooding `cf check`/`cf next` during the same investigation session:
+
+- **Issue #64** — frontmatter parser nesting bug (the slice's original scope, see Overview below).
+- **Issue #66** — `cf next` never flags a stale `phase` field when a review gate blocks progress.
+
+They share no code and are unrelated in mechanism, but are small enough individually, and close enough in time/context, to ship as one slice rather than two. Each gets its own Technical Decision and Success Criteria below; the Effort estimate accounts for both.
+
 ## Overview
 
 `packages/core/src/introspection/parsers/frontmatterParser.ts` (`parseFrontmatter()`) is a hand-rolled flat line-scanner, not a real YAML parser. It has no concept of indentation or nesting: every non-empty line between the opening and closing `---` delimiters that contains a `:` is treated as a top-level key, regardless of leading whitespace.
@@ -50,6 +59,7 @@ This is filed as GitHub issue #64. A companion issue (#65) tracks replacing the 
 - Closes #64: nested `findings[].verdict` (or any nested field colliding with a top-level key name) no longer clobbers the real frontmatter value.
 - The `normalizeVerdict()` leniency fix (already on `main`) becomes effective for its actual target case, not just for synthetic test strings.
 - Delivers a reusable differential-verification harness: run the real-world frontmatter corpus (this repo plus sibling projects) through the old and new parsing logic, diff every field per file, and surface exactly which files' parsed values change — turning "did this break anything" from a guess into a concrete, reviewable list.
+- Closes #66: `cf next` stops silently tolerating a stale `phase` field while a review gate blocks progress — restoring the guidance loop's reliability for exactly the users who most need it (someone unfamiliar with the phase model, unsure what to do next).
 
 ## Technical Decisions
 
@@ -117,9 +127,29 @@ A top-level key whose value is non-empty on the same line (e.g. `verdict: CONCER
 
 **Scope note on "many more files/projects":** the harness accepts a list of project roots so it can run against as much of the available corpus as the PM wants scanned. No fixed cap is imposed by the design; the task breakdown will confirm which project roots are actually scanned during verification and log anything intentionally excluded (e.g. a project with no `project-documents/` directory).
 
-### TD-4 — No schema, no config, no new dependency
+### TD-4 — No schema, no config, no new dependency (frontmatter parser fix)
 
 This slice touches only `frontmatterParser.ts` and its test file, plus a scratch verification script that is not part of the shipped package (lives under the slice's own scratch/verification area, not `packages/core/src`). No frontmatter schema changes, no config keys, no new runtime dependency. `FrontmatterData`'s `{ [key: string]: string }` contract is unchanged, so no consumer (`reviewGate.ts`, `WorkflowNavigator.ts`, `ProjectModelBuilder.ts`, `ArtifactIntrospector.ts`, `node.ts`) needs any change.
+
+### TD-5 — #66: attach `phase` to the review-gate branches so `enrich()` can flag staleness
+
+**The code change is narrow; the effect it corrects is not.** `WorkflowNavigator.getNext()`'s `pending-review`/`review-failed` branches ([WorkflowNavigator.ts:301-319](../../../packages/core/src/introspection/WorkflowNavigator.ts)) are the only lifecycle branches in the function that return a `NextAction` with no `phase` field. The three sibling branches immediately above them all set one:
+
+```ts
+// needs-design  → phase: 'Phase 4: Slice Design'   (WorkflowNavigator.ts:271)
+// needs-tasks   → phase: 'Phase 5: Task Breakdown' (WorkflowNavigator.ts:282)
+// in-implementation → phase: 'Phase 6: Implementation' (WorkflowNavigator.ts:296)
+```
+
+`enrich()` ([WorkflowNavigator.ts:255-263](../../../packages/core/src/introspection/WorkflowNavigator.ts)) is the *only* place that ever compares a `NextAction`'s `phase` against the project's actual `developmentPhase` and prints a `cf set phase '<x>'` suggestion when they differ — and it only fires `if (action.phase && ...)`. Because the review-gate branches never populate `phase`, `enrich()` has nothing to compare, and a stale `developmentPhase` (left over from whatever phase the *previous* slice was in when it completed) sails through with zero indication that anything is wrong. Confirmed live: `phase` stuck at `Phase 6: Implementation` from a completed prior slice, `cf next` correctly named the pending slice-review requirement for the new active slice, but gave no hint that `phase` itself needed to move back to `Phase 4: Slice Design` — the user had to work that out and run `cf set phase 4` unassisted.
+
+**Why the effect is wider than the diff.** This is not a cosmetic gap. `cf next` is the tool's primary guidance surface for "what do I do now" — its entire value proposition is that a user who doesn't know the phase model can trust its output instead of having to understand `developmentPhase`/slice-state derivation themselves. A silent gap in exactly the review-gate branch means the tool's guidance goes quiet at precisely the moment a review is blocking progress — arguably the moment a confused user most needs a correct signal. The bug's *reach* is every project, every slice, every time a review gate fires while `phase` has drifted (which is the common case: `phase` only advances via explicit `cf set phase` or a suggested command a user runs themselves — see root-cause note below — so drift after a slice completes is the default, not the exception).
+
+**Root cause confirms `phase` is never auto-corrected.** `packages/core/src/project-autoset.ts` (`computeAutoSetFields()`) has three auto-set rules (`developmentPhase → instruction`, `fileArch → fileSlicePlan`, `fileSlice → fileTasks`) — none derive or correct `developmentPhase` itself from slice/task/review state. `phase` is purely hand-set. This is a deliberate, unrelated design choice (phase transitions are a human/agent decision, not something to auto-advance) and is **not** being changed by this TD — the fix is only to make `cf next`'s existing staleness-detection machinery (`enrich()`) aware of the review-gate branches, not to make `phase` self-correcting.
+
+**Decision:** in both the `pending-review` and `review-failed` branches, derive and attach a `phase` field from the gate's boundary/review type, using the same boundary→phase mapping already implicit in the sibling branches (e.g. a `preTasks`/slice-review gate → `Phase 4: Slice Design`; a `preImplementation`/tasks-review gate → `Phase 5: Task Breakdown`; a `preAdvance`/code-review gate → `Phase 6: Implementation`). Once `phase` is populated, `enrich()`'s existing comparison-and-suggest logic applies unchanged — no changes needed to `enrich()` itself.
+
+**Not in scope for this TD:** #58/slice 912 already fixed a different stale-phase bug (phase vs. arch-file-existence, in the no-active-slice branch) — no overlap, confirmed during #66 investigation. `cf check`/`ConsistencyChecker` is unaffected — it does not read `developmentPhase` at all (confirmed in slice 912's design), so no changes needed there.
 
 ## Data Flows & Component Interactions
 
@@ -135,6 +165,14 @@ Verification (one-time, not shipped):
   corpus of real .md files ──► [old parser | new parser] ──► diff per file
                                                                 ├─ unchanged → regression proof
                                                                 └─ changed → manual review list
+
+cf next ──► WorkflowNavigator.getNext()
+              └─ pending-review / review-failed branches (TD-5: now set `phase`
+                    derived from gate boundary → 'Phase 4/5/6: ...')
+                    └─ enrich() (unchanged) ──► compares action.phase vs
+                          project.developmentPhase ──► suggests `cf set phase '<x>'`
+                          when they differ, exactly as it already does for the
+                          needs-design / needs-tasks / in-implementation branches
 ```
 
 ## Success Criteria
@@ -146,6 +184,13 @@ Verification (one-time, not shipped):
 5. **New unit tests pass** for the specific nested shapes found (nested object block, list-of-objects with colliding sub-field name, folded block scalar), added to `frontmatterParser.test.ts`.
 6. **No regressions.** Full core/cli/mcp-server suites pass (modulo documented pre-existing failures), `pnpm -r build` clean.
 
+### #66 — stale-phase-on-review-gate
+
+7. **Fixed for both blocked states.** With the active slice in `pending-review` and `phase` stale, `cf next` now prints a `cf set phase '<x>'` suggestion alongside the review-gate rationale, where `<x>` correctly matches the gate's boundary (slice-review gate → Phase 4, tasks-review gate → Phase 5, code-review gate → Phase 6). Same for `review-failed`.
+8. **No change to gate-blocking behavior.** The review gate still blocks regardless of `phase` — this TD only adds a suggestion, it does not change whether/when the gate fires. Existing tests asserting "gate fires regardless of phase" (`WorkflowNavigator.test.ts:809, 823`) continue to pass unmodified.
+9. **No regression to #58/912 or to `cf check`.** The no-active-slice arch-gate branch (912's territory) and `ConsistencyChecker` (`developmentPhase`-blind by design) are both untouched — confirmed by inspection, no new tests needed there beyond the existing suite passing.
+10. **New unit tests** covering: `pending-review` with stale phase → suggestion printed; `pending-review` with already-correct phase → no suggestion (unchanged existing behavior); same two cases for `review-failed`.
+
 ## Effort
 
-Relative effort: **3/5**. The parser fix itself is small and contained (TD-2). Most of the effort is in the differential-verification harness (TD-3) and reviewing its corpus output across multiple external projects — that review work is the actual point of this slice, per the PM's stated priority on verifiability over the fix's mechanics.
+Relative effort: **3/5** for the combined slice. The frontmatter-parser fix itself is small and contained (TD-2); most of that portion's effort is in the differential-verification harness (TD-3) and reviewing its corpus output across multiple external projects — that review work is the actual point of the #64 half of this slice, per the PM's stated priority on verifiability over the fix's mechanics. The #66 fix (TD-5) is small in code (attach a derived `phase` field in two branches, reusing existing `enrich()` logic) but is called out explicitly because its user-facing effect is disproportionate to its diff size — the risk being managed is under-scoping the *verification* of a change to the tool's primary guidance surface, not the implementation itself.
