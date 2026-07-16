@@ -21,6 +21,8 @@ This slice folds together two independent fixes discovered back-to-back while do
 
 They share no code and are unrelated in mechanism, but are small enough individually, and close enough in time/context, to ship as one slice rather than two. Each gets its own Technical Decision and Success Criteria below; the Effort estimate accounts for both.
 
+**Review note (resolved — see [917-review.slice.frontmatter-parser-nesting-fix.md](../reviews/917-review.slice.frontmatter-parser-nesting-fix.md)):** F001 flagged this bundling against the architecture's "slice by theme, not urgency" principle, since #64 and #66 share no code. Raised correctly — the two fixes are unrelated in mechanism, and slice 912's precedent for bundling (shared `getNext()`/`evaluateReviewGate()` code) doesn't apply here. PM decision: keep bundled as-is. No further action.
+
 ## Overview
 
 `packages/core/src/introspection/parsers/frontmatterParser.ts` (`parseFrontmatter()`) is a hand-rolled flat line-scanner, not a real YAML parser. It has no concept of indentation or nesting: every non-empty line between the opening and closing `---` delimiters that contains a `:` is treated as a top-level key, regardless of leading whitespace.
@@ -109,6 +111,8 @@ A top-level key whose value is non-empty on the same line (e.g. `verdict: CONCER
 
 **Not handled (explicitly out of scope, matches today's behavior or existing lenient-parsing posture):** inline flow collections (`tags: [a, b, c]`, `meta: {a: 1}`), multi-doc anchors/aliases. These are rare in this project's frontmatter conventions (confirmed: zero occurrences found in the corpus survey, TD-3) and remain unhandled by both the old and new parser — no regression, no new capability claimed.
 
+**Indentation convention (resolved — see [917-review.slice.frontmatter-parser-nesting-fix.md](../reviews/917-review.slice.frontmatter-parser-nesting-fix.md) F003).** Only space characters count as indentation for the zero-vs-nonzero leading-whitespace check; a line beginning with a tab character is treated as top-level (matching how `.trim()` already treats tabs as whitespace to strip, so a tab-indented line's *content* still parses correctly if it happens to be a valid top-level key — it just won't be recognized as nested). This project's frontmatter is hand/agent-authored YAML-like text, consistently space-indented in every fixture and corpus file surveyed; tab-indented frontmatter has not been observed. The corpus-diff run (TD-3) will surface any real-world file that violates this assumption as a "changed" result for manual review, same as any other diff.
+
 ### TD-3 — Differential corpus-verification harness
 
 **Goal:** for every real frontmatter-bearing markdown file across this repo and sibling projects, parse it with both the current (pre-fix) parser and the new (post-fix) parser, and diff the resulting `data` maps field-by-field. Output:
@@ -123,6 +127,13 @@ A top-level key whose value is non-empty on the same line (e.g. `verdict: CONCER
   - Diffs the two `data` maps per file; collects changed-file reports.
   - Prints a summary: total files scanned, count unchanged, count changed (with per-file field diffs), count of any files where either parser throws (should be zero — both are designed never to throw).
 - Script output is reviewed manually by the PM/agent before considering the fix verified — this is a one-time audit, not an automated test-suite gate (the corpus lives outside this repo in most cases, so it can't be a CI-run test).
+
+**Failure-mode handling (resolved — see [917-review.slice.frontmatter-parser-nesting-fix.md](../reviews/917-review.slice.frontmatter-parser-nesting-fix.md) F002).** The harness is a throwaway audit tool, not shipped code, but its I/O failure modes still need an explicit strategy so a bad file doesn't silently drop coverage or hang the run:
+  - **Project root doesn't exist / has no `project-documents/` directory:** skip that root, log one line (`root skipped: <path> (no project-documents/)`), continue with the remaining roots. Not an error — some sibling projects legitimately lack the directory.
+  - **A `.md` file is unreadable** (permissions, broken symlink, encoding error): catch the read error for that single file, log it (`file skipped: <path> (<error>)`), continue scanning the rest of the corpus. One bad file must not abort the run — this mirrors the project's existing `safe*()` isolation convention used elsewhere in the introspection layer (e.g. `ConsistencyChecker.safeEvaluateGate()`).
+  - **Oversized file:** no special-cased size limit — frontmatter files in this corpus are markdown docs (KB-scale, not data dumps); if one is pathologically large it will simply be slow to parse, not unsafe. Not worth engineering around for a one-time audit script.
+  - **Very large project root (tens of thousands of files):** no artificial cap; the script logs progress (e.g. a running count every N files) so a long-running scan is visibly alive rather than silently hung. If a specific root proves impractically large during actual verification, the task breakdown will log it as an intentionally excluded root rather than silently truncating results.
+  - **Either parser throws on a file (should not happen — both are designed never to throw):** treat as a hard signal, not a skip — log the file and the exception, and call it out explicitly in the summary as a parser-contract violation requiring investigation before the fix can be considered verified.
 - A **small, permanent** set of unit tests is added to `frontmatterParser.test.ts` covering the specific nested-block shapes found in the wild (nested object, list-of-objects with colliding sub-field names, folded block scalar) — these are the regression guard that *does* run in CI, separate from the one-off corpus audit.
 
 **Scope note on "many more files/projects":** the harness accepts a list of project roots so it can run against as much of the available corpus as the PM wants scanned. No fixed cap is imposed by the design; the task breakdown will confirm which project roots are actually scanned during verification and log anything intentionally excluded (e.g. a project with no `project-documents/` directory).
