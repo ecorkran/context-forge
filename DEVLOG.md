@@ -7,6 +7,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-17
+
+### Slice 917: Frontmatter Parser Nesting Fix & Corpus Verification — Complete
+- Bundles two unrelated small fixes found back-to-back while dogfooding `cf check`/`cf next` (see slice design's Scope section for the bundling rationale): issue #64 (frontmatter parser nesting bug) and issue #66 (`cf next` stale-phase-on-review-gate gap).
+- **#64**: `parseFrontmatter()` (`frontmatterParser.ts`) tracked no indentation, so any colon-bearing line — however deeply nested inside an object, list-of-objects, or folded/literal block scalar — was read as a new top-level key. A real-world shape (`verdict:` top-level, `findings[].verdict` nested) let the last nested `verdict` line silently clobber the true top-level value, masking the `normalizeVerdict()` leniency fix (`ccc90c4`) and producing a false review-gate failure. Fixed via indentation tracking (space-only; a tab-leading line is still top-level, per design F003) — the `FrontmatterData` contract is unchanged, so none of the 5 consumers needed changes. New unit tests cover the nested-object, list-of-objects, and folded-block-scalar shapes, plus an end-to-end scratch-project `cf check` assertion (fixture 406) proving the gate itself resolves the true verdict, not just that the parser returns the right string.
+- Built a one-off differential corpus-verification harness (`scripts/frontmatter-corpus-diff.mjs`, not shipped in `packages/core/src`) that parses every `.md` file under a project's `project-documents/user/` with both the pre-fix and post-fix parser and diffs the results field-by-field. Ran against this repo (248 scanned, 41 changed) plus 5 sibling projects — squadron, migratory, context-visualizer, migratory-viewer, trading-data (904 scanned, 311 changed) — 0 parser throws across all 6 roots. Every changed file was confirmed by hand (via field-name clustering plus direct sampling) to match the documented bug shapes (nested `findings[].{severity,category,summary,location}`, or a colon-bearing line inside a folded block scalar like `projectState: >`), not an unrelated behavior change.
+- **#66**: `WorkflowNavigator.getNext()`'s `pending-review`/`review-failed` branches were the only lifecycle branches that never set a `phase` field on the returned `NextAction`, so `enrich()`'s existing stale-phase-suggestion logic had nothing to compare against — `cf next` went silent about phase drift at exactly the moment a review gate was blocking progress. Fixed by deriving `phase` from the gate's `reviewType` (`slice`→Phase 4, `tasks`→Phase 5, `code`→Phase 6) via a new lookup and three new exported phase constants (`SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, `IMPLEMENTATION_PHASE`, following the existing `ARCHITECTURE_PHASE` pattern) — `enrich()` itself is unchanged. Confirmed by diff inspection that the no-active-slice arch-gate branch (912's territory) and `ConsistencyChecker` (`developmentPhase`-blind by design) are untouched.
+- 3 commits on `917-slice.frontmatter-parser-nesting-fix` branch (#64 parser fix + tests, #64 corpus verification, #66 phase fix + tests); full monorepo build clean; only the pre-documented pre-existing failures remain (3 `FileProjectStore`, 4 CLI `list.test.ts`).
+
+---
+
 ## 2026-07-14
 
 ### Slice 908 Item D: Architecture Status Validation & Finding Attribution

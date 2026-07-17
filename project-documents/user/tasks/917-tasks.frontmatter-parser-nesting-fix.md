@@ -14,8 +14,8 @@ projectState: >
   the frontmatter-parser nesting bug (#64) plus its differential corpus
   harness, and the cf next stale-phase-on-review-gate gap (#66).
 dateCreated: 20260716
-dateUpdated: 20260716
-status: not_started
+dateUpdated: 20260717
+status: complete
 ---
 
 # Tasks: Frontmatter Parser Nesting Fix & Corpus Verification
@@ -208,7 +208,7 @@ Grounding facts (verified against source):
 
 ## TD-5 — #66: Attach `phase` to the review-gate branches in `cf next`
 
-- [ ] **Task 3.1 — Export `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, and `IMPLEMENTATION_PHASE` constants**
+- [x] **Task 3.1 — Export `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, and `IMPLEMENTATION_PHASE` constants**
   - In `packages/core/src/schema/projectSchema.ts`, export two more named phase constants
     following the existing `ARCHITECTURE_PHASE` pattern exactly (`PHASE_STRINGS[2]`): a Phase-5
     constant (e.g. `TASK_BREAKDOWN_PHASE = PHASE_STRINGS[5]`, `'Phase 5: Task Breakdown'`) and a
@@ -222,7 +222,7 @@ Grounding facts (verified against source):
     exports).
   - Effort: 1/5
 
-- [ ] **Task 3.2 — Add a `reviewType`→phase lookup and wire it into the two branches (TD-5)**
+- [x] **Task 3.2 — Add a `reviewType`→phase lookup and wire it into the two branches (TD-5)**
   - In `WorkflowNavigator.ts`, add a small lookup (e.g. a `Record<string, string>` keyed by
     `'slice' | 'tasks' | 'code'`, mapping to the Task 3.1 constants) — this is the single place
     the mapping is defined, per the project's "never scatter comparison values" rule.
@@ -241,7 +241,7 @@ Grounding facts (verified against source):
     where `<x>` matches the boundary (slice→Phase 4, tasks→Phase 5, code→Phase 6).
   - Effort: 2/5
 
-- [ ] **Task 3.3 — Test the #66 fix**
+- [x] **Task 3.3 — Test the #66 fix**
   - In `packages/core/tests/introspection/WorkflowNavigator.test.ts`, add cases to the existing
     `pending-review`/`review-failed` describe blocks (do not create a new file):
     - `pending-review` with stale `developmentPhase` and `gateInfo.reviewType === 'slice'` →
@@ -258,7 +258,7 @@ Grounding facts (verified against source):
   - Success: all new cases pass; existing gate-blocking tests pass unmodified; no test regresses.
   - Effort: 3/5
 
-- [ ] **Task 3.4 — Confirm no overlap with #58/912 or `cf check` (design Success Criterion 9)**
+- [x] **Task 3.4 — Confirm no overlap with #58/912 or `cf check` (design Success Criterion 9)**
   - By inspection (no code change expected): confirm the no-active-slice arch-gate branch (912's
     territory, a different function branch entirely) is untouched by Tasks 3.1–3.3, and confirm
     `ConsistencyChecker` (`cf check`) does not read `developmentPhase` anywhere (already established
@@ -268,25 +268,25 @@ Grounding facts (verified against source):
     Task 4.1's full-suite run.
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 3.4: `fix: attach phase to cf next review-gate branches (#66)`.
+- [x] **Commit checkpoint** — after 3.4: `fix: attach phase to cf next review-gate branches (#66)`.
 
 ---
 
 ## Verification
 
-- [ ] **Task 4.1 — Full build + suite pass**
+- [x] **Task 4.1 — Full build + suite pass**
   - Run `pnpm -r build` (clean) and the core/cli/mcp-server test suites; confirm only previously-
     documented pre-existing failures (if any) remain, with zero new failures introduced by this
     slice's changes.
   - Success: build clean, no new test failures.
   - Effort: 1/5
 
-- [ ] **Task 4.2 — Docs: CHANGELOG + DEVLOG**
+- [x] **Task 4.2 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries for both fixes (#64 frontmatter parser nesting fix, #66 cf
     next stale-phase-on-review-gate suggestion) and a developer-facing DEVLOG session entry
     summarizing the corpus-verification results from Task 2.2.
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 4.1/4.2: `docs: slice 917 verification + changelog/devlog`
+- [x] **Commit checkpoint** — after 4.1/4.2: `docs: slice 917 verification + changelog/devlog`
   (or fold into the final feature commit if trivial). Closes the slice.
