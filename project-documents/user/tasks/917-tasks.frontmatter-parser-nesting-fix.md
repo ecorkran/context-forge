@@ -146,7 +146,7 @@ Grounding facts (verified against source):
 
 ## TD-3 — #64: Differential corpus-verification harness
 
-- [ ] **Task 2.1 — Write the old-vs-new parser diff script**
+- [x] **Task 2.1 — Write the old-vs-new parser diff script**
   - Add a one-off script (not part of the shipped `packages/core/src` package — place it under a
     scratch/verification location such as `scripts/` or the slice's own working area, per TD-4).
     The script:
@@ -167,7 +167,7 @@ Grounding facts (verified against source):
     exception count).
   - Effort: 3/5
 
-- [ ] **Task 2.2 — Run the harness across this repo's corpus and at least one sibling project**
+- [x] **Task 2.2 — Run the harness across this repo's corpus and at least one sibling project**
   - Execute the Task 2.1 script against this repo's own corpus and at least one sibling project
     with a large `project-documents/` tree (candidates named in the design: `squadron`,
     `grizcam_mobile_ios`, `migratory`). Confirm with the PM which sibling root(s) are actually
@@ -202,7 +202,7 @@ Grounding facts (verified against source):
       list-of-objects nesting — both are the documented TD-2 bug shapes, not unrelated changes.
       Zero anomalies found.
 
-- [ ] **Commit checkpoint** — after 2.2: `test: add differential corpus verification for frontmatter parser fix (#64)`.
+- [x] **Commit checkpoint** — after 2.2: `test: add differential corpus verification for frontmatter parser fix (#64)`.
 
 ---
 

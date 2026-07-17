@@ -32,6 +32,15 @@ const PHASE_STRINGS = [
 /** Canonical architecture-phase display string — single source of truth for callers that need it. */
 export const ARCHITECTURE_PHASE: (typeof PHASE_STRINGS)[2] = PHASE_STRINGS[2];
 
+/** Canonical slice-design-phase display string — single source of truth for callers that need it. */
+export const SLICE_DESIGN_PHASE: (typeof PHASE_STRINGS)[4] = PHASE_STRINGS[4];
+
+/** Canonical task-breakdown-phase display string — single source of truth for callers that need it. */
+export const TASK_BREAKDOWN_PHASE: (typeof PHASE_STRINGS)[5] = PHASE_STRINGS[5];
+
+/** Canonical implementation-phase display string — single source of truth for callers that need it. */
+export const IMPLEMENTATION_PHASE: (typeof PHASE_STRINGS)[6] = PHASE_STRINGS[6];
+
 const SPECIAL_PHASES = ['Ad-Hoc Tasks', 'Custom Instruction'] as const;
 
 const ALL_PHASE_VALUES: string[] = [...PHASE_STRINGS, ...SPECIAL_PHASES];

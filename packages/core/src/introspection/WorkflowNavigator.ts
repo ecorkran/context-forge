@@ -20,7 +20,12 @@ import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
 import { deriveEntryStatus } from './statusDerivation.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
-import { ARCHITECTURE_PHASE } from '../schema/projectSchema.js';
+import {
+  ARCHITECTURE_PHASE,
+  SLICE_DESIGN_PHASE,
+  TASK_BREAKDOWN_PHASE,
+  IMPLEMENTATION_PHASE,
+} from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
@@ -57,6 +62,13 @@ function extractSliceName(fileSlice: string): string {
  * from project data and filesystem state.
  */
 export class WorkflowNavigator {
+  /** Maps a review gate's reviewType to the phase a stale developmentPhase should be corrected to. */
+  private static readonly REVIEW_TYPE_PHASE: Record<string, string> = {
+    slice: SLICE_DESIGN_PHASE,
+    tasks: TASK_BREAKDOWN_PHASE,
+    code: IMPLEMENTATION_PHASE,
+  };
+
   constructor(private readonly config?: ConfigManager) {}
 
   /**
@@ -302,18 +314,26 @@ export class WorkflowNavigator {
     // deriveSliceStatus() already computed (TD-3: status derivation is the single source
     // of truth; this branch only routes, it does not re-evaluate the gate).
     if (slice.status === 'pending-review') {
+      const reviewPhase = slice.gateInfo?.reviewType
+        ? WorkflowNavigator.REVIEW_TYPE_PHASE[slice.gateInfo.reviewType]
+        : undefined;
       return enrich({
         recommendation: 'Review required before advancing',
         rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} requires a review before proceeding.`,
         slice: project.fileSlice,
+        ...(reviewPhase ? { phase: reviewPhase } : {}),
         summary: `Review required for slice ${slice.index ?? slice.name}`,
       });
     }
     if (slice.status === 'review-failed') {
+      const reviewPhase = slice.gateInfo?.reviewType
+        ? WorkflowNavigator.REVIEW_TYPE_PHASE[slice.gateInfo.reviewType]
+        : undefined;
       return enrich({
         recommendation: 'Blocked: review verdict does not clear threshold',
         rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} is blocked by a review that does not clear.`,
         slice: project.fileSlice,
+        ...(reviewPhase ? { phase: reviewPhase } : {}),
         summary: `Blocked — slice ${slice.index ?? slice.name} review does not clear`,
       });
     }
