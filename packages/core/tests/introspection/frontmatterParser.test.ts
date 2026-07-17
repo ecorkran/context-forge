@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
 import { parseFrontmatter } from '../../src/introspection/parsers/frontmatterParser.js';
+import { normalizeVerdict } from '../../src/introspection/reviewGate.js';
 
 const FIXTURES = join(__dirname, '..', 'fixtures', 'introspection');
 
@@ -36,6 +37,12 @@ describe('parseFrontmatter', () => {
     expect(result.data.url).toBe('https://example.com/path');
   });
 
+  it('returns found: false for frontmatter with no closing delimiter', async () => {
+    const result = await parseFrontmatter(join(FIXTURES, 'unterminated-frontmatter.md'));
+    expect(result.found).toBe(false);
+    expect(result.data).toEqual({});
+  });
+
   it('returns found: false for nonexistent file (no throw)', async () => {
     const result = await parseFrontmatter('/nonexistent/path/file.md');
     expect(result.found).toBe(false);
@@ -61,5 +68,20 @@ describe('parseFrontmatter', () => {
     const path = join(FIXTURES, 'valid-frontmatter.md');
     const result = await parseFrontmatter(path);
     expect(result.filePath).toBe(path);
+  });
+
+  it('does not let a nested findings[].verdict clobber the top-level verdict', async () => {
+    const result = await parseFrontmatter(join(FIXTURES, 'nested-collision.md'));
+    expect(result.found).toBe(true);
+    expect(result.data.verdict).toBe('CONCERNS (resolved — see verifiedUpdate)');
+    expect(normalizeVerdict(result.data.verdict)).toBe('CONCERNS');
+  });
+
+  it('skips colon-bearing lines inside a folded block scalar', async () => {
+    const result = await parseFrontmatter(join(FIXTURES, 'folded-scalar-with-colon.md'));
+    expect(result.found).toBe(true);
+    expect(result.data.status).toBe('in-progress');
+    expect(result.data.dateCreated).toBe('20260215');
+    expect(Object.keys(result.data).sort()).toEqual(['dateCreated', 'note', 'status']);
   });
 });

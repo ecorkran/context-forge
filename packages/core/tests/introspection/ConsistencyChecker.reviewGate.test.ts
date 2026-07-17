@@ -167,6 +167,23 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
     expect(fixResult.fixLog.some((entry) => entry.rule === 'review-gate')).toBe(false);
   });
 
+  it('nested findings[].verdict does not clobber a clearing top-level verdict (#64)', async () => {
+    const introspector = makeIntrospectorWithPlanEntry({ index: 406, isChecked: true });
+    const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+    const checker = new ConsistencyChecker(introspector, config);
+
+    const result = await checker.check(
+      makeProject({ fileSlice: '406-slice.gate-code-nested-collision', fileTasks: '406-tasks.gate-code-nested-collision' }),
+    );
+
+    // Fixture 406's review has a top-level verdict: CONCERNS (which clears
+    // under the default threshold) plus nested findings[].verdict: CONFIRMED
+    // sub-fields. Pre-fix, the flat scanner let the last nested verdict line
+    // clobber data.verdict, producing a false review-gate failure.
+    const codeFinding = result.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
+    expect(codeFinding).toBeUndefined();
+  });
+
   it('checkAll() surfaces the same review-gate finding as check()', async () => {
     const introspector = makeIntrospectorWithPlanEntry({ index: 400, isChecked: true });
     const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
