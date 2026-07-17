@@ -72,7 +72,7 @@ Grounding facts (verified against source):
 
 ## TD-2 — #64: Indentation-aware frontmatter parser fix
 
-- [ ] **Task 1.1 — Create `frontmatterParser.test.ts` with baseline coverage**
+- [x] **Task 1.1 — Create `frontmatterParser.test.ts` with baseline coverage**
   - No test file exists yet for `frontmatterParser.ts`. Create
     `packages/core/tests/introspection/parsers/frontmatterParser.test.ts` (mirror the location
     convention of sibling parser tests if one exists; otherwise place alongside
@@ -85,7 +85,7 @@ Grounding facts (verified against source):
   - Success: new test file runs and passes against the current implementation, unmodified.
   - Effort: 2/5
 
-- [ ] **Task 1.2 — Add failing regression tests for the nested-collision bug shape (TD-2)**
+- [x] **Task 1.2 — Add failing regression tests for the nested-collision bug shape (TD-2)**
   - In the same test file, add cases using the exact fixture shape from the design's Overview
     (a `verdict:` top-level key followed by a `verifiedUpdate:` nested object and a `findings:`
     list-of-objects whose entries include their own `verdict:` sub-field). Use an anonymized
@@ -106,7 +106,7 @@ Grounding facts (verified against source):
     requires no further changes after Task 1.3 lands.
   - Effort: 2/5
 
-- [ ] **Task 1.3 — Implement indentation-aware top-level key scanning (TD-2)**
+- [x] **Task 1.3 — Implement indentation-aware top-level key scanning (TD-2)**
   - In `frontmatterParser.ts`, replace the unconditional `stripped = lines[i].trim()` top-level
     scan with indentation tracking: only treat a line as a top-level key when its original
     (untrimmed) leading whitespace is zero, per design TD-2. Only **space** characters count as
@@ -124,7 +124,7 @@ Grounding facts (verified against source):
     unmodified (no regression on flat/quoted/missing-file/unterminated cases).
   - Effort: 3/5
 
-- [ ] **Task 1.4 — End-to-end `cf check` verification (design Success Criterion 2)**
+- [x] **Task 1.4 — End-to-end `cf check` verification (design Success Criterion 2)**
   - Create a scratch project (e.g. via a temp directory fixture, mirroring the pattern used by
     existing `ConsistencyChecker`/`WorkflowNavigator` scratch-fixture tests) containing a review
     document shaped like the Task 1.2 fixture — top-level `verdict: CONCERNS (resolved — see
@@ -140,7 +140,7 @@ Grounding facts (verified against source):
     fixture's shape.
   - Effort: 2/5
 
-- [ ] **Commit checkpoint** — after 1.4: `fix: make frontmatter parser indentation-aware (#64)`.
+- [x] **Commit checkpoint** — after 1.4: `fix: make frontmatter parser indentation-aware (#64)`.
 
 ---
 
@@ -182,6 +182,25 @@ Grounding facts (verified against source):
     change; zero unhandled parser exceptions (or, if any occurred, investigated and resolved
     before proceeding).
   - Effort: 3/5
+  - **Results (20260717):** Scope narrowed to `{root}/project-documents/user/` per PM guidance
+    (this is the subtree guaranteed to have frontmatter on every `.md` file; the wider
+    `project-documents/` tree can include non-frontmatter docs that would only add diff noise).
+    - This repo: 248 scanned, 207 unchanged, 41 changed, 0 throws.
+    - `squadron`: 347 scanned. `migratory`: 258 scanned. `context-visualizer`: 38 scanned.
+      `migratory-viewer`: 62 scanned. `trading-data`: 199 scanned.
+      Combined sibling total: 904 scanned, 593 unchanged, 311 changed, 0 throws.
+      (`grizcam_mobile_ios`, named as a design candidate, is not present on this machine —
+      not scanned; no root was skipped for lacking `project-documents/user/`.)
+    - Hand review (by field-name clustering + direct sampling across all 6 roots, not a
+      line-by-line pass over all 352 changed files): the dominant cluster
+      (`severity`/`category`/`summary`/`location`, ~278 occurrences each) is exactly
+      `findings[].{severity,category,summary,location}` sub-fields colliding with a
+      differently-scoped or absent top-level key — same shape as this repo's own review docs.
+      The long tail of one-off keys (`Branch:`, `Substrate:`, `role:`, `date:`, `reviewVerdict:`,
+      etc.) was individually inspected in its source file: every case is either a colon-bearing
+      line inside a `projectState: >` / similar folded block scalar, or a `- reviewType: ...`
+      list-of-objects nesting — both are the documented TD-2 bug shapes, not unrelated changes.
+      Zero anomalies found.
 
 - [ ] **Commit checkpoint** — after 2.2: `test: add differential corpus verification for frontmatter parser fix (#64)`.
 
