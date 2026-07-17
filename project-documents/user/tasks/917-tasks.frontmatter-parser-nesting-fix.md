@@ -92,6 +92,11 @@ Grounding facts (verified against source):
     fixture, not the real project name, per prior convention on this slice's precursor fix.
   - Assert `data.verdict` equals the true top-level value (e.g. `'CONCERNS (resolved — see
     verifiedUpdate)'`), not the last nested `verdict` seen.
+  - Also import `normalizeVerdict()` (`reviewGate.ts`) and assert
+    `normalizeVerdict(data.verdict) === 'CONCERNS'` on this fixture — this is the concrete,
+    testable form of design Success Criterion 2 (the parser fix must make the existing
+    `normalizeVerdict()` leniency fix, `ccc90c4`, effective on real input, not just on synthetic
+    strings passed directly to `normalizeVerdict()`).
   - Add a second case for a folded/literal block scalar (`note: >` or `note: |` followed by
     indented free text containing a colon) to prove indented colon-bearing lines inside a block
     scalar are also skipped, not just object/list nesting.
@@ -119,7 +124,23 @@ Grounding facts (verified against source):
     unmodified (no regression on flat/quoted/missing-file/unterminated cases).
   - Effort: 3/5
 
-- [ ] **Commit checkpoint** — after 1.3: `fix: make frontmatter parser indentation-aware (#64)`.
+- [ ] **Task 1.4 — End-to-end `cf check` verification (design Success Criterion 2)**
+  - Create a scratch project (e.g. via a temp directory fixture, mirroring the pattern used by
+    existing `ConsistencyChecker`/`WorkflowNavigator` scratch-fixture tests) containing a review
+    document shaped like the Task 1.2 fixture — top-level `verdict: CONCERNS (resolved — see
+    verifiedUpdate)` plus nested `findings[].verdict` sub-fields.
+  - Run `cf check` (or the equivalent `ConsistencyChecker`/review-gate entry point used in existing
+    tests) against the scratch project and assert it does **not** report a false review-gate
+    failure for this slice/document — i.e. the gate resolves the true top-level `CONCERNS` verdict,
+    not the clobbered nested value.
+  - This closes the gap between "the parser returns the right string" (Task 1.2) and "the tool's
+    actual gate-check behavior is correct" (design Success Criterion 2) — the two are not
+    equivalent without this end-to-end assertion.
+  - Success: scratch-project `cf check` run passes (no false review-gate block) using the
+    fixture's shape.
+  - Effort: 2/5
+
+- [ ] **Commit checkpoint** — after 1.4: `fix: make frontmatter parser indentation-aware (#64)`.
 
 ---
 
@@ -168,7 +189,7 @@ Grounding facts (verified against source):
 
 ## TD-5 — #66: Attach `phase` to the review-gate branches in `cf next`
 
-- [ ] **Task 3.1 — Export `TASK_BREAKDOWN_PHASE` and `IMPLEMENTATION_PHASE` constants**
+- [ ] **Task 3.1 — Export `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, and `IMPLEMENTATION_PHASE` constants**
   - In `packages/core/src/schema/projectSchema.ts`, export two more named phase constants
     following the existing `ARCHITECTURE_PHASE` pattern exactly (`PHASE_STRINGS[2]`): a Phase-5
     constant (e.g. `TASK_BREAKDOWN_PHASE = PHASE_STRINGS[5]`, `'Phase 5: Task Breakdown'`) and a
