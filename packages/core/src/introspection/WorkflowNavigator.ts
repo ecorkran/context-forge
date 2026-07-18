@@ -61,13 +61,32 @@ function extractSliceName(fileSlice: string): string {
  * Stateless workflow navigator that derives project status and next actions
  * from project data and filesystem state.
  */
+/** The review types a gate can be evaluated for — mirrors BOUNDARY_REVIEW_TYPE's value union in reviewGate.ts. */
+type ReviewType = 'slice' | 'tasks' | 'code';
+
+function isReviewType(value: string): value is ReviewType {
+  return value === 'slice' || value === 'tasks' || value === 'code';
+}
+
 export class WorkflowNavigator {
   /** Maps a review gate's reviewType to the phase a stale developmentPhase should be corrected to. */
-  private static readonly REVIEW_TYPE_PHASE: Record<string, string> = {
+  private static readonly REVIEW_TYPE_PHASE: Record<ReviewType, string> = {
     slice: SLICE_DESIGN_PHASE,
     tasks: TASK_BREAKDOWN_PHASE,
     code: IMPLEMENTATION_PHASE,
   };
+
+  /**
+   * Derives the phase a stale developmentPhase should be corrected to from a gate's
+   * reviewType. GateEvaluation.reviewType is a bare string (positionToReviewType()'s
+   * return type isn't narrowed to the arch/slice/tasks/code union), so this guards at
+   * the boundary rather than trusting the value — an unrecognized reviewType omits the
+   * phase field rather than guessing (no silent fallback).
+   */
+  private static resolveReviewPhase(gateInfo: { reviewType: string } | undefined): string | undefined {
+    if (!gateInfo || !isReviewType(gateInfo.reviewType)) return undefined;
+    return WorkflowNavigator.REVIEW_TYPE_PHASE[gateInfo.reviewType];
+  }
 
   constructor(private readonly config?: ConfigManager) {}
 
@@ -314,9 +333,7 @@ export class WorkflowNavigator {
     // deriveSliceStatus() already computed (TD-3: status derivation is the single source
     // of truth; this branch only routes, it does not re-evaluate the gate).
     if (slice.status === 'pending-review') {
-      const reviewPhase = slice.gateInfo?.reviewType
-        ? WorkflowNavigator.REVIEW_TYPE_PHASE[slice.gateInfo.reviewType]
-        : undefined;
+      const reviewPhase = WorkflowNavigator.resolveReviewPhase(slice.gateInfo);
       return enrich({
         recommendation: 'Review required before advancing',
         rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} requires a review before proceeding.`,
@@ -326,9 +343,7 @@ export class WorkflowNavigator {
       });
     }
     if (slice.status === 'review-failed') {
-      const reviewPhase = slice.gateInfo?.reviewType
-        ? WorkflowNavigator.REVIEW_TYPE_PHASE[slice.gateInfo.reviewType]
-        : undefined;
+      const reviewPhase = WorkflowNavigator.resolveReviewPhase(slice.gateInfo);
       return enrich({
         recommendation: 'Blocked: review verdict does not clear threshold',
         rationale: slice.gateInfo?.rationale ?? `Slice ${slice.index ?? slice.name} is blocked by a review that does not clear.`,

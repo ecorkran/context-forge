@@ -6,7 +6,7 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: []
 interfaces: []
 dateCreated: 20260715
-dateUpdated: 20260715
+dateUpdated: 20260718
 status: in_progress
 ---
 
@@ -80,6 +80,8 @@ Two approaches were weighed:
 
 The real-YAML migration is tracked as GitHub issue #65, which documents this same tradeoff analysis and the 5-consumer scope for whoever picks it up later. The differential-verification technique built here (TD-3) is explicitly designed to be reusable for that future migration.
 
+**Code review note (resolved — see [917-review.code.frontmatter-parser-nesting-fix.md](../reviews/917-review.code.frontmatter-parser-nesting-fix.md) F001):** F001 flagged the hand-rolled parser itself as fragile (multi-line plain scalars, flow collections, quoted keys with colons remain unhandled). This is the same tradeoff already analyzed and decided above — the minimal patch is deliberate, not an oversight, and a real YAML parser is tracked separately as issue #65. No code change; this is a restatement of TD-1's already-made decision, not a new gap.
+
 ### TD-2 — Parser fix: track nesting depth via indentation
 
 Current logic ([frontmatterParser.ts:20-42](../../../packages/core/src/introspection/parsers/frontmatterParser.ts)):
@@ -112,6 +114,8 @@ A top-level key whose value is non-empty on the same line (e.g. `verdict: CONCER
 **Not handled (explicitly out of scope, matches today's behavior or existing lenient-parsing posture):** inline flow collections (`tags: [a, b, c]`, `meta: {a: 1}`), multi-doc anchors/aliases. These are rare in this project's frontmatter conventions (confirmed: zero occurrences found in the corpus survey, TD-3) and remain unhandled by both the old and new parser — no regression, no new capability claimed.
 
 **Indentation convention (resolved — see [917-review.slice.frontmatter-parser-nesting-fix.md](../reviews/917-review.slice.frontmatter-parser-nesting-fix.md) F003).** Only space characters count as indentation for the zero-vs-nonzero leading-whitespace check; a line beginning with a tab character is treated as top-level (matching how `.trim()` already treats tabs as whitespace to strip, so a tab-indented line's *content* still parses correctly if it happens to be a valid top-level key — it just won't be recognized as nested). This project's frontmatter is hand/agent-authored YAML-like text, consistently space-indented in every fixture and corpus file surveyed; tab-indented frontmatter has not been observed. The corpus-diff run (TD-3) will surface any real-world file that violates this assumption as a "changed" result for manual review, same as any other diff.
+
+**Code review note (resolved — see [917-review.code.frontmatter-parser-nesting-fix.md](../reviews/917-review.code.frontmatter-parser-nesting-fix.md) F002):** F002 re-raised the tab-indentation question the slice review already settled above (F003) — tabs being treated as top-level is the deliberate, reviewed decision, not an unhandled gap. The implementation (`line.startsWith(' ')`) matches this decision exactly. No code change; confirmed working as designed.
 
 ### TD-3 — Differential corpus-verification harness
 
@@ -161,6 +165,11 @@ This slice touches only `frontmatterParser.ts` and its test file, plus a scratch
 **Decision:** in both the `pending-review` and `review-failed` branches, derive and attach a `phase` field from the gate's boundary/review type, using the same boundary→phase mapping already implicit in the sibling branches (e.g. a `preTasks`/slice-review gate → `Phase 4: Slice Design`; a `preImplementation`/tasks-review gate → `Phase 5: Task Breakdown`; a `preAdvance`/code-review gate → `Phase 6: Implementation`). Once `phase` is populated, `enrich()`'s existing comparison-and-suggest logic applies unchanged — no changes needed to `enrich()` itself.
 
 **Not in scope for this TD:** #58/slice 912 already fixed a different stale-phase bug (phase vs. arch-file-existence, in the no-active-slice branch) — no overlap, confirmed during #66 investigation. `cf check`/`ConsistencyChecker` is unaffected — it does not read `developmentPhase` at all (confirmed in slice 912's design), so no changes needed there.
+
+**Code review notes (resolved — see [917-review.code.frontmatter-parser-nesting-fix.md](../reviews/917-review.code.frontmatter-parser-nesting-fix.md) F003, F004):**
+- F003 flagged `REVIEW_TYPE_PHASE`'s original `Record<string, string>` typing as too loose to catch an unhandled `reviewType` at compile time. `GateEvaluation.reviewType` (`reviewGate.ts`) is itself a bare `string` (not narrowed to the `arch/slice/tasks/code` union `positionToReviewType()` derives from), so the lookup can't be fully compiler-checked without widening `reviewGate.ts`'s public return type — out of scope for this TD. Fixed at the boundary instead: a local `ReviewType` union plus an `isReviewType()` type guard now narrows the map's key type to `Record<ReviewType, string>`, and an unrecognized `reviewType` value omits the `phase` field rather than being indexed — consistent with the project's no-silent-fallback convention.
+- F004 flagged the near-identical `reviewPhase` lookup repeated in both the `pending-review` and `review-failed` branches. Extracted into a single `WorkflowNavigator.resolveReviewPhase()` private static method, called once per branch — the type guard from F003's fix lives here too, so both concerns are addressed by the same change.
+- All 85 `WorkflowNavigator.test.ts` cases (including the 7 new TD-5 tests) pass unchanged after the refactor — behavior is identical, only the internal structure changed.
 
 ## Data Flows & Component Interactions
 
