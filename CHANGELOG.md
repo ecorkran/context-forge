@@ -13,6 +13,12 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] (UNRELEASED)
+
+### Fixed
+- `parseFrontmatter()` no longer lets a nested field (e.g. a review's `findings[].verdict`) silently overwrite a same-named top-level field (e.g. `verdict`). Previously the parser tracked no indentation, so any colon-bearing line anywhere in the frontmatter block — however deeply nested inside an object, a list of objects, or a folded/literal block scalar — was read as a new top-level key. This could mask a real review verdict with the last nested value seen, producing a false `cf check` review-gate failure.
+- `cf next` now flags a stale `phase` field when a review gate is blocking progress, the same way it already does for every other lifecycle stage. Previously, if `phase` had drifted while a slice/tasks/code review was pending or failing, `cf next` named the review that was owed but gave no hint that `phase` itself also needed to move — the guidance loop went silent at exactly the moment a confused user most needed it. No change to whether a review gate blocks; this only adds the missing suggestion.
+
 ## [0.10.2] - 20260714
 
 ### Fixed

@@ -18,10 +18,21 @@ export async function parseFrontmatter(filePath: string): Promise<FrontmatterRes
     }
 
     const data: Record<string, string> = {};
+    let inNestedBlock = false;
     for (let i = 1; i < lines.length; i++) {
-      const stripped = lines[i].trim();
+      const line = lines[i];
+      const stripped = line.trim();
       if (stripped === '---') {
         return { filePath, found: true, data };
+      }
+      // Only space characters count as indentation; a line starting with a
+      // tab (or no leading whitespace) is treated as top-level (TD-2/F003).
+      const isIndented = line.startsWith(' ');
+      if (inNestedBlock) {
+        if (isIndented || stripped === '') {
+          continue;
+        }
+        inNestedBlock = false;
       }
       if (stripped.includes(':')) {
         const colonIdx = stripped.indexOf(':');
@@ -37,6 +48,12 @@ export async function parseFrontmatter(filePath: string): Promise<FrontmatterRes
         }
         if (key) {
           data[key] = val;
+          // Empty value opens a nested object/list; a bare block-scalar
+          // indicator (with optional chomping/indentation modifier) opens a
+          // folded/literal block. Both are followed by indented content.
+          if (val === '' || /^[|>][+-]?\d*$/.test(val)) {
+            inNestedBlock = true;
+          }
         }
       }
     }

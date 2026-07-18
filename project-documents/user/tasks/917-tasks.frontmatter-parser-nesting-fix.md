@@ -14,8 +14,8 @@ projectState: >
   the frontmatter-parser nesting bug (#64) plus its differential corpus
   harness, and the cf next stale-phase-on-review-gate gap (#66).
 dateCreated: 20260716
-dateUpdated: 20260716
-status: not_started
+dateUpdated: 20260717
+status: complete
 ---
 
 # Tasks: Frontmatter Parser Nesting Fix & Corpus Verification
@@ -72,7 +72,7 @@ Grounding facts (verified against source):
 
 ## TD-2 — #64: Indentation-aware frontmatter parser fix
 
-- [ ] **Task 1.1 — Create `frontmatterParser.test.ts` with baseline coverage**
+- [x] **Task 1.1 — Create `frontmatterParser.test.ts` with baseline coverage**
   - No test file exists yet for `frontmatterParser.ts`. Create
     `packages/core/tests/introspection/parsers/frontmatterParser.test.ts` (mirror the location
     convention of sibling parser tests if one exists; otherwise place alongside
@@ -85,7 +85,7 @@ Grounding facts (verified against source):
   - Success: new test file runs and passes against the current implementation, unmodified.
   - Effort: 2/5
 
-- [ ] **Task 1.2 — Add failing regression tests for the nested-collision bug shape (TD-2)**
+- [x] **Task 1.2 — Add failing regression tests for the nested-collision bug shape (TD-2)**
   - In the same test file, add cases using the exact fixture shape from the design's Overview
     (a `verdict:` top-level key followed by a `verifiedUpdate:` nested object and a `findings:`
     list-of-objects whose entries include their own `verdict:` sub-field). Use an anonymized
@@ -106,7 +106,7 @@ Grounding facts (verified against source):
     requires no further changes after Task 1.3 lands.
   - Effort: 2/5
 
-- [ ] **Task 1.3 — Implement indentation-aware top-level key scanning (TD-2)**
+- [x] **Task 1.3 — Implement indentation-aware top-level key scanning (TD-2)**
   - In `frontmatterParser.ts`, replace the unconditional `stripped = lines[i].trim()` top-level
     scan with indentation tracking: only treat a line as a top-level key when its original
     (untrimmed) leading whitespace is zero, per design TD-2. Only **space** characters count as
@@ -124,7 +124,7 @@ Grounding facts (verified against source):
     unmodified (no regression on flat/quoted/missing-file/unterminated cases).
   - Effort: 3/5
 
-- [ ] **Task 1.4 — End-to-end `cf check` verification (design Success Criterion 2)**
+- [x] **Task 1.4 — End-to-end `cf check` verification (design Success Criterion 2)**
   - Create a scratch project (e.g. via a temp directory fixture, mirroring the pattern used by
     existing `ConsistencyChecker`/`WorkflowNavigator` scratch-fixture tests) containing a review
     document shaped like the Task 1.2 fixture — top-level `verdict: CONCERNS (resolved — see
@@ -140,13 +140,13 @@ Grounding facts (verified against source):
     fixture's shape.
   - Effort: 2/5
 
-- [ ] **Commit checkpoint** — after 1.4: `fix: make frontmatter parser indentation-aware (#64)`.
+- [x] **Commit checkpoint** — after 1.4: `fix: make frontmatter parser indentation-aware (#64)`.
 
 ---
 
 ## TD-3 — #64: Differential corpus-verification harness
 
-- [ ] **Task 2.1 — Write the old-vs-new parser diff script**
+- [x] **Task 2.1 — Write the old-vs-new parser diff script**
   - Add a one-off script (not part of the shipped `packages/core/src` package — place it under a
     scratch/verification location such as `scripts/` or the slice's own working area, per TD-4).
     The script:
@@ -167,7 +167,7 @@ Grounding facts (verified against source):
     exception count).
   - Effort: 3/5
 
-- [ ] **Task 2.2 — Run the harness across this repo's corpus and at least one sibling project**
+- [x] **Task 2.2 — Run the harness across this repo's corpus and at least one sibling project**
   - Execute the Task 2.1 script against this repo's own corpus and at least one sibling project
     with a large `project-documents/` tree (candidates named in the design: `squadron`,
     `grizcam_mobile_ios`, `migratory`). Confirm with the PM which sibling root(s) are actually
@@ -182,14 +182,33 @@ Grounding facts (verified against source):
     change; zero unhandled parser exceptions (or, if any occurred, investigated and resolved
     before proceeding).
   - Effort: 3/5
+  - **Results (20260717):** Scope narrowed to `{root}/project-documents/user/` per PM guidance
+    (this is the subtree guaranteed to have frontmatter on every `.md` file; the wider
+    `project-documents/` tree can include non-frontmatter docs that would only add diff noise).
+    - This repo: 248 scanned, 207 unchanged, 41 changed, 0 throws.
+    - `squadron`: 347 scanned. `migratory`: 258 scanned. `context-visualizer`: 38 scanned.
+      `migratory-viewer`: 62 scanned. `trading-data`: 199 scanned.
+      Combined sibling total: 904 scanned, 593 unchanged, 311 changed, 0 throws.
+      (`grizcam_mobile_ios`, named as a design candidate, is not present on this machine —
+      not scanned; no root was skipped for lacking `project-documents/user/`.)
+    - Hand review (by field-name clustering + direct sampling across all 6 roots, not a
+      line-by-line pass over all 352 changed files): the dominant cluster
+      (`severity`/`category`/`summary`/`location`, ~278 occurrences each) is exactly
+      `findings[].{severity,category,summary,location}` sub-fields colliding with a
+      differently-scoped or absent top-level key — same shape as this repo's own review docs.
+      The long tail of one-off keys (`Branch:`, `Substrate:`, `role:`, `date:`, `reviewVerdict:`,
+      etc.) was individually inspected in its source file: every case is either a colon-bearing
+      line inside a `projectState: >` / similar folded block scalar, or a `- reviewType: ...`
+      list-of-objects nesting — both are the documented TD-2 bug shapes, not unrelated changes.
+      Zero anomalies found.
 
-- [ ] **Commit checkpoint** — after 2.2: `test: add differential corpus verification for frontmatter parser fix (#64)`.
+- [x] **Commit checkpoint** — after 2.2: `test: add differential corpus verification for frontmatter parser fix (#64)`.
 
 ---
 
 ## TD-5 — #66: Attach `phase` to the review-gate branches in `cf next`
 
-- [ ] **Task 3.1 — Export `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, and `IMPLEMENTATION_PHASE` constants**
+- [x] **Task 3.1 — Export `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, and `IMPLEMENTATION_PHASE` constants**
   - In `packages/core/src/schema/projectSchema.ts`, export two more named phase constants
     following the existing `ARCHITECTURE_PHASE` pattern exactly (`PHASE_STRINGS[2]`): a Phase-5
     constant (e.g. `TASK_BREAKDOWN_PHASE = PHASE_STRINGS[5]`, `'Phase 5: Task Breakdown'`) and a
@@ -203,7 +222,7 @@ Grounding facts (verified against source):
     exports).
   - Effort: 1/5
 
-- [ ] **Task 3.2 — Add a `reviewType`→phase lookup and wire it into the two branches (TD-5)**
+- [x] **Task 3.2 — Add a `reviewType`→phase lookup and wire it into the two branches (TD-5)**
   - In `WorkflowNavigator.ts`, add a small lookup (e.g. a `Record<string, string>` keyed by
     `'slice' | 'tasks' | 'code'`, mapping to the Task 3.1 constants) — this is the single place
     the mapping is defined, per the project's "never scatter comparison values" rule.
@@ -222,7 +241,7 @@ Grounding facts (verified against source):
     where `<x>` matches the boundary (slice→Phase 4, tasks→Phase 5, code→Phase 6).
   - Effort: 2/5
 
-- [ ] **Task 3.3 — Test the #66 fix**
+- [x] **Task 3.3 — Test the #66 fix**
   - In `packages/core/tests/introspection/WorkflowNavigator.test.ts`, add cases to the existing
     `pending-review`/`review-failed` describe blocks (do not create a new file):
     - `pending-review` with stale `developmentPhase` and `gateInfo.reviewType === 'slice'` →
@@ -239,7 +258,7 @@ Grounding facts (verified against source):
   - Success: all new cases pass; existing gate-blocking tests pass unmodified; no test regresses.
   - Effort: 3/5
 
-- [ ] **Task 3.4 — Confirm no overlap with #58/912 or `cf check` (design Success Criterion 9)**
+- [x] **Task 3.4 — Confirm no overlap with #58/912 or `cf check` (design Success Criterion 9)**
   - By inspection (no code change expected): confirm the no-active-slice arch-gate branch (912's
     territory, a different function branch entirely) is untouched by Tasks 3.1–3.3, and confirm
     `ConsistencyChecker` (`cf check`) does not read `developmentPhase` anywhere (already established
@@ -249,25 +268,25 @@ Grounding facts (verified against source):
     Task 4.1's full-suite run.
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 3.4: `fix: attach phase to cf next review-gate branches (#66)`.
+- [x] **Commit checkpoint** — after 3.4: `fix: attach phase to cf next review-gate branches (#66)`.
 
 ---
 
 ## Verification
 
-- [ ] **Task 4.1 — Full build + suite pass**
+- [x] **Task 4.1 — Full build + suite pass**
   - Run `pnpm -r build` (clean) and the core/cli/mcp-server test suites; confirm only previously-
     documented pre-existing failures (if any) remain, with zero new failures introduced by this
     slice's changes.
   - Success: build clean, no new test failures.
   - Effort: 1/5
 
-- [ ] **Task 4.2 — Docs: CHANGELOG + DEVLOG**
+- [x] **Task 4.2 — Docs: CHANGELOG + DEVLOG**
   - Add user-facing CHANGELOG entries for both fixes (#64 frontmatter parser nesting fix, #66 cf
     next stale-phase-on-review-gate suggestion) and a developer-facing DEVLOG session entry
     summarizing the corpus-verification results from Task 2.2.
   - Success: both files updated at repo root (not under `project-documents`).
   - Effort: 1/5
 
-- [ ] **Commit checkpoint** — after 4.1/4.2: `docs: slice 917 verification + changelog/devlog`
+- [x] **Commit checkpoint** — after 4.1/4.2: `docs: slice 917 verification + changelog/devlog`
   (or fold into the final feature commit if trivial). Closes the slice.

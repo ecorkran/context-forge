@@ -19,8 +19,9 @@ describe('scanDirectory', () => {
     //              400-slice/tasks/review.gate-code-fail, 401-slice/tasks/review.gate-code-clears,
     //              402-slice/tasks/review.gate-code-unknown, 403-slice/review.gate-slice-fail,
     //              404-arch/review.gate-arch-concerns (13 more) plus slice 911's docs-only
-    //              gate fixture: 405-slice/tasks.gate-docs-only (2 more)
-    expect(docs.length).toBe(30);
+    //              gate fixture: 405-slice/tasks.gate-docs-only (2 more) plus slice 917's
+    //              nested-collision gate fixture: 406-slice/tasks/review.gate-code-nested-collision (3 more)
+    expect(docs.length).toBe(33);
   });
 
   it('each DocEntry has expected fields', async () => {

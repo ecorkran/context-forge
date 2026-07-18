@@ -8,7 +8,7 @@ relatedSlices: []
 riskLevel: low
 dateCreated: 20260325
 dateUpdated: 20260325
-status: complete
+status: in-progress
 ---
 
 # Architecture: Maintenance & Refactoring
