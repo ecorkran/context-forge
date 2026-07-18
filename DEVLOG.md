@@ -18,6 +18,15 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-07-18
+
+### Slice 917 code review (CONCERNS) resolved; merged to main
+- Code review found 4 concerns: F001/F002 restated already-resolved design decisions (TD-1's minimal-patch tradeoff, F003's tab-indentation convention from the prior slice review) — no code change, documented in the design doc. F003 (loose `REVIEW_TYPE_PHASE` typing) and F004 (duplicated `reviewPhase` lookup across the `pending-review`/`review-failed` branches) were both real: fixed via a single `WorkflowNavigator.resolveReviewPhase()` helper with a `ReviewType` union + `isReviewType()` type guard, so an unrecognized `reviewType` now omits `phase` instead of being blindly indexed. All 85 `WorkflowNavigator.test.ts` cases pass unchanged.
+- Merged `917-slice.frontmatter-parser-nesting-fix` into `main` (`--no-ff`); full monorepo build clean.
+- Bumped to 0.10.3 (patch — two bugfixes, #64 and #66, no new capability). Tags: `@context-forge/core@0.10.3`, `@context-forge/cli@0.10.3`, `@context-forge/mcp@0.10.3`.
+
+---
+
 ## 2026-07-14
 
 ### Slice 908 Item D: Architecture Status Validation & Finding Attribution
