@@ -101,7 +101,13 @@ Optionally require a review artifact (with a clearing verdict) before Context Fo
 cf config set workflow.review_enabled true
 ```
 
-Off by default. See the [Review Gating reference](docs/REVIEW-GATING.md) for the full config-key surface, decision matrix, and escape hatches (grandfathering old work, exempting docs-only slices).
+Off by default. To exempt a single slice from its review requirement:
+
+```bash
+cf check --set-review-none <index>    # writes review: none to that slice's design doc
+```
+
+See the [Review Gating reference](docs/REVIEW-GATING.md) for the full config-key surface, decision matrix, and other escape hatches (grandfathering old work, exempting docs-only slices).
 
 ## Design Philosophy
  
@@ -120,7 +126,7 @@ Started as a simple Electron utility called Context Builder, it's long since out
 
 
 ## Access Points
-Four interfaces — use whichever fits your workflow:
+Three interfaces — use whichever fits your workflow (a fourth, the Electron desktop app, is deprecated; see below):
 
 ### MCP Server (`@context-forge/mcp`)
 
@@ -149,8 +155,9 @@ Four interfaces — use whichever fits your workflow:
 | `cf next` | Recommended next action with rationale |
 | `cf build` | Assemble context prompt for AI session (`--embed` inlines artifact files for non-SDK models) |
 | `cf set <field> <value>` | Set a project field |
+| `cf unset <field>` | Clear an optional project field (distinct from setting it empty) |
 | `cf get` | Show all project fields |
-| `cf check` | Run consistency checks (`--fix`, `--slice`) |
+| `cf check` | Run consistency checks (`--fix`, `--slice`, `--set-review-none <index>` to exempt a slice from review) |
 | **Listing** | **Browse project artifacts** |
 | `cf list projects` | All registered projects |
 | `cf list initiatives` | Architecture initiatives with slice counts (alias: `cf list arch`) |
@@ -159,17 +166,32 @@ Four interfaces — use whichever fits your workflow:
 | `cf list tasks` | Task files with completion counts |
 | `cf list items` | Individual tasks from the active task file |
 | **Management** | |
-| `cf project list\|get\|set\|rm` | Manage projects |
+| `cf project list\|get\|set\|unset\|rm` | Manage projects |
 | `cf worktree init\|list\|get\|update\|rm` | Manage git worktree contexts |
-| `cf config get\|set` | Two-tier configuration |
+| `cf config get\|set\|unset` | Two-tier configuration (`migrate-personal` moves personal keys out of the shared file) |
 | `cf future` | Consolidated future work across all plans |
 | `cf prompt list\|get <phase>` | Prompt templates with variable substitution |
 | `cf guides install\|info\|update\|uninstall` | ai-project-guide template management |
 | `cf setup-ide claude` | Configure Claude Code integration |
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
-| `cf install-commands` | Install/uninstall Claude Code slash commands |
+| `cf install-commands` / `cf uninstall-commands` | Install or remove Claude Code slash commands |
 | `cf backup` | Versioned project data backup (keeps last 10) |
 | `cf update` | Update the CLI to the latest published version |
+
+#### Key configuration
+
+`cf config` reads and writes two scopes — **shared** keys (safe to commit; team-wide policy) and **personal** keys (per-developer, git-ignored). Run `cf config get` with no key to list everything. The keys you're most likely to set:
+
+| Key | Scope | Purpose |
+|-----|-------|---------|
+| `git.integration_branch` | personal | Long-lived branch that work branches fork from and merge into instead of `main` (e.g. `dev/erik`). Changes git topology, not just names. |
+| `workflow.review_enabled` | shared | Turn on review gating (off by default). |
+| `workflow.review_threshold` | shared | Verdict floor that clears a gate (`pass` \| `concerns`). |
+| `workflow.review_gate_effective_date` | shared | Grandfather work designed before `YYYYMMDD` past the gate. |
+| `workflow.auto_advance` | shared | Auto-advance to the next slice when the current one completes. |
+| `guide.auto_update` | shared | Auto-update the AI project guide. |
+
+Full key reference and precedence rules: [Review Gating](docs/REVIEW-GATING.md) and `cf config --help`.
 
 ### Claude Code Slash Commands
 
@@ -189,7 +211,7 @@ Installed via `cf install-commands`. Available directly in Claude Code sessions:
 
 ### Electron Desktop App
 
-> **Status: unmaintained.** The Electron app is not currently being developed and is not built or shipped as part of releases. The package still exists in the repo (`packages/electron/`) but its typecheck currently fails and dependencies are out of date. We are evaluating whether to revive, archive, or remove it — feedback welcome via [issues](https://github.com/ecorkran/context-forge/issues). All current functionality is available through the CLI, MCP server, and slash commands.
+> **Deprecated — scheduled for removal.** The Electron app is no longer maintained, built, or shipped, and will be removed from the repo in an upcoming release. All functionality is available through the CLI, MCP server, and slash commands.
 
 ## Architecture
 
@@ -201,7 +223,7 @@ packages/
   core/          @context-forge/core          — context engine, project state, introspection, workflow
   mcp-server/    @context-forge/mcp           — MCP protocol server (34 tools)
   cli/           @context-forge/cli           — terminal interface (cf command)
-  electron/      @context-forge/electron      — desktop app
+  electron/      @context-forge/electron      — desktop app (deprecated, scheduled for removal)
 ```
 
 All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.

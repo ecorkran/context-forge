@@ -4,7 +4,7 @@ parent: user/architecture/220-arch.event-driven-pipeline.md
 project: context-forge
 dateCreated: 20260320
 dateUpdated: 20260320
-status: active
+status: not_started
 ---
 
 # Slice Plan: Event-Driven Pipeline
