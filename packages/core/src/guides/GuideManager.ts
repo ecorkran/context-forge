@@ -79,6 +79,7 @@ export class GuideManager {
     if (this.operationPath && this.operationPath !== this.projectPath && info.method === 'submodule') {
       const submoduleStrategy = strategy as SubmoduleStrategy;
       await submoduleStrategy.sync(this.operationPath, this.projectPath);
+      return { ...result, worktreeSynced: true };
     }
 
     return result;

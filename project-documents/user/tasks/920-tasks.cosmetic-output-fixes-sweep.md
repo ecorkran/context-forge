@@ -8,7 +8,7 @@ projectState: >
   0.10.4 published. main clean. Slice 920 design complete (review: none).
   Two independent cosmetic fixes: (a) TemplateProcessor literal-brace
   pass-through #13, (b) guides-update worktree-sync message #44.
-status: not_started
+status: complete
 dateCreated: 20260730
 dateUpdated: 20260730
 ---
@@ -33,30 +33,30 @@ See the design for full rationale:
 
 ### Task 1: Preserve unmatched single-brace text in TemplateProcessor
 
-- [ ] In [TemplateProcessor.ts](../../../packages/core/src/services/TemplateProcessor.ts),
+- [x] In [TemplateProcessor.ts](../../../packages/core/src/services/TemplateProcessor.ts),
       inside the single-brace `replace(/\{([^}]+)\}/g, …)` handler (around line 43):
-  - [ ] On the **unresolved pipe** path (primary variable not found — currently
+  - [x] On the **unresolved pipe** path (primary variable not found — currently
         `return expression;` near line 54), return the original matched text
         `_match` (the full `{a | b}`) instead of the brace-stripped `expression`.
-  - [ ] On the **simple no-match** path (currently `return expression;` near
+  - [x] On the **simple no-match** path (currently `return expression;` near
         line 72), return `_match` instead of `expression`.
-- [ ] Do **not** modify the double-brace pass (`{{var}}`, ~line 31) or any
+- [x] Do **not** modify the double-brace pass (`{{var}}`, ~line 31) or any
       conditional handling.
-- [ ] Verify the resolved paths (real variable, `project` alias, resolved pipe)
+- [x] Verify the resolved paths (real variable, `project` alias, resolved pipe)
       still return the substituted value — only the no-match returns change.
 - Effort: 1/5
 
 ### Task 2: Test literal-brace pass-through
 
-- [ ] In [TemplateProcessor.test.ts](../../../packages/core/tests/services/TemplateProcessor.test.ts),
+- [x] In [TemplateProcessor.test.ts](../../../packages/core/tests/services/TemplateProcessor.test.ts),
       add cases proving:
-  - [ ] Literal `{example}` (no matching variable) renders verbatim as
+  - [x] Literal `{example}` (no matching variable) renders verbatim as
         `{example}`.
-  - [ ] An unresolved pipe `{foo | bar}` (neither resolves) renders verbatim
+  - [x] An unresolved pipe `{foo | bar}` (neither resolves) renders verbatim
         with braces.
-  - [ ] A **real** variable (`{project}` / `{{slice}}`) still substitutes.
-  - [ ] A resolved pipe still substitutes to the primary's value.
-- [ ] Add one regression case using a realistic multi-line context fragment
+  - [x] A **real** variable (`{project}` / `{{slice}}`) still substitutes.
+  - [x] A resolved pipe still substitutes to the primary's value.
+- [x] Add one regression case using a realistic multi-line context fragment
       (Project State / Additional Instructions style) that mixes a literal
       `{example}` with a real `{project}` reference, per the design's
       real-input requirement.
@@ -68,9 +68,9 @@ See the design for full rationale:
 
 ### Task 3: Add `worktreeSynced` to UpdateResult and set it in GuideManager
 
-- [ ] In [types.ts](../../../packages/core/src/guides/types.ts), add an optional
+- [x] In [types.ts](../../../packages/core/src/guides/types.ts), add an optional
       `worktreeSynced?: boolean` field to the `UpdateResult` interface.
-- [ ] In [GuideManager.ts](../../../packages/core/src/guides/GuideManager.ts)
+- [x] In [GuideManager.ts](../../../packages/core/src/guides/GuideManager.ts)
       `update()` (~line 56), when the worktree-sync branch executes
       (non-default `operationPath` + `submodule` method, ~lines 78–82), include
       `worktreeSynced: true` on the returned result. Leave the field
@@ -79,33 +79,33 @@ See the design for full rationale:
 
 ### Task 4: Test GuideManager sets `worktreeSynced` correctly
 
-- [ ] In [GuideManager.test.ts](../../../packages/core/tests/guides/GuideManager.test.ts),
+- [x] In [GuideManager.test.ts](../../../packages/core/tests/guides/GuideManager.test.ts),
       add/extend cases proving:
-  - [ ] `worktreeSynced` is `true` when updating from a non-default worktree
+  - [x] `worktreeSynced` is `true` when updating from a non-default worktree
         with the `submodule` method.
-  - [ ] `worktreeSynced` is absent/falsy when `operationPath === projectPath`
+  - [x] `worktreeSynced` is absent/falsy when `operationPath === projectPath`
         (default project, no worktree).
 - Effort: 2/5
 
 ### Task 5: Branch the CLI same-version message on `worktreeSynced`
 
-- [ ] In [guides.ts](../../../packages/cli/src/commands/guides.ts) `update`
+- [x] In [guides.ts](../../../packages/cli/src/commands/guides.ts) `update`
       action (~lines 195–204), when `previousVersion === newVersion` **and**
       `result.worktreeSynced` is true, print a message that acknowledges the
       worktree sync (e.g. `Guide already at latest (worktree synced to vX.Y.Z)`),
       using `newVersion` for the version. Keep the existing bare
       "Guide is already at the latest version." message for the non-worktree
       same-version case.
-- [ ] Leave the "Guide updated successfully." branch unchanged.
+- [x] Leave the "Guide updated successfully." branch unchanged.
 - Effort: 1/5
 
 ### Task 6: Test the CLI message branch
 
-- [ ] In [guides.test.ts](../../../packages/cli/tests/commands/guides.test.ts),
+- [x] In [guides.test.ts](../../../packages/cli/tests/commands/guides.test.ts),
       add cases proving:
-  - [ ] Same-version update with `worktreeSynced: true` prints the
+  - [x] Same-version update with `worktreeSynced: true` prints the
         sync-acknowledging message (and includes the version).
-  - [ ] Same-version update without `worktreeSynced` prints the unchanged
+  - [x] Same-version update without `worktreeSynced` prints the unchanged
         "already at the latest version" message.
 - Effort: 1/5
 
@@ -115,10 +115,10 @@ See the design for full rationale:
 
 ### Task 7: Build and full test run
 
-- [ ] Run `pnpm -r build` — expect exit 0.
-- [ ] Run the core + cli test suites (`pnpm -r test` or the package-scoped
+- [x] Run `pnpm -r build` — expect exit 0.
+- [x] Run the core + cli test suites (`pnpm -r test` or the package-scoped
       equivalents) — expect all green, including the existing TemplateProcessor,
       GuideManager, and guides-command tests.
-- [ ] Walk the design's Verification Walkthrough for both items to confirm
+- [x] Walk the design's Verification Walkthrough for both items to confirm
       real-world behavior.
 - Effort: 1/5

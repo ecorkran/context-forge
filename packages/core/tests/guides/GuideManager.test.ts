@@ -261,10 +261,12 @@ describe('GuideManager', () => {
 
       const operationPath = '/test/worktree';
       const manager = new GuideManager(projectPath, mockConfigManager as never, operationPath);
-      await manager.update();
+      const result = await manager.update();
 
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockSync).toHaveBeenCalledWith(operationPath, projectPath);
+      // Flag the sync so the CLI can report it even when versions match (GH #44)
+      expect(result.worktreeSynced).toBe(true);
     });
 
     it('does not call sync() when operationPath equals projectPath', async () => {
@@ -280,9 +282,10 @@ describe('GuideManager', () => {
       }));
 
       const manager = new GuideManager(projectPath, mockConfigManager as never, projectPath);
-      await manager.update();
+      const result = await manager.update();
 
       expect(mockSync).not.toHaveBeenCalled();
+      expect(result.worktreeSynced).toBeUndefined();
     });
 
     it('does not call sync() when method is clone (not submodule)', async () => {

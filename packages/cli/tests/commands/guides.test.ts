@@ -277,6 +277,22 @@ describe('cf guides update', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('already at the latest');
+    // No worktree sync happened, so the sync-acknowledging message must not appear
+    expect(output).not.toContain('worktree synced');
+  });
+
+  it('acknowledges worktree sync when already at latest but worktree was synced (GH #44)', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.13.2', newVersion: 'v0.13.2', method: 'submodule',
+      worktreeSynced: true,
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('worktree synced');
+    expect(output).toContain('v0.13.2');
   });
 
   it('BranchGuardBlockedError: exits non-zero, error message printed, no retry attempted', async () => {

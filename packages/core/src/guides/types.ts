@@ -29,6 +29,12 @@ export interface UpdateResult {
   previousVersion: string | null;
   newVersion: string | null;
   method: GuideMethod;
+  /**
+   * True when the update also synced a non-default worktree's submodule
+   * checkout. Lets callers report the sync even when previousVersion ===
+   * newVersion (the host pointer was already current). Absent otherwise.
+   */
+  worktreeSynced?: boolean;
 }
 
 /** Result of uninstalling a guide */
