@@ -17,6 +17,7 @@ const { mockGetAll, mockGetById, mockParseTaskFile, mockFindProjectByCwd } = vi.
 
 const mockBuildModel = vi.fn();
 const mockMergeProjectModels = vi.fn();
+const mockResolveInitiativePlanPath = vi.fn().mockResolvedValue(null);
 const mockParseSlicePlanIntrospector = vi.fn();
 const mockDetectDocuments = vi.fn();
 // Introspector-instance parseTaskFile/parseFrontmatter, used by the derived-status
@@ -37,6 +38,9 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   buildModel: (...args: unknown[]) => mockBuildModel(...args),
   mergeProjectModels: (...args: unknown[]) => mockMergeProjectModels(...args),
+  // Return null so archListAction falls through to the buildModel-driven path
+  // that these tests exercise (the initiative-plan-file path is covered elsewhere).
+  resolveInitiativePlanPath: (...args: unknown[]) => mockResolveInitiativePlanPath(...args),
   extractSliceIndex: vi.fn((v: string) => {
     const m = /^(\d+)-/.exec(v ?? '');
     return m ? parseInt(m[1], 10) : null;
@@ -194,6 +198,8 @@ describe('cf list initiatives', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    // No initiative-plan file → exercise the buildModel-driven fallback path.
+    mockResolveInitiativePlanPath.mockResolvedValue(null);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -287,6 +293,8 @@ describe('cf list arch (alias)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    // No initiative-plan file → exercise the buildModel-driven fallback path.
+    mockResolveInitiativePlanPath.mockResolvedValue(null);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
