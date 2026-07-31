@@ -78,63 +78,13 @@ describe('FileProjectStore', () => {
     });
   });
 
-  describe('field migration on read', () => {
-    it('should apply defaults for missing fields', async () => {
-      // Manually write projects.json missing newer fields
-      const rawProjects = [
-        {
-          id: 'project_123_abc',
-          name: 'legacy',
-          template: 'default',
-          fileSlice: 'new-slice',
-          createdAt: '2025-01-01T00:00:00.000Z',
-          updatedAt: '2025-01-01T00:00:00.000Z',
-        },
-      ];
-      await writeFile(
-        join(tempDir, 'projects.json'),
-        JSON.stringify(rawProjects)
-      );
-
-      const store = new FileProjectStore();
-      const all = await store.getAll();
-
-      expect(all).toHaveLength(1);
-      expect(all[0].fileTasks).toBe('');
-      expect(all[0].instruction).toBe('implementation');
-      expect(all[0].customData).toEqual({});
-    });
-
-    it('should map old-schema fields to new field names', async () => {
-      const oldSchemaProject = [
-        {
-          id: 'project_old_001',
-          name: 'old-schema',
-          template: 'default',
-          slice: '100-slice.auth',
-          taskFile: '100-tasks.auth',
-          projectDate: '2026-01-01',
-          instruction: 'implementation',
-  
-          customData: {},
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-      ];
-      await writeFile(
-        join(tempDir, 'projects.json'),
-        JSON.stringify(oldSchemaProject)
-      );
-
-      const store = new FileProjectStore();
-      const all = await store.getAll();
-
-      expect(all).toHaveLength(1);
-      expect(all[0].fileSlice).toBe('100-slice.auth');
-      expect(all[0].fileTasks).toBe('100-tasks.auth');
-      expect(all[0].dateProject).toBe('2026-01-01');
-    });
-
+  // NOTE: getAll() returns stored records verbatim — no read-time field
+  // migration. migrateProjectFields() was intentionally removed (commit
+  // 8da8cc8): legacy-field renaming is no longer papered over at read time;
+  // cf get / cf get --json both consume a schema-filtered view via
+  // buildProjectGetView() (see PROJECT_FIELDS). These tests assert the
+  // verbatim pass-through contract, not migration.
+  describe('read returns stored fields verbatim', () => {
     it('should pass through new-schema fields unchanged (idempotent)', async () => {
       const newSchemaProject = [
         {
@@ -226,32 +176,6 @@ describe('FileProjectStore', () => {
       expect(all[0].fileArch).toBe('project-documents/user/architecture/060-arch.md');
       expect(all[0].fileSlicePlan).toBeUndefined();
       expect(all[0].fileSpec).toBeUndefined();
-    });
-
-    it('should strip legacy monorepo fields from loaded data', async () => {
-      const legacyProject = [{
-        id: 'project_legacy_mono',
-        name: 'legacy-mono',
-        template: 'default',
-        fileSlice: 'auth',
-        instruction: 'implementation',
-        isMonorepo: true,
-        isMonorepoEnabled: true,
-        customData: { monorepoNote: 'old note' },
-        createdAt: '2025-01-01T00:00:00.000Z',
-        updatedAt: '2025-01-01T00:00:00.000Z',
-      }];
-      await writeFile(join(tempDir, 'projects.json'), JSON.stringify(legacyProject));
-
-      const store = new FileProjectStore();
-      const all = await store.getAll();
-
-      expect(all).toHaveLength(1);
-      expect(all[0].name).toBe('legacy-mono');
-      // Monorepo fields should be stripped
-      expect((all[0] as any).isMonorepo).toBeUndefined();
-      expect((all[0] as any).isMonorepoEnabled).toBeUndefined();
-      expect(all[0].customData?.monorepoNote).toBeUndefined();
     });
   });
 

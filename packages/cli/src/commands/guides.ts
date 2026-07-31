@@ -193,7 +193,13 @@ export function registerGuidesCommand(program: Command): void {
         }
 
         if (result.previousVersion === result.newVersion) {
-          console.log(success('Guide is already at the latest version.'));
+          if (result.worktreeSynced) {
+            // Host pointer was already current, but the worktree checkout was
+            // synced — say so, or the message contradicts the file changes (GH #44).
+            console.log(success('Guide already at latest (worktree synced).'));
+          } else {
+            console.log(success('Guide is already at the latest version.'));
+          }
           console.log(`  ${label('Version:')}  ${valueStyle(result.newVersion ?? 'unknown')}`);
         } else {
           console.log(success('Guide updated successfully.'));

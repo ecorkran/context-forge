@@ -50,8 +50,9 @@ export class TemplateProcessor {
           if (value !== undefined && value !== null) {
             return String(value);
           }
-          // If primary variable not found, return the expression as-is for now
-          return expression;
+          // Primary variable not found: preserve the literal text verbatim,
+          // braces included — never strip braces off text we did not substitute.
+          return _match;
         }
 
         // Handle simple variable names with common aliases
@@ -67,9 +68,10 @@ export class TemplateProcessor {
           return String(value);
         }
 
-        // For parameters that might not be in our data, don't log warnings
-        // These might be template placeholders that should remain as-is
-        return expression;
+        // Not a known variable: this is literal content the user typed
+        // (e.g. `{example}`). Preserve it verbatim with braces intact rather
+        // than silently unwrapping it.
+        return _match;
       });
 
       return processed;
