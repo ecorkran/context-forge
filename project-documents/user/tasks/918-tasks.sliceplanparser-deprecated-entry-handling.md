@@ -10,6 +10,11 @@ dateUpdated: 20260731
 status: not_started
 ---
 
+<!-- Task 12 extended 20260731 to add arch-status-vs-plans coverage per
+     review finding F001 (project-documents/user/reviews/918-review.tasks.sliceplanparser-deprecated-entry-handling.md).
+     Resolution recorded here per feedback-review-verdict-provenance: the
+     review document itself is left as originally written, not rewritten. -->
+
 ## Context Summary
 
 - Working on slice 918: `slicePlanParser.ts` silently drops any plan line using
@@ -196,7 +201,7 @@ status: not_started
         passes.
   - [ ] Commit: `test(core): verify getNext skips plan-line deprecated entries`
 
-- [ ] 12. Regression test: `ConsistencyChecker` plan-status-vs-entries with a deprecated entry
+- [ ] 12. Regression test: `ConsistencyChecker` plan-status-vs-entries and arch-status-vs-plans with a deprecated entry
   - [ ] Locate the existing test(s) for the `plan-status-vs-entries` rule
         (search `ConsistencyChecker.test.ts` for `'plan-status-vs-entries'`).
   - [ ] Add a case: a slice plan with frontmatter `status: complete` where
@@ -207,9 +212,26 @@ status: not_started
         assert the rule **does** fire (the existing "all entries checked but
         plan status isn't complete" direction), proving deprecated-as-resolved
         arithmetic didn't disable that half of the rule.
+  - [ ] Locate the existing test(s) for the `arch-status-vs-plans` rule
+        (search `ConsistencyChecker.test.ts` for `'arch-status-vs-plans'`).
+        Success Criterion 6 names both rules; they consume the same
+        `completedSlices`/`totalSlices` arithmetic but are separate rule
+        invocations, so `arch-status-vs-plans` needs its own direct
+        assertion rather than relying on the `plan-status-vs-entries`
+        coverage above as a proxy (per design-review finding F001).
+  - [ ] Add a case: an architecture doc with frontmatter `status: complete`
+        whose underlying slice plan has every entry either `[x]` or `[~]`
+        (at least one of each) — assert the rule does **not** produce an
+        `arch-status-vs-plans` finding.
+  - [ ] Add a complementary case: same architecture/plan, frontmatter
+        `status: in-progress` (not complete) with the same
+        all-checked-or-deprecated plan entries — assert the rule **does**
+        fire, proving deprecated-as-resolved arithmetic didn't disable that
+        half of the rule either.
   - [ ] Success: `pnpm --filter @context-forge/core test -- ConsistencyChecker`
-        passes.
-  - [ ] Commit: `test(core): verify plan-status-vs-entries handles deprecated plan entries`
+        passes, with distinct assertions for both `plan-status-vs-entries`
+        and `arch-status-vs-plans`.
+  - [ ] Commit: `test(core): verify plan-status-vs-entries and arch-status-vs-plans handle deprecated plan entries`
 
 - [ ] 13. Full verification pass
   - [ ] Run `pnpm -r build` — confirm all packages build clean.
