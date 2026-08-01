@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { ProjectData } from '../types/project.js';
+import type { ProjectData, ResolvedProject } from '../types/index.js';
 import type {
   SliceStatus,
   WorkflowStatus,
@@ -129,7 +129,7 @@ export class WorkflowNavigator {
    * Determine the recommended next action for a project.
    * Uses a priority-ordered state machine based on getStatus().
    */
-  async getNext(project: ProjectData): Promise<NextAction> {
+  async getNext(project: ResolvedProject): Promise<NextAction> {
     // GUARD: no-project-path
     if (!project.projectPath) {
       return {
