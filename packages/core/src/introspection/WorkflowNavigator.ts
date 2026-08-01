@@ -29,6 +29,7 @@ import {
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
+import { isInIndexRange } from '../utils/worktree-overlay.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -258,13 +259,12 @@ export class WorkflowNavigator {
       ? existsSync(join(project.projectPath, archRelPath))
       : false;
 
-    // Index band mismatch: warn when slice index is in a different hundred-block than arch/plan
+    // Index band mismatch: warn when the slice index falls outside the range the
+    // project has declared ownership of — see resolveBandWarning() and LLD Decision 1.
     if (slice.index !== null) {
-      const archIndex = extractSliceIndex(project.fileArch);
-      if (archIndex !== null && hundredBlock(slice.index) !== hundredBlock(archIndex)) {
-        warnings.push(
-          `Slice ${slice.index} is outside the ${hundredBlock(archIndex)}-band of architecture '${project.fileArch}'.`,
-        );
+      const bandWarning = this.resolveBandWarning(project, slice.index);
+      if (bandWarning) {
+        warnings.push(bandWarning);
       }
     }
 
@@ -418,7 +418,46 @@ export class WorkflowNavigator {
     });
   }
 
-/**
+  /**
+   * Resolve the index-band warning for the active slice, tiered by worktree
+   * configuration (LLD Decision 1):
+   *   1. Active worktree known → warn unless index is in its indexRange,
+   *      suppressed entirely when that worktree has rangeOverride.
+   *   2. Worktrees configured but none active → warn unless index is inside
+   *      any configured worktree's indexRange.
+   *   3. No worktrees configured → legacy hundredBlock(index) vs
+   *      hundredBlock(archIndex) comparison.
+   * Returns null when no warning applies. At most one warning is ever produced.
+   */
+  private resolveBandWarning(project: ResolvedProject, sliceIndex: number): string | null {
+    const worktrees = project.worktrees ?? [];
+
+    if (worktrees.length > 0) {
+      const active = project.resolvedWorktree
+        ? worktrees.find((w) => w.id === project.resolvedWorktree?.id)
+        : undefined;
+
+      if (active) {
+        if (active.rangeOverride) return null;
+        if (isInIndexRange(sliceIndex, active.indexRange)) return null;
+        return `Slice ${sliceIndex} is outside worktree '${active.name}' range [${active.indexRange[0]}-${active.indexRange[1]}].`;
+      }
+
+      if (worktrees.some((w) => isInIndexRange(sliceIndex, w.indexRange))) return null;
+      const ranges = worktrees
+        .map((w) => `${w.name} [${w.indexRange[0]}-${w.indexRange[1]}]`)
+        .join(', ');
+      return `Slice ${sliceIndex} is outside all configured worktree ranges (${ranges}).`;
+    }
+
+    const archIndex = extractSliceIndex(project.fileArch);
+    if (archIndex !== null && hundredBlock(sliceIndex) !== hundredBlock(archIndex)) {
+      return `Slice ${sliceIndex} is outside the ${hundredBlock(archIndex)}-band of architecture '${project.fileArch}'.`;
+    }
+    return null;
+  }
+
+  /**
    * Returns true if the project has a concept doc file set AND that file exists on disk.
    * fileConcept is stored as a relative path directly (not a bare stem), so we resolve
    * via resolveArtifactPath first; if the field isn't mapped, fall back to treating the
