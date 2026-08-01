@@ -1101,6 +1101,40 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     expect(next.warnings ?? []).toEqual([]);
   });
 
+  it('a "[~]" plan-line-deprecated entry with no slice-design/task file is skipped by getNext like deprecated', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-plan-deprecated-'));
+    writeSliceDesign(root, 125, 'done', 'complete');
+    writeSliceDesign(root, 130, 'genuinely-next', 'not-started');
+    writeSlicePlan(
+      root,
+      '1. [x] **(125) Done** — complete.\n' +
+        '2. [~] **(127) Descoped** — cut for scope.\n' +
+        '3. [ ] **(130) Genuinely Next** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const status = await nav.getStatus(project);
+    const entry127 = status.slicePlan!.entries.find((e) => e.index === 127);
+    expect(entry127!.status).toBe('deprecated');
+    expect(status.warnings ?? []).toEqual([]);
+
+    // getNext must skip the plan-line-deprecated entry (no slice-design/task
+    // file exists for it — the parser's [~] marker is the only signal) and
+    // land on the next real candidate, not throw and not treat it as
+    // "not started". This requires no production code change: entry.status
+    // already carries Deprecated from the parser, and Decision 4/8 already
+    // thread it through resolveEntryStatus into deriveEntryStatus.
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 130');
+    expect(next.warnings ?? []).toEqual([]);
+  });
+
   it('wording: active in-progress slice recommends "Continue", not "Advance to"', async () => {
     // The active slice itself (900) is in-implementation with partial progress —
     // exercises the pre-existing in-implementation branch, confirming its wording
