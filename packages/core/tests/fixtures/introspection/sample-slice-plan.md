@@ -25,6 +25,8 @@ dateUpdated: 20260228
 
 5. [x] **(105) Feature Gamma** — Third feature, already complete.
 
+6. [~] **(106) Feature Delta** — descoped, superseded by native tooling.
+
 ## Future Work
 
 1. [ ] (200) Advanced Analytics — Add analytics dashboard and reporting.

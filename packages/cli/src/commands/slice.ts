@@ -88,7 +88,12 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
   const entries = await Promise.all(
     filteredEntries.map(async (entry) => {
       let designFile: string | null = null;
-      let derivedStatus: DisplayStatus = entry.isChecked ? STATUS.Complete : STATUS.NotStarted;
+      let derivedStatus: DisplayStatus =
+        entry.status === STATUS.Deprecated
+          ? STATUS.Deprecated
+          : entry.isChecked
+            ? STATUS.Complete
+            : STATUS.NotStarted;
       try {
         const docs = await introspector.detectDocuments(operationPath, entry.index);
         designFile = docs.sliceDesign;
@@ -121,7 +126,12 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
 
         derivedStatus = taskResolutionFailed || frontmatterResolutionFailed
           ? 'degraded'
-          : deriveEntryStatus({ frontmatterStatus, taskInferredStatus, isChecked: entry.isChecked });
+          : deriveEntryStatus({
+              frontmatterStatus,
+              taskInferredStatus,
+              planLineStatus: entry.status === STATUS.Deprecated ? STATUS.Deprecated : undefined,
+              isChecked: entry.isChecked,
+            });
       } catch {
         derivedStatus = 'degraded';
       }

@@ -22,6 +22,8 @@ dateUpdated: 20260307
 
 4. [ ] **Cloudflare Tunnel Deployment** — Public internet exposure.
 
+5. [~] **Feature Epsilon** — cut for scope, superseded by native tooling.
+
 ## Integration Work
 
 1. [ ] **Operational Hardening** — Rate limiting, logging, input sanitization.

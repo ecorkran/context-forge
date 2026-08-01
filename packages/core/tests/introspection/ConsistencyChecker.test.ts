@@ -848,6 +848,59 @@ describe('ConsistencyChecker', () => {
       expect(finding!.description).toContain('All 2 entries');
     });
 
+    it('Rule 7: does not fire when plan "complete" and every entry is checked or [~] deprecated', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'deprecated', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+          ],
+          totalSlices: 2,
+          completedSlices: 2,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'plan-status-vs-entries');
+      expect(finding).toBeUndefined();
+    });
+
+    it('Rule 7: still warns when plan is not complete even though every entry is checked or [~] deprecated', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'deprecated', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+          ],
+          totalSlices: 2,
+          completedSlices: 2,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'in-progress' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject());
+
+      const finding = result.findings.find((f) => f.rule === 'plan-status-vs-entries');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('All 2 entries');
+    });
+
     // (Rule 9: missing-plan-status — removed, subsumed by Rule 12 frontmatter-schema)
 
     // --- Rule 8: Arch status vs plans ---
@@ -912,6 +965,66 @@ describe('ConsistencyChecker', () => {
       const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
       expect(finding).toBeDefined();
       expect(finding!.description).toContain('All 1 plan entries');
+      expect(finding!.description).toContain('Architecture (160)');
+    });
+
+    it('Rule 8: does not fire when arch "complete" and every plan entry is checked or [~] deprecated', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'deprecated', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+          ],
+          totalSlices: 2,
+          completedSlices: 2,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
+      expect(finding).toBeUndefined();
+    });
+
+    it('Rule 8: still warns when arch is not complete even though every plan entry is checked or [~] deprecated', async () => {
+      const mock = makeMockIntrospector({
+        parseSlicePlan: vi.fn().mockResolvedValue({
+          filePath: '/fake/plan.md',
+          entries: [
+            { index: 170, name: 'a', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'deprecated', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+          ],
+          totalSlices: 2,
+          completedSlices: 2,
+        }),
+        parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
+          if (path.includes('arch')) {
+            return { filePath: path, found: true, data: { status: 'in-progress' } };
+          }
+          if (path.includes('plan') || path.includes('slices')) {
+            return { filePath: path, found: true, data: { status: 'complete' } };
+          }
+          return { filePath: path, found: true, data: { status: 'complete' } };
+        }),
+      });
+
+      const checker = new ConsistencyChecker(mock);
+      const result = await checker.checkAll(makeProject({ fileArch: '160-arch.test-system' }));
+
+      const finding = result.findings.find((f) => f.rule === 'arch-status-vs-plans');
+      expect(finding).toBeDefined();
+      expect(finding!.description).toContain('All 2 plan entries');
       expect(finding!.description).toContain('Architecture (160)');
     });
 

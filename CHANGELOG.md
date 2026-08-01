@@ -13,6 +13,11 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- A slice-plan line marked `[~]` (the descoped/deprecated convention) is no longer silently dropped by the parser. Previously such a line matched neither checkbox format, so the entry vanished entirely — not shown, not counted, not flagged. It now parses as a deprecated entry: `cf list slices` renders it `⊘ deprecated`, `cf next` skips past it, and `cf check` no longer false-flags a plan as inconsistent just because it contains one.
+
 ## [0.10.3] - 20260718
 
 ### Fixed

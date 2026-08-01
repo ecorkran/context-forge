@@ -7,7 +7,7 @@ const FIXTURES = join(__dirname, '..', 'fixtures', 'introspection');
 describe('parseSlicePlan', () => {
   it('extracts correct entries with index, name, isChecked, status', async () => {
     const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
-    expect(result.entries).toHaveLength(5);
+    expect(result.entries).toHaveLength(6);
 
     expect(result.entries[0]).toEqual({
       index: 101,
@@ -30,6 +30,44 @@ describe('parseSlicePlan', () => {
     });
   });
 
+  it('parses an indexed [~] plan line as a deprecated entry, not dropped', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
+    const entry = result.entries.find((e) => e.index === 106);
+    expect(entry).toEqual({
+      index: 106,
+      name: 'Feature Delta',
+      status: 'deprecated',
+      isChecked: false,
+      lineIndex: 27,
+      indexSource: 'explicit',
+      description: 'descoped, superseded by native tooling.',
+    });
+  });
+
+  it('does not regress existing [ ]/[x]/[X] entries after widening the checkbox class', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
+    expect(result.entries.find((e) => e.index === 101)).toMatchObject({
+      status: 'complete',
+      isChecked: true,
+    });
+    expect(result.entries.find((e) => e.index === 102)).toMatchObject({
+      status: 'complete',
+      isChecked: true,
+    });
+    expect(result.entries.find((e) => e.index === 103)).toMatchObject({
+      status: 'not-started',
+      isChecked: false,
+    });
+    expect(result.entries.find((e) => e.index === 104)).toMatchObject({
+      status: 'not-started',
+      isChecked: false,
+    });
+    expect(result.entries.find((e) => e.index === 105)).toMatchObject({
+      status: 'complete',
+      isChecked: true,
+    });
+  });
+
   it('skips entries in Future Work, Implementation Order, Notes sections', async () => {
     const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
     // Should NOT contain 200, 201, or 999
@@ -41,8 +79,8 @@ describe('parseSlicePlan', () => {
 
   it('computes totalSlices and completedSlices correctly', async () => {
     const result = await parseSlicePlan(join(FIXTURES, 'sample-slice-plan.md'));
-    expect(result.totalSlices).toBe(5);
-    expect(result.completedSlices).toBe(3); // 101, 102, 105
+    expect(result.totalSlices).toBe(6);
+    expect(result.completedSlices).toBe(4); // 101, 102, 105 checked + 106 deprecated
   });
 
   it('returns empty result for nonexistent file', async () => {
@@ -91,8 +129,8 @@ describe('parseSlicePlan', () => {
 
   it('parses unindexed format using sequential numbering', async () => {
     const result = await parseSlicePlan(join(FIXTURES, 'unindexed-slice-plan.md'));
-    expect(result.totalSlices).toBe(6);
-    expect(result.completedSlices).toBe(0);
+    expect(result.totalSlices).toBe(7);
+    expect(result.completedSlices).toBe(1); // Feature Epsilon deprecated
 
     expect(result.entries[0]).toEqual({
       index: 1,
@@ -115,7 +153,21 @@ describe('parseSlicePlan', () => {
     });
 
     // Integration Work entry is also parsed (not in excluded headings)
-    expect(result.entries[5].name).toBe('Operational Hardening');
+    expect(result.entries[6].name).toBe('Operational Hardening');
+  });
+
+  it('parses an unindexed [~] plan line as a deprecated entry, not dropped', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'unindexed-slice-plan.md'));
+    const entry = result.entries.find((e) => e.name === 'Feature Epsilon');
+    expect(entry).toEqual({
+      index: 6,
+      name: 'Feature Epsilon',
+      status: 'deprecated',
+      isChecked: false,
+      lineIndex: 24,
+      indexSource: 'fallback',
+      description: 'cut for scope, superseded by native tooling.',
+    });
   });
 
   it('tags every entry indexSource: fallback when the plan uses only the unindexed format', async () => {

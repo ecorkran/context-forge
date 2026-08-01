@@ -691,7 +691,7 @@ export class WorkflowNavigator {
    */
   private async resolveEntryStatus(
     projectPath: string,
-    entry: Pick<SlicePlanEntry, 'index' | 'isChecked'>,
+    entry: Pick<SlicePlanEntry, 'index' | 'isChecked' | 'status'>,
   ): Promise<NormalizedStatus> {
     const docs = await detectDocuments(projectPath, entry.index);
 
@@ -719,6 +719,7 @@ export class WorkflowNavigator {
     return deriveEntryStatus({
       frontmatterStatus,
       taskInferredStatus,
+      planLineStatus: entry.status === STATUS.Deprecated ? STATUS.Deprecated : undefined,
       isChecked: entry.isChecked,
     });
   }
@@ -733,7 +734,7 @@ export class WorkflowNavigator {
    */
   private async resolveEntryStatusSafe(
     projectPath: string,
-    entry: Pick<SlicePlanEntry, 'index' | 'isChecked'>,
+    entry: Pick<SlicePlanEntry, 'index' | 'isChecked' | 'status'>,
     warnings: string[],
   ): Promise<DisplayStatus> {
     try {
