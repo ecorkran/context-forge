@@ -12,6 +12,8 @@ export interface EntryStatusSignals {
   frontmatterStatus?: NormalizedStatus;
   /** Task file's inferred status, if a task file exists and parsed cleanly. */
   taskInferredStatus?: NormalizedStatus;
+  /** The slice-plan line's own checkbox-derived status (`[~]` → deprecated). */
+  planLineStatus?: NormalizedStatus;
   /** The slice-plan checkbox. Its only authority is asserting complete. */
   isChecked: boolean;
 }
@@ -28,7 +30,7 @@ export interface EntryStatusSignals {
  * are checked.
  */
 export function deriveEntryStatus(signals: EntryStatusSignals): NormalizedStatus {
-  if (signals.frontmatterStatus === STATUS.Deprecated) {
+  if (signals.planLineStatus === STATUS.Deprecated || signals.frontmatterStatus === STATUS.Deprecated) {
     return STATUS.Deprecated;
   }
   if (signals.frontmatterStatus === STATUS.Deferred) {

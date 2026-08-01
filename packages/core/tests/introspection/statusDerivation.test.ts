@@ -21,6 +21,34 @@ describe('deriveEntryStatus', () => {
     ).toBe(STATUS.Deprecated);
   });
 
+  it('deprecated planLineStatus wins regardless of task/checkbox state', () => {
+    expect(
+      deriveEntryStatus({
+        planLineStatus: STATUS.Deprecated,
+        taskInferredStatus: STATUS.Complete,
+        isChecked: false,
+      }),
+    ).toBe(STATUS.Deprecated);
+
+    expect(
+      deriveEntryStatus({
+        planLineStatus: STATUS.Deprecated,
+        taskInferredStatus: STATUS.InProgress,
+        isChecked: true,
+      }),
+    ).toBe(STATUS.Deprecated);
+  });
+
+  it('deprecated planLineStatus wins over a contradictory complete frontmatterStatus', () => {
+    expect(
+      deriveEntryStatus({
+        planLineStatus: STATUS.Deprecated,
+        frontmatterStatus: STATUS.Complete,
+        isChecked: false,
+      }),
+    ).toBe(STATUS.Deprecated);
+  });
+
   it('deferred frontmatter wins regardless of task/checkbox state', () => {
     expect(
       deriveEntryStatus({
