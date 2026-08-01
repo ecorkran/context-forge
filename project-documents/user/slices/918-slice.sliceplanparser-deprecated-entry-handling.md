@@ -7,7 +7,7 @@ dependencies: [910]
 interfaces: []
 dateCreated: 20260731
 dateUpdated: 20260731
-status: not_started
+status: complete
 review: not_started
 ---
 
@@ -283,24 +283,85 @@ Out of scope:
 
 ## Verification Walkthrough
 
-1. Add a `[~]` line to a test slice plan, e.g.:
-   `3. [~] **(103) Feature Alpha** — descoped, superseded by native tooling.`
-2. Run the parser directly (or via `cf list slices --json` against a scratch
-   project pointed at this plan) and confirm the entry appears with
-   `"status": "deprecated"`, `"isChecked": false`.
-3. Run `cf list slices` (table form) against the same plan; confirm the row
-   renders `⊘ deprecated` in the Status column and carries no `← next`
-   indicator.
-4. Run `cf next` against a project whose active slice plan's first
-   not-yet-checked entry is the `[~]` line (no other unchecked/incomplete
-   entries before it); confirm it skips straight past to the next real
-   candidate, or reports the plan complete if none remain.
-5. Set the plan's own frontmatter to `status: complete` where the `[~]` entry
-   is the only non-checked line; run `cf check`; confirm
-   `plan-status-vs-entries` does **not** fire.
-6. Run the full `slicePlanParser.test.ts` suite plus any new
-   `statusDerivation`/`cf list slices` tests; confirm all pass alongside the
-   full existing suite (no regression in `[ ]`/`[x]`/`[X]` handling).
+**Verified 20260731** against a real scratch project, using the freshly built
+local CLI (`node packages/cli/dist/index.js ...`, not a possibly-stale global
+install) after `pnpm -r build`. Actual commands and output below.
+
+1. Fixture used (`project-documents/user/architecture/900-slices.scratch-test.md`,
+   frontmatter `status: complete`):
+   ```
+   ## Feature Slices
+
+   1. [x] **(101) Feature One** — done.
+
+   2. [~] **(102) Feature Two** — descoped, superseded by native tooling.
+   ```
+2. `cf list slices --json`:
+   ```json
+   {
+     "slicePlan": "900-slices.scratch-test",
+     "total": 2,
+     "completed": 2,
+     "entries": [
+       { "index": 101, "name": "Feature One", "isChecked": true, "status": "complete", "isNext": false },
+       { "index": 102, "name": "Feature Two", "isChecked": false, "status": "deprecated", "isNext": false }
+     ]
+   }
+   ```
+   Confirmed: entry 102 has `"status": "deprecated"`, `"isChecked": false`, and
+   `total`/`completed` are both `2` (Decision 3's arithmetic).
+3. `cf list slices` (table form):
+   ```
+     #    Slice        Status        File
+     ───  ───────────  ────────────  ────
+     101  Feature One  ✓ complete    —
+     102  Feature Two  ⊘ deprecated  —
+   ```
+   Confirmed: renders `⊘ deprecated`, no `← next` indicator on entry 102.
+4. `cf next` / `cf status --json`: with entry 101 complete and entry 102
+   deprecated, there is no genuine remaining candidate — `cf status --json`
+   reports `"activeSlice": {"status": "no-active-slice"}` with
+   `"slicePlan": {"completed": 2, "total": 2}`; entry 102 is never offered
+   (confirmed via `isNext: false` in step 2's output). Caveat: `cf next`'s
+   text output for a project with no active slice yet uses generic
+   first-time-setup wording ("Pick your first slice to begin") rather than
+   an explicit "plan complete" message — this is pre-existing `cf next`
+   behavior for the "no active slice selected" case, not specific to `[~]`
+   handling, and the underlying skip-the-deprecated-entry behavior is
+   correctly proven by `isNext: false` and by the dedicated `getNext()` unit
+   test (Task 11, `WorkflowNavigator.test.ts`) which asserts the exact
+   skip-to-next-candidate path with an active slice already set.
+5. With the plan frontmatter at `status: complete` (as in step 1's fixture):
+   `cf check` → `No inconsistencies found`. Then, to prove the rule's other
+   direction still works (not just disabled), the frontmatter was changed to
+   `status: in-progress` with the same all-resolved entries: `cf check` →
+   ```
+     ⚠ All 2 entries are checked but plan status is "in-progress"
+       → Update plan frontmatter status to "complete"
+   1 finding: 1 warning
+   ```
+   Confirmed: `plan-status-vs-entries` does not false-positive when complete,
+   and still correctly fires when the frontmatter doesn't match — Decision 3's
+   arithmetic didn't disable the rule, only fixed its false-positive case.
+6. Full suite: `pnpm -r build` (all 5 packages clean) and `pnpm -r test` —
+   `@context-forge/core` 1032/1032, `@context-forge/cli` 471/471,
+   `@context-forge/mcp-server` 190/190, all passing, including
+   `slicePlanParser.test.ts`, `statusDerivation.test.ts`,
+   `list-derived-status.test.ts`, `WorkflowNavigator.test.ts`, and
+   `ConsistencyChecker.test.ts`'s new cases. `@context-forge/electron` has one
+   pre-existing, unrelated failure (`TemplateProcessor.test.ts`, a stale
+   assertion in a private/deprecated package) confirmed present before any
+   slice 918 changes — not a regression introduced by this slice.
+
+Caveat discovered during implementation: adding fixture data mixing indexed
+and unindexed `[~]` entries within a single plan file exposed a pre-existing,
+unrelated parser behavior where unindexed entries' auto-generated fallback
+index can numerically collide with real indexed entries in the same file.
+This is orthogonal to `[~]` support and was resolved by placing the indexed
+and unindexed `[~]` test cases in separate fixture files
+(`sample-slice-plan.md` and `unindexed-slice-plan.md` respectively). Filed as
+[GitHub #67](https://github.com/ecorkran/context-forge/issues/67) for future
+work — not in scope for this slice.
 
 ## Notes
 
