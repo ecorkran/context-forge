@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20260801
 dateUpdated: 20260801
-status: not_started
+status: complete
 ---
 
 # Slice Design: Band Warning Respects Worktree indexRange
@@ -295,8 +295,10 @@ NextAction.warnings  →  printed by cf next / returned by workflow_next
 
 ### Verification Walkthrough
 
-Run from the repo root against a scratch project. `cf` below means the freshly
-built local CLI: `node packages/cli/dist/index.js`.
+Run from the repo root against a scratch project at `/tmp/cf-919`. `cf` below
+means the freshly built local CLI: `node packages/cli/dist/index.js`. This
+section replaces the Phase 4 draft with the actual commands and output observed
+during Phase 6, including two caveats discovered along the way.
 
 **Setup**
 
@@ -311,70 +313,156 @@ node <repo>/packages/cli/dist/index.js set slice 209
 ```
 
 **Step 1 — reproduce #48 on the current build (before the fix).**
-With no worktrees configured yet, `cf next` warns — correct under tier 3, and the
-baseline the fix must preserve:
+With no worktrees configured yet, `cf next` warns — correct under the legacy
+tier, and the baseline the fix must preserve:
 
 ```
+$ node <repo>/packages/cli/dist/index.js next
 Warning:   Slice 209 is outside the 100-band of architecture '100-arch.cf919'.
+
+Next:      Create slice design (Phase 4)
+Slice:     209-slice.scratch-slice
+Phase:     Phase 4: Slice Design
+Rationale: Slice 209 has no design document. Create a slice design before proceeding.
+Run:       cf set phase 'Phase 4: Slice Design'
 ```
+
+Confirmed verbatim, matching this section's original draft.
 
 **Step 2 — configure a worktree that owns the range.**
 
+**Caveat A — `worktree init --name default` collides with auto-migration.**
+The project already has `fileArch`/`fileSlice` set at the top level from Setup.
+`WorktreeService.addWorktree()` auto-migrates those fields into a synthetic
+`default` worktree (range `[100, 799]`) the moment the *first* worktree is
+created (`WorktreeService.ts:154-180`) — this is pre-existing behavior,
+unrelated to this slice. If that first worktree is itself named `default`, the
+migration's synthetic `default` and the explicitly-requested `default` collide,
+and `chopDefaultRange()` throws (`Cannot shrink default worktree range —
+artifact '100-arch.cf919' (index 100) would fall outside the new range [0,
+0]...`) because there is no room left to shrink the migrated worktree around
+itself. Workaround: create the first worktree under any *other* name — the
+auto-migration produces the desired `default [100,799]` worktree for free,
+already pointing at the existing `fileArch`/`fileSlice`:
+
 ```bash
-node <repo>/packages/cli/dist/index.js worktree init --name default --range 100-799
-node <repo>/packages/cli/dist/index.js next
+$ node <repo>/packages/cli/dist/index.js worktree init --name secondary --range 900-999
+Note: Existing workflow fields were migrated to a 'default' worktree context (range 100-799).
+Worktree context 'secondary' created (900-999) on project 'cf919'.
+
+$ node <repo>/packages/cli/dist/index.js next
+Next:      Create slice design (Phase 4)
+Slice:     209-slice.scratch-slice
+Phase:     Phase 4: Slice Design
+Rationale: Slice 209 has no design document. Create a slice design before proceeding.
+Run:       cf set phase 'Phase 4: Slice Design'
 ```
 
-*Before this slice:* the same 100-band warning still appears.
-*After this slice:* no warning line at all — only `Next:` / `Slice:` / `Phase:` /
-`Rationale:`. This is the #48 fix, observed end-to-end.
+*Before this slice:* the same 100-band warning still appears here.
+*After this slice:* no `Warning:` line at all. This is the #48 fix, observed
+end-to-end.
 
 Cross-check the two commands now agree:
 
 ```bash
-node <repo>/packages/cli/dist/index.js set slice 209   # already silent today
+$ node <repo>/packages/cli/dist/index.js set slice 209
+slice already set to 209-slice.scratch-slice on worktree context "default"
 ```
+
+Silent on both surfaces, as expected.
 
 **Step 3 — index outside the active worktree's range.**
 Narrow the worktree and re-run:
 
 ```bash
-node <repo>/packages/cli/dist/index.js worktree update default --range 100-199
-node <repo>/packages/cli/dist/index.js next
-```
+$ node <repo>/packages/cli/dist/index.js worktree update default --range 100-199
+Worktree context 'default' updated.
 
-Expected:
-
-```
+$ node <repo>/packages/cli/dist/index.js next
 Warning:   Slice 209 is outside worktree 'default' range [100-199].
+
+Next:      Create slice design (Phase 4)
+Slice:     209-slice.scratch-slice
+Phase:     Phase 4: Slice Design
+Rationale: Slice 209 has no design document. Create a slice design before proceeding.
+Run:       cf set phase 'Phase 4: Slice Design'
 ```
 
-Note this warning names the worktree, not a hundred-block. Confirm `cf set slice
-209` emits its own equivalent warning — the two surfaces now agree (criterion 6).
-
-**Step 4 — union tier, no active worktree.**
-Invoke with an explicit `--project` from a directory that is not any worktree
-path, so no worktree resolves from CWD:
+Exact match to the message format in Decision 2. Confirm `cf set slice 209`
+emits its own equivalent warning — the two surfaces now agree (criterion 6):
 
 ```bash
-cd / && node <repo>/packages/cli/dist/index.js next --project cf919
+$ node <repo>/packages/cli/dist/index.js set slice 209
+Warning: index 209 is outside this worktree's range [100-199]
+slice already set to 209-slice.scratch-slice on worktree context "default"
 ```
 
-With `default [100-199]` plus a second worktree covering `[200,299]`, slice 209 is
-inside the union → no warning. Re-point the active slice to an index outside every
-range (e.g. 850) → exactly one warning listing the configured ranges, with no
-mention of a hundred-band.
+**Step 4 — union tier, no active worktree.**
+
+**Caveat B — the union tier is unreachable through `cf next`/`workflow_next` for
+any migrated project.** `WorktreeService.addWorktree()` unconditionally clears
+`ProjectData`'s top-level `fileSlice`/`fileArch`/etc. into the worktree context
+the moment a project migrates (`WorktreeService.ts:168-178`). `resolveProject()`
+returns the *raw* project when no `worktreeId` is supplied or resolves
+(`projectResolver.ts`: `if (!worktreeId) return project;`), so once any worktree
+exists, an invocation with no active worktree sees an *empty* top-level
+`fileSlice` and `getNext()` short-circuits to the "no active slice" / first-run
+branch — it never reaches the band-warning check at all. Reproduced directly:
+
+```bash
+$ cd / && node <repo>/packages/cli/dist/index.js next --project cf919
+Next:      Welcome to Context Forge! Start by setting your project phase.
+Rationale: Your project is registered but no development phase is set. ...
+```
+
+No warning either way — not because the union tier is broken, but because the
+band check is never reached in this state. This is a pre-existing property of
+the migration model (it always clears top-level fields on first migration), not
+something introduced or fixable within this slice's scope. The union-tier logic
+itself is exercised directly at the unit level — see cases 4 and 5 in the Testing
+Strategy table above and in
+`packages/core/tests/introspection/WorkflowNavigator.test.ts` (`'no warning when
+no active worktree resolves but the index is inside the union of configured
+ranges'` and `'warns listing configured ranges when no active worktree resolves
+and the index is outside all of them'`) — both pass, constructing a
+`ResolvedProject` with `worktrees` set and no `resolvedWorktree`, which is the
+only way this project shape can currently arise. Flagged to and accepted by the
+Project Manager during Phase 6 rather than treated as a blocking defect.
 
 **Step 5 — legacy fallback preserved.**
-Remove all worktrees and re-run `cf next` with slice 209 / arch 100. The Step 1
-message must return, verbatim.
+Remove all worktrees and re-run `cf next` with slice 209 / arch 100:
 
-**Step 6 — MCP parity.** Call `workflow_next` for the same project (with and
-without `worktreeId`) and confirm the `warnings` array matches what the CLI
-printed in the corresponding step.
+```bash
+$ node <repo>/packages/cli/dist/index.js worktree rm secondary --yes
+$ node <repo>/packages/cli/dist/index.js worktree rm default --yes
+Note: Workflow fields were restored to project level (last worktree removed).
 
-*This walkthrough is the Phase 4 draft; it is refined in place with real command
-output at the end of Phase 6, per the slice-918 precedent.*
+$ node <repo>/packages/cli/dist/index.js next
+Warning:   Slice 209 is outside the 100-band of architecture '100-arch.cf919'.
+
+Next:      Create slice design (Phase 4)
+Slice:     209-slice.scratch-slice
+Phase:     Phase 4: Slice Design
+Rationale: Slice 209 has no design document. Create a slice design before proceeding.
+Run:       cf set phase 'Phase 4: Slice Design'
+```
+
+Byte-identical to Step 1, confirmed.
+
+**Step 6 — MCP parity.**
+`workflow_next`'s handler (`workflowTools.ts:191-203`) calls the exact same
+`resolveProject()` + `nav.getNext(project)` path as `cf next`, so they are
+guaranteed to agree at the code level, and the full `mcp-server` suite (190
+tests, including `mcpIntegration.test.ts`) passes against this build. Live
+verification against the session's connected `context-forge` MCP tool was
+attempted but was inconclusive: that MCP server is a long-running process that
+predates this branch's changes, so it returned the pre-fix warning even when
+called with an explicit `worktreeId` pointing at the reconfigured `default
+[100,799]` worktree, while the freshly-built local CLI on the same project state
+correctly returned no warning in the same moment. This is evidence of a stale
+running process, not of a code-level MCP/CLI divergence — restarting that server
+(picking up the rebuilt `@context-forge/mcp` package) would resolve it, but
+restarting an externally-connected MCP server is outside this session's control.
 
 ## Implementation Notes
 

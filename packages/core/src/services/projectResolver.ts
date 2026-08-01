@@ -1,13 +1,9 @@
-import type { ProjectData } from '../types/index.js';
+import type { ResolvedProject } from '../types/index.js';
 import type { IProjectStore } from '../storage/interfaces.js';
 import { WorktreeService } from './WorktreeService.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 
-/** ProjectData with optional metadata indicating which worktree overlay was applied. */
-export interface ResolvedProject extends ProjectData {
-  /** Present when a worktree overlay was applied. */
-  resolvedWorktree?: { id: string; name: string };
-}
+export type { ResolvedProject } from '../types/index.js';
 
 /**
  * Load a project and optionally apply a worktree overlay.

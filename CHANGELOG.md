@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `cf next`'s index-band warning no longer misfires in worktree-configured projects. Previously it compared the active slice's hundred-block against the architecture's, assuming one architecture owns exactly one hundred-block — so every slice at 200/300/…/700 tripped a false warning in the common case of a `default` worktree declaring `indexRange: [100, 799]`. It now checks against the active worktree's declared range instead (falling back to the union of all configured worktrees, then to the original hundred-block check for projects with no worktrees), bringing it into agreement with `cf set slice`'s existing worktree-scoped warning. (#48)
 - A slice-plan line marked `[~]` (the descoped/deprecated convention) is no longer silently dropped by the parser. Previously such a line matched neither checkbox format, so the entry vanished entirely — not shown, not counted, not flagged. It now parses as a deprecated entry: `cf list slices` renders it `⊘ deprecated`, `cf next` skips past it, and `cf check` no longer false-flags a plan as inconsistent just because it contains one.
 
 ## [0.10.3] - 20260718

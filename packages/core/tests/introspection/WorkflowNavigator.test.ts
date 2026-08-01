@@ -3,12 +3,12 @@ import { join } from 'node:path';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { WorkflowNavigator } from '../../src/introspection/WorkflowNavigator.js';
-import type { ProjectData } from '../../src/types/project.js';
+import type { ProjectData, ResolvedProject } from '../../src/types/project.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
 
-function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
+function makeProject(overrides: Partial<ResolvedProject> = {}): ResolvedProject {
   return {
     id: 'test-1',
     name: 'test-project',
@@ -705,6 +705,87 @@ describe('WorkflowNavigator', () => {
 
       expect(next.warnings).toBeUndefined();
     });
+
+    it('no warning when active slice is inside its active worktree range, even outside the arch hundred-block (#48)', async () => {
+      // default worktree owns [100,799]; slice 209 falls inside it even though
+      // the architecture is anchored at the 100-band. This is issue #48's exact repro.
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+        resolvedWorktree: { id: 'wt-default', name: 'default' },
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
+    });
+
+    it('warns naming the active worktree when index is outside its range, even if a sibling worktree covers it', async () => {
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [
+          { id: 'wt-default', name: 'default', indexRange: [100, 199] },
+          { id: 'wt-api', name: 'api', indexRange: [200, 299] },
+        ],
+        resolvedWorktree: { id: 'wt-default', name: 'default' },
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('default');
+      expect(next.warnings![0]).toContain('[100-199]');
+    });
+
+    it('suppresses the warning entirely when the active worktree has rangeOverride', async () => {
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [
+          { id: 'wt-default', name: 'default', indexRange: [100, 199], rangeOverride: true },
+        ],
+        resolvedWorktree: { id: 'wt-default', name: 'default' },
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
+    });
+
+    it('no warning when no active worktree resolves but the index is inside the union of configured ranges', async () => {
+      const project = makeProject({
+        fileSlice: '209-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
+    });
+
+    it('warns listing configured ranges when no active worktree resolves and the index is outside all of them', async () => {
+      const project = makeProject({
+        fileSlice: '850-slice.nonexistent.md',
+        fileArch: '100-arch.test-system',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeDefined();
+      expect(next.warnings!.length).toBe(1);
+      expect(next.warnings![0]).toContain('default');
+      expect(next.warnings![0]).toContain('[100-799]');
+      expect(next.warnings![0]).not.toContain('band');
+      expect(next.warnings![0]).not.toContain('hundred');
+    });
+
+    // No-worktrees legacy case is already covered by
+    // 'includes index band mismatch warning when slice is outside arch hundred-block' above.
   });
 });
 

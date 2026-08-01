@@ -13,7 +13,7 @@ export type { SystemPrompt, ParsedPromptFile, PromptCacheEntry } from './prompts
 export { SpecialPromptKeys } from './prompts.js';
 
 // Project types
-export type { ProjectData, CreateProjectData, UpdateProjectData } from './project.js';
+export type { ProjectData, ResolvedProject, CreateProjectData, UpdateProjectData } from './project.js';
 
 // Worktree types
 export type { WorktreeContext, CreateWorktreeInput, UpdateWorktreeInput, IndexRangeOverlap, WorktreePathStatus } from './worktree.js';

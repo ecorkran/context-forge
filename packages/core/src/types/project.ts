@@ -36,6 +36,12 @@ export interface ProjectData {
   updatedAt: string;
 }
 
+/** ProjectData with optional metadata indicating which worktree overlay was applied. */
+export interface ResolvedProject extends ProjectData {
+  /** Present when a worktree overlay was applied. */
+  resolvedWorktree?: { id: string; name: string };
+}
+
 /**
  * Type for creating a new project (without auto-generated fields).
  * instruction, workType and customData are optional during creation and will get defaults.

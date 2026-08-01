@@ -41,4 +41,9 @@ export {
 } from './project-defaults.js';
 
 // Worktree overlay (browser-safe — pure object mapping, no fs/path)
-export { applyWorktreeOverlay } from './utils/worktree-overlay.js';
+export {
+  applyWorktreeOverlay,
+  isInIndexRange,
+  getWorktreeIndexRange,
+  getWorktreeRangeOverride,
+} from './utils/worktree-overlay.js';
