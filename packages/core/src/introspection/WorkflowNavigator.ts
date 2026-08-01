@@ -433,9 +433,8 @@ export class WorkflowNavigator {
     const worktrees = project.worktrees ?? [];
 
     if (worktrees.length > 0) {
-      const active = project.resolvedWorktree
-        ? worktrees.find((w) => w.id === project.resolvedWorktree?.id)
-        : undefined;
+      const resolvedId = project.resolvedWorktree?.id;
+      const active = resolvedId ? worktrees.find((w) => w.id === resolvedId) : undefined;
 
       if (active) {
         if (active.rangeOverride) return null;
