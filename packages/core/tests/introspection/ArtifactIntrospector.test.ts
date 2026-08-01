@@ -49,7 +49,7 @@ describe('ArtifactIntrospector', () => {
         join(FIXTURES, 'sample-slice-plan.md'),
       );
       expect(result.entries.length).toBeGreaterThan(0);
-      expect(result.totalSlices).toBe(5);
+      expect(result.totalSlices).toBe(6);
     });
   });
 

@@ -3,10 +3,10 @@ import { STATUS } from '../types.js';
 import type { SlicePlanEntry, SlicePlanResult } from '../types.js';
 
 /** Matches `N. [ ] **(NNN) Slice Name** — description` — indexed format */
-const PLAN_INDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*\s*(.*)/;
+const PLAN_INDEXED_RE = /^(\d+)\.\s+\[([ xX~])\]\s+\*\*\((\d+)\)\s+(.+?)\*\*\s*(.*)/;
 
 /** Matches `N. [ ] **Slice Name** — description` — unindexed format (no parenthesized index) */
-const PLAN_UNINDEXED_RE = /^(\d+)\.\s+\[([ xX])\]\s+\*\*([^(].*?)\*\*\s*(.*)/;
+const PLAN_UNINDEXED_RE = /^(\d+)\.\s+\[([ xX~])\]\s+\*\*([^(].*?)\*\*\s*(.*)/;
 
 /** Matches headings: #, ##, ### */
 const HEADING_RE = /^#{1,3}\s+/;
@@ -53,12 +53,18 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       // Try indexed format first (preferred)
       const indexed = PLAN_INDEXED_RE.exec(stripped);
       if (indexed) {
-        const isChecked = indexed[2].toLowerCase() === 'x';
+        const checkboxChar = indexed[2];
+        const isChecked = checkboxChar.toLowerCase() === 'x';
         const description = parseDescription(indexed[5]);
         entries.push({
           index: parseInt(indexed[3], 10),
           name: indexed[4].trim(),
-          status: isChecked ? STATUS.Complete : STATUS.NotStarted,
+          status:
+            checkboxChar === '~'
+              ? STATUS.Deprecated
+              : isChecked
+                ? STATUS.Complete
+                : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
           indexSource: 'explicit',
@@ -71,12 +77,18 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       const unindexed = PLAN_UNINDEXED_RE.exec(stripped);
       if (unindexed) {
         unindexedCounter++;
-        const isChecked = unindexed[2].toLowerCase() === 'x';
+        const unindexedCheckboxChar = unindexed[2];
+        const isChecked = unindexedCheckboxChar.toLowerCase() === 'x';
         const description = parseDescription(unindexed[4]);
         entries.push({
           index: unindexedCounter,
           name: unindexed[3].trim(),
-          status: isChecked ? STATUS.Complete : STATUS.NotStarted,
+          status:
+            unindexedCheckboxChar === '~'
+              ? STATUS.Deprecated
+              : isChecked
+                ? STATUS.Complete
+                : STATUS.NotStarted,
           isChecked,
           lineIndex: i,
           indexSource: 'fallback',
@@ -90,7 +102,9 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
     // canonical order (display, "next slice" recommendation, consistency checks).
     entries.sort((a, b) => a.index - b.index);
 
-    const completedSlices = entries.filter((e) => e.isChecked).length;
+    const completedSlices = entries.filter(
+      (e) => e.isChecked || e.status === STATUS.Deprecated
+    ).length;
     return {
       filePath,
       entries,
