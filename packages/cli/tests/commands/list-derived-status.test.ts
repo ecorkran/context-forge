@@ -140,6 +140,38 @@ describe('cf list slices — derived status display (slice 911)', () => {
     expect(parsed.entries[0].status).toBe('degraded');
   });
 
+  it('a [~] plan-line entry with no design/task docs renders as deprecated, not next', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-list-slices-plan-deprecated-'));
+    writeSlicePlan(root, '800-slices.scratch.md', '1. [~] **(600) Descoped** — cut for scope.');
+    mockGetById.mockResolvedValue(makeProject(root, { fileSlicePlan: '800-slices.scratch' }));
+
+    await sliceListAction({ json: true });
+
+    const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(output);
+    expect(parsed.entries[0].status).toBe('deprecated');
+    expect(parsed.entries[0].isNext).toBe(false);
+  });
+
+  it('a plan whose only non-checked entry is [~] offers no entry as next', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-list-slices-all-resolved-'));
+    writeSlicePlan(
+      root,
+      '800-slices.scratch.md',
+      [
+        '1. [x] **(601) Foundation** — done.',
+        '2. [~] **(602) Descoped** — cut for scope.',
+      ].join('\n\n'),
+    );
+    mockGetById.mockResolvedValue(makeProject(root, { fileSlicePlan: '800-slices.scratch' }));
+
+    await sliceListAction({ json: true });
+
+    const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(output);
+    expect(parsed.entries.every((e: { isNext: boolean }) => e.isNext === false)).toBe(true);
+  });
+
   it('a detectDocuments failure for one entry renders that row degraded without aborting the rest', async () => {
     const root = mkdtempSync(join(tmpdir(), 'cf-list-slices-detect-fail-'));
     // Entry 500: slices dir replaced with a file so readdir on it throws ENOTDIR,
