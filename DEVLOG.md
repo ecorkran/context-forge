@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-08-02
+
+### Frontmatter status validation: `draft` is no longer silently accepted — 0.10.7
+- `validateFrontmatter` special-cased `status: draft` as a hidden alias for `not_started`, added 2026-07-14 (`7652611c`) to quiet a validator finding rather than fix the document that triggered it. Net effect: `cf check`/`workflow_check` never once flagged a fabricated `draft` status, which is why the AI-invented "draft" status kept recurring across sessions despite being covered in `file-naming-conventions.md`. Removed the special case; `draft` now produces the same `Invalid value 'draft' for field 'status'...` finding as any other unrecognized value.
+- Bumped to 0.10.7 (patch — bugfix only). Tags: `@context-forge/core@0.10.7`, `@context-forge/cli@0.10.7`, `@context-forge/mcp@0.10.7`.
+
+---
+
 ## 2026-08-01
 
 ### Slice 921: XDG Storage Path Migration — merged, 0.10.5

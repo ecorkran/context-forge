@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.7] - 20260802
+
+### Fixed
+- `cf check` (and the `workflow_check` MCP tool) no longer silently accept `draft` as a status value. Frontmatter validation previously special-cased `draft` as a hidden alias for `not_started`, so a slice/task/design document with an invented `draft` status passed validation with zero findings. It's now flagged the same as any other unrecognized status (`Invalid value 'draft' for field 'status'...`).
+
 ## [0.10.6] - 20260801
 
 ### Fixed
