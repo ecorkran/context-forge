@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-08-01
+
+### Slice 921: XDG Storage Path Migration — merged, 0.10.5
+- The regression that motivated this slice hit in production use today: reinstalling the global CLI from the registry replaced a local build, and the published core resolved storage to a legacy location (env-paths `~/Library/Preferences`; older builds used Electron's `~/Library/Application Support/context-forge/context-forge`, a store frozen 2026-02-19). Most projects then reported "no registered project found" while the real 29-project store sat untouched at `~/.config/context-forge`. Diagnosis was complicated by two coexisting installs — the pnpm-global `cf` symlinks into this repo's working tree (so it picks up local builds live), while the fnm npm-global copy is a real install that the registry reinstall had clobbered.
+- Fix (`storagePaths.ts`, dd221e7): on darwin, resolve to `~/.config/context-forge` (XDG-consistent with sibling tooling), with a one-time atomic-rename migration of any existing `~/Library/Preferences/context-forge` when the new location doesn't already exist. `CONTEXT_FORGE_DATA_DIR` override preserved; Linux/Windows untouched. Deps injectable for testing; 172-line test file covers resolution, override, migration, and migration-failure fallthrough (31a23e0).
+- Merged `921-slice.xdg-storage-path-migration` into `main` (`--no-ff`); core 1045 and CLI 471 tests pass. Ships with the two already-merged Unreleased fixes (#48 index-band warning, `[~]` slice-plan parsing).
+- Bumped to 0.10.5 (patch — bugfixes only). Tags: `@context-forge/core@0.10.5`, `@context-forge/cli@0.10.5`, `@context-forge/mcp@0.10.5`.
+
+---
+
 ## 2026-07-17
 
 ### Slice 917: Frontmatter Parser Nesting Fix & Corpus Verification — Complete
