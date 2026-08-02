@@ -3,8 +3,8 @@ docType: slice-plan
 parent: user/architecture/200-arch.developer-onboarding.md
 project: context-forge
 dateCreated: 20260314
-dateUpdated: 20260411
-status: complete
+dateUpdated: 20260802
+status: in_progress
 ---
 
 # Slice Plan: Developer Onboarding & First-Run Experience
@@ -220,6 +220,41 @@ status: complete
     **Risk:** Med — involves the guides submodule (ai-project-guide scripts), frontmatter translation correctness, and a file layout VS Code's compatibility story is still evolving on
     **Effort:** 3/5
 
+11. [ ] **(211) OpenAI Codex / AGENTS.md Target & IDE Parity** — Enable the `agents` (alias `openai`, `codex`) and `cursor` IDE targets, and close the non-Claude parity gaps that 210 left open. The guide-side compiler already supports both targets — ai-project-guide v0.16.0 (20260730) shipped the `agents` target and CF's `VALID_TARGETS` was never updated to match — so most of this slice is reconnecting CF to capability that already exists, plus a coupled upstream change to bring the codex surface to parity with Claude's.
+
+    **CF-side work:**
+    - Extend `VALID_TARGETS` in `packages/cli/src/commands/setup-ide.ts` from `['claude', 'copilot']` to include `agents` and `cursor`, accepting `openai` and `codex` as aliases normalized at the CF layer (the guide script normalizes too, but CF owns the `--help` text and the invalid-target message)
+    - Decompose `isManagedCopilotFiles()` — it already checks `AGENTS.md`, so the `agents` target must not inherit Copilot's `.github/` assumptions. Extract a shared managed-marker check parameterized by the file set each target owns
+    - Extend `propagateToWorktrees()` with `agents` and `cursor` branches. Critically, replace the current silent fall-through for unhandled targets: today an unrecognized target matches neither `if` block and propagates nothing with no error, which is the same silent-failure class as the `draft` frontmatter special case removed in 0.10.7
+    - `ContextEmbedder` conventions-file resolution: [ContextEmbedder.ts](../../../packages/core/src/services/ContextEmbedder.ts) hardcodes `CLAUDE.md` and swallows the miss silently. Resolve the project's actual conventions file instead, and warn explicitly when none is found — matching the existing warning behavior for missing artifact files
+    - Delete `buildAndPrint()` in `packages/cli/src/commands/build.ts` — exported but confirmed to have zero callers across both CF and Squadron; it carries a duplicate, dead `--embed` branch that would otherwise need the same fix twice
+    - Docs: README command table and quick-start gain the new targets. Remove the two stale `windsurf` references (the `propagateToWorktrees` comment, and the invalid-target test fixture token — swap for a value that is not a plausible future target). The `windsurf` mention in the README MCP-client config block is accurate and unrelated to `setup-ide`; leave it
+
+    **Coupled upstream work (ai-project-guide):**
+    - `agents` target emits skills to `.agents/skills/<name>/SKILL.md` per the open agent skills standard. The existing `.claude/skills/<name>/SKILL.md` source layout is nearly identical, so this is close to a directory copy rather than a translation. Confirm the discovery path at test time before falling back to any `.codex`-specific location
+    - `cursor` target: split always-on rules to `AGENTS.md` and scoped rules to `.cursor/rules/*.mdc` (retaining the `paths:`→`globs:` translation), mirroring how `claude` splits to `CLAUDE.md` + `.claude/rules/` and `copilot` splits to `copilot-instructions.md` + `.github/instructions/`. This is a behavior change: the target currently copies every rule to `.cursor/rules/` and lets Cursor honor `alwaysApply` natively. The split is exclusive, so no rule loads from two places
+    - Drop `.cursor/agents/` emission — it appears in no current Cursor documentation; `.cursor/rules/` and `AGENTS.md` are the documented surfaces
+    - Resolve the latent Copilot duplication: the target writes always-on rules to both `.github/copilot-instructions.md` and `AGENTS.md`. Currently harmless only because VS Code's AGENTS.md support is experimental and off by default (`chat.useAgentsMdFile`); a user who enables it gets always-on rules loaded twice
+
+    **Non-goals for this slice:**
+    - MCP `setup_ide` tool — IDE setup stays CLI-only for every target (accepted gap)
+    - Codex custom prompts (`.codex/prompts`) — deprecated by OpenAI in favor of skills; do not build
+    - A `.claude/agents/` equivalent for non-Claude targets. Neither Codex nor Cursor documents an agent-definition surface, so agent definitions remain Claude-only
+    - Consolidating skills emission across targets. VS Code Copilot now supports Agent Skills natively, which may eventually let one emission serve codex, cursor, and copilot in place of the bespoke `.github/prompts/*.prompt.md` translation. Worth investigating during design; not a commitment here
+
+    **Value:** Unblocks OpenAI Codex users, the third major agent surface after Claude Code and Copilot. More immediately, it fixes a live defect: Squadron appends `--embed` automatically for every non-SDK profile (`openrouter`, `openai`, `gemini`, `local`, `openai_oauth`), so any Squadron dispatch to a non-Claude model already depends on this path. Today it is masked because every CF project happens to have a `CLAUDE.md` — the moment a codex-target project exists, those models receive artifacts with no conventions content and no warning. Also retires Future Work item "Cursor IDE support" and clears the windsurf references that outlived upstream dropping the target.
+    **Success Criteria:**
+    - `cf setup-ide codex` (and `openai`, `agents`) generates `AGENTS.md` plus `.agents/skills/*/SKILL.md`
+    - `cf setup-ide cursor` generates `AGENTS.md` (always-on rules) and `.cursor/rules/*.mdc` (scoped, with `globs:`), and writes no `.cursor/agents/`
+    - `cf init --ide codex` and `cf init --ide cursor` run end-to-end on a fresh directory
+    - Re-running either target is idempotent on managed files and prompts before overwriting unmanaged ones, matching the Claude and Copilot safety behavior
+    - `propagateToWorktrees` copies each target's files to all registered worktrees, and an unhandled target raises rather than silently propagating nothing
+    - `cf build --embed` inlines the project's actual conventions file for every target, and emits a visible warning when no conventions file is found
+    - Verified against real Codex and Cursor sessions that the emitted files are discovered and followed, not merely written to the documented paths
+    **Dependencies:** [210 — establishes the multi-target pattern in `setup-ide`, `propagateToWorktrees`, and the managed-marker convention this slice generalizes]
+    **Risk:** Med — coupled CF + ai-project-guide release, a behavior change to the existing `cursor` target, and third-party surfaces (Codex skills discovery, Cursor rule loading) that need runtime confirmation rather than documentation alone
+    **Effort:** 3/5
+
 ## Maintenance Slices
 
 5. [x] **(205) Consistency Checker & Build Template Fixes** — Multi-plan scanning in `checkAll`, MCP `workflow_check` parity with CLI, `/cf:check` slash command, and `cf:build` template section reordering. Dependencies: None. Risk: Low. Effort: 2/5
@@ -258,17 +293,15 @@ Compound & Agent:
 
 ## Future Work
 
-1. [ ] **Cursor IDE support** — `cf setup-ide cursor` and `--ide cursor` flag for `cf init`. Second priority after Claude Code. Requires understanding Cursor's configuration surface (rules files, MCP settings).
+1. [ ] **Project templates** — Pre-configured archetypes that seed directory structure and initial documents. Natural extension of `cf init` once the base flow is solid. E.g., `cf init --template cli-tool`.
 
-2. [ ] **Project templates** — Pre-configured archetypes that seed directory structure and initial documents. Natural extension of `cf init` once the base flow is solid. E.g., `cf init --template cli-tool`.
+2. [ ] **Migration tooling** — Importing from other project management approaches (existing README -> concept doc, existing docs -> architecture references). Valuable for the adoption path but ambitious in scope.
 
-3. [ ] **Migration tooling** — Importing from other project management approaches (existing README -> concept doc, existing docs -> architecture references). Valuable for the adoption path but ambitious in scope.
+3. [ ] **Onboarding analytics** — Understanding where users get stuck. Could be as simple as tracking which `cf next` recommendations are most common across fresh projects.
 
-4. [ ] **Onboarding analytics** — Understanding where users get stuck. Could be as simple as tracking which `cf next` recommendations are most common across fresh projects.
+4. [ ] **Web-based onboarding** — Self-hostable or hosted web UI for guided project creation. Separate initiative (suggested 240-band). Depends on 220-arch event-driven pipeline for HTTP transport.
 
-5. [ ] **Web-based onboarding** — Self-hostable or hosted web UI for guided project creation. Separate initiative (suggested 240-band). Depends on 220-arch event-driven pipeline for HTTP transport.
+5. [ ] **`cf check --fix` Worktree-Aware Writes** — When `cf check --fix` auto-fixes a file that is visible from multiple worktree views (i.e., not overridden by any overlay), the fix creates unexpected dirty state in other worktrees. The fix itself is correct — the problem is that git worktrees share the same working tree files unless overridden, so a write in one view is visible in all others. Needs a solution that doesn't sacrifice the core value of `--fix` (one-command cleanup). Rejecting fixes or requiring manual intervention defeats the purpose. The right approach likely involves understanding the worktree topology at fix time and handling the cross-view consequence smoothly — but the specific UX is TBD.
 
-6. [ ] **`cf check --fix` Worktree-Aware Writes** — When `cf check --fix` auto-fixes a file that is visible from multiple worktree views (i.e., not overridden by any overlay), the fix creates unexpected dirty state in other worktrees. The fix itself is correct — the problem is that git worktrees share the same working tree files unless overridden, so a write in one view is visible in all others. Needs a solution that doesn't sacrifice the core value of `--fix` (one-command cleanup). Rejecting fixes or requiring manual intervention defeats the purpose. The right approach likely involves understanding the worktree topology at fix time and handling the cross-view consequence smoothly — but the specific UX is TBD.
-
-7. [ ] **CLI & MCP Update Command** — A `cf update` command that checks installed vs. available versions for CLI, MCP server, commands (slash commands), and guides, then presents a summary and prompts to apply updates. `cf update<enter>` checks all, shows what's outdated, prompts Y/n. `cf update --yes` auto-applies. Should handle: npm package version check (CLI + MCP), `cf install-commands` for slash commands, and potentially `cf guides update` for guide sync. The MCP server should also have awareness of update state — either its own `update_check` tool or knowledge of what needs updating that an agent can act on. Guides integration TBD — may bundle `cf guides update` into the flow or keep it separate since guide updates involve git operations with different failure modes.
+6. [ ] **CLI & MCP Update Command** — A `cf update` command that checks installed vs. available versions for CLI, MCP server, commands (slash commands), and guides, then presents a summary and prompts to apply updates. `cf update<enter>` checks all, shows what's outdated, prompts Y/n. `cf update --yes` auto-applies. Should handle: npm package version check (CLI + MCP), `cf install-commands` for slash commands, and potentially `cf guides update` for guide sync. The MCP server should also have awareness of update state — either its own `update_check` tool or knowledge of what needs updating that an agent can act on. Guides integration TBD — may bundle `cf guides update` into the flow or keep it separate since guide updates involve git operations with different failure modes.
 

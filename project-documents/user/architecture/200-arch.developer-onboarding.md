@@ -6,8 +6,8 @@ project: context-forge
 archIndex: 200
 component: developer-onboarding
 dateCreated: 20260314
-dateUpdated: 20260314
-status: complete
+dateUpdated: 20260802
+status: in_progress
 relatedSlices: []
 riskLevel: low
 ---
