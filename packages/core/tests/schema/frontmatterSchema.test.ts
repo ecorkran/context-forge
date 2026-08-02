@@ -131,7 +131,7 @@ describe('validateFrontmatter', () => {
     expect(findings[0].description).toContain("'project'");
   });
 
-  it('accepts draft as alias for not_started (work has not begun)', () => {
+  it('rejects draft as an invalid status value (not a defined status)', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',
       project: 'test',
@@ -139,7 +139,8 @@ describe('validateFrontmatter', () => {
       dateCreated: '20260101',
       dateUpdated: '20260301',
     });
-    expect(findings).toHaveLength(0);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("Invalid value 'draft'");
   });
 
   it.each(['done', 'ready', 'pending', 'planned'])(

@@ -260,15 +260,8 @@ export function validateFrontmatter(
     // 'not-started'); VALID_STATUSES here is underscored — translate before comparing.
     let effectiveValue = normalizedValue;
     if (field === 'status') {
-      // 'draft' is semantically equivalent to not_started — work hasn't begun — but isn't
-      // in normalizeStatus's alias set since it's a frontmatter-only convention, not a
-      // workflow status ever produced by tooling.
-      if (effectiveValue.toLowerCase() === 'draft') {
-        effectiveValue = 'not_started';
-      } else {
-        const normalized = normalizeStatus(effectiveValue);
-        effectiveValue = normalized ? normalized.replace(/-/g, '_') : effectiveValue.replace(/[-\s]/g, '_');
-      }
+      const normalized = normalizeStatus(effectiveValue);
+      effectiveValue = normalized ? normalized.replace(/-/g, '_') : effectiveValue.replace(/[-\s]/g, '_');
     }
 
     if (!def.values.includes(effectiveValue)) {
