@@ -373,7 +373,7 @@ export class ConsistencyChecker {
         severity: 'error',
         location: sliceDesignFullPath,
         description: `Frontmatter status is "complete" but tasks are incomplete (${taskResult.completedTasks}/${taskResult.totalTasks})`,
-        suggestedFix: 'Update frontmatter status to "in-progress"',
+        suggestedFix: 'Update frontmatter status to "in_progress"',
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
@@ -408,7 +408,7 @@ export class ConsistencyChecker {
         severity: 'warning',
         location: sliceDesignFullPath,
         description: `Frontmatter status is "not-started" but tasks are in progress (${taskResult.completedTasks}/${taskResult.totalTasks})`,
-        suggestedFix: 'Update frontmatter status to "in-progress"',
+        suggestedFix: 'Update frontmatter status to "in_progress"',
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
@@ -736,7 +736,7 @@ export class ConsistencyChecker {
         severity: 'warning',
         location: slicePlanPath,
         description: `Plan status is "complete" but only ${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices} entries are checked`,
-        suggestedFix: 'Update plan frontmatter status to "in-progress"',
+        suggestedFix: 'Update plan frontmatter status to "in_progress"',
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
@@ -835,7 +835,7 @@ export class ConsistencyChecker {
         severity: 'warning',
         location: archPath,
         description: `${archLabel} status is "complete" but plan has unchecked entries (${slicePlanResult.completedSlices}/${slicePlanResult.totalSlices})`,
-        suggestedFix: `Update ${archLabel} frontmatter status to "in-progress"`,
+        suggestedFix: `Update ${archLabel} frontmatter status to "in_progress"`,
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
@@ -988,7 +988,7 @@ export class ConsistencyChecker {
         severity: 'warning',
         location: initiativePlanPath,
         description: `Initiative plan status is "complete" but only ${initiativePlanResult.completedSlices}/${initiativePlanResult.totalSlices} entries are checked`,
-        suggestedFix: 'Update initiative plan frontmatter status to "in-progress"',
+        suggestedFix: 'Update initiative plan frontmatter status to "in_progress"',
         fixable: true,
         fixAction: {
           type: 'update-frontmatter',
