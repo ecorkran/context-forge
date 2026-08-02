@@ -6,6 +6,7 @@ import { tmpdir } from 'os';
 import envPaths from 'env-paths';
 import {
   resolveStoragePath,
+  getStoragePath,
   getLegacyPreferencesPath,
   type StoragePathDeps,
 } from '../../src/storage/storagePaths.js';
@@ -39,7 +40,7 @@ describe('storagePaths', () => {
       platform: 'darwin',
       homedir: () => tempHome,
       existsSync,
-      mkdirSync: (path: string) => realMkdirSync(path, { recursive: true }),
+      mkdirSyncRecursive: (path: string) => realMkdirSync(path, { recursive: true }),
       renameSync: realRenameSync,
       ...overrides,
     };
@@ -141,14 +142,32 @@ describe('storagePaths', () => {
     expect(existsSync(legacyPath)).toBe(true);
   });
 
-  it('case 6: linux is unaffected', () => {
+  // Cases 6 and 7: env-paths reads process.platform internally and cannot be
+  // parameterized per call, so `expectedNonDarwinPath` reflects whatever OS is
+  // actually running this test, not a simulated linux/windows environment.
+  // These cases do NOT verify env-paths' own per-platform path *content* (that
+  // is env-paths' responsibility) — they verify that resolveStoragePath's
+  // `deps.platform !== 'darwin'` branch passes env-paths' value through
+  // unmodified for more than one non-darwin platform value, i.e. the darwin
+  // override never accidentally fires for linux or windows.
+  it('case 6: non-darwin (linux) deps pass env-paths value through unmodified', () => {
     const deps = darwinDeps({ platform: 'linux' });
     expect(resolveStoragePath(deps)).toBe(expectedNonDarwinPath);
   });
 
-  it('case 7: windows is unaffected', () => {
+  it('case 7: non-darwin (win32) deps pass env-paths value through unmodified', () => {
     const deps = darwinDeps({ platform: 'win32' });
     expect(resolveStoragePath(deps)).toBe(expectedNonDarwinPath);
+  });
+
+  it('getStoragePath(): default-deps wiring respects CONTEXT_FORGE_DATA_DIR end-to-end', () => {
+    const overridePath = join(tempHome, 'override-via-public-entrypoint');
+    process.env.CONTEXT_FORGE_DATA_DIR = overridePath;
+
+    // Exercises the real zero-argument public entrypoint (defaultDeps), not
+    // injected deps — confirms the production wiring itself, not just the
+    // injectable resolveStoragePath() that the other cases target directly.
+    expect(getStoragePath()).toBe(overridePath);
   });
 
   it('case 8: a failed migration logs a warning and returns normally', async () => {

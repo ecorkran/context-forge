@@ -10,7 +10,8 @@ export interface StoragePathDeps {
   platform: NodeJS.Platform;
   homedir: () => string;
   existsSync: (path: string) => boolean;
-  mkdirSync: (path: string) => void;
+  /** Always creates intermediate directories — there is no non-recursive use case here. */
+  mkdirSyncRecursive: (path: string) => void;
   renameSync: (oldPath: string, newPath: string) => void;
 }
 
@@ -19,7 +20,7 @@ const defaultDeps: StoragePathDeps = {
   platform: process.platform,
   homedir,
   existsSync,
-  mkdirSync: (path: string) => fsMkdirSync(path, { recursive: true }),
+  mkdirSyncRecursive: (path: string) => fsMkdirSync(path, { recursive: true }),
   renameSync,
 };
 
@@ -42,7 +43,7 @@ function migrateLegacyPreferences(newPath: string, deps: StoragePathDeps): void 
   if (!deps.existsSync(legacyPath)) return;
 
   try {
-    deps.mkdirSync(dirname(newPath));
+    deps.mkdirSyncRecursive(dirname(newPath));
     deps.renameSync(legacyPath, newPath);
     console.log(`Migrated context-forge config from ${legacyPath} to ${newPath}`);
   } catch (err) {
