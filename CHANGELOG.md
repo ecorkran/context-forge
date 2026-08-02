@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.5] - 20260801
+## [0.10.6] - 20260801
 
 ### Fixed
 - **On macOS, `cf` now stores its data at `~/.config/context-forge` — and, critically, the *published* package now agrees with local builds about where that is.** Previously the published core resolved storage to a legacy location (`~/Library/Preferences` via env-paths, with older builds using Electron's `~/Library/Application Support/context-forge/context-forge`), so installing from the registry silently pointed `cf` at a stale or empty store: projects seemed to vanish (`cf status` reported "no registered project found"), while the real data sat untouched in `~/.config/context-forge`. Any existing `~/Library/Preferences/context-forge` directory is migrated to the new location automatically (one-time atomic rename, only when the new location doesn't already exist); `CONTEXT_FORGE_DATA_DIR` still overrides everything. Linux and Windows are unaffected. (#53)
