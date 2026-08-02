@@ -301,3 +301,47 @@ New tests in `packages/core/tests/storage/storagePaths.test.ts`:
 | 6 | linux unaffected | `platform: linux` | returns `paths.config` unchanged |
 | 7 | windows unaffected | `platform: win32` | returns `paths.config` unchanged |
 | 8 | migration failure is non-throwing | `platform: darwin`, legacy has data, injected `renameSync` throws | `resolveStoragePath()` returns normally (new path), warning logged |
+
+## Review Resolution
+
+[Code review](../reviews/921-review.code.xdg-storage-path-migration.md)
+(verdict: CONCERNS, minimax/minimax-m3) raised 5 concerns and 2 notes. Per
+project convention the review document itself is left as-is; resolutions are
+recorded here.
+
+**Fixed** (commit `review: address code-review notes for slice 921`):
+- **F002** — cases 6/7 asserted against `envPaths()`'s own `process.platform`
+  read rather than the injected `deps.platform`, so they could not actually
+  simulate a non-darwin OS. Reframed with a comment stating precisely what is
+  and isn't verified (the darwin-override branch doesn't fire for non-darwin
+  `deps.platform` values; env-paths' own per-OS path content is env-paths'
+  responsibility, not this slice's).
+- **F003** — added a test calling the real zero-argument `getStoragePath()`
+  (default deps) rather than only the injectable `resolveStoragePath()`, so
+  the production entrypoint itself has direct coverage.
+- **F006** — renamed `StoragePathDeps.mkdirSync` to `mkdirSyncRecursive`,
+  matching what the default implementation actually always does.
+
+**Declined, with rationale:**
+- **F001** (no validation on `CONTEXT_FORGE_DATA_DIR`'s value) — unchanged,
+  pre-existing behavior from before this slice (the original code was
+  `process.env.CONTEXT_FORGE_DATA_DIR || paths.config`, equally
+  unvalidated). Adding path validation would be a behavior change to an
+  override every existing installation may already rely on, and belongs to a
+  separate, deliberately-scoped decision — not a fix folded into this diff.
+- **F004** (migration re-checks `existsSync` on every invocation) — the
+  documented tradeoff in Decision 4: the idempotency guard doubling as the
+  "already migrated" check, instead of a separate memoized flag or marker
+  file, was chosen deliberately to avoid the added complexity and failure
+  modes of a second persistence mechanism, for a cost of one cheap `stat()`
+  per process start.
+- **F005** (`process.env` not injected into `StoragePathDeps`) — the
+  documented choice in Decision 5: `FileProjectStore.test.ts` already
+  establishes the project's convention of setting/restoring
+  `CONTEXT_FORGE_DATA_DIR` directly in `beforeEach`/`afterEach` rather than
+  injecting it, and a second injection mechanism for the same concern would
+  be inconsistent with that existing pattern, not more consistent.
+- **F007** (raw `console.log`/`console.error` instead of a shared logger) —
+  the review itself notes this is fine; matches existing precedent in
+  `backupService.ts` and `FileProjectStore.ts`, and no shared logger exists
+  in this codebase to prefer instead.
