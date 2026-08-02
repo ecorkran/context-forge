@@ -20,11 +20,15 @@ vi.mock('../../src/git/index.js', () => ({
   })),
 }));
 
-// Mock existsSync for stale-worktree-path rule tests
+// Mock existsSync for stale-worktree-path rule tests (other fs exports pass through unmocked)
 const mockExistsSync = vi.fn().mockReturnValue(true);
-vi.mock('node:fs', () => ({
-  existsSync: (...args: unknown[]) => mockExistsSync(...args),
-}));
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    existsSync: (...args: unknown[]) => mockExistsSync(...args),
+  };
+});
 
 // Mock readdir for multi-plan discovery tests
 const mockReaddir = vi.fn().mockRejectedValue(new Error('ENOENT'));
