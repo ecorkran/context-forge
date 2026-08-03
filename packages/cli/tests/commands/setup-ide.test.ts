@@ -4,6 +4,9 @@ import {
   registerSetupIdeCommand,
   setupIdeAction,
   isManagedCopilotFiles,
+  TARGETS,
+  normalizeTarget,
+  invalidTargetMessage,
 } from '../../src/commands/setup-ide.js';
 
 const mockGetAll = vi.fn();
@@ -96,6 +99,56 @@ function createProgram(): Command {
   registerSetupIdeCommand(program);
   return program;
 }
+
+// ─── target model and normalization ──────────────────────────────────────────
+
+describe('normalizeTarget', () => {
+  it('returns the canonical value for each canonical target', () => {
+    expect(normalizeTarget('claude')).toBe('claude');
+    expect(normalizeTarget('copilot')).toBe('copilot');
+    expect(normalizeTarget('cursor')).toBe('cursor');
+    expect(normalizeTarget('agents')).toBe('agents');
+  });
+
+  it('maps codex and openai aliases to agents', () => {
+    expect(normalizeTarget('codex')).toBe('agents');
+    expect(normalizeTarget('openai')).toBe('agents');
+  });
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(normalizeTarget('CODEX')).toBe('agents');
+    expect(normalizeTarget('  claude  ')).toBe('claude');
+  });
+
+  it('returns null for unknown input', () => {
+    expect(normalizeTarget('notarealtarget')).toBeNull();
+  });
+});
+
+describe('TARGETS table', () => {
+  it('has exactly four entries', () => {
+    expect(Object.keys(TARGETS)).toHaveLength(4);
+  });
+
+  it('every entry has a non-empty markerFiles array', () => {
+    for (const descriptor of Object.values(TARGETS)) {
+      expect(descriptor.markerFiles.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('invalidTargetMessage', () => {
+  it('lists all four canonical targets and both aliases', () => {
+    const message = invalidTargetMessage('notarealtarget');
+    expect(message).toContain("Invalid target 'notarealtarget'");
+    expect(message).toContain('claude');
+    expect(message).toContain('copilot');
+    expect(message).toContain('cursor');
+    expect(message).toContain('agents');
+    expect(message).toContain('openai');
+    expect(message).toContain('codex');
+  });
+});
 
 // ─── cf setup-ide command ────────────────────────────────────────────────────
 

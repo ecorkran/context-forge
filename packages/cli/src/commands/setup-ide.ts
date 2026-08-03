@@ -9,8 +9,73 @@ import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 
-const VALID_TARGETS = ['claude', 'copilot'] as const;
-type Target = (typeof VALID_TARGETS)[number];
+export type Target = 'claude' | 'copilot' | 'cursor' | 'agents';
+
+export interface TargetDescriptor {
+  /** Files probed for the managed marker; also the files backed up before overwrite. */
+  markerFiles: string[];
+  /** Directories copied to worktrees, recursively. */
+  propagateDirs: string[];
+  /** Label used in prompts and completion messages. */
+  label: string;
+}
+
+/**
+ * One definition per target drives validation, the managed-marker check, backup,
+ * and worktree propagation. The `Record<Target, TargetDescriptor>` annotation makes
+ * the compiler reject a target added to the `Target` union without an entry here.
+ */
+export const TARGETS: Record<Target, TargetDescriptor> = {
+  claude: {
+    markerFiles: ['CLAUDE.md'],
+    propagateDirs: ['.claude/rules', '.claude/agents', '.claude/skills'],
+    label: 'Claude Code',
+  },
+  copilot: {
+    markerFiles: ['.github/copilot-instructions.md', 'AGENTS.md'],
+    propagateDirs: ['.github/instructions', '.github/prompts'],
+    label: 'GitHub Copilot',
+  },
+  cursor: {
+    markerFiles: ['AGENTS.md'],
+    propagateDirs: ['.cursor/rules'],
+    label: 'Cursor',
+  },
+  agents: {
+    markerFiles: ['AGENTS.md'],
+    propagateDirs: ['.agents/skills'],
+    label: 'agents',
+  },
+};
+
+/** Aliases resolved to a canonical target before anything downstream sees the input. */
+export const TARGET_ALIASES: Record<string, Target> = { openai: 'agents', codex: 'agents' };
+
+/** Resolves a target string (case/whitespace-insensitive) to its canonical form, or null if unknown. */
+export function normalizeTarget(input: string): Target | null {
+  const normalized = input.trim().toLowerCase();
+  if (normalized in TARGETS) return normalized as Target;
+  if (normalized in TARGET_ALIASES) return TARGET_ALIASES[normalized];
+  return null;
+}
+
+/** Groups TARGET_ALIASES by canonical target, e.g. "openai, codex → agents". */
+function describeAliases(): string {
+  const byTarget = new Map<Target, string[]>();
+  for (const [alias, target] of Object.entries(TARGET_ALIASES)) {
+    const group = byTarget.get(target) ?? [];
+    group.push(alias);
+    byTarget.set(target, group);
+  }
+  return Array.from(byTarget.entries())
+    .map(([target, aliases]) => `${aliases.join(', ')} → ${target}`)
+    .join(', ');
+}
+
+/** Built from TARGETS/TARGET_ALIASES so the message can never drift from what normalizeTarget accepts. */
+export function invalidTargetMessage(input: string): string {
+  return `Invalid target '${input}'. Valid targets: ${Object.keys(TARGETS).join(', ')} (aliases: ${describeAliases()})`;
+}
 
 /** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
 function askConfirmation(prompt: string): Promise<boolean> {
@@ -62,10 +127,8 @@ export async function setupIdeAction(
   opts?: { yes?: boolean }
 ): Promise<void> {
   // Validate target
-  if (!VALID_TARGETS.includes(target as Target)) {
-    throw new UserError(
-      `Invalid target '${target}'. Valid targets: ${VALID_TARGETS.join(', ')}`,
-    );
+  if (!normalizeTarget(target)) {
+    throw new UserError(invalidTargetMessage(target));
   }
 
   // Check guide installation
@@ -256,10 +319,8 @@ export function registerSetupIdeCommand(program: Command): void {
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {
       try {
         // Validate target early (before project resolution for fast failure)
-        if (!VALID_TARGETS.includes(target as Target)) {
-          throw new UserError(
-            `Invalid target '${target}'. Valid targets: ${VALID_TARGETS.join(', ')}`,
-          );
+        if (!normalizeTarget(target)) {
+          throw new UserError(invalidTargetMessage(target));
         }
 
         // Resolve project
