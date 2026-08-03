@@ -342,10 +342,10 @@ Depends on `include_scoped_index` from 10.1.
   - [x] In a project with no `CLAUDE.md`, run `cf build --json --embed` and confirm the conventions block is present — this is the live-defect fix, and Squadron reaches it automatically for every non-SDK profile
   - [x] Confirm the no-conventions warning is visible in the built context when every conventions file is absent
 
-- [ ] **13.5** Merge
-  - [ ] Commit all remaining changes from the project root
-  - [ ] Merge `211-slice.openai-codex-agents-md-target-ide-parity` into `main` (`git.integration_branch` is unset)
-  - [ ] Do not delete the branch
+- [x] **13.5** Merge
+  - [x] Commit all remaining changes from the project root
+  - [x] Merge `211-slice.openai-codex-agents-md-target-ide-parity` into `main` (`git.integration_branch` is unset)
+  - [x] Do not delete the branch
 
 ---
 
