@@ -73,34 +73,34 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 3: Target descriptor table and alias normalization
 
-- [ ] **3.1** Define the target model in `packages/cli/src/commands/setup-ide.ts`
-  - [ ] Add `type Target = 'claude' | 'copilot' | 'cursor' | 'agents'`
-  - [ ] Add `interface TargetDescriptor` with `markerFiles: string[]`, `propagateDirs: string[]`, `label: string`
-  - [ ] Add `const TARGETS: Record<Target, TargetDescriptor>` — the `Record<Target, …>` annotation is required so the compiler rejects a union member with no entry
-  - [ ] Populate per the design's table:
-    - [ ] `claude`: markerFiles `['CLAUDE.md']`; propagateDirs `['.claude/rules', '.claude/agents', '.claude/skills']`
-    - [ ] `copilot`: markerFiles `['.github/copilot-instructions.md', 'AGENTS.md']`; propagateDirs `['.github/instructions', '.github/prompts']`
-    - [ ] `cursor`: markerFiles `['AGENTS.md']`; propagateDirs `['.cursor/rules']`
-    - [ ] `agents`: markerFiles `['AGENTS.md']`; propagateDirs `['.agents/skills']` (or the path confirmed in 2.3)
-  - [ ] Add `const TARGET_ALIASES: Record<string, Target> = { openai: 'agents', codex: 'agents' }`
-  - [ ] Paths in the table use forward slashes; join with `path.join(projectPath, ...file.split('/'))` at use sites so Windows is not broken
+- [x] **3.1** Define the target model in `packages/cli/src/commands/setup-ide.ts`
+  - [x] Add `type Target = 'claude' | 'copilot' | 'cursor' | 'agents'`
+  - [x] Add `interface TargetDescriptor` with `markerFiles: string[]`, `propagateDirs: string[]`, `label: string`
+  - [x] Add `const TARGETS: Record<Target, TargetDescriptor>` — the `Record<Target, …>` annotation is required so the compiler rejects a union member with no entry
+  - [x] Populate per the design's table:
+    - [x] `claude`: markerFiles `['CLAUDE.md']`; propagateDirs `['.claude/rules', '.claude/agents', '.claude/skills']`
+    - [x] `copilot`: markerFiles `['.github/copilot-instructions.md', 'AGENTS.md']`; propagateDirs `['.github/instructions', '.github/prompts']`
+    - [x] `cursor`: markerFiles `['AGENTS.md']`; propagateDirs `['.cursor/rules']`
+    - [x] `agents`: markerFiles `['AGENTS.md']`; propagateDirs `['.agents/skills']` (or the path confirmed in 2.3)
+  - [x] Add `const TARGET_ALIASES: Record<string, Target> = { openai: 'agents', codex: 'agents' }`
+  - [x] Paths in the table use forward slashes; join with `path.join(projectPath, ...file.split('/'))` at use sites so Windows is not broken
 
-- [ ] **3.2** Add `normalizeTarget(input: string): Target | null`
-  - [ ] Lowercase and trim the input
-  - [ ] Return the canonical target if it is a key of `TARGETS`
-  - [ ] Return the mapped target if it is a key of `TARGET_ALIASES`
-  - [ ] Return `null` otherwise — no silent fallback to `claude`
-  - [ ] Add `invalidTargetMessage(input: string): string` producing: `Invalid target '<input>'. Valid targets: claude, copilot, cursor, agents (aliases: openai, codex → agents)` — built from `TARGETS`/`TARGET_ALIASES` keys, not a hardcoded string
-  - [ ] Delete `VALID_TARGETS` and its `Target` type alias; update both validation sites (`setupIdeAction` and the `registerSetupIdeCommand` action) to use `normalizeTarget`
+- [x] **3.2** Add `normalizeTarget(input: string): Target | null`
+  - [x] Lowercase and trim the input
+  - [x] Return the canonical target if it is a key of `TARGETS`
+  - [x] Return the mapped target if it is a key of `TARGET_ALIASES`
+  - [x] Return `null` otherwise — no silent fallback to `claude`
+  - [x] Add `invalidTargetMessage(input: string): string` producing: `Invalid target '<input>'. Valid targets: claude, copilot, cursor, agents (aliases: openai, codex → agents)` — built from `TARGETS`/`TARGET_ALIASES` keys, not a hardcoded string
+  - [x] Delete `VALID_TARGETS` and its `Target` type alias; update both validation sites (`setupIdeAction` and the `registerSetupIdeCommand` action) to use `normalizeTarget`
 
-- [ ] **3.3** Test: target model and normalization
-  - [ ] `normalizeTarget` returns the canonical value for each of `claude`, `copilot`, `cursor`, `agents`
-  - [ ] `normalizeTarget('codex')` and `normalizeTarget('openai')` both return `'agents'`
-  - [ ] `normalizeTarget` is case-insensitive (`'CODEX'` → `'agents'`) and trims whitespace
-  - [ ] `normalizeTarget('notarealtarget')` returns `null`
-  - [ ] `Object.keys(TARGETS)` has length 4 — runtime backstop for the compiler-enforced completeness
-  - [ ] Every `TARGETS` entry has a non-empty `markerFiles` array
-  - [ ] `invalidTargetMessage` lists all four canonical targets and both aliases
+- [x] **3.3** Test: target model and normalization
+  - [x] `normalizeTarget` returns the canonical value for each of `claude`, `copilot`, `cursor`, `agents`
+  - [x] `normalizeTarget('codex')` and `normalizeTarget('openai')` both return `'agents'`
+  - [x] `normalizeTarget` is case-insensitive (`'CODEX'` → `'agents'`) and trims whitespace
+  - [x] `normalizeTarget('notarealtarget')` returns `null`
+  - [x] `Object.keys(TARGETS)` has length 4 — runtime backstop for the compiler-enforced completeness
+  - [x] Every `TARGETS` entry has a non-empty `markerFiles` array
+  - [x] `invalidTargetMessage` lists all four canonical targets and both aliases
 
 **Commit:** `refactor(cli): replace VALID_TARGETS with a target descriptor table`
 
