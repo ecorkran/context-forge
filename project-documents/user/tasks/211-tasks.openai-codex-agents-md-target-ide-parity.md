@@ -280,22 +280,22 @@ Runs before the cursor split so that `include_scoped_index` exists when Section 
 
 Depends on `include_scoped_index` from 10.1.
 
-- [ ] **11.1** Split cursor emission
-  - [ ] In the cursor branch of `main()`, call `emit_agents_md` for always-on rules, passing `include_scoped_index` false — `.cursor/rules/*.mdc` already carry `globs`
-  - [ ] Change `copy_cursor_rules` so it skips rules with `alwaysApply`, emitting only scoped rules to `.cursor/rules/*.mdc` with the existing `paths:` → `globs:` conversion
-  - [ ] Stop writing `.cursor/agents/`. Do NOT delete an existing `.cursor/agents/` directory — those files carry no managed marker, so CF cannot distinguish its own past output from user content. Print a note that the directory is no longer managed and can be removed by hand
-  - [ ] Update the "Cursor setup notes" block to describe the new layout
+- [x] **11.1** Split cursor emission
+  - [x] In the cursor branch of `main()`, call `emit_agents_md` for always-on rules, passing `include_scoped_index` false — `.cursor/rules/*.mdc` already carry `globs`
+  - [x] Change `copy_cursor_rules` so it skips rules with `alwaysApply`, emitting only scoped rules to `.cursor/rules/*.mdc` with the existing `paths:` → `globs:` conversion
+  - [x] Stop writing `.cursor/agents/`. Do NOT delete an existing `.cursor/agents/` directory — those files carry no managed marker, so CF cannot distinguish its own past output from user content. Print a note that the directory is no longer managed and can be removed by hand
+  - [x] Update the "Cursor setup notes" block to describe the new layout
 
-- [ ] **11.2** Migration: remove superseded always-on `.mdc` files
-  - [ ] For each source rule carrying `alwaysApply`, remove `.cursor/rules/<stem>.mdc` if it exists — the stem derives from the source filename, so the removed set is exactly what the previous version wrote from those sources
-  - [ ] Never remove a `.mdc` whose stem does not match a current always-on source rule
-  - [ ] Print one line per removed file so the migration is visible
+- [x] **11.2** Migration: remove superseded always-on `.mdc` files
+  - [x] For each source rule carrying `alwaysApply`, remove `.cursor/rules/<stem>.mdc` if it exists — the stem derives from the source filename, so the removed set is exactly what the previous version wrote from those sources
+  - [x] Never remove a `.mdc` whose stem does not match a current always-on source rule
+  - [x] Print one line per removed file so the migration is visible
 
-- [ ] **11.3** Verify the cursor target and its migration
-  - [ ] Fresh scratch repo: `setup-ide cursor` → `AGENTS.md` present with no `## Additional Rules` section; `.cursor/rules/` holds scoped rules only; no `.cursor/agents/` created
-  - [ ] `grep -l alwaysApply .cursor/rules/*.mdc` returns nothing — the split is exclusive
-  - [ ] Scoped `.mdc` files carry `globs:` frontmatter derived from the source `paths:`
-  - [ ] Migration: run the pre-slice script version in a scratch repo, capture `ls .cursor/rules/`, then run the new version — always-on stems are gone, scoped stems remain, and the removals are printed
+- [x] **11.3** Verify the cursor target and its migration
+  - [x] Fresh scratch repo: `setup-ide cursor` → `AGENTS.md` present with no `## Additional Rules` section; `.cursor/rules/` holds scoped rules only; no `.cursor/agents/` created
+  - [x] `grep -l alwaysApply .cursor/rules/*.mdc` returns nothing — the split is exclusive
+  - [x] Scoped `.mdc` files carry `globs:` frontmatter derived from the source `paths:`
+  - [x] Migration: run the pre-slice script version in a scratch repo, capture `ls .cursor/rules/`, then run the new version — always-on stems are gone, scoped stems remain, and the removals are printed
   - [ ] **Hand-off (see Manual Verification Ownership):** prepare the scratch repo, then hand off for a real Cursor session confirming always-on guidance from `AGENTS.md` and a scoped rule from `.cursor/rules/` are both in effect
 
 **Commit:** `feat(guide): split cursor rules between AGENTS.md and .cursor/rules`
