@@ -324,23 +324,23 @@ Depends on `include_scoped_index` from 10.1.
 
 ## Section 13: Verification and integration
 
-- [ ] **13.1** Automated checks
-  - [ ] `pnpm -r build` clean
-  - [ ] Full test suite passes; no pre-existing test was deleted to make a new one pass
-  - [ ] `cf check` reports no new findings
+- [x] **13.1** Automated checks
+  - [x] `pnpm -r build` clean
+  - [x] Full test suite passes; no pre-existing test was deleted to make a new one pass
+  - [x] `cf check` reports no new findings
 
-- [ ] **13.2** Walk the design's verification script
-  - [ ] Run steps 1–8 of the Verification Walkthrough in the slice design end to end
-  - [ ] Record any step whose actual output differs from the documented expectation — the walkthrough is refined at the end of Phase 6, so corrections belong in the design doc, not in a workaround
+- [x] **13.2** Walk the design's verification script
+  - [x] Run steps 1–8 of the Verification Walkthrough in the slice design end to end
+  - [x] Record any step whose actual output differs from the documented expectation — the walkthrough is refined at the end of Phase 6, so corrections belong in the design doc, not in a workaround
 
-- [ ] **13.3** Cross-target regression sweep
-  - [ ] In one scratch repo, run all four targets in sequence and confirm each writes only its own files
-  - [ ] `cf setup-ide claude` after `cf setup-ide codex` leaves `AGENTS.md` and `.agents/skills/` in place (the claude target does not own them)
-  - [ ] `cf setup-ide codex` after `cf setup-ide copilot` overwrites `AGENTS.md` and prompts only if the existing file is unmanaged
+- [x] **13.3** Cross-target regression sweep
+  - [x] In one scratch repo, run all four targets in sequence and confirm each writes only its own files
+  - [x] `cf setup-ide claude` after `cf setup-ide codex` leaves `AGENTS.md` and `.agents/skills/` in place (the claude target does not own them)
+  - [x] `cf setup-ide codex` after `cf setup-ide copilot` overwrites `AGENTS.md` and prompts only if the existing file is unmanaged
 
-- [ ] **13.4** Squadron `--embed` path
-  - [ ] In a project with no `CLAUDE.md`, run `cf build --json --embed` and confirm the conventions block is present — this is the live-defect fix, and Squadron reaches it automatically for every non-SDK profile
-  - [ ] Confirm the no-conventions warning is visible in the built context when every conventions file is absent
+- [x] **13.4** Squadron `--embed` path
+  - [x] In a project with no `CLAUDE.md`, run `cf build --json --embed` and confirm the conventions block is present — this is the live-defect fix, and Squadron reaches it automatically for every non-SDK profile
+  - [x] Confirm the no-conventions warning is visible in the built context when every conventions file is absent
 
 - [ ] **13.5** Merge
   - [ ] Commit all remaining changes from the project root
