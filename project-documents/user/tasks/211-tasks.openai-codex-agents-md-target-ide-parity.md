@@ -216,15 +216,15 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 8: Delete `buildAndPrint`
 
-- [ ] **8.1** Confirm zero callers before deleting
-  - [ ] `grep -rn "buildAndPrint" packages/ --include=*.ts` — expect only the definition in `packages/cli/src/commands/build.ts`
-  - [ ] `grep -rn "buildAndPrint" /Users/manta/source/repos/manta/squadron` — expect no matches (Squadron shells out to the `cf` binary)
-  - [ ] If any caller exists, STOP and report — the design's premise is wrong
+- [x] **8.1** Confirm zero callers before deleting
+  - [x] `grep -rn "buildAndPrint" packages/ --include=*.ts` — expect only the definition in `packages/cli/src/commands/build.ts`
+  - [x] `grep -rn "buildAndPrint" /Users/manta/source/repos/manta/squadron` — expect no matches (Squadron shells out to the `cf` binary)
+  - [x] If any caller exists, STOP and report — the design's premise is wrong
 
-- [ ] **8.2** Delete the dead export
-  - [ ] Remove `buildAndPrint()` and the `BuildAndPrintOpts` interface from `packages/cli/src/commands/build.ts`
-  - [ ] Remove any now-unused imports left behind
-  - [ ] Run `pnpm -r build` — a type error here means a caller was missed
+- [x] **8.2** Delete the dead export
+  - [x] Remove `buildAndPrint()` and the `BuildAndPrintOpts` interface from `packages/cli/src/commands/build.ts`
+  - [x] Remove any now-unused imports left behind
+  - [x] Run `pnpm -r build` — a type error here means a caller was missed
 
 **Commit:** `refactor(cli): delete unused buildAndPrint and its duplicate embed branch`
 
