@@ -24,7 +24,7 @@ The CF-side work is a consolidation, not an addition. Target knowledge currently
 - `packages/cli/tests/commands/setup-ide.test.ts`
 - `packages/core/src/services/ContextEmbedder.ts` (+ its test file)
 - `packages/cli/src/commands/build.ts`
-- `packages/cli/src/commands/init.ts` (help text only)
+- `packages/cli/src/commands/init.ts` (help text + normalized completion message) and its test file
 - `README.md`
 
 **Files to modify (ai-project-guide submodule):**
@@ -49,12 +49,14 @@ The CF-side work is a consolidation, not an addition. Target knowledge currently
 
 Design Decision 6 makes this a gate rather than an assumption. Its outcome determines the destination path in Section 9, so it runs first. Effort: 1/5.
 
-- [ ] **2.1** Build a scratch repo with a hand-placed skill
+**Manual Verification Ownership:** tasks 2.2 and 11.3's final bullet require an interactive session in a third-party product (OpenAI Codex, Cursor) that the implementing agent has no mechanism to open. The agent's responsibility ends at preparing the scratch repo and stating exactly what to check. It then **stops and hands off to the Project Manager or a human tester**, who runs the session and reports the result. The agent must not mark these bullets complete on its own, must not substitute documentation or web search for the session, and must not proceed past the Section 2 gate until the result is recorded below.
+
+- [ ] **2.1** Build a scratch repo with a hand-placed skill (agent)
   - [ ] `mkdir /tmp/codex-skills-probe && cd /tmp/codex-skills-probe && git init`
   - [ ] Create `AGENTS.md` with one distinctive instruction (e.g. a made-up commit prefix `zzz:`)
   - [ ] Create `.agents/skills/probe-skill/SKILL.md` with YAML frontmatter (`name`, `description`) and a body containing a distinctive, unguessable instruction
 
-- [ ] **2.2** Confirm discovery in a real Codex session
+- [ ] **2.2** Confirm discovery in a real Codex session (hand-off — PM or human tester)
   - [ ] Open a Codex session in `/tmp/codex-skills-probe`
   - [ ] Ask Codex to state the project's commit prefix without naming a file → confirms `AGENTS.md` is read
   - [ ] Ask Codex to use `probe-skill` by name → confirms the skill is located and its body followed
@@ -148,6 +150,21 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
   - [ ] Unmanaged `AGENTS.md` with an existing `.bak` → `existing backup preserved` printed, `.bak` not overwritten
   - [ ] Existing claude and copilot safety tests still pass unchanged — the consolidation must not alter their behavior
 
+- [ ] **5.3** Make `cf init --ide` report the normalized target
+  - [ ] `init.ts:142` echoes the raw `--ide` value while `setupIdeAction` reports the normalized one, so `cf init --ide codex` prints both `IDE setup complete for agents.` and `✓ IDE configured for codex` — two different names for one action
+  - [ ] Export `normalizeTarget` from `setup-ide.ts` and use it for the init completion message
+  - [ ] When the input was an alias, print both so the mapping is visible rather than silently renamed: `IDE configured for agents (codex)`
+  - [ ] No other change to `init.ts` — it still forwards the raw string to `setupIdeAction`, which owns validation
+
+- [ ] **5.4** Test: `cf init --ide` wrapper (in the init test file)
+  - [ ] `--ide codex` reaches `setupIdeAction` with the raw string (assert the call argument)
+  - [ ] Completion message for `--ide codex` names `agents` and shows the alias
+  - [ ] Completion message for `--ide claude` is unchanged (no parenthetical for a canonical target)
+  - [ ] `--ide notarealtarget` surfaces the invalid-target error from `setupIdeAction` and does not print a success line
+  - [ ] `--no-ide` still skips IDE setup entirely
+  - [ ] Default (no `--ide`) still uses `claude`
+  - [ ] This closes the design's `cf init --ide codex|cursor` success criterion at the unit level; task 13.2 remains the end-to-end confirmation
+
 **Commit:** `refactor(cli): drive setup-ide safety checks from the target descriptor`
 
 ---
@@ -232,51 +249,56 @@ Requires the path confirmed in 2.3. Work is in `project-documents/ai-project-gui
 
 ---
 
-## Section 10: Upstream — `cursor` target split and migration
+## Section 10: Upstream — AGENTS.md scoped-index policy and marker rename
 
-- [ ] **10.1** Split cursor emission
-  - [ ] In the cursor branch of `main()`, call `emit_agents_md` for always-on rules (with the scoped index suppressed — see 11.1)
+Runs before the cursor split so that `include_scoped_index` exists when Section 11 needs it.
+
+- [ ] **10.1** Parameterize the scoped index
+  - [ ] Add an `include_scoped_index` parameter to `emit_agents_md`; append the `## Additional Rules` section only when it is set
+  - [ ] `setup_agents` passes true — the target emits no scoped-rule files of its own
+  - [ ] `setup_copilot` passes false — `.github/instructions/*.instructions.md` already carry `applyTo`
+  - [ ] The cursor branch does not call `emit_agents_md` yet; it is wired in 11.1
+
+- [ ] **10.2** Add the Copilot duplication note
+  - [ ] In the Copilot setup-notes block, state that `AGENTS.md` mirrors `.github/copilot-instructions.md` for cross-tool compatibility, and that enabling VS Code's experimental `chat.useAgentsMdFile` loads the same always-on rules twice
+
+- [ ] **10.3** Rename the marker constant
+  - [ ] `COPILOT_MANAGED_MARKER` → `MANAGED_MARKER` at its definition and all use sites — it is already used by the `agents` target and will be used by `cursor`
+  - [ ] The marker **value** is unchanged; confirm with `grep -c 'context-forge:managed'` that the emitted files still carry the identical string CF probes for
+
+- [ ] **10.4** Verify copilot and agents output
+  - [ ] Run `setup-ide copilot` in a scratch repo before and after these changes; diff the two output trees
+  - [ ] The only difference is the absent `## Additional Rules` section in `AGENTS.md`
+  - [ ] `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` are byte-identical
+  - [ ] `setup-ide codex` still emits `AGENTS.md` **with** the `## Additional Rules` index — the parameterization must not change the agents target
+
+**Commit:** `refactor(guide): scope the AGENTS.md rule index to targets without scoped files`
+
+---
+
+## Section 11: Upstream — `cursor` target split and migration
+
+Depends on `include_scoped_index` from 10.1.
+
+- [ ] **11.1** Split cursor emission
+  - [ ] In the cursor branch of `main()`, call `emit_agents_md` for always-on rules, passing `include_scoped_index` false — `.cursor/rules/*.mdc` already carry `globs`
   - [ ] Change `copy_cursor_rules` so it skips rules with `alwaysApply`, emitting only scoped rules to `.cursor/rules/*.mdc` with the existing `paths:` → `globs:` conversion
   - [ ] Stop writing `.cursor/agents/`. Do NOT delete an existing `.cursor/agents/` directory — those files carry no managed marker, so CF cannot distinguish its own past output from user content. Print a note that the directory is no longer managed and can be removed by hand
   - [ ] Update the "Cursor setup notes" block to describe the new layout
 
-- [ ] **10.2** Migration: remove superseded always-on `.mdc` files
+- [ ] **11.2** Migration: remove superseded always-on `.mdc` files
   - [ ] For each source rule carrying `alwaysApply`, remove `.cursor/rules/<stem>.mdc` if it exists — the stem derives from the source filename, so the removed set is exactly what the previous version wrote from those sources
   - [ ] Never remove a `.mdc` whose stem does not match a current always-on source rule
   - [ ] Print one line per removed file so the migration is visible
 
-- [ ] **10.3** Verify the cursor target and its migration
+- [ ] **11.3** Verify the cursor target and its migration
   - [ ] Fresh scratch repo: `setup-ide cursor` → `AGENTS.md` present with no `## Additional Rules` section; `.cursor/rules/` holds scoped rules only; no `.cursor/agents/` created
   - [ ] `grep -l alwaysApply .cursor/rules/*.mdc` returns nothing — the split is exclusive
   - [ ] Scoped `.mdc` files carry `globs:` frontmatter derived from the source `paths:`
   - [ ] Migration: run the pre-slice script version in a scratch repo, capture `ls .cursor/rules/`, then run the new version — always-on stems are gone, scoped stems remain, and the removals are printed
-  - [ ] Manual: open a real Cursor session in the scratch repo and confirm always-on guidance from `AGENTS.md` and a scoped rule from `.cursor/rules/` are both in effect
+  - [ ] **Hand-off (see Manual Verification Ownership):** prepare the scratch repo, then hand off for a real Cursor session confirming always-on guidance from `AGENTS.md` and a scoped rule from `.cursor/rules/` are both in effect
 
 **Commit:** `feat(guide): split cursor rules between AGENTS.md and .cursor/rules`
-
----
-
-## Section 11: Upstream — AGENTS.md scoped-index policy and marker rename
-
-- [ ] **11.1** Parameterize the scoped index
-  - [ ] Add an `include_scoped_index` parameter to `emit_agents_md`; append the `## Additional Rules` section only when it is set
-  - [ ] `setup_agents` passes true — the target emits no scoped-rule files of its own
-  - [ ] `setup_copilot` passes false — `.github/instructions/*.instructions.md` already carry `applyTo`
-  - [ ] The cursor branch passes false — `.cursor/rules/*.mdc` already carry `globs`
-
-- [ ] **11.2** Add the Copilot duplication note
-  - [ ] In the Copilot setup-notes block, state that `AGENTS.md` mirrors `.github/copilot-instructions.md` for cross-tool compatibility, and that enabling VS Code's experimental `chat.useAgentsMdFile` loads the same always-on rules twice
-
-- [ ] **11.3** Rename the marker constant
-  - [ ] `COPILOT_MANAGED_MARKER` → `MANAGED_MARKER` at its definition and all use sites — it is already used by the `agents` target and now by `cursor`
-  - [ ] The marker **value** is unchanged; confirm with `grep -c 'context-forge:managed'` that the emitted files still carry the identical string CF probes for
-
-- [ ] **11.4** Verify copilot output is unchanged except the index
-  - [ ] Run `setup-ide copilot` in a scratch repo before and after these changes; diff the two output trees
-  - [ ] The only difference is the absent `## Additional Rules` section in `AGENTS.md`
-  - [ ] `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` are byte-identical
-
-**Commit:** `refactor(guide): scope the AGENTS.md rule index to targets without scoped files`
 
 ---
 
@@ -331,3 +353,11 @@ Requires the path confirmed in 2.3. Work is in `project-documents/ai-project-gui
 
 - The ai-project-guide changes (Sections 9–11) live in a submodule and release separately. `cf setup-ide cursor` against an older guides version produces the pre-split layout **with no error**, because both versions accept `cursor`. During 13.2, check what `cf guide status` reports for a project on an older guide and record whether a minimum-version check is warranted — if it is, file it as follow-up rather than expanding this slice.
 - Section 2 is a gate. If neither skills path is discovered by a real Codex session, stop and report rather than shipping an emission nothing reads.
+
+## Review Resolutions
+
+Resolutions applied to this task file following `211-review.tasks.openai-codex-agents-md-target-ide-parity.md` (verdict CONCERNS). The review document is unmodified.
+
+- **F001 — Section 10 depended on a parameter Section 11 had not introduced.** Correct: the cursor split had a forward dependency on `include_scoped_index`, and each section is its own commit, so the intermediate state would have emitted an `AGENTS.md` contradicting its own verification step. Resolved by swapping the two sections — the scoped-index parameterization is now Section 10 and the cursor split is Section 11. Chosen over folding the parameter into the cursor section because the policy change also affects `copilot`, which has nothing to do with cursor. Task 10.4 gained a check that the `agents` target's index is unaffected by the parameterization.
+- **F002 — Manual third-party sessions had no feasibility path.** Correct: "Open a Codex session" is not an action the implementing agent can take. Resolved with a Manual Verification Ownership note in Section 2 assigning those bullets to the PM or a human tester, with the agent's responsibility ending at scratch-repo preparation. The agent may not self-complete them, substitute documentation for the session, or pass the Section 2 gate without a recorded result. Tasks 2.2 and 11.3 are labelled accordingly.
+- **F003 — `cf init --ide codex|cursor` had no automated coverage.** Correct, and the review also identified a real defect while checking it: `init.ts:142` echoes the raw `--ide` value while `setupIdeAction` reports the normalized one, so `cf init --ide codex` prints two different names for one action. Resolved by adding task 5.3 (init reports `agents (codex)` via an exported `normalizeTarget`) and task 5.4 (init wrapper unit tests). Task 13.2 remains the end-to-end confirmation.
