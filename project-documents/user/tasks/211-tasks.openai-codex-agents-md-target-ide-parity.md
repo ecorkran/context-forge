@@ -253,24 +253,24 @@ Requires the path confirmed in 2.3. Work is in `project-documents/ai-project-gui
 
 Runs before the cursor split so that `include_scoped_index` exists when Section 11 needs it.
 
-- [ ] **10.1** Parameterize the scoped index
-  - [ ] Add an `include_scoped_index` parameter to `emit_agents_md`; append the `## Additional Rules` section only when it is set
-  - [ ] `setup_agents` passes true — the target emits no scoped-rule files of its own
-  - [ ] `setup_copilot` passes false — `.github/instructions/*.instructions.md` already carry `applyTo`
-  - [ ] The cursor branch does not call `emit_agents_md` yet; it is wired in 11.1
+- [x] **10.1** Parameterize the scoped index
+  - [x] Add an `include_scoped_index` parameter to `emit_agents_md`; append the `## Additional Rules` section only when it is set
+  - [x] `setup_agents` passes true — the target emits no scoped-rule files of its own
+  - [x] `setup_copilot` passes false — `.github/instructions/*.instructions.md` already carry `applyTo`
+  - [x] The cursor branch does not call `emit_agents_md` yet; it is wired in 11.1
 
-- [ ] **10.2** Add the Copilot duplication note
-  - [ ] In the Copilot setup-notes block, state that `AGENTS.md` mirrors `.github/copilot-instructions.md` for cross-tool compatibility, and that enabling VS Code's experimental `chat.useAgentsMdFile` loads the same always-on rules twice
+- [x] **10.2** Add the Copilot duplication note
+  - [x] In the Copilot setup-notes block, state that `AGENTS.md` mirrors `.github/copilot-instructions.md` for cross-tool compatibility, and that enabling VS Code's experimental `chat.useAgentsMdFile` loads the same always-on rules twice
 
-- [ ] **10.3** Rename the marker constant
-  - [ ] `COPILOT_MANAGED_MARKER` → `MANAGED_MARKER` at its definition and all use sites — it is already used by the `agents` target and will be used by `cursor`
-  - [ ] The marker **value** is unchanged; confirm with `grep -c 'context-forge:managed'` that the emitted files still carry the identical string CF probes for
+- [x] **10.3** Rename the marker constant
+  - [x] `COPILOT_MANAGED_MARKER` → `MANAGED_MARKER` at its definition and all use sites — it is already used by the `agents` target and will be used by `cursor`
+  - [x] The marker **value** is unchanged; confirm with `grep -c 'context-forge:managed'` that the emitted files still carry the identical string CF probes for
 
-- [ ] **10.4** Verify copilot and agents output
-  - [ ] Run `setup-ide copilot` in a scratch repo before and after these changes; diff the two output trees
-  - [ ] The only difference is the absent `## Additional Rules` section in `AGENTS.md`
-  - [ ] `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` are byte-identical
-  - [ ] `setup-ide codex` still emits `AGENTS.md` **with** the `## Additional Rules` index — the parameterization must not change the agents target
+- [x] **10.4** Verify copilot and agents output
+  - [x] Run `setup-ide copilot` in a scratch repo before and after these changes; diff the two output trees
+  - [x] The only difference is the absent `## Additional Rules` section in `AGENTS.md`
+  - [x] `.github/copilot-instructions.md`, `.github/instructions/`, and `.github/prompts/` are byte-identical
+  - [x] `setup-ide codex` still emits `AGENTS.md` **with** the `## Additional Rules` index — the parameterization must not change the agents target
 
 **Commit:** `refactor(guide): scope the AGENTS.md rule index to targets without scoped files`
 
