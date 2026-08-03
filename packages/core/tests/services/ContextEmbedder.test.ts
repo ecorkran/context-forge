@@ -29,10 +29,13 @@ describe('embedReferencedFiles', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns context unchanged when no artifact fields are set', async () => {
+  it('adds no artifact blocks or warnings when no artifact fields are set', async () => {
+    await writeFile(join(tmpDir, 'CLAUDE.md'), '# Guidelines');
     const project = makeProject({ projectPath: tmpDir });
     const result = await embedReferencedFiles(project, tmpDir, 'base context');
-    expect(result).toBe('base context');
+    expect(result).toContain('base context');
+    expect(result).toContain('## Embedded: CLAUDE.md');
+    expect(result).not.toContain('Warning: referenced file not found');
   });
 
   it('embeds a present arch file after the base context', async () => {
@@ -97,18 +100,77 @@ describe('embedReferencedFiles', () => {
     expect(result).toContain('# Project Guidelines');
   });
 
-  it('does not warn when CLAUDE.md is absent', async () => {
+  it('embeds AGENTS.md when CLAUDE.md is absent', async () => {
+    await writeFile(join(tmpDir, 'AGENTS.md'), '# Agent Guidelines\nFollow these rules.');
     const project = makeProject({ projectPath: tmpDir });
+
     const result = await embedReferencedFiles(project, tmpDir, 'base context');
-    expect(result).not.toContain('CLAUDE.md');
-    expect(result).not.toContain('Warning');
-    expect(result).toBe('base context');
+
+    expect(result).toContain('## Embedded: AGENTS.md');
+    expect(result).toContain('# Agent Guidelines');
+  });
+
+  it('embeds .github/copilot-instructions.md when it is the only conventions file', async () => {
+    await mkdir(join(tmpDir, '.github'), { recursive: true });
+    await writeFile(
+      join(tmpDir, '.github/copilot-instructions.md'),
+      '# Copilot Guidelines\nFollow these rules.',
+    );
+    const project = makeProject({ projectPath: tmpDir });
+
+    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+
+    expect(result).toContain('## Embedded: .github/copilot-instructions.md');
+    expect(result).toContain('# Copilot Guidelines');
+  });
+
+  it('embeds exactly one conventions file when all three are present, following CONVENTIONS_FILES order', async () => {
+    await writeFile(join(tmpDir, 'CLAUDE.md'), '# Claude Guidelines');
+    await writeFile(join(tmpDir, 'AGENTS.md'), '# Agent Guidelines');
+    await mkdir(join(tmpDir, '.github'), { recursive: true });
+    await writeFile(join(tmpDir, '.github/copilot-instructions.md'), '# Copilot Guidelines');
+    const project = makeProject({ projectPath: tmpDir });
+
+    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+
+    const conventionsHeaders = (result.match(/## Embedded: [^\n]+/g) ?? []).filter(
+      (h) => h.includes('CLAUDE.md') || h.includes('AGENTS.md') || h.includes('copilot-instructions.md'),
+    );
+    expect(conventionsHeaders).toEqual(['## Embedded: CLAUDE.md']);
+  });
+
+  it('warns with the full CONVENTIONS_FILES list and embeds no conventions block when none is present', async () => {
+    const project = makeProject({ projectPath: tmpDir });
+
+    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+
+    expect(result).toContain(
+      'Warning: no conventions file found (looked for: CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) — the embedded context has no project conventions',
+    );
+    expect(result).not.toContain('## Embedded: CLAUDE.md');
+    expect(result).not.toContain('## Embedded: AGENTS.md');
+    expect(result).not.toContain('## Embedded: .github/copilot-instructions.md');
+  });
+
+  it('emits the no-conventions warning even when every artifact file resolves successfully', async () => {
+    await writeFile(
+      join(tmpDir, 'project-documents/user/architecture/100-arch.test.md'),
+      '# Arch',
+    );
+    const project = makeProject({ projectPath: tmpDir, fileArch: '100-arch.test' });
+
+    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+
+    expect(result).toContain('## Embedded: project-documents/user/architecture/100-arch.test.md');
+    expect(result).toContain('no conventions file found');
   });
 
   it('skips empty or whitespace-only artifact field values', async () => {
+    await writeFile(join(tmpDir, 'CLAUDE.md'), '# Guidelines');
     const project = makeProject({ projectPath: tmpDir, fileArch: '   ', fileSlicePlan: '' });
     const result = await embedReferencedFiles(project, tmpDir, 'base context');
-    expect(result).toBe('base context');
+    expect(result).not.toContain('Warning: referenced file not found');
+    expect(result).toContain('## Embedded: CLAUDE.md');
   });
 
   it('includes the Referenced Files separator section', async () => {

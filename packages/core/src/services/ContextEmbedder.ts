@@ -23,6 +23,18 @@ interface EmbedResult {
   missing: boolean;
 }
 
+/**
+ * Conventions files in read-priority order. First match wins — embedding every
+ * match would duplicate near-identical always-on rules in a prompt whose entire
+ * reason for existing is that the model cannot read files itself.
+ *
+ * Deliberately not merged with the CLI's TARGETS table (packages/cli/src/commands/
+ * setup-ide.ts): that table is a write-ownership map keyed by IDE target; this is a
+ * read-priority list with no concept of IDE targets. Coupling them would force core
+ * to know about CLI target names just to answer "what are this project's conventions?"
+ */
+const CONVENTIONS_FILES = ['CLAUDE.md', 'AGENTS.md', '.github/copilot-instructions.md'];
+
 async function resolveAndRead(
   field: keyof ProjectData,
   stem: string,
@@ -77,13 +89,23 @@ export async function embedReferencedFiles(
     }
   }
 
-  // Append CLAUDE.md if present — project conventions required for design/task phases
-  const claudeMdPath = join(projectPath, 'CLAUDE.md');
-  try {
-    const claudeContent = await readFile(claudeMdPath, 'utf-8');
-    blocks.push(fencedBlock('CLAUDE.md', claudeContent));
-  } catch {
-    // CLAUDE.md is optional — no warning if absent
+  // Embed the project's conventions file — first match in CONVENTIONS_FILES wins
+  let conventionsFound = false;
+  for (const relPath of CONVENTIONS_FILES) {
+    const absPath = join(projectPath, ...relPath.split('/'));
+    try {
+      const content = await readFile(absPath, 'utf-8');
+      blocks.push(fencedBlock(relPath, content));
+      conventionsFound = true;
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!conventionsFound) {
+    warnings.push(
+      `Warning: no conventions file found (looked for: ${CONVENTIONS_FILES.join(', ')}) — the embedded context has no project conventions`,
+    );
   }
 
   if (blocks.length === 0 && warnings.length === 0) return contextString;
