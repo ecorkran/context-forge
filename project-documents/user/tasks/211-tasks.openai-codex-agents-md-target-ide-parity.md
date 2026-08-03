@@ -234,16 +234,16 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 Requires the path confirmed in 2.3. Work is in `project-documents/ai-project-guide/scripts/setup-ide`.
 
-- [ ] **9.1** Emit skills from `setup_agents`
-  - [ ] After `emit_agents_md`, when `SKILLS_SOURCE_DIR` exists, copy skills to `$TARGET_ROOT/.agents/skills` (or the 2.3 path) using the existing `copy_skills` helper — the source layout (`<name>/SKILL.md`) matches the destination, so no translation is needed
-  - [ ] Add the destination to the "setup notes" block printed at the end of `setup_agents`
-  - [ ] Do not emit `.codex/prompts` — deprecated by OpenAI in favor of skills
+- [x] **9.1** Emit skills from `setup_agents`
+  - [x] After `emit_agents_md`, when `SKILLS_SOURCE_DIR` exists, copy skills to `$TARGET_ROOT/.agents/skills` (or the 2.3 path) using the existing `copy_skills` helper — the source layout (`<name>/SKILL.md`) matches the destination, so no translation is needed
+  - [x] Add the destination to the "setup notes" block printed at the end of `setup_agents`
+  - [x] Do not emit `.codex/prompts` — deprecated by OpenAI in favor of skills
 
-- [ ] **9.2** Verify the agents target output
-  - [ ] In a scratch repo with guides installed, run `bash project-documents/ai-project-guide/scripts/setup-ide codex`
-  - [ ] `AGENTS.md` exists, carries the managed marker, and contains the `## Additional Rules` scoped index
-  - [ ] `.agents/skills/<name>/SKILL.md` exists for each source skill, including support files inside skill directories
-  - [ ] No `.claude/`, `.github/`, or `.cursor/` directory was created
+- [x] **9.2** Verify the agents target output
+  - [x] In a scratch repo with guides installed, run `bash project-documents/ai-project-guide/scripts/setup-ide codex`
+  - [x] `AGENTS.md` exists, carries the managed marker, and contains the `## Additional Rules` scoped index
+  - [x] `.agents/skills/<name>/SKILL.md` exists for each source skill, including support files inside skill directories
+  - [x] No `.claude/`, `.github/`, or `.cursor/` directory was created
 
 **Commit:** `feat(guide): emit skills from the agents target`
 
