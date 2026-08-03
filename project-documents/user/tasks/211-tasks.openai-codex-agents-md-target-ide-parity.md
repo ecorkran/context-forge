@@ -304,19 +304,19 @@ Depends on `include_scoped_index` from 10.1.
 
 ## Section 12: Documentation and stale references
 
-- [ ] **12.1** CLI help text
-  - [ ] `packages/cli/src/commands/setup-ide.ts`: argument description → `IDE target: claude, copilot, cursor, agents (aliases: openai, codex)`
-  - [ ] `packages/cli/src/commands/init.ts`: `--ide <target>` description → list the same targets, keeping `(default: claude)`
+- [x] **12.1** CLI help text
+  - [x] `packages/cli/src/commands/setup-ide.ts`: argument description → `IDE target: claude, copilot, cursor, agents (aliases: openai, codex)`
+  - [x] `packages/cli/src/commands/init.ts`: `--ide <target>` description → list the same targets, keeping `(default: claude)`
 
-- [ ] **12.2** README
-  - [ ] Quick-start: add a `cf init --ide codex` line alongside the existing copilot line
-  - [ ] Command table: add `cf setup-ide cursor` and `cf setup-ide codex` rows, noting `openai`/`agents` as equivalents
-  - [ ] Note the file layout each new target produces, matching the design's layout block
+- [x] **12.2** README
+  - [x] Quick-start: add a `cf init --ide codex` line alongside the existing copilot line
+  - [x] Command table: add `cf setup-ide cursor` and `cf setup-ide codex` rows, noting `openai`/`agents` as equivalents
+  - [x] Note the file layout each new target produces, matching the design's layout block
 
-- [ ] **12.3** Remove stale `windsurf` references
-  - [ ] `packages/cli/tests/commands/setup-ide.test.ts`: replace the `windsurf` fixture token with `notarealtarget` and update the test name — `windsurf` reads as a plausible future target, which is exactly the wrong fixture for an invalid-target test
-  - [ ] Confirm the `propagateToWorktrees` comment reference was already removed in 6.1
-  - [ ] `grep -rn "windsurf" packages/ README.md` → only the README MCP-client config block remains (accurate and unrelated to `setup-ide`; leave it)
+- [x] **12.3** Remove stale `windsurf` references
+  - [x] `packages/cli/tests/commands/setup-ide.test.ts`: replace the `windsurf` fixture token with `notarealtarget` and update the test name — `windsurf` reads as a plausible future target, which is exactly the wrong fixture for an invalid-target test
+  - [x] Confirm the `propagateToWorktrees` comment reference was already removed in 6.1
+  - [x] `grep -rn "windsurf" packages/ README.md` → only the README MCP-client config block remains (accurate and unrelated to `setup-ide`; leave it)
 
 **Commit:** `docs: document cursor and codex IDE targets`
 
