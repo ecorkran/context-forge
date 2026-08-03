@@ -108,20 +108,20 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 4: Managed-marker check decomposition
 
-- [ ] **4.1** Replace the two managed-marker functions with one parameterized check
-  - [ ] Add `isManagedInstall(projectPath: string, markerFiles: string[]): boolean` — for each listed file that exists, read it and return `true` if any of the first 20 lines trimmed equals the managed marker
-  - [ ] Return `false` when none of the listed files exists (new install) — same contract `isManagedCopilotFiles` has today
-  - [ ] Promote the marker string to a single module constant (currently duplicated between `isManagedClaudeMd`'s inline literal and `COPILOT_MANAGED_MARKER`)
-  - [ ] Delete `isManagedClaudeMd` and `isManagedCopilotFiles`, and update the test-file imports that consume them
+- [x] **4.1** Replace the two managed-marker functions with one parameterized check
+  - [x] Add `isManagedInstall(projectPath: string, markerFiles: string[]): boolean` — for each listed file that exists, read it and return `true` if any of the first 20 lines trimmed equals the managed marker
+  - [x] Return `false` when none of the listed files exists (new install) — same contract `isManagedCopilotFiles` has today
+  - [x] Promote the marker string to a single module constant (currently duplicated between `isManagedClaudeMd`'s inline literal and `COPILOT_MANAGED_MARKER`)
+  - [x] Delete `isManagedClaudeMd` and `isManagedCopilotFiles`, and update the test-file imports that consume them
 
-- [ ] **4.2** Test: `isManagedInstall`
-  - [ ] Returns `true` when the first listed file carries the marker
-  - [ ] Returns `true` when only the second listed file exists and carries the marker
-  - [ ] Returns `false` when listed files exist but none carries the marker
-  - [ ] Returns `false` when no listed file exists
-  - [ ] Ignores a marker appearing after line 20
-  - [ ] **Regression guard:** with `TARGETS.agents.markerFiles`, an unmanaged `AGENTS.md` returns `false` even when a managed `.github/copilot-instructions.md` is present — the `agents` target must not inherit Copilot's file assumptions
-  - [ ] Port the existing `isManagedClaudeMd` / `isManagedCopilotFiles` cases onto the new function so no coverage is lost
+- [x] **4.2** Test: `isManagedInstall`
+  - [x] Returns `true` when the first listed file carries the marker
+  - [x] Returns `true` when only the second listed file exists and carries the marker
+  - [x] Returns `false` when listed files exist but none carries the marker
+  - [x] Returns `false` when no listed file exists
+  - [x] Ignores a marker appearing after line 20
+  - [x] **Regression guard:** with `TARGETS.agents.markerFiles`, an unmanaged `AGENTS.md` returns `false` even when a managed `.github/copilot-instructions.md` is present — the `agents` target must not inherit Copilot's file assumptions
+  - [x] Port the existing `isManagedClaudeMd` / `isManagedCopilotFiles` cases onto the new function so no coverage is lost
 
 **Commit:** `refactor(cli): parameterize the managed-marker check by target file set`
 
