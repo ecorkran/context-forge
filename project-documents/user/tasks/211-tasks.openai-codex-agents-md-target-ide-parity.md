@@ -129,41 +129,41 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 5: Descriptor-driven safety block in `setupIdeAction`
 
-- [ ] **5.1** Collapse the claude and copilot branches into one block
-  - [ ] Normalize `target` on entry; throw `UserError(invalidTargetMessage(target))` when `normalizeTarget` returns `null`
-  - [ ] Look up the descriptor; use the normalized value for the rest of the function
-  - [ ] If `isManagedInstall(projectPath, descriptor.markerFiles)` → proceed silently
-  - [ ] Else if no `markerFiles` entry exists → proceed silently
-  - [ ] Else: when `--yes` is not set, warn `Warning: <label> IDE files already exist and will be overwritten.` and prompt `Continue? (y/N) `; on denial print `Aborted.` and return
-  - [ ] On confirmation (or `--yes`): back up each existing `markerFiles` entry to `<file>.bak`, skipping any file that already has a `.bak` and printing `existing backup preserved at <rel>` for it
-  - [ ] Pass the **normalized** target to `execFileSync('bash', [scriptPath, target], …)`
-  - [ ] Completion message uses the normalized target: `IDE setup complete for agents.` for a `codex` invocation
+- [x] **5.1** Collapse the claude and copilot branches into one block
+  - [x] Normalize `target` on entry; throw `UserError(invalidTargetMessage(target))` when `normalizeTarget` returns `null`
+  - [x] Look up the descriptor; use the normalized value for the rest of the function
+  - [x] If `isManagedInstall(projectPath, descriptor.markerFiles)` → proceed silently
+  - [x] Else if no `markerFiles` entry exists → proceed silently
+  - [x] Else: when `--yes` is not set, warn `Warning: <label> IDE files already exist and will be overwritten.` and prompt `Continue? (y/N) `; on denial print `Aborted.` and return
+  - [x] On confirmation (or `--yes`): back up each existing `markerFiles` entry to `<file>.bak`, skipping any file that already has a `.bak` and printing `existing backup preserved at <rel>` for it
+  - [x] Pass the **normalized** target to `execFileSync('bash', [scriptPath, target], …)`
+  - [x] Completion message uses the normalized target: `IDE setup complete for agents.` for a `codex` invocation
 
-- [ ] **5.2** Test: `setupIdeAction` across targets
-  - [ ] `cursor` and `agents` with no guides installed → same `Guides are not installed` error as the claude path
-  - [ ] `codex` invocation passes `agents` to the script (assert the `execFileSync` argument)
-  - [ ] Managed `AGENTS.md` present, target `agents` → no prompt, no backup, script runs
-  - [ ] No conventions file present, target `cursor` → no prompt, script runs
-  - [ ] Unmanaged `AGENTS.md`, `--yes` → `AGENTS.md.bak` created, script runs
-  - [ ] Unmanaged `AGENTS.md`, user confirms → backup created, script runs
-  - [ ] Unmanaged `AGENTS.md`, user denies → `Aborted.` printed, script NOT run
-  - [ ] Unmanaged `AGENTS.md` with an existing `.bak` → `existing backup preserved` printed, `.bak` not overwritten
-  - [ ] Existing claude and copilot safety tests still pass unchanged — the consolidation must not alter their behavior
+- [x] **5.2** Test: `setupIdeAction` across targets
+  - [x] `cursor` and `agents` with no guides installed → same `Guides are not installed` error as the claude path
+  - [x] `codex` invocation passes `agents` to the script (assert the `execFileSync` argument)
+  - [x] Managed `AGENTS.md` present, target `agents` → no prompt, no backup, script runs
+  - [x] No conventions file present, target `cursor` → no prompt, script runs
+  - [x] Unmanaged `AGENTS.md`, `--yes` → `AGENTS.md.bak` created, script runs
+  - [x] Unmanaged `AGENTS.md`, user confirms → backup created, script runs
+  - [x] Unmanaged `AGENTS.md`, user denies → `Aborted.` printed, script NOT run
+  - [x] Unmanaged `AGENTS.md` with an existing `.bak` → `existing backup preserved` printed, `.bak` not overwritten
+  - [x] Existing claude and copilot safety tests still pass unchanged — the consolidation must not alter their behavior
 
-- [ ] **5.3** Make `cf init --ide` report the normalized target
-  - [ ] `init.ts:142` echoes the raw `--ide` value while `setupIdeAction` reports the normalized one, so `cf init --ide codex` prints both `IDE setup complete for agents.` and `✓ IDE configured for codex` — two different names for one action
-  - [ ] Export `normalizeTarget` from `setup-ide.ts` and use it for the init completion message
-  - [ ] When the input was an alias, print both so the mapping is visible rather than silently renamed: `IDE configured for agents (codex)`
-  - [ ] No other change to `init.ts` — it still forwards the raw string to `setupIdeAction`, which owns validation
+- [x] **5.3** Make `cf init --ide` report the normalized target
+  - [x] `init.ts:142` echoes the raw `--ide` value while `setupIdeAction` reports the normalized one, so `cf init --ide codex` prints both `IDE setup complete for agents.` and `✓ IDE configured for codex` — two different names for one action
+  - [x] Export `normalizeTarget` from `setup-ide.ts` and use it for the init completion message
+  - [x] When the input was an alias, print both so the mapping is visible rather than silently renamed: `IDE configured for agents (codex)`
+  - [x] No other change to `init.ts` — it still forwards the raw string to `setupIdeAction`, which owns validation
 
-- [ ] **5.4** Test: `cf init --ide` wrapper (in the init test file)
-  - [ ] `--ide codex` reaches `setupIdeAction` with the raw string (assert the call argument)
-  - [ ] Completion message for `--ide codex` names `agents` and shows the alias
-  - [ ] Completion message for `--ide claude` is unchanged (no parenthetical for a canonical target)
-  - [ ] `--ide notarealtarget` surfaces the invalid-target error from `setupIdeAction` and does not print a success line
-  - [ ] `--no-ide` still skips IDE setup entirely
-  - [ ] Default (no `--ide`) still uses `claude`
-  - [ ] This closes the design's `cf init --ide codex|cursor` success criterion at the unit level; task 13.2 remains the end-to-end confirmation
+- [x] **5.4** Test: `cf init --ide` wrapper (in the init test file)
+  - [x] `--ide codex` reaches `setupIdeAction` with the raw string (assert the call argument)
+  - [x] Completion message for `--ide codex` names `agents` and shows the alias
+  - [x] Completion message for `--ide claude` is unchanged (no parenthetical for a canonical target)
+  - [x] `--ide notarealtarget` surfaces the invalid-target error from `setupIdeAction` and does not print a success line
+  - [x] `--no-ide` still skips IDE setup entirely
+  - [x] Default (no `--ide`) still uses `claude`
+  - [x] This closes the design's `cf init --ide codex|cursor` success criterion at the unit level; task 13.2 remains the end-to-end confirmation
 
 **Commit:** `refactor(cli): drive setup-ide safety checks from the target descriptor`
 
