@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cf setup-ide` and `cf init --ide` now support two new targets: `cursor` and `agents` (aliases `openai`, `codex`). The guide-side compiler already supported all four; CF's own target validation had simply never been updated to match. `cf setup-ide codex` writes `AGENTS.md` plus `.agents/skills/<name>/SKILL.md` for each skill; `cf setup-ide cursor` writes always-on rules to `AGENTS.md` and scoped rules to `.cursor/rules/*.mdc` (existing `paths:` → `globs:` conversion, unchanged).
+- Re-running `cf setup-ide cursor` against a project set up by an older version migrates it automatically: `.mdc` files superseded by the always-on/scoped split are removed and the removal is printed, so an upgraded project doesn't end up with the same always-on rule loaded from two places.
+
+### Fixed
+- `cf build --embed` now works for projects whose conventions live in `AGENTS.md` or `.github/copilot-instructions.md`, not only `CLAUDE.md`. Previously it silently embedded nothing for any non-Claude project — a defect reachable today, since Squadron automatically appends `--embed` for every non-Claude-Code model. A visible warning is now emitted when no conventions file is found at all, instead of silent omission.
+- Nested skill directories (`.claude/skills/<name>/SKILL.md` and similar) now actually reach registered git worktrees when propagating IDE setup files. Previously the propagation logic only copied top-level files in each directory, so any skill — which is always a subdirectory — silently never made it to a worktree.
+- Propagating IDE files to worktrees no longer silently does nothing for an unrecognized target; it now fails loudly instead.
+- Copilot's `AGENTS.md` no longer duplicates the scoped-rules index that `.github/instructions/*.instructions.md` already covers via `applyTo` — the index only appears for a target (like `agents`) with no scoped-rule surface of its own.
+
 ## [0.10.7] - 20260802
 
 ### Fixed
