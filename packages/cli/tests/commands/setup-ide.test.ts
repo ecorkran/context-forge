@@ -521,6 +521,134 @@ describe('setupIdeAction — claude target', () => {
   });
 });
 
+// ─── setupIdeAction — cursor and agents targets ─────────────────────────────
+
+describe('setupIdeAction — cursor and agents targets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+    mockExecFileSync.mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('cursor: errors when guides not installed (same error as claude path)', async () => {
+    mockDetect.mockResolvedValue({ installed: false });
+
+    await expect(setupIdeAction('/tmp/test', 'cursor')).rejects.toThrow('Guides are not installed');
+  });
+
+  it('agents: errors when guides not installed (same error as claude path)', async () => {
+    mockDetect.mockResolvedValue({ installed: false });
+
+    await expect(setupIdeAction('/tmp/test', 'agents')).rejects.toThrow('Guides are not installed');
+  });
+
+  it('codex invocation passes agents to the script', async () => {
+    await setupIdeAction('/tmp/test', 'codex', { yes: true });
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'agents'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('managed AGENTS.md present, target agents → no prompt, no backup, script runs', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === agentsMdPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'agents', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'agents'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('no conventions file present, target cursor → no prompt, script runs', async () => {
+    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'cursor'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('unmanaged AGENTS.md, --yes → AGENTS.md.bak created, script runs', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === agentsMdBakPath) return false;
+      return false;
+    });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, agentsMdBakPath);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'cursor'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('unmanaged AGENTS.md, user confirms → backup created, script runs', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === agentsMdBakPath) return false;
+      return false;
+    });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('y'));
+
+    await setupIdeAction('/tmp/test', 'agents');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, agentsMdBakPath);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'agents'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('unmanaged AGENTS.md, user denies → Aborted printed, script NOT run', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === agentsMdPath);
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
+
+    await setupIdeAction('/tmp/test', 'agents');
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('Aborted.');
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+  });
+
+  it('unmanaged AGENTS.md with existing .bak → existing backup preserved, .bak not overwritten', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === agentsMdBakPath) return true;
+      return false;
+    });
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('existing backup preserved');
+    expect(mockExecFileSync).toHaveBeenCalled();
+  });
+});
+
 // ─── propagateToWorktrees — copilot (via command action) ────────────────────
 
 describe('propagateToWorktrees — copilot target', () => {

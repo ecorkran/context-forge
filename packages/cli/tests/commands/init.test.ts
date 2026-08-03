@@ -44,10 +44,14 @@ vi.mock('../../src/commands/guides.js', () => ({
   registerGuidesCommand: vi.fn(),
 }));
 
-vi.mock('../../src/commands/setup-ide.js', () => ({
-  setupIdeAction: (...args: unknown[]) => mockSetupIdeAction(...args),
-  registerSetupIdeCommand: vi.fn(),
-}));
+vi.mock('../../src/commands/setup-ide.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/commands/setup-ide.js')>();
+  return {
+    ...actual,
+    setupIdeAction: (...args: unknown[]) => mockSetupIdeAction(...args),
+    registerSetupIdeCommand: vi.fn(),
+  };
+});
 
 vi.mock('../../src/commands/commandInstaller.js', () => ({
   installCommandsAction: (...args: unknown[]) => mockInstallCommandsAction(...args),
@@ -198,6 +202,66 @@ describe('cf init', () => {
       'cursor',
       expect.objectContaining({ yes: true }),
     );
+  });
+
+  it('defaults to claude when --ide is omitted', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init'], { from: 'user' });
+
+    expect(mockSetupIdeAction).toHaveBeenCalledWith(
+      process.cwd(),
+      'claude',
+      expect.objectContaining({ yes: true }),
+    );
+  });
+
+  it('--ide codex reaches setupIdeAction with the raw alias string', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'codex'], { from: 'user' });
+
+    expect(mockSetupIdeAction).toHaveBeenCalledWith(
+      process.cwd(),
+      'codex',
+      expect.objectContaining({ yes: true }),
+    );
+  });
+
+  it('--ide codex completion message names agents and shows the alias', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'codex'], { from: 'user' });
+
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('IDE configured for agents (codex)');
+  });
+
+  it('--ide claude completion message has no parenthetical', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'claude'], { from: 'user' });
+
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('IDE configured for claude');
+    expect(logOutput).not.toContain('claude (');
+  });
+
+  it('--ide notarealtarget surfaces the invalid-target error and prints no success line', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockSetupIdeAction.mockRejectedValue(new Error("Invalid target 'notarealtarget'. Valid targets: claude, copilot, cursor, agents (aliases: openai, codex → agents)"));
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'notarealtarget'], { from: 'user' });
+
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('IDE setup failed');
+    expect(logOutput).toContain("Invalid target 'notarealtarget'");
+    expect(logOutput).not.toContain('IDE configured for');
   });
 
   it('guides already installed prints skip message and continues', async () => {

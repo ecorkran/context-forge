@@ -115,8 +115,9 @@ export async function setupIdeAction(
   target: string,
   opts?: { yes?: boolean }
 ): Promise<void> {
-  // Validate target
-  if (!normalizeTarget(target)) {
+  // Validate and normalize target — everything downstream uses the canonical value
+  const normalizedTarget = normalizeTarget(target);
+  if (!normalizedTarget) {
     throw new UserError(invalidTargetMessage(target));
   }
 
@@ -140,70 +141,40 @@ export async function setupIdeAction(
     );
   }
 
-  // CLAUDE.md safety check
-  const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
-  const claudeMdBakPath = path.join(projectPath, 'CLAUDE.md.bak');
+  // Safety check — descriptor-driven, identical shape for every target
+  const descriptor = TARGETS[normalizedTarget];
+  const markerPaths = descriptor.markerFiles.map((rel) => path.join(projectPath, ...rel.split('/')));
 
-  if (target === 'claude') {
-    if (fs.existsSync(claudeMdPath)) {
-      if (isManagedInstall(projectPath, TARGETS.claude.markerFiles)) {
-        // Managed file — skip backup silently
-      } else {
-        // Not managed — possibly prompt, then backup logic
-        if (!opts?.yes) {
-          console.error('Warning: CLAUDE.md already exists and will be overwritten.');
-          const confirmed = await askConfirmation('Continue? (y/N) ');
-          if (!confirmed) {
-            console.error('Aborted.');
-            return;
-          }
+  if (!isManagedInstall(projectPath, descriptor.markerFiles)) {
+    const existingPaths = markerPaths.filter((p) => fs.existsSync(p));
+
+    if (existingPaths.length > 0) {
+      if (!opts?.yes) {
+        console.error(`Warning: ${descriptor.label} IDE files already exist and will be overwritten.`);
+        const confirmed = await askConfirmation('Continue? (y/N) ');
+        if (!confirmed) {
+          console.error('Aborted.');
+          return;
         }
-        if (!fs.existsSync(claudeMdBakPath)) {
-          fs.copyFileSync(claudeMdPath, claudeMdBakPath);
-          console.log('Backed up CLAUDE.md → CLAUDE.md.bak');
+      }
+
+      for (const filePath of existingPaths) {
+        const bakPath = `${filePath}.bak`;
+        if (!fs.existsSync(bakPath)) {
+          fs.copyFileSync(filePath, bakPath);
+          console.log(`Backed up ${path.relative(projectPath, filePath)} → ${path.relative(projectPath, bakPath)}`);
         } else {
-          console.log('existing backup preserved at CLAUDE.md.bak');
+          console.log(`existing backup preserved at ${path.relative(projectPath, bakPath)}`);
         }
       }
     }
-  } else if (target === 'copilot') {
-    // Copilot safety check: only prompt when unmanaged files exist
-    if (!isManagedInstall(projectPath, TARGETS.copilot.markerFiles)) {
-      const copilotInstructionsPath = path.join(projectPath, '.github', 'copilot-instructions.md');
-      const agentsMdPath = path.join(projectPath, 'AGENTS.md');
-      const eitherExists = fs.existsSync(copilotInstructionsPath) || fs.existsSync(agentsMdPath);
-
-      if (eitherExists) {
-        if (!opts?.yes) {
-          console.error('Warning: Copilot IDE files already exist and will be overwritten.');
-          const confirmed = await askConfirmation('Continue? (y/N) ');
-          if (!confirmed) {
-            console.error('Aborted.');
-            return;
-          }
-        }
-        // Backup each file if it exists and no .bak already present
-        for (const [src, bak] of [
-          [copilotInstructionsPath, `${copilotInstructionsPath}.bak`],
-          [agentsMdPath, `${agentsMdPath}.bak`],
-        ] as [string, string][]) {
-          if (fs.existsSync(src)) {
-            if (!fs.existsSync(bak)) {
-              fs.copyFileSync(src, bak);
-              console.log(`Backed up ${path.relative(projectPath, src)} → ${path.relative(projectPath, bak)}`);
-            } else {
-              console.log(`existing backup preserved at ${path.relative(projectPath, bak)}`);
-            }
-          }
-        }
-      }
-    }
-    // Managed or no files: proceed silently
+    // else: none of the marker files exist — fresh install, proceed silently
   }
+  // else: managed install — proceed silently
 
   // Run the setup-ide script
   try {
-    execFileSync('bash', [scriptPath, target], {
+    execFileSync('bash', [scriptPath, normalizedTarget], {
       cwd: projectPath,
       stdio: 'inherit',
     });
@@ -214,7 +185,7 @@ export async function setupIdeAction(
     );
   }
 
-  console.error(`IDE setup complete for ${target}.`);
+  console.error(`IDE setup complete for ${normalizedTarget}.`);
 }
 
 /**

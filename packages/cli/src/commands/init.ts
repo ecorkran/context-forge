@@ -8,7 +8,7 @@ import type { CreateProjectData } from '@context-forge/core';
 import { handleError } from '../utils/errors.js';
 import { success, warn, dim } from '../output/styles.js';
 import { guidesInstallAction } from './guides.js';
-import { setupIdeAction } from './setup-ide.js';
+import { setupIdeAction, normalizeTarget } from './setup-ide.js';
 import { installCommandsAction } from './commandInstaller.js';
 
 /**
@@ -139,7 +139,12 @@ export function registerInitCommand(program: Command): void {
             const ideTarget = typeof opts.ide === 'string' ? opts.ide : 'claude';
             try {
               await setupIdeAction(cwd, ideTarget, { yes: true });
-              console.log(success(`IDE configured for ${ideTarget}`));
+              // normalizeTarget cannot return null here: setupIdeAction just validated
+              // this same string and would have thrown otherwise.
+              const normalizedIdeTarget = normalizeTarget(ideTarget) ?? ideTarget;
+              const wasAlias = ideTarget.trim().toLowerCase() !== normalizedIdeTarget;
+              const ideLabel = wasAlias ? `${normalizedIdeTarget} (${ideTarget})` : normalizedIdeTarget;
+              console.log(success(`IDE configured for ${ideLabel}`));
             } catch (err) {
               console.log(warn(`IDE setup failed: ${(err as Error).message}`));
             }
