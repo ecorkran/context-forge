@@ -88,31 +88,20 @@ function askConfirmation(prompt: string): Promise<boolean> {
   });
 }
 
-/** Returns true if the file contains the context-forge managed marker in the first 20 lines. */
-export function isManagedClaudeMd(filePath: string): boolean {
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n').slice(0, 20);
-  return lines.some((line) => line.trim() === '[//]: # (context-forge:managed)');
-}
-
-const COPILOT_MANAGED_MARKER = '[//]: # (context-forge:managed)';
+export const MANAGED_MARKER = '[//]: # (context-forge:managed)';
 
 /**
- * Returns true if the Copilot IDE install is managed by context-forge.
- * Checks the first 20 lines of .github/copilot-instructions.md and AGENTS.md.
- * Returns true if at least one of those files exists and contains the marker.
+ * Returns true if any of the given (root-relative, `/`-separated) files exists
+ * and carries the managed marker in its first 20 lines. Returns false when none
+ * of the listed files exists (new install).
  */
-export function isManagedCopilotFiles(projectPath: string): boolean {
-  const filesToCheck = [
-    path.join(projectPath, '.github', 'copilot-instructions.md'),
-    path.join(projectPath, 'AGENTS.md'),
-  ];
-
-  for (const filePath of filesToCheck) {
+export function isManagedInstall(projectPath: string, markerFiles: string[]): boolean {
+  for (const relPath of markerFiles) {
+    const filePath = path.join(projectPath, ...relPath.split('/'));
     if (!fs.existsSync(filePath)) continue;
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n').slice(0, 20);
-    if (lines.some((line) => line.trim() === COPILOT_MANAGED_MARKER)) {
+    if (lines.some((line) => line.trim() === MANAGED_MARKER)) {
       return true;
     }
   }
@@ -157,7 +146,7 @@ export async function setupIdeAction(
 
   if (target === 'claude') {
     if (fs.existsSync(claudeMdPath)) {
-      if (isManagedClaudeMd(claudeMdPath)) {
+      if (isManagedInstall(projectPath, TARGETS.claude.markerFiles)) {
         // Managed file — skip backup silently
       } else {
         // Not managed — possibly prompt, then backup logic
@@ -179,7 +168,7 @@ export async function setupIdeAction(
     }
   } else if (target === 'copilot') {
     // Copilot safety check: only prompt when unmanaged files exist
-    if (!isManagedCopilotFiles(projectPath)) {
+    if (!isManagedInstall(projectPath, TARGETS.copilot.markerFiles)) {
       const copilotInstructionsPath = path.join(projectPath, '.github', 'copilot-instructions.md');
       const agentsMdPath = path.join(projectPath, 'AGENTS.md');
       const eitherExists = fs.existsSync(copilotInstructionsPath) || fs.existsSync(agentsMdPath);

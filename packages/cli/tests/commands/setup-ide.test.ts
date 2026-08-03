@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import {
   registerSetupIdeCommand,
   setupIdeAction,
-  isManagedCopilotFiles,
+  isManagedInstall,
   TARGETS,
   normalizeTarget,
   invalidTargetMessage,
@@ -265,41 +265,69 @@ describe('cf setup-ide', () => {
   });
 });
 
-// ─── isManagedCopilotFiles ───────────────────────────────────────────────────
+// ─── isManagedInstall ────────────────────────────────────────────────────────
 
-describe('isManagedCopilotFiles', () => {
+describe('isManagedInstall', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns true when copilot-instructions.md contains managed marker', () => {
+  it('returns true when the first listed file carries the marker', () => {
     mockExistsSync.mockImplementation((p: string) => p === copilotInstructionsPath);
     mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
 
-    expect(isManagedCopilotFiles('/tmp/test')).toBe(true);
+    expect(isManagedInstall('/tmp/test', TARGETS.copilot.markerFiles)).toBe(true);
   });
 
-  it('returns true when AGENTS.md contains managed marker (copilot-instructions.md absent)', () => {
+  it('returns true when only the second listed file exists and carries the marker', () => {
     mockExistsSync.mockImplementation((p: string) => p === agentsMdPath);
     mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
 
-    expect(isManagedCopilotFiles('/tmp/test')).toBe(true);
+    expect(isManagedInstall('/tmp/test', TARGETS.copilot.markerFiles)).toBe(true);
   });
 
-  it('returns false when files exist but neither contains the marker', () => {
+  it('returns false when listed files exist but none carries the marker', () => {
     mockExistsSync.mockImplementation(
       (p: string) => p === copilotInstructionsPath || p === agentsMdPath,
     );
     mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
 
-    expect(isManagedCopilotFiles('/tmp/test')).toBe(false);
+    expect(isManagedInstall('/tmp/test', TARGETS.copilot.markerFiles)).toBe(false);
   });
 
-  it('returns false when neither file exists', () => {
+  it('returns false when no listed file exists', () => {
     mockExistsSync.mockReturnValue(false);
 
-    expect(isManagedCopilotFiles('/tmp/test')).toBe(false);
+    expect(isManagedInstall('/tmp/test', TARGETS.copilot.markerFiles)).toBe(false);
     expect(mockReadFileSync).not.toHaveBeenCalled();
+  });
+
+  it('ignores a marker appearing after line 20', () => {
+    const lines = Array.from({ length: 25 }, (_, i) =>
+      i === 21 ? '[//]: # (context-forge:managed)' : `line ${i}`,
+    );
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue(lines.join('\n'));
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(false);
+  });
+
+  it('regression: agents target probes only AGENTS.md, unaffected by a managed copilot-instructions.md', () => {
+    mockExistsSync.mockImplementation(
+      (p: string) => p === agentsMdPath || p === copilotInstructionsPath,
+    );
+    mockReadFileSync.mockImplementation((p: string) =>
+      p === copilotInstructionsPath ? MANAGED_CONTENT : UNMANAGED_CONTENT,
+    );
+
+    expect(isManagedInstall('/tmp/test', TARGETS.agents.markerFiles)).toBe(false);
+  });
+
+  it('single marker-file target: returns true when the sole file is managed (ports prior isManagedClaudeMd coverage)', () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
   });
 });
 
