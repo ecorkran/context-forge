@@ -175,14 +175,16 @@ describe('cf setup-ide', () => {
     expect(output).toContain('claude');
   });
 
-  it('VALID_TARGETS includes both claude and copilot (windsurf rejection lists both)', async () => {
+  it('rejects an unsupported target and lists all four canonical targets', async () => {
     const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'windsurf']);
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'notarealtarget']);
 
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain("Invalid target 'windsurf'");
+    expect(output).toContain("Invalid target 'notarealtarget'");
     expect(output).toContain('claude');
     expect(output).toContain('copilot');
+    expect(output).toContain('cursor');
+    expect(output).toContain('agents');
   });
 
   it('errors when guides not installed', async () => {

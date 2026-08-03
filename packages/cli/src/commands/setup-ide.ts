@@ -241,7 +241,7 @@ export function registerSetupIdeCommand(program: Command): void {
   const ideCmd = program
     .command('setup-ide')
     .description('Configure IDE-specific AI integration files for the current project')
-    .argument('<target>', 'IDE target: claude, copilot');
+    .argument('<target>', 'IDE target: claude, copilot, cursor, agents (aliases: openai, codex)');
   withProjectOption(ideCmd);
   withYesOption(ideCmd);
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {

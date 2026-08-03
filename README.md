@@ -40,6 +40,7 @@ claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
 # 3. Set up your project — pick one:
 cf init                   # CLI: creates project, installs guides, configures IDE, installs slash commands
 cf init --ide copilot     # Same, but configured for VS Code Copilot instead of Claude Code
+cf init --ide codex       # Same, but configured for OpenAI Codex (also: cursor, agents, openai)
 # — or —
 /cf:onboard               # Slash command: AI-guided setup — walks you through everything conversationally
 ```
@@ -68,7 +69,19 @@ That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/
 cf guides install          # Install methodology guides into your project
 cf setup-ide claude        # Install Claude rules and create CLAUDE.md
 cf setup-ide copilot       # Install rules/skills for VS Code Copilot
+cf setup-ide cursor        # Install scoped rules for Cursor, always-on rules in AGENTS.md
+cf setup-ide codex         # Write AGENTS.md + skills for OpenAI Codex (aliases: openai, agents)
 cf install-commands        # Install Claude Code slash commands
+```
+
+Each target writes a different file layout:
+
+```
+cf setup-ide claude              # CLAUDE.md, .claude/{rules,agents,skills}/
+cf setup-ide copilot             # AGENTS.md, .github/copilot-instructions.md,
+                                  # .github/{instructions,prompts}/
+cf setup-ide cursor              # AGENTS.md (always-on), .cursor/rules/*.mdc (scoped)
+cf setup-ide codex|openai|agents # AGENTS.md, .agents/skills/<name>/SKILL.md
 ```
 
 </details>
@@ -174,6 +187,8 @@ Three interfaces — use whichever fits your workflow (a fourth, the Electron de
 | `cf guides install\|info\|update\|uninstall` | ai-project-guide template management |
 | `cf setup-ide claude` | Configure Claude Code integration |
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
+| `cf setup-ide cursor` | Configure Cursor integration (scoped rules + AGENTS.md) |
+| `cf setup-ide codex` | Configure OpenAI Codex integration (aliases: `openai`, `agents`) |
 | `cf install-commands` / `cf uninstall-commands` | Install or remove Claude Code slash commands |
 | `cf backup` | Versioned project data backup (keeps last 10) |
 | `cf update` | Update the CLI to the latest published version |

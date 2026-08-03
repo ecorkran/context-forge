@@ -67,7 +67,7 @@ export function registerInitCommand(program: Command): void {
     .description('Initialize a Context Forge project in the current directory')
     .option('--name <name>', 'Project name (defaults to directory basename)')
     .option('--lite', 'Create project entry only, skip guides/commands/IDE setup')
-    .option('--ide <target>', 'IDE target for setup (default: claude)')
+    .option('--ide <target>', 'IDE target: claude, copilot, cursor, agents (aliases: openai, codex) (default: claude)')
     .option('--no-ide', 'Skip IDE configuration step')
     .action(async (opts: { name?: string; lite?: boolean; ide?: string | boolean }) => {
       try {
