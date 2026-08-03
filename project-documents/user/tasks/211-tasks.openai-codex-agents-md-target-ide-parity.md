@@ -171,23 +171,23 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 6: Worktree propagation rewrite
 
-- [ ] **6.1** Rewrite `propagateToWorktrees` against the descriptor table
-  - [ ] Look up `TARGETS[target]`; if undefined, `throw new UserError("No propagation descriptor for target '<target>'.")` — replaces today's silent fall-through
-  - [ ] Copy each `markerFiles` entry that exists at the root to the same relative path in each worktree, creating parent directories as needed
-  - [ ] Copy each `propagateDirs` entry that exists using `fs.cpSync(src, dst, { recursive: true })` — replaces the flat `entry.isFile()` loop
-  - [ ] Keep the existing per-worktree and summary log lines
-  - [ ] Update the block comment: describe the descriptor-driven behavior and delete the stale `// Future targets (cursor, windsurf) …` line
-  - [ ] Preserve the documented exclusions — `.claude/settings.local.json` and `.claude/worktrees/` are not in any `propagateDirs` entry and must stay out
+- [x] **6.1** Rewrite `propagateToWorktrees` against the descriptor table
+  - [x] Look up `TARGETS[target]`; if undefined, `throw new UserError("No propagation descriptor for target '<target>'.")` — replaces today's silent fall-through
+  - [x] Copy each `markerFiles` entry that exists at the root to the same relative path in each worktree, creating parent directories as needed
+  - [x] Copy each `propagateDirs` entry that exists using `fs.cpSync(src, dst, { recursive: true })` — replaces the flat `entry.isFile()` loop
+  - [x] Keep the existing per-worktree and summary log lines
+  - [x] Update the block comment: describe the descriptor-driven behavior and delete the stale `// Future targets (cursor, windsurf) …` line
+  - [x] Preserve the documented exclusions — `.claude/settings.local.json` and `.claude/worktrees/` are not in any `propagateDirs` entry and must stay out
 
-- [ ] **6.2** Test: propagation per target
-  - [ ] `claude` copies `CLAUDE.md` and the three `.claude/` dirs; `.claude/settings.local.json` and `.claude/worktrees/` are NOT copied
-  - [ ] `copilot` copies both marker files and `.github/instructions/` + `.github/prompts/`
-  - [ ] `cursor` copies `AGENTS.md` and `.cursor/rules/`
-  - [ ] `agents` copies `AGENTS.md` and the skills dir confirmed in 2.3
-  - [ ] **Nested-directory regression:** a `skills/<name>/SKILL.md` fixture reaches the worktree. Write this test against the `claude` target so it fails on the pre-slice implementation and passes after
-  - [ ] A worktree whose `worktreePath` does not exist is skipped without error (existing behavior)
-  - [ ] Zero registered worktrees → no-op, no error
-  - [ ] An unresolvable target throws instead of returning silently
+- [x] **6.2** Test: propagation per target
+  - [x] `claude` copies `CLAUDE.md` and the three `.claude/` dirs; `.claude/settings.local.json` and `.claude/worktrees/` are NOT copied
+  - [x] `copilot` copies both marker files and `.github/instructions/` + `.github/prompts/`
+  - [x] `cursor` copies `AGENTS.md` and `.cursor/rules/`
+  - [x] `agents` copies `AGENTS.md` and the skills dir confirmed in 2.3
+  - [x] **Nested-directory regression:** a `skills/<name>/SKILL.md` fixture reaches the worktree. Write this test against the `claude` target so it fails on the pre-slice implementation and passes after
+  - [x] A worktree whose `worktreePath` does not exist is skipped without error (existing behavior)
+  - [x] Zero registered worktrees → no-op, no error
+  - [x] An unresolvable target throws instead of returning silently
 
 **Commit:** `fix(cli): propagate IDE files recursively and fail on unknown targets`
 
