@@ -203,7 +203,17 @@ export async function setupIdeAction(
  * worktree-specific, the latter is the cf worktree registry and root-only.
  */
 export function propagateToWorktrees(project: ProjectData, target: string): void {
-  const worktrees = (project.worktrees ?? []).filter((wt) => wt.worktreePath && fs.existsSync(wt.worktreePath));
+  const rootPath = project.projectPath!;
+  const resolvedRootPath = path.resolve(rootPath);
+
+  // WorktreeService migrates a project's pre-worktree workflow fields into a
+  // "default" worktree context whose worktreePath IS the project root (see
+  // WorktreeService.ts). Propagating the root onto itself is a no-op at best;
+  // fs.cpSync throws ERR_FS_CP_EINVAL when src and dest are the same path, so
+  // this must be filtered out rather than merely being harmless.
+  const worktrees = (project.worktrees ?? []).filter(
+    (wt) => wt.worktreePath && fs.existsSync(wt.worktreePath) && path.resolve(wt.worktreePath) !== resolvedRootPath,
+  );
   if (worktrees.length === 0) return;
 
   const resolvedTarget = normalizeTarget(target);
@@ -211,8 +221,6 @@ export function propagateToWorktrees(project: ProjectData, target: string): void
     throw new UserError(`No propagation descriptor for target '${target}'.`);
   }
   const descriptor = TARGETS[resolvedTarget];
-
-  const rootPath = project.projectPath!;
 
   for (const wt of worktrees) {
     const wtPath = wt.worktreePath!;

@@ -868,6 +868,38 @@ describe('propagateToWorktrees', () => {
     expect(mockCpSync).not.toHaveBeenCalled();
   });
 
+  it('skips a "default" worktree whose worktreePath is the project root, without error (regression: fs.cpSync throws on src === dest)', () => {
+    // WorktreeService migrates a project's pre-worktree workflow fields into a
+    // "default" worktree context whose worktreePath is the project root itself.
+    // fs.cpSync throws ERR_FS_CP_EINVAL when src and dest are the same path, so
+    // this worktree must be filtered out rather than merely being harmless.
+    const projectWithRootWorktree = {
+      ...sampleProject,
+      worktrees: [{ id: 'wt_default', name: 'default', worktreePath: sampleProject.projectPath }],
+    };
+    mockExistsSync.mockReturnValue(true);
+
+    expect(() => propagateToWorktrees(projectWithRootWorktree, 'claude')).not.toThrow();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+  });
+
+  it('propagates to a real worktree while still skipping a co-registered root-path "default" worktree', () => {
+    const projectWithBoth = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', worktreePath: sampleProject.projectPath },
+        { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
+      ],
+    };
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath || p === wtPath);
+
+    propagateToWorktrees(projectWithBoth, 'claude');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(claudeMdPath, `${wtPath}/CLAUDE.md`);
+    expect(mockCopyFileSync).toHaveBeenCalledTimes(1);
+  });
+
   it('an unresolvable target throws instead of returning silently', () => {
     mockExistsSync.mockImplementation((p: string) => p === wtPath);
 
