@@ -5,8 +5,8 @@ project: context-forge
 lld: user/slices/211-slice.openai-codex-agents-md-target-ide-parity.md
 dependencies: [210-github-copilot-vs-code-ide-support]
 dateCreated: 20260802
-dateUpdated: 20260802
-status: not_started
+dateUpdated: 20260803
+status: in_progress
 ---
 
 # Tasks: Slice 211 — OpenAI Codex / AGENTS.md Target & IDE Parity
@@ -38,10 +38,10 @@ The CF-side work is a consolidation, not an addition. Target knowledge currently
 
 ## Section 1: Setup
 
-- [ ] **1.1** Create branch
-  - [ ] Run `cf config get git.integration_branch` — confirm the value is empty (target is `main`)
-  - [ ] Run `git branch --show-current` — confirm on `main`
-  - [ ] Create and switch: `git checkout -b 211-slice.openai-codex-agents-md-target-ide-parity main`
+- [x] **1.1** Create branch
+  - [x] Run `cf config get git.integration_branch` — confirm the value is empty (target is `main`)
+  - [x] Run `git branch --show-current` — confirm on `main`
+  - [x] Create and switch: `git checkout -b 211-slice.openai-codex-agents-md-target-ide-parity main`
 
 ---
 
@@ -51,23 +51,23 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 **Manual Verification Ownership:** tasks 2.2 and 11.3's final bullet require an interactive session in a third-party product (OpenAI Codex, Cursor) that the implementing agent has no mechanism to open. The agent's responsibility ends at preparing the scratch repo and stating exactly what to check. It then **stops and hands off to the Project Manager or a human tester**, who runs the session and reports the result. The agent must not mark these bullets complete on its own, must not substitute documentation or web search for the session, and must not proceed past the Section 2 gate until the result is recorded below.
 
-- [ ] **2.1** Build a scratch repo with a hand-placed skill (agent)
-  - [ ] `mkdir /tmp/codex-skills-probe && cd /tmp/codex-skills-probe && git init`
-  - [ ] Create `AGENTS.md` with one distinctive instruction (e.g. a made-up commit prefix `zzz:`)
-  - [ ] Create `.agents/skills/probe-skill/SKILL.md` with YAML frontmatter (`name`, `description`) and a body containing a distinctive, unguessable instruction
+- [x] **2.1** Build a scratch repo with a hand-placed skill (agent)
+  - [x] `mkdir /tmp/codex-skills-probe && cd /tmp/codex-skills-probe && git init`
+  - [x] Create `AGENTS.md` with one distinctive instruction (e.g. a made-up commit prefix `zzz:`)
+  - [x] Create `.agents/skills/probe-skill/SKILL.md` with YAML frontmatter (`name`, `description`) and a body containing a distinctive, unguessable instruction
 
-- [ ] **2.2** Confirm discovery in a real Codex session (hand-off — PM or human tester)
-  - [ ] Open a Codex session in `/tmp/codex-skills-probe`
-  - [ ] Ask Codex to state the project's commit prefix without naming a file → confirms `AGENTS.md` is read
-  - [ ] Ask Codex to use `probe-skill` by name → confirms the skill is located and its body followed
-  - [ ] Record the result (discovered / not discovered) in the task notes below
+- [x] **2.2** Confirm discovery in a real Codex session (hand-off — PM or human tester)
+  - [x] Open a Codex session in `/tmp/codex-skills-probe`
+  - [x] Ask Codex to state the project's commit prefix without naming a file → confirms `AGENTS.md` is read
+  - [x] Ask Codex to use `probe-skill` by name → confirms the skill is located and its body followed
+  - [x] Record the result (discovered / not discovered) in the task notes below
 
-- [ ] **2.3** Decide the destination path
-  - [ ] If discovered at `.agents/skills/` → Section 9 uses `.agents/skills/`; proceed
-  - [ ] If NOT discovered → repeat 2.1–2.2 with `.codex/skills/probe-skill/SKILL.md`. If that works, Section 9 uses `.codex/skills/` and the slice design's Decision 6 is updated to record the finding
-  - [ ] If neither is discovered → STOP and report to the Project Manager. Do not implement a skills destination on documentation alone
+- [x] **2.3** Decide the destination path
+  - [x] If discovered at `.agents/skills/` → Section 9 uses `.agents/skills/`; proceed
+  - [x] If NOT discovered → repeat 2.1–2.2 with `.codex/skills/probe-skill/SKILL.md`. If that works, Section 9 uses `.codex/skills/` and the slice design's Decision 6 is updated to record the finding
+  - [x] If neither is discovered → STOP and report to the Project Manager. Do not implement a skills destination on documentation alone
 
-**Result:** _(record the confirmed path here before starting Section 9)_
+**Result:** Confirmed path is `.agents/skills/`. Verified via real Codex session (PM hand-off completed). Both discovery checks passed: AGENTS.md read (commit prefix `zzz:` correctly stated by Codex), skill-by-name location confirmed (probe-skill SKILL.md body followed exactly).
 
 ---
 
