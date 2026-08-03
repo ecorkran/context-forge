@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import {
   registerSetupIdeCommand,
   setupIdeAction,
+  propagateToWorktrees,
   isManagedInstall,
   TARGETS,
   normalizeTarget,
@@ -14,6 +15,7 @@ const mockGetById = vi.fn();
 const mockDetect = vi.fn();
 const mockExistsSync = vi.fn();
 const mockCopyFileSync = vi.fn();
+const mockCpSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockExecFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
@@ -45,12 +47,14 @@ vi.mock('node:fs', async (importOriginal) => {
       ...actual,
       existsSync: (...args: unknown[]) => mockExistsSync(...args),
       copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
+      cpSync: (...args: unknown[]) => mockCpSync(...args),
       readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
       mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
       readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
     },
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
     copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
+    cpSync: (...args: unknown[]) => mockCpSync(...args),
     readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
     mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
     readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
@@ -676,7 +680,6 @@ describe('propagateToWorktrees — copilot target', () => {
       if (p === wtPath) return true;
       return false;
     });
-    mockReaddirSync.mockReturnValue([]);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
@@ -691,7 +694,6 @@ describe('propagateToWorktrees — copilot target', () => {
       if (p === wtPath) return true;
       return false;
     });
-    mockReaddirSync.mockReturnValue([]);
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
@@ -700,50 +702,23 @@ describe('propagateToWorktrees — copilot target', () => {
     expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, wtInstructionsPath);
   });
 
-  it('copies .github/instructions/ files to worktree', async () => {
+  it('copies .github/instructions/ and .github/prompts/ directories to worktree', async () => {
     const srcInstructionsDir = '/tmp/test/.github/instructions';
-    const srcFile = `${srcInstructionsDir}/typescript.instructions.md`;
-    const dstFile = `${wtInstructionsDir}/typescript.instructions.md`;
+    const srcPromptsDir = '/tmp/test/.github/prompts';
 
     mockExistsSync.mockImplementation((p: string) => {
       if (p === scriptPath) return true;
       if (p === srcInstructionsDir) return true;
-      if (p === wtPath) return true;
-      return false;
-    });
-    mockReaddirSync.mockImplementation((p: string) => {
-      if (p === srcInstructionsDir) return [{ name: 'typescript.instructions.md', isFile: () => true }];
-      return [];
-    });
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
-
-    expect(mockMkdirSync).toHaveBeenCalledWith(wtInstructionsDir, { recursive: true });
-    expect(mockCopyFileSync).toHaveBeenCalledWith(srcFile, dstFile);
-  });
-
-  it('copies .github/prompts/ files to worktree', async () => {
-    const srcPromptsDir = '/tmp/test/.github/prompts';
-    const srcFile = `${srcPromptsDir}/commit.prompt.md`;
-    const dstFile = `${wtPromptsDir}/commit.prompt.md`;
-
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
       if (p === srcPromptsDir) return true;
       if (p === wtPath) return true;
       return false;
     });
-    mockReaddirSync.mockImplementation((p: string) => {
-      if (p === srcPromptsDir) return [{ name: 'commit.prompt.md', isFile: () => true }];
-      return [];
-    });
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'copilot', '--yes', '--project', 'proj_001']);
 
-    expect(mockMkdirSync).toHaveBeenCalledWith(wtPromptsDir, { recursive: true });
-    expect(mockCopyFileSync).toHaveBeenCalledWith(srcFile, dstFile);
+    expect(mockCpSync).toHaveBeenCalledWith(srcInstructionsDir, wtInstructionsDir, { recursive: true });
+    expect(mockCpSync).toHaveBeenCalledWith(srcPromptsDir, wtPromptsDir, { recursive: true });
   });
 
   it('skips missing source dirs and files without error', async () => {
@@ -759,5 +734,143 @@ describe('propagateToWorktrees — copilot target', () => {
     ).resolves.not.toThrow();
 
     expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+  });
+
+  it('codex alias resolves to agents before propagation (raw alias must not reach propagateToWorktrees)', async () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === scriptPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'cf', 'setup-ide', 'codex', '--yes', '--project', 'proj_001'])
+    ).resolves.not.toThrow();
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'agents'],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, wtAgentsPath);
+  });
+});
+
+// ─── propagateToWorktrees — direct unit tests ───────────────────────────────
+
+describe('propagateToWorktrees', () => {
+  const wtPath = '/tmp/wt1';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('claude copies CLAUDE.md and the three .claude/ dirs; excludes settings.local.json and worktrees/', () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === claudeMdPath) return true;
+      if (p === wtPath) return true;
+      if (p === '/tmp/test/.claude/rules') return true;
+      if (p === '/tmp/test/.claude/agents') return true;
+      if (p === '/tmp/test/.claude/skills') return true;
+      return false;
+    });
+
+    propagateToWorktrees(sampleProjectWithWorktrees, 'claude');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(claudeMdPath, `${wtPath}/CLAUDE.md`);
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.claude/rules', `${wtPath}/.claude/rules`, { recursive: true });
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.claude/agents', `${wtPath}/.claude/agents`, { recursive: true });
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.claude/skills', `${wtPath}/.claude/skills`, { recursive: true });
+    expect(mockCpSync).not.toHaveBeenCalledWith(
+      expect.stringContaining('settings.local.json'),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(mockCpSync).not.toHaveBeenCalledWith('/tmp/test/.claude/worktrees', expect.anything(), expect.anything());
+  });
+
+  it('nested skill directories reach the worktree (regression: the pre-slice flat isFile() loop never copied them)', () => {
+    mockExistsSync.mockImplementation((p: string) => p === wtPath || p === '/tmp/test/.claude/skills');
+
+    propagateToWorktrees(sampleProjectWithWorktrees, 'claude');
+
+    // fs.cpSync({recursive: true}) copies nested skill dirs (skills/<name>/SKILL.md) in one
+    // call. The pre-slice implementation used readdirSync + entry.isFile(), which silently
+    // skipped every nested directory — this call only exists after that rewrite.
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.claude/skills', `${wtPath}/.claude/skills`, { recursive: true });
+  });
+
+  it('copilot copies both marker files and .github/instructions/ + .github/prompts/', () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === copilotInstructionsPath) return true;
+      if (p === agentsMdPath) return true;
+      if (p === '/tmp/test/.github/instructions') return true;
+      if (p === '/tmp/test/.github/prompts') return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+
+    propagateToWorktrees(sampleProjectWithWorktrees, 'copilot');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, `${wtPath}/.github/copilot-instructions.md`);
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, `${wtPath}/AGENTS.md`);
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.github/instructions', `${wtPath}/.github/instructions`, { recursive: true });
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.github/prompts', `${wtPath}/.github/prompts`, { recursive: true });
+  });
+
+  it('cursor copies AGENTS.md and .cursor/rules/', () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === agentsMdPath) return true;
+      if (p === '/tmp/test/.cursor/rules') return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+
+    propagateToWorktrees(sampleProjectWithWorktrees, 'cursor');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, `${wtPath}/AGENTS.md`);
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.cursor/rules', `${wtPath}/.cursor/rules`, { recursive: true });
+  });
+
+  it('agents copies AGENTS.md and .agents/skills/', () => {
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p === agentsMdPath) return true;
+      if (p === '/tmp/test/.agents/skills') return true;
+      if (p === wtPath) return true;
+      return false;
+    });
+
+    propagateToWorktrees(sampleProjectWithWorktrees, 'agents');
+
+    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, `${wtPath}/AGENTS.md`);
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.agents/skills', `${wtPath}/.agents/skills`, { recursive: true });
+  });
+
+  it('skips a worktree whose worktreePath does not exist, without error', () => {
+    mockExistsSync.mockReturnValue(false); // wtPath itself absent
+
+    expect(() => propagateToWorktrees(sampleProjectWithWorktrees, 'claude')).not.toThrow();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+  });
+
+  it('zero registered worktrees → no-op, no error', () => {
+    mockExistsSync.mockReturnValue(true);
+
+    expect(() => propagateToWorktrees(sampleProject, 'claude')).not.toThrow();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+  });
+
+  it('an unresolvable target throws instead of returning silently', () => {
+    mockExistsSync.mockImplementation((p: string) => p === wtPath);
+
+    expect(() => propagateToWorktrees(sampleProjectWithWorktrees, 'notarealtarget')).toThrow(
+      "No propagation descriptor for target 'notarealtarget'.",
+    );
   });
 });

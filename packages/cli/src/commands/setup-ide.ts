@@ -194,22 +194,23 @@ export async function setupIdeAction(
  * The setup-ide script always writes to the project root (its find_project_root()
  * walks up to the nearest directory containing project-documents/, which is always
  * the root). Worktrees share the same guides submodule source but have independent
- * working trees, so without propagation their CLAUDE.md and .claude/ config files
- * go stale after every root setup-ide run.
+ * working trees, so without propagation their compiled IDE files go stale after
+ * every root setup-ide run.
  *
- * Files propagated (claude target):
- *   CLAUDE.md               — compiled from alwaysApply rules
- *   .claude/rules/          — modular (non-alwaysApply) rule files
- *   .claude/agents/         — agent definition files
- *   .claude/skills/         — skill definition files
- *
- * Files intentionally NOT propagated:
- *   .claude/settings.local.json  — worktree-specific user settings
- *   .claude/worktrees/           — cf worktree registry, root-only
+ * Descriptor-driven: each target's `markerFiles` and `propagateDirs` (see TARGETS)
+ * define exactly what is copied. `.claude/settings.local.json` and `.claude/worktrees/`
+ * stay out because neither appears in any target's `propagateDirs` — the former is
+ * worktree-specific, the latter is the cf worktree registry and root-only.
  */
-function propagateToWorktrees(project: ProjectData, target: string): void {
+export function propagateToWorktrees(project: ProjectData, target: string): void {
   const worktrees = (project.worktrees ?? []).filter((wt) => wt.worktreePath && fs.existsSync(wt.worktreePath));
   if (worktrees.length === 0) return;
+
+  const resolvedTarget = normalizeTarget(target);
+  if (!resolvedTarget) {
+    throw new UserError(`No propagation descriptor for target '${target}'.`);
+  }
+  const descriptor = TARGETS[resolvedTarget];
 
   const rootPath = project.projectPath!;
 
@@ -217,53 +218,20 @@ function propagateToWorktrees(project: ProjectData, target: string): void {
     const wtPath = wt.worktreePath!;
     console.log(`  → propagating to worktree: ${wt.name ?? wt.id} (${wtPath})`);
 
-    if (target === 'claude') {
-      // CLAUDE.md
-      const srcMd = path.join(rootPath, 'CLAUDE.md');
-      if (fs.existsSync(srcMd)) {
-        fs.copyFileSync(srcMd, path.join(wtPath, 'CLAUDE.md'));
-      }
-
-      // .claude/{rules,agents,skills}
-      for (const dir of ['rules', 'agents', 'skills']) {
-        const srcDir = path.join(rootPath, '.claude', dir);
-        const dstDir = path.join(wtPath, '.claude', dir);
-        if (!fs.existsSync(srcDir)) continue;
-        fs.mkdirSync(dstDir, { recursive: true });
-        for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
-          if (entry.isFile()) {
-            fs.copyFileSync(path.join(srcDir, entry.name), path.join(dstDir, entry.name));
-          }
-        }
-      }
-    } else if (target === 'copilot') {
-      // AGENTS.md
-      const srcAgents = path.join(rootPath, 'AGENTS.md');
-      if (fs.existsSync(srcAgents)) {
-        fs.copyFileSync(srcAgents, path.join(wtPath, 'AGENTS.md'));
-      }
-
-      // .github/copilot-instructions.md
-      const srcInstructions = path.join(rootPath, '.github', 'copilot-instructions.md');
-      if (fs.existsSync(srcInstructions)) {
-        fs.mkdirSync(path.join(wtPath, '.github'), { recursive: true });
-        fs.copyFileSync(srcInstructions, path.join(wtPath, '.github', 'copilot-instructions.md'));
-      }
-
-      // .github/instructions/ and .github/prompts/
-      for (const dir of ['instructions', 'prompts']) {
-        const srcDir = path.join(rootPath, '.github', dir);
-        const dstDir = path.join(wtPath, '.github', dir);
-        if (!fs.existsSync(srcDir)) continue;
-        fs.mkdirSync(dstDir, { recursive: true });
-        for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
-          if (entry.isFile()) {
-            fs.copyFileSync(path.join(srcDir, entry.name), path.join(dstDir, entry.name));
-          }
-        }
-      }
+    for (const relFile of descriptor.markerFiles) {
+      const srcFile = path.join(rootPath, ...relFile.split('/'));
+      if (!fs.existsSync(srcFile)) continue;
+      const dstFile = path.join(wtPath, ...relFile.split('/'));
+      fs.mkdirSync(path.dirname(dstFile), { recursive: true });
+      fs.copyFileSync(srcFile, dstFile);
     }
-    // Future targets (cursor, windsurf) would propagate their own dirs here.
+
+    for (const relDir of descriptor.propagateDirs) {
+      const srcDir = path.join(rootPath, ...relDir.split('/'));
+      if (!fs.existsSync(srcDir)) continue;
+      const dstDir = path.join(wtPath, ...relDir.split('/'));
+      fs.cpSync(srcDir, dstDir, { recursive: true });
+    }
   }
 
   console.log(`  Propagated to ${worktrees.length} worktree${worktrees.length !== 1 ? 's' : ''}.`);
@@ -278,8 +246,11 @@ export function registerSetupIdeCommand(program: Command): void {
   withYesOption(ideCmd);
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {
       try {
-        // Validate target early (before project resolution for fast failure)
-        if (!normalizeTarget(target)) {
+        // Validate and normalize target early (before project resolution for fast
+        // failure). Both downstream calls use the normalized value — an alias like
+        // 'codex' has no entry in TARGETS, and propagateToWorktrees throws on a miss.
+        const normalizedTarget = normalizeTarget(target);
+        if (!normalizedTarget) {
           throw new UserError(invalidTargetMessage(target));
         }
 
@@ -298,8 +269,8 @@ export function registerSetupIdeCommand(program: Command): void {
           );
         }
 
-        await setupIdeAction(project.projectPath, target, { yes: opts.yes });
-        propagateToWorktrees(project, target);
+        await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
+        propagateToWorktrees(project, normalizedTarget);
       } catch (err) {
         handleError(err);
       }
