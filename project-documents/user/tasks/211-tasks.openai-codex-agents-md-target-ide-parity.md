@@ -195,20 +195,20 @@ Design Decision 6 makes this a gate rather than an assumption. Its outcome deter
 
 ## Section 7: `ContextEmbedder` conventions resolution
 
-- [ ] **7.1** Replace the hardcoded `CLAUDE.md` read in `packages/core/src/services/ContextEmbedder.ts`
-  - [ ] Add `const CONVENTIONS_FILES = ['CLAUDE.md', 'AGENTS.md', '.github/copilot-instructions.md']` with a comment stating it is a read-priority list, first match wins
-  - [ ] Probe in order; embed the first file that reads successfully, labelled with its relative path
-  - [ ] When none is found, push a warning into the existing `warnings` array: `no conventions file found (looked for: CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) — the embedded context has no project conventions`
-  - [ ] Do not merge this list with the CLI's `TARGETS` table — see design Decision 5 for why; note it in the comment
-  - [ ] Remove the silent `catch` and its "CLAUDE.md is optional" comment
+- [x] **7.1** Replace the hardcoded `CLAUDE.md` read in `packages/core/src/services/ContextEmbedder.ts`
+  - [x] Add `const CONVENTIONS_FILES = ['CLAUDE.md', 'AGENTS.md', '.github/copilot-instructions.md']` with a comment stating it is a read-priority list, first match wins
+  - [x] Probe in order; embed the first file that reads successfully, labelled with its relative path
+  - [x] When none is found, push a warning into the existing `warnings` array: `no conventions file found (looked for: CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) — the embedded context has no project conventions`
+  - [x] Do not merge this list with the CLI's `TARGETS` table — see design Decision 5 for why; note it in the comment
+  - [x] Remove the silent `catch` and its "CLAUDE.md is optional" comment
 
-- [ ] **7.2** Test: conventions resolution
-  - [ ] Embeds `CLAUDE.md` when present (existing behavior preserved)
-  - [ ] Embeds `AGENTS.md` when `CLAUDE.md` is absent
-  - [ ] Embeds `.github/copilot-instructions.md` when it is the only conventions file
-  - [ ] With all three present, embeds exactly one — `CLAUDE.md` — and the output contains exactly one conventions block
-  - [ ] With none present, the returned context contains the no-conventions warning and no conventions block
-  - [ ] The no-conventions warning appears even when every artifact file resolved successfully (the warning section must not be gated on artifact failures)
+- [x] **7.2** Test: conventions resolution
+  - [x] Embeds `CLAUDE.md` when present (existing behavior preserved)
+  - [x] Embeds `AGENTS.md` when `CLAUDE.md` is absent
+  - [x] Embeds `.github/copilot-instructions.md` when it is the only conventions file
+  - [x] With all three present, embeds exactly one — `CLAUDE.md` — and the output contains exactly one conventions block
+  - [x] With none present, the returned context contains the no-conventions warning and no conventions block
+  - [x] The no-conventions warning appears even when every artifact file resolved successfully (the warning section must not be gated on artifact failures)
 
 **Commit:** `fix(core): resolve the project conventions file instead of hardcoding CLAUDE.md`
 
