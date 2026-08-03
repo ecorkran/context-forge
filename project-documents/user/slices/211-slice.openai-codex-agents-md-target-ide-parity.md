@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: [210-github-copilot-vs-code-ide-support]
 interfaces: []
 dateCreated: 20260802
-dateUpdated: 20260802
-status: not_started
+dateUpdated: 20260803
+status: in_progress
 ---
 
 # Slice 211: OpenAI Codex / AGENTS.md Target & IDE Parity
@@ -269,6 +269,10 @@ Manual (cannot be automated in CI):
 
 ## Verification Walkthrough
 
+**Coupled-release caveat (confirmed during Phase 6, see Risks):** the ai-project-guide submodule commits for Sections 9–11 were made locally but were NOT pushed to the submodule's remote as of this walkthrough (pushing a separate repo's history is outside this slice's automation scope — a PM/human action). A fresh `cf guides install` in a new scratch project therefore clones the last *published* guide version, which does not have this slice's upstream changes, and every step below would silently exercise old behavior. To verify the real thing pre-publish: after `cf init`/`cf guides install` completes, replace the installed `project-documents/ai-project-guide` directory with a symlink to this repo's local `project-documents/ai-project-guide` checkout (on the `211-slice...` branch), then re-run the relevant `cf setup-ide <target>` command. This is exactly the version-skew risk the design's Risks section flags — it is silent, not loud, so confirm `cf guide status` / the symlink is actually pointing at the slice's branch before trusting any step's output.
+
+Also: the global `cf` binary is very likely a separately-published npm install, not this working tree's build. Confirm with `cf setup-ide --help` before relying on it — if it still lists only `claude, copilot`, invoke the local build directly instead (`node packages/cli/dist/index.js ...`) after `pnpm --filter @context-forge/cli build`.
+
 ### 1. Codex target, end to end
 
 ```bash
@@ -292,9 +296,13 @@ Aliases resolve to the same target:
 cf setup-ide openai && cf setup-ide agents   # both silent re-runs, no prompt, no .bak
 ```
 
+**✅ Verified** (after swapping in the local guide checkout per the caveat above). All outputs matched exactly. One correction: the init summary reports `IDE configured for agents (codex)`, not `IDE configured for codex` as originally written above — task 5.3's alias-visibility behavior (`agents (codex)`) supersedes the plain form this walkthrough step was drafted against.
+
 ### 2. Codex actually reads it
 
 Open a Codex session in `/tmp/test-codex-211` and ask it to state the project's commit-message convention without naming a file. It should answer from the compiled rules. Then ask it to use a skill by name and confirm it locates the `SKILL.md`. This is the Decision 6 confirmation — if discovery fails, `.agents/skills/` is the wrong path and the fallback applies.
+
+**✅ Confirmed** — this is the same gate as task 2.1–2.3. A real Codex session in a hand-prepared probe repo confirmed both: `AGENTS.md` was read (Codex stated the probe's made-up commit prefix without being told the filename) and `.agents/skills/probe-skill/SKILL.md` was located and followed by name. Decision 6's path is confirmed correct on the first attempt — no `.codex/skills/` fallback needed.
 
 ### 3. Cursor target and the split
 
@@ -314,6 +322,8 @@ No always-on rule appears in both places:
 grep -l "alwaysApply" .cursor/rules/*.mdc || echo "no always-on rules in .cursor/rules — correct"
 ```
 
+**✅ Verified.** One correction: `head -8 .cursor/rules/typescript.mdc` shows `description:` as the first frontmatter field, with `globs:` as the second (`compile_always_on_rules`/`copy_cursor_rules` emit fields in that order) — not `globs:` immediately after the opening `---` as the comment implies. The important fact (globs: present, derived from paths:, no alwaysApply) is unaffected; only the exact line position was mis-stated.
+
 ### 4. Cursor migration from a pre-split install
 
 ```bash
@@ -327,6 +337,8 @@ diff /tmp/before.txt <(ls .cursor/rules/)
 ```
 
 Expect the always-on rule stems (e.g. `general.mdc`, `git.mdc`) to be gone and scoped stems to remain.
+
+**✅ Verified**, using a `git worktree` of the submodule pinned to the pre-cursor-split commit as the "old" baseline instead of a `git init` + separately-tagged install (simpler to reproduce reliably in a sandbox with no network access). `general.mdc` and `git.mdc` were removed and printed (`🗑️  Removed superseded always-on rule: ...`); all 8 scoped stems were untouched. The pre-slice run's `.cursor/agents/` directory was also confirmed NOT deleted by the new script, with the "no longer managed" warning printed instead.
 
 ### 5. Worktree propagation, including nested skills
 
@@ -345,6 +357,8 @@ cf setup-ide claude
 ls <worktree-path>/.claude/skills/*/SKILL.md   # fails before this slice, passes after
 ```
 
+**⚠️ Bug found and fixed during this step.** A project whose worktrees array was created via `cf worktree init` on a project with no prior worktree contexts carries a "default" worktree context that `WorktreeService` migrates in automatically — its `worktreePath` is the project root itself (`worktreePath: project.projectPath`, see `WorktreeService.ts`). `fs.cpSync` (introduced by Section 6) throws `ERR_FS_CP_EINVAL: src and dest cannot be the same` when asked to copy a directory onto itself, so `cf setup-ide <target>` crashed on any project carrying this migrated context, for any target with `propagateDirs`. The pre-slice flat-copy implementation tolerated this silently (copying a file onto itself is a no-op for `copyFileSync`). Fixed in `propagateToWorktrees` by excluding any worktree whose resolved `worktreePath` equals the resolved project root before the existing `worktreePath`/`existsSync` filter. Regression tests added in `setup-ide.test.ts` (`propagateToWorktrees` describe block): the root-path worktree is skipped without error, and a real co-registered worktree still propagates correctly alongside it. Re-verified end to end with a real `git worktree` after the fix: `AGENTS.md` and nested `.agents/skills/*/SKILL.md` both reached the worktree, and the claude-path regression check (`.claude/skills/*/SKILL.md`) also passed.
+
 ### 6. Unmanaged file protection on the new targets
 
 ```bash
@@ -355,6 +369,8 @@ cf setup-ide codex
 ```
 
 Expect a prompt before overwriting. Answer `n` → `Aborted.`, `AGENTS.md` unchanged. Re-run and answer `y` → `AGENTS.md.bak` created with the original content.
+
+**✅ Verified**, both branches.
 
 ### 7. The `--embed` fix
 
@@ -375,6 +391,8 @@ mv /tmp/AGENTS.md .
 
 Expect the warning to be present and visible in the built context.
 
+**✅ Verified**, both branches — but not in the exact project from step 1, since that project had accumulated a `CLAUDE.md` from step 5's claude-target regression check by the time this step ran, and `CLAUDE.md` correctly takes priority over `AGENTS.md` per `CONVENTIONS_FILES` order. Re-ran against a fresh codex-only project instead. This is a walkthrough sequencing note, not a defect: running steps 1–8 as fully independent scratch projects (rather than reusing one project's directory across steps) avoids the cross-contamination.
+
 ### 8. Invalid target
 
 ```bash
@@ -386,6 +404,8 @@ Expect `Invalid target 'notarealtarget'. Valid targets: claude, copilot, cursor,
 ```bash
 grep -rn "windsurf" packages/ README.md   # only the README MCP config mention
 ```
+
+**✅ Verified.** One correction: `grep -rn` (case-sensitive) actually returns zero matches, since the README's MCP-client mention is capitalized (`Windsurf`); use `grep -rni` to find it. Confirmed via case-insensitive search that it is the only remaining occurrence anywhere in `packages/` or `README.md`.
 
 ## Success Criteria
 
@@ -403,6 +423,8 @@ grep -rn "windsurf" packages/ README.md   # only the README MCP config mention
 ## Risks
 
 **Coupled CF + ai-project-guide release** — Highest risk, inherited from 210 and larger here. `cf setup-ide cursor` against an older guides submodule produces the pre-split layout with no error, because the script accepts `cursor` in both versions. This is a silent version-skew failure, not a loud one. Mitigation: the implementation task should confirm what `cf guide status` reports for a project on an older guide and decide whether a minimum-version check belongs in this slice or is filed as follow-up.
+
+**Confirmed during Phase 6:** `cf guide status`/`cf guides info` reports `Version: v0.16.1, Latest: v0.16.1` identically whether the installed submodule is the published v0.16.1 tag or this slice's unpublished local branch (several commits ahead) — version detection compares against the last tag, which has no way to reflect unpublished, unhashed content. There is currently no signal anywhere that would tell a user their installed guide lacks this slice's capabilities even though `cf setup-ide codex|cursor` validates and runs. A minimum-required-guide-version check is a real, cross-repo versioning feature (CF would need to know the minimum ai-project-guide version its own release requires, and compare against installed content rather than a tag) — clearly out of scope for this already-large slice. **Filed as follow-up, not expanded here**, per this section's own instruction.
 
 **Codex skills discovery path** — `.agents/skills/` is documented but community sources disagree. Decision 6 makes runtime confirmation a gate rather than an assumption; the cost of being wrong is caught in step 2 of the walkthrough, not after release.
 
