@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: [210-github-copilot-vs-code-ide-support]
 interfaces: []
 dateCreated: 20260802
-dateUpdated: 20260803
-status: in_progress
+dateUpdated: 20260804
+status: complete
 ---
 
 # Slice 211: OpenAI Codex / AGENTS.md Target & IDE Parity

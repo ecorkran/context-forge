@@ -5,8 +5,8 @@ project: context-forge
 lld: user/slices/211-slice.openai-codex-agents-md-target-ide-parity.md
 dependencies: [210-github-copilot-vs-code-ide-support]
 dateCreated: 20260802
-dateUpdated: 20260803
-status: in_progress
+dateUpdated: 20260804
+status: complete
 ---
 
 # Tasks: Slice 211 — OpenAI Codex / AGENTS.md Target & IDE Parity
@@ -296,7 +296,8 @@ Depends on `include_scoped_index` from 10.1.
   - [x] `grep -l alwaysApply .cursor/rules/*.mdc` returns nothing — the split is exclusive
   - [x] Scoped `.mdc` files carry `globs:` frontmatter derived from the source `paths:`
   - [x] Migration: run the pre-slice script version in a scratch repo, capture `ls .cursor/rules/`, then run the new version — always-on stems are gone, scoped stems remain, and the removals are printed
-  - [ ] **Hand-off (see Manual Verification Ownership):** prepare the scratch repo, then hand off for a real Cursor session confirming always-on guidance from `AGENTS.md` and a scoped rule from `.cursor/rules/` are both in effect
+  - [x] **Hand-off (see Manual Verification Ownership):** prepare the scratch repo, then hand off for a real Cursor session confirming always-on guidance from `AGENTS.md` and a scoped rule from `.cursor/rules/` are both in effect
+    Confirmed via real Cursor session on 20260804: AGENTS.md's always-on commit-message guidance was correctly cited without naming the file, and the scoped typescript.mdc `any`-ban rule was correctly applied while a .ts file was open.
 
 **Commit:** `feat(guide): split cursor rules between AGENTS.md and .cursor/rules`
 
