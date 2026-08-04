@@ -7,7 +7,7 @@ archIndex: 200
 component: developer-onboarding
 dateCreated: 20260314
 dateUpdated: 20260802
-status: in_progress
+status: complete
 relatedSlices: []
 riskLevel: low
 ---
