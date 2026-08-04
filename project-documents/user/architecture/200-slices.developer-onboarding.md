@@ -220,7 +220,7 @@ status: in_progress
     **Risk:** Med — involves the guides submodule (ai-project-guide scripts), frontmatter translation correctness, and a file layout VS Code's compatibility story is still evolving on
     **Effort:** 3/5
 
-11. [ ] **(211) OpenAI Codex / AGENTS.md Target & IDE Parity** — Enable the `agents` (alias `openai`, `codex`) and `cursor` IDE targets, and close the non-Claude parity gaps that 210 left open. The guide-side compiler already supports both targets — ai-project-guide v0.16.0 (20260730) shipped the `agents` target and CF's `VALID_TARGETS` was never updated to match — so most of this slice is reconnecting CF to capability that already exists, plus a coupled upstream change to bring the codex surface to parity with Claude's.
+11. [x] **(211) OpenAI Codex / AGENTS.md Target & IDE Parity** — Enable the `agents` (alias `openai`, `codex`) and `cursor` IDE targets, and close the non-Claude parity gaps that 210 left open. The guide-side compiler already supports both targets — ai-project-guide v0.16.0 (20260730) shipped the `agents` target and CF's `VALID_TARGETS` was never updated to match — so most of this slice is reconnecting CF to capability that already exists, plus a coupled upstream change to bring the codex surface to parity with Claude's.
 
     **CF-side work:**
     - Extend `VALID_TARGETS` in `packages/cli/src/commands/setup-ide.ts` from `['claude', 'copilot']` to include `agents` and `cursor`, accepting `openai` and `codex` as aliases normalized at the CF layer (the guide script normalizes too, but CF owns the `--help` text and the invalid-target message)
