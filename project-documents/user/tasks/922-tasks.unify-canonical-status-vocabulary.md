@@ -69,9 +69,14 @@ reference it rather than duplicating it.
         in both vocabularies).
   - [ ] Do not edit `NormalizedStatus` — it derives from `STATUS` via
         `(typeof STATUS)[keyof typeof STATUS]` and updates automatically.
-  - [ ] Success: `pnpm --filter @context-forge/core build` fails with type
-        errors at every call site now incompatible with the new literal
-        types (expected at this checkpoint — do not fix yet).
+  - [ ] Note: because slice 910 already swept every source reference onto
+        `STATUS.*` (confirmed: no bare `'in-progress'`/`'not-started'`
+        literal comparisons remain outside `types.ts` itself, a comment,
+        and one prose string), this edit is expected to compile clean via
+        literal-type propagation — not to break the build. Tasks 5–6
+        exist to verify that expectation and handle the two known
+        non-propagating exceptions, not to fix a red build.
+  - [ ] Success: `pnpm --filter @context-forge/core build` succeeds.
 
 - [ ] 3. Derive `VALID_STATUSES` from `STATUS`
   - [ ] In `packages/core/src/schema/frontmatterSchema.ts`, replace the
@@ -84,49 +89,55 @@ reference it rather than duplicating it.
         `packages/core/tests/schema/frontmatterSchema.test.ts` for such an
         assertion before changing declaration order.
   - [ ] Success: `VALID_STATUSES` no longer contains a literal status
-        string; it is fully derived.
+        string; it is fully derived; `pnpm --filter @context-forge/core build`
+        succeeds.
 
 - [ ] 4. Commit the single-source-of-truth change
   - [ ] Commit message:
         `refactor(core): make STATUS the single source for VALID_STATUSES`
-  - [ ] Success: change is committed. Full build is not expected to pass
-        yet (Task 2 introduced type errors by design) — do not gate this
-        commit on a green build.
+  - [ ] Success: working tree clean; `pnpm --filter @context-forge/core build`
+        green.
 
 ### Part 2 — Sweep source references
 
-- [ ] 5. Sweep the 7 core introspection files
-  - [ ] Rebuild (`pnpm --filter @context-forge/core build`) and resolve
-        every type error in: `ConsistencyChecker.ts`,
-        `ProjectModelBuilder.ts`, `WorkflowNavigator.ts`,
-        `statusDerivation.ts`, `slicePlanParser.ts`, `taskFileParser.ts`,
-        `statusNormalizer.ts`. Per the design, most sites already
-        reference `STATUS.*` and require no edit — only fix sites `tsc`
-        actually flags.
+- [ ] 5. Verify the 7 core introspection files and fix the two known exceptions
+  - [ ] Rebuild (`pnpm --filter @context-forge/core build`) and confirm no
+        type errors in: `ConsistencyChecker.ts`, `ProjectModelBuilder.ts`,
+        `WorkflowNavigator.ts`, `statusDerivation.ts`,
+        `slicePlanParser.ts`, `taskFileParser.ts`, `statusNormalizer.ts`.
+        Per Task 2's note, these should already compile clean — if `tsc`
+        surfaces an error at a site not listed below, treat it as a sign
+        an unmapped bare literal survived slice 910, and fix that specific
+        site.
   - [ ] In `statusNormalizer.ts`, do NOT change the `STATUS_MAP` **keys**
         (e.g. `'in-progress'`, `'not-started'`) — they are input aliases
         for lenient reading, not canonical output values. Only the map's
-        *values* should follow the new `STATUS` constant.
+        *values* follow the new `STATUS` constant, and those already do
+        via the constant reference (verify, do not blindly edit).
   - [ ] In `ConsistencyChecker.ts` (~line 410), update the hardcoded prose
         string `Frontmatter status is "not-started" but tasks are in
         progress` to say `"not_started"`, matching what is actually
-        written to disk.
+        written to disk. This is a string literal, so it will not be
+        caught by `tsc` — it must be located and fixed explicitly.
   - [ ] Success: all 7 files compile clean; `statusNormalizer.ts`'s
-        `STATUS_MAP` keys are unchanged from before this task.
+        `STATUS_MAP` keys are unchanged from before this task;
+        `ConsistencyChecker.ts`'s prose string now reads `"not_started"`.
 
-- [ ] 6. Sweep the 3 CLI files
-  - [ ] Resolve any remaining type errors in
+- [ ] 6. Verify the 3 CLI files
+  - [ ] Confirm no type errors in
         `packages/cli/src/output/entryStatusDisplay.ts`,
         `packages/cli/src/commands/slice.ts`, and
-        `packages/cli/src/commands/arch.ts`.
+        `packages/cli/src/commands/arch.ts`. Per Task 2's note these
+        should already compile clean via `STATUS.*` references.
   - [ ] Success: `pnpm -r build` succeeds cleanly across core, cli, and
-        mcp-server with zero remaining type errors.
+        mcp-server.
 
-- [ ] 7. Commit the source sweep
-  - [ ] Commit message: `refactor: update status references for underscored STATUS constant`
-  - [ ] Success: working tree clean, full build green. Test suites are not
-        expected to be green yet (Part 3 has not run) — do not gate this
-        commit on `pnpm -r test`.
+- [ ] 7. Commit the source verification and prose-string fix
+  - [ ] Commit message: `fix: correct hardcoded status prose string for underscored STATUS constant`
+  - [ ] Success: working tree clean, full build green. `pnpm -r test` is
+        not yet expected to be fully green — test files still assert the
+        old hyphenated values in places Part 4 has not yet reclassified;
+        do not gate this commit on `pnpm -r test`.
 
 ### Part 3 — Delete the validation workaround
 
@@ -144,6 +155,13 @@ reference it rather than duplicating it.
         status into a valid one: an input `normalizeStatus` cannot map
         must still fall through to `normalizedValue` and fail the
         `def.values` check.
+  - [ ] Note the observable behavior change this introduces: today, an
+        unrecognized value like `'some-thing'` is reported as invalid
+        `'some_thing'` (post-`.replace()`); after this change it is
+        reported as invalid `'some-thing'` (unmodified user input). This
+        is an improvement — the error now shows what the user actually
+        typed — but call it out in the Task 11 commit message so it is
+        not mistaken for an unintended regression.
   - [ ] Success: the `.replace(/-/g, '_')` workaround no longer exists in
         `frontmatterSchema.ts`.
 
@@ -172,7 +190,10 @@ reference it rather than duplicating it.
         is missing.
 
 - [ ] 11. Commit the workaround removal and new gate tests
-  - [ ] Commit message: `fix(core): reject hyphenated status in validateFrontmatter`
+  - [ ] Commit message: `fix(core): reject hyphenated status in validateFrontmatter`.
+        In the commit body, note the invalid-value error-message change
+        from Task 8: unrecognized status values are now reported as typed
+        rather than partially normalized.
   - [ ] Success: working tree clean; `frontmatterSchema.test.ts` and
         `statusNormalizer.test.ts` green.
 
@@ -239,7 +260,7 @@ reference it rather than duplicating it.
 - [ ] 19. Classify and update the remaining 13 test files (≤5 literals each)
   - [ ] Identify the remaining files via:
         `grep -rl 'in-progress\|not-started' packages/*/tests --include='*.test.ts'`
-        excluding the six files already handled in Tasks 12, 15, 16, 18.
+        excluding the five files already handled in Tasks 12, 15, 16, 18.
         Apply the same per-occurrence classification to each.
   - [ ] Success: every remaining file in the list passes with the updated
         `STATUS` constant.
@@ -277,7 +298,10 @@ reference it rather than duplicating it.
         fallback, proving leniency survived; (5) `cf list slices --json`
         emits `not_started`, not `not-started`.
   - [ ] Update the design document's Verification Walkthrough section in
-        place with the real commands run and actual output observed.
+        place with the real commands run and actual output observed. This
+        is an intentional, in-scope edit that replaces draft/expected
+        output with ground truth — not a mid-implementation design change
+        to any decision, scope, or success criterion in the document.
   - [ ] Success: all five steps confirmed against real output; design doc
         updated with actual (not draft) output.
 
@@ -316,7 +340,9 @@ reference it rather than duplicating it.
   - [ ] Set `user/slices/922-slice.unify-canonical-status-vocabulary.md`'s
         frontmatter `status` to `complete`.
   - [ ] Check off entry 22 `(922)` in
-        `user/architecture/900-slices.maintenance-and-refactoring.md`.
+        `user/architecture/900-slices.maintenance-and-refactoring.md` —
+        change the leading `- [ ]` before the entry number to `- [x]`,
+        matching the format already used by entries 19–21 in that file.
   - [ ] Success: `cf list slices` renders 922 as `✓ complete`.
 
 - [ ] 27. Final commit
