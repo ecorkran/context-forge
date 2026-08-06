@@ -425,14 +425,15 @@ export class WorkflowNavigator {
    *      suppressed entirely when that worktree has rangeOverride.
    *   2. Worktrees configured but none active → warn unless index is inside
    *      any configured worktree's indexRange.
-   *   3. No worktrees configured → legacy hundredBlock(index) vs
-   *      hundredBlock(archIndex) comparison.
+   *   3. Fewer than two worktrees configured → legacy hundredBlock(index) vs
+   *      hundredBlock(archIndex) comparison. A lone worktree does not
+   *      range-filter (see getWorktreeIndexRange), so it must not warn either.
    * Returns null when no warning applies. At most one warning is ever produced.
    */
   private resolveBandWarning(project: ResolvedProject, sliceIndex: number): string | null {
     const worktrees = project.worktrees ?? [];
 
-    if (worktrees.length > 0) {
+    if (worktrees.length > 1) {
       const resolvedId = project.resolvedWorktree?.id;
       const active = resolvedId ? worktrees.find((w) => w.id === resolvedId) : undefined;
 

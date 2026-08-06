@@ -215,6 +215,19 @@ describe('getWorktreeIndexRange', () => {
     const noWt: ProjectData = { ...baseProject, worktrees: undefined };
     expect(getWorktreeIndexRange(noWt, 'wt_api')).toBeUndefined();
   });
+
+  it('returns undefined when only one worktree is configured (#75)', () => {
+    // Range filtering isolates multiple worktrees from each other. With a lone
+    // worktree there is nothing to isolate, so filtering would only hide the
+    // user's own work — e.g. the 900 block under a migrated [100,799] default.
+    const soleWt: ProjectData = {
+      ...baseProject,
+      worktrees: [
+        { id: 'wt_default', name: 'default', indexRange: [100, 799], worktreePath: '/tmp/test' },
+      ],
+    };
+    expect(getWorktreeIndexRange(soleWt, 'wt_default')).toBeUndefined();
+  });
 });
 
 describe('getWorktreeRangeOverride', () => {

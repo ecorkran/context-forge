@@ -713,7 +713,10 @@ describe('WorkflowNavigator', () => {
         fileSlice: '209-slice.nonexistent.md',
         fileArch: '100-arch.test-system',
         developmentPhase: 'Phase 4: Slice Design',
-        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+        worktrees: [
+          { id: 'wt-default', name: 'default', indexRange: [100, 799] },
+          { id: 'wt-api', name: 'api', indexRange: [800, 899] },
+        ],
         resolvedWorktree: { id: 'wt-default', name: 'default' },
       });
       const next = await nav.getNext(project);
@@ -747,6 +750,7 @@ describe('WorkflowNavigator', () => {
         developmentPhase: 'Phase 4: Slice Design',
         worktrees: [
           { id: 'wt-default', name: 'default', indexRange: [100, 199], rangeOverride: true },
+          { id: 'wt-api', name: 'api', indexRange: [300, 399] },
         ],
         resolvedWorktree: { id: 'wt-default', name: 'default' },
       });
@@ -760,7 +764,10 @@ describe('WorkflowNavigator', () => {
         fileSlice: '209-slice.nonexistent.md',
         fileArch: '100-arch.test-system',
         developmentPhase: 'Phase 4: Slice Design',
-        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+        worktrees: [
+          { id: 'wt-default', name: 'default', indexRange: [100, 799] },
+          { id: 'wt-api', name: 'api', indexRange: [800, 899] },
+        ],
       });
       const next = await nav.getNext(project);
 
@@ -772,7 +779,10 @@ describe('WorkflowNavigator', () => {
         fileSlice: '850-slice.nonexistent.md',
         fileArch: '100-arch.test-system',
         developmentPhase: 'Phase 4: Slice Design',
-        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+        worktrees: [
+          { id: 'wt-default', name: 'default', indexRange: [100, 799] },
+          { id: 'wt-api', name: 'api', indexRange: [900, 999] },
+        ],
       });
       const next = await nav.getNext(project);
 
@@ -780,8 +790,26 @@ describe('WorkflowNavigator', () => {
       expect(next.warnings!.length).toBe(1);
       expect(next.warnings![0]).toContain('default');
       expect(next.warnings![0]).toContain('[100-799]');
+      expect(next.warnings![0]).toContain('api');
       expect(next.warnings![0]).not.toContain('band');
       expect(next.warnings![0]).not.toContain('hundred');
+    });
+
+    it('no worktree-range warning when only one worktree is configured, even outside its range (#75)', async () => {
+      // A lone worktree does not range-filter listings, so it must not warn
+      // either. Slice 900 is outside the default's [100,799] but the project
+      // has nothing to isolate it from. The arch hundred-block check still
+      // applies as the legacy fallback.
+      const project = makeProject({
+        fileSlice: '900-slice.nonexistent.md',
+        fileArch: '900-arch.maintenance',
+        developmentPhase: 'Phase 4: Slice Design',
+        worktrees: [{ id: 'wt-default', name: 'default', indexRange: [100, 799] }],
+        resolvedWorktree: { id: 'wt-default', name: 'default' },
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.warnings).toBeUndefined();
     });
 
     // No-worktrees legacy case is already covered by

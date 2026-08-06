@@ -19,15 +19,17 @@ export function applyWorktreeOverlay(project: ProjectData, worktreeId: string): 
 
 /**
  * Get the index range for filtering, if applicable.
- * Returns the worktree's indexRange for ALL worktrees (including default).
- * Returns undefined only when no worktreeId, no worktrees array, or
- * worktree not found (projects without worktrees — no filtering).
+ * Returns undefined (no filtering) when no worktreeId, no worktrees array,
+ * worktree not found, or only one worktree is configured — range filtering
+ * exists to isolate multiple worktrees from each other, so a lone worktree
+ * has nothing to isolate and filtering would only hide the user's own work.
  */
 export function getWorktreeIndexRange(
   project: ProjectData,
   worktreeId?: string,
 ): [number, number] | undefined {
   if (!worktreeId || !project.worktrees) return undefined;
+  if (project.worktrees.length === 1) return undefined;
   const wt = project.worktrees.find((w) => w.id === worktreeId);
   if (!wt) return undefined;
   return wt.indexRange;
