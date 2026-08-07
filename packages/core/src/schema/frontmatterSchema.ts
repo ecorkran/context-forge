@@ -5,6 +5,7 @@
  */
 
 import { normalizeStatus } from '../introspection/parsers/statusNormalizer.js';
+import { STATUS } from '../introspection/types.js';
 
 /** Definition of a single frontmatter field's constraints. */
 export interface FrontmatterFieldDef {
@@ -28,13 +29,7 @@ export interface FrontmatterFinding {
 }
 
 /** Canonical valid status values across all docTypes. */
-export const VALID_STATUSES = [
-  'not_started',
-  'in_progress',
-  'complete',
-  'deferred',
-  'deprecated',
-] as const;
+export const VALID_STATUSES = Object.values(STATUS);
 
 /** Per-docType frontmatter schemas — required fields only. */
 export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {

@@ -1,8 +1,8 @@
 /** Normalized status values used across introspection results */
 export const STATUS = {
   Complete: 'complete',
-  InProgress: 'in-progress',
-  NotStarted: 'not-started',
+  InProgress: 'in_progress',
+  NotStarted: 'not_started',
   Deprecated: 'deprecated',
   Deferred: 'deferred',
 } as const;
