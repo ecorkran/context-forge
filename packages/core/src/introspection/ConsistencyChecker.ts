@@ -407,7 +407,7 @@ export class ConsistencyChecker {
         rule: 'frontmatter-vs-computed',
         severity: 'warning',
         location: sliceDesignFullPath,
-        description: `Frontmatter status is "not-started" but tasks are in progress (${taskResult.completedTasks}/${taskResult.totalTasks})`,
+        description: `Frontmatter status is "not_started" but tasks are in progress (${taskResult.completedTasks}/${taskResult.totalTasks})`,
         suggestedFix: 'Update frontmatter status to "in_progress"',
         fixable: true,
         fixAction: {
