@@ -45,6 +45,17 @@ so Part A's `--fix` path is built on the corrected writer. Then the Rule
 12 extraction (proved by the existing suite), then the docType
 registration, then the CLI command.
 
+**Task review resolution (20260809, reviewed SHA `bbdf2d0`):** verdict PASS
+with three NOTEs. F006 accepted — Task 15(d) gained a `dateUpdated`
+assertion so the `--fix`-composes-with-stamp guarantee is pinned by a test
+rather than only by the manual walkthrough. F007 (parser import path) and
+F008 (Task 13/14 overlap) accepted as-is with no change:
+`ArtifactIntrospector.parseFrontmatter` is a one-line pass-through to the
+`frontmatterParser` function Task 6 imports, so the two paths are the same
+code, and Task 8's byte-identical guard covers the risk either way; the
+13/14 split is a deliberate trade of granularity for a cleaner exit-code
+test checkpoint.
+
 ---
 
 ## Tasks
@@ -318,6 +329,12 @@ registration, then the CLI command.
         service's job, already covered by Task 7).
   - [ ] Assert exit codes explicitly — this is the contract squadron
         depends on, so it must be pinned by tests rather than inferred.
+  - [ ] In case (d), additionally assert that the fixed file's `dateUpdated`
+        equals the run's date stamp. Parts A and B were bundled precisely
+        because `--fix` composes the command with the stamping writer;
+        without this assertion that composition is proven only by the
+        manual walkthrough (Task 18 step 2), which is the weakest place to
+        guard the slice's central guarantee.
   - [ ] Success criteria: `pnpm --filter @context-forge/cli test -- validate`
         green.
 
