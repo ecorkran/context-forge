@@ -9,6 +9,7 @@ import {
   detectDocuments,
   updateFrontmatterField,
 } from '@context-forge/core/node';
+import { formatDateProject } from '@context-forge/core';
 import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
@@ -155,7 +156,7 @@ async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<v
   }
 
   const filePath = join(project.projectPath, docs.sliceDesign);
-  const entry = await updateFrontmatterField(filePath, 'review', 'none');
+  const entry = await updateFrontmatterField(filePath, 'review', 'none', formatDateProject());
 
   if (opts.json) {
     printJson({ slice: index, filePath: docs.sliceDesign, field: 'review', before: entry.before, after: entry.after });

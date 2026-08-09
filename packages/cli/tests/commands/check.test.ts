@@ -317,6 +317,7 @@ describe('cf check --set-review-none', () => {
       expect.stringContaining('100-slice.auth.md'),
       'review',
       'none',
+      expect.any(String),
     );
     // Must never touch the checker/fix pipeline — this is a direct mutation.
     expect(mockCheck).not.toHaveBeenCalled();

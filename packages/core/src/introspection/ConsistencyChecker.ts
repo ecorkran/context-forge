@@ -18,6 +18,7 @@ import type {
 } from './types.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
+import { formatDateProject } from '../project-defaults.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { CONFIG_KEYS, ConfigScope } from '../config/ConfigKeys.js';
@@ -205,7 +206,10 @@ export class ConsistencyChecker {
   }
 
   /** Apply fixes to a check result — shared by fix() and fixAll(). */
-  async applyFixes(checkResult: ConsistencyCheckResult): Promise<ConsistencyFixResult> {
+  async applyFixes(
+    checkResult: ConsistencyCheckResult,
+    dateStamp: string = formatDateProject()
+  ): Promise<ConsistencyFixResult> {
     const fixLog: ConsistencyFixResult['fixLog'] = [];
     const fixErrors: string[] = [];
     let fixed = 0;
@@ -225,7 +229,7 @@ export class ConsistencyChecker {
           fixed++;
         } else if (finding.fixAction.type === 'update-frontmatter') {
           const { key, value } = finding.fixAction.detail as { key: string; value: string };
-          const entry = await updateFrontmatterField(finding.fixAction.filePath, key, value);
+          const entry = await updateFrontmatterField(finding.fixAction.filePath, key, value, dateStamp);
           entry.rule = finding.rule;
           fixLog.push(entry);
           fixed++;
