@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-08-09
+
+### Slice 922 (Unify Canonical Status Vocabulary, #72) + Slice 923 (Frontmatter Validate Command & dateUpdated Stamp, #71/#73) — merged, 0.12.0
+- **922**: `STATUS` in `introspection/types.ts` became the single source of truth (underscored — `in_progress`/`not_started`), with `VALID_STATUSES` deriving from it instead of restating values; the `.replace(/-/g, '_')` workaround in `validateFrontmatter` that let the validator silently accept hyphenated status was removed, so `cf check` now rejects non-canonical spellings and `--fix` writes only canonical values. Reading stays lenient everywhere (`normalizeStatus()` unchanged). **Breaking change to `--json`/MCP wire values** (`in-progress`→`in_progress`, `not-started`→`not_started`), released as such. Merged to `main` (2c90918).
+- **923, Part B (#71)**: `updateFrontmatterField` now stamps `dateUpdated` on every frontmatter write (fourth, required parameter — a compile-time break for `@context-forge/core/node` consumers, acceptable in this unpublished window). Guards against double-writing when the caller's own target field is `dateUpdated` itself, so the existing `dateCreated`-backfill isn't immediately overwritten with the run date.
+- **923, Part A (#73)**: new `cf validate frontmatter [paths...]` command — a narrow, per-document, deterministic validator suitable as a pre-commit gate (unlike `cf check`, whose findings are cross-document and can cascade). No paths walks all methodology docs; explicit paths are filtered to in-root, existing `.md` files and everything else silently skipped (so a raw `git diff --name-only` list can be piped straight in). Exit 0/1/2 contract; `--json` output; `--fix` applies without a confirmation prompt (documented divergence from `cf check --fix`, since findings here are deterministic and the primary caller is a script). Backing service `validateFrontmatterFiles` extracted from `ConsistencyChecker`'s Rule 12 and exported from `@context-forge/core/node`; Rule 12 now delegates to it for document discovery while keeping its own dependency-injected parsing path, so the existing test suite stayed byte-identical through the refactor. Three squadron machine-artifact docTypes (`review-resolution`, `gate-evidence`, `devlog`) registered — `docType` + `dateCreated` only, deliberately no `dateUpdated` (a single-file validator can't know if a doc was edited after creation) and no `status` (append-only, no lifecycle).
+- Both slices' code reviews are on record: 922 merged without one (PM instruction); 923 got two runs — first PASS (8 pass, 2 note), a second re-run after merge came back CONCERNS on one finding (claimed `fixAction.field` type mismatch, citing the wrong sibling type — `ConsistencyFinding.fixAction`'s nested `detail` shape instead of the `FrontmatterFinding.fixAction` flat shape `validate.ts` actually consumes). Resolved as a rejected false positive via `sq review resolve` plus a manual disposition note; `workflow.review_threshold: concerns` already cleared the gate regardless.
+- Merged `923-slice.frontmatter-validate-command-dateupdated-stamp` into `main` (`--no-ff`, 1976437); core 1093 and CLI 517 tests pass; electron's one pre-existing `TemplateProcessor` failure is unrelated and untouched.
+- All four packages already at 0.12.0 (bumped ahead of this work, ec903a3); publish was deliberately deferred until #71/#72/#73 all landed — now true. CHANGELOG `[Unreleased]` retitled to `[0.12.0]`. Tags: `@context-forge/core@0.12.0`, `@context-forge/cli@0.12.0`, `@context-forge/mcp@0.12.0`, `context-forge@0.12.0`.
+
+---
+
 ## 2026-08-02
 
 ### Frontmatter status validation: `draft` is no longer silently accepted — 0.10.7

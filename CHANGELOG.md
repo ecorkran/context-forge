@@ -13,7 +13,7 @@ All notable changes to Squadron will be documented in this file.  This file shou
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.0] - 20260809
 
 ### Changed
 - **BREAKING: derived-status wire values are now underscored** — `in-progress` → `in_progress` and `not-started` → `not_started` in all machine-readable output: `cf list slices --json`, `cf list arch --json`, `cf status --json`, `cf next --json`, and the MCP `introspection_*` / `project_get` tools. There is no deprecated alias or dual-emission — the old hyphenated spellings are no longer emitted anywhere. Consumers comparing against `'in-progress'` / `'not-started'` must update; `complete`, `deferred`, `deprecated` are unchanged. One vocabulary now exists everywhere: on disk, in memory, and on the wire (#72).
