@@ -5,7 +5,7 @@ slice: 922
 parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dateCreated: 20260806
 dateUpdated: 20260809
-status: not_started
+status: in_progress
 ---
 
 # Slice 922: Unify Canonical Status Vocabulary
@@ -236,54 +236,85 @@ The `--json` / MCP wire-value change is breaking for consumers that compare agai
 
 ## Verification Walkthrough
 
-Run from the repo root after implementation.
+Run from the repo root after implementation. All five steps below were executed
+20260809 against a fresh `pnpm -r build`, using the locally built CLI
+(`node packages/cli/dist/index.js`, shown as `cf` below); output is what was
+actually observed.
 
-**1. The reported defect is gone.** Before this slice, this prints `"value": "in-progress"`:
-
-```bash
-cf check --json | grep -o '"value": "[^"]*"' | sort -u
-```
-
-Expect only underscored status values (and non-status fix values). No hyphenated status.
-
-**2. Write side is canonical, end to end.** On a scratch copy of a project whose slice-plan status disagrees with its task completion:
+**1. The reported defect is gone.** Before this slice, this printed `"value": "in-progress"`:
 
 ```bash
-cf check --fix
-grep '^status:' <the-document-it-fixed>
+$ cf check --json | grep -o '"value": "[^"]*"' | sort -u
+"value": "in_progress"
+"value": "not_started"
 ```
 
-Expect `status: in_progress`. This is the exact scenario from the issue's reproduction, which produced `status: in-progress`.
+Only underscored status values. ✓
 
-**3. The gate actually rejects.** In a Node REPL against the built core:
+**2. Write side is canonical, end to end.** Run live on this repo rather than a
+scratch copy — under the strict + auto-fix resolution the repo's own 8 legacy
+documents (`not-started` / `not started`) were the fixture:
+
+```bash
+$ cf check --fix -y
+  ⚠ [922] Frontmatter status is "not_started" but tasks are in progress (44/103)
+    → Fixed: not_started → in_progress in .../922-slice.unify-canonical-status-vocabulary.md
+  ⚠ project-documents/user/slices/101-slice.context-templates.md: Invalid value 'not-started' ... (will fix to 'not_started')
+    → Fixed: not-started → not_started in .../101-slice.context-templates.md
+  ... (8 legacy docs migrated in total)
+Fixed 9 of 13 findings
+
+$ grep '^status:' project-documents/user/slices/101-slice.context-templates.md
+status: not_started
+```
+
+Every written value is canonical underscored. ✓ (This run also surfaced and fixed
+a pre-existing display bug: `check.ts` paired fix-log entries to findings by rule
+only, so multiple same-rule fixes all displayed the first file's path. Now paired
+by rule + file, with a regression test in `check.test.ts`.)
+
+**3. The gate actually rejects.** Against the built core (note: the real
+signature is `validateFrontmatter(filePath, data)`, not the draft's reversed order):
 
 ```js
-const { validateFrontmatter } = require('./packages/core/dist/index.js');
-validateFrontmatter({ docType: 'slice-plan', project: 'x', status: 'in-progress' }, 'f.md');
-// expect a frontmatter-schema finding: invalid value 'in-progress'
-validateFrontmatter({ docType: 'slice-plan', project: 'x', status: 'in_progress' }, 'f.md');
-// expect no status finding
+const { validateFrontmatter } = require('./packages/core/dist/schema/frontmatterSchema.js');
+const base = { docType: 'slice-design', slice: 'x', project: 'x', dateCreated: '20260101', dateUpdated: '20260301' };
+validateFrontmatter('f.md', { ...base, status: 'in-progress' });
+// → 1 finding: "Invalid value 'in-progress' for field 'status' ... will fix to 'in_progress'"
+//   with fixAction { type: 'update-frontmatter', field: 'status', value: 'in_progress' }
+validateFrontmatter('f.md', { ...base, status: 'in_progress' });
+// → 0 findings
 ```
 
-Step 3 is the one that proves #73 can be built on this. Today the first call returns clean.
+The first call used to return clean; it now rejects, which is what #73 builds on. ✓
 
-**4. Reads stayed lenient.** This repo's own artifacts still contain hyphenated statuses on disk:
+**4. Reads stayed lenient.**
 
 ```bash
-cf list slices
-cf list arch
-cf status
+cf list slices   # every entry renders a real status; 922 shows "◐ in progress ← active"
+cf list arch     # same
+cf status        # Progress: 44/103 tasks (in_progress)
 ```
 
-Expect every entry to render a real status — no `⚠ unreadable`, no `not started` where the document says in-progress. This is the regression that would indicate leniency was broken.
+Zero `unreadable`/`degraded` rows in all three (verified via grep). Leniency is
+additionally pinned by tests: 25 hyphenated frontmatter fixtures in
+`ConsistencyChecker.test.ts`, 13 on-disk fixture writers in
+`WorkflowNavigator.test.ts`, and the alias table in `statusNormalizer.test.ts`. ✓
+(Note: step 2's migration means this repo's artifacts are now canonical on disk —
+the lenient-read demonstration lives in those test fixtures rather than the live repo.)
 
 **5. Wire values changed as designed.**
 
 ```bash
-cf list slices --json | grep -o '"status": "[^"]*"' | sort -u
+$ cf list slices --json | grep -o '"status": "[^"]*"' | sort -u
+"status": "complete"
+"status": "in_progress"
 ```
 
-Expect `complete` and `not_started` — confirming the intended breaking change landed on the documented surface.
+Underscored only. (The draft expected `not_started` here; the observed set is
+`complete`/`in_progress` because every not-started entry in the active plan had
+been completed or migrated by the time of the run — the invariant verified is
+"no hyphenated value on the wire".) ✓
 
 ## Dependencies
 
