@@ -39,11 +39,11 @@ export function isJsonMode(): boolean {
 }
 
 /**
- * Top-level error handler. Prints the message and exits with code 1.
+ * Top-level error handler. Prints the message and exits with the given code.
  * In JSON mode, outputs structured JSON to stderr.
  * Otherwise, UserErrors get a clean message; unexpected errors get a brief summary.
  */
-export function handleError(err: unknown): never {
+export function handleError(err: unknown, exitCode = 1): never {
   if (isJsonMode()) {
     const jsonError: Record<string, unknown> = { error: true };
     if (err instanceof UserError) {
@@ -68,5 +68,5 @@ export function handleError(err: unknown): never {
       console.error(`Error: ${String(err)}`);
     }
   }
-  process.exit(1);
+  process.exit(exitCode);
 }

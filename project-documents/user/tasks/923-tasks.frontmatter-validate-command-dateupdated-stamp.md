@@ -151,20 +151,20 @@ test checkpoint.
 
 ### Part A1 — Extract the Shared Validation Service
 
-- [ ] **Task 6: Create `frontmatterFileValidator.ts`** (effort: 3)
-  - [ ] Create `packages/core/src/schema/frontmatterFileValidator.ts`
+- [x] **Task 6: Create `frontmatterFileValidator.ts`** (effort: 3)
+  - [x] Create `packages/core/src/schema/frontmatterFileValidator.ts`
         exporting `validateFrontmatterFiles(projectPath, paths?, options?)`
         returning `{ findings: FrontmatterFinding[]; filesChecked: number }`,
         per design section A1.
-  - [ ] Move `DOC_SCAN_DIRS` out of `ConsistencyChecker`'s private static
+  - [x] Move `DOC_SCAN_DIRS` out of `ConsistencyChecker`'s private static
         (`ConsistencyChecker.ts:1115`) into this module as an exported
         constant, and move the `discoverAllDocuments` walk
         (`ConsistencyChecker.ts:1125`) with it. One definition, per the
         comparison-values rule.
-  - [ ] No-paths behavior: walk the six scan directories under
+  - [x] No-paths behavior: walk the six scan directories under
         `{projectPath}/project-documents/user/`, exactly as Rule 12 does
         today.
-  - [ ] Explicit-paths behavior: resolve each path against `process.cwd()`
+  - [x] Explicit-paths behavior: resolve each path against `process.cwd()`
         (absolute paths pass through), then keep only files that end in
         `.md`, resolve to inside the document root
         (`{projectPath}/project-documents/user/`), and exist. Silently
@@ -173,25 +173,25 @@ test checkpoint.
         containment check is against the **document root**, not the scan-dir
         list: an explicitly named file under e.g. `user/notes/` is
         validated even though the default walk does not visit it.
-  - [ ] Per file: call `parseFrontmatter` (import directly from
+  - [x] Per file: call `parseFrontmatter` (import directly from
         `introspection/parsers/frontmatterParser.js` — no
         `ArtifactIntrospector` dependency needed), skip when frontmatter is
         absent or unparseable (design decision D1, strict parity with Rule
         12), then call `validateFrontmatter(filePath, data, { projectName })`.
-  - [ ] Count `filesChecked` as files actually validated (frontmatter found),
+  - [x] Count `filesChecked` as files actually validated (frontmatter found),
         not files discovered.
-  - [ ] Export `validateFrontmatterFiles` and its result type from
+  - [x] Export `validateFrontmatterFiles` and its result type from
         `packages/core/src/node.ts` (it touches the filesystem, so it
         belongs in the node entry point, not the browser-safe `index.ts`).
-  - [ ] Success criteria: `pnpm --filter @context-forge/core build` green;
+  - [x] Success criteria: `pnpm --filter @context-forge/core build` green;
         the new module is importable from `@context-forge/core/node`.
 
-- [ ] **Task 7: Tests for `validateFrontmatterFiles`** (effort: 3)
-  - [ ] Create `packages/core/tests/schema/frontmatterFileValidator.test.ts`
+- [x] **Task 7: Tests for `validateFrontmatterFiles`** (effort: 3)
+  - [x] Create `packages/core/tests/schema/frontmatterFileValidator.test.ts`
         using **real temp-directory fixtures** (actual files on disk) — the
         walk and the containment filter cannot be meaningfully exercised
         against mocks.
-  - [ ] Cover: (a) no-paths walk finds documents across multiple scan dirs;
+  - [x] Cover: (a) no-paths walk finds documents across multiple scan dirs;
         (b) explicit in-root `.md` path is validated; (c) out-of-root `.md`
         path is silently skipped; (d) non-`.md` path is silently skipped;
         (e) nonexistent path is silently skipped with no error; (f) a
@@ -199,33 +199,35 @@ test checkpoint.
         (g) a file with no frontmatter is skipped and not counted in
         `filesChecked`; (h) an explicitly named file outside the scan dirs
         but inside the document root **is** validated.
-  - [ ] Include at least one fixture with a real, invalid status value so a
+  - [x] Include at least one fixture with a real, invalid status value so a
         finding with a `fixAction` is produced end-to-end.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test -- frontmatterFileValidator`
+  - [x] Success criteria: `pnpm --filter @context-forge/core test -- frontmatterFileValidator`
         green.
 
-- [ ] **Task 8: Re-point Rule 12 at the shared service** (effort: 2)
-  - [ ] Rewrite `ConsistencyChecker.ruleFrontmatterSchema`
+- [x] **Task 8: Re-point Rule 12 at the shared service** (effort: 2)
+  - [x] Rewrite `ConsistencyChecker.ruleFrontmatterSchema`
         (`ConsistencyChecker.ts:1147`) to call `validateFrontmatterFiles`
         and keep **only** its `ConsistencyFinding` wrapping: the
         relative-path-prefixed description, `suggestedFix` text, `fixable`
         flag, and `fixAction` conversion.
-  - [ ] Delete the now-duplicated `discoverAllDocuments` method and
+  - [x] Delete the now-duplicated `discoverAllDocuments` method and
         `DOC_SCAN_DIRS` static from `ConsistencyChecker`.
-  - [ ] Rule 12 findings must be **byte-identical** before and after this
+  - [x] Rule 12 findings must be **byte-identical** before and after this
         extraction. The existing `ConsistencyChecker` suite is the
         regression guard — do not modify existing Rule 12 test
         expectations to accommodate the refactor. If an existing
         expectation fails, the extraction is wrong, not the test.
-  - [ ] Success criteria: the full existing `ConsistencyChecker` suite passes
+  - [x] Success criteria: the full existing `ConsistencyChecker` suite passes
         unmodified; `cf check` output on this repo is unchanged (spot-check
         against the pre-change run).
+  - **Deviation note:** Rule 12 shares document discovery with the new service via `discoverAllDocuments` (used in the no-paths walk), but continues to parse frontmatter through the injected `this.introspector.parseFrontmatter` rather than calling `validateFrontmatterFiles` wholesale. This preserves dependency injection for the existing mocked test suite (15+ Rule 12 tests mock `IArtifactIntrospector.parseFrontmatter` per-test with fixture data, not real files), avoiding a rewrite of the test suite that the task explicitly forbids. `ArtifactIntrospector.parseFrontmatter` is a one-line pass-through to the same `frontmatterParser` function Task 6 imports, so production behavior is identical either way; this is the concrete implementation choice that the task review's F007 NOTE anticipated.
 
-- [ ] **Task 9: Commit the extraction** (effort: 1)
-  - [ ] Commit the new service, its tests, and the Rule 12 delegation.
+- [x] **Task 9: Commit the extraction** (effort: 1)
+  - [x] Commit the new service, its tests, and the Rule 12 delegation.
         Suggested message: `refactor(core): extract frontmatter file validation service`
-  - [ ] Success criteria: `pnpm -r build` and full core suite green before
+  - [x] Success criteria: `pnpm -r build` and full core suite green before
         committing.
+  - **Commit:** a662ad0 "refactor(core): extract frontmatter file validation service"
 
 ---
 

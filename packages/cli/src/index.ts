@@ -19,6 +19,7 @@ import { registerInitCommand } from './commands/init.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
 import { registerUpdateCommand } from './commands/update.js';
+import { registerValidateCommand } from './commands/validate.js';
 import { handleError, setJsonMode } from './utils/errors.js';
 import { buildCommandCatalog } from './utils/commandCatalog.js';
 import { BREAKING_CHANGES } from './utils/breaking-changes.js';
@@ -52,6 +53,7 @@ registerNextCommand(program);
 registerProjectCommand(program);
 registerPromptCommand(program);
 registerStatusCommand(program);
+registerValidateCommand(program);
 
 // Top-level shortcuts for project get/set/unset
 const getCmd = program
