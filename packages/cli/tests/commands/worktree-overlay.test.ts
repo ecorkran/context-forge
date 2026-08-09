@@ -92,7 +92,7 @@ const sampleStatus = {
     name: 'worktree-cli-commands',
     index: 183,
     status: 'in-implementation',
-    taskProgress: { completed: 2, total: 8, inferredStatus: 'in-progress' },
+    taskProgress: { completed: 2, total: 8, inferredStatus: 'in_progress' },
   },
   slicePlan: null,
   summary: 'test-project — Phase 6 — slice 183 in-implementation',

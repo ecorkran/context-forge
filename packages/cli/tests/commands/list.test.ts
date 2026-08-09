@@ -24,7 +24,7 @@ const mockDetectDocuments = vi.fn();
 // resolution added in slice 911 — default to "nothing found" so tests that don't
 // care about derived status still see a clean not-started/checkbox-only result.
 const mockIntrospectorParseTaskFile = vi.fn().mockResolvedValue({
-  filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not-started',
+  filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not_started',
 });
 const mockIntrospectorParseFrontmatter = vi.fn().mockResolvedValue({ filePath: '', found: false, data: {} });
 
@@ -105,7 +105,7 @@ const sampleModel: Partial<ProjectModel> = {
       name: 'Core System',
       slices: [
         { index: '100', name: 'Auth', status: 'complete' },
-        { index: '101', name: 'Users', status: 'in-progress' },
+        { index: '101', name: 'Users', status: 'in_progress' },
       ],
       features: [],
       arch: { index: '100', name: 'core-system', status: 'active' },
@@ -118,7 +118,7 @@ const sampleModel: Partial<ProjectModel> = {
       name: 'Workflow System',
       slices: [
         { index: '160', name: 'Foundation', status: 'complete' },
-        { index: '165', name: 'Navigator', status: 'in-progress' },
+        { index: '165', name: 'Navigator', status: 'in_progress' },
       ],
       features: [],
       arch: { index: '160', name: 'workflow-system', status: 'active' },
@@ -130,8 +130,8 @@ const samplePlanResult = {
   filePath: '/tmp/test/project-documents/user/architecture/100-slices.test.md',
   entries: [
     { index: 100, name: 'Auth Feature', status: 'complete', isChecked: true, lineIndex: 0 },
-    { index: 101, name: 'Billing Feature', status: 'not-started', isChecked: false, lineIndex: 0 },
-    { index: 102, name: 'Dashboard', status: 'not-started', isChecked: false, lineIndex: 0 },
+    { index: 101, name: 'Billing Feature', status: 'not_started', isChecked: false, lineIndex: 0 },
+    { index: 102, name: 'Dashboard', status: 'not_started', isChecked: false, lineIndex: 0 },
   ],
   totalSlices: 3,
   completedSlices: 1,
@@ -146,7 +146,7 @@ const sampleTaskResult = {
   ],
   totalTasks: 3,
   completedTasks: 1,
-  inferredStatus: 'in-progress' as const,
+  inferredStatus: 'in_progress' as const,
 };
 
 function createProgram(): Command {
@@ -332,7 +332,7 @@ describe('cf list slices', () => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
     mockIntrospectorParseTaskFile.mockResolvedValue({
-      filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not-started',
+      filePath: '', items: [], totalTasks: 0, completedTasks: 0, inferredStatus: 'not_started',
     });
     mockIntrospectorParseFrontmatter.mockResolvedValue({ filePath: '', found: false, data: {} });
     vi.spyOn(console, 'log').mockImplementation(() => {});

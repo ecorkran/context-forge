@@ -121,7 +121,7 @@ describe('cf list slices — derived status display (slice 911)', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
-    expect(parsed.entries[0].status).toBe('in-progress');
+    expect(parsed.entries[0].status).toBe('in_progress');
   });
 
   it('unparseable task file renders the degraded indicator, not not-started', async () => {
@@ -188,7 +188,7 @@ describe('cf list slices — derived status display (slice 911)', () => {
     // detectDocuments itself never throws (safeReaddir swallows ENOTDIR), so this
     // resolves as "no design file found" — not-started, not aborted, not degraded.
     expect(parsed.entries).toHaveLength(1);
-    expect(parsed.entries[0].status).toBe('not-started');
+    expect(parsed.entries[0].status).toBe('not_started');
   });
 });
 
@@ -223,7 +223,7 @@ describe('cf list arch — derived status display (slice 911)', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
-    expect(parsed[0].status).toBe('in-progress');
+    expect(parsed[0].status).toBe('in_progress');
   });
 
   it('unchecked entry with no arch file renders not-started', async () => {
@@ -235,7 +235,7 @@ describe('cf list arch — derived status display (slice 911)', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(output);
-    expect(parsed[0].status).toBe('not-started');
+    expect(parsed[0].status).toBe('not_started');
   });
 
   it('malformed arch frontmatter status renders the degraded indicator, not silently checkbox-derived', async () => {

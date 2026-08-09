@@ -412,7 +412,7 @@ describe('project_get introspection enrichment', () => {
   it('returns introspection field when project has projectPath and introspection succeeds', async () => {
     const mockIntrospection = {
       slicePlan: { totalSlices: 7, completedSlices: 3, summary: '3 of 7 slices complete' },
-      currentTasks: { totalTasks: 10, completedTasks: 5, inferredStatus: 'in-progress', summary: '5 of 10 tasks done' },
+      currentTasks: { totalTasks: 10, completedTasks: 5, inferredStatus: 'in_progress', summary: '5 of 10 tasks done' },
       artifacts: {
         hasSlicePlan: true, hasHLD: false, hasArch: true,
         hasSpec: false, hasCurrentSliceDesign: true, hasCurrentTaskFile: true,

@@ -4,7 +4,7 @@ project: context-builder
 type: slice
 dependencies: [basic-context-generation, project-configuration-management, persistence]
 projectState: Core single-project functionality complete with auto-save persistence
-status: not-started
+status: not_started
 dateCreated: 20250914
 dateUpdated: 20250914
 docType: slice-design

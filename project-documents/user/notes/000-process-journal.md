@@ -5,7 +5,7 @@ project: context-forge
 audience: [human, ai]
 description: Append-only log of process decisions and design reasoning that has no home in other document types
 dateCreated: 20260705
-dateUpdated: 20260715
+dateUpdated: 20260809
 status: in_progress
 ---
 
@@ -19,6 +19,18 @@ that drift. When the file exceeds the standard size limit, split per
 file-naming-conventions (`-1`, `-2`, …).
 
 # Entries
+
+## 20260809 — A gate cannot reject one alias and accept its siblings
+
+**Context:** Slice 922 (issue #72). The slice design required `validateFrontmatter` to reject `status: in-progress` (Success Criterion 4) while its implementation step prescribed `normalizeStatus(value) ?? value` — an expression that, once `STATUS` flipped to underscores, *accepts* hyphenated input because normalization maps it to a canonical value before the comparison. The contradiction surfaced only when the new gate test failed against the freshly implemented lenient expression.
+
+**Decision:** Strict + auto-fix, settled by the PM mid-implementation. `validateFrontmatter` compares the value as written against `VALID_STATUSES` — no normalization inside the gate, so *every* non-canonical alias is rejected, not just the hyphenated pair. When the intended value is recoverable (known alias, or a close typo via a conservative edit-distance match), the finding carries an `update-frontmatter` fixAction so `cf check --fix` migrates the document; unknown values get a plain finding. The read side (`normalizeStatus`) stays permanently lenient.
+
+**Rationale:** There is no principled middle ground between rejecting `in-progress` and rejecting `done`/`completed`/`ready` — all are non-canonical aliases that normalize to a canonical value, so any normalize-then-compare gate accepts all of them and any strict gate rejects all of them. The design had implicitly asked for a value-by-value split that cannot be implemented coherently. Framing the question narrowly ("should hyphenated be rejected?") produced an answer that silently collided with the #63-era alias-acceptance tests; the full alias set had to be put on the table before the posture could be settled. Strict-with-migration preserves the asymmetry that motivated the slice (read leniently, write canonically, validate strictly) without stranding legacy documents — the repo's own 8 legacy docs were migrated by the new fixAction as the live verification.
+
+Two latent bugs surfaced as side effects, both instances of the same lesson — a vocabulary flip is a flashlight: (1) seven `ConsistencyChecker` rule sites compared raw frontmatter status against `STATUS.*`, so canonical spellings had been silently ignored on the read path the whole time (only the accident of matching spellings made hyphenated docs work); (2) `cf check --fix` output paired fix-log entries to findings by rule alone, which was invisible until one run produced several fixes under one rule.
+
+**Follow-ups:** Issue #72 (fixed); unblocks #73 (`cf validate frontmatter`) and squadron slice 172. Resolution recorded in the 922 slice design (Step 3 Resolution block). Breaking `--json`/MCP wire change (`in_progress`/`not_started`) documented in CHANGELOG for the next release.
 
 ## 20260715 — Hand-rolled "simple" parsers accrue correctness debt a standard library wouldn't
 

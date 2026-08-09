@@ -45,7 +45,7 @@ const sampleStatus = {
     name: 'auth',
     index: 100,
     status: 'in-implementation',
-    taskProgress: { completed: 3, total: 5, inferredStatus: 'in-progress' },
+    taskProgress: { completed: 3, total: 5, inferredStatus: 'in_progress' },
   },
   slicePlan: { name: '100-slices.test.md', completed: 7, total: 10, entries: [] },
   summary: 'test-project — Phase 6 — slice 100 in-implementation (3/5 tasks)',

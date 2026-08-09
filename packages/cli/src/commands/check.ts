@@ -76,7 +76,16 @@ function formatFinding(finding: ConsistencyFinding, fixResult?: ConsistencyFixRe
   lines.push(colorFn(`  ${icon} ${finding.description}`));
 
   if (fixResult && finding.fixable) {
-    const logEntry = fixResult.fixLog.find((e) => e.rule === finding.rule);
+    // Match on rule AND file: several findings can share a rule (e.g. multiple
+    // frontmatter-schema fixes in one run), and location may be relative while
+    // the fix log records the absolute path.
+    const logEntry = fixResult.fixLog.find(
+      (e) =>
+        e.rule === finding.rule &&
+        (e.filePath === finding.location ||
+          e.filePath.endsWith(finding.location) ||
+          finding.location.endsWith(e.filePath)),
+    );
     if (logEntry) {
       lines.push(dim(`    → Fixed: ${logEntry.before} → ${logEntry.after} in ${logEntry.filePath}`));
     }

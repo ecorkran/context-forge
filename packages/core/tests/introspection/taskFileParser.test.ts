@@ -45,7 +45,7 @@ describe('parseTaskFile', () => {
     // sample-tasks.md has 8 checkbox items: 4 checked, 4 unchecked
     expect(result.totalTasks).toBe(8);
     expect(result.completedTasks).toBe(4);
-    expect(result.inferredStatus).toBe('in-progress');
+    expect(result.inferredStatus).toBe('in_progress');
   });
 
   it('infers status "complete" when all items are checked', async () => {
@@ -54,11 +54,11 @@ describe('parseTaskFile', () => {
     expect(result.inferredStatus).toBe('complete');
   });
 
-  it('infers status "not-started" when no items exist', async () => {
+  it('infers status "not_started" when no items exist', async () => {
     const result = await parseTaskFile(join(FIXTURES, 'empty-tasks.md'));
     expect(result.totalTasks).toBe(0);
     expect(result.completedTasks).toBe(0);
-    expect(result.inferredStatus).toBe('not-started');
+    expect(result.inferredStatus).toBe('not_started');
   });
 
   it('merges items from multiple files in path order', async () => {
@@ -70,13 +70,13 @@ describe('parseTaskFile', () => {
     expect(result.totalTasks).toBe(13);
     // Uses first file's path
     expect(result.filePath).toBe(join(FIXTURES, 'sample-tasks.md'));
-    expect(result.inferredStatus).toBe('in-progress');
+    expect(result.inferredStatus).toBe('in_progress');
   });
 
   it('returns empty result for nonexistent file (no throw)', async () => {
     const result = await parseTaskFile('/nonexistent/path.md');
     expect(result.totalTasks).toBe(0);
     expect(result.items).toEqual([]);
-    expect(result.inferredStatus).toBe('not-started');
+    expect(result.inferredStatus).toBe('not_started');
   });
 });

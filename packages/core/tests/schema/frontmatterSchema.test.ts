@@ -6,6 +6,7 @@ import {
   inferDocTypeFromPath,
   inferFieldsFromPath,
 } from '../../src/schema/frontmatterSchema.js';
+import { STATUS } from '../../src/introspection/types.js';
 
 /** The 8 canonical docTypes from file-naming-conventions.md */
 const EXPECTED_DOC_TYPES = [
@@ -53,6 +54,10 @@ describe('VALID_STATUSES', () => {
     expect(VALID_STATUSES).toContain('deferred');
     expect(VALID_STATUSES).toContain('deprecated');
     expect(VALID_STATUSES).toHaveLength(5);
+  });
+
+  it('is equal as a set to Object.values(STATUS), pinning the single source of truth', () => {
+    expect(new Set(VALID_STATUSES)).toEqual(new Set(Object.values(STATUS)));
   });
 });
 
@@ -108,7 +113,7 @@ describe('validateFrontmatter', () => {
     expect(findings[0].description).toContain('Invalid value');
   });
 
-  it('accepts completed as alias for complete', () => {
+  it('rejects completed (alias) but offers a fixAction to complete', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',
       project: 'test',
@@ -116,7 +121,13 @@ describe('validateFrontmatter', () => {
       dateCreated: '20260101',
       dateUpdated: '20260301',
     });
-    expect(findings).toHaveLength(0);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'completed'");
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'status',
+      value: 'complete',
+    });
   });
 
   it('treats empty string as missing', () => {
@@ -143,9 +154,14 @@ describe('validateFrontmatter', () => {
     expect(findings[0].description).toContain("Invalid value 'draft'");
   });
 
-  it.each(['done', 'ready', 'pending', 'planned'])(
-    'accepts %s as a normalizeStatus alias (unifies with cf list arch "unreadable")',
-    (alias) => {
+  it.each([
+    ['done', 'complete'],
+    ['ready', 'not_started'],
+    ['pending', 'not_started'],
+    ['planned', 'not_started'],
+  ])(
+    'rejects alias %s but offers a fixAction to canonical %s (strict validate, lenient read)',
+    (alias, canonical) => {
       const findings = validateFrontmatter('/test.md', {
         docType: 'architecture',
         project: 'test',
@@ -155,7 +171,13 @@ describe('validateFrontmatter', () => {
         dateCreated: '20260101',
         dateUpdated: '20260301',
       });
-      expect(findings).toHaveLength(0);
+      expect(findings).toHaveLength(1);
+      expect(findings[0].description).toContain('Invalid value');
+      expect(findings[0].fixAction).toEqual({
+        type: 'update-frontmatter',
+        field: 'status',
+        value: canonical,
+      });
     },
   );
 
@@ -172,6 +194,12 @@ describe('validateFrontmatter', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0].description).toContain("'in-progres'");
     expect(findings[0].description).toContain('Invalid value');
+    // Close typo of a known alias — suggestStatus rescues it with a fixAction.
+    expect(findings[0].fixAction).toEqual({
+      type: 'update-frontmatter',
+      field: 'status',
+      value: 'in_progress',
+    });
   });
 
   it('includes fixAction for missing dateUpdated, defaulting to dateCreated', () => {
@@ -201,11 +229,48 @@ describe('validateFrontmatter', () => {
     expect(dateFinding!.fixAction).toBeUndefined();
   });
 
-  it('accepts in-progress (hyphenated) as alias for in_progress', () => {
+  it.each([
+    ['in-progress', 'in_progress'],
+    ['not-started', 'not_started'],
+  ])(
+    'rejects %s as an invalid status value with a fixAction to canonical %s',
+    (hyphenated, canonical) => {
+      const findings = validateFrontmatter('/test.md', {
+        docType: 'concept',
+        project: 'test',
+        status: hyphenated,
+        dateCreated: '20260101',
+        dateUpdated: '20260301',
+      });
+      expect(findings).toHaveLength(1);
+      expect(findings[0].description).toContain(`'${hyphenated}'`);
+      expect(findings[0].description).toContain('Invalid value');
+      expect(findings[0].fixAction).toEqual({
+        type: 'update-frontmatter',
+        field: 'status',
+        value: canonical,
+      });
+    },
+  );
+
+  it('rejects an unknown status value with no fixAction (not recoverable)', () => {
     const findings = validateFrontmatter('/test.md', {
       docType: 'concept',
       project: 'test',
-      status: 'in-progress',
+      status: 'backlog',
+      dateCreated: '20260101',
+      dateUpdated: '20260301',
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'backlog'");
+    expect(findings[0].fixAction).toBeUndefined();
+  });
+
+  it.each([...VALID_STATUSES])('accepts %s (canonical VALID_STATUSES value)', (status) => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'concept',
+      project: 'test',
+      status,
       dateCreated: '20260101',
       dateUpdated: '20260301',
     });

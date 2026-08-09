@@ -4,7 +4,8 @@
  * Source of truth derived from file-naming-conventions.md.
  */
 
-import { normalizeStatus } from '../introspection/parsers/statusNormalizer.js';
+import { STATUS } from '../introspection/types.js';
+import { suggestStatus } from '../introspection/parsers/statusNormalizer.js';
 
 /** Definition of a single frontmatter field's constraints. */
 export interface FrontmatterFieldDef {
@@ -28,13 +29,7 @@ export interface FrontmatterFinding {
 }
 
 /** Canonical valid status values across all docTypes. */
-export const VALID_STATUSES = [
-  'not_started',
-  'in_progress',
-  'complete',
-  'deferred',
-  'deprecated',
-] as const;
+export const VALID_STATUSES = Object.values(STATUS);
 
 /** Per-docType frontmatter schemas — required fields only. */
 export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
@@ -220,7 +215,7 @@ export function validateFrontmatter(
       // Determine if we can auto-fix this field
       let fixValue: string | undefined;
       if (field === 'status') {
-        fixValue = 'not_started';
+        fixValue = STATUS.NotStarted;
       } else if (field === 'dateUpdated' && data.dateCreated && String(data.dateCreated).trim() !== '') {
         fixValue = String(data.dateCreated).trim();
       } else if (field === 'project' && options?.projectName) {
@@ -254,23 +249,27 @@ export function validateFrontmatter(
     if (value === undefined || value === null || String(value).trim() === '') continue;
 
     const normalizedValue = String(value).trim();
-    // For status field: delegate to the same alias set cf list arch uses (normalizeStatus),
-    // so a status cf list arch would call "unreadable" also fails schema validation here.
-    // normalizeStatus's canonical vocabulary (STATUS.*) is hyphenated (e.g. 'in-progress',
-    // 'not-started'); VALID_STATUSES here is underscored — translate before comparing.
-    let effectiveValue = normalizedValue;
-    if (field === 'status') {
-      const normalized = normalizeStatus(effectiveValue);
-      effectiveValue = normalized ? normalized.replace(/-/g, '_') : effectiveValue.replace(/[-\s]/g, '_');
-    }
-
-    if (!def.values.includes(effectiveValue)) {
-      findings.push({
+    // Validation is strict: compare the value as written against def.values directly.
+    // For status specifically, this means only the canonical VALID_STATUSES spellings
+    // pass — historical aliases like 'in-progress' are rejected here even though
+    // normalizeStatus() (used elsewhere, e.g. cf list/status) still reads them leniently.
+    // The two are intentionally asymmetric: read leniently, validate strictly. When the
+    // intended canonical value is recoverable (alias or close typo), the finding carries
+    // a fixAction so `cf check --fix` migrates the document instead of stranding it.
+    if (!def.values.includes(normalizedValue)) {
+      const suggestion = field === 'status' ? suggestStatus(normalizedValue) : undefined;
+      const finding: FrontmatterFinding = {
         rule: 'frontmatter-schema',
         severity: 'warning',
         filePath,
-        description: `Invalid value '${normalizedValue}' for field '${field}' on docType '${data.docType}' (expected: ${def.values.join(', ')})`,
-      });
+        description: suggestion
+          ? `Invalid value '${normalizedValue}' for field '${field}' on docType '${data.docType}' (expected: ${def.values.join(', ')}; will fix to '${suggestion}')`
+          : `Invalid value '${normalizedValue}' for field '${field}' on docType '${data.docType}' (expected: ${def.values.join(', ')})`,
+      };
+      if (suggestion) {
+        finding.fixAction = { type: 'update-frontmatter', field, value: suggestion };
+      }
+      findings.push(finding);
     }
   }
 

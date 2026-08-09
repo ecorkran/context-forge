@@ -86,7 +86,7 @@ describe('WorkflowNavigator', () => {
       expect(status.activeSlice!.taskProgress).toBeDefined();
       expect(status.activeSlice!.taskProgress!.completed).toBe(2);
       expect(status.activeSlice!.taskProgress!.total).toBe(4);
-      expect(status.activeSlice!.taskProgress!.inferredStatus).toBe('in-progress');
+      expect(status.activeSlice!.taskProgress!.inferredStatus).toBe('in_progress');
     });
 
     it('populates slicePlan from fileSlicePlan', async () => {
@@ -114,8 +114,8 @@ describe('WorkflowNavigator', () => {
 
       const entry100 = status.slicePlan!.entries.find((e) => e.index === 100);
       const entry101 = status.slicePlan!.entries.find((e) => e.index === 101);
-      expect(entry100!.status).toBe('in-progress');
-      expect(entry101!.status).toBe('not-started');
+      expect(entry100!.status).toBe('in_progress');
+      expect(entry101!.status).toBe('not_started');
     });
 
     it('returns null slicePlan when fileSlicePlan is not set', async () => {
@@ -1141,7 +1141,7 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     const entry242 = status.slicePlan!.entries.find((e) => e.index === 242);
     const entry250 = status.slicePlan!.entries.find((e) => e.index === 250);
     expect(entry242!.status).toBe('complete');
-    expect(entry250!.status).toBe('not-started');
+    expect(entry250!.status).toBe('not_started');
 
     const next = await nav.getNext(project);
     expect(next.suggestedCommand).toBe('cf set slice 250');
