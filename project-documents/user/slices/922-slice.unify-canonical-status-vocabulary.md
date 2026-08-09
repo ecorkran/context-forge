@@ -6,6 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dateCreated: 20260806
 dateUpdated: 20260809
 status: complete
+review: none
 ---
 
 # Slice 922: Unify Canonical Status Vocabulary
