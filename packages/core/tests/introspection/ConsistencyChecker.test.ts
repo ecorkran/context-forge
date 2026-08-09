@@ -11,6 +11,9 @@ import type {
   NormalizedStatus,
 } from '../../src/introspection/types.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
+import { STATUS } from '../../src/introspection/types.js';
+import { validateFrontmatter } from '../../src/schema/frontmatterSchema.js';
+import { updateFrontmatterField } from '../../src/introspection/writers/markdownWriter.js';
 
 // Mock GitWorktreeDiscovery for stale-worktree-path rule tests
 const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
@@ -76,7 +79,7 @@ function makeMockIntrospector(overrides: Partial<IArtifactIntrospector> = {}): I
     parseSlicePlan: vi.fn<(path: string) => Promise<SlicePlanResult>>().mockResolvedValue({
       filePath: '/fake/plan.md',
       entries: [
-        { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+        { index: 165, name: 'test-feature', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
       ],
       totalSlices: 1,
       completedSlices: 0,
@@ -185,7 +188,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
           totalTasks: 2,
           completedTasks: 1,
-          inferredStatus: 'in-progress',
+          inferredStatus: 'in_progress',
         }),
       });
       const checker = new ConsistencyChecker(mock);
@@ -207,7 +210,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: false }],
           totalTasks: 1,
           completedTasks: 0,
-          inferredStatus: 'not-started',
+          inferredStatus: 'not_started',
         }),
       });
       const checker = new ConsistencyChecker(mock);
@@ -222,7 +225,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 165, name: 'test-feature', status: 'not_started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -232,7 +235,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
           totalTasks: 2,
           completedTasks: 1,
-          inferredStatus: 'in-progress',
+          inferredStatus: 'in_progress',
         }),
       });
       const checker = new ConsistencyChecker(mock);
@@ -274,7 +277,7 @@ describe('ConsistencyChecker', () => {
             items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
             totalTasks: 2,
             completedTasks: 1,
-            inferredStatus: 'in-progress',
+            inferredStatus: 'in_progress',
           }),
         }),
       );
@@ -298,7 +301,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: false }],
           totalTasks: 1,
           completedTasks: 0,
-          inferredStatus: 'not-started',
+          inferredStatus: 'not_started',
         }),
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
@@ -316,7 +319,7 @@ describe('ConsistencyChecker', () => {
       expect(finding).toBeDefined();
       expect(finding!.description).toContain('"complete"');
       expect(finding!.description).toContain('incomplete');
-      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in_progress' });
     });
 
     it('Rule 2: warns when frontmatter "in-progress" but tasks complete', async () => {
@@ -359,7 +362,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: true }, { name: 'Task 2', done: false }],
           totalTasks: 2,
           completedTasks: 1,
-          inferredStatus: 'in-progress',
+          inferredStatus: 'in_progress',
         }),
       });
       const checker = new ConsistencyChecker(mock);
@@ -369,10 +372,10 @@ describe('ConsistencyChecker', () => {
         (f) => f.rule === 'frontmatter-vs-computed' && f.severity === 'warning',
       );
       expect(finding).toBeDefined();
-      expect(finding!.description).toContain('not-started');
+      expect(finding!.description).toContain('not_started');
       expect(finding!.description).toContain('in progress');
       expect(finding!.fixable).toBe(true);
-      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+      expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in_progress' });
 
       const fixResult = await checker.fix(makeProject());
       const fixLogEntry = fixResult.fixLog.find((e) => e.rule === 'frontmatter-vs-computed');
@@ -393,7 +396,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: false }],
           totalTasks: 1,
           completedTasks: 0,
-          inferredStatus: 'not-started',
+          inferredStatus: 'not_started',
         }),
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
@@ -416,7 +419,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 999, name: 'other-feature', status: 'not_started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -458,7 +461,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 165, name: 'test-feature', status: 'not_started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -558,7 +561,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: false }],
           totalTasks: 1,
           completedTasks: 0,
-          inferredStatus: 'not-started',
+          inferredStatus: 'not_started',
         }),
         parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
           if (path.includes('tasks')) {
@@ -621,6 +624,50 @@ describe('ConsistencyChecker', () => {
       expect(checkboxFix!.after).toBe('[x]');
     });
 
+    it('--fix round-trip: written status is canonical and passes validateFrontmatter (#72)', async () => {
+      vi.mocked(updateFrontmatterField).mockClear();
+      // A legacy document: hyphenated status on disk, tasks under way — the
+      // scenario from the issue, which used to write non-canonical 'in-progress'.
+      const mock = makeMockIntrospector({
+        parseTaskFile: vi.fn().mockResolvedValue({
+          filePath: '/fake/tasks.md',
+          items: [
+            { name: 'Task 1', done: true },
+            { name: 'Task 2', done: false },
+          ],
+          totalTasks: 2,
+          completedTasks: 1,
+          inferredStatus: 'in_progress',
+        }),
+        parseFrontmatter: vi.fn().mockResolvedValue({
+          filePath: '/fake/slice.md',
+          found: true,
+          data: { status: 'not-started' }, // lenient read of historical spelling
+        }),
+      });
+      const checker = new ConsistencyChecker(mock);
+      await checker.fix(makeProject());
+
+      const statusWrites = vi
+        .mocked(updateFrontmatterField)
+        .mock.calls.filter(([, key]) => key === 'status');
+      expect(statusWrites.length).toBeGreaterThan(0);
+      for (const [, , written] of statusWrites) {
+        expect(written).toBe(STATUS.InProgress);
+        // The written value must pass the strict validation gate: the write
+        // side and validate side agree, closing the loop from issue #72.
+        const findings = validateFrontmatter('/fake/slice.md', {
+          docType: 'slice-design',
+          slice: 'test-feature',
+          project: 'test',
+          status: written,
+          dateCreated: '20260101',
+          dateUpdated: '20260301',
+        });
+        expect(findings).toHaveLength(0);
+      }
+    });
+
     it('applies frontmatter fix and populates fixLog', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector());
       const result = await checker.fix(makeProject());
@@ -637,7 +684,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 999, name: 'other', status: 'not-started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 999, name: 'other', status: 'not_started', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -647,7 +694,7 @@ describe('ConsistencyChecker', () => {
           items: [{ name: 'Task 1', done: false }],
           totalTasks: 1,
           completedTasks: 0,
-          inferredStatus: 'not-started',
+          inferredStatus: 'not_started',
         }),
         parseFrontmatter: vi.fn().mockResolvedValue({
           filePath: '/fake/slice.md',
@@ -735,9 +782,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
-            { index: 171, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
-            { index: 172, name: 'slice-c', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 170, name: 'slice-a', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'slice-b', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 172, name: 'slice-c', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -768,9 +815,9 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 168, name: 'slice-foo', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
-            { index: 168, name: 'slice-bar', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
-            { index: 169, name: 'slice-baz', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 168, name: 'slice-foo', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 168, name: 'slice-bar', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 169, name: 'slice-baz', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 3,
           completedSlices: 0,
@@ -801,8 +848,8 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
-            { index: 171, name: 'b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 170, name: 'a', status: 'in_progress', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
+            { index: 171, name: 'b', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 2,
           completedSlices: 1,
@@ -914,7 +961,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 170, name: 'a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 170, name: 'a', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -1047,7 +1094,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 165, name: 'slice-a', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+                { index: 165, name: 'slice-a', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -1057,7 +1104,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 185, name: 'slice-b', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+                { index: 185, name: 'slice-b', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -1096,9 +1143,9 @@ describe('ConsistencyChecker', () => {
           return {
             filePath: path,
             entries: [
-              { index: 165, name: 'shared-slice', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+              { index: 165, name: 'shared-slice', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ...(path.includes('180-slices') ? [
-                { index: 186, name: 'unique-slice', status: 'in-progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
+                { index: 186, name: 'unique-slice', status: 'in_progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
               ] : []),
             ] as SlicePlanEntry[],
             totalSlices: path.includes('180-slices') ? 2 : 1,
@@ -1150,7 +1197,7 @@ describe('ConsistencyChecker', () => {
             return {
               filePath: path,
               entries: [
-                { index: 185, name: 'other-slice', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+                { index: 185, name: 'other-slice', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
               ],
               totalSlices: 1,
               completedSlices: 0,
@@ -1227,8 +1274,8 @@ describe('ConsistencyChecker', () => {
               filePath: path,
               entries: [
                 { index: 1, name: 'Real Slice One', status: 'complete', isChecked: true, lineIndex: 12, indexSource: 'explicit' },
-                { index: 2, name: 'Real Slice Two', status: 'not-started', isChecked: false, lineIndex: 14, indexSource: 'explicit' },
-                { index: 3, name: 'Real Slice Three', status: 'not-started', isChecked: false, lineIndex: 16, indexSource: 'explicit' },
+                { index: 2, name: 'Real Slice Two', status: 'not_started', isChecked: false, lineIndex: 14, indexSource: 'explicit' },
+                { index: 3, name: 'Real Slice Three', status: 'not_started', isChecked: false, lineIndex: 16, indexSource: 'explicit' },
               ],
               totalSlices: 3,
               completedSlices: 1,
@@ -1321,7 +1368,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockResolvedValue({
           filePath: '/fake/plan.md',
           entries: [
-            { index: 165, name: 'test-feature', status: 'in-progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
+            { index: 165, name: 'test-feature', status: 'in_progress', isChecked: false, lineIndex: 0, indexSource: 'explicit' },
           ],
           totalSlices: 1,
           completedSlices: 0,
@@ -1501,7 +1548,7 @@ describe('ConsistencyChecker', () => {
 
       const validFmDefault = {
         filePath: '/fake/plan.md', found: true,
-        data: { docType: 'slice-plan', project: 'test', status: 'in-progress', dateCreated: '20260101', dateUpdated: '20260301' },
+        data: { docType: 'slice-plan', project: 'test', status: 'in_progress', dateCreated: '20260101', dateUpdated: '20260301' },
       };
       const mock = makeMockIntrospector({
         parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
@@ -1537,7 +1584,7 @@ describe('ConsistencyChecker', () => {
 
       const validFmDefault = {
         filePath: '/fake/plan.md', found: true,
-        data: { docType: 'slice-plan', project: 'test', status: 'in-progress', dateCreated: '20260101', dateUpdated: '20260301' },
+        data: { docType: 'slice-plan', project: 'test', status: 'in_progress', dateCreated: '20260101', dateUpdated: '20260301' },
       };
       const mock = makeMockIntrospector({
         parseFrontmatter: vi.fn<(path: string) => Promise<FrontmatterResult>>().mockImplementation(async (path: string) => {
@@ -1582,7 +1629,7 @@ describe('ConsistencyChecker', () => {
                   filePath: INITIATIVE_PLAN_PATH,
                   entries: initiativeEntries.map((e, i) => ({
                     ...e,
-                    status: (e.isChecked ? 'complete' : 'in-progress') as NormalizedStatus,
+                    status: (e.isChecked ? 'complete' : 'in_progress') as NormalizedStatus,
                     lineIndex: i,
                     indexSource: 'explicit' as const,
                   })),
@@ -1683,8 +1730,8 @@ describe('ConsistencyChecker', () => {
                     filePath: path,
                     entries: [
                       { index: 141, name: 'Slice A', isChecked: true, status: 'complete', lineIndex: 0, indexSource: 'explicit' },
-                      { index: 142, name: 'Slice B', isChecked: false, status: 'not-started', lineIndex: 1, indexSource: 'explicit' },
-                      { index: 143, name: 'Slice C', isChecked: false, status: 'not-started', lineIndex: 2, indexSource: 'explicit' },
+                      { index: 142, name: 'Slice B', isChecked: false, status: 'not_started', lineIndex: 1, indexSource: 'explicit' },
+                      { index: 143, name: 'Slice C', isChecked: false, status: 'not_started', lineIndex: 2, indexSource: 'explicit' },
                     ],
                     totalSlices: 3,
                     completedSlices: 1,
@@ -1803,7 +1850,7 @@ describe('ConsistencyChecker', () => {
                   filePath: INITIATIVE_PLAN_PATH,
                   entries: [
                     { index: 140, name: 'Init A', status: 'complete', isChecked: true, lineIndex: 0, indexSource: 'explicit' },
-                    { index: 160, name: 'Init B', status: 'in-progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
+                    { index: 160, name: 'Init B', status: 'in_progress', isChecked: false, lineIndex: 1, indexSource: 'explicit' },
                   ],
                   totalSlices: 2,
                   completedSlices: 1,
@@ -1830,7 +1877,7 @@ describe('ConsistencyChecker', () => {
         expect(finding!.severity).toBe('warning');
         expect(finding!.description).toContain('only 1/2 entries are checked');
         expect(finding!.fixable).toBe(true);
-        expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in-progress' });
+        expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in_progress' });
       });
     });
   });

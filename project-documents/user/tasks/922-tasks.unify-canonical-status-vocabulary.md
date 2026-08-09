@@ -6,8 +6,8 @@ lld: user/slices/922-slice.unify-canonical-status-vocabulary.md
 dependencies: [910]
 projectState: main is green, working tree clean at 7d89d6e. STATUS in introspection/types.ts is hyphenated (in-progress, not-started); VALID_STATUSES in schema/frontmatterSchema.ts is underscored (in_progress, not_started) and independently restates the same five values. validateFrontmatter translates hyphen-to-underscore at frontmatterSchema.ts:256-264 before comparing, papering over the mismatch. 30 STATUS.InProgress/STATUS.NotStarted references exist across 10 source files (7 in packages/core/src/introspection/**, 3 in packages/cli/src) — all already reference the constant post-slice-910, so most need no edit. 145 hyphenated status literals exist across 18 test files.
 dateCreated: 20260806
-dateUpdated: 20260806
-status: not_started
+dateUpdated: 20260809
+status: in_progress
 ---
 
 ## Context Summary
@@ -46,62 +46,62 @@ reference it rather than duplicating it.
 
 ### Part 1 — Single source of truth
 
-- [ ] 1. Verify the import direction is cycle-safe
-  - [ ] Confirm `packages/core/src/schema/frontmatterSchema.ts` importing a
+- [x] 1. Verify the import direction is cycle-safe
+  - [x] Confirm `packages/core/src/schema/frontmatterSchema.ts` importing a
         value from `packages/core/src/introspection/types.ts` does not
         create a circular import. `frontmatterSchema.ts` already imports
         `normalizeStatus` from `introspection/parsers/`, which establishes
         the same direction — confirm this holds for `types.ts` too (check
         whether `introspection/types.ts` or anything it imports pulls from
         `schema/`).
-  - [ ] If a cycle would result, stop and hoist `STATUS` to a leaf module
+  - [x] If a cycle would result, stop and hoist `STATUS` to a leaf module
         (e.g. a new `packages/core/src/constants/status.ts` with no
         imports) instead of proceeding with Task 2. Do not duplicate the
         values as a workaround.
-  - [ ] Success: import direction confirmed safe (or leaf-module hoist
+  - [x] Success: import direction confirmed safe (or leaf-module hoist
         location decided) before any code changes in Task 2.
 
-- [ ] 2. Flip `STATUS` to underscored values
-  - [ ] In `packages/core/src/introspection/types.ts`, change
+- [x] 2. Flip `STATUS` to underscored values
+  - [x] In `packages/core/src/introspection/types.ts`, change
         `InProgress: 'in-progress'` to `InProgress: 'in_progress'` and
         `NotStarted: 'not-started'` to `NotStarted: 'not_started'`. Leave
         `Complete`, `Deprecated`, `Deferred` unchanged (already identical
         in both vocabularies).
-  - [ ] Do not edit `NormalizedStatus` — it derives from `STATUS` via
+  - [x] Do not edit `NormalizedStatus` — it derives from `STATUS` via
         `(typeof STATUS)[keyof typeof STATUS]` and updates automatically.
-  - [ ] Note: because slice 910 already swept every source reference onto
+  - [x] Note: because slice 910 already swept every source reference onto
         `STATUS.*` (confirmed: no bare `'in-progress'`/`'not-started'`
         literal comparisons remain outside `types.ts` itself, a comment,
         and one prose string), this edit is expected to compile clean via
         literal-type propagation — not to break the build. Tasks 5–6
         exist to verify that expectation and handle the two known
         non-propagating exceptions, not to fix a red build.
-  - [ ] Success: `pnpm --filter @context-forge/core build` succeeds.
+  - [x] Success: `pnpm --filter @context-forge/core build` succeeds.
 
-- [ ] 3. Derive `VALID_STATUSES` from `STATUS`
-  - [ ] In `packages/core/src/schema/frontmatterSchema.ts`, replace the
+- [x] 3. Derive `VALID_STATUSES` from `STATUS`
+  - [x] In `packages/core/src/schema/frontmatterSchema.ts`, replace the
         restated literal array with `export const VALID_STATUSES =
         Object.values(STATUS);`, importing `STATUS` from
         `../introspection/types.js` (or the leaf module from Task 1 if a
         hoist was required).
-  - [ ] Preserve existing array order if any test asserts the literal
+  - [x] Preserve existing array order if any test asserts the literal
         "expected: …" message text — check
         `packages/core/tests/schema/frontmatterSchema.test.ts` for such an
         assertion before changing declaration order.
-  - [ ] Success: `VALID_STATUSES` no longer contains a literal status
+  - [x] Success: `VALID_STATUSES` no longer contains a literal status
         string; it is fully derived; `pnpm --filter @context-forge/core build`
         succeeds.
 
-- [ ] 4. Commit the single-source-of-truth change
-  - [ ] Commit message:
+- [x] 4. Commit the single-source-of-truth change
+  - [x] Commit message:
         `refactor(core): make STATUS the single source for VALID_STATUSES`
-  - [ ] Success: working tree clean; `pnpm --filter @context-forge/core build`
+  - [x] Success: working tree clean; `pnpm --filter @context-forge/core build`
         green.
 
 ### Part 2 — Sweep source references
 
-- [ ] 5. Verify the 7 core introspection files and fix the two known exceptions
-  - [ ] Rebuild (`pnpm --filter @context-forge/core build`) and confirm no
+- [x] 5. Verify the 7 core introspection files and fix the two known exceptions
+  - [x] Rebuild (`pnpm --filter @context-forge/core build`) and confirm no
         type errors in: `ConsistencyChecker.ts`, `ProjectModelBuilder.ts`,
         `WorkflowNavigator.ts`, `statusDerivation.ts`,
         `slicePlanParser.ts`, `taskFileParser.ts`, `statusNormalizer.ts`.
@@ -109,92 +109,94 @@ reference it rather than duplicating it.
         surfaces an error at a site not listed below, treat it as a sign
         an unmapped bare literal survived slice 910, and fix that specific
         site.
-  - [ ] In `statusNormalizer.ts`, do NOT change the `STATUS_MAP` **keys**
+  - [x] In `statusNormalizer.ts`, do NOT change the `STATUS_MAP` **keys**
         (e.g. `'in-progress'`, `'not-started'`) — they are input aliases
         for lenient reading, not canonical output values. Only the map's
         *values* follow the new `STATUS` constant, and those already do
         via the constant reference (verify, do not blindly edit).
-  - [ ] In `ConsistencyChecker.ts` (~line 410), update the hardcoded prose
+  - [x] In `ConsistencyChecker.ts` (~line 410), update the hardcoded prose
         string `Frontmatter status is "not-started" but tasks are in
         progress` to say `"not_started"`, matching what is actually
         written to disk. This is a string literal, so it will not be
         caught by `tsc` — it must be located and fixed explicitly.
-  - [ ] Success: all 7 files compile clean; `statusNormalizer.ts`'s
+  - [x] Success: all 7 files compile clean; `statusNormalizer.ts`'s
         `STATUS_MAP` keys are unchanged from before this task;
         `ConsistencyChecker.ts`'s prose string now reads `"not_started"`.
 
-- [ ] 6. Verify the 3 CLI files
-  - [ ] Confirm no type errors in
+- [x] 6. Verify the 3 CLI files
+  - [x] Confirm no type errors in
         `packages/cli/src/output/entryStatusDisplay.ts`,
         `packages/cli/src/commands/slice.ts`, and
         `packages/cli/src/commands/arch.ts`. Per Task 2's note these
         should already compile clean via `STATUS.*` references.
-  - [ ] Success: `pnpm -r build` succeeds cleanly across core, cli, and
+  - [x] Success: `pnpm -r build` succeeds cleanly across core, cli, and
         mcp-server.
 
-- [ ] 7. Commit the source verification and prose-string fix
-  - [ ] Commit message: `fix: correct hardcoded status prose string for underscored STATUS constant`
-  - [ ] Success: working tree clean, full build green. `pnpm -r test` is
+- [x] 7. Commit the source verification and prose-string fix
+  - [x] Commit message: `fix: correct hardcoded status prose string for underscored STATUS constant`
+  - [x] Success: working tree clean, full build green. `pnpm -r test` is
         not yet expected to be fully green — test files still assert the
         old hyphenated values in places Part 4 has not yet reclassified;
         do not gate this commit on `pnpm -r test`.
 
 ### Part 3 — Delete the validation workaround
 
-- [ ] 8. Remove the `.replace()` translation in `validateFrontmatter`
-  - [ ] In `packages/core/src/schema/frontmatterSchema.ts` (~lines
+- [x] 8. Remove the `.replace()` translation in `validateFrontmatter`
+  - [x] In `packages/core/src/schema/frontmatterSchema.ts` (~lines
         256-264), delete the `if (field === 'status') { ... }` block that
         translates hyphens to underscores. Replace with
         `effectiveValue = normalizeStatus(normalizedValue) ??
         normalizedValue;` (or equivalent) so leniency is applied via
         `normalizeStatus` alone, with no separate translation step.
-  - [ ] Retain the existing comment explaining *why* normalization
+  - [x] Retain the existing comment explaining *why* normalization
         happens before comparison (lenient read of on-disk documents);
         delete only the translation logic itself, not the rationale.
-  - [ ] Verify the `??` fallback does not silently coerce an unrecognized
+  - [x] Verify the `??` fallback does not silently coerce an unrecognized
         status into a valid one: an input `normalizeStatus` cannot map
         must still fall through to `normalizedValue` and fail the
         `def.values` check.
-  - [ ] Note the observable behavior change this introduces: today, an
+  - [x] Note the observable behavior change this introduces: today, an
         unrecognized value like `'some-thing'` is reported as invalid
         `'some_thing'` (post-`.replace()`); after this change it is
         reported as invalid `'some-thing'` (unmodified user input). This
         is an improvement — the error now shows what the user actually
         typed — but call it out in the Task 11 commit message so it is
         not mistaken for an unintended regression.
-  - [ ] Success: the `.replace(/-/g, '_')` workaround no longer exists in
+  - [x] Success: the `.replace(/-/g, '_')` workaround no longer exists in
         `frontmatterSchema.ts`.
+  - Note: implemented as strict + auto-fix per PM decision recorded in the design doc's Step 3 Resolution block — the drafted `??` expression was self-contradictory. suggestStatus() added to statusNormalizer.ts for alias/typo fixActions.
 
-- [ ] 9. Add regression tests for the validation gate
-  - [ ] In `packages/core/tests/schema/frontmatterSchema.test.ts`, add a
+- [x] 9. Add regression tests for the validation gate
+  - [x] In `packages/core/tests/schema/frontmatterSchema.test.ts`, add a
         test asserting `validateFrontmatter` **rejects** `status:
         in-progress` and `status: not-started` with an invalid-value
         finding. This is the assertion that was impossible before this
         slice.
-  - [ ] Add a test asserting `validateFrontmatter` **accepts** all five
+  - [x] Add a test asserting `validateFrontmatter` **accepts** all five
         `VALID_STATUSES` values (`not_started`, `in_progress`, `complete`,
         `deferred`, `deprecated`).
-  - [ ] Add a test asserting `VALID_STATUSES` and `Object.values(STATUS)`
+  - [x] Add a test asserting `VALID_STATUSES` and `Object.values(STATUS)`
         are equal as sets, pinning the single-source-of-truth invariant
         against future drift.
-  - [ ] Success: all three new tests pass.
+  - [x] Success: all three new tests pass.
 
-- [ ] 10. Add alias-coverage regression tests for `normalizeStatus`
-  - [ ] In `packages/core/tests/introspection/statusNormalizer.test.ts`,
+- [x] 10. Add alias-coverage regression tests for `normalizeStatus`
+  - [x] In `packages/core/tests/introspection/statusNormalizer.test.ts`,
         add or confirm existing coverage that every historical alias
         (`in-progress`, `in progress`, `active`, `not-started`, `not
         started`, `ready`, `pending`, `planned`, `done`, `completed`)
         still maps to its correct canonical value.
-  - [ ] Success: all alias mappings pass. If coverage already exists for
+  - [x] Success: all alias mappings pass. If coverage already exists for
         a given alias, do not duplicate the assertion — extend only what
         is missing.
+  - Note: alias coverage confirmed; canonical expected-output literals in statusNormalizer.test.ts were flipped to underscored here (pulled forward from Task 16), and suggestStatus tests added. Task 16 remains as a verification pass over the input literals, which stay hyphenated.
 
-- [ ] 11. Commit the workaround removal and new gate tests
-  - [ ] Commit message: `fix(core): reject hyphenated status in validateFrontmatter`.
+- [x] 11. Commit the workaround removal and new gate tests
+  - [x] Commit message: `fix(core): reject hyphenated status in validateFrontmatter`.
         In the commit body, note the invalid-value error-message change
         from Task 8: unrecognized status values are now reported as typed
         rather than partially normalized.
-  - [ ] Success: working tree clean; `frontmatterSchema.test.ts` and
+  - [x] Success: working tree clean; `frontmatterSchema.test.ts` and
         `statusNormalizer.test.ts` green.
 
 ### Part 4 — Test literal classification
