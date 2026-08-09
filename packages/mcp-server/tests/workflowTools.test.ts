@@ -277,7 +277,7 @@ describe('workflow_status', () => {
     const mockStatus = {
       project: 'test-project',
       phase: 'Phase 6: Implementation',
-      activeSlice: { name: 'test-feature', index: 100, status: 'in-implementation', taskProgress: { completed: 1, total: 2, inferredStatus: 'in-progress' } },
+      activeSlice: { name: 'test-feature', index: 100, status: 'in-implementation', taskProgress: { completed: 1, total: 2, inferredStatus: 'in_progress' } },
       slicePlan: null,
       summary: 'test-project — slice 100 in-implementation (1/2 tasks)',
     };

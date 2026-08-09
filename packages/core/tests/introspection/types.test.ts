@@ -4,8 +4,8 @@ import { STATUS, type NormalizedStatus } from '../../src/introspection/types.js'
 describe('STATUS', () => {
   it('exposes the four normalized status values', () => {
     expect(STATUS.Complete).toBe('complete');
-    expect(STATUS.InProgress).toBe('in-progress');
-    expect(STATUS.NotStarted).toBe('not-started');
+    expect(STATUS.InProgress).toBe('in_progress');
+    expect(STATUS.NotStarted).toBe('not_started');
     expect(STATUS.Deprecated).toBe('deprecated');
   });
 
@@ -16,6 +16,6 @@ describe('STATUS', () => {
       STATUS.NotStarted,
       STATUS.Deprecated,
     ];
-    expect(values).toEqual(['complete', 'in-progress', 'not-started', 'deprecated']);
+    expect(values).toEqual(['complete', 'in_progress', 'not_started', 'deprecated']);
   });
 });

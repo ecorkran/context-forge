@@ -119,7 +119,7 @@ describe('buildModel', () => {
     expect(planned).toBeDefined();
     expect(planned!.planned).toBe(true);
     expect(planned!.name).toBe('Planned Feature');
-    expect(planned!.status).toBe('not-started');
+    expect(planned!.status).toBe('not_started');
     // The actual designed slice (100) should still be present and NOT marked planned
     const actual = init.slices.find((s) => s.index === '100');
     expect(actual).toBeDefined();
@@ -132,7 +132,7 @@ describe('buildModel', () => {
     expect(init).toBeDefined();
     expect(init.planned).toBe(true);
     expect(init.name).toBe('Plan Only Initiative');
-    expect(init.status).toBe('not-started');
+    expect(init.status).toBe('not_started');
     expect(init.description).toContain('Exists only in the plan');
     expect(init.slices).toEqual([]);
     expect(init.arch).toBeUndefined();
@@ -170,7 +170,7 @@ describe('buildModel', () => {
     expect(slice!.tasks!.items).toHaveLength(4);
     // deriveEntryStatus: task signal (2/4 done → in-progress) matches the
     // fixture's own frontmatter (status: in-progress) — no drift either way.
-    expect(slice!.tasks!.status).toBe('in-progress');
+    expect(slice!.tasks!.status).toBe('in_progress');
   });
 
   it('operational band: maintenance task (900) appears in maintenance[]', async () => {
@@ -272,7 +272,7 @@ describe('deriveEntryStatus parity (slice 911)', () => {
     const init = model.initiatives['800'];
     const slice = init.slices.find((s) => s.index === '801');
 
-    expect(slice!.tasks!.status).toBe('in-progress');
+    expect(slice!.tasks!.status).toBe('in_progress');
   });
 
   it('plan-only path (no slice doc written): degrades to checkbox exactly as deriveEntryStatus with no signals', async () => {
@@ -293,7 +293,7 @@ describe('deriveEntryStatus parity (slice 911)', () => {
     expect(checked!.planned).toBe(true);
     expect(checked!.status).toBe('complete');
     expect(unchecked!.planned).toBe(true);
-    expect(unchecked!.status).toBe('not-started');
+    expect(unchecked!.status).toBe('not_started');
   });
 });
 

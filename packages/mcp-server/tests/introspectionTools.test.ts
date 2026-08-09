@@ -190,7 +190,7 @@ describe('introspection_tasks', () => {
       items: [],
       totalTasks: 0,
       completedTasks: 0,
-      inferredStatus: 'not-started',
+      inferredStatus: 'not_started',
     });
 
     const result = await client.callTool({

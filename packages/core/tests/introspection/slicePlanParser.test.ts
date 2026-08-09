@@ -22,7 +22,7 @@ describe('parseSlicePlan', () => {
     expect(result.entries[2]).toEqual({
       index: 103,
       name: 'Feature Alpha',
-      status: 'not-started',
+      status: 'not_started',
       isChecked: false,
       lineIndex: 21,
       indexSource: 'explicit',
@@ -55,11 +55,11 @@ describe('parseSlicePlan', () => {
       isChecked: true,
     });
     expect(result.entries.find((e) => e.index === 103)).toMatchObject({
-      status: 'not-started',
+      status: 'not_started',
       isChecked: false,
     });
     expect(result.entries.find((e) => e.index === 104)).toMatchObject({
-      status: 'not-started',
+      status: 'not_started',
       isChecked: false,
     });
     expect(result.entries.find((e) => e.index === 105)).toMatchObject({
@@ -135,7 +135,7 @@ describe('parseSlicePlan', () => {
     expect(result.entries[0]).toEqual({
       index: 1,
       name: 'Backend API Scaffold',
-      status: 'not-started',
+      status: 'not_started',
       isChecked: false,
       lineIndex: 12,
       indexSource: 'fallback',
@@ -145,7 +145,7 @@ describe('parseSlicePlan', () => {
     expect(result.entries[3]).toEqual({
       index: 4,
       name: 'Chat Frontend',
-      status: 'not-started',
+      status: 'not_started',
       isChecked: false,
       lineIndex: 20,
       indexSource: 'fallback',
