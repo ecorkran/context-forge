@@ -4,7 +4,7 @@ project: context-forge
 slice: 922
 parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dateCreated: 20260806
-dateUpdated: 20260806
+dateUpdated: 20260809
 status: not_started
 ---
 
@@ -156,9 +156,31 @@ Because 910 already swept literals into `STATUS.*`, **most of these need no edit
 
 ### Step 3 — delete the workaround
 
-Remove the `.replace(/-/g, '_')` block at `frontmatterSchema.ts:256-264`. `normalizeStatus()` now returns canonical underscored values, so `effectiveValue` is `normalizeStatus(normalizedValue) ?? normalizedValue` — normalize for leniency, then compare directly against `def.values`. Retain the comment explaining *why* normalization happens before comparison (lenient read of on-disk documents); delete only the translation.
+Remove the `.replace(/-/g, '_')` block at `frontmatterSchema.ts:256-264`.
 
-Note the behavior this preserves: an unrecognized status still falls through to `normalizedValue` and fails the `def.values` check, producing the invalid-value finding. Do not let the `?? ` fallback silently coerce unknown input to a valid value.
+> **Resolution (20260809, PM decision during implementation).** This step as
+> originally drafted prescribed `effectiveValue = normalizeStatus(normalizedValue)
+> ?? normalizedValue`, which contradicts Success Criterion 4: once `STATUS` is
+> underscored, `normalizeStatus('in-progress')` returns `'in_progress'`, so that
+> expression *accepts* hyphenated status — and, on the same principle, every other
+> alias (`done`, `completed`, `ready`, `pending`, `planned`). There is no
+> principled middle ground between rejecting `in-progress` and rejecting `done`;
+> they are all non-canonical aliases. The PM resolved this as **strict +
+> auto-fix**, superseding the #63-era alias-acceptance posture:
+>
+> - `validateFrontmatter` compares the value as written directly against
+>   `VALID_STATUSES` — no normalization in the gate. All aliases are rejected.
+> - When the intended canonical value is recoverable, the finding carries a
+>   `fixAction` (`update-frontmatter` with the canonical value), so
+>   `cf check --fix` migrates old documents instead of stranding them. Recovery
+>   uses `suggestStatus()` in `statusNormalizer.ts`: exact alias lookup first,
+>   then a conservative edit-distance match (≤2, inputs ≥6 chars, ambiguous ties
+>   refused) that rescues obvious typos like `in-progres`.
+> - Truly unknown values (`backlog`, `resolved`) get a plain finding, no fixAction.
+>
+> `normalizeStatus()` itself is unchanged and stays lenient for reads
+> (`cf list`/`cf status`); the asymmetry section below still holds, with
+> "validate — strict" now meaning strict against aliases too.
 
 ### Step 4 — bare-literal audit
 
