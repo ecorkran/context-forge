@@ -342,7 +342,7 @@ export class ConsistencyChecker {
         severity: 'warning',
         location: slicePlanPath,
         description: `Tasks in progress (${taskResult.completedTasks}/${taskResult.totalTasks}) but slice ${sliceIndex} is unchecked in plan`,
-        suggestedFix: `No single auto-fix for in-progress — leave the slice plan entry for (${sliceIndex}) unchecked until tasks complete`,
+        suggestedFix: `No single auto-fix for in_progress — leave the slice plan entry for (${sliceIndex}) unchecked until tasks complete`,
         fixable: false,
       });
     }
