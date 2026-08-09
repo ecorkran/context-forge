@@ -6,6 +6,7 @@ import type { WorktreeInfo } from '../types/git.js';
 import { validateFrontmatter } from '../schema/frontmatterSchema.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import { STATUS } from './types.js';
+import { normalizeStatus } from './parsers/statusNormalizer.js';
 import type {
   ConsistencyFinding,
   ConsistencyCheckResult,
@@ -361,7 +362,8 @@ export class ConsistencyChecker {
     if (!frontmatter?.found || !frontmatter.data.status) return findings;
     if (!taskResult) return findings;
 
-    const fmStatus = frontmatter.data.status.toLowerCase();
+    // Lenient read: on-disk documents may carry any historical spelling
+    const fmStatus = normalizeStatus(frontmatter.data.status);
     const tasksComplete = taskResult.inferredStatus === STATUS.Complete;
     const sliceDesignFullPath = sliceDesignRelPath
       ? join(projectPath, sliceDesignRelPath)
@@ -388,7 +390,7 @@ export class ConsistencyChecker {
         rule: 'frontmatter-vs-computed',
         severity: 'warning',
         location: sliceDesignFullPath,
-        description: `Frontmatter status is "${fmStatus}" but all tasks are complete (${taskResult.completedTasks}/${taskResult.totalTasks})`,
+        description: `Frontmatter status is "${frontmatter.data.status}" but all tasks are complete (${taskResult.completedTasks}/${taskResult.totalTasks})`,
         suggestedFix: 'Update frontmatter status to "complete"',
         fixable: true,
         fixAction: {
@@ -473,7 +475,8 @@ export class ConsistencyChecker {
 
     if (!planEntry || !frontmatter?.found || !frontmatter.data.status) return findings;
 
-    const fmStatus = frontmatter.data.status.toLowerCase();
+    // Lenient read: on-disk documents may carry any historical spelling
+    const fmStatus = normalizeStatus(frontmatter.data.status);
     const planChecked = planEntry.isChecked;
     const sliceDesignFullPath = sliceDesignRelPath
       ? join(projectPath, sliceDesignRelPath)
@@ -484,7 +487,7 @@ export class ConsistencyChecker {
         rule: 'plan-vs-frontmatter',
         severity: 'warning',
         location: sliceDesignFullPath,
-        description: `Slice plan entry is checked but frontmatter status is "${fmStatus}"`,
+        description: `Slice plan entry is checked but frontmatter status is "${frontmatter.data.status}"`,
         suggestedFix: 'Update frontmatter status to "complete"',
         fixable: true,
         fixAction: {
@@ -523,12 +526,11 @@ export class ConsistencyChecker {
 
     if (!taskResult || !taskFrontmatter?.found || !taskFrontmatter.data.status) return findings;
 
-    const fmStatus = taskFrontmatter.data.status.toLowerCase().replace(/_/g, '-');
+    // Lenient read: on-disk documents may carry any historical spelling
+    const fmStatus = normalizeStatus(taskFrontmatter.data.status);
     const computed = taskResult.inferredStatus;
     const taskFilePath = taskFrontmatter.filePath;
 
-    // Map task file status values to normalized form for comparison
-    // Task files use not_started/in_progress/complete in frontmatter
     if (fmStatus === STATUS.Complete && computed !== STATUS.Complete) {
       findings.push({
         rule: 'task-file-status',
@@ -540,7 +542,7 @@ export class ConsistencyChecker {
         fixAction: {
           type: 'update-frontmatter',
           filePath: taskFilePath,
-          detail: { key: 'status', value: 'in_progress' },
+          detail: { key: 'status', value: STATUS.InProgress },
         },
       });
     }
@@ -728,7 +730,8 @@ export class ConsistencyChecker {
     // Missing status is now handled by Rule 12 (frontmatter-schema)
     if (!planFrontmatter.data.status) return findings;
 
-    const planStatus = planFrontmatter.data.status.toLowerCase();
+    // Lenient read: on-disk documents may carry any historical spelling
+    const planStatus = normalizeStatus(planFrontmatter.data.status);
 
     if (planStatus === STATUS.Complete && !allComplete) {
       findings.push({
@@ -751,7 +754,7 @@ export class ConsistencyChecker {
         rule: 'plan-status-vs-entries',
         severity: 'warning',
         location: slicePlanPath,
-        description: `All ${slicePlanResult.totalSlices} entries are checked but plan status is "${planStatus}"`,
+        description: `All ${slicePlanResult.totalSlices} entries are checked but plan status is "${planFrontmatter.data.status}"`,
         suggestedFix: 'Update plan frontmatter status to "complete"',
         fixable: true,
         fixAction: {
@@ -824,7 +827,8 @@ export class ConsistencyChecker {
 
     if (!archFrontmatter.found || !archFrontmatter.data.status) return findings;
 
-    const archStatus = archFrontmatter.data.status.toLowerCase();
+    // Lenient read: on-disk documents may carry any historical spelling
+    const archStatus = normalizeStatus(archFrontmatter.data.status);
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
     const archIndex = ConsistencyChecker.extractFileIndex(archPath);
     const archLabel = archIndex !== null ? `Architecture (${archIndex})` : `Architecture (${archPath.split('/').pop()})`;
@@ -850,7 +854,7 @@ export class ConsistencyChecker {
         rule: 'arch-status-vs-plans',
         severity: 'warning',
         location: archPath,
-        description: `All ${slicePlanResult.totalSlices} plan entries are checked but ${archLabel} status is "${archStatus}"`,
+        description: `All ${slicePlanResult.totalSlices} plan entries are checked but ${archLabel} status is "${archFrontmatter.data.status}"`,
         suggestedFix: `Update ${archLabel} frontmatter status to "complete"`,
         fixable: true,
         fixAction: {
@@ -899,7 +903,8 @@ export class ConsistencyChecker {
 
       if (!archFrontmatter.found || !archFrontmatter.data.status) continue;
 
-      const archStatus = archFrontmatter.data.status.toLowerCase();
+      // Lenient read: on-disk documents may carry any historical spelling
+      const archStatus = normalizeStatus(archFrontmatter.data.status);
       const archComplete = archStatus === STATUS.Complete;
 
       if (archComplete && !entry.isChecked) {
@@ -923,7 +928,7 @@ export class ConsistencyChecker {
           rule: 'initiative-entry-vs-arch',
           severity: 'warning',
           location: archPath,
-          description: `Initiative plan entry "${entry.name}" (${entry.index}) is checked but architecture status is "${archStatus}"`,
+          description: `Initiative plan entry "${entry.name}" (${entry.index}) is checked but architecture status is "${archFrontmatter.data.status}"`,
           suggestedFix: 'Update architecture frontmatter status to "complete"',
           fixable: true,
           fixAction: {
@@ -977,7 +982,8 @@ export class ConsistencyChecker {
 
     if (!planFrontmatter.found || !planFrontmatter.data.status) return findings;
 
-    const planStatus = planFrontmatter.data.status.toLowerCase();
+    // Lenient read: on-disk documents may carry any historical spelling
+    const planStatus = normalizeStatus(planFrontmatter.data.status);
     const allComplete =
       initiativePlanResult.totalSlices > 0 &&
       initiativePlanResult.completedSlices === initiativePlanResult.totalSlices;
@@ -1003,7 +1009,7 @@ export class ConsistencyChecker {
         rule: 'initiative-plan-status-vs-entries',
         severity: 'warning',
         location: initiativePlanPath,
-        description: `All ${initiativePlanResult.totalSlices} initiative entries are checked but plan status is "${planStatus}"`,
+        description: `All ${initiativePlanResult.totalSlices} initiative entries are checked but plan status is "${planFrontmatter.data.status}"`,
         suggestedFix: 'Update initiative plan frontmatter status to "complete"',
         fixable: true,
         fixAction: {
