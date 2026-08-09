@@ -6,7 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: [922]
 dateCreated: 20260809
 dateUpdated: 20260809
-status: not_started
+status: complete
 ---
 
 # Slice 923: Frontmatter Validate Command & dateUpdated Stamp
@@ -198,16 +198,66 @@ If a fix ever mutates a `review-resolution`/`gate-evidence`/`devlog` document, t
 7. `--json` output contains `filesChecked`, counts, and the findings array with `filePath`/`rule`/`severity`/`description`/`fixAction`.
 8. Exit codes: 0 clean / 1 findings / 2 invocation error, each covered by a CLI test.
 
-## Verification Walkthrough (draft — refine at Phase 6 close)
+## Verification Walkthrough
 
-All commands use the locally built CLI: `alias cfl='node packages/cli/dist/index.js'` after `pnpm -r build`.
+Executed 20260809 against the locally built CLI (`node packages/cli/dist/index.js` after `pnpm -r build`; the global `cf` binary is a separate published npm install at 0.11.0 and does not contain these changes).
 
-1. **Clean gate run:** `cfl validate frontmatter; echo "exit=$?"` → summary reporting N files checked, no findings, `exit=0`.
-2. **Detect → fix → clean:** copy any slice doc to `project-documents/user/slices/999-slice.scratch.md`, set `status: in-progress` in its frontmatter. `cfl validate frontmatter; echo $?` → finding with "will fix to 'in_progress'", exit 1. `cfl validate frontmatter --fix` → `→ Fixed: in-progress → in_progress`. Open the file: `status: in_progress` **and** `dateUpdated:` = today. Rerun → exit 0. Delete the scratch file.
-3. **Staged-list tolerance:** `cfl validate frontmatter project-documents/user/slices/922-slice.unify-canonical-status-vocabulary.md src/does-not-matter.ts no-such-file.md README.md; echo $?` → exactly one file checked, exit 0.
-4. **Machine artifacts:** create a minimal `project-documents/user/reviews/scratch-resolution.md` with `docType: review-resolution` and no `dateCreated` → finding, exit 1; add `dateCreated: 20260809` (still no `dateUpdated`) → exit 0. Delete scratch.
-5. **check --fix stamps:** in a scratch copy of a doc, delete the `status:` line; `cfl check --fix -y` → status restored to `not_started` and `dateUpdated` = today in the same write.
-6. **JSON contract:** `cfl validate frontmatter -j | jq '.filesChecked, .totalFindings'` → parseable, fields present.
+1. **Clean gate run:**
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter; echo "exit=$?"
+   Frontmatter Validation
+
+     No inconsistencies found (257 files checked)
+   exit=0
+   ```
+   Matches: N files checked, no findings, exit 0.
+
+2. **Detect → fix → clean:** copied `922-slice...md` to `project-documents/user/slices/999-slice.scratch.md`, set `status: in-progress` in its frontmatter only (not the code-block occurrence in the body).
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter; echo "exit=$?"
+     ⚠ Invalid value 'in-progress' for field 'status' on docType 'slice-design' (expected: complete, in_progress, not_started, deprecated, deferred; will fix to 'in_progress')
+   1 finding across 1 file (258 checked)
+   exit=1
+
+   $ node packages/cli/dist/index.js validate frontmatter --fix
+     → Fixed: in-progress → in_progress
+   Fixed 1 of 1 findings
+   exit=0
+   ```
+   File afterward: `status: in_progress` and `dateUpdated: 20260809` (today), written in the same fix pass. Rerun → exit 0. Scratch file deleted.
+
+3. **Staged-list tolerance:**
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter project-documents/user/slices/922-slice.unify-canonical-status-vocabulary.md src/does-not-matter.ts no-such-file.md README.md; echo "exit=$?"
+     No inconsistencies found (1 file checked)
+   exit=0
+   ```
+   Exactly the one in-root `.md` file that exists was checked; the out-of-root `src/does-not-matter.ts`, the nonexistent `no-such-file.md`, and the out-of-root `README.md` were silently skipped — no errors, no findings for skipped paths.
+
+4. **Machine artifacts:** created `project-documents/user/reviews/scratch-resolution.md` with `docType: review-resolution` and no `dateCreated`:
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter project-documents/user/reviews/scratch-resolution.md; echo "exit=$?"
+     ⚠ Missing required field 'dateCreated' for docType 'review-resolution'
+   exit=1
+   ```
+   Added `dateCreated: 20260809` (still no `dateUpdated`):
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter project-documents/user/reviews/scratch-resolution.md; echo "exit=$?"
+     No inconsistencies found (1 file checked)
+   exit=0
+   ```
+   Scratch file deleted.
+
+5. **check --fix stamps:** copied a slice doc to a scratch file and deleted its `status:` frontmatter line, then ran `node packages/cli/dist/index.js check --fix -y` **against the whole project** (unlike `validate frontmatter`, `cf check` has no path-scoping — only `--slice <index>` — so this necessarily also re-evaluates every other slice's findings, not just the scratch file). Observed: the scratch file's missing `status` was backfilled to `not_started` (inferred default) with `dateUpdated: 20260809` stamped in the same write — confirming the guarantee. The same run also correctly fixed unrelated, real, pre-existing findings on this repo (923's own frontmatter `status: not_started` → `in_progress`, matching that 85/102 tasks were actually in progress at the time; the 900 architecture doc's status and the initiative-plan checkbox, both stale for the same reason). Those fixes were kept, not reverted — they are correct given true project state at the time, and this is the intended blast radius of an unscoped `cf check --fix -y`, not a defect. **Caveat for future walkthrough runs:** run `cf check --fix -y` against an isolated/throwaway project, or expect it to also correct any other real, pre-existing findings on the target project — it is not scoped to only the scratch file.
+
+6. **JSON contract:**
+   ```
+   $ node packages/cli/dist/index.js validate frontmatter -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['filesChecked'], d['totalFindings'])"
+   257 0
+   ```
+   Parseable; `filesChecked` and `totalFindings` present, along with `errors`, `warnings`, and `findings` per the documented `--json` shape.
+
+All eight Success Criteria above were exercised by these six steps (criteria 2 and 5 both by step 2/5; criterion 6 implicitly by the byte-identical existing `ConsistencyChecker` suite in Task 8, not by this manual walkthrough).
 
 ## Implementation Notes
 

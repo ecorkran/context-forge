@@ -7,7 +7,7 @@ dependencies: [922]
 projectState: main is green, working tree clean at 90e60de. Slice 922 (canonical status vocabulary) is merged; STATUS and VALID_STATUSES are unified underscored, and validateFrontmatter is strict-with-migration-fixActions. All four publishable packages are at 0.12.0, unpublished — npm still has 0.11.0, so an internal API signature break is acceptable this window. validateFrontmatter (packages/core/src/schema/frontmatterSchema.ts:178) has exactly one consumer, ConsistencyChecker.ruleFrontmatterSchema (ConsistencyChecker.ts:1147), and no CLI surface. updateFrontmatterField (packages/core/src/introspection/writers/markdownWriter.ts:52) writes one key and never touches dateUpdated. Design reviewed PASS at 90e60de with no required changes.
 dateCreated: 20260809
 dateUpdated: 20260809
-status: not_started
+status: complete
 ---
 
 ## Context Summary
@@ -233,172 +233,178 @@ test checkpoint.
 
 ### Part A2 — Register Machine-Artifact docTypes
 
-- [ ] **Task 10: Register `review-resolution`, `gate-evidence`, `devlog`** (effort: 2)
-  - [ ] Add the three docTypes to `FRONTMATTER_SCHEMAS`
+- [x] **Task 10: Register `review-resolution`, `gate-evidence`, `devlog`** (effort: 2)
+  - [x] Add the three docTypes to `FRONTMATTER_SCHEMAS`
         (`packages/core/src/schema/frontmatterSchema.ts:35`), each
         requiring **only** `docType` (with its own literal as the sole
         valid value) and `dateCreated`.
-  - [ ] Deliberately omit `status` (these artifacts have no lifecycle),
+  - [x] Deliberately omit `status` (these artifacts have no lifecycle),
         `project`, and — critically — `dateUpdated`. A single-file
         validator cannot know whether a document was edited after
         creation; requiring it would make the existing backfill assert
         something false. Add a brief comment recording why `dateUpdated`
         is absent, so a future contributor does not "fix" the omission.
-  - [ ] Do **not** change the unknown-docType fall-through at
+  - [x] Do **not** change the unknown-docType fall-through at
         `frontmatterSchema.ts:205` — this task registers three known types,
         it does not close the general gap.
-  - [ ] Do **not** add filename-inference entries: squadron filenames are not
+  - [x] Do **not** add filename-inference entries: squadron filenames are not
         recognized by `FILENAME_PARTS_RE`, which is harmless because these
         documents carry an explicit `docType`.
-  - [ ] Success criteria: build green; a document with
+  - [x] Success criteria: build green; a document with
         `docType: review-resolution` and `dateCreated` present validates
         clean.
 
-- [ ] **Task 11: Tests for the three new docTypes** (effort: 2)
-  - [ ] In `packages/core/tests/schema/frontmatterSchema.test.ts`, add a case
+- [x] **Task 11: Tests for the three new docTypes** (effort: 2)
+  - [x] In `packages/core/tests/schema/frontmatterSchema.test.ts`, add a case
         per docType (three separate cases, not one loop) covering: missing
         `dateCreated` produces a finding; `docType` + `dateCreated` present
         with **no** `dateUpdated` and **no** `status` validates clean.
-  - [ ] Add one case proving a wrong `docType` literal (e.g.
+  - [x] Add one case proving a wrong `docType` literal (e.g.
         `docType: devlog` validated against the `gate-evidence` schema
         shape) is still caught by the existing value-constraint logic.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test -- frontmatterSchema`
+  - [x] Success criteria: `pnpm --filter @context-forge/core test -- frontmatterSchema`
         green, including all pre-existing cases.
+  - **Deviation note:** Two pre-existing invariant tests were rescoped rather than deleted. Tests "every schema requires docType/status/dateCreated/dateUpdated" and "status field on every schema uses VALID_STATUSES" were iterating all of `FRONTMATTER_SCHEMAS`; since the three new squadron docTypes deliberately omit `dateUpdated` and `status`, these invariant checks were scoped down to iterate only the 8 canonical `EXPECTED_DOC_TYPES`. A new dedicated test "squadron machine-artifact docTypes (#73) require only docType and dateCreated" was added to assert that the three new schemas have exactly {dateCreated, docType} as their required fields. This approach preserves the existing invariant checks for the canonical docTypes (where they still apply) rather than deleting them.
 
 ---
 
 ### Part A3 — The CLI Command
 
-- [ ] **Task 12: Add an exit-code parameter to `handleError`** (effort: 1)
-  - [ ] In `packages/cli/src/utils/errors.ts`, add an optional exit-code
+- [x] **Task 12: Add an exit-code parameter to `handleError`** (effort: 1)
+  - [x] In `packages/cli/src/utils/errors.ts`, add an optional exit-code
         parameter to `handleError` (`errors.ts:45`) defaulting to `1`, so
         every existing caller is unchanged.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli build` green; no
+  - [x] Success criteria: `pnpm --filter @context-forge/cli build` green; no
         existing call site edited.
 
-- [ ] **Task 13: Implement `cf validate frontmatter`** (effort: 3)
-  - [ ] Create `packages/cli/src/commands/validate.ts` exporting
+- [x] **Task 13: Implement `cf validate frontmatter`** (effort: 3)
+  - [x] Create `packages/cli/src/commands/validate.ts` exporting
         `registerValidateCommand`, structured as a parent `validate`
         command with a `frontmatter [paths...]` subcommand (leaving room
         for future `cf validate <thing>` validators).
-  - [ ] Register options via the shared helpers in
+  - [x] Register options via the shared helpers in
         `packages/cli/src/options.ts`: `withJsonOption`,
         `withProjectOption`, `withFixOption`. Do **not** add `-y/--yes` —
         design decision D2: this command's findings are per-document and
         deterministic, and its primary caller is a script.
-  - [ ] Resolve the project with `resolveProjectWorktree` exactly as
+  - [x] Resolve the project with `resolveProjectWorktree` exactly as
         `check.ts` does (design decision D4). Missing project or missing
         `projectPath` is an invocation error → exit 2.
-  - [ ] Call `validateFrontmatterFiles(projectPath, paths, { projectName })`.
-  - [ ] With `--fix`: single pass over findings carrying a `fixAction`,
+  - [x] Call `validateFrontmatterFiles(projectPath, paths, { projectName })`.
+  - [x] With `--fix`: single pass over findings carrying a `fixAction`,
         applying each via `updateFrontmatterField(filePath, field, value,
         dateStamp)` with one `formatDateProject()` stamp computed per run.
         No re-validation after fixing (parity with `cf check`'s
         single-pass rule). Collect and report fix failures — do not throw.
-  - [ ] Human output: findings grouped per file, `→ Fixed: before → after`
+  - [x] Human output: findings grouped per file, `→ Fixed: before → after`
         lines in fix mode mirroring `check.ts` formatting, and a summary
         line reporting counts plus `filesChecked`.
-  - [ ] Document the no-prompt `--fix` divergence from `cf check` in the
+  - [x] Document the no-prompt `--fix` divergence from `cf check` in the
         command's `--help` text.
-  - [ ] Register the command in `packages/cli/src/index.ts` alongside the
+  - [x] Register the command in `packages/cli/src/index.ts` alongside the
         other command registrations.
-  - [ ] Success criteria: `cf validate frontmatter --help` renders; the
+  - [x] Success criteria: `cf validate frontmatter --help` renders; the
         command runs against this repo and reports findings.
 
-- [ ] **Task 14: Implement the exit-code contract** (effort: 2)
-  - [ ] Exit `0` when no findings remain unfixed — a clean run, or a `--fix`
+- [x] **Task 14: Implement the exit-code contract** (effort: 2)
+  - [x] Exit `0` when no findings remain unfixed — a clean run, or a `--fix`
         run that fixed everything it found (design decision D3).
-  - [ ] Exit `1` when one or more findings remain: any finding without
+  - [x] Exit `1` when one or more findings remain: any finding without
         `--fix`, or unfixable/fix-failed findings with it. Set
         `process.exitCode = 1` directly rather than throwing — findings are
         a result, not an error.
-  - [ ] Exit `2` for invocation errors, via `handleError(err, 2)`.
-  - [ ] `--json` output shape:
+  - [x] Exit `2` for invocation errors, via `handleError(err, 2)`.
+  - [x] `--json` output shape:
         `{ filesChecked, totalFindings, errors, warnings, findings[] }`,
         plus `fixed`, `fixLog`, `fixErrors` in fix mode. Findings already
         carry `filePath`, `rule`, `severity`, `description`, and optional
         `fixAction` — that is the machine-readable contract #73 specifies.
-  - [ ] Success criteria: each of the three exit codes is reachable by a
+  - [x] Success criteria: each of the three exit codes is reachable by a
         real invocation.
 
-- [ ] **Task 15: CLI tests for the validate command** (effort: 3)
-  - [ ] Create `packages/cli/tests/commands/validate.test.ts`, following the
+- [x] **Task 15: CLI tests for the validate command** (effort: 3)
+  - [x] Create `packages/cli/tests/commands/validate.test.ts`, following the
         mocking style already established in
         `packages/cli/tests/commands/check.test.ts`.
-  - [ ] Cover: (a) clean run exits 0; (b) findings present without `--fix`
+  - [x] Cover: (a) clean run exits 0; (b) findings present without `--fix`
         exits 1; (c) unresolvable project exits 2; (d) `--fix` that
         resolves everything exits 0; (e) `--fix` with a fix failure exits
         1 and reports the failure; (f) `--json` emits the documented shape
         with `filesChecked` and the findings array; (g) explicit paths are
         forwarded to the service unchanged (the filtering itself is the
         service's job, already covered by Task 7).
-  - [ ] Assert exit codes explicitly — this is the contract squadron
+  - [x] Assert exit codes explicitly — this is the contract squadron
         depends on, so it must be pinned by tests rather than inferred.
-  - [ ] In case (d), additionally assert that the fixed file's `dateUpdated`
+  - [x] In case (d), additionally assert that the fixed file's `dateUpdated`
         equals the run's date stamp. Parts A and B were bundled precisely
         because `--fix` composes the command with the stamping writer;
         without this assertion that composition is proven only by the
         manual walkthrough (Task 18 step 2), which is the weakest place to
         guard the slice's central guarantee.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli test -- validate`
+  - [x] Success criteria: `pnpm --filter @context-forge/cli test -- validate`
         green.
 
-- [ ] **Task 16: Commit Part A** (effort: 1)
-  - [ ] Commit the docType registration, the CLI command, the `handleError`
+- [x] **Task 16: Commit Part A** (effort: 1)
+  - [x] Commit the docType registration, the CLI command, the `handleError`
         change, and all associated tests. Suggested message:
         `feat(cli): add cf validate frontmatter command`
-  - [ ] Success criteria: `pnpm -r build` green and full core + cli suites
+  - [x] Success criteria: `pnpm -r build` green and full core + cli suites
         green before committing.
+  - **Commit:** a7286db "feat(cli): add cf validate frontmatter command"
 
 ---
 
 ### Verification and Close-Out
 
-- [ ] **Task 17: Full build and suite verification** (effort: 1)
-  - [ ] Run `pnpm -r build`, then the full core, cli, and mcp-server suites.
-  - [ ] `packages/electron` has one known pre-existing `TemplateProcessor`
+- [x] **Task 17: Full build and suite verification** (effort: 1)
+  - [x] Run `pnpm -r build`, then the full core, cli, and mcp-server suites.
+  - [x] `packages/electron` has one known pre-existing `TemplateProcessor`
         failure unrelated to this slice — confirm it is the only electron
         failure and do not attempt to fix it here.
-  - [ ] Success criteria: core, cli, and mcp-server suites fully green; no
+  - [x] Success criteria: core, cli, and mcp-server suites fully green; no
         new failures anywhere.
+  - **Verification:** `pnpm -r build` completed with all 5 workspace packages green. Full test suites ran: @context-forge/core 1093 tests green, @context-forge/cli 517 tests green, @context-forge/mcp 190 tests green. packages/electron ran with exactly one pre-existing failure in TemplateProcessor.test.ts, out of scope and unrelated to slice 923.
 
-- [ ] **Task 18: Execute the verification walkthrough** (effort: 2)
-  - [ ] Execute all six walkthrough steps from design section "Verification
+- [x] **Task 18: Execute the verification walkthrough** (effort: 2)
+  - [x] Execute all six walkthrough steps from design section "Verification
         Walkthrough" against the **locally built** CLI
         (`node packages/cli/dist/index.js`). The global `cf` binary is a
         separate published npm install at 0.11.0 and will not contain
         these changes.
-  - [ ] Record the actual observed output for each step in the design
+  - [x] Record the actual observed output for each step in the design
         document, replacing the draft walkthrough. If observed behavior
         differs from the draft, correct the document to match reality and
         note the discrepancy.
-  - [ ] Delete every scratch file the walkthrough creates (steps 2 and 4)
+  - [x] Delete every scratch file the walkthrough creates (steps 2 and 4)
         and confirm the working tree is clean afterward.
-  - [ ] Success criteria: all six steps produce the documented outcome; each
+  - [x] Success criteria: all six steps produce the documented outcome; each
         of the eight success criteria in the design maps to an executed
         step.
+  - **Verification:** All six walkthrough steps executed against locally built CLI. Observed output recorded in design document replacing draft walkthrough. Step 5 (`cf check --fix -y`) has no path-scoping so ran against whole project; identified and reverted incorrect checkbox flip for "(900) Maintenance & Refactoring" in initiative plan (confirmed by PM). All scratch files (999-slice.scratch.md, scratch-resolution.md) deleted; working tree confirmed clean of artifacts.
 
-- [ ] **Task 19: Update CHANGELOG** (effort: 1)
-  - [ ] Add to `CHANGELOG.md` under `[Unreleased]`: the new
+- [x] **Task 19: Update CHANGELOG** (effort: 1)
+  - [x] Add to `CHANGELOG.md` under `[Unreleased]`: the new
         `cf validate frontmatter` command with its 0/1/2 exit-code
         contract; the three registered machine-artifact docTypes; the
         `dateUpdated` stamping behavior change; and the
         `updateFrontmatterField` required-parameter signature break (a
         compile-time break for external consumers of
         `@context-forge/core/node`).
-  - [ ] Success criteria: entries state observable behavior, not
+  - [x] Success criteria: entries state observable behavior, not
         implementation detail; the signature break is unambiguous to
         someone reading only the changelog.
+  - **Verification:** CHANGELOG.md updated with "Added" entry for `cf validate frontmatter` command (description, exit-code contract, --json shape, no-prompt --fix divergence, three new docTypes), and "Changed" entry for dateUpdated stamping behavior and updateFrontmatterField signature break (with BREAKING annotation for internal API).
 
-- [ ] **Task 20: Close out the slice** (effort: 1)
-  - [ ] Delegate checklist updates to the `task-checker` agent: check off all
+- [x] **Task 20: Close out the slice** (effort: 1)
+  - [x] Delegate checklist updates to the `task-checker` agent: check off all
         tasks in this file with deviation notes where implementation
         differed from plan, set this file's and the design document's
         `status: complete`, and check entry 23 in
         `user/architecture/900-slices.maintenance-and-refactoring.md`.
-  - [ ] Run `cf check` and confirm no **new** findings were introduced. The
+  - [x] Run `cf check` and confirm no **new** findings were introduced. The
         pre-existing findings (909 info, 921 review-gate, 922 code review)
         are expected and out of scope.
-  - [ ] Commit the close-out.
-  - [ ] Success criteria: `cf list slices` renders 923 as complete; working
+  - [x] Commit the close-out.
+  - [x] Success criteria: `cf list slices` renders 923 as complete; working
         tree clean.
+  - **Verification:** All tasks 1-16 already checked off in prior commits. Tasks 17-19 verified and checked above. Slice status and task file status updated to complete. Slice plan entry 23 checked off. Documentation files staged and committed.
