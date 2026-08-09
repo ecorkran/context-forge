@@ -4,6 +4,7 @@ import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { WorktreeInfo } from '../types/git.js';
 import { validateFrontmatter } from '../schema/frontmatterSchema.js';
+import { discoverAllDocuments } from '../schema/frontmatterFileValidator.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import { STATUS } from './types.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
@@ -1115,42 +1116,21 @@ export class ConsistencyChecker {
 
   // --- Document-wide rules ---
 
-  /** Directories under project-documents/user/ to scan for methodology documents. */
-  private static readonly DOC_SCAN_DIRS = [
-    'architecture',
-    'slices',
-    'tasks',
-    'project-guides',
-    'reviews',
-    'analysis',
-  ];
-
-  /** Discover all .md documents across methodology directories. */
-  private async discoverAllDocuments(projectPath: string): Promise<string[]> {
-    const userDir = join(projectPath, 'project-documents/user');
-    const allPaths: string[] = [];
-
-    for (const subdir of ConsistencyChecker.DOC_SCAN_DIRS) {
-      const dir = join(userDir, subdir);
-      try {
-        const files = await readdir(dir);
-        for (const f of files) {
-          if (f.endsWith('.md')) {
-            allPaths.push(join(dir, f));
-          }
-        }
-      } catch {
-        // Directory may not exist — skip
-      }
-    }
-
-    return allPaths;
-  }
-
-  /** Rule 12: Validate frontmatter against per-docType schema. */
+  /**
+   * Rule 12: Validate frontmatter against per-docType schema.
+   *
+   * Discovery (DOC_SCAN_DIRS / discoverAllDocuments) is shared with the
+   * standalone `validateFrontmatterFiles` service (`cf validate frontmatter`).
+   * Per-file parsing here goes through the injected `IArtifactIntrospector`
+   * rather than calling into the service directly, so this rule stays
+   * testable via dependency injection like every other rule in this class;
+   * `ArtifactIntrospector.parseFrontmatter` is a pass-through to the same
+   * underlying `frontmatterParser` the service uses, so results are
+   * identical in production.
+   */
   private async ruleFrontmatterSchema(projectPath: string, projectName?: string): Promise<ConsistencyFinding[]> {
     const findings: ConsistencyFinding[] = [];
-    const documents = await this.discoverAllDocuments(projectPath);
+    const documents = await discoverAllDocuments(projectPath);
 
     for (const docPath of documents) {
       let fm;

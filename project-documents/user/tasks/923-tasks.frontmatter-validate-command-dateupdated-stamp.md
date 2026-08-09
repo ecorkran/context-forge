@@ -62,87 +62,90 @@ test checkpoint.
 
 ### Part B — `dateUpdated` Stamp (GitHub #71)
 
-- [ ] **Task 1: Add required `dateUpdated` parameter to `updateFrontmatterField`** (effort: 2)
-  - [ ] In `packages/core/src/introspection/writers/markdownWriter.ts`, add a
+- [x] **Task 1: Add required `dateUpdated` parameter to `updateFrontmatterField`** (effort: 2)
+  - [x] In `packages/core/src/introspection/writers/markdownWriter.ts`, add a
         fourth **required** parameter `dateUpdated: string` to
         `updateFrontmatterField`. Required, not optional — an optional
         parameter would let a future call site silently skip the stamp,
         which is the exact defect #71 reports.
-  - [ ] After writing the requested `key`, write `dateUpdated` using the same
+  - [x] After writing the requested `key`, write `dateUpdated` using the same
         replace-or-insert mechanics the function already uses: replace the
         existing `dateUpdated:` line inside the frontmatter bounds if
         present, otherwise insert a new line before the closing `---`.
-  - [ ] Add the guard: when `key === 'dateUpdated'`, skip the stamp entirely.
+  - [x] Add the guard: when `key === 'dateUpdated'`, skip the stamp entirely.
         The caller is writing that field itself, and this is what protects
         the `dateCreated` backfill (`frontmatterSchema.ts:219`) from being
         overwritten with today's date. The guard lives inside the function
         so it is not re-implemented at call sites.
-  - [ ] Do **not** make the stamp conditional on `dateCreated` being present.
+  - [x] Do **not** make the stamp conditional on `dateCreated` being present.
         A document with no `dateCreated` still gets `dateUpdated`.
-  - [ ] Do **not** change `FixLogEntry` or `updateCheckbox`. The returned log
+  - [x] Do **not** change `FixLogEntry` or `updateCheckbox`. The returned log
         entry continues to record only the primary field's before/after;
         the stamp is asserted by tests, not logged.
-  - [ ] Success criteria: `updateFrontmatterField` writes both the requested
+  - [x] Success criteria: `updateFrontmatterField` writes both the requested
         key and `dateUpdated` in a single file write; the function still
         reads no clock (date is supplied by the caller); `pnpm --filter
         @context-forge/core build` fails only at the three known call
         sites (Task 3), confirming the signature change is enforced at
         compile time.
+  - **Deviation note:** Implementation added two helper functions (`findFrontmatterBounds`, `setFrontmatterField`) to avoid duplicating replace-or-insert logic between the primary field write and the stamp write. This is a minor refactoring detail beyond the design's literal wording but achieves the same behavior and maintains the key === 'dateUpdated' guard inside the function.
 
-- [ ] **Task 2: Tests for the `dateUpdated` stamp** (effort: 2)
-  - [ ] In `packages/core/tests/introspection/writers/markdownWriter.test.ts`,
+- [x] **Task 2: Tests for the `dateUpdated` stamp** (effort: 2)
+  - [x] In `packages/core/tests/introspection/writers/markdownWriter.test.ts`,
         add cases covering: (a) stamp replaces an existing `dateUpdated`
         line; (b) stamp inserts `dateUpdated` when the field is absent;
         (c) `key === 'dateUpdated'` writes the caller's value and does
         **not** overwrite it with the stamp date; (d) stamp applies when
         `dateCreated` is absent; (e) the returned `FixLogEntry` still
         reports the primary field's before/after, unchanged.
-  - [ ] Pass an explicit fixed date string in every test — never a live
+  - [x] Pass an explicit fixed date string in every test — never a live
         clock — so assertions are deterministic.
-  - [ ] Update any existing `updateFrontmatterField` call in this file to the
+  - [x] Update any existing `updateFrontmatterField` call in this file to the
         new four-argument signature.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test -- markdownWriter`
+  - [x] Success criteria: `pnpm --filter @context-forge/core test -- markdownWriter`
         passes with all new cases green.
 
-- [ ] **Task 3: Update the three `updateFrontmatterField` call sites** (effort: 2)
-  - [ ] `ConsistencyChecker.applyFixes` (`ConsistencyChecker.ts:208`): add a
+- [x] **Task 3: Update the three `updateFrontmatterField` call sites** (effort: 2)
+  - [x] `ConsistencyChecker.applyFixes` (`ConsistencyChecker.ts:208`): add a
         second parameter `dateStamp` defaulting to `formatDateProject()`
         (already exported from `packages/core/src/project-defaults.ts`),
         and pass it through to the `update-frontmatter` branch at
         `ConsistencyChecker.ts:228`. One stamp per run, so every document
         touched by a multi-fix run is dated identically.
-  - [ ] `packages/cli/src/commands/check.ts` `setReviewNoneAction` (line 158):
+  - [x] `packages/cli/src/commands/check.ts` `setReviewNoneAction` (line 158):
         pass `formatDateProject()` so the `review: none` write also stamps.
-  - [ ] Verify no other production call sites exist:
+  - [x] Verify no other production call sites exist:
         `grep -rn "updateFrontmatterField" packages --include="*.ts"`
         (excluding `dist/` and tests) should show only
         `markdownWriter.ts`, `node.ts` (the re-export),
         `ConsistencyChecker.ts`, and `check.ts`.
-  - [ ] Success criteria: `pnpm -r build` is green; no call site computes its
+  - [x] Success criteria: `pnpm -r build` is green; no call site computes its
         own date inline beyond the single `formatDateProject()` call per
         operation.
 
-- [ ] **Task 4: Tests for stamping through the fix pipeline** (effort: 2)
-  - [ ] In the `ConsistencyChecker` test suite, add a case proving
+- [x] **Task 4: Tests for stamping through the fix pipeline** (effort: 2)
+  - [x] In the `ConsistencyChecker` test suite, add a case proving
         `applyFixes` passes its date stamp to `updateFrontmatterField` —
         call it with an explicit date and assert the argument, rather than
         asserting against a live clock.
-  - [ ] Add the regression case for the interaction risk: a document missing
+  - [x] Add the regression case for the interaction risk: a document missing
         `dateUpdated` but having `dateCreated` produces the backfill
         fixAction (`field: 'dateUpdated'`), and after `applyFixes` the
         file's `dateUpdated` equals its `dateCreated` — **not** the run
         date. This is design section B1's guard, verified end-to-end
         rather than only at the writer unit level.
-  - [ ] Update `packages/cli/tests/commands/check.test.ts` for the
+  - [x] Update `packages/cli/tests/commands/check.test.ts` for the
         `setReviewNoneAction` call-signature change.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test` and
+  - [x] Success criteria: `pnpm --filter @context-forge/core test` and
         `pnpm --filter @context-forge/cli test` both green.
+  - **Deviation note:** The end-to-end regression test (dateUpdated backfill from dateCreated after applyFixes) was created in a separate integration test file `packages/core/tests/introspection/ConsistencyChecker.applyFixesIntegration.test.ts` using real temp-dir fixtures and the unmocked writer. This provides stronger end-to-end coverage than adding it inline in the mocked test, while keeping the mocked test focused on argument passing.
 
-- [ ] **Task 5: Commit Part B** (effort: 1)
-  - [ ] Commit the stamp implementation, call-site updates, and tests.
+- [x] **Task 5: Commit Part B** (effort: 1)
+  - [x] Commit the stamp implementation, call-site updates, and tests.
         Suggested message: `fix(core): stamp dateUpdated on frontmatter writes`
-  - [ ] Success criteria: `pnpm -r build` green and full core + cli suites
+  - [x] Success criteria: `pnpm -r build` green and full core + cli suites
         green before committing; working tree clean after.
+  - **Commit:** 94eea4d "fix(core): stamp dateUpdated on frontmatter writes"
 
 ---
 
