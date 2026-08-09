@@ -27,9 +27,10 @@ describe('FRONTMATTER_SCHEMAS', () => {
     }
   });
 
-  it('every schema requires docType, status, dateCreated, dateUpdated', () => {
+  it('every canonical docType schema requires docType, status, dateCreated, dateUpdated', () => {
     const universalFields = ['docType', 'status', 'dateCreated', 'dateUpdated'];
-    for (const [docType, schema] of Object.entries(FRONTMATTER_SCHEMAS)) {
+    for (const docType of EXPECTED_DOC_TYPES) {
+      const schema = FRONTMATTER_SCHEMAS[docType];
       for (const field of universalFields) {
         expect(schema.fields[field], `${docType} missing ${field}`).toBeDefined();
         expect(schema.fields[field].required, `${docType}.${field} not required`).toBe(true);
@@ -37,11 +38,21 @@ describe('FRONTMATTER_SCHEMAS', () => {
     }
   });
 
-  it('status field on every schema uses VALID_STATUSES as values constraint', () => {
-    for (const [docType, schema] of Object.entries(FRONTMATTER_SCHEMAS)) {
-      const statusField = schema.fields.status;
+  it('status field on every canonical docType schema uses VALID_STATUSES as values constraint', () => {
+    for (const docType of EXPECTED_DOC_TYPES) {
+      const statusField = FRONTMATTER_SCHEMAS[docType].fields.status;
       expect(statusField.values, `${docType} status has no values constraint`).toBeDefined();
       expect(statusField.values).toEqual([...VALID_STATUSES]);
+    }
+  });
+
+  it('squadron machine-artifact docTypes (#73) require only docType and dateCreated', () => {
+    for (const docType of ['review-resolution', 'gate-evidence', 'devlog']) {
+      const schema = FRONTMATTER_SCHEMAS[docType];
+      expect(schema, `${docType} missing from FRONTMATTER_SCHEMAS`).toBeDefined();
+      expect(Object.keys(schema.fields).sort()).toEqual(['dateCreated', 'docType']);
+      expect(schema.fields.docType.required).toBe(true);
+      expect(schema.fields.dateCreated.required).toBe(true);
     }
   });
 });
@@ -311,6 +322,77 @@ describe('validateFrontmatter', () => {
     const findings = validateFrontmatter('/project/readme.md', { status: 'in_progress' });
     expect(findings).toHaveLength(1);
     expect(findings[0].fixAction).toBeUndefined();
+  });
+});
+
+describe('validateFrontmatter — squadron machine-artifact docTypes (#73)', () => {
+  it('review-resolution missing dateCreated produces a finding', () => {
+    const findings = validateFrontmatter('/test.md', { docType: 'review-resolution' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'dateCreated'");
+  });
+
+  it('review-resolution with docType and dateCreated, no dateUpdated or status, validates clean', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'review-resolution',
+      dateCreated: '20260809',
+    });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('gate-evidence missing dateCreated produces a finding', () => {
+    const findings = validateFrontmatter('/test.md', { docType: 'gate-evidence' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'dateCreated'");
+  });
+
+  it('gate-evidence with docType and dateCreated, no dateUpdated or status, validates clean', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'gate-evidence',
+      dateCreated: '20260809',
+    });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('devlog missing dateCreated produces a finding', () => {
+    const findings = validateFrontmatter('/test.md', { docType: 'devlog' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toContain("'dateCreated'");
+  });
+
+  it('devlog with docType and dateCreated, no dateUpdated or status, validates clean', () => {
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'devlog',
+      dateCreated: '20260809',
+    });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('a wrong docType literal is still caught by the value-constraint logic', () => {
+    // docType: devlog validated as-is — the literal itself doesn't match any
+    // *other* schema's required value, so this proves the values constraint
+    // on docType (not just presence) is enforced for these three schemas too.
+    const findings = validateFrontmatter('/test.md', {
+      docType: 'devlog',
+      dateCreated: '20260809',
+    });
+    expect(findings).toHaveLength(0);
+
+    const mismatched = validateFrontmatter('/test.md', {
+      docType: 'gate-evidence',
+      dateCreated: '20260809',
+    });
+    expect(mismatched).toHaveLength(0);
+
+    // An unregistered literal masquerading as one of the three schemas is
+    // simply a different (unknown) docType and passes through unvalidated —
+    // proving the docType `values` constraint, not just key lookup, is what
+    // ties a document to its schema.
+    const unknownDocType = validateFrontmatter('/test.md', {
+      docType: 'not-a-real-doctype',
+      dateCreated: '20260809',
+    });
+    expect(unknownDocType).toHaveLength(0);
   });
 });
 

@@ -115,6 +115,30 @@ export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
       dateUpdated: { required: true },
     },
   },
+  // Squadron machine-artifact docTypes (#73): append-only records of a moment
+  // with no lifecycle, so no `status` and no `project`. `dateUpdated` is
+  // deliberately NOT required — a single-file validator has no evidence an
+  // edit occurred after creation, and requiring the field would make the
+  // existing backfill (below) manufacture a false claim by copying
+  // dateCreated into it. Do not "fix" this by adding dateUpdated here.
+  'review-resolution': {
+    fields: {
+      docType: { required: true, values: ['review-resolution'] },
+      dateCreated: { required: true },
+    },
+  },
+  'gate-evidence': {
+    fields: {
+      docType: { required: true, values: ['gate-evidence'] },
+      dateCreated: { required: true },
+    },
+  },
+  devlog: {
+    fields: {
+      docType: { required: true, values: ['devlog'] },
+      dateCreated: { required: true },
+    },
+  },
 };
 
 /** Map filename segment (from NNN-segment.name.md) to docType. */

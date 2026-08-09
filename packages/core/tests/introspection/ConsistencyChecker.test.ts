@@ -745,6 +745,19 @@ describe('ConsistencyChecker', () => {
         expect(typeof entry.rule).toBe('string');
       }
     });
+
+    it('applyFixes passes its date stamp through to updateFrontmatterField', async () => {
+      vi.mocked(updateFrontmatterField).mockClear();
+      const checker = new ConsistencyChecker(makeMockIntrospector());
+      const checkResult = await checker.check(makeProject());
+      await checker.applyFixes(checkResult, '20260215');
+
+      const frontmatterCalls = vi.mocked(updateFrontmatterField).mock.calls;
+      expect(frontmatterCalls.length).toBeGreaterThan(0);
+      for (const call of frontmatterCalls) {
+        expect(call[3]).toBe('20260215');
+      }
+    });
   });
 
   describe('checkAll()', () => {

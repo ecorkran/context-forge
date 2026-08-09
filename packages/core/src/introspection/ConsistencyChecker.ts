@@ -4,6 +4,7 @@ import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { WorktreeInfo } from '../types/git.js';
 import { validateFrontmatter } from '../schema/frontmatterSchema.js';
+import { discoverAllDocuments } from '../schema/frontmatterFileValidator.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import { STATUS } from './types.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
@@ -18,6 +19,7 @@ import type {
 } from './types.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
+import { formatDateProject } from '../project-defaults.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { CONFIG_KEYS, ConfigScope } from '../config/ConfigKeys.js';
@@ -205,7 +207,10 @@ export class ConsistencyChecker {
   }
 
   /** Apply fixes to a check result — shared by fix() and fixAll(). */
-  async applyFixes(checkResult: ConsistencyCheckResult): Promise<ConsistencyFixResult> {
+  async applyFixes(
+    checkResult: ConsistencyCheckResult,
+    dateStamp: string = formatDateProject()
+  ): Promise<ConsistencyFixResult> {
     const fixLog: ConsistencyFixResult['fixLog'] = [];
     const fixErrors: string[] = [];
     let fixed = 0;
@@ -225,7 +230,7 @@ export class ConsistencyChecker {
           fixed++;
         } else if (finding.fixAction.type === 'update-frontmatter') {
           const { key, value } = finding.fixAction.detail as { key: string; value: string };
-          const entry = await updateFrontmatterField(finding.fixAction.filePath, key, value);
+          const entry = await updateFrontmatterField(finding.fixAction.filePath, key, value, dateStamp);
           entry.rule = finding.rule;
           fixLog.push(entry);
           fixed++;
@@ -1111,42 +1116,21 @@ export class ConsistencyChecker {
 
   // --- Document-wide rules ---
 
-  /** Directories under project-documents/user/ to scan for methodology documents. */
-  private static readonly DOC_SCAN_DIRS = [
-    'architecture',
-    'slices',
-    'tasks',
-    'project-guides',
-    'reviews',
-    'analysis',
-  ];
-
-  /** Discover all .md documents across methodology directories. */
-  private async discoverAllDocuments(projectPath: string): Promise<string[]> {
-    const userDir = join(projectPath, 'project-documents/user');
-    const allPaths: string[] = [];
-
-    for (const subdir of ConsistencyChecker.DOC_SCAN_DIRS) {
-      const dir = join(userDir, subdir);
-      try {
-        const files = await readdir(dir);
-        for (const f of files) {
-          if (f.endsWith('.md')) {
-            allPaths.push(join(dir, f));
-          }
-        }
-      } catch {
-        // Directory may not exist — skip
-      }
-    }
-
-    return allPaths;
-  }
-
-  /** Rule 12: Validate frontmatter against per-docType schema. */
+  /**
+   * Rule 12: Validate frontmatter against per-docType schema.
+   *
+   * Discovery (DOC_SCAN_DIRS / discoverAllDocuments) is shared with the
+   * standalone `validateFrontmatterFiles` service (`cf validate frontmatter`).
+   * Per-file parsing here goes through the injected `IArtifactIntrospector`
+   * rather than calling into the service directly, so this rule stays
+   * testable via dependency injection like every other rule in this class;
+   * `ArtifactIntrospector.parseFrontmatter` is a pass-through to the same
+   * underlying `frontmatterParser` the service uses, so results are
+   * identical in production.
+   */
   private async ruleFrontmatterSchema(projectPath: string, projectName?: string): Promise<ConsistencyFinding[]> {
     const findings: ConsistencyFinding[] = [];
-    const documents = await this.discoverAllDocuments(projectPath);
+    const documents = await discoverAllDocuments(projectPath);
 
     for (const docPath of documents) {
       let fm;
