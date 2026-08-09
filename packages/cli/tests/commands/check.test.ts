@@ -189,6 +189,55 @@ describe('cf check', () => {
     expect(output).toContain('Fixed 1 of 2');
   });
 
+  it('pairs each fixed finding with its own fixLog entry when several share a rule', async () => {
+    // Two frontmatter-schema fixes in one run (as strict status validation
+    // produces): each rendered "Fixed:" line must name its own file, not the
+    // first entry matching the rule. Findings carry relative locations; the
+    // fix log records absolute paths.
+    const twoFixResult = {
+      projectPath: '/tmp/test',
+      findings: [
+        {
+          rule: 'frontmatter-schema',
+          severity: 'warning',
+          location: 'user/slices/101-slice.a.md',
+          description: "Invalid value 'not-started' for field 'status'",
+          suggestedFix: 'Update status',
+          fixable: true,
+        },
+        {
+          rule: 'frontmatter-schema',
+          severity: 'warning',
+          location: 'user/slices/105-slice.b.md',
+          description: "Invalid value 'not started' for field 'status'",
+          suggestedFix: 'Update status',
+          fixable: true,
+        },
+      ],
+      totalFindings: 2,
+      errors: 0,
+      warnings: 2,
+      infos: 0,
+      summary: '2 findings: 2 warnings',
+      fixed: 2,
+      fixLog: [
+        { rule: 'frontmatter-schema', action: 'update-frontmatter', filePath: '/tmp/test/user/slices/101-slice.a.md', before: 'not-started', after: 'not_started' },
+        { rule: 'frontmatter-schema', action: 'update-frontmatter', filePath: '/tmp/test/user/slices/105-slice.b.md', before: 'not started', after: 'not_started' },
+      ],
+      fixErrors: [],
+    };
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCheckAll.mockResolvedValue(twoFixResult);
+    mockApplyFixes.mockResolvedValue(twoFixResult);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix', '--yes']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Fixed: not-started → not_started in /tmp/test/user/slices/101-slice.a.md');
+    expect(output).toContain('Fixed: not started → not_started in /tmp/test/user/slices/105-slice.b.md');
+  });
+
   it('outputs valid JSON with --json flag', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockCheckAll.mockResolvedValue(findingsResult);
