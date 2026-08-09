@@ -6,7 +6,7 @@ phaseName: tasks
 guideRole: primary
 audience: [human, ai]
 description: Task breakdown for macOS application packaging and distribution
-status: not-started
+status: not_started
 dateCreated: 20250930
 dateUpdated: 20260207
 dependencies: [all-core-features]

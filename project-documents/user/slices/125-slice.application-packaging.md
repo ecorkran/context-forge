@@ -4,7 +4,7 @@ project: context-forge-pro
 type: slice
 dependencies: [all-core-features]
 projectState: MVP complete, ready for distribution
-status: not-started
+status: not_started
 dateCreated: 20250930
 dateUpdated: 20260207
 docType: slice-design
