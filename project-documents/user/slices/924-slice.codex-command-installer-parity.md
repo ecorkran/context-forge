@@ -76,14 +76,16 @@ Skill content: each SKILL.md carries `name: cf-<command>` + `description` (reuse
 
 ## Parity Audit Checklist
 
-Sweep these for Claude-only assumptions; fix small, file large:
+Sweep these for Claude-only assumptions; fix small, file large. Outcomes (20260809):
 
-- [ ] `cf init --ide codex` end-to-end (guides, commands, IDE setup, messaging)
-- [ ] `cf setup-ide codex` completion messages (mention `$cf-*` skills, not `/cf:*`)
-- [ ] `agent_onboard` / `agent_quickstart` MCP output — Claude-specific phrasing?
-- [ ] README / docs: Codex install instructions incl. MCP server registration in Codex `config.toml`
-- [ ] `cf build --embed` conventions resolution for AGENTS.md (believed working since 211 — verify)
-- [ ] Help text: `install-commands --help` describes both targets
+- [x] `cf init --ide codex` end-to-end — **fixed in-slice**: init now routes command delivery by IDE target (skills for codex, none for cursor/copilot, none with `--no-ide`); covered by init.test.ts wiring assertions
+- [x] `cf setup-ide codex` completion messages — **fixed in-slice**: installer reports `$cf-*` invocations and the resolved `~/.codex/skills` path after setup
+- [x] `agent_onboard` / `agent_quickstart` MCP output — **verified ok**: no Claude-specific phrasing found (grep for claude//cf:/slash across both tools)
+- [x] README / docs — **fixed in-slice**: Codex MCP registration snippet (`~/.codex/config.toml`), `--ide codex` install examples, retitled "Slash Commands & Agent Skills" section covering both invocation forms
+- [x] `cf build --embed` conventions resolution for AGENTS.md — **verified ok**: `CONVENTIONS_FILES` (ContextEmbedder.ts:36) includes AGENTS.md since slice 211
+- [x] Help text: `install-commands --help` — **fixed in-slice**: describes `--ide`, `--global`, `--target` for both targets
+
+No gaps large enough to warrant new GitHub issues.
 
 ## Verification Walkthrough (live Codex, PM-assisted)
 

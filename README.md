@@ -36,6 +36,7 @@ npm install -g @context-forge/context-forge
 
 # 2. Add the MCP server (strongly recommended)
 claude mcp add --transport stdio context-forge -- npx @context-forge/mcp
+# Codex CLI instead? Add to ~/.codex/config.toml — see the MCP config details below.
 
 # 3. Set up your project — pick one:
 cf init                   # CLI: creates project, installs guides, configures IDE, installs slash commands
@@ -48,7 +49,7 @@ cf init --ide codex       # Same, but configured for OpenAI Codex (also: cursor,
 That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` can take a new user from zero to their first concept discussion.
 
 <details>
-<summary>MCP server JSON config (for Cursor, Perplexity, Windsurf, etc.)</summary>
+<summary>MCP server config (Cursor, Windsurf, OpenAI Codex, etc.)</summary>
 
 ```json
 {
@@ -58,6 +59,14 @@ That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/
     "env": {}
   }
 }
+```
+
+For OpenAI Codex CLI, add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.context-forge]
+command = "npx"
+args = ["@context-forge/mcp"]
 ```
 
 </details>
@@ -71,7 +80,9 @@ cf setup-ide claude        # Install Claude rules and create CLAUDE.md
 cf setup-ide copilot       # Install rules/skills for VS Code Copilot
 cf setup-ide cursor        # Install scoped rules for Cursor, always-on rules in AGENTS.md
 cf setup-ide codex         # Write AGENTS.md + skills for OpenAI Codex (aliases: openai, agents)
-cf install-commands        # Install Claude Code slash commands
+cf install-commands              # Install /cf:* slash commands for Claude Code (project-local)
+cf install-commands --ide codex  # Install $cf-* agent skills for Codex (project-local)
+cf install-commands --global     # Machine-level install (either target)
 ```
 
 Each target writes a different file layout:
@@ -189,7 +200,7 @@ Three interfaces — use whichever fits your workflow (a fourth, the Electron de
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
 | `cf setup-ide cursor` | Configure Cursor integration (scoped rules + AGENTS.md) |
 | `cf setup-ide codex` | Configure OpenAI Codex integration (aliases: `openai`, `agents`) |
-| `cf install-commands` / `cf uninstall-commands` | Install or remove Claude Code slash commands |
+| `cf install-commands` / `cf uninstall-commands` | Install or remove `/cf:*` commands (Claude Code) or `$cf-*` skills (`--ide codex`); project-local by default, `--global` for machine-level |
 | `cf backup` | Versioned project data backup (keeps last 10) |
 | `cf update` | Update the CLI to the latest published version |
 
@@ -208,9 +219,9 @@ Three interfaces — use whichever fits your workflow (a fourth, the Electron de
 
 Full key reference and precedence rules: [Review Gating](docs/REVIEW-GATING.md) and `cf config --help`.
 
-### Claude Code Slash Commands
+### Slash Commands & Agent Skills
 
-Installed via `cf install-commands`. Available directly in Claude Code sessions:
+Installed via `cf install-commands` (Claude Code, as `/cf:*` slash commands) or `cf install-commands --ide codex` (OpenAI Codex, as `$cf-*` agent skills — e.g. `$cf-build`, `$cf-status`). Same nine entry points either way:
 
 | Command | Description |
 |---------|-------------|
