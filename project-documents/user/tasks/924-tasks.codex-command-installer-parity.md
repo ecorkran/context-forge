@@ -149,21 +149,21 @@ PM-assisted live Codex verification and the parity audit.
   - [ ] Success criteria: D2 and D6 move from "unconfirmed" to observed
         behavior, recorded in the design doc.
 
-- [ ] **Task 10: Parity audit** (effort: 2)
-  - [ ] Work the design's Parity Audit Checklist. Fix small gaps in-slice
+- [x] **Task 10: Parity audit** (effort: 2)
+  - [x] Work the design's Parity Audit Checklist. Fix small gaps in-slice
         (messaging, help text, docs wording); file GitHub issues for
         anything larger, linking them in the design doc.
-  - [ ] README: add/extend the Codex section — install, skill invocation,
+  - [x] README: add/extend the Codex section — install, skill invocation,
         MCP registration in Codex `config.toml`.
-  - [ ] Success criteria: every checklist item checked with an outcome
+  - [x] Success criteria: every checklist item checked with an outcome
         (fixed / issue #N / verified-ok).
 
-- [ ] **Task 11: CHANGELOG** (effort: 1)
-  - [ ] Under `[Unreleased]`: `cf install-commands --ide codex` + skills
+- [x] **Task 11: CHANGELOG** (effort: 1)
+  - [x] Under `[Unreleased]`: `cf install-commands --ide codex` + skills
         delivery, setup-ide/init wiring, and the BREAKING-ish note that
         bare `install-commands` is now project-local (`--global` restores
         the old destination).
-  - [ ] Success criteria: entries follow the existing file's style.
+  - [x] Success criteria: entries follow the existing file's style.
 
 - [ ] **Task 12: Close-out** (effort: 1)
   - [ ] All tasks checked; task file + slice design `status: complete`;
