@@ -9,7 +9,11 @@ import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 
-export type Target = 'claude' | 'copilot' | 'cursor' | 'agents';
+import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets.js';
+import { installCommandsForTarget } from './commandInstaller.js';
+
+// Re-exported so existing importers (tests, init.ts) keep one import site.
+export { normalizeTarget, invalidTargetMessage, TARGET_ALIASES, type Target } from './ideTargets.js';
 
 export interface TargetDescriptor {
   /** Files probed for the managed marker; also the files backed up before overwrite. */
@@ -47,35 +51,6 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
     label: 'agents',
   },
 };
-
-/** Aliases resolved to a canonical target before anything downstream sees the input. */
-export const TARGET_ALIASES: Record<string, Target> = { openai: 'agents', codex: 'agents' };
-
-/** Resolves a target string (case/whitespace-insensitive) to its canonical form, or null if unknown. */
-export function normalizeTarget(input: string): Target | null {
-  const normalized = input.trim().toLowerCase();
-  if (normalized in TARGETS) return normalized as Target;
-  if (normalized in TARGET_ALIASES) return TARGET_ALIASES[normalized];
-  return null;
-}
-
-/** Groups TARGET_ALIASES by canonical target, e.g. "openai, codex → agents". */
-function describeAliases(): string {
-  const byTarget = new Map<Target, string[]>();
-  for (const [alias, target] of Object.entries(TARGET_ALIASES)) {
-    const group = byTarget.get(target) ?? [];
-    group.push(alias);
-    byTarget.set(target, group);
-  }
-  return Array.from(byTarget.entries())
-    .map(([target, aliases]) => `${aliases.join(', ')} → ${target}`)
-    .join(', ');
-}
-
-/** Built from TARGETS/TARGET_ALIASES so the message can never drift from what normalizeTarget accepts. */
-export function invalidTargetMessage(input: string): string {
-  return `Invalid target '${input}'. Valid targets: ${Object.keys(TARGETS).join(', ')} (aliases: ${describeAliases()})`;
-}
 
 /** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
 function askConfirmation(prompt: string): Promise<boolean> {
@@ -279,6 +254,13 @@ export function registerSetupIdeCommand(program: Command): void {
 
         await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
         propagateToWorktrees(project, normalizedTarget);
+
+        // Command/skill delivery: setup-ide is a machine-level operation, so it
+        // installs to the global directory (design D5). Targets without command
+        // delivery (copilot, cursor) skip this step silently.
+        if (normalizedTarget === 'claude' || normalizedTarget === 'agents') {
+          installCommandsForTarget(normalizedTarget, { global: true });
+        }
       } catch (err) {
         handleError(err);
       }

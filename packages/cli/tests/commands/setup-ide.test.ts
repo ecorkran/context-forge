@@ -65,6 +65,18 @@ vi.mock('node:child_process', () => ({
   execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
 }));
 
+// Command/skill delivery is exercised in commandInstaller.test.ts; here it must
+// be mocked or the setup-ide action tests would write to the real home directory.
+const mockInstallCommandsForTarget = vi.fn();
+
+vi.mock('../../src/commands/commandInstaller.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/commands/commandInstaller.js')>();
+  return {
+    ...actual,
+    installCommandsForTarget: (...args: unknown[]) => mockInstallCommandsForTarget(...args),
+  };
+});
+
 vi.mock('node:readline', () => ({
   createInterface: vi.fn().mockImplementation(() => ({
     question: mockQuestion,
@@ -227,6 +239,37 @@ describe('cf setup-ide', () => {
       [scriptPath, 'claude'],
       expect.objectContaining({ cwd: '/tmp/test', stdio: 'inherit' }),
     );
+  });
+
+  it('installs commands globally after claude setup', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude', { global: true });
+  });
+
+  it('installs skills globally after codex setup (alias resolves to agents)', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'codex', '--project', 'proj_001']);
+
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('agents', { global: true });
+  });
+
+  it('skips command delivery for targets without it (cursor)', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'cursor', '--project', 'proj_001']);
+
+    expect(mockExecFileSync).toHaveBeenCalled();
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
   });
 
   it('creates .bak and invokes script with --yes when CLAUDE.md exists (no managed marker, no .bak)', async () => {

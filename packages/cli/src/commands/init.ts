@@ -126,12 +126,22 @@ export function registerInitCommand(program: Command): void {
             }
           }
 
-          // Step 3: Install commands
-          try {
-            installCommandsAction();
-            console.log(success('Commands installed'));
-          } catch (err) {
-            console.log(warn(`Commands install failed: ${(err as Error).message}`));
+          // Step 3: Install commands/skills for the chosen IDE target, machine-level
+          // (preserves the pre-slice-924 behavior of a global Claude install; a
+          // project-local install is available via `cf install-commands` directly).
+          // --no-ide skips delivery entirely; targets without command delivery
+          // (copilot, cursor) and invalid targets skip silently here — Step 4
+          // reports invalid targets with the full message.
+          if (opts.ide !== false) {
+            const ideTarget = typeof opts.ide === 'string' ? opts.ide : 'claude';
+            const normalizedIde = normalizeTarget(ideTarget);
+            if (normalizedIde === 'claude' || normalizedIde === 'agents') {
+              try {
+                installCommandsAction(normalizedIde, { global: true });
+              } catch (err) {
+                console.log(warn(`Command install failed: ${(err as Error).message}`));
+              }
+            }
           }
 
           // Step 4: IDE setup (--no-ide sets opts.ide to false via commander negation)
