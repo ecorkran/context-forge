@@ -7,7 +7,7 @@ dependencies: [211]
 projectState: main is green, working tree clean at 8285c61. v0.12.0 is tagged and published (all four packages). Slice 211's TARGETS descriptor table and .agents/skills guide-skill emission are shipped and working. commandInstaller.ts is Claude-only (hardcoded ~/.claude/commands + cf/ layout); init.ts:131 installs Claude commands unconditionally; setup-ide never invokes the installer. Design review skipped by PM declaration (review: none in the slice design frontmatter). Next release will be 0.13.0 (new feature + documented behavior change to bare install-commands).
 dateCreated: 20260809
 dateUpdated: 20260809
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -38,106 +38,106 @@ PM-assisted live Codex verification and the parity audit.
 
 ### Part 1 — Installer Core
 
-- [ ] **Task 1: Command target descriptor** (effort: 2)
-  - [ ] In `packages/cli/src/commands/commandInstaller.ts`, add a
+- [x] **Task 1: Command target descriptor** (effort: 2)
+  - [x] In `packages/cli/src/commands/commandInstaller.ts`, add a
         `CommandTargetDescriptor` record keyed by installer target
         (`claude`, `agents`) per the design's sketch: `sourceDir`,
         `localTarget`, `globalTarget()`, `layout: 'flat-md' | 'skill-dirs'`,
         `invocationHint(name)`. Annotate as `Record<CommandTarget, …>` so
         the compiler rejects a target without an entry (same pattern as
         `setup-ide.ts` TARGETS).
-  - [ ] Reuse `normalizeTarget()`/`TARGET_ALIASES` from `setup-ide.ts` for
+  - [x] Reuse `normalizeTarget()`/`TARGET_ALIASES` from `setup-ide.ts` for
         input resolution (`codex`/`openai` → `agents`); reject `copilot`/
         `cursor` with an explicit "no command delivery for this target"
         error — do not silently no-op.
-  - [ ] Success criteria: descriptor compiles; unknown/unsupported targets
+  - [x] Success criteria: descriptor compiles; unknown/unsupported targets
         produce explicit errors.
 
-- [ ] **Task 2: Codex skill assets — nine `cf-*/SKILL.md`** (effort: 2)
-  - [ ] Create `packages/cli/commands/codex/cf-<name>/SKILL.md` for all nine
+- [x] **Task 2: Codex skill assets — nine `cf-*/SKILL.md`** (effort: 2)
+  - [x] Create `packages/cli/commands/codex/cf-<name>/SKILL.md` for all nine
         commands: `build`, `check`, `get`, `next`, `onboard`, `project`,
         `prompt`, `set`, `status`. Frontmatter: `name: cf-<name>` +
         `description` (adapted from the Claude file's description so Codex
         auto-invocation matching works). Body: numbered prose steps
         equivalent to the Claude command body.
-  - [ ] Thin passthroughs (`status`, `get`, `check`): body is "run
+  - [x] Thin passthroughs (`status`, `get`, `check`): body is "run
         `cf <name>` and print its output verbatim; add no commentary"
         (D4). `build` keeps the confirm-receipt + follow-instruction +
         STOP-condition contract from the Claude version, with arguments
         mapped to `--phase`/`--slice` flags.
-  - [ ] No hallucination traps: where a step retrieves a value that can be
+  - [x] No hallucination traps: where a step retrieves a value that can be
         empty, specify the empty-case behavior; no plausible hardcoded
         example values adjacent (CLAUDE.md rule).
-  - [ ] Success criteria: nine directories, each exactly one SKILL.md;
+  - [x] Success criteria: nine directories, each exactly one SKILL.md;
         content review against the Claude counterparts shows no behavioral
         drift beyond the D4 mediation.
 
-- [ ] **Task 3: Layout-aware install/uninstall** (effort: 3)
-  - [ ] `installCommands(target, dir)`: `flat-md` keeps today's copy+prune of
+- [x] **Task 3: Layout-aware install/uninstall** (effort: 3)
+  - [x] `installCommands(target, dir)`: `flat-md` keeps today's copy+prune of
         `cf/*.md` byte-identical in effect; `skill-dirs` copies each
         bundled `cf-*` directory and prunes managed `cf-*` directories
         present in the target but absent from source. "Managed" = name
         matches a bundled skill dir; user-authored skills are never
         touched.
-  - [ ] `uninstallCommands` mirrors per layout (remove managed files/dirs,
+  - [x] `uninstallCommands` mirrors per layout (remove managed files/dirs,
         remove now-empty parent `cf/` for flat-md; never remove
         `.agents/skills/` itself).
-  - [ ] Success criteria: both layouts idempotent; re-running install after
+  - [x] Success criteria: both layouts idempotent; re-running install after
         deleting a bundled source file removes the stale artifact; foreign
         files/dirs in the target survive both operations.
 
-- [ ] **Task 4: CLI flags and output** (effort: 2)
-  - [ ] `install-commands`/`uninstall-commands` gain `--ide <target>`
+- [x] **Task 4: CLI flags and output** (effort: 2)
+  - [x] `install-commands`/`uninstall-commands` gain `--ide <target>`
         (default `claude`) and `--global`. Default scope is project-local
         (cwd-resolved); `--global` uses the descriptor's `globalTarget()`.
         `--target <dir>` remains as an explicit-path override beating both.
-  - [ ] Output lists installed entries via `invocationHint` (`/cf:build` vs
+  - [x] Output lists installed entries via `invocationHint` (`/cf:build` vs
         `$cf-build`) and states the resolved directory.
-  - [ ] `installCommandsAction()` (used by `init`) gains `(ide, {global})`
+  - [x] `installCommandsAction()` (used by `init`) gains `(ide, {global})`
         params; existing exit-code behavior unchanged.
-  - [ ] Success criteria: `--help` documents both flags and the behavior
+  - [x] Success criteria: `--help` documents both flags and the behavior
         change; all four flag combinations resolve to the directories in
         the design's acceptance table.
 
 ### Part 2 — Wiring
 
-- [ ] **Task 5: setup-ide invokes the installer** (effort: 2)
-  - [ ] `setupIdeAction`: for `claude` and `agents` targets, after existing
+- [x] **Task 5: setup-ide invokes the installer** (effort: 2)
+  - [x] `setupIdeAction`: for `claude` and `agents` targets, after existing
         setup steps, run the command install with `--global` semantics.
         `copilot`/`cursor` unchanged (no command delivery).
-  - [ ] Completion messaging per target names the invocation form
+  - [x] Completion messaging per target names the invocation form
         (`/cf:*` for Claude, `$cf-*` for Codex) and the installed path.
-  - [ ] Success criteria: `cf setup-ide codex` on a scratch project yields
+  - [x] Success criteria: `cf setup-ide codex` on a scratch project yields
         `~/.codex/skills/cf-*/`; `cf setup-ide claude` yields
         `~/.claude/commands/cf/` (today's net effect preserved via the
         new path).
 
-- [ ] **Task 6: init routes by IDE target** (effort: 1)
-  - [ ] `init.ts` step 3: replace the unconditional `installCommandsAction()`
+- [x] **Task 6: init routes by IDE target** (effort: 1)
+  - [x] `init.ts` step 3: replace the unconditional `installCommandsAction()`
         with a call passing the normalized `--ide` target (default
         `claude`; `--no-ide` skips command install entirely — decide and
         document in-code whether no-IDE still installs Claude commands;
         default: it does not).
-  - [ ] Success criteria: `cf init --ide codex` installs Codex skills and no
+  - [x] Success criteria: `cf init --ide codex` installs Codex skills and no
         Claude commands; `cf init` (default) behaves as documented.
 
 ### Part 3 — Tests, Packaging, Verification
 
-- [ ] **Task 7: Tests** (effort: 3)
-  - [ ] Extend `packages/cli/tests/commands/commandInstaller.test.ts`:
+- [x] **Task 7: Tests** (effort: 3)
+  - [x] Extend `packages/cli/tests/commands/commandInstaller.test.ts`:
         per-target layout, prune semantics (incl. user-file preservation),
         flag→directory resolution matrix, unsupported-target error.
-  - [ ] `setup-ide.test.ts` / init tests: wiring assertions per target.
-  - [ ] Success criteria: full cli suite green; no existing expectations
+  - [x] `setup-ide.test.ts` / init tests: wiring assertions per target.
+  - [x] Success criteria: full cli suite green; no existing expectations
         rewritten except where they pinned the old global-default behavior
         (those update to the new contract, noted in the test diff).
 
-- [ ] **Task 8: Packaging check** (effort: 1)
-  - [ ] Confirm `packages/cli/package.json` `files` (or equivalent) ships
+- [x] **Task 8: Packaging check** (effort: 1)
+  - [x] Confirm `packages/cli/package.json` `files` (or equivalent) ships
         `commands/codex/**` in the npm pack; `getSourceCommandsDir()`
         resolution reaches it from dist. Verify via `pnpm pack --dry-run`
         or equivalent file-list inspection.
-  - [ ] Success criteria: packed tarball contains all nine SKILL.md files.
+  - [x] Success criteria: packed tarball contains all nine SKILL.md files.
 
 - [ ] **Task 9: Live Codex verification (PM-assisted)** (effort: 2)
   - [ ] Execute walkthrough steps 1–3 from the design in a real Codex
