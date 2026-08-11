@@ -7,6 +7,17 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-08-10
+
+### Slice 924 (Codex Command Installer & Parity, #74) — merged, 0.13.0
+- The nine `/cf:*` commands now reach OpenAI Codex as agent skills (`$cf-build` … `$cf-status`): checked-in `cf-*/SKILL.md` assets under `packages/cli/commands/codex/`, installed by an IDE-aware `cf install-commands --ide claude|codex` with a `COMMAND_TARGETS` descriptor (flat-md vs skill-dirs layouts, per-layout stale pruning that never touches user-authored or guide skills). Target/alias vocabulary extracted to `ideTargets.ts`, shared with `setup-ide` — one resolution path, no cycle.
+- Wiring: `cf setup-ide claude|codex` now auto-installs commands/skills machine-level (it never installed commands before); `cf init --ide codex` installs Codex skills instead of unconditionally installing Claude commands (the #74 defect); `--no-ide` skips delivery. **Behavior change:** bare `cf install-commands` is now project-local (`.claude/commands/cf/` / `.agents/skills/`); `--global` restores the machine-level destination (`~/.claude/commands/cf/` / `~/.codex/skills/`).
+- Thin passthrough skills (`status`/`get`/`check`/…) are run-and-print-verbatim prose — Codex SKILL.md has no output-injection equivalent of Claude's `` !`cf …` ``; recorded as a platform limitation, not worked around. Live-verified by PM in a real Codex session: `~/.codex/skills/` global discovery confirmed (design D2); local-vs-global shadowing (D6) not exercised, informational only.
+- Parity audit closed with no new issues: README gained Codex MCP registration (`~/.codex/config.toml`) and `$cf-*` docs; MCP onboard/quickstart tools already IDE-neutral; `cf build --embed` AGENTS.md resolution confirmed (since 211).
+- Process: fast-track under the 900 maintenance initiative (reopened and closed back out same-day — plan entry + status flips only). Design + tasks split as separate artifacts with `review: none` PM declaration in the slice-design frontmatter gating all reviews. Merged `--no-ff` (c299e7f); cli 537 and core 1093 tests green post-merge. Tags: `@context-forge/core@0.13.0`, `@context-forge/cli@0.13.0`, `@context-forge/mcp@0.13.0`, `@context-forge/context-forge@0.13.0`.
+
+---
+
 ## 2026-08-09
 
 ### Slice 922 (Unify Canonical Status Vocabulary, #72) + Slice 923 (Frontmatter Validate Command & dateUpdated Stamp, #71/#73) — merged, 0.12.0

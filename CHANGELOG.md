@@ -13,7 +13,7 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.13.0] - 20260810
 
 ### Added
 - **The nine `/cf:*` commands are now available in OpenAI Codex as agent skills.** `cf install-commands --ide codex` installs `cf-build`, `cf-check`, `cf-get`, `cf-next`, `cf-onboard`, `cf-project`, `cf-prompt`, `cf-set`, and `cf-status` as `SKILL.md` skill directories — invoked in Codex as `$cf-build`, `$cf-status`, etc. Project-local installs go to `.agents/skills/` (shareable via git, alongside the guide's workflow skills); `--global` installs to `~/.codex/skills/`. The thin passthrough skills (`status`, `get`, `check`, `next`, `project`, `set`) instruct the model to run the CLI and print its output verbatim — Codex skills have no output-injection directive like Claude commands' `` !`cf …` ``, so these are model-mediated by platform limitation (#74).
