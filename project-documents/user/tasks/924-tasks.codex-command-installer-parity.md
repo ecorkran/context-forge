@@ -6,8 +6,8 @@ lld: user/slices/924-slice.codex-command-installer-parity.md
 dependencies: [211]
 projectState: main is green, working tree clean at 8285c61. v0.12.0 is tagged and published (all four packages). Slice 211's TARGETS descriptor table and .agents/skills guide-skill emission are shipped and working. commandInstaller.ts is Claude-only (hardcoded ~/.claude/commands + cf/ layout); init.ts:131 installs Claude commands unconditionally; setup-ide never invokes the installer. Design review skipped by PM declaration (review: none in the slice design frontmatter). Next release will be 0.13.0 (new feature + documented behavior change to bare install-commands).
 dateCreated: 20260809
-dateUpdated: 20260809
-status: in_progress
+dateUpdated: 20260810
+status: complete
 ---
 
 ## Context Summary
@@ -139,14 +139,14 @@ PM-assisted live Codex verification and the parity audit.
         or equivalent file-list inspection.
   - [x] Success criteria: packed tarball contains all nine SKILL.md files.
 
-- [ ] **Task 9: Live Codex verification (PM-assisted)** (effort: 2)
-  - [ ] Execute walkthrough steps 1–3 from the design in a real Codex
+- [x] **Task 9: Live Codex verification (PM-assisted)** (effort: 2)
+  - [x] Execute walkthrough steps 1–3 from the design in a real Codex
         session: project-local discovery + `$cf-status` execution, global
         `~/.codex/skills/` discovery, local-vs-global shadowing (D6).
-  - [ ] Record observed results in the design's walkthrough section
+  - [x] Record observed results in the design's walkthrough section
         (replace the draft steps with actual output). If global discovery
         fails, implement the D2 explicit error and re-verify.
-  - [ ] Success criteria: D2 and D6 move from "unconfirmed" to observed
+  - [x] Success criteria: D2 and D6 move from "unconfirmed" to observed
         behavior, recorded in the design doc.
 
 - [x] **Task 10: Parity audit** (effort: 2)
@@ -165,9 +165,9 @@ PM-assisted live Codex verification and the parity audit.
         the old destination).
   - [x] Success criteria: entries follow the existing file's style.
 
-- [ ] **Task 12: Close-out** (effort: 1)
-  - [ ] All tasks checked; task file + slice design `status: complete`;
+- [x] **Task 12: Close-out** (effort: 1)
+  - [x] All tasks checked; task file + slice design `status: complete`;
         entry 24 checked in `900-slices.maintenance-and-refactoring.md`;
         `cf check` findings limited to the pre-existing 921 baseline.
-  - [ ] Success criteria: clean `cf check` delta; branch merged per git
+  - [x] Success criteria: clean `cf check` delta; branch merged per git
         rules (target = main, integration_branch unset).
