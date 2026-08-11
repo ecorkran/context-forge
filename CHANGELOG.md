@@ -5,13 +5,23 @@ scope: project-wide
 
 # Changelog
 
-All notable changes to Squadron will be documented in this file.  This file should contain concise entries from user point of view and should answer the following questions:
+All notable changes to Context Forge will be documented in this file.  This file should contain concise entries from user point of view and should answer the following questions:
 * What can I do now that I couldn't do before?
 * What specific bugs, if any, are fixed?
 * Were any features removed?
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- **The nine `/cf:*` commands are now available in OpenAI Codex as agent skills.** `cf install-commands --ide codex` installs `cf-build`, `cf-check`, `cf-get`, `cf-next`, `cf-onboard`, `cf-project`, `cf-prompt`, `cf-set`, and `cf-status` as `SKILL.md` skill directories — invoked in Codex as `$cf-build`, `$cf-status`, etc. Project-local installs go to `.agents/skills/` (shareable via git, alongside the guide's workflow skills); `--global` installs to `~/.codex/skills/`. The thin passthrough skills (`status`, `get`, `check`, `next`, `project`, `set`) instruct the model to run the CLI and print its output verbatim — Codex skills have no output-injection directive like Claude commands' `` !`cf …` ``, so these are model-mediated by platform limitation (#74).
+- `cf setup-ide claude` and `cf setup-ide codex` now install the commands/skills too (machine-level), so one command fully configures an IDE. `cf init --ide codex` installs Codex skills instead of Claude commands; `cf init --no-ide` no longer installs any commands.
+- README: Codex MCP-server registration snippet for `~/.codex/config.toml`.
+
+### Changed
+- **Bare `cf install-commands` now installs project-local** (`.claude/commands/cf/`) instead of machine-level. The previous destination (`~/.claude/commands/cf/`) is available with `--global`. An explicit directory via `--target <dir>` still overrides both. `uninstall-commands` follows the same resolution (#74).
 
 ## [0.12.0] - 20260809
 

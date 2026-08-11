@@ -179,7 +179,7 @@ describe('cf init', () => {
     expect(mockSetupIdeAction).not.toHaveBeenCalled();
   });
 
-  it('--no-ide skips IDE setup but runs guides and commands', async () => {
+  it('--no-ide skips IDE setup and command delivery but runs guides', async () => {
     mockGetAll.mockResolvedValue([]);
 
     const program = createProgram();
@@ -187,8 +187,28 @@ describe('cf init', () => {
 
     expect(mockCreate).toHaveBeenCalled();
     expect(mockGuidesInstallAction).toHaveBeenCalled();
-    expect(mockInstallCommandsAction).toHaveBeenCalled();
+    // Slice 924: command delivery is IDE-targeted, so --no-ide skips it too.
+    expect(mockInstallCommandsAction).not.toHaveBeenCalled();
     expect(mockSetupIdeAction).not.toHaveBeenCalled();
+  });
+
+  it('installs commands globally for the resolved IDE target', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'codex'], { from: 'user' });
+
+    expect(mockInstallCommandsAction).toHaveBeenCalledWith('agents', { global: true });
+  });
+
+  it('does not install commands for targets without command delivery', async () => {
+    mockGetAll.mockResolvedValue([]);
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'cursor'], { from: 'user' });
+
+    expect(mockInstallCommandsAction).not.toHaveBeenCalled();
+    expect(mockSetupIdeAction).toHaveBeenCalled();
   });
 
   it('--ide cursor calls setupIdeAction with cursor target', async () => {
