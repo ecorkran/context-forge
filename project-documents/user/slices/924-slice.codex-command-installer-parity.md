@@ -87,10 +87,21 @@ Sweep these for Claude-only assumptions; fix small, file large. Outcomes (202608
 
 No gaps large enough to warrant new GitHub issues.
 
-## Verification Walkthrough (live Codex, PM-assisted)
+## Verification Walkthrough (live Codex, PM-assisted) — results 20260810
 
-1. `cf install-commands --ide codex` in a test project → `.agents/skills/cf-*/SKILL.md` present; Codex session lists the skills; `$cf-status` prints real status.
-2. `cf install-commands --ide codex --global` → `~/.codex/skills/cf-*/`; discovered in a session started outside the project.
-3. Shadowing: same-name skill in both locations → note which wins (D6).
-4. `cf install-commands --ide claude` (no flags) → project-local `.claude/commands/cf/`; `--global` reproduces today's `~/.claude/commands/cf/`.
-5. Stale prune per layout: delete a source command, reinstall, confirm removal without touching user files.
+1. **Global install + live discovery (D2): CONFIRMED.** PM ran the locally-built
+   `cf install-commands --ide codex --global` → nine skills written to
+   `~/.codex/skills/cf-*/`, and confirmed in a real Codex session that the
+   skills are discovered and work. D2's `~/.codex/skills/` path moves from
+   "per current docs" to observed behavior.
+2. **Project-local layout:** exercised via the local smoke test (scratch dir):
+   `install-commands --ide codex` → `.agents/skills/cf-*/SKILL.md`;
+   `install-commands` (bare) → `.claude/commands/cf/*.md`; `--global --ide claude`
+   → `~/.claude/commands/cf/`. All resolved per the acceptance table
+   (also pinned by the resolveInstallDir test matrix).
+3. **Shadowing (D6): not exercised live.** Local-over-global precedence in Codex
+   remains unconfirmed; CF ships no precedence logic either way, so this is
+   informational only. Revisit if a real project-local/global conflict surfaces.
+4. **Stale prune per layout:** covered by unit tests (stale `cf-*` skill dir and
+   stale `cf/*.md` removed; user files, non-skill `cf-` dirs, and guide skills
+   untouched).
