@@ -9,6 +9,7 @@ import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
 import { TarballStrategy } from './strategies/TarballStrategy.js';
 import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } from './branchGuard.js';
+import { isNetworkFailureMessage } from './gitExec.js';
 
 export class GuideManager {
   private readonly projectPath: string;
@@ -44,7 +45,30 @@ export class GuideManager {
     }
 
     const strategy = this.getStrategy(method);
-    const result = await strategy.install(this.projectPath, source, targetDir);
+    let result: InstallResult;
+    try {
+      result = await strategy.install(this.projectPath, source, targetDir);
+    } catch (err) {
+      // Only auto-retry the caller's own explicit source override rejects and non-network
+      // failures (e.g. "already installed", missing git) are surfaced as-is, unchanged.
+      const message = err instanceof Error ? err.message : String(err);
+      const fallbackSource = sourceOverride ? null : await this.resolveFallbackSource();
+      if (!fallbackSource || !isNetworkFailureMessage(message)) {
+        throw err;
+      }
+      // A failed clone/submodule-add can leave a partial target directory that blocks a retry.
+      if (existsSync(targetDir)) {
+        rmSync(targetDir, { recursive: true, force: true });
+      }
+      try {
+        result = { ...(await strategy.install(this.projectPath, fallbackSource, targetDir)), usedFallbackSource: true };
+      } catch (fallbackErr) {
+        const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        throw new Error(
+          `Primary source failed: ${message}\n\nFallback source (guide.fallback_source) also failed: ${fallbackMessage}`
+        );
+      }
+    }
 
     // Create user artifact directories so the project is ready to use
     this.createUserDirectories();
@@ -194,6 +218,21 @@ export class GuideManager {
       }
     }
     return 'submodule';
+  }
+
+  /** Resolve the local/mirror fallback source from config, if configured */
+  private async resolveFallbackSource(): Promise<string | null> {
+    if (this.configManager) {
+      try {
+        const result = await this.configManager.get('guide.fallback_source');
+        if (result.value && typeof result.value === 'string' && result.value.length > 0) {
+          return result.value;
+        }
+      } catch {
+        // Fall through to no fallback
+      }
+    }
+    return null;
   }
 
   /** Create user artifact directories alongside the guide */

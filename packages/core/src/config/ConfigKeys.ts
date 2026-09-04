@@ -27,6 +27,14 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     description: 'URL or path to the AI project guide source',
     scope: ConfigScope.Shared,
   },
+  'guide.fallback_source': {
+    type: 'string',
+    default: '',
+    description:
+      'Local path or mirror URL to retry install/update from automatically when the primary ' +
+      'guide.source fails with a network/DNS error. Typically machine-specific.',
+    scope: ConfigScope.Personal,
+  },
   'guide.git_strategy': {
     type: 'string',
     default: 'submodule',

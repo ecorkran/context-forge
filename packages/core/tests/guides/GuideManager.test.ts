@@ -15,6 +15,7 @@ vi.mock('../../src/guides/gitExec.js', () => ({
   gitExec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
   isGitAvailable: vi.fn().mockResolvedValue(true),
   isGitRepo: vi.fn().mockResolvedValue(true),
+  isNetworkFailureMessage: (message: string) => /network\/dns|could not resolve host/i.test(message),
 }));
 
 // Mock dependencies
@@ -104,6 +105,7 @@ describe('GuideManager', () => {
       get: vi.fn().mockImplementation(async (key: string) => {
         if (key === 'guide.source') return { value: '', source: 'default' };
         if (key === 'guide.git_strategy') return { value: 'submodule', source: 'default' };
+        if (key === 'guide.fallback_source') return { value: '', source: 'default' };
         throw new Error('unknown key');
       }),
     };
@@ -200,6 +202,109 @@ describe('GuideManager', () => {
       const manager = new GuideManager(projectPath, mockConfigManager as never);
 
       await expect(manager.install()).rejects.toThrow('already installed');
+    });
+
+    it('automatically retries with guide.fallback_source when the primary source fails with a network error', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        if (key === 'guide.git_strategy') return { value: 'submodule', source: 'default' };
+        if (key === 'guide.fallback_source') {
+          return { value: '/local/mirror/ai-project-guide', source: 'user' };
+        }
+        throw new Error('unknown key');
+      });
+      const mockInstall = vi.fn()
+        .mockRejectedValueOnce(
+          new Error(
+            'git submodule add https://github.com/ecorkran/ai-project-guide.git failed: ' +
+              'Could not resolve host: github.com\n' +
+              '  This looks like a network/DNS problem reaching the remote.'
+          )
+        )
+        .mockResolvedValueOnce({
+          success: true, version: 'v0.13.2', method: 'submodule', path: '/test/path',
+        });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+        update: vi.fn(),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.install();
+
+      expect(mockInstall).toHaveBeenCalledTimes(2);
+      expect(mockInstall).toHaveBeenNthCalledWith(
+        2,
+        projectPath,
+        '/local/mirror/ai-project-guide',
+        expect.any(String)
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('does not retry when no guide.fallback_source is configured', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const mockInstall = vi.fn().mockRejectedValue(
+        new Error('Could not resolve host: github.com\n  This looks like a network/DNS problem.')
+      );
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+        update: vi.fn(),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow('Could not resolve host');
+      expect(mockInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry with fallback for non-network failures', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        if (key === 'guide.git_strategy') return { value: 'submodule', source: 'default' };
+        if (key === 'guide.fallback_source') {
+          return { value: '/local/mirror/ai-project-guide', source: 'user' };
+        }
+        throw new Error('unknown key');
+      });
+      const mockInstall = vi.fn().mockRejectedValue(new Error('fatal: not a git repository'));
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+        update: vi.fn(),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow('fatal: not a git repository');
+      expect(mockInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports both failures when the fallback source also fails', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        if (key === 'guide.git_strategy') return { value: 'submodule', source: 'default' };
+        if (key === 'guide.fallback_source') {
+          return { value: '/local/mirror/ai-project-guide', source: 'user' };
+        }
+        throw new Error('unknown key');
+      });
+      const mockInstall = vi.fn()
+        .mockRejectedValueOnce(
+          new Error('Could not resolve host: github.com\n  This looks like a network/DNS problem.')
+        )
+        .mockRejectedValueOnce(new Error('fatal: repository not found at fallback path'));
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+        update: vi.fn(),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow('fallback path');
+      expect(mockInstall).toHaveBeenCalledTimes(2);
     });
   });
 

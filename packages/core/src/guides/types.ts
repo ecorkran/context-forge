@@ -21,6 +21,8 @@ export interface InstallResult {
   version: string | null;
   method: GuideMethod;
   path: string;
+  /** True when the primary source failed with a network error and guide.fallback_source was used instead. */
+  usedFallbackSource?: boolean;
 }
 
 /** Result of a guide update */

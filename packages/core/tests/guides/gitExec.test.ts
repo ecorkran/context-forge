@@ -129,6 +129,12 @@ describe('gitExec', () => {
       expect(result).toContain('guide.source');
     });
 
+    it('points to guide.fallback_source as the "fix once, auto-recover next time" option', () => {
+      const result = withNetworkErrorHint('Could not resolve host: github.com');
+      expect(result).toContain('guide.fallback_source');
+      expect(result).toMatch(/automatically/i);
+    });
+
     it('leaves unrelated messages unchanged', () => {
       const message = 'fatal: not a git repository';
       expect(withNetworkErrorHint(message)).toBe(message);

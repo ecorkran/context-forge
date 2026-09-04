@@ -8,7 +8,7 @@ import type { CreateProjectData } from '@context-forge/core';
 import { handleError } from '../utils/errors.js';
 import { success, warn, dim } from '../output/styles.js';
 import { guidesInstallAction } from './guides.js';
-import { setupIdeAction, normalizeTarget } from './setup-ide.js';
+import { setupIdeAction, normalizeTarget, IDE_SETUP_FALLBACK_TARGET } from './setup-ide.js';
 import { installCommandsAction } from './commandInstaller.js';
 
 /**
@@ -156,7 +156,28 @@ export function registerInitCommand(program: Command): void {
               const ideLabel = wasAlias ? `${normalizedIdeTarget} (${ideTarget})` : normalizedIdeTarget;
               console.log(success(`IDE configured for ${ideLabel}`));
             } catch (err) {
-              console.log(warn(`IDE setup failed: ${(err as Error).message}`));
+              const primaryMessage = (err as Error).message;
+              console.log(warn(`IDE setup failed for ${ideTarget}: ${primaryMessage}`));
+
+              // Copilot has the broadest, least IDE-specific setup path (no managed
+              // command install, minimal marker requirements) — retry once with it
+              // before giving up, unless it was already the target that just failed.
+              if (normalizeTarget(ideTarget) !== IDE_SETUP_FALLBACK_TARGET) {
+                console.log(dim(`  Trying --ide ${IDE_SETUP_FALLBACK_TARGET} as a fallback...`));
+                try {
+                  await setupIdeAction(cwd, IDE_SETUP_FALLBACK_TARGET, { yes: true });
+                  console.log(success(`IDE configured for ${IDE_SETUP_FALLBACK_TARGET} (fallback)`));
+                  console.log(
+                    dim(
+                      `  Tip: run 'cf init --ide ${IDE_SETUP_FALLBACK_TARGET}' directly next time to skip the ${ideTarget} attempt.`
+                    )
+                  );
+                } catch (fallbackErr) {
+                  console.log(
+                    warn(`  IDE setup fallback (${IDE_SETUP_FALLBACK_TARGET}) also failed: ${(fallbackErr as Error).message}`)
+                  );
+                }
+              }
             }
           }
         }

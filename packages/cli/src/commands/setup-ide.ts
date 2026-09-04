@@ -13,7 +13,7 @@ import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets
 import { installCommandsForTarget } from './commandInstaller.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
-export { normalizeTarget, invalidTargetMessage, TARGET_ALIASES, type Target } from './ideTargets.js';
+export { normalizeTarget, invalidTargetMessage, TARGET_ALIASES, IDE_SETUP_FALLBACK_TARGET, type Target } from './ideTargets.js';
 
 export interface TargetDescriptor {
   /** Files probed for the managed marker; also the files backed up before overwrite. */

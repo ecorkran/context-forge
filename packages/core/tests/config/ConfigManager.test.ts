@@ -433,10 +433,11 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(14);
+      expect(entries).toHaveLength(15);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
+      expect(keys).toContain('guide.fallback_source');
       expect(keys).toContain('guide.git_strategy');
       expect(keys).toContain('workflow.auto_advance');
       expect(keys).toContain('workflow.auto_fix');

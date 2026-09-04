@@ -36,16 +36,24 @@ const NETWORK_ERROR_PATTERNS = [
   /etimedout/i,
 ];
 
+/** True when a message looks like a network/DNS/connectivity failure (git, curl, or Node fetch). */
+export function isNetworkFailureMessage(message: string): boolean {
+  return NETWORK_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+}
+
 /** Append remediation guidance when a message looks like a network/DNS failure. */
 export function withNetworkErrorHint(message: string): string {
-  if (!NETWORK_ERROR_PATTERNS.some((pattern) => pattern.test(message))) {
+  if (!isNetworkFailureMessage(message)) {
     return message;
   }
   return (
     `${message}\n` +
     '  This looks like a network/DNS problem reaching the remote. Check your VPN/proxy ' +
     'connection, or install offline by pointing guide.source at a local path or mirror ' +
-    '(cf config set guide.source <path>).'
+    '(cf config set guide.source <path>). To avoid hitting this every time, set ' +
+    'guide.fallback_source once (cf config set guide.fallback_source <path> --personal) — ' +
+    'future installs/updates will automatically retry from it whenever the primary source ' +
+    'fails this way.'
   );
 }
 

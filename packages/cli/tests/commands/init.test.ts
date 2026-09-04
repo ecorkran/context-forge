@@ -298,6 +298,74 @@ describe('cf init', () => {
     expect(mockSetupIdeAction).toHaveBeenCalled();
   });
 
+  it('automatically retries with --ide copilot when the primary IDE setup fails, and announces the retry', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockSetupIdeAction
+      .mockRejectedValueOnce(new Error('setup-ide script not found'))
+      .mockResolvedValueOnce(undefined);
+
+    const program = createProgram();
+    await program.parseAsync(['init'], { from: 'user' });
+
+    expect(mockSetupIdeAction).toHaveBeenNthCalledWith(
+      1,
+      process.cwd(),
+      'claude',
+      expect.objectContaining({ yes: true }),
+    );
+    expect(mockSetupIdeAction).toHaveBeenNthCalledWith(
+      2,
+      process.cwd(),
+      'copilot',
+      expect.objectContaining({ yes: true }),
+    );
+
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('IDE setup failed for claude');
+    expect(logOutput).toMatch(/trying --ide copilot/i);
+    expect(logOutput).toContain('IDE configured for copilot');
+  });
+
+  it('tells the user to use --ide copilot directly next time after a successful fallback', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockSetupIdeAction
+      .mockRejectedValueOnce(new Error('setup-ide script not found'))
+      .mockResolvedValueOnce(undefined);
+
+    const program = createProgram();
+    await program.parseAsync(['init'], { from: 'user' });
+
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toMatch(/cf init --ide copilot/);
+    expect(logOutput).toMatch(/next time/i);
+  });
+
+  it('does not retry when the primary target is already copilot', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockSetupIdeAction.mockRejectedValue(new Error('boom'));
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--ide', 'copilot'], { from: 'user' });
+
+    expect(mockSetupIdeAction).toHaveBeenCalledTimes(1);
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).not.toMatch(/trying --ide copilot/i);
+  });
+
+  it('reports both failures when the copilot fallback also fails', async () => {
+    mockGetAll.mockResolvedValue([]);
+    mockSetupIdeAction.mockRejectedValue(new Error('Guides are not installed. Run \'cf guides install\' first.'));
+
+    const program = createProgram();
+    await program.parseAsync(['init'], { from: 'user' });
+
+    expect(mockSetupIdeAction).toHaveBeenCalledTimes(2);
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logOutput).toContain('IDE setup failed for claude');
+    expect(logOutput).toMatch(/fallback.*also failed/is);
+    expect(logOutput).not.toContain('IDE configured for');
+  });
+
   it('guides install failure prints warning and continues', async () => {
     mockGetAll.mockResolvedValue([]);
     mockGuidesInstallAction.mockRejectedValue(new Error('Network error'));
