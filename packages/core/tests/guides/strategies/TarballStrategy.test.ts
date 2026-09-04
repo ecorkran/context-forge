@@ -12,6 +12,10 @@ vi.mock('fs', () => ({
 
 vi.mock('../../../src/guides/gitExec.js', () => ({
   gitExec: vi.fn(),
+  withNetworkErrorHint: (message: string) =>
+    /enotfound|econnrefused|etimedout|could not resolve host/i.test(message)
+      ? `${message}\nnetwork/DNS problem`
+      : message,
 }));
 
 // Mock tar and zlib for download/extract
@@ -101,11 +105,31 @@ describe('TarballStrategy', () => {
       expect(result.method).toBe('manual');
     });
 
-    it('handles network failure with descriptive error', async () => {
-      mockGitExec.mockRejectedValue(new Error('network'));
+    it('propagates network failure from ls-remote with descriptive error', async () => {
+      mockGitExec.mockRejectedValue(new Error('git ls-remote failed: Could not resolve host'));
+
+      await expect(strategy.install(projectPath, source, targetDir))
+        .rejects.toThrow('Could not resolve host');
+    });
+
+    it('throws when remote has no tags', async () => {
+      mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
 
       await expect(strategy.install(projectPath, source, targetDir))
         .rejects.toThrow('Could not determine latest version');
+    });
+
+    it('wraps fetch failure with a network remediation hint', async () => {
+      mockGitExec.mockResolvedValue({
+        stdout: 'abc123\trefs/tags/v0.13.2\n',
+        stderr: '',
+      });
+      const dnsError = new TypeError('fetch failed');
+      (dnsError as Error & { cause?: Error }).cause = new Error('getaddrinfo ENOTFOUND api.github.com');
+      mockFetch.mockRejectedValue(dnsError);
+
+      await expect(strategy.install(projectPath, source, targetDir))
+        .rejects.toThrow(/network\/DNS problem/i);
     });
   });
 

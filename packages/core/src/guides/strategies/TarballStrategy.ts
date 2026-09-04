@@ -7,7 +7,7 @@ import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
 import { VERSION_MARKER_FILE, DEFAULT_SOURCE_GIT } from '../types.js';
-import { gitExec } from '../gitExec.js';
+import { gitExec, withNetworkErrorHint } from '../gitExec.js';
 
 /**
  * Parse owner/repo from a GitHub source URL.
@@ -75,37 +75,36 @@ export class TarballStrategy implements InstallStrategy {
     return { success: true, previousVersion, newVersion: latestTag, method: 'manual' };
   }
 
-  /** Fetch latest tag from remote using git ls-remote */
+  /**
+   * Fetch latest tag from remote using git ls-remote. Real failures (network,
+   * auth, invalid remote) propagate — only a genuinely tag-less remote yields null.
+   */
   private async fetchLatestTag(source: string): Promise<string | null> {
-    try {
-      const { stdout } = await gitExec(
-        ['ls-remote', '--tags', '--sort=-v:refname', source],
-        process.cwd()
-      );
+    const { stdout } = await gitExec(
+      ['ls-remote', '--tags', '--sort=-v:refname', source],
+      process.cwd()
+    );
 
-      const tagPattern = /refs\/tags\/(v?\d+\.\d+\.\d+)$/;
-      const tags: string[] = [];
-      for (const line of stdout.split('\n')) {
-        const match = tagPattern.exec(line.trim());
-        if (match) tags.push(match[1]);
-      }
-
-      if (tags.length === 0) return null;
-
-      // Sort descending
-      tags.sort((a, b) => {
-        const pa = a.replace(/^v/, '').split('.').map(Number);
-        const pb = b.replace(/^v/, '').split('.').map(Number);
-        for (let i = 0; i < 3; i++) {
-          if (pa[i] !== pb[i]) return pb[i] - pa[i];
-        }
-        return 0;
-      });
-
-      return tags[0];
-    } catch {
-      return null;
+    const tagPattern = /refs\/tags\/(v?\d+\.\d+\.\d+)$/;
+    const tags: string[] = [];
+    for (const line of stdout.split('\n')) {
+      const match = tagPattern.exec(line.trim());
+      if (match) tags.push(match[1]);
     }
+
+    if (tags.length === 0) return null;
+
+    // Sort descending
+    tags.sort((a, b) => {
+      const pa = a.replace(/^v/, '').split('.').map(Number);
+      const pb = b.replace(/^v/, '').split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        if (pa[i] !== pb[i]) return pb[i] - pa[i];
+      }
+      return 0;
+    });
+
+    return tags[0];
   }
 
   /** Download tarball from GitHub API and extract to targetDir */
@@ -117,10 +116,19 @@ export class TarballStrategy implements InstallStrategy {
     const { owner, repo } = parseGitHubOwnerRepo(source);
     const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${tag}`;
 
-    const response = await fetch(url, {
-      headers: { Accept: 'application/vnd.github+json' },
-      redirect: 'follow',
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Accept: 'application/vnd.github+json' },
+        redirect: 'follow',
+      });
+    } catch (err) {
+      // Node's fetch throws TypeError('fetch failed') with the real DNS/connection
+      // reason on err.cause.message — surface that, not the generic wrapper text.
+      const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(withNetworkErrorHint(cause ? `${message}: ${cause}` : message));
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to download tarball: ${response.status} ${response.statusText}`);
