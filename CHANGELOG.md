@@ -13,6 +13,18 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`guide.fallback_source` config key.** When `cf guides install`/`cf guides update` fails with a network/DNS error, and this is set (`cf config set guide.fallback_source <path> --personal`), the guide is automatically retried from that local path/mirror instead of just failing — no manual re-run needed. Network/DNS error messages now mention this option directly, alongside the existing one-time `guide.source` override.
+- **`cf init` automatically retries IDE setup with `--ide copilot`** if the requested target's setup step fails, and tells you to run `cf init --ide copilot` directly next time if that fallback succeeds. Skipped when the requested target is already `copilot` (#77).
+
+### Fixed
+- **`cf guides install`/`cf guides update` no longer hang indefinitely** when the configured `guide.source` requires interactive authentication (e.g. a credential manager popping a browser sign-in) — git prompts are disabled and a 30s timeout now surfaces an actionable error instead (#77).
+- Network/DNS failures during guide install (e.g. `Could not resolve host`) now print a clear remediation hint instead of a bare git error (#77).
+- Credentials embedded in a `guide.source` URL (`https://user:token@host/...`) are no longer leaked into error messages/logs.
+- `TarballStrategy` (manual guide install method) no longer silently reports a generic "Could not determine latest version" message when the real cause is a network failure — the actual error now surfaces.
+
 ## [0.13.0] - 20260810
 
 ### Added

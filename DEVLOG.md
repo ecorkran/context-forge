@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-04
+
+### Guide-install error handling & automatic fallbacks (#77, #78) — PR open
+- Hit a real DNS-restricted-network failure of `cf guides install` in the wild (bare git error, no guidance) and, separately, a hang when `guide.source` pointed at a repo requiring interactive auth. `gitExec` now: appends a network/DNS remediation hint (pointing at `guide.source` and the new `guide.fallback_source`); disables interactive git prompts (`GIT_TERMINAL_PROMPT`, `GCM_INTERACTIVE`) and adds a 30s timeout so a blocked credential prompt can no longer hang forever; redacts embedded credentials from error messages. `TarballStrategy.fetchLatestTag` no longer swallows real `ls-remote`/`fetch` errors as a generic "no version" message.
+- New `guide.fallback_source` config key (Personal scope): `GuideManager.install()` now automatically retries from it when the primary source fails with a network error, cleaning up any partial clone first — configure once, auto-recover every time after.
+- `cf init` automatically retries IDE setup with `--ide copilot` when the requested target's setup fails, and suggests running `cf init --ide copilot` directly next time on a successful fallback (`IDE_SETUP_FALLBACK_TARGET` constant in `ideTargets.ts`).
+- TDD throughout — every fix started from a failing test confirmed red before implementation. Two rounds of subagent security/quality review (post-timeout-fix, and final full-diff pass) found only a magic-string style nit (addressed) and this doc-update gap; no code changes needed.
+- Filed #78 (`setupIdeAction`'s own "Guides are not installed" guard clause still doesn't surface this same guidance) as a scoped follow-up — confirmed the new copilot retry doesn't rescue that specific case, since the guard fires identically regardless of target.
+- PR: `Jake-clarios/context-forge#fix/guides-install-network-error-hint` → `ecorkran/context-forge#77` (2 commits: e00a1a0, 233e4af). Not yet merged.
+
+---
+
 ## 2026-08-10
 
 ### Slice 924 (Codex Command Installer & Parity, #74) — merged, 0.13.0
