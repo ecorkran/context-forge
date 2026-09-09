@@ -150,7 +150,7 @@ Started as a simple Electron utility called Context Builder, it's long since out
 
 
 ## Access Points
-Three interfaces — use whichever fits your workflow (a fourth, the Electron desktop app, is deprecated; see below):
+Three interfaces — use whichever fits your workflow:
 
 ### MCP Server (`@context-forge/mcp`)
 
@@ -235,10 +235,6 @@ Installed via `cf install-commands` (Claude Code, as `/cf:*` slash commands) or 
 | `/cf:prompt` | Get or list prompt templates |
 | `/cf:project` | Manage projects |
 
-### Electron Desktop App
-
-> **Deprecated — scheduled for removal.** The Electron app is no longer maintained, built, or shipped, and will be removed from the repo in an upcoming release. All functionality is available through the CLI, MCP server, and slash commands.
-
 ## Architecture
 
 pnpm monorepo, four packages:
@@ -249,12 +245,11 @@ packages/
   core/          @context-forge/core          — context engine, project state, introspection, workflow
   mcp-server/    @context-forge/mcp           — MCP protocol server (34 tools)
   cli/           @context-forge/cli           — terminal interface (cf command)
-  electron/      @context-forge/electron      — desktop app (deprecated, scheduled for removal)
 ```
 
 All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.
 
-1345 tests across all packages. TypeScript, strict mode, no `any`.
+1829 tests across all packages. TypeScript, strict mode, no `any`.
 
 ## Related
 

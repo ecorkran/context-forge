@@ -9,6 +9,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-09-09
 
+### Electron package removed
+- Deleted `packages/electron` (180 files, ~22.5k lines, 46MB). It had been `private: true` at 0.0.1 — never published — and untouched since 2026-04-16 (a docs-only license commit). README had carried "deprecated, scheduled for removal" since; this executes it.
+- Safe by dependency direction: electron imported `@context-forge/core` in 32 places, and nothing imported electron. Removal touched only the root `dev` script (which pointed at it and would have broken), the electron/react/tailwind/vite keywords, `onlyBuiltDependencies` (`electron`, `electron-winstaller`, `@tailwindcss/oxide` all became dead), the README's access-point/deprecation/structure mentions, and `.claude/rules/electron.md` (rules for paths that no longer exist). `pnpm-workspace.yaml` needed no edit — `packages/*` glob.
+- Side effect: the long-standing `TemplateProcessor` "fileSlice that does not match pattern" failure was electron's and is gone with it. `pnpm -r test` is fully green for the first time in a while — 1829 tests (core 1102, cli 537, mcp-server 190). README test count updated from a stale 1345.
+- Recoverable from git history if the desktop app is ever revived.
+
+### #78 — setup-ide surfaces offline guide-install guidance — 0.13.2
+- `setup-ide` threw a bare "Guides are not installed. Run 'cf guides install' first.", so a user behind corporate DNS/proxy was told to re-run a command that would fail again for the same reason. It fails *before* any network call (guides absent from disk), so it cannot diagnose the original failure — it now points at the fix plus the offline path, which is the honest scope of what it can know.
+- Extracted the remediation sentence out of `withNetworkErrorHint` into an exported `GUIDE_OFFLINE_REMEDIATION`; `gitExec` stays internal, only the constant joins the guides barrel. The CLI's `setup-ide` test mocks `@context-forge/core/node` and so must hand-copy the string — a core-side test pins the exact text so that copy can't drift.
+
 ### Install scope default reverted to machine-level — 0.13.2
 - Slice 924's design decision D5 (project-local default, `--global` opt-out) reversed after living with it: the nine commands are wanted machine-wide essentially always, and the local default cluttered every project with an identical copy. `resolveInstallDir` now falls through to `descriptor.globalDir()`, and the scope flag is `--local`; `--global` is removed outright rather than kept as a no-op alias, since machine-level is the default and there is nothing left for it to select. `init`/`setup-ide` drop their explicit `{ global: true }` and take the default. `--target <dir>` still beats both scopes.
 - D5's original rationale was polarity-matching with `cf config set --global`. That symmetry doesn't survive contact with use: config's machine-wide scope is the rare case worth spelling out, while for command install it's the norm. Recorded against D5 in the slice doc so the reversal isn't re-litigated later.

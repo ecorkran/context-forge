@@ -5,7 +5,6 @@
   "description": "Context Forge - AI project context generation tool (monorepo root)",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @context-forge/electron dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
@@ -14,11 +13,7 @@
     "update-guides": "bash project-documents/ai-project-guide/scripts/template-stubs/update-guides.sh"
   },
   "keywords": [
-    "electron",
-    "react",
     "typescript",
-    "tailwind",
-    "vite",
     "context-forge",
     "monorepo"
   ],
