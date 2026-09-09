@@ -13,6 +13,12 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.2] - 20260909
+
+### Changed
+- **Bare `cf install-commands` installs machine-level again** (`~/.claude/commands/cf/`, `~/.codex/skills/`), and the scope flag is now `--local` for a project-local install. This reverts the 0.13.0 change that made project-local the default: in practice the commands are wanted machine-wide essentially always, and defaulting to project-local cluttered every project with an identical copy of the same nine commands. `--global` is gone — machine-level is the default, so it has nothing left to select. `--target <dir>` still overrides both scopes, and `uninstall-commands` follows the same resolution.
+- If you relied on 0.13.0/0.13.1's project-local default, add `--local`. If you passed `--global` explicitly, drop the flag. Commands already installed project-local by an earlier version are not migrated or removed — clean them up with `cf uninstall-commands --local`.
+
 ## [0.13.1] - 20260909
 
 ### Fixed

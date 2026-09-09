@@ -198,7 +198,7 @@ describe('cf init', () => {
     const program = createProgram();
     await program.parseAsync(['init', '--ide', 'codex'], { from: 'user' });
 
-    expect(mockInstallCommandsAction).toHaveBeenCalledWith('agents', { global: true });
+    expect(mockInstallCommandsAction).toHaveBeenCalledWith('agents');
   });
 
   it('does not install commands for targets without command delivery', async () => {

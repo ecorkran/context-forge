@@ -259,7 +259,7 @@ export function registerSetupIdeCommand(program: Command): void {
         // installs to the global directory (design D5). Targets without command
         // delivery (copilot, cursor) skip this step silently.
         if (normalizedTarget === 'claude' || normalizedTarget === 'agents') {
-          installCommandsForTarget(normalizedTarget, { global: true });
+          installCommandsForTarget(normalizedTarget);
         }
       } catch (err) {
         handleError(err);

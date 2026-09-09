@@ -16,9 +16,9 @@ export type CommandTarget = 'claude' | 'agents';
 export interface CommandTargetDescriptor {
   /** Bundled asset subdirectory under commands/. */
   sourceDir: string;
-  /** Project-relative install directory (project-local scope, the default). */
+  /** Project-relative install directory (--local scope). */
   localDir: string;
-  /** Machine-level install directory (--global scope). */
+  /** Machine-level install directory (the default scope). */
   globalDir: () => string;
   /** Install/prune strategy: flat .md files under cf/, or one directory per skill. */
   layout: 'flat-md' | 'skill-dirs';
@@ -79,17 +79,17 @@ export function resolveCommandTarget(input: string): CommandTarget {
 }
 
 export interface InstallScopeOptions {
-  /** Install to the machine-level directory instead of project-local. */
-  global?: boolean;
+  /** Install to the project-local directory instead of the machine-level default. */
+  local?: boolean;
   /** Explicit directory override — beats both scopes. */
   targetDir?: string;
 }
 
-/** Resolve the install directory for a target and scope. Project-local is the default. */
+/** Resolve the install directory for a target and scope. Global (machine-level) is the default. */
 export function resolveInstallDir(target: CommandTarget, opts: InstallScopeOptions = {}): string {
   if (opts.targetDir) return path.resolve(opts.targetDir);
   const descriptor = COMMAND_TARGETS[target];
-  return opts.global ? descriptor.globalDir() : path.resolve(process.cwd(), descriptor.localDir);
+  return opts.local ? path.resolve(process.cwd(), descriptor.localDir) : descriptor.globalDir();
 }
 
 /** Resolve the bundled commands/ directory relative to this script's location. */
@@ -249,7 +249,7 @@ export function installCommandsAction(ide: string = 'claude', opts: InstallScope
 
 interface InstallCliOptions {
   ide: string;
-  global?: boolean;
+  local?: boolean;
   target?: string;
 }
 
@@ -258,11 +258,11 @@ export function registerInstallCommandsCommand(program: Command): void {
     .command('install-commands')
     .description('Install Context Forge slash commands (Claude Code) or agent skills (Codex)')
     .option('--ide <target>', 'IDE target: claude, agents (aliases: openai, codex)', 'claude')
-    .option('--global', 'Install to the machine-level directory instead of project-local')
-    .option('--target <dir>', 'Explicit target directory (overrides --ide/--global resolution)')
+    .option('--local', 'Install to the project-local directory instead of machine-level')
+    .option('--target <dir>', 'Explicit target directory (overrides --ide/--local resolution)')
     .action((opts: InstallCliOptions) => {
       try {
-        installCommandsAction(opts.ide, { global: opts.global, targetDir: opts.target });
+        installCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
@@ -275,13 +275,13 @@ export function registerUninstallCommandsCommand(program: Command): void {
     .command('uninstall-commands')
     .description('Remove Context Forge slash commands (Claude Code) or agent skills (Codex)')
     .option('--ide <target>', 'IDE target: claude, agents (aliases: openai, codex)', 'claude')
-    .option('--global', 'Uninstall from the machine-level directory instead of project-local')
-    .option('--target <dir>', 'Explicit target directory (overrides --ide/--global resolution)')
+    .option('--local', 'Uninstall from the project-local directory instead of machine-level')
+    .option('--target <dir>', 'Explicit target directory (overrides --ide/--local resolution)')
     .action((opts: InstallCliOptions) => {
       try {
         const target = resolveCommandTarget(opts.ide);
         const descriptor = COMMAND_TARGETS[target];
-        const dir = resolveInstallDir(target, { global: opts.global, targetDir: opts.target });
+        const dir = resolveInstallDir(target, { local: opts.local, targetDir: opts.target });
         const removed = uninstallCommands(target, dir);
         if (removed.length === 0) {
           console.log(dim(`No ${descriptor.noun} found to remove.`));

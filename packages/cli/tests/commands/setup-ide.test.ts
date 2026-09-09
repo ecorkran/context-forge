@@ -248,7 +248,7 @@ describe('cf setup-ide', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
 
-    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude', { global: true });
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
   });
 
   it('installs skills globally after codex setup (alias resolves to agents)', async () => {
@@ -258,7 +258,7 @@ describe('cf setup-ide', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', 'codex', '--project', 'proj_001']);
 
-    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('agents', { global: true });
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('agents');
   });
 
   it('skips command delivery for targets without it (cursor)', async () => {

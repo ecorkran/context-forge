@@ -9,6 +9,11 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-09-09
 
+### Install scope default reverted to machine-level — 0.13.2
+- Slice 924's design decision D5 (project-local default, `--global` opt-out) reversed after living with it: the nine commands are wanted machine-wide essentially always, and the local default cluttered every project with an identical copy. `resolveInstallDir` now falls through to `descriptor.globalDir()`, and the scope flag is `--local`; `--global` is removed outright rather than kept as a no-op alias, since machine-level is the default and there is nothing left for it to select. `init`/`setup-ide` drop their explicit `{ global: true }` and take the default. `--target <dir>` still beats both scopes.
+- D5's original rationale was polarity-matching with `cf config set --global`. That symmetry doesn't survive contact with use: config's machine-wide scope is the rare case worth spelling out, while for command install it's the norm. Recorded against D5 in the slice doc so the reversal isn't re-litigated later.
+- No migration for commands already installed project-local by 0.13.0/0.13.1 — `cf uninstall-commands --local` cleans them up. Done directly on `main` (no slice branch): behavior-only flip, docs, and a patch bump. cli 537 tests green.
+
 ### PR #77 (Jake) cherry-picked — 0.13.1
 - Landed `07691b4` with the contributor's authorship: network/DNS hint in `gitExec`, credential redaction, `GIT_TERMINAL_PROMPT=0` + `GCM_INTERACTIVE=never`, `TarballStrategy.fetchLatestTag` propagating real errors, `err.cause` surfaced from fetch. Dropped the 30s `execFile` timeout from that commit (a slow clone would be misreported as an auth hang; the non-interactive env is the actual fix). Not taken from the PR's second commit: `guide.fallback_source` auto-retry (its cleanup misses `.git/modules/<path>`, so a submodule retry fails), the `cf init` Copilot retry, and the CHANGELOG/DEVLOG edits. Reply posted on the PR; #78 stays open.
 - Tags: @context-forge/core@0.13.1, @context-forge/cli@0.13.1, @context-forge/mcp-server@0.13.1, context-forge@0.13.1

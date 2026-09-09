@@ -72,22 +72,22 @@ describe('commandInstaller', () => {
   });
 
   describe('resolveInstallDir', () => {
-    it('defaults to project-local per target', () => {
-      expect(resolveInstallDir('claude')).toBe(path.resolve(process.cwd(), '.claude/commands'));
-      expect(resolveInstallDir('agents')).toBe(path.resolve(process.cwd(), '.agents/skills'));
+    it('defaults to the machine-level directory per target', () => {
+      expect(resolveInstallDir('claude')).toBe(path.join(os.homedir(), '.claude', 'commands'));
+      expect(resolveInstallDir('agents')).toBe(path.join(os.homedir(), '.codex', 'skills'));
     });
 
-    it('resolves --global to the machine-level directory per target', () => {
-      expect(resolveInstallDir('claude', { global: true })).toBe(
-        path.join(os.homedir(), '.claude', 'commands'),
+    it('resolves --local to the project-local directory per target', () => {
+      expect(resolveInstallDir('claude', { local: true })).toBe(
+        path.resolve(process.cwd(), '.claude/commands'),
       );
-      expect(resolveInstallDir('agents', { global: true })).toBe(
-        path.join(os.homedir(), '.codex', 'skills'),
+      expect(resolveInstallDir('agents', { local: true })).toBe(
+        path.resolve(process.cwd(), '.agents/skills'),
       );
     });
 
     it('explicit targetDir overrides both scopes', () => {
-      expect(resolveInstallDir('claude', { global: true, targetDir: '/tmp/x' })).toBe(
+      expect(resolveInstallDir('claude', { local: true, targetDir: '/tmp/x' })).toBe(
         path.resolve('/tmp/x'),
       );
       expect(resolveInstallDir('agents', { targetDir: '/tmp/y' })).toBe(path.resolve('/tmp/y'));

@@ -137,7 +137,7 @@ export function registerInitCommand(program: Command): void {
             const normalizedIde = normalizeTarget(ideTarget);
             if (normalizedIde === 'claude' || normalizedIde === 'agents') {
               try {
-                installCommandsAction(normalizedIde, { global: true });
+                installCommandsAction(normalizedIde);
               } catch (err) {
                 console.log(warn(`Command install failed: ${(err as Error).message}`));
               }

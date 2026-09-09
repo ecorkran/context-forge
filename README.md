@@ -80,9 +80,9 @@ cf setup-ide claude        # Install Claude rules and create CLAUDE.md
 cf setup-ide copilot       # Install rules/skills for VS Code Copilot
 cf setup-ide cursor        # Install scoped rules for Cursor, always-on rules in AGENTS.md
 cf setup-ide codex         # Write AGENTS.md + skills for OpenAI Codex (aliases: openai, agents)
-cf install-commands              # Install /cf:* slash commands for Claude Code (project-local)
-cf install-commands --ide codex  # Install $cf-* agent skills for Codex (project-local)
-cf install-commands --global     # Machine-level install (either target)
+cf install-commands              # Install /cf:* slash commands for Claude Code (machine-level)
+cf install-commands --ide codex  # Install $cf-* agent skills for Codex (machine-level)
+cf install-commands --local      # Project-local install (either target)
 ```
 
 Each target writes a different file layout:
@@ -200,7 +200,7 @@ Three interfaces — use whichever fits your workflow (a fourth, the Electron de
 | `cf setup-ide copilot` | Configure VS Code Copilot integration |
 | `cf setup-ide cursor` | Configure Cursor integration (scoped rules + AGENTS.md) |
 | `cf setup-ide codex` | Configure OpenAI Codex integration (aliases: `openai`, `agents`) |
-| `cf install-commands` / `cf uninstall-commands` | Install or remove `/cf:*` commands (Claude Code) or `$cf-*` skills (`--ide codex`); project-local by default, `--global` for machine-level |
+| `cf install-commands` / `cf uninstall-commands` | Install or remove `/cf:*` commands (Claude Code) or `$cf-*` skills (`--ide codex`); machine-level by default, `--local` for project-local |
 | `cf backup` | Versioned project data backup (keeps last 10) |
 | `cf update` | Update the CLI to the latest published version |
 
