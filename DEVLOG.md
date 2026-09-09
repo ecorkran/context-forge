@@ -7,6 +7,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-09
+
+### PR #77 (Jake) cherry-picked — 0.13.1
+- Landed `07691b4` with the contributor's authorship: network/DNS hint in `gitExec`, credential redaction, `GIT_TERMINAL_PROMPT=0` + `GCM_INTERACTIVE=never`, `TarballStrategy.fetchLatestTag` propagating real errors, `err.cause` surfaced from fetch. Dropped the 30s `execFile` timeout from that commit (a slow clone would be misreported as an auth hang; the non-interactive env is the actual fix). Not taken from the PR's second commit: `guide.fallback_source` auto-retry (its cleanup misses `.git/modules/<path>`, so a submodule retry fails), the `cf init` Copilot retry, and the CHANGELOG/DEVLOG edits. Reply posted on the PR; #78 stays open.
+- Tags: @context-forge/core@0.13.1, @context-forge/cli@0.13.1, @context-forge/mcp-server@0.13.1, context-forge@0.13.1
+
 ## 2026-08-10
 
 ### Slice 924 (Codex Command Installer & Parity, #74) — merged, 0.13.0

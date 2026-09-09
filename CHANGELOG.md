@@ -13,6 +13,14 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 20260909
+
+### Fixed
+- `cf guides install` and `cf guides update` now explain network and DNS failures and suggest a VPN/proxy check or a local `guide.source` instead of printing a bare git error (contributed, #77)
+- Guide install no longer hangs forever when git blocks on an interactive credential prompt; git runs non-interactively and fails with a message instead (#77)
+- Embedded credentials in a `guide.source` URL are redacted from error output (#77)
+- The tarball strategy no longer reports "Could not determine latest version" for network failures; the real cause is shown (#77)
+
 ## [0.13.0] - 20260810
 
 ### Added
