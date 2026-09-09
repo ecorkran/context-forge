@@ -3,7 +3,12 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
-import { FileProjectStore, GuideDetector, GUIDE_RELATIVE_PATH } from '@context-forge/core/node';
+import {
+  FileProjectStore,
+  GuideDetector,
+  GUIDE_RELATIVE_PATH,
+  GUIDE_OFFLINE_REMEDIATION,
+} from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
@@ -101,8 +106,12 @@ export async function setupIdeAction(
   const guideInfo = await detector.detect(projectPath);
 
   if (!guideInfo.installed) {
+    // setup-ide fails before any network call — guides are simply absent from
+    // disk, so we cannot know why an earlier install failed. Point at the fix
+    // and, since a failed install is the common cause, at the offline path (#78).
     throw new UserError(
-      "Guides are not installed. Run 'cf guides install' first.",
+      "Guides are not installed. Run 'cf guides install' first.\n" +
+        `  If that install fails to reach the guide repo: ${GUIDE_OFFLINE_REMEDIATION}`,
     );
   }
 

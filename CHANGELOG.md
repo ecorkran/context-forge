@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bare `cf install-commands` installs machine-level again** (`~/.claude/commands/cf/`, `~/.codex/skills/`), and the scope flag is now `--local` for a project-local install. This reverts the 0.13.0 change that made project-local the default: in practice the commands are wanted machine-wide essentially always, and defaulting to project-local cluttered every project with an identical copy of the same nine commands. `--global` is gone — machine-level is the default, so it has nothing left to select. `--target <dir>` still overrides both scopes, and `uninstall-commands` follows the same resolution.
 - If you relied on 0.13.0/0.13.1's project-local default, add `--local`. If you passed `--global` explicitly, drop the flag. Commands already installed project-local by an earlier version are not migrated or removed — clean them up with `cf uninstall-commands --local`.
 
+### Fixed
+- `cf setup-ide` now points at the offline install path when guides are missing, instead of only saying "Guides are not installed. Run 'cf guides install' first." — a user behind a corporate DNS/proxy was told to run a command that would fail again for the same reason, with no hint why. The offline guidance (`cf config set guide.source <path>`) is now one shared constant used by both `cf guides install` and `setup-ide`, so the two cannot drift apart (#78)
+
 ## [0.13.1] - 20260909
 
 ### Fixed

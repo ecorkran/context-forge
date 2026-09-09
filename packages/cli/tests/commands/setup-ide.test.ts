@@ -37,6 +37,10 @@ vi.mock('@context-forge/core/node', () => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),
   GUIDE_RELATIVE_PATH: 'project-documents/ai-project-guide',
+  // Mirrors the real constant in core/guides/gitExec.ts (#78).
+  GUIDE_OFFLINE_REMEDIATION:
+    'Check your VPN/proxy connection, or install offline by pointing guide.source ' +
+    'at a local path or mirror (cf config set guide.source <path>).',
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -208,6 +212,10 @@ describe('cf setup-ide', () => {
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Guides are not installed');
     expect(output).toContain('cf guides install');
+    // #78: the offline/network fallback guidance must be surfaced here too, not
+    // only by `cf guides install` itself.
+    expect(output).toContain('cf config set guide.source');
+    expect(output).toContain('VPN/proxy');
   });
 
   it('errors when setup-ide script not found', async () => {

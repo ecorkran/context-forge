@@ -29,6 +29,15 @@ const NETWORK_ERROR_PATTERNS = [
   /etimedout/i,
 ];
 
+/**
+ * Offline/network remediation guidance for guide installation. Defined once and
+ * reused wherever a guide-install failure is surfaced, so the advice cannot drift
+ * between call sites (#78).
+ */
+export const GUIDE_OFFLINE_REMEDIATION =
+  'Check your VPN/proxy connection, or install offline by pointing guide.source ' +
+  'at a local path or mirror (cf config set guide.source <path>).';
+
 /** Append remediation guidance when a message looks like a network/DNS failure. */
 export function withNetworkErrorHint(message: string): string {
   if (!NETWORK_ERROR_PATTERNS.some((pattern) => pattern.test(message))) {
@@ -36,9 +45,7 @@ export function withNetworkErrorHint(message: string): string {
   }
   return (
     `${message}\n` +
-    '  This looks like a network/DNS problem reaching the remote. Check your VPN/proxy ' +
-    'connection, or install offline by pointing guide.source at a local path or mirror ' +
-    '(cf config set guide.source <path>).'
+    `  This looks like a network/DNS problem reaching the remote. ${GUIDE_OFFLINE_REMEDIATION}`
   );
 }
 

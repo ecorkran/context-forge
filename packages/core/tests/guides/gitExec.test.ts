@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { gitExec, isGitAvailable, isGitRepo, withNetworkErrorHint } from '../../src/guides/gitExec.js';
+import {
+  gitExec,
+  isGitAvailable,
+  isGitRepo,
+  withNetworkErrorHint,
+  GUIDE_OFFLINE_REMEDIATION,
+} from '../../src/guides/gitExec.js';
 
 // Mock child_process.execFile
 vi.mock('child_process', () => ({
@@ -117,6 +123,23 @@ describe('gitExec', () => {
     it('leaves unrelated messages unchanged', () => {
       const message = 'fatal: not a git repository';
       expect(withNetworkErrorHint(message)).toBe(message);
+    });
+
+    it('builds the hint from the shared remediation constant', () => {
+      expect(withNetworkErrorHint('Could not resolve host: github.com')).toContain(
+        GUIDE_OFFLINE_REMEDIATION,
+      );
+    });
+  });
+
+  // The CLI's setup-ide test mocks @context-forge/core/node and hand-copies this
+  // string. Pin the exact text so that copy cannot silently drift (#78).
+  describe('GUIDE_OFFLINE_REMEDIATION', () => {
+    it('is the exact shared remediation text', () => {
+      expect(GUIDE_OFFLINE_REMEDIATION).toBe(
+        'Check your VPN/proxy connection, or install offline by pointing guide.source ' +
+          'at a local path or mirror (cf config set guide.source <path>).',
+      );
     });
   });
 

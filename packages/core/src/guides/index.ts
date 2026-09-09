@@ -13,6 +13,8 @@ export {
   GUIDE_RELATIVE_PATH,
   VERSION_MARKER_FILE,
 } from './types.js';
+// gitExec itself stays internal; only the shared remediation text is public (#78).
+export { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
 export {
   type BranchGuardVerdict,
   evaluateBranchGuard,
