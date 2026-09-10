@@ -41,7 +41,7 @@ $ cf init --name g925-tb --no-ide --strategy manual
   [stdout] Method:   tarball        (no .gitmodules created)
 ```
 
-Tests: core 1156, cli 558, mcp 202. Real-git fixtures cover the three checkout states; the CLI and MCP command tests mock the core barrel, so separate fixture-backed tests prove the behavior rather than just the call.
+Tests: core 1159, cli 558, mcp 202. Real-git fixtures cover the three checkout states; the CLI and MCP command tests mock the core barrel, so separate fixture-backed tests prove the behavior rather than just the call.
 
 ### Electron package removed
 - Deleted `packages/electron` (180 files, ~22.5k lines, 46MB). It had been `private: true` at 0.0.1 — never published — and untouched since 2026-04-16 (a docs-only license commit). README had carried "deprecated, scheduled for removal" since; this executes it.
