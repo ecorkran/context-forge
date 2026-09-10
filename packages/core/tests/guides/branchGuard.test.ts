@@ -203,6 +203,38 @@ describe('evaluateBranchGuard()', () => {
     expect(verdict).toEqual({ outcome: 'proceed' });
   });
 
+  function mockUnbornBranch(name: string): void {
+    mockGitExec.mockImplementation(async (args: string[]) => {
+      if (args[0] === 'rev-parse') {
+        throw new Error("fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.");
+      }
+      if (args[0] === 'symbolic-ref') return { stdout: name, stderr: '' };
+      throw new Error(`unexpected git call: ${args.join(' ')}`);
+    });
+  }
+
+  it('unborn branch (repo with no commits) named main, trunk unset -> proceed', async () => {
+    mockUnbornBranch('main');
+    const verdict = await evaluateBranchGuard('/p');
+    expect(verdict).toEqual({ outcome: 'proceed' });
+    expect(mockExecFile).not.toHaveBeenCalled();
+  });
+
+  it('unborn branch not equal to trunk -> warn (unrelated) without consulting merge-base', async () => {
+    mockUnbornBranch('feature');
+    const verdict = await evaluateBranchGuard('/p');
+    expect(verdict).toEqual({ outcome: 'warn', trunk: 'main', current: 'feature', ancestry: 'unrelated' });
+    expect(mockExecFile).not.toHaveBeenCalled();
+  });
+
+  it('rev-parse and symbolic-ref both fail -> rejects with the rev-parse error', async () => {
+    mockGitExec.mockImplementation(async (args: string[]) => {
+      if (args[0] === 'rev-parse') throw new Error('fatal: not a git repository');
+      throw new Error('fatal: ref HEAD is not a symbolic ref');
+    });
+    await expect(evaluateBranchGuard('/p')).rejects.toThrow('not a git repository');
+  });
+
   it('configManager omitted entirely -> treated as trunk unset (main)', async () => {
     mockCurrentBranch('main');
     const verdict = await evaluateBranchGuard('/repo');

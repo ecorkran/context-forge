@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A checkout sitting at a commit other than the one your project pins is reported but deliberately left alone, since that is usually intentional. The message names `cf guides update` as the remedy.
 
 ### Fixed
+- `cf guides update` works in a project that has no commits yet. Straight after `cf init`, the branch guard failed with `git rev-parse --abbrev-ref HEAD failed ... unknown revision` because the branch exists but has nothing on it. The guard now reads the branch name and, when it is not the trunk, asks for confirmation as it does for a branch with no shared history.
 - A malformed config file no longer silently falls back to the default install strategy and source. Config read errors now fail the command with the actual parse error.
 - The automatic checkout is bounded by a timeout, so an unresponsive proxy fails with offline guidance instead of blocking a read command for the operating system's connection timeout. User-initiated `cf guides install` and `cf guides update` remain unbounded.
 

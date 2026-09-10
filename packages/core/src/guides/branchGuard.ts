@@ -71,6 +71,31 @@ export class BranchGuardWarnError extends Error {
 }
 
 /**
+ * Name the current branch, including one that has no commits yet.
+ *
+ * `rev-parse --abbrev-ref HEAD` fails in a repository straight after
+ * `git init` (an "unborn" branch: HEAD names a ref that does not exist), which
+ * is exactly the state `cf init` leaves a new project in. `symbolic-ref` still
+ * reads the branch name there. Any other rev-parse failure is re-thrown as is.
+ */
+async function currentBranch(projectPath: string): Promise<{ name: string; unborn: boolean }> {
+  try {
+    const { stdout } = await gitExec(['rev-parse', '--abbrev-ref', 'HEAD'], projectPath);
+    return { name: stdout, unborn: false };
+  } catch (revParseError) {
+    let name: string;
+    try {
+      ({ stdout: name } = await gitExec(['symbolic-ref', '--short', '-q', 'HEAD'], projectPath));
+    } catch {
+      // symbolic-ref failing too means the original failure was not an unborn
+      // branch (not a repository, git missing); surface that error, not this one.
+      throw revParseError;
+    }
+    return { name, unborn: true };
+  }
+}
+
+/**
  * Resolves the configured trunk branch and the current branch, then applies the
  * guard decision table to determine whether a guide-update commit should proceed,
  * block, or require confirmation.
@@ -94,7 +119,7 @@ export async function evaluateBranchGuard(
     }
   }
 
-  const { stdout: current } = await gitExec(['rev-parse', '--abbrev-ref', 'HEAD'], projectPath);
+  const { name: current, unborn } = await currentBranch(projectPath);
 
   if (current === 'HEAD') {
     return { outcome: 'block', trunk, current: 'HEAD' };
@@ -104,6 +129,11 @@ export async function evaluateBranchGuard(
   }
   if (current === 'main' && trunk !== 'main') {
     return { outcome: 'block', trunk, current };
+  }
+  if (unborn) {
+    // No commits yet, so there is no ancestry to test; the caller asks for
+    // confirmation exactly as it does for a branch with no common history.
+    return { outcome: 'warn', trunk, current, ancestry: 'unrelated' };
   }
 
   const descends = await isAncestor(trunk, projectPath);
