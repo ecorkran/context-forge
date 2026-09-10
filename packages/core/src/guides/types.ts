@@ -81,6 +81,21 @@ export interface GuideInfo {
   usingBundledPrompt: boolean;
 }
 
+/**
+ * Outcome of GuideManager.ensureCheckout().
+ *
+ * `none` means nothing needed doing; `initialized` means an uninitialized
+ * submodule was checked out; `warned` means the checkout differs from the
+ * pinned commit and was deliberately left alone (D2).
+ */
+export interface EnsureCheckoutResult {
+  action: 'none' | 'initialized' | 'warned';
+  /** Short SHA of the checked-out guide commit, when action is 'initialized'. */
+  commit?: string;
+  /** Human-readable notice, present whenever action is not 'none'. */
+  message?: string;
+}
+
 /** Result of a guide installation */
 export interface InstallResult {
   success: boolean;

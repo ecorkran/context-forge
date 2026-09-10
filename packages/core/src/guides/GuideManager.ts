@@ -2,13 +2,15 @@
 import { join } from 'path';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult } from './types.js';
+import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult, EnsureCheckoutResult } from './types.js';
 import {
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
+  GUIDE_INIT_TIMEOUT_MS,
   normalizeGuideMethod,
   isDeprecatedGuideMethodAlias,
 } from './types.js';
+import { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
 import { CONFIG_KEYS } from '../config/ConfigKeys.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
@@ -90,6 +92,69 @@ export class GuideManager {
     return isDeprecatedGuideMethodAlias(input)
       ? { method, deprecatedAlias: input.trim() }
       : { method };
+  }
+
+  /**
+   * Make the guide readable before a command consumes it.
+   *
+   * Auto-acts on exactly one state: an uninitialized submodule, which has a
+   * single correct resolution — check out the commit the host pins (#80). An
+   * out-of-sync checkout may be deliberate, so it is reported and left alone
+   * rather than reset (D2). Every other case is a no-op, including a missing
+   * install, which the calling command still reports as it does today.
+   *
+   * Read-only for clone and tarball installs.
+   */
+  async ensureCheckout(): Promise<EnsureCheckoutResult> {
+    const source = await this.resolveSource();
+    const info = await this.detector.detect(this.projectPath, source, this.operationPath);
+
+    if (!info.installed || info.method !== 'submodule') {
+      return { action: 'none' };
+    }
+
+    // checkout was resolved by detect(); do not ask git a second time.
+    switch (info.checkout) {
+      case 'in_sync':
+      case null:
+        return { action: 'none' };
+
+      case 'out_of_sync':
+        return {
+          action: 'warned',
+          message:
+            `The guide submodule at ${GUIDE_RELATIVE_PATH} is checked out at a different ` +
+            'commit than this project pins. It was left unchanged. Run cf guides update ' +
+            '(or git submodule update) to match the pinned commit.',
+        };
+
+      case 'not_initialized': {
+        const operationPath = this.operationPath || this.projectPath;
+        const { commit } = await this.initGuideCheckout(operationPath);
+        return {
+          action: 'initialized',
+          commit,
+          message: `Initialized the guide submodule at ${GUIDE_RELATIVE_PATH} (${commit}).`,
+        };
+      }
+    }
+  }
+
+  /**
+   * Check out an uninitialized guide submodule, bounded so a read command
+   * cannot hang on an unresponsive remote (D10), and append the shared offline
+   * remediation text when the fetch cannot complete.
+   */
+  private async initGuideCheckout(operationPath: string): Promise<{ commit: string }> {
+    const strategy = new SubmoduleStrategy();
+    try {
+      return await strategy.init(operationPath, { timeoutMs: GUIDE_INIT_TIMEOUT_MS });
+    } catch (err) {
+      // Re-thrown with remediation, never swallowed: proceeding against an
+      // empty guide tree would fail later with a far less useful message.
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`${message}\n  ${GUIDE_OFFLINE_REMEDIATION}`);
+    }
   }
 
   /** Update an existing guide installation */

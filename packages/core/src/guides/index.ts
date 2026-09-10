@@ -9,6 +9,7 @@ export {
   type DetectionResult,
   type InstallStrategy,
   type SubmoduleCheckoutState,
+  type EnsureCheckoutResult,
   CHECKOUT_STATE_LABELS,
   GUIDE_INIT_TIMEOUT_MS,
   GUIDE_METHODS,

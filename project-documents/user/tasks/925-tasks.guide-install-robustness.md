@@ -208,46 +208,46 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: tests pass. Commit:
         `feat(core): report submodule checkout state in GuideInfo`.
 
-- [ ] **Task 13: `gitExec` optional `timeoutMs`** (effort: 1)
-  - [ ] In `gitExec.ts` add a third parameter
+- [x] **Task 13: `gitExec` optional `timeoutMs`** (effort: 1)
+  - [x] In `gitExec.ts` add a third parameter
         `opts?: { timeoutMs?: number }`; pass `timeout` and
         `killSignal: 'SIGTERM'` to `execFile` only when provided.
-  - [ ] On timeout, reject with a message stating the git command timed out
+  - [x] On timeout, reject with a message stating the git command timed out
         after N seconds (N derived from `timeoutMs`), then run through the
         existing `withNetworkErrorHint` path so the remediation text is
         appended (the `/timed out/i` pattern already matches).
-  - [ ] No other caller passes a timeout (D10).
-  - [ ] Success criteria: existing `gitExec.test.ts` passes unchanged.
+  - [x] No other caller passes a timeout (D10).
+  - [x] Success criteria: existing `gitExec.test.ts` passes unchanged.
 
-- [ ] **Task 14: `gitExec` timeout test** (effort: 1)
-  - [ ] In `gitExec.test.ts`: a command that sleeps longer than a small
+- [x] **Task 14: `gitExec` timeout test** (effort: 1)
+  - [x] In `gitExec.test.ts`: a command that sleeps longer than a small
         `timeoutMs` (e.g. run a git command against a listener that never
         answers, or mock `execFile` to invoke the callback with a
         `killed: true` error) rejects with a message containing "timed out"
         and `GUIDE_OFFLINE_REMEDIATION`.
-  - [ ] Success criteria: test passes. Commit:
+  - [x] Success criteria: test passes. Commit:
         `feat(core): add optional timeout to gitExec`.
 
-- [ ] **Task 15: Extract `SubmoduleStrategy.init()` from `sync()`** (effort: 2)
-  - [ ] Add `init(operationPath: string): Promise<{ commit: string }>` that
+- [x] **Task 15: Extract `SubmoduleStrategy.init()` from `sync()`** (effort: 2)
+  - [x] Add `init(operationPath: string): Promise<{ commit: string }>` that
         runs `git submodule update --init GUIDE_RELATIVE_PATH` in
         `operationPath` with `{ timeoutMs: GUIDE_INIT_TIMEOUT_MS }`, then
         reads the short SHA of the checked-out guide commit (`git rev-parse
         --short HEAD` in the guide dir).
-  - [ ] `sync()` calls `init()` for its existing `--init` step (~line 127)
+  - [x] `sync()` calls `init()` for its existing `--init` step (~line 127)
         but **without** the timeout: pass the timeout as an `init()` option
         so `sync()` and `update()` keep unbounded behavior (D10).
-  - [ ] `init()` never touches the host repo index (no `git add`) — it must
+  - [x] `init()` never touches the host repo index (no `git add`) — it must
         not trip the 916 branch guard.
-  - [ ] Success criteria: existing `SubmoduleStrategy.test.ts` passes.
+  - [x] Success criteria: existing `SubmoduleStrategy.test.ts` passes.
 
-- [ ] **Task 16: `SubmoduleStrategy.init()` tests** (effort: 2)
-  - [ ] Using the Task 9 fixture `cloned()`: after `init()` the guide
+- [x] **Task 16: `SubmoduleStrategy.init()` tests** (effort: 2)
+  - [x] Using the Task 9 fixture `cloned()`: after `init()` the guide
         directory is populated, returned `commit` matches
         `git rev-parse --short HEAD` in the guide dir, and host
         `git status --porcelain` is empty (no index change).
-  - [ ] `initialized()`: `init()` is a no-op and returns the same commit.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] `initialized()`: `init()` is a no-op and returns the same commit.
+  - [x] Success criteria: tests pass. Commit:
         `refactor(core): extract SubmoduleStrategy.init from sync`.
 
 - [ ] **Task 17: `GuideManager.ensureCheckout()`** (effort: 3)
