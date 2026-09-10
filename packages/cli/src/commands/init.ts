@@ -7,7 +7,7 @@ import { buildProjectCreationDefaults } from '@context-forge/core';
 import type { CreateProjectData } from '@context-forge/core';
 import { handleError } from '../utils/errors.js';
 import { success, warn, dim } from '../output/styles.js';
-import { guidesInstallAction } from './guides.js';
+import { guidesInstallAction, strategyHelpText } from './guides.js';
 import { setupIdeAction, normalizeTarget } from './setup-ide.js';
 import { installCommandsAction } from './commandInstaller.js';
 
@@ -69,7 +69,8 @@ export function registerInitCommand(program: Command): void {
     .option('--lite', 'Create project entry only, skip guides/commands/IDE setup')
     .option('--ide <target>', 'IDE target: claude, copilot, cursor, agents (aliases: openai, codex) (default: claude)')
     .option('--no-ide', 'Skip IDE configuration step')
-    .action(async (opts: { name?: string; lite?: boolean; ide?: string | boolean }) => {
+    .option('--strategy <method>', strategyHelpText())
+    .action(async (opts: { name?: string; lite?: boolean; ide?: string | boolean; strategy?: string }) => {
       try {
         const cwd = path.resolve(process.cwd());
         const store = new FileProjectStore();
@@ -115,7 +116,7 @@ export function registerInitCommand(program: Command): void {
         if (!opts.lite) {
           // Step 2: Install guides
           try {
-            await guidesInstallAction(cwd);
+            await guidesInstallAction(cwd, { strategy: opts.strategy });
             console.log(success('Guides installed'));
           } catch (err) {
             const msg = (err as Error).message ?? '';

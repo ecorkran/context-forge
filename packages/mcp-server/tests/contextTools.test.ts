@@ -13,6 +13,7 @@ const mockGenerateContextFromProject = vi.fn<(project: ProjectData) => Promise<s
 
 const mockGetAllPrompts = vi.fn();
 
+const mockEnsureCheckout = vi.fn().mockResolvedValue({ action: 'none' });
 const mockConfigGet = vi.fn();
 const mockWtGetWorktree = vi.fn();
 const mockWtGetWorktreeByName = vi.fn();
@@ -32,6 +33,11 @@ vi.mock('@context-forge/core/node', () => ({
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
+  })),
+  // context_build and the prompt tools ready the guide checkout before
+  // reading guide content. Default: nothing to do.
+  GuideManager: vi.fn().mockImplementation(() => ({
+    ensureCheckout: mockEnsureCheckout,
   })),
   resolvePromptFilePath: vi.fn().mockImplementation((projectPath: string) => {
     if (!projectPath) throw new Error("No prompt file found. Run 'cf guide install'.");
@@ -585,5 +591,118 @@ describe('context_build with worktree', () => {
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('not found');
+  });
+});
+
+describe('guide auto-init notices (D4, #80)', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+    mockGetAllPrompts.mockResolvedValue(MOCK_PROMPTS);
+    mockConfigGet.mockResolvedValue({ value: '' });
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  /** Stand in for an uninitialized submodule that ensureCheckout repairs. */
+  function initializedOnRead(): void {
+    mockEnsureCheckout.mockResolvedValue({
+      action: 'initialized',
+      commit: 'abc1234',
+      message: 'Initialized the guide submodule at project-documents/ai-project-guide (abc1234).',
+    });
+  }
+
+  it('context_build returns the context plus one notice when the guide was initialized', async () => {
+    initializedOnRead();
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    // Primary payload is unchanged.
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain('Generated context content here.');
+    const notices = result.notices as string[];
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('Initialized the guide submodule');
+  });
+
+  it('context_build carries no notices key when nothing needed doing', async () => {
+    mockEnsureCheckout.mockResolvedValue({ action: 'none' });
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.notices).toBeUndefined();
+  });
+
+  it('prompt_list returns one notice when the guide was initialized (F001)', async () => {
+    initializedOnRead();
+
+    const result = await client.callTool({
+      name: 'prompt_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const notices = result.notices as string[];
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('Initialized the guide submodule');
+  });
+
+  it('prompt_get returns one notice when the guide was initialized (F001)', async () => {
+    initializedOnRead();
+
+    const result = await client.callTool({
+      name: 'prompt_get',
+      arguments: { projectId: MOCK_PROJECT.id, templateName: 'Implementation' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const notices = result.notices as string[];
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('Initialized the guide submodule');
+  });
+
+  it('prompt_list carries no notices key when nothing needed doing', async () => {
+    mockEnsureCheckout.mockResolvedValue({ action: 'none' });
+
+    const result = await client.callTool({
+      name: 'prompt_list',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.notices).toBeUndefined();
+  });
+
+  it('surfaces the out-of-sync warning as a notice without failing the call', async () => {
+    mockEnsureCheckout.mockResolvedValue({
+      action: 'warned',
+      message: 'The guide submodule ... was left unchanged. Run cf guides update ...',
+    });
+
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const notices = result.notices as string[];
+    expect(notices[0]).toContain('cf guides update');
   });
 });

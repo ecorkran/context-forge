@@ -196,7 +196,7 @@ describe('config_set', () => {
 
   it('returns isError for invalid enum value', async () => {
     mockSet.mockRejectedValue(
-      new Error('Config key "guide.git_strategy" must be one of ["submodule", "clone", "manual"]')
+      new Error('Config key "guide.git_strategy" must be one of ["submodule", "clone", "tarball", "manual"]')
     );
 
     const result = await client.callTool({

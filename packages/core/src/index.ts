@@ -9,7 +9,15 @@ export type { IProjectStore, IStorageService, StorageReadResult } from './storag
 export * from './introspection/index.js';
 
 // Guide types (browser-safe — no fs dependencies)
-export type { GuideInfo, GuideMethod, InstallResult, UninstallResult, UpdateResult, SyncResult } from './guides/types.js';
+export type { GuideInfo, GuideMethod, InstallResult, UninstallResult, UpdateResult, SyncResult, SubmoduleCheckoutState, EnsureCheckoutResult } from './guides/types.js';
+export {
+  CHECKOUT_STATE_LABELS,
+  GUIDE_MANAGED_NOTICE,
+  GUIDE_METHODS,
+  GUIDE_METHOD_DEPRECATED_ALIASES,
+  GUIDE_STRATEGIES,
+  guideMethodDeprecationMessage,
+} from './guides/types.js';
 
 // Project schema (field metadata, aliases, phase maps)
 export * from './schema/projectSchema.js';

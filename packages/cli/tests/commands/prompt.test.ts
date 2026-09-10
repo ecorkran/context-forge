@@ -12,6 +12,12 @@ vi.mock('@context-forge/core/node', () => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
+  // build/prompt call ensureGuideReady() before reading guide content, so the
+  // helper's GuideManager and ConfigManager must exist on the mock.
+  GuideManager: vi.fn().mockImplementation(() => ({
+    ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
+  })),
+
   SystemPromptParser: vi.fn().mockImplementation(() => ({
     getAllPrompts: mockGetAllPrompts,
     getPromptForInstruction: mockGetPromptForInstruction,
@@ -36,6 +42,9 @@ vi.mock('../../src/utils/phaseShorthand.js', () => ({
   }),
   clearPhaseShorthandCache: vi.fn(),
 }));
+
+import { GuideManager } from '@context-forge/core/node';
+import { resolvePhaseInput } from '../../src/utils/phaseShorthand.js';
 
 const sampleProject = {
   id: 'proj_001',
@@ -120,6 +129,23 @@ describe('cf prompt get', () => {
     expect(output).toContain('my-project');
     expect(output).toContain('168-slice.cli-foundation');
     expect(output).toContain('168-tasks.cli-foundation');
+  });
+
+  it('readies the guide before resolving a P<n> shorthand (#80)', async () => {
+    // Shorthand resolution reads the prompt file inside the guide, so on a
+    // fresh clone it must run after ensureGuideReady (which constructs a
+    // GuideManager), not before.
+    mockGetById.mockResolvedValue(sampleProject);
+    mockGetPromptForInstruction.mockResolvedValue(samplePrompts[1]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'prompt', 'get', 'P5', '--project', 'proj_001']);
+
+    const guideReadyOrder = vi.mocked(GuideManager).mock.invocationCallOrder[0];
+    const shorthandOrder = vi.mocked(resolvePhaseInput).mock.invocationCallOrder[0];
+    expect(guideReadyOrder).toBeDefined();
+    expect(shorthandOrder).toBeDefined();
+    expect(guideReadyOrder).toBeLessThan(shorthandOrder);
   });
 
   it('preserves unresolvable variables', async () => {

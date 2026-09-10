@@ -8,9 +8,28 @@ import {
   BranchGuardWarnError,
 } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
-import { GuideDetector } from '@context-forge/core/node';
+import {
+  GuideDetector,
+  CHECKOUT_STATE_LABELS,
+  GUIDE_MANAGED_NOTICE,
+  GUIDE_METHODS,
+  GUIDE_METHOD_DEPRECATED_ALIASES,
+  GUIDE_STRATEGIES,
+  guideMethodDeprecationMessage,
+} from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
-import { errorResult, jsonResult } from './contextTools.js';
+import { errorResult, jsonResult, withNotices } from './contextTools.js';
+
+/** Every spelling `guide_install` accepts: canonical methods plus deprecated aliases. */
+const GUIDE_STRATEGY_INPUTS: readonly string[] = [
+  ...GUIDE_METHODS,
+  ...Object.keys(GUIDE_METHOD_DEPRECATED_ALIASES),
+];
+
+/** Strategy trade-offs for the tool description, from the same table the CLI help uses (D8). */
+const GUIDE_STRATEGY_DESCRIPTION = Object.entries(GUIDE_STRATEGIES)
+  .map(([name, { summary }]) => `"${name}" (${summary})`)
+  .join(', ');
 
 interface ResolvedProject {
   projectPath: string;
@@ -44,7 +63,7 @@ export function registerGuideTools(server: McpServer): void {
       title: 'Guide Status',
       description:
         'Check the installation status of the AI project guide for a project. ' +
-        'Returns whether the guide is installed, what method was used (submodule/clone/manual), ' +
+        'Returns whether the guide is installed, what method was used (submodule/clone/tarball), ' +
         'current version, latest available version, and whether an update is available.',
       inputSchema: {
         projectId: z
@@ -74,7 +93,17 @@ export function registerGuideTools(server: McpServer): void {
           }
         }
 
-        return jsonResult(worktreeSync ? { ...info, worktreeSync } : info);
+        // info.checkout is the raw state; pair it with display text so a
+        // client need not carry its own label table.
+        const checkoutLabel = info.checkout ? CHECKOUT_STATE_LABELS[info.checkout] : undefined;
+
+        return jsonResult({
+          ...info,
+          ...(checkoutLabel ? { checkoutLabel } : {}),
+          ...(worktreeSync ? { worktreeSync } : {}),
+          // Same gate as the CLI: the notice describes an existing directory.
+          ...(info.installed ? { managedNotice: GUIDE_MANAGED_NOTICE } : {}),
+        });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -89,8 +118,8 @@ export function registerGuideTools(server: McpServer): void {
       title: 'Install Guide',
       description:
         'Install the AI project guide into a project directory. ' +
-        'Supports three strategies: "submodule" (default, requires git repo), ' +
-        '"clone" (standalone git clone), or "manual" (tarball download, no git needed). ' +
+        `Strategies: ${GUIDE_STRATEGY_DESCRIPTION}. ` +
+        'Omit strategy to use the guide.git_strategy config value. ' +
         'Error if the guide is already installed — use guide_update instead.',
       inputSchema: {
         projectId: z
@@ -98,9 +127,14 @@ export function registerGuideTools(server: McpServer): void {
           .optional()
           .describe('Project ID or name. Omit to resolve from CWD.'),
         strategy: z
-          .enum(['submodule', 'clone', 'manual'])
+          // 'manual' is a deprecated alias for 'tarball'; accepted on input so
+          // existing callers keep working, normalized by GuideManager.install().
+          .enum(GUIDE_STRATEGY_INPUTS)
           .optional()
-          .describe('Installation strategy. Overrides guide.git_strategy config for this call.'),
+          .describe(
+            "Installation strategy. Overrides guide.git_strategy config for this call. " +
+              "'manual' is a deprecated alias for 'tarball'."
+          ),
         source: z
           .string()
           .optional()
@@ -114,7 +148,15 @@ export function registerGuideTools(server: McpServer): void {
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
         const result = await manager.install(strategy, source);
-        return jsonResult(result);
+        // Deprecation surfaces as a structured notice rather than a log line,
+        // since an MCP client has no stderr channel to read (D4). Same shared
+        // shape every other tool uses.
+        return withNotices(
+          jsonResult(result),
+          result.deprecatedAlias
+            ? [guideMethodDeprecationMessage(result.deprecatedAlias, result.method)]
+            : []
+        );
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);

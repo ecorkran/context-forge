@@ -13,6 +13,7 @@ import type { ProjectData } from '@context-forge/core';
 import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { ensureGuideReady } from '../utils/guideReady.js';
 
 import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
@@ -101,7 +102,11 @@ export async function setupIdeAction(
     throw new UserError(invalidTargetMessage(target));
   }
 
-  // Check guide installation
+  // Check guide installation. Auto-init first: an uninitialized submodule
+  // reports as installed but has no scripts/ directory, which used to surface
+  // as a confusing "script not found" (#80).
+  await ensureGuideReady(projectPath);
+
   const detector = new GuideDetector();
   const guideInfo = await detector.detect(projectPath);
 

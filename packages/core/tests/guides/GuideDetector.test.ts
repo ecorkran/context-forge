@@ -54,6 +54,7 @@ describe('GuideDetector', () => {
       });
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -79,6 +80,7 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -103,6 +105,9 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.12.0', stderr: '' };
+        // gitExec trims stdout, so an in-sync entry arrives without its
+        // leading space and falls through to 'in_sync'.
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -111,9 +116,10 @@ describe('GuideDetector', () => {
       expect(info.installed).toBe(true);
       expect(info.method).toBe('submodule');
       expect(info.version).toBe('v0.12.0');
+      expect(info.checkout).toBe('in_sync');
     });
 
-    it('detects manual method with version from marker file', async () => {
+    it('detects tarball method with version from marker file', async () => {
       const markerPath = join(guidePath, VERSION_MARKER_FILE);
       mockExistsSync.mockImplementation((p) => {
         const path = String(p);
@@ -130,11 +136,13 @@ describe('GuideDetector', () => {
       const info = await detector.detect(projectPath);
 
       expect(info.installed).toBe(true);
-      expect(info.method).toBe('manual');
+      expect(info.method).toBe('tarball');
       expect(info.version).toBe('v0.11.0');
+      // checkout is meaningful only for submodule installs.
+      expect(info.checkout).toBeNull();
     });
 
-    it('detects manual method with null version when no marker', async () => {
+    it('detects tarball method with null version when no marker', async () => {
       mockExistsSync.mockImplementation((p) => {
         const path = String(p);
         if (path === guidePath) return true;
@@ -147,7 +155,7 @@ describe('GuideDetector', () => {
       const info = await detector.detect(projectPath);
 
       expect(info.installed).toBe(true);
-      expect(info.method).toBe('manual');
+      expect(info.method).toBe('tarball');
       expect(info.version).toBeNull();
     });
 
@@ -216,6 +224,7 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -277,6 +286,26 @@ describe('GuideDetector', () => {
     it('returns false when either is null', () => {
       expect(isNewerVersion(null, 'v0.13.2')).toBe(false);
       expect(isNewerVersion('v0.13.2', null)).toBe(false);
+    });
+  });
+
+  describe('detectLocal()', () => {
+    it('answers from local state only and never runs ls-remote', async () => {
+      mockExistsSync.mockImplementation((p) => String(p) === guidePath);
+      mockReadFileSync.mockReturnValue('v0.17.3\n');
+      mockGitExec.mockImplementation(async (args) => {
+        throw new Error(`unexpected git call: ${args.join(' ')}`);
+      });
+
+      const info = await detector.detectLocal(projectPath);
+
+      expect(info.installed).toBe(true);
+      expect(info.method).toBe('tarball');
+      expect(info.version).toBe('v0.17.3');
+      expect(info.latestVersion).toBeNull();
+      expect(info.updateAvailable).toBe(false);
+      const commands = mockGitExec.mock.calls.map(([args]) => args[0]);
+      expect(commands).not.toContain('ls-remote');
     });
   });
 });

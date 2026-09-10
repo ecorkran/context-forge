@@ -6,7 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: [916]
 dateCreated: 20260909
 dateUpdated: 20260909
-status: not_started
+status: complete
 ---
 
 # Slice 925: Guide Install Robustness
@@ -205,38 +205,92 @@ Non-test occurrences of `'manual'` today: `ConfigKeys.ts:34`, `types.ts:4`, `Gui
 
 ### Verification Walkthrough
 
-1. Make a throwaway project with the default strategy and clone it the way a teammate would:
+Verified 20260909 against the real guide repo (v0.17.3). Run every command as
+`node packages/cli/dist/index.js ...` from a build of this checkout — the global
+`cf` is the published npm build and will not contain these changes. `cf` below
+is shorthand for that. Output shown is what was actually observed.
+
+1. Make a throwaway project with the default strategy and clone it the way a
+   teammate would:
 
    ```bash
    mkdir /tmp/g925 && cd /tmp/g925 && cf init --name g925 --no-ide
    git clone /tmp/g925 /tmp/g925-clone && cd /tmp/g925-clone
-   ls project-documents/ai-project-guide        # empty — the #80 state
-   cf guides info                               # Checkout: not initialized (read-only)
-   cf build 2>err.txt >out.txt; cat err.txt     # "Initialized ai-project-guide submodule at <sha>"
-   ls project-documents/ai-project-guide        # populated
-   cf build --json | jq .project                # stdout is clean JSON
+   cf init --name g925clone --lite      # register the clone (see caveat 1)
+   ls -A project-documents/ai-project-guide     # empty — the #80 state
+   cf guides info
+   cf build 2>err.txt >out.txt; cat err.txt
+   ls -A project-documents/ai-project-guide     # populated
+   cf build --json | python3 -m json.tool > /dev/null && echo "clean JSON"
+   ```
+
+   `cf guides info` prints, and leaves the directory empty:
+
+   ```
+   Installed:  yes
+   Method:     submodule
+   Checkout:   not initialized
+   ...
+     This directory is managed by cf and overwritten on `cf guides update`. Put
+     project-specific customizations under `project-documents/user/`.
+   ```
+
+   `cf build` writes to **stderr** (stdout carries no notice):
+
+   ```
+   Initialized the guide submodule at project-documents/ai-project-guide (e11dcd4).
    ```
 
 2. Confirm the out-of-sync warning does not act:
 
    ```bash
    (cd project-documents/ai-project-guide && git checkout HEAD~1)
-   cf build 2>&1 >/dev/null | head -1           # warning naming cf guides update; checkout unchanged
+   git submodule status project-documents/ai-project-guide   # record this
+   cf build 2>&1 >/dev/null | head -2
+   git submodule status project-documents/ai-project-guide   # unchanged
+   ```
+
+   Stderr, with the submodule SHA byte-identical before and after:
+
+   ```
+   The guide submodule at project-documents/ai-project-guide is checked out at a
+   different commit than this project pins. It was left unchanged. Run cf guides
+   update (or git submodule update) to match the pinned commit.
    ```
 
 3. Rename and alias:
 
    ```bash
-   mkdir /tmp/g925-tb && cd /tmp/g925-tb && cf init --name g925-tb --no-ide --strategy manual
-   #   → deprecation warning on stderr, install proceeds
-   cf guides info                               # Method: tarball; managed-directory line present
+   mkdir /tmp/g925-tb && cd /tmp/g925-tb
+   cf init --name g925-tb --no-ide --strategy manual
+   cf guides info
    test ! -f .gitmodules && echo "no submodule"
-   cf guides install --help | grep -c tarball   # ≥ 1
+   cf guides install --help | grep -c tarball   # 1
    ```
 
-4. Managed-directory statement: `cf guides info` in any installed project shows the line; `grep -n "overwritten on" README.md` finds the same sentence.
+   Stderr carries `Strategy 'manual' is deprecated; use 'tarball' instead.`
+   while stdout reports `Method:   tarball`. `cf guides info` shows
+   `Method:     tarball`, the managed-directory line, and **no** `Checkout:`
+   line — checkout state is submodule-only.
 
-5. Clean up: `cf project delete g925 g925-tb` (or the equivalent) and remove the `/tmp` directories.
+4. Managed-directory statement: `cf guides info` in any installed project shows
+   the line; `grep -c "overwritten on" README.md` returns 1, quoting
+   `GUIDE_MANAGED_NOTICE` verbatim.
+
+5. Clean up: `cf project rm <name> --yes` for each throwaway project, then
+   remove the `/tmp` directories.
+
+**Caveats found during implementation.**
+
+1. A clone is a different directory, so it is a different project as far as
+   `cf` is concerned. Register it (`cf init --lite`) before running `cf guides
+   info` there, or the command reports the project as not found. The original
+   walkthrough omitted this step.
+2. `cf project delete` does not exist; the command is `cf project rm`.
+3. Reproducing this with a **local** guide repo instead of the real one
+   additionally requires `GIT_ALLOW_PROTOCOL=file`, because git blocks the
+   `file` transport for submodule clones and classes every local path that way.
+   This affects fixtures only — real guide sources are https.
 
 ## Review Resolution
 
@@ -245,6 +299,19 @@ Slice review 20260909 (`925-review.slice.guide-install-robustness.md`, verdict C
 - **F004 (concern, hang/timeout not enumerated):** addressed by the "Hang and timeout class" paragraph under Auto-init failure path and by D10, which bounds the auto-init fetch with a single named constant while leaving user-initiated install/update unbounded.
 - **F005 (note, three spellings for one checkout state):** addressed by exporting `checkSyncStatus()`'s existing union as `SubmoduleCheckoutState`, typing `GuideInfo.checkout` with it, and defining display text once in `CHECKOUT_STATE_LABELS` (Component Structure). The success-criteria string "Checkout: not initialized" is that label.
 - **F006 (note, no NFR restatement):** no action.
+
+Code review 20260910 (`925-review.code.guide-install-robustness.md`, GLM 5.3, verdict CONCERNS, reviewed `a91eba9`). All findings verified against the code and resolved in the follow-up commit:
+
+- **F001 (concern):** `cf prompt get P<n>` resolved the shorthand, which reads the prompt file, before `ensureGuideReady`. Reordered; a CLI test pins the order.
+- **F002 (concern):** `ensureCheckout()` went through `detect()`, which runs `git ls-remote` unbounded, so every read command gained a network round-trip. Added `GuideDetector.detectLocal()` (filesystem and local git only); `detect()` now composes it with the latest-version fetch, and `ensureCheckout()` uses `detectLocal()`. Status commands are unchanged. A detector test asserts no `ls-remote` call.
+- **F003 (concern):** `initGuideCheckout` appended `GUIDE_OFFLINE_REMEDIATION` unconditionally, duplicating the hint `gitExec` adds on recognized network errors. Now appended only when absent; two GuideManager tests cover both paths.
+- **F004 (concern):** the MCP `guide_install` enum, its strategy description, and the deprecation sentence were hand-copied. `GUIDE_STRATEGIES` moved to core, the enum is derived from `GUIDE_METHODS` plus the alias table, and `guideMethodDeprecationMessage()` is the single spelling used by CLI and MCP.
+- **F005 (concern):** stale enum fixture in `configTools.test.ts` updated.
+- **F006 (concern):** `withNotices` returns `T | (T & { notices: string[] })`.
+- **F007 (note):** MCP `guide_status` gates `managedNotice` on `installed`, matching the CLI.
+- **F008 (note):** dead `operationPath` parameter removed from `ensureGuideForProject`; the MCP worktree overlay already rewrites `projectPath`.
+- **F009 (note):** fixtures restore `GIT_ALLOW_PROTOCOL` in cleanup / `afterEach`.
+- **F010 (note):** `normalizeGuideMethod` narrows with `find`, no casts.
 
 ## Risk Assessment
 

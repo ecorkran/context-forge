@@ -28,7 +28,7 @@ export class TarballStrategy implements InstallStrategy {
 
     try {
       const version = readFileSync(markerPath, 'utf-8').trim() || null;
-      return { method: 'manual', version, source: null };
+      return { method: 'tarball', version, source: null };
     } catch {
       return null;
     }
@@ -44,7 +44,7 @@ export class TarballStrategy implements InstallStrategy {
     await this.downloadAndExtract(resolvedSource, latestTag, targetDir);
     writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
 
-    return { success: true, version: latestTag, method: 'manual', path: targetDir };
+    return { success: true, version: latestTag, method: 'tarball', path: targetDir };
   }
 
   async update(_projectPath: string, targetDir: string): Promise<UpdateResult> {
@@ -64,7 +64,7 @@ export class TarballStrategy implements InstallStrategy {
     }
 
     if (previousVersion === latestTag) {
-      return { success: true, previousVersion, newVersion: latestTag, method: 'manual' };
+      return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
     }
 
     // Remove existing contents and re-download
@@ -72,7 +72,7 @@ export class TarballStrategy implements InstallStrategy {
     await this.downloadAndExtract(source, latestTag, targetDir);
     writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
 
-    return { success: true, previousVersion, newVersion: latestTag, method: 'manual' };
+    return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
   }
 
   /**

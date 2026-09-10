@@ -5,6 +5,7 @@ import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/
 import type { ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
+import { ensureGuideReady } from '../utils/guideReady.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { withJsonOption, withProjectOption, withRawOption } from '../options.js';
 import { printJson, printRaw } from '../output/formatter.js';
@@ -56,6 +57,10 @@ export function registerPromptCommand(program: Command): void {
               '  cf project set projectPath /path/to/project',
           );
         }
+
+        // The prompt file lives inside the guide, so the checkout must exist
+        // before it is read (#80).
+        await ensureGuideReady(project.projectPath!, opPath);
 
         const promptFilePath = path.join(opPath, PROMPT_FILE_RELATIVE_PATH);
         const parser = new SystemPromptParser(promptFilePath);
@@ -109,6 +114,11 @@ export function registerPromptCommand(program: Command): void {
               '  cf project set projectPath /path/to/project',
           );
         }
+
+        // The prompt file lives inside the guide, so the checkout must exist
+        // before anything reads it (#80) — including shorthand resolution,
+        // which opens the prompt file for P<n> inputs.
+        await ensureGuideReady(project.projectPath!, opPath);
 
         // Resolve shorthand or name to instruction key
         const resolvedPhase = await resolvePhaseInput(phase, opPath);

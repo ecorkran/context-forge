@@ -7,7 +7,54 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-10
+
+### Slice 925 code review and 0.14.0 release
+
+- **Code review (GLM 5.3, verdict CONCERNS, reviewed `a91eba9`)** — artifact `925-review.code.guide-install-robustness.md`. Six concerns, four notes, three passes; all ten actionable findings resolved in `16ff862`, per-finding record in the slice doc. CONCERNS clears the gate, so no re-review was required before merge.
+- **F002 was a real defect introduced during implementation.** `ensureCheckout()` went through `detect()`, which runs an unbounded `git ls-remote`, putting a network round-trip inside every read command — exactly the hang class D10 exists to prevent. Fixed by adding `GuideDetector.detectLocal()` (filesystem and local git only); `detect()` composes it with the remote fetch, `ensureCheckout()` uses the local form, `status()` is unchanged. A detector test now pins the no-`ls-remote` guarantee. Worth noting for future slices: end-to-end verification on a working network cannot catch an unwanted network call, only a test asserting its absence can.
+- **F001** `cf prompt get P<n>` resolved the shorthand, which reads the prompt file, before readying the guide; reordered with a call-order test. **F004** consolidated strategy knowledge into core so the MCP enum, its description, and CLI help derive from one table.
+- **Unborn-branch fix (`d50a2c5`)** — separate from the review. `cf guides update` died with "unknown revision" in a repo with no commits yet, the state `cf init` leaves behind. `evaluateBranchGuard()` ran `rev-parse --abbrev-ref HEAD`, which cannot resolve an unborn branch; it now falls back to `symbolic-ref` and re-throws any other failure. Pre-existing, reproduces on 0.13.2.
+- **Released 0.14.0.** Minor bump because the strategy rename is user-visible: `method` reports `tarball` where it reported `manual`. All four packages in lockstep. Tests at release: core 1159, cli 558, mcp 202.
+- **Deferred, non-blocking:** #85 (`TarballStrategy.update()` ignores `guide.source`) and #86 (tarball fetch does not honor `HTTP(S)_PROXY` while the git half does).
+
+Tags: @context-forge/core@0.14.0, @context-forge/cli@0.14.0, @context-forge/mcp@0.14.0, @context-forge/context-forge@0.14.0
+
 ## 2026-09-09
+
+### Slice 925 — guide install robustness (#80, #81, #82)
+
+- **#80 auto-init.** `GuideInfo` now carries a `checkout` state and `GuideManager.ensureCheckout()` acts on exactly one of them: an uninitialized submodule, which has a single correct resolution. `cf build`, `cf prompt`, `cf setup-ide`, and the MCP context/prompt tools call it before reading guide content. An out-of-sync checkout is reported and left alone (D2) — it is usually deliberate, and resetting it would discard the user's intent.
+- **#81 rename.** `manual` → `tarball`, with `manual` kept as a deprecated alias in one `normalizeGuideMethod()` and in the `ConfigKeys` enum so existing config files still validate. The alias is reported by core, so the CLI flag and config paths warn identically without duplicating logic.
+- **#82 managed directory.** One `GUIDE_MANAGED_NOTICE` constant, printed by `cf guides info`, returned by `guide_status`, and quoted verbatim in the README.
+- **D6 default stands: submodule.** It pins a reviewable commit, updates through git rather than the GitHub API, and keeps a contribute-back path open. The one real cost — teammates cloning without `--recurse-submodules` — is what auto-init removes, so the reason to switch defaults went away rather than being traded off.
+- **Notices channel.** CLI notices go to stderr so piped stdout stays machine-readable; MCP has no stderr, so they ride in a `notices` array attached by one shared helper. Verified over the real transport that a sibling field reaches the client, since `context_build` and `prompt_get` return plain text with no payload to embed a field into.
+- **Code review (GLM 5.3, CONCERNS) resolved in a follow-up commit.** Two were real regressions: `cf prompt get P<n>` read the prompt file for shorthand resolution before the checkout was readied, and `ensureCheckout()` went through `detect()`, whose `git ls-remote` put an unbounded network round-trip into every `cf build` — the exact hang class D10 exists to prevent. Split out `GuideDetector.detectLocal()` (filesystem and local git only) and made `detect()` compose it with the remote fetch; read commands use the local form, status commands keep the remote one. Also: the offline remediation is appended once, not twice on top of `gitExec`'s own hint; `GUIDE_STRATEGIES` and the deprecation sentence moved to core so the MCP enum, its description, and CLI help derive from one table; `withNotices` keeps `notices` in its return type; `guide_status` gates the managed notice on `installed` like the CLI; test fixtures restore `GIT_ALLOW_PROTOCOL`. Per-finding detail is in the slice doc's Review Resolution.
+- **Three findings the design did not anticipate.** The `NETWORK_ERROR_PATTERNS` entry is `/connection timed out/i` (git's wording), not `/timed out/i`, so a new pattern was needed for our own timeout message to pick up the offline remediation text. Git blocks the `file` transport for submodule clones and treats every local path that way, so fixtures set `GIT_ALLOW_PROTOCOL=file`; production sources are https and need no such flag. `prompt.ts` reaches the guide via `PROMPT_FILE_RELATIVE_PATH`, which was absent from the design's grep list.
+
+Verification walkthrough, run against the real guide repo (v0.17.3) with `node packages/cli/dist/index.js`:
+
+```
+$ cf guides info                 # in a clone made without --recurse-submodules
+  Method:     submodule
+  Checkout:   not initialized
+  (guide directory still empty afterward — info is read-only)
+
+$ cf build 2>err.txt >out.txt
+  [stderr] Initialized the guide submodule at project-documents/ai-project-guide (e11dcd4).
+  (guide directory now populated; stdout carries no notice; --json parses clean)
+
+$ (cd project-documents/ai-project-guide && git checkout HEAD~1) && cf build
+  [stderr] The guide submodule ... is checked out at a different commit than this
+           project pins. It was left unchanged. Run cf guides update ...
+  (git submodule status byte-identical before and after)
+
+$ cf init --name g925-tb --no-ide --strategy manual
+  [stderr] Strategy 'manual' is deprecated; use 'tarball' instead.
+  [stdout] Method:   tarball        (no .gitmodules created)
+```
+
+Tests: core 1159, cli 558, mcp 202. Real-git fixtures cover the three checkout states; the CLI and MCP command tests mock the core barrel, so separate fixture-backed tests prove the behavior rather than just the call.
 
 ### Electron package removed
 - Deleted `packages/electron` (180 files, ~22.5k lines, 46MB). It had been `private: true` at 0.0.1 — never published — and untouched since 2026-04-16 (a docs-only license commit). README had carried "deprecated, scheduled for removal" since; this executes it.

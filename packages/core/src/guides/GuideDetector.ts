@@ -4,6 +4,7 @@ import { join } from 'path';
 import {
   type GuideInfo,
   type GuideMethod,
+  type SubmoduleCheckoutState,
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
   VERSION_MARKER_FILE,
@@ -62,6 +63,27 @@ export class GuideDetector {
    * @param operationPath - worktree path for filesystem checks (defaults to projectPath)
    */
   async detect(projectPath: string, source?: string, operationPath?: string): Promise<GuideInfo> {
+    const info = await this.detectLocal(projectPath, source, operationPath);
+    const latestVersion = await this.fetchLatestVersion(info.source);
+    return {
+      ...info,
+      latestVersion,
+      updateAvailable: isNewerVersion(info.version, latestVersion),
+    };
+  }
+
+  /**
+   * Everything detect() reports except the remote's latest version, answered
+   * from the filesystem and local git alone — no `git ls-remote`. Read
+   * commands (`cf build`, `context_build`, ...) reach this through
+   * GuideManager.ensureCheckout() so a routine build never waits on the
+   * network (D10); status commands keep using detect().
+   */
+  async detectLocal(
+    projectPath: string,
+    source?: string,
+    operationPath?: string
+  ): Promise<GuideInfo> {
     const resolvedSource = source || DEFAULT_SOURCE_GIT;
     const effectivePath = operationPath || projectPath;
     const guidePath = join(effectivePath, GUIDE_RELATIVE_PATH);
@@ -69,6 +91,7 @@ export class GuideDetector {
     const baseInfo: GuideInfo = {
       installed: false,
       method: null,
+      checkout: null,
       version: null,
       path: guidePath,
       source: resolvedSource,
@@ -78,27 +101,49 @@ export class GuideDetector {
     };
 
     if (!existsSync(guidePath)) {
-      // Check latest version even when not installed
-      baseInfo.latestVersion = await this.fetchLatestVersion(resolvedSource);
       return baseInfo;
     }
 
     // Guide directory exists — determine method (use projectPath for .gitmodules check)
     const method = this.detectMethod(projectPath, guidePath);
+    const checkout = await this.resolveCheckout(method, effectivePath);
     const version = await this.detectVersion(guidePath, method);
-    const latestVersion = await this.fetchLatestVersion(resolvedSource);
-    const updateAvailable = isNewerVersion(version, latestVersion);
 
     return {
       installed: true,
       method,
+      checkout,
       version,
       path: guidePath,
       source: resolvedSource,
-      latestVersion,
-      updateAvailable,
+      latestVersion: null,
+      updateAvailable: false,
       usingBundledPrompt: false,
     };
+  }
+
+  /**
+   * Checkout state for a submodule install, or null for other methods.
+   *
+   * Read-only: this reports what `git submodule status` says and never runs
+   * `git submodule update` (D1). An 'error' result means git is unavailable or
+   * the path is not a repository — surfaced rather than swallowed (D7),
+   * because silently reporting "in sync" would hide the very condition the
+   * caller needs to act on.
+   */
+  private async resolveCheckout(
+    method: GuideMethod,
+    effectivePath: string
+  ): Promise<SubmoduleCheckoutState | null> {
+    if (method !== 'submodule') return null;
+    const state = await this.checkSyncStatus(effectivePath);
+    if (state === 'error') {
+      throw new Error(
+        `Unable to read guide submodule status in ${effectivePath}. ` +
+          'Ensure git is installed and the directory is a git repository.'
+      );
+    }
+    return state;
   }
 
   /** Determine installation method by inspecting filesystem */
@@ -122,7 +167,7 @@ export class GuideDetector {
       return 'clone';
     }
 
-    return 'manual';
+    return 'tarball';
   }
 
   /** Detect current version based on method */
@@ -146,7 +191,7 @@ export class GuideDetector {
   }
 
   /** Check whether a worktree's submodule checkout is in sync with the committed pointer */
-  async checkSyncStatus(worktreePath: string): Promise<'in_sync' | 'out_of_sync' | 'not_initialized' | 'error'> {
+  async checkSyncStatus(worktreePath: string): Promise<SubmoduleCheckoutState | 'error'> {
     try {
       const { stdout } = await gitExec(
         ['submodule', 'status', GUIDE_RELATIVE_PATH],

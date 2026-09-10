@@ -42,6 +42,9 @@ vi.mock('node:child_process', () => ({
 vi.mock('../../src/commands/guides.js', () => ({
   guidesInstallAction: (...args: unknown[]) => mockGuidesInstallAction(...args),
   registerGuidesCommand: vi.fn(),
+  // cf init renders its --strategy help from the same descriptor as
+  // cf guides install, so the option help is identical in both places.
+  strategyHelpText: () => 'Installation strategy — submodule (...); clone (...); tarball (...)',
 }));
 
 vi.mock('../../src/commands/setup-ide.js', async (importOriginal) => {
@@ -378,5 +381,64 @@ describe('cf init', () => {
       );
       expect(gitignoreCall).toBeUndefined();
     });
+  });
+});
+
+describe('cf init --strategy (D8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockExistsSync.mockImplementation((p: string) => p.endsWith('.git'));
+    mockCreate.mockResolvedValue({ id: 'project_new_001', name: 'test-dir' });
+    mockGuidesInstallAction.mockResolvedValue(undefined);
+    mockSetupIdeAction.mockResolvedValue(undefined);
+    mockInstallCommandsAction.mockReturnValue(undefined);
+    mockGetAll.mockResolvedValue([]);
+  });
+
+  it('passes a canonical strategy through to the install action', async () => {
+    const program = createProgram();
+    await program.parseAsync(['init', '--strategy', 'tarball', '--no-ide'], { from: 'user' });
+
+    expect(mockGuidesInstallAction).toHaveBeenCalledWith(
+      process.cwd(),
+      { strategy: 'tarball' },
+    );
+  });
+
+  it('passes the deprecated alias through unchanged so one place normalizes it', async () => {
+    const program = createProgram();
+    await program.parseAsync(['init', '--strategy', 'manual', '--no-ide'], { from: 'user' });
+
+    // guidesInstallAction owns normalization and the deprecation warning, so
+    // init must not pre-translate the value.
+    expect(mockGuidesInstallAction).toHaveBeenCalledWith(
+      process.cwd(),
+      { strategy: 'manual' },
+    );
+  });
+
+  it('omits the strategy when the flag is absent, leaving config to decide', async () => {
+    const program = createProgram();
+    await program.parseAsync(['init', '--no-ide'], { from: 'user' });
+
+    expect(mockGuidesInstallAction).toHaveBeenCalledWith(
+      process.cwd(),
+      { strategy: undefined },
+    );
+  });
+
+  it('surfaces an invalid strategy as a warning without failing init', async () => {
+    mockGuidesInstallAction.mockRejectedValue(
+      new Error("Invalid guide strategy 'bogus'. Valid values: submodule, clone, tarball."),
+    );
+
+    const program = createProgram();
+    await program.parseAsync(['init', '--strategy', 'bogus', '--no-ide'], { from: 'user' });
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0] ?? '')).join('\n');
+    expect(output).toContain('bogus');
+    expect(output).toContain('submodule, clone, tarball');
   });
 });

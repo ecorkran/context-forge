@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
-import { registerGuidesCommand, guidesInstallAction } from '../../src/commands/guides.js';
+import {
+  registerGuidesCommand,
+  guidesInstallAction,
+  strategyHelpText,
+  GUIDE_STRATEGIES,
+} from '../../src/commands/guides.js';
+import { CHECKOUT_STATE_LABELS, GUIDE_MANAGED_NOTICE } from '@context-forge/core';
 
 const {
   mockGetAll,
@@ -197,6 +203,94 @@ describe('cf guides install', () => {
 
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('already installed');
+  });
+});
+
+describe('cf guides install — deprecated strategy alias (D5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('passes the raw --strategy string through to the manager for normalization', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
+  });
+
+  it('reports the canonical method on stdout for an alias install', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    const stdout = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(stdout).toContain('tarball');
+    expect(stdout).not.toContain('deprecated');
+  });
+
+  it('prints the deprecation warning to stderr only (D4)', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).toContain('deprecated');
+    expect(stderr).toContain('tarball');
+  });
+
+  it('prints no deprecation warning for a canonical strategy', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'tarball', '--project', 'proj_001']);
+
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).not.toContain('deprecated');
+  });
+
+  it('warns identically when the alias came from config rather than the flag (F002)', async () => {
+    // No --strategy flag: the alias reaches the CLI only via the manager's
+    // config-sourced result, which is the path review finding F002 called out.
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--project', 'proj_001']);
+
+    expect(mockInstall).toHaveBeenCalledWith(undefined, undefined);
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).toContain('deprecated');
+    const stdout = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(stdout).toContain('tarball');
   });
 });
 
@@ -417,5 +511,106 @@ describe('worktree-aware guide operations', () => {
 
     // operationPath defaults to projectPath when no worktreeId
     expect(MockGuideManager).toHaveBeenCalledWith('/tmp/test', expect.anything(), '/tmp/test');
+  });
+});
+
+describe('cf guides info — checkout state and managed notice', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  const baseInfo = {
+    installed: true,
+    method: 'submodule',
+    version: 'v0.13.2',
+    path: '/tmp/test/project-documents/ai-project-guide',
+    source: 'https://github.com/ecorkran/ai-project-guide.git',
+    latestVersion: 'v0.13.2',
+    updateAvailable: false,
+    usingBundledPrompt: false,
+  };
+
+  function output(): string {
+    return vi.mocked(console.log).mock.calls.map((c) => String(c[0] ?? '')).join('\n');
+  }
+
+  it('shows an uninitialized checkout using the shared label', async () => {
+    mockStatus.mockResolvedValue({ ...baseInfo, checkout: 'not_initialized' });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'info', '--project', 'proj_001']);
+
+    expect(output()).toContain('Checkout:');
+    expect(output()).toContain(CHECKOUT_STATE_LABELS.not_initialized);
+  });
+
+  it('shows an out-of-sync checkout using the shared label', async () => {
+    mockStatus.mockResolvedValue({ ...baseInfo, checkout: 'out_of_sync' });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'info', '--project', 'proj_001']);
+
+    expect(output()).toContain(CHECKOUT_STATE_LABELS.out_of_sync);
+  });
+
+  it('omits the Checkout line for a tarball install', async () => {
+    mockStatus.mockResolvedValue({ ...baseInfo, method: 'tarball', checkout: null });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'info', '--project', 'proj_001']);
+
+    expect(output()).not.toContain('Checkout:');
+  });
+
+  it('states that the guide directory is managed content (#82)', async () => {
+    mockStatus.mockResolvedValue({ ...baseInfo, checkout: 'in_sync' });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'info', '--project', 'proj_001']);
+
+    expect(output()).toContain(GUIDE_MANAGED_NOTICE);
+  });
+
+  it('does not print the managed notice when no guide is installed', async () => {
+    mockStatus.mockResolvedValue({
+      ...baseInfo,
+      installed: false,
+      method: null,
+      checkout: null,
+      usingBundledPrompt: true,
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'info', '--project', 'proj_001']);
+
+    expect(output()).not.toContain(GUIDE_MANAGED_NOTICE);
+  });
+});
+
+describe('strategy help text (D8)', () => {
+  it('names every strategy with its trade-off', () => {
+    const text = strategyHelpText();
+
+    for (const name of Object.keys(GUIDE_STRATEGIES)) {
+      expect(text).toContain(name);
+    }
+    for (const { summary } of Object.values(GUIDE_STRATEGIES)) {
+      expect(text).toContain(summary);
+    }
+  });
+
+  it('does not advertise the deprecated alias', () => {
+    expect(strategyHelpText()).not.toContain('manual');
   });
 });

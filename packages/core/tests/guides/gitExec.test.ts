@@ -40,6 +40,59 @@ describe('gitExec', () => {
       expect(result.stderr).toBe('');
     });
 
+    it('passes no timeout to execFile when timeoutMs is omitted (D10)', async () => {
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        (callback as Function)(null, 'ok', '');
+        return undefined as never;
+      });
+
+      await gitExec(['status'], '/some/dir');
+
+      const opts = mockExecFile.mock.calls[0][2] as Record<string, unknown>;
+      expect(opts.timeout).toBeUndefined();
+      expect(opts.killSignal).toBeUndefined();
+    });
+
+    it('passes timeout and killSignal to execFile when timeoutMs is given', async () => {
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        (callback as Function)(null, 'ok', '');
+        return undefined as never;
+      });
+
+      await gitExec(['status'], '/some/dir', { timeoutMs: 5000 });
+
+      const opts = mockExecFile.mock.calls[0][2] as Record<string, unknown>;
+      expect(opts.timeout).toBe(5000);
+      expect(opts.killSignal).toBe('SIGTERM');
+    });
+
+    it('rejects with a timeout message and remediation when killed by timeout', async () => {
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        // How execFile reports a timeout kill: an error carrying killed: true.
+        const error = Object.assign(new Error('Command failed'), { killed: true });
+        (callback as Function)(error, '', '');
+        return undefined as never;
+      });
+
+      const promise = gitExec(['submodule', 'update', '--init'], '/some/dir', {
+        timeoutMs: 60_000,
+      });
+
+      await expect(promise).rejects.toThrow(/timed out after 60s/);
+      await expect(promise).rejects.toThrow(GUIDE_OFFLINE_REMEDIATION);
+    });
+
+    it('does not claim a timeout for a killed process when no timeout was set', async () => {
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        const error = Object.assign(new Error('Command failed'), { killed: true });
+        (callback as Function)(error, '', 'fatal: killed by signal');
+        return undefined as never;
+      });
+
+      await expect(gitExec(['status'], '/some/dir')).rejects.toThrow(/killed by signal/);
+      await expect(gitExec(['status'], '/some/dir')).rejects.not.toThrow(/timed out/);
+    });
+
     it('rejects with descriptive error on non-zero exit', async () => {
       mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
         const error = new Error('Command failed');

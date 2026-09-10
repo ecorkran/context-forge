@@ -21,6 +21,9 @@ const NETWORK_ERROR_PATTERNS = [
   /could not resolve host/i,
   /could not connect to/i,
   /connection timed out/i,
+  // Our own timeout message (see GitExecOptions.timeoutMs). The existing
+  // 'connection timed out' pattern is git's wording and does not match it.
+  /timed out after \d+s/i,
   /network is unreachable/i,
   /ssl certificate problem/i,
   /failed to connect/i,
@@ -49,20 +52,50 @@ export function withNetworkErrorHint(message: string): string {
   );
 }
 
+export interface GitExecOptions {
+  /**
+   * Kill the command after this many milliseconds. Omit for no bound.
+   *
+   * Only automatic operations inside a read command set this: a credential
+   * prompt is already prevented by GIT_NONINTERACTIVE_ENV, but a proxy that
+   * accepts a connection and never answers would otherwise block for the OS
+   * TCP timeout. User-initiated install and update stay unbounded (D10).
+   */
+  timeoutMs?: number;
+}
+
 /**
  * Execute a git command safely using execFile (no shell injection).
  * @param args - arguments to pass to git (e.g., ['clone', url, dir])
  * @param cwd - working directory for the command
+ * @param opts - optional execution bounds
  */
-export function gitExec(args: string[], cwd: string): Promise<GitExecResult> {
+export function gitExec(
+  args: string[],
+  cwd: string,
+  opts?: GitExecOptions
+): Promise<GitExecResult> {
   return new Promise((resolve, reject) => {
+    const timeoutMs = opts?.timeoutMs;
     execFile(
       'git',
       args,
-      { cwd, env: { ...process.env, ...GIT_NONINTERACTIVE_ENV } },
+      {
+        cwd,
+        env: { ...process.env, ...GIT_NONINTERACTIVE_ENV },
+        ...(timeoutMs ? { timeout: timeoutMs, killSignal: 'SIGTERM' as const } : {}),
+      },
       (error, stdout, stderr) => {
         if (error) {
-          const detail = stderr.trim() || error.message;
+          // execFile reports a timeout kill via `killed`; surface it as a
+          // timeout so withNetworkErrorHint's /timed out/i pattern appends the
+          // offline remediation text.
+          const killedByTimeout =
+            timeoutMs !== undefined &&
+            (error as NodeJS.ErrnoException & { killed?: boolean }).killed === true;
+          const detail = killedByTimeout
+            ? `timed out after ${Math.round(timeoutMs / 1000)}s`
+            : stderr.trim() || error.message;
           reject(
             new Error(withNetworkErrorHint(`git ${redactCredentials(args)} failed in ${cwd}: ${detail}`))
           );

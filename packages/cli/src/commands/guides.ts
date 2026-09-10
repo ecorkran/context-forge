@@ -1,11 +1,16 @@
 import { Command } from 'commander';
 import {
+  CHECKOUT_STATE_LABELS,
+  GUIDE_MANAGED_NOTICE,
+  GUIDE_STRATEGIES,
+  guideMethodDeprecationMessage,
+} from '@context-forge/core';
+import {
   FileProjectStore,
   GuideManager,
   ConfigManager,
   BranchGuardWarnError,
 } from '@context-forge/core/node';
-import type { GuideMethod } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -62,11 +67,17 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   console.log(`  ${label('Installed:')}  ${info.installed ? valueStyle('yes') : dim('no')}`);
   if (info.installed) {
     console.log(`  ${label('Method:')}     ${valueStyle(info.method ?? 'unknown')}`);
+    // Only submodule installs have a checkout state (D1).
+    if (info.checkout) {
+      console.log(`  ${label('Checkout:')}   ${valueStyle(CHECKOUT_STATE_LABELS[info.checkout])}`);
+    }
     console.log(`  ${label('Version:')}    ${valueStyle(info.version ?? 'unknown')}`);
     console.log(`  ${label('Path:')}       ${dim(info.path)}`);
     if (info.updateAvailable) {
       console.log(`  ${label('Update:')}     ${warn(`${info.latestVersion} available`)}`);
     }
+    console.log();
+    console.log(dim(`  ${GUIDE_MANAGED_NOTICE}`));
   } else {
     console.log(`  ${label('Guides:')}     ${dim('not installed (required for context generation)')}`);
     console.log(`  ${dim('  Run cf guides install to install guides.')}`);
@@ -76,15 +87,41 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   }
 }
 
-/** Install guides for a project. Errors propagate to the caller. */
+// The strategy descriptor lives in core so the MCP server renders the same
+// text (D8); re-exported here for the CLI tests that read it.
+export { GUIDE_STRATEGIES };
+
+/**
+ * Render the shared `--strategy` help text from GUIDE_STRATEGIES, so
+ * `cf init` and `cf guides install` cannot describe strategies differently.
+ */
+export function strategyHelpText(): string {
+  const rendered = Object.entries(GUIDE_STRATEGIES)
+    .map(([name, { summary }]) => `${name} (${summary})`)
+    .join('; ');
+  return `Installation strategy — ${rendered}`;
+}
+
+/**
+ * Install guides for a project. Errors propagate to the caller.
+ *
+ * `strategy` is the raw `--strategy` string; GuideManager.install() validates
+ * it and reports a deprecated alias, so the flag path and the config path
+ * produce the same warning here (D5). The warning goes to stderr so stdout
+ * stays machine-readable (D4).
+ */
 export async function guidesInstallAction(
   projectPath: string,
-  opts?: { strategy?: GuideMethod; source?: string }
+  opts?: { strategy?: string; source?: string }
 ): Promise<void> {
   const cm = new ConfigManager(projectPath);
   const manager = new GuideManager(projectPath, cm);
 
   const result = await manager.install(opts?.strategy, opts?.source);
+
+  if (result.deprecatedAlias) {
+    console.error(warn(guideMethodDeprecationMessage(result.deprecatedAlias, result.method)));
+  }
 
   console.log(success('Guide installed successfully.'));
   console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
@@ -116,13 +153,13 @@ export function registerGuidesCommand(program: Command): void {
   const installCmd = cmd
     .command('install')
     .description('Install the AI project guide')
-    .option('--strategy <method>', 'Installation strategy: submodule, clone, or manual')
+    .option('--strategy <method>', strategyHelpText())
     .option('--source <url>', 'Source repository URL');
   withProjectOption(installCmd);
   installCmd.action(async (opts: { strategy?: string; source?: string; project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
-        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
+        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy, source: opts.source });
       } catch (err) {
         handleError(err);
       }

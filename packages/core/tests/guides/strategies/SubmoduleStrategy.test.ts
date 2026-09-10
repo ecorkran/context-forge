@@ -216,10 +216,12 @@ describe('SubmoduleStrategy', () => {
         ['ls-tree', 'HEAD', GUIDE_RELATIVE_PATH],
         projectPath
       );
-      // Step 2: init submodule in worktree
+      // Step 2: init submodule in worktree, unbounded (no timeout on the
+      // update path — D10)
       expect(mockGitExec).toHaveBeenCalledWith(
         ['submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
-        worktreePath
+        worktreePath,
+        undefined
       );
       // Step 3: fetch latest objects
       expect(mockGitExec).toHaveBeenCalledWith(

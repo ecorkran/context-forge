@@ -13,6 +13,25 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 20260910
+
+### Added
+- **Fresh clones no longer start with an empty guide directory.** Cloning a project without `--recurse-submodules` used to leave `project-documents/ai-project-guide` empty, and the failure surfaced later as a confusing missing-file error. `cf build`, `cf prompt`, `cf setup-ide`, and the MCP `context_build`, `prompt_list`, and `prompt_get` tools now check out the guide automatically the first time they read it, reporting what they did on stderr (CLI) or in a `notices` array (MCP). Closes #80.
+- **`cf init --strategy <method>`** selects the install strategy at project creation, with the same help text and trade-offs as `cf guides install --strategy`.
+- **`cf guides info` shows the submodule checkout state** (`in sync`, `out of sync`, `not initialized`). It remains read-only and never modifies the checkout, so you can inspect before acting.
+- **The guide directory now says it is managed content.** `cf guides info`, the MCP `guide_status` tool, and the README all state that `project-documents/ai-project-guide` is overwritten on `cf guides update` and that customizations belong under `project-documents/user/`. Closes #82.
+- README gained a "Choosing a guide install strategy" section covering all three strategies and why submodule remains the default.
+
+### Changed
+- **The `manual` install strategy is now called `tarball`.** `manual` still works as a deprecated alias and prints a notice, and existing config files with `guide.git_strategy = "manual"` keep validating. Closes #81.
+- **Output change:** `cf guides info --json`, the MCP `guide_install` and `guide_status` results, and `InstallResult.method` now report `"tarball"` where they previously reported `"manual"`. Existing tarball installs are detected correctly and need no migration. If you parse this field, update the comparison.
+- A checkout sitting at a commit other than the one your project pins is reported but deliberately left alone, since that is usually intentional. The message names `cf guides update` as the remedy.
+
+### Fixed
+- `cf guides update` works in a project that has no commits yet. Straight after `cf init`, the branch guard failed with `git rev-parse --abbrev-ref HEAD failed ... unknown revision` because the branch exists but has nothing on it. The guard now reads the branch name and, when it is not the trunk, asks for confirmation as it does for a branch with no shared history.
+- A malformed config file no longer silently falls back to the default install strategy and source. Config read errors now fail the command with the actual parse error.
+- The automatic checkout is bounded by a timeout, so an unresponsive proxy fails with offline guidance instead of blocking a read command for the operating system's connection timeout. User-initiated `cf guides install` and `cf guides update` remain unbounded.
+
 ## [0.13.2] - 20260909
 
 ### Changed

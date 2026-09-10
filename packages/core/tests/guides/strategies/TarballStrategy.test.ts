@@ -61,7 +61,7 @@ describe('TarballStrategy', () => {
 
       const result = await strategy.detect(projectPath, targetDir);
 
-      expect(result).toEqual({ method: 'manual', version: 'v0.13.2', source: null });
+      expect(result).toEqual({ method: 'tarball', version: 'v0.13.2', source: null });
     });
 
     it('returns null when marker file is missing', async () => {
@@ -102,7 +102,7 @@ describe('TarballStrategy', () => {
       );
       expect(result.success).toBe(true);
       expect(result.version).toBe('v0.13.2');
-      expect(result.method).toBe('manual');
+      expect(result.method).toBe('tarball');
     });
 
     it('propagates network failure from ls-remote with descriptive error', async () => {

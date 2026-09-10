@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, ConfigManager, GuideManager } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
@@ -20,6 +20,37 @@ export function jsonResult(data: unknown): { content: { type: 'text'; text: stri
 }
 
 /**
+ * Attach guide notices to a tool result.
+ *
+ * An MCP client has no stderr to read, so side-channel messages travel as a
+ * structured `notices` array (D4). The primary payload is untouched: callers
+ * that ignore the field see exactly what they saw before. Absent when there is
+ * nothing to report, so a quiet call stays byte-identical.
+ */
+export function withNotices<T extends object>(
+  result: T,
+  notices: string[],
+): T | (T & { notices: string[] }) {
+  return notices.length > 0 ? { ...result, notices } : result;
+}
+
+/**
+ * Ready the guide checkout for a project before its content is read, and
+ * return any notice the caller should surface.
+ *
+ * Mirrors the CLI's ensureGuideReady, minus the printing: MCP tools carry the
+ * message in the result instead. There is no separate operation path here:
+ * the MCP worktree overlay has already rewritten `projectPath` to the
+ * worktree when one is selected.
+ */
+export async function ensureGuideForProject(projectPath: string): Promise<string[]> {
+  const cm = new ConfigManager(projectPath);
+  const manager = new GuideManager(projectPath, cm);
+  const result = await manager.ensureCheckout();
+  return result.action === 'none' || !result.message ? [] : [result.message];
+}
+
+/**
  * Shared context generation helper used by context_build and template_preview.
  * Loads a project, applies optional overrides, generates context via core pipeline.
  */
@@ -28,7 +59,7 @@ export async function generateContext(
   overrides?: Partial<ProjectData>,
   additionalInstructions?: string,
   worktreeId?: string,
-): Promise<string> {
+): Promise<{ contextString: string; notices: string[] }> {
   const store = new FileProjectStore();
   const project = await store.getById(projectId);
 
@@ -54,6 +85,10 @@ export async function generateContext(
     }
   }
 
+  // The guide must be readable before the pipeline reads it: a fresh clone
+  // leaves the submodule uninitialized (#80).
+  const notices = await ensureGuideForProject(workingCopy.projectPath!);
+
   const { integrator } = createContextPipeline(workingCopy.projectPath!);
   let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
@@ -61,7 +96,7 @@ export async function generateContext(
     contextString = `${contextString}\n\n${additionalInstructions}`;
   }
 
-  return contextString;
+  return { contextString, notices };
 }
 
 /** Zod schema for optional project parameter overrides */
@@ -81,7 +116,9 @@ const contextOverridesSchema = {
  * Resolve the prompt file path for prompt_list/prompt_get.
  * Requires a resolvable project with guides installed.
  */
-async function resolvePromptFileForTools(projectId?: string): Promise<string> {
+async function resolvePromptFileForTools(
+  projectId?: string,
+): Promise<{ promptFilePath: string; notices: string[] }> {
   const resolvedId = await resolveProjectId(projectId);
   const store = new FileProjectStore();
   const project = await store.getById(resolvedId);
@@ -95,7 +132,8 @@ async function resolvePromptFileForTools(projectId?: string): Promise<string> {
       `Project '${project.name}' has no configured path. Set a project path with project_update before using prompt tools.`,
     );
   }
-  return resolvePromptFilePath(project.projectPath);
+  const notices = await ensureGuideForProject(project.projectPath);
+  return { promptFilePath: resolvePromptFilePath(project.projectPath), notices };
 }
 
 // --- Tool registration ---
@@ -156,13 +194,13 @@ export function registerContextTools(server: McpServer): void {
           ...explicitOverrides,
         };
 
-        const contextString = await generateContext(
+        const { contextString, notices } = await generateContext(
           resolvedId,
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWorktreeId,
         );
-        return textResult(contextString);
+        return withNotices(textResult(contextString), notices);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -217,13 +255,13 @@ export function registerContextTools(server: McpServer): void {
 
         const mergedOverrides: Partial<ProjectData> = { ...worktreeOverrides, ...explicitOverrides };
 
-        const contextString = await generateContext(
+        const { contextString, notices } = await generateContext(
           resolvedId,
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWtId,
         );
-        return textResult(contextString);
+        return withNotices(textResult(contextString), notices);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -245,7 +283,7 @@ export function registerContextTools(server: McpServer): void {
     },
     async ({ projectId }) => {
       try {
-        const promptFilePath = await resolvePromptFileForTools(projectId);
+        const { promptFilePath, notices } = await resolvePromptFileForTools(projectId);
         const parser = new SystemPromptParser(promptFilePath);
         const prompts = await parser.getAllPrompts();
 
@@ -255,7 +293,10 @@ export function registerContextTools(server: McpServer): void {
           parameterCount: p.parameters.length,
         }));
 
-        return jsonResult({ templates, count: templates.length, promptFile: promptFilePath });
+        return withNotices(
+          jsonResult({ templates, count: templates.length, promptFile: promptFilePath }),
+          notices,
+        );
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -278,7 +319,7 @@ export function registerContextTools(server: McpServer): void {
     },
     async ({ projectId, templateName }) => {
       try {
-        const promptFilePath = await resolvePromptFileForTools(projectId);
+        const { promptFilePath, notices } = await resolvePromptFileForTools(projectId);
         const parser = new SystemPromptParser(promptFilePath);
         const prompts = await parser.getAllPrompts();
 
@@ -296,7 +337,7 @@ export function registerContextTools(server: McpServer): void {
 
         // Return metadata header followed by template content
         const header = `# ${match.name}\nKey: ${match.key}\nParameters: ${match.parameters.join(', ') || 'none'}\n\n---\n\n`;
-        return textResult(header + match.content);
+        return withNotices(textResult(header + match.content), notices);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
