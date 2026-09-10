@@ -123,12 +123,37 @@ export class SubmoduleStrategy implements InstallStrategy {
     }
     const targetCommit = match[1];
 
-    // Ensure submodule is initialized in the worktree
-    await gitExec(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], worktreePath);
+    // Ensure submodule is initialized in the worktree. No timeout: sync() is
+    // reached from user-initiated update, which stays unbounded (D10).
+    await this.init(worktreePath);
 
     // Fetch latest objects so the target commit is available, then checkout
     const guidePath = join(worktreePath, GUIDE_RELATIVE_PATH);
     await gitExec(['fetch', 'origin'], guidePath);
     await gitExec(['checkout', targetCommit], guidePath);
+  }
+
+  /**
+   * Check out an uninitialized guide submodule at the commit the host repo
+   * pins, and report that commit.
+   *
+   * Only touches the submodule working tree: it runs no `git add` and makes no
+   * host commit, so it cannot trip the branch guard. Safe to call when the
+   * submodule is already initialized, in which case git does nothing.
+   *
+   * @param operationPath - repo (or worktree) whose submodule to initialize
+   * @param opts.timeoutMs - bound the fetch; callers on a read path set this,
+   *   install and update leave it unset (D10)
+   */
+  async init(operationPath: string, opts?: { timeoutMs?: number }): Promise<{ commit: string }> {
+    await gitExec(
+      ['submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
+      operationPath,
+      opts?.timeoutMs ? { timeoutMs: opts.timeoutMs } : undefined
+    );
+
+    const guidePath = join(operationPath, GUIDE_RELATIVE_PATH);
+    const { stdout } = await gitExec(['rev-parse', '--short', 'HEAD'], guidePath);
+    return { commit: stdout };
   }
 }

@@ -21,9 +21,21 @@ export interface SubmoduleFixture {
   cleanup: () => void;
 }
 
+/**
+ * Git refuses the 'file' transport for submodule clones by default (CVE-2022-39253),
+ * and it classes ANY local path that way — plain or file:// alike. Real guide
+ * sources are https, so this only affects fixtures. The allowance is scoped to
+ * the test process rather than passed as a git flag, because the code under
+ * test builds its own git invocations and must not need such a flag to work.
+ */
+export function allowLocalSubmoduleTransport(): void {
+  process.env.GIT_ALLOW_PROTOCOL = 'file';
+}
+
 /** Deterministic identity and settings so fixtures do not read user git config. */
 const GIT_ENV = {
   ...process.env,
+  GIT_ALLOW_PROTOCOL: 'file',
   GIT_AUTHOR_NAME: 'cf-test',
   GIT_AUTHOR_EMAIL: 'cf-test@example.invalid',
   GIT_COMMITTER_NAME: 'cf-test',
@@ -85,9 +97,11 @@ function createOrigins(): FixtureRoots {
   writeFileSync(join(hostOrigin, 'README.md'), '# host\n', 'utf-8');
   git(['add', '.'], hostOrigin);
   git(['commit', '-q', '-m', 'host: initial'], hostOrigin);
-  // file:// protocol is required for local submodules on git >= 2.38.
+  // A plain local path, deliberately NOT a file:// URL: git >= 2.38 blocks the
+  // 'file' transport for submodules, and the product code under test must not
+  // need a protocol.file.allow override to succeed.
   git(
-    ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', `file://${guideOrigin}`, GUIDE_RELATIVE_PATH],
+    ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', guideOrigin, GUIDE_RELATIVE_PATH],
     hostOrigin
   );
   git(['commit', '-q', '-m', 'host: add guide submodule'], hostOrigin);
@@ -97,7 +111,7 @@ function createOrigins(): FixtureRoots {
 
 function cloneHost(roots: FixtureRoots): { hostPath: string; cleanup: () => void } {
   const hostPath = join(roots.root, 'host-clone');
-  git(['-c', 'protocol.file.allow=always', 'clone', '-q', roots.hostOrigin, hostPath], roots.root);
+  git(['clone', '-q', roots.hostOrigin, hostPath], roots.root);
   return {
     hostPath,
     cleanup: () => rmSync(roots.root, { recursive: true, force: true }),
@@ -113,6 +127,7 @@ function toFixture(hostPath: string, cleanup: () => void): SubmoduleFixture {
  * and the guide directory is empty. `git submodule status` prefixes `-`.
  */
 export function cloned(): SubmoduleFixture {
+  allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
   return toFixture(hostPath, cleanup);
@@ -123,12 +138,10 @@ export function cloned(): SubmoduleFixture {
  * pinned commit. `git submodule status` prefixes a space.
  */
 export function initialized(): SubmoduleFixture {
+  allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
-  git(
-    ['-c', 'protocol.file.allow=always', 'submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
-    hostPath
-  );
+  git(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], hostPath);
   return toFixture(hostPath, cleanup);
 }
 
@@ -138,13 +151,11 @@ export function initialized(): SubmoduleFixture {
  * status` prefixes `+`.
  */
 export function outOfSync(): SubmoduleFixture {
+  allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
   const guidePath = join(hostPath, GUIDE_RELATIVE_PATH);
-  git(
-    ['-c', 'protocol.file.allow=always', 'submodule', 'update', '--init', GUIDE_RELATIVE_PATH],
-    hostPath
-  );
+  git(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], hostPath);
   // Commit inside the submodule checkout; the host still points at the old SHA.
   writeFileSync(join(guidePath, 'README.md'), '# guide v2\n', 'utf-8');
   git(['add', '.'], guidePath);
