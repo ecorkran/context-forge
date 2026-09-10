@@ -13,7 +13,7 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.14.0] - 20260910
 
 ### Added
 - **Fresh clones no longer start with an empty guide directory.** Cloning a project without `--recurse-submodules` used to leave `project-documents/ai-project-guide` empty, and the failure surfaced later as a confusing missing-file error. `cf build`, `cf prompt`, `cf setup-ide`, and the MCP `context_build`, `prompt_list`, and `prompt_get` tools now check out the guide automatically the first time they read it, reporting what they did on stderr (CLI) or in a `notices` array (MCP). Closes #80.

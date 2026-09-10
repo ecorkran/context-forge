@@ -7,6 +7,19 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-10
+
+### Slice 925 code review and 0.14.0 release
+
+- **Code review (GLM 5.3, verdict CONCERNS, reviewed `a91eba9`)** — artifact `925-review.code.guide-install-robustness.md`. Six concerns, four notes, three passes; all ten actionable findings resolved in `16ff862`, per-finding record in the slice doc. CONCERNS clears the gate, so no re-review was required before merge.
+- **F002 was a real defect introduced during implementation.** `ensureCheckout()` went through `detect()`, which runs an unbounded `git ls-remote`, putting a network round-trip inside every read command — exactly the hang class D10 exists to prevent. Fixed by adding `GuideDetector.detectLocal()` (filesystem and local git only); `detect()` composes it with the remote fetch, `ensureCheckout()` uses the local form, `status()` is unchanged. A detector test now pins the no-`ls-remote` guarantee. Worth noting for future slices: end-to-end verification on a working network cannot catch an unwanted network call, only a test asserting its absence can.
+- **F001** `cf prompt get P<n>` resolved the shorthand, which reads the prompt file, before readying the guide; reordered with a call-order test. **F004** consolidated strategy knowledge into core so the MCP enum, its description, and CLI help derive from one table.
+- **Unborn-branch fix (`d50a2c5`)** — separate from the review. `cf guides update` died with "unknown revision" in a repo with no commits yet, the state `cf init` leaves behind. `evaluateBranchGuard()` ran `rev-parse --abbrev-ref HEAD`, which cannot resolve an unborn branch; it now falls back to `symbolic-ref` and re-throws any other failure. Pre-existing, reproduces on 0.13.2.
+- **Released 0.14.0.** Minor bump because the strategy rename is user-visible: `method` reports `tarball` where it reported `manual`. All four packages in lockstep. Tests at release: core 1159, cli 558, mcp 202.
+- **Deferred, non-blocking:** #85 (`TarballStrategy.update()` ignores `guide.source`) and #86 (tarball fetch does not honor `HTTP(S)_PROXY` while the git half does).
+
+Tags: @context-forge/core@0.14.0, @context-forge/cli@0.14.0, @context-forge/mcp@0.14.0, @context-forge/context-forge@0.14.0
+
 ## 2026-09-09
 
 ### Slice 925 — guide install robustness (#80, #81, #82)
