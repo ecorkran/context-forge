@@ -7,7 +7,7 @@ dependencies: [916]
 projectState: main is green, working tree clean at 14c2096. v0.13.2 is tagged and published (all four packages). Slice 925 design is approved with a CONCERNS slice review (F004/F005 resolved in the design). GuideMethod is still 'submodule' | 'clone' | 'manual'; GuideDetector.checkSyncStatus() exists but detect() does not record checkout state; cf init has no --strategy flag; resolveStrategy() hard-codes 'submodule' at GuideManager.ts:196 behind a silent catch. Next release will be 0.14.0 (user-visible rename manual → tarball).
 dateCreated: 20260909
 dateUpdated: 20260909
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -55,48 +55,48 @@ is the place to look for an existing real-git temp-repo pattern.
 
 ### Part 1 — Strategy Vocabulary (D5, D6, D7)
 
-- [ ] **Task 1: `GuideMethod` rename and `normalizeGuideMethod()`** (effort: 2)
-  - [ ] In `packages/core/src/guides/types.ts` change `GuideMethod` to
+- [x] **Task 1: `GuideMethod` rename and `normalizeGuideMethod()`** (effort: 2)
+  - [x] In `packages/core/src/guides/types.ts` change `GuideMethod` to
         `'submodule' | 'clone' | 'tarball'`.
-  - [ ] Add and export `normalizeGuideMethod(input: string): GuideMethod`.
+  - [x] Add and export `normalizeGuideMethod(input: string): GuideMethod`.
         Accepts the three canonical values unchanged; maps `manual` →
         `tarball`; anything else throws an error whose message names the
         valid values. This is the only place the `manual` alias is spelled
         in source outside the `ConfigKeys` enum.
-  - [ ] Add and export `GUIDE_METHOD_DEPRECATED_ALIASES` (or equivalent
+  - [x] Add and export `GUIDE_METHOD_DEPRECATED_ALIASES` (or equivalent
         single lookup) so callers can detect that the input was an alias
         and emit the deprecation warning (D5) without re-comparing strings.
-  - [ ] Export from `packages/core/src/guides/index.ts` and confirm it
+  - [x] Export from `packages/core/src/guides/index.ts` and confirm it
         reaches `@context-forge/core/node`.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core typecheck`
+  - [x] Success criteria: `pnpm --filter @context-forge/core typecheck`
         reports errors only at the `'manual'` sites listed in the design's
         "Rename sweep" section (those are fixed in Task 3).
 
-- [ ] **Task 2: Tests for `normalizeGuideMethod()`** (effort: 1)
-  - [ ] New test file `packages/core/tests/guides/types.test.ts` (or add to
+- [x] **Task 2: Tests for `normalizeGuideMethod()`** (effort: 1)
+  - [x] New test file `packages/core/tests/guides/types.test.ts` (or add to
         an existing guides test if a types test already exists).
-  - [ ] Cases: each canonical value passes through; `manual` → `tarball`;
+  - [x] Cases: each canonical value passes through; `manual` → `tarball`;
         empty string, whitespace, and an unknown word each throw; the error
         message contains all three canonical values.
-  - [ ] Success criteria: tests pass.
+  - [x] Success criteria: tests pass.
 
-- [ ] **Task 3: Rename sweep across core** (effort: 2)
-  - [ ] Replace every non-test `'manual'` literal at the locations listed in
+- [x] **Task 3: Rename sweep across core** (effort: 2)
+  - [x] Replace every non-test `'manual'` literal at the locations listed in
         the design's "Rename sweep (exact locations)": `GuideDetector.ts`,
         `GuideManager.ts` (`getStrategy` case), `CloneStrategy.ts`,
         `SubmoduleStrategy.ts`, `TarballStrategy.ts` (method field,
         `DetectionResult`, `InstallResult`, `UpdateResult`).
-  - [ ] `packages/core/src/config/ConfigKeys.ts`: enum becomes
+  - [x] `packages/core/src/config/ConfigKeys.ts`: enum becomes
         `['submodule', 'clone', 'tarball', 'manual']` — `manual` stays so
         existing shared config validates (D5). Default remains `'submodule'`.
-  - [ ] Success criteria: `grep -rn "'manual'" packages/core/src` returns
+  - [x] Success criteria: `grep -rn "'manual'" packages/core/src` returns
         only the `normalizeGuideMethod()` alias entry and the `ConfigKeys`
         enum line. Core typechecks.
 
-- [ ] **Task 4: Update existing core tests for the rename** (effort: 1)
-  - [ ] Update `GuideDetector.test.ts`, `TarballStrategy.test.ts`, and
+- [x] **Task 4: Update existing core tests for the rename** (effort: 1)
+  - [x] Update `GuideDetector.test.ts`, `TarballStrategy.test.ts`, and
         `GuideManager.test.ts` expectations from `manual` to `tarball`.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test` passes in
+  - [x] Success criteria: `pnpm --filter @context-forge/core test` passes in
         full. Commit: `refactor(core): rename guide strategy manual to tarball`.
 
 - [ ] **Task 5: Remove silent catches in `resolveStrategy()` / `resolveSource()`** (effort: 2)

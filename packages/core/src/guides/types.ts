@@ -62,6 +62,12 @@ export interface InstallResult {
   version: string | null;
   method: GuideMethod;
   path: string;
+  /**
+   * Set when the requested strategy was named by a deprecated alias (e.g.
+   * `manual`), carrying the original spelling. Callers print a deprecation
+   * warning; absent when the canonical name was used (D5).
+   */
+  deprecatedAlias?: string;
 }
 
 /** Result of a guide update */

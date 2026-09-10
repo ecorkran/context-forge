@@ -3,12 +3,28 @@ import { join } from 'path';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult } from './types.js';
-import { DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from './types.js';
+import {
+  DEFAULT_SOURCE_GIT,
+  GUIDE_RELATIVE_PATH,
+  normalizeGuideMethod,
+  isDeprecatedGuideMethodAlias,
+} from './types.js';
+import { CONFIG_KEYS } from '../config/ConfigKeys.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
 import { TarballStrategy } from './strategies/TarballStrategy.js';
 import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } from './branchGuard.js';
+
+/**
+ * A strategy resolved from an input boundary, plus the original spelling when
+ * that input used a deprecated alias (D5). Used for both the config path and
+ * the explicit `--strategy` flag so callers warn identically for each.
+ */
+export interface ResolvedStrategy {
+  method: GuideMethod;
+  deprecatedAlias?: string;
+}
 
 export class GuideManager {
   private readonly projectPath: string;
@@ -29,10 +45,21 @@ export class GuideManager {
     return this.detector.detect(this.projectPath, source, this.operationPath);
   }
 
-  /** Install the guide into the project */
-  async install(strategyOverride?: GuideMethod, sourceOverride?: string): Promise<InstallResult> {
+  /**
+   * Install the guide into the project.
+   *
+   * `strategyOverride` is a raw string from an input boundary (a `--strategy`
+   * flag or an MCP parameter), normalized here so the flag and the config path
+   * share one validation and one deprecation report. When either path supplied
+   * a deprecated alias, the returned result carries it in `deprecatedAlias` so
+   * the caller can warn (D5).
+   */
+  async install(strategyOverride?: string, sourceOverride?: string): Promise<InstallResult> {
     const source = sourceOverride || (await this.resolveSource());
-    const method = strategyOverride || (await this.resolveStrategy());
+    const resolved: ResolvedStrategy = strategyOverride
+      ? this.resolveStrategyOverride(strategyOverride)
+      : await this.resolveStrategy();
+    const method = resolved.method;
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
 
     // Check if already installed
@@ -49,7 +76,20 @@ export class GuideManager {
     // Create user artifact directories so the project is ready to use
     this.createUserDirectories();
 
-    return result;
+    return resolved.deprecatedAlias
+      ? { ...result, deprecatedAlias: resolved.deprecatedAlias }
+      : result;
+  }
+
+  /**
+   * Normalize a strategy name supplied explicitly by a caller (CLI flag, MCP
+   * parameter). Same validation and same alias reporting as the config path.
+   */
+  private resolveStrategyOverride(input: string): ResolvedStrategy {
+    const method = normalizeGuideMethod(input);
+    return isDeprecatedGuideMethodAlias(input)
+      ? { method, deprecatedAlias: input.trim() }
+      : { method };
   }
 
   /** Update an existing guide installation */
@@ -166,34 +206,46 @@ export class GuideManager {
     return results;
   }
 
-  /** Resolve source URL from config or default */
+  /**
+   * Resolve the guide source URL from config.
+   *
+   * Config read errors propagate (D7): a malformed config file must fail the
+   * command rather than silently installing from the default source. Without a
+   * ConfigManager there is no config to read, so the module default applies.
+   */
   private async resolveSource(): Promise<string> {
-    if (this.configManager) {
-      try {
-        const result = await this.configManager.get('guide.source');
-        if (result.value && typeof result.value === 'string' && result.value.length > 0) {
-          return result.value;
-        }
-      } catch {
-        // Fall through to default
-      }
+    if (!this.configManager) {
+      return DEFAULT_SOURCE_GIT;
+    }
+    const result = await this.configManager.get('guide.source');
+    if (typeof result.value === 'string' && result.value.length > 0) {
+      return result.value;
     }
     return DEFAULT_SOURCE_GIT;
   }
 
-  /** Resolve strategy from config or default */
-  private async resolveStrategy(): Promise<GuideMethod> {
-    if (this.configManager) {
-      try {
-        const result = await this.configManager.get('guide.git_strategy');
-        if (result.value && typeof result.value === 'string') {
-          return result.value as GuideMethod;
-        }
-      } catch {
-        // Fall through to default
-      }
+  /**
+   * Resolve the install strategy from config.
+   *
+   * An unset key already yields the ConfigKeys default, so there is no
+   * fallback branch here. Config read errors propagate (D7). `deprecatedAlias`
+   * carries the original spelling when the config value was a deprecated name,
+   * so the caller can print the D5 deprecation warning.
+   */
+  private async resolveStrategy(): Promise<ResolvedStrategy> {
+    if (!this.configManager) {
+      return { method: normalizeGuideMethod(CONFIG_KEYS['guide.git_strategy'].default as string) };
     }
-    return 'submodule';
+    const result = await this.configManager.get('guide.git_strategy');
+    if (typeof result.value !== 'string') {
+      throw new Error(
+        `Config key 'guide.git_strategy' must be a string, got ${typeof result.value}.`
+      );
+    }
+    const method = normalizeGuideMethod(result.value);
+    return isDeprecatedGuideMethodAlias(result.value)
+      ? { method, deprecatedAlias: result.value.trim() }
+      : { method };
   }
 
   /** Create user artifact directories alongside the guide */

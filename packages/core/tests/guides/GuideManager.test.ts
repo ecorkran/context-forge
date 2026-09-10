@@ -60,6 +60,7 @@ import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
 import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
 import { gitExec } from '../../src/guides/gitExec.js';
 import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
+import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
 import {
   evaluateBranchGuard,
   BranchGuardBlockedError,
@@ -598,6 +599,123 @@ describe('GuideManager', () => {
       const results = await manager.syncWorktrees(['/wt1']);
 
       expect(results).toEqual([]);
+    });
+  });
+  describe('strategy resolution from config (D5, D7)', () => {
+    const installedByTarball = {
+      success: true,
+      version: 'v0.13.2',
+      method: 'tarball' as const,
+      path: '/test/project/project-documents/ai-project-guide',
+    };
+
+    it('uses the ConfigKeys default when the key is unset', async () => {
+      const configuredDefault = CONFIG_KEYS['guide.git_strategy'].default as string;
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        return { value: configuredDefault, source: 'default' };
+      });
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const mockInstall = vi.fn().mockResolvedValue({
+        success: true,
+        version: 'v0.13.2',
+        method: configuredDefault,
+        path: '/test/project/project-documents/ai-project-guide',
+      });
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.install();
+
+      expect(mockInstall).toHaveBeenCalled();
+      expect(result.method).toBe(configuredDefault);
+      expect(result.deprecatedAlias).toBeUndefined();
+    });
+
+    it('selects TarballStrategy and reports the alias for a config value of manual', async () => {
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        return { value: 'manual', source: 'project' };
+      });
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const mockInstall = vi.fn().mockResolvedValue(installedByTarball);
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.install();
+
+      expect(mockInstall).toHaveBeenCalled();
+      expect(result.method).toBe('tarball');
+      expect(result.deprecatedAlias).toBe('manual');
+    });
+
+    it('does not report an alias for a canonical config value of tarball', async () => {
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        return { value: 'tarball', source: 'project' };
+      });
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn().mockResolvedValue(installedByTarball),
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.install();
+
+      expect(result.deprecatedAlias).toBeUndefined();
+    });
+
+    it('propagates a config read error and attempts no install (D7)', async () => {
+      const configError = new Error('Invalid TOML at line 3');
+      mockConfigManager.get.mockRejectedValue(configError);
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const mockInstall = vi.fn();
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow('Invalid TOML at line 3');
+      expect(mockInstall).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid config strategy value by name', async () => {
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: '', source: 'default' };
+        return { value: 'symlink', source: 'project' };
+      });
+      mockDetect.mockResolvedValue(notInstalledInfo);
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow(/Invalid guide strategy 'symlink'/);
+    });
+
+    it('normalizes an explicit strategy override and reports its alias', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const mockInstall = vi.fn().mockResolvedValue(installedByTarball);
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: mockInstall,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      const result = await manager.install('manual');
+
+      expect(mockInstall).toHaveBeenCalled();
+      expect(result.method).toBe('tarball');
+      expect(result.deprecatedAlias).toBe('manual');
+    });
+
+    it('rejects an invalid explicit strategy override', async () => {
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install('symlink')).rejects.toThrow(/Invalid guide strategy/);
     });
   });
 });
