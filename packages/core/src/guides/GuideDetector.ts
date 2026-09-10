@@ -4,6 +4,7 @@ import { join } from 'path';
 import {
   type GuideInfo,
   type GuideMethod,
+  type SubmoduleCheckoutState,
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
   VERSION_MARKER_FILE,
@@ -69,6 +70,7 @@ export class GuideDetector {
     const baseInfo: GuideInfo = {
       installed: false,
       method: null,
+      checkout: null,
       version: null,
       path: guidePath,
       source: resolvedSource,
@@ -85,6 +87,7 @@ export class GuideDetector {
 
     // Guide directory exists — determine method (use projectPath for .gitmodules check)
     const method = this.detectMethod(projectPath, guidePath);
+    const checkout = await this.resolveCheckout(method, effectivePath);
     const version = await this.detectVersion(guidePath, method);
     const latestVersion = await this.fetchLatestVersion(resolvedSource);
     const updateAvailable = isNewerVersion(version, latestVersion);
@@ -92,6 +95,7 @@ export class GuideDetector {
     return {
       installed: true,
       method,
+      checkout,
       version,
       path: guidePath,
       source: resolvedSource,
@@ -99,6 +103,30 @@ export class GuideDetector {
       updateAvailable,
       usingBundledPrompt: false,
     };
+  }
+
+  /**
+   * Checkout state for a submodule install, or null for other methods.
+   *
+   * Read-only: this reports what `git submodule status` says and never runs
+   * `git submodule update` (D1). An 'error' result means git is unavailable or
+   * the path is not a repository — surfaced rather than swallowed (D7),
+   * because silently reporting "in sync" would hide the very condition the
+   * caller needs to act on.
+   */
+  private async resolveCheckout(
+    method: GuideMethod,
+    effectivePath: string
+  ): Promise<SubmoduleCheckoutState | null> {
+    if (method !== 'submodule') return null;
+    const state = await this.checkSyncStatus(effectivePath);
+    if (state === 'error') {
+      throw new Error(
+        `Unable to read guide submodule status in ${effectivePath}. ` +
+          'Ensure git is installed and the directory is a git repository.'
+      );
+    }
+    return state;
   }
 
   /** Determine installation method by inspecting filesystem */
@@ -146,7 +174,7 @@ export class GuideDetector {
   }
 
   /** Check whether a worktree's submodule checkout is in sync with the committed pointer */
-  async checkSyncStatus(worktreePath: string): Promise<'in_sync' | 'out_of_sync' | 'not_initialized' | 'error'> {
+  async checkSyncStatus(worktreePath: string): Promise<SubmoduleCheckoutState | 'error'> {
     try {
       const { stdout } = await gitExec(
         ['submodule', 'status', GUIDE_RELATIVE_PATH],

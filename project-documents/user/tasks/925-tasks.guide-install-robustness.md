@@ -127,34 +127,34 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: tests pass. Commit:
         `fix(core): source guide strategy default from ConfigKeys, drop silent catches`.
 
-- [ ] **Task 7: Alias handling at CLI and MCP input boundaries** (effort: 2)
-  - [ ] `packages/cli/src/commands/guides.ts` install action: pass the raw
+- [x] **Task 7: Alias handling at CLI and MCP input boundaries** (effort: 2)
+  - [x] `packages/cli/src/commands/guides.ts` install action: pass the raw
         `--strategy` string through `normalizeGuideMethod()`; on alias input
         print one deprecation line to **stderr** (`console.error`) naming
         `tarball`. Remove the `as GuideMethod` cast at ~line 125.
-  - [ ] Same file: `guidesInstallAction()` prints the config-path
+  - [x] Same file: `guidesInstallAction()` prints the config-path
         deprecation warning when Task 5's return shape reports an alias.
-  - [ ] `packages/mcp-server/src/tools/guideTools.ts` `guide_install`: zod
+  - [x] `packages/mcp-server/src/tools/guideTools.ts` `guide_install`: zod
         enum becomes `['submodule', 'clone', 'tarball', 'manual']`;
         normalize before calling `manager.install()`; on alias, add a
         `notices: string[]` entry to the result. Update the description
         strings at ~lines 47 and 92–93 to say `tarball`.
-  - [ ] `guide_status` description string: replace `manual` with `tarball`.
-  - [ ] Success criteria: `grep -rn "manual" packages/cli/src packages/mcp-server/src`
+  - [x] `guide_status` description string: replace `manual` with `tarball`.
+  - [x] Success criteria: `grep -rn "manual" packages/cli/src packages/mcp-server/src`
         returns only the MCP enum entry and deprecation-message text.
 
-- [ ] **Task 8: Tests for boundary alias handling** (effort: 2)
-  - [ ] `packages/cli/tests/commands/guides.test.ts`: `install --strategy manual`
+- [x] **Task 8: Tests for boundary alias handling** (effort: 2)
+  - [x] `packages/cli/tests/commands/guides.test.ts`: `install --strategy manual`
         installs via tarball, deprecation text appears on stderr only,
         `guides info --json` reports `"method": "tarball"`.
-  - [ ] Same file: with `guide.git_strategy: manual` in the shared config
+  - [x] Same file: with `guide.git_strategy: manual` in the shared config
         and no `--strategy` flag, `cf guides install` prints the same
         deprecation line to stderr and installs via tarball (review F002 —
         the config-sourced path is tested end to end, not only in core).
-  - [ ] `packages/mcp-server/tests/guideTools.test.ts`: `guide_install`
+  - [x] `packages/mcp-server/tests/guideTools.test.ts`: `guide_install`
         accepts `tarball` and `manual`; the `manual` call returns a
         `notices` array with one entry; `tarball` call returns none.
-  - [ ] Success criteria: CLI and MCP suites pass. Commit:
+  - [x] Success criteria: CLI and MCP suites pass. Commit:
         `feat: accept tarball strategy name with manual as deprecated alias`.
 
 ### Part 2 — Checkout Detection and Init (D1, D2, D10)

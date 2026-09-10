@@ -54,6 +54,7 @@ describe('GuideDetector', () => {
       });
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -79,6 +80,7 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -103,6 +105,9 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.12.0', stderr: '' };
+        // gitExec trims stdout, so an in-sync entry arrives without its
+        // leading space and falls through to 'in_sync'.
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 
@@ -111,6 +116,7 @@ describe('GuideDetector', () => {
       expect(info.installed).toBe(true);
       expect(info.method).toBe('submodule');
       expect(info.version).toBe('v0.12.0');
+      expect(info.checkout).toBe('in_sync');
     });
 
     it('detects tarball method with version from marker file', async () => {
@@ -132,6 +138,8 @@ describe('GuideDetector', () => {
       expect(info.installed).toBe(true);
       expect(info.method).toBe('tarball');
       expect(info.version).toBe('v0.11.0');
+      // checkout is meaningful only for submodule installs.
+      expect(info.checkout).toBeNull();
     });
 
     it('detects tarball method with null version when no marker', async () => {
@@ -216,6 +224,7 @@ describe('GuideDetector', () => {
       );
       mockGitExec.mockImplementation(async (args) => {
         if (args[0] === 'describe') return { stdout: 'v0.13.2', stderr: '' };
+        if (args[0] === 'submodule') return { stdout: 'abc1234 ' + GUIDE_RELATIVE_PATH, stderr: '' };
         throw new Error('network');
       });
 

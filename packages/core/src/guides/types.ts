@@ -44,10 +44,35 @@ export function isDeprecatedGuideMethodAlias(input: string): boolean {
   return input.trim() in GUIDE_METHOD_DEPRECATED_ALIASES;
 }
 
+/**
+ * Checkout state of a submodule-installed guide, as `git submodule status`
+ * reports it. Only meaningful for the submodule method.
+ */
+export type SubmoduleCheckoutState = 'in_sync' | 'out_of_sync' | 'not_initialized';
+
+/** Human-readable labels for each checkout state, used in CLI and tool output. */
+export const CHECKOUT_STATE_LABELS: Record<SubmoduleCheckoutState, string> = {
+  in_sync: 'in sync',
+  out_of_sync: 'out of sync',
+  not_initialized: 'not initialized',
+};
+
+/**
+ * Upper bound on the automatic `git submodule update --init` performed by a
+ * read command. A blackholed proxy would otherwise block for the OS TCP
+ * timeout. User-initiated install and update stay unbounded (D10).
+ */
+export const GUIDE_INIT_TIMEOUT_MS = 60_000;
+
 /** Full status of a guide installation */
 export interface GuideInfo {
   installed: boolean;
   method: GuideMethod | null;
+  /**
+   * Submodule checkout state; null for clone/tarball installs and when no
+   * guide is installed.
+   */
+  checkout: SubmoduleCheckoutState | null;
   version: string | null;
   path: string;
   source: string;
