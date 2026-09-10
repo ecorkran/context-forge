@@ -147,6 +147,10 @@ is the place to look for an existing real-git temp-repo pattern.
   - [ ] `packages/cli/tests/commands/guides.test.ts`: `install --strategy manual`
         installs via tarball, deprecation text appears on stderr only,
         `guides info --json` reports `"method": "tarball"`.
+  - [ ] Same file: with `guide.git_strategy: manual` in the shared config
+        and no `--strategy` flag, `cf guides install` prints the same
+        deprecation line to stderr and installs via tarball (review F002 —
+        the config-sourced path is tested end to end, not only in core).
   - [ ] `packages/mcp-server/tests/guideTools.test.ts`: `guide_install`
         accepts `tarball` and `manual`; the `manual` call returns a
         `notices` array with one entry; `tarball` call returns none.
@@ -328,6 +332,11 @@ is the place to look for an existing real-git temp-repo pattern.
   - [ ] `contextTools.test.ts`: `context_build` on `cloned()` returns the
         existing payload plus one `notices` entry; on `initialized()` no
         `notices` key (or empty array — pick one and assert it).
+  - [ ] Same file: `prompt_list` and `prompt_get` each get one `cloned()`
+        case asserting the call succeeds and returns one `notices` entry
+        (review F001 — both wired call sites need their own assertion; the
+        shared `resolvePromptFilePath` site is not assumed covered by the
+        `context_build` test).
   - [ ] `guideTools.test.ts`: `guide_status` on `cloned()` reports
         `checkout: 'not_initialized'` and does not initialize.
   - [ ] Success criteria: tests pass. Commit:
@@ -424,3 +433,18 @@ is the place to look for an existing real-git temp-repo pattern.
   - [ ] Clean up the throwaway `/tmp` projects (step 5 of the walkthrough).
   - [ ] Success criteria: all pass; final commit; PM reviews before merge
         to `main`. Version bump to 0.14.0 is a PM release-time decision.
+
+---
+
+## Review Resolution
+
+Tasks review 20260909 (`925-review.tasks.guide-install-robustness.md`,
+verdict CONCERNS, clears the `concerns` threshold). Resolved here, not in
+the review:
+
+- **F001 (concern):** Task 23 now requires one `cloned()` case each for
+  `prompt_list` and `prompt_get`.
+- **F002 (note):** Task 8 now requires a CLI-level test of the
+  config-sourced `manual` deprecation warning.
+- **F003 (note):** no action. Tasks 25–26 are one `--strategy` unit and
+  Task 27 tests both help outputs together.
