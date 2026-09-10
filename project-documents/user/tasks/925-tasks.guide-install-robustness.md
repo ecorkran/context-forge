@@ -7,7 +7,7 @@ dependencies: [916]
 projectState: main is green, working tree clean at 14c2096. v0.13.2 is tagged and published (all four packages). Slice 925 design is approved with a CONCERNS slice review (F004/F005 resolved in the design). GuideMethod is still 'submodule' | 'clone' | 'manual'; GuideDetector.checkSyncStatus() exists but detect() does not record checkout state; cf init has no --strategy flag; resolveStrategy() hard-codes 'submodule' at GuideManager.ts:196 behind a silent catch. Next release will be 0.14.0 (user-visible rename manual → tarball).
 dateCreated: 20260909
 dateUpdated: 20260909
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -398,40 +398,40 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: tests pass. Commit:
         `feat: state that the guide directory is managed content`.
 
-- [ ] **Task 30: README** (effort: 2)
-  - [ ] Add a "Choosing a guide install strategy" section listing the three
+- [x] **Task 30: README** (effort: 2)
+  - [x] Add a "Choosing a guide install strategy" section listing the three
         strategies with the `GUIDE_STRATEGIES` summaries and the D6
         reasoning for keeping submodule as default (api.github.com surface,
         pinned reviewable commit, contribute-back path). Mention that fresh
         clones auto-init on first read and that `cf guides info` shows
         checkout state.
-  - [ ] Quote `GUIDE_MANAGED_NOTICE` verbatim where the guide directory is
+  - [x] Quote `GUIDE_MANAGED_NOTICE` verbatim where the guide directory is
         introduced.
-  - [ ] Replace any remaining `manual` strategy mentions with `tarball`,
+  - [x] Replace any remaining `manual` strategy mentions with `tarball`,
         noting the alias is deprecated.
-  - [ ] Success criteria: `grep -n "overwritten on" README.md` finds the
+  - [x] Success criteria: `grep -n "overwritten on" README.md` finds the
         sentence; `grep -n "strategy manual" README.md` finds nothing.
 
-- [ ] **Task 31: CHANGELOG and DEVLOG** (effort: 1)
-  - [ ] CHANGELOG under Unreleased (0.14.0): auto-init (#80), rename with
+- [x] **Task 31: CHANGELOG and DEVLOG** (effort: 1)
+  - [x] CHANGELOG under Unreleased (0.14.0): auto-init (#80), rename with
         alias and the user-visible `method: "manual"` → `"tarball"` output
         change (#81), `cf init --strategy`, managed-directory notice (#82),
         `gitExec` timeout for auto-init only.
-  - [ ] DEVLOG entry summarizing the slice and the D6 default decision.
-  - [ ] Success criteria: both files updated. Commit:
+  - [x] DEVLOG entry summarizing the slice and the D6 default decision.
+  - [x] Success criteria: both files updated. Commit:
         `docs: add README strategy section, CHANGELOG and DEVLOG for slice 925`.
 
-- [ ] **Task 32: Full validation and verification walkthrough** (effort: 2)
-  - [ ] `pnpm -r build && pnpm -r test` green.
-  - [ ] Run steps 1–4 of the design's "Verification Walkthrough" using
+- [x] **Task 32: Full validation and verification walkthrough** (effort: 2)
+  - [x] `pnpm -r build && pnpm -r test` green.
+  - [x] Run steps 1–4 of the design's "Verification Walkthrough" using
         `node packages/cli/dist/index.js` (the global `cf` is the published
         npm build, not this checkout). Record actual stderr/stdout lines in
         the DEVLOG entry.
-  - [ ] Confirm the success-criteria greps: no `'submodule'` default
+  - [x] Confirm the success-criteria greps: no `'submodule'` default
         literal outside `ConfigKeys`; no `'manual'` outside the alias table
         and enum.
-  - [ ] Clean up the throwaway `/tmp` projects (step 5 of the walkthrough).
-  - [ ] Success criteria: all pass; final commit; PM reviews before merge
+  - [x] Clean up the throwaway `/tmp` projects (step 5 of the walkthrough).
+  - [x] Success criteria: all pass; final commit; PM reviews before merge
         to `main`. Version bump to 0.14.0 is a PM release-time decision.
 
 ---
