@@ -282,26 +282,26 @@ is the place to look for an existing real-git temp-repo pattern.
 
 ### Part 3 — Call Sites (D3, D4)
 
-- [ ] **Task 19: `ensureGuideReady()` CLI helper** (effort: 2)
-  - [ ] New `packages/cli/src/utils/guideReady.ts` exporting
+- [x] **Task 19: `ensureGuideReady()` CLI helper** (effort: 2)
+  - [x] New `packages/cli/src/utils/guideReady.ts` exporting
         `ensureGuideReady(projectPath, operationPath)`; builds
         `GuideManager` the same way `getGuideContext()` does, calls
         `ensureCheckout()`, and prints `result.message` to **stderr** when
         `action !== 'none'`. Returns the result.
-  - [ ] Nothing is written to stdout under any branch (D4).
-  - [ ] Success criteria: helper compiles and is the only place the CLI
+  - [x] Nothing is written to stdout under any branch (D4).
+  - [x] Success criteria: helper compiles and is the only place the CLI
         formats auto-init notices.
 
-- [ ] **Task 20: Wire `cf build`, `cf prompt`, `cf setup-ide`** (effort: 2)
-  - [ ] Grep `packages/cli/src` for `createContextPipeline`,
+- [x] **Task 20: Wire `cf build`, `cf prompt`, `cf setup-ide`** (effort: 2)
+  - [x] Grep `packages/cli/src` for `createContextPipeline`,
         `resolvePromptFilePath`, `GUIDE_RELATIVE_PATH`, and
         `PROMPT_FILE_RELATIVE_PATH` (the last is how `prompt.ts` reaches the
         guide — it is not in the design's list). Every non-test hit that
         reads guide content gets an `await ensureGuideReady(...)` before
         the read: `build.ts` (~line 78), `prompt.ts` (~lines 60 and 116),
         `setup-ide.ts` (before the `detector.detect()` at ~line 106).
-  - [ ] `cf guides info` is **not** wired — it stays read-only (D3).
-  - [ ] Success criteria: list the covered call sites in the commit body;
+  - [x] `cf guides info` is **not** wired — it stays read-only (D3).
+  - [x] Success criteria: list the covered call sites in the commit body;
         CLI typechecks.
 
 - [ ] **Task 21: CLI auto-init tests** (effort: 3)
