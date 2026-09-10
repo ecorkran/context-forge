@@ -4,6 +4,8 @@ import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { resolveOperationPath } from '../utils/worktree-overlay.js';
+import { ensureGuideReady } from '../utils/guideReady.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -74,6 +76,10 @@ export function registerBuildCommand(program: Command): void {
         const instructionTypeOverride = opts.instructionType ?? opts.it;
         if (instructionTypeOverride) workingCopy.instruction = instructionTypeOverride;
         if (opts.tasks) workingCopy.fileTasks = opts.tasks;
+
+        // The guide must be readable before the pipeline reads it: a fresh
+        // clone leaves the submodule uninitialized (#80).
+        await ensureGuideReady(workingCopy.projectPath!, resolveOperationPath(project, worktreeId));
 
         const { integrator } = createContextPipeline(workingCopy.projectPath!);
         let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);

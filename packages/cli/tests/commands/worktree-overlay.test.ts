@@ -17,6 +17,12 @@ vi.mock('@context-forge/core/node', () => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
+
+  // cf build calls ensureGuideReady() before building context.
+  GuideManager: vi.fn().mockImplementation(() => ({
+    ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
+  })),
+
   WorkflowNavigator: vi.fn().mockImplementation(() => ({
     getStatus: mockGetStatus,
   })),

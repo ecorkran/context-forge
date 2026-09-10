@@ -33,6 +33,11 @@ vi.mock('@context-forge/core/node', () => ({
   GuideDetector: vi.fn().mockImplementation(() => ({
     detect: mockDetect,
   })),
+  // setup-ide calls ensureGuideReady() before detecting, so the helper's
+  // GuideManager must exist on the mock. Default: nothing to do.
+  GuideManager: vi.fn().mockImplementation(() => ({
+    ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
+  })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),
   })),

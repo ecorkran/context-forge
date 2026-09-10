@@ -12,6 +12,12 @@ vi.mock('@context-forge/core/node', () => ({
     getAll: mockGetAll,
     getById: mockGetById,
   })),
+  // build/prompt call ensureGuideReady() before reading guide content, so the
+  // helper's GuideManager and ConfigManager must exist on the mock.
+  GuideManager: vi.fn().mockImplementation(() => ({
+    ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
+  })),
+
   SystemPromptParser: vi.fn().mockImplementation(() => ({
     getAllPrompts: mockGetAllPrompts,
     getPromptForInstruction: mockGetPromptForInstruction,

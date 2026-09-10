@@ -250,34 +250,34 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: tests pass. Commit:
         `refactor(core): extract SubmoduleStrategy.init from sync`.
 
-- [ ] **Task 17: `GuideManager.ensureCheckout()`** (effort: 3)
-  - [ ] Add `EnsureCheckoutResult` to `types.ts` exactly as in the design's
+- [x] **Task 17: `GuideManager.ensureCheckout()`** (effort: 3)
+  - [x] Add `EnsureCheckoutResult` to `types.ts` exactly as in the design's
         Implementation Details (`action: 'none' | 'initialized' | 'warned'`,
         optional `commit`, `message`).
-  - [ ] Implement per the Data Flow diagram: not installed → `none`;
+  - [x] Implement per the Data Flow diagram: not installed → `none`;
         method not submodule → `none`; `checkout === 'in_sync'` → `none`;
         `'not_initialized'` → `SubmoduleStrategy.init(operationPath)` →
         `{ action: 'initialized', commit, message }` where message names
         the submodule and short SHA; `'out_of_sync'` →
         `{ action: 'warned', message }` naming `cf guides update` /
         `git submodule update` and stating the checkout was not changed.
-  - [ ] Use `GuideInfo.checkout` from `detector.detect()` (Task 11) rather
+  - [x] Use `GuideInfo.checkout` from `detector.detect()` (Task 11) rather
         than calling `checkSyncStatus()` a second time.
-  - [ ] On `init()` failure, rethrow with `GUIDE_OFFLINE_REMEDIATION`
+  - [x] On `init()` failure, rethrow with `GUIDE_OFFLINE_REMEDIATION`
         appended (mirror `setup-ide.ts:113`).
-  - [ ] `operationPath` resolution matches `getGuideContext()` in
+  - [x] `operationPath` resolution matches `getGuideContext()` in
         `guides.ts` (worktree path when inside a registered worktree).
-  - [ ] Success criteria: core typechecks; no new `catch` without a comment.
+  - [x] Success criteria: core typechecks; no new `catch` without a comment.
 
-- [ ] **Task 18: `ensureCheckout()` tests** (effort: 2)
-  - [ ] In `GuideManager.test.ts`, one test per branch: not installed;
+- [x] **Task 18: `ensureCheckout()` tests** (effort: 2)
+  - [x] In `GuideManager.test.ts`, one test per branch: not installed;
         tarball install; submodule `in_sync`; `not_initialized` (fixture
         `cloned()`, assert directory populated and result `initialized`
         with a 7+ char commit); `out_of_sync` (assert `warned`, message
         names `cf guides update`, and `git submodule status` unchanged);
         `init()` rejection propagates with `GUIDE_OFFLINE_REMEDIATION` in
         the message.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat(core): add GuideManager.ensureCheckout for submodule auto-init`.
 
 ### Part 3 — Call Sites (D3, D4)
