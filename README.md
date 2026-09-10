@@ -117,6 +117,40 @@ It manages multiple projects simultaneously. Each one has its own slice plan, it
 
 For larger projects with parallel initiatives — running architecture and a feature slice at the same time, for example — worktrees let you run multiple AI sessions in separate git worktrees, each with its own phase/slice/task context, without conflicts.
 
+### Choosing a guide install strategy
+
+`cf guides install` and `cf init` accept `--strategy` to control how the guide
+lands in your project. The guide itself is identical either way; the strategies
+differ in how it is tracked.
+
+| Strategy | Trade-off |
+| --- | --- |
+| `submodule` (default) | version-pinned and updatable, but teammates must run git submodule update |
+| `clone` | a full working copy you can commit to, larger checkout |
+| `tarball` | plain files with no git wiring, simplest for teams |
+
+**Why submodule is the default.** It records the exact guide commit your project
+was built against, so the pin is reviewable in a diff and reproducible on any
+checkout. It updates in place through git rather than through the GitHub API,
+which keeps the network surface small, and it leaves a working path for
+contributing improvements back upstream.
+
+The historical cost of that default was that a teammate cloning your repo
+without `--recurse-submodules` got an empty guide directory. Context Forge now
+initializes the checkout automatically the first time a command reads guide
+content, reporting what it did on stderr. `cf guides info` shows the checkout
+state and never modifies it, so you can always inspect before acting. A checkout
+sitting at a commit other than the one your project pins is reported and left
+alone, since that is usually deliberate.
+
+Pick `tarball` when teammates should not have to think about git submodules at
+all. Pick `clone` when you intend to edit the guide in place. The strategy name
+`manual` is a deprecated alias for `tarball`; it still works and prints a
+deprecation notice.
+
+> This directory is managed by cf and overwritten on `cf guides update`. Put
+> project-specific customizations under `project-documents/user/`.
+
 ## Review Gating
 
 Optionally require a review artifact (with a clearing verdict) before Context Forge recommends advancing past a lifecycle boundary — deterministic, AI-free routing with **zero behavior change unless you turn it on**:

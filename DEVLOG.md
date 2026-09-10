@@ -9,6 +9,39 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-09-09
 
+### Slice 925 — guide install robustness (#80, #81, #82)
+
+- **#80 auto-init.** `GuideInfo` now carries a `checkout` state and `GuideManager.ensureCheckout()` acts on exactly one of them: an uninitialized submodule, which has a single correct resolution. `cf build`, `cf prompt`, `cf setup-ide`, and the MCP context/prompt tools call it before reading guide content. An out-of-sync checkout is reported and left alone (D2) — it is usually deliberate, and resetting it would discard the user's intent.
+- **#81 rename.** `manual` → `tarball`, with `manual` kept as a deprecated alias in one `normalizeGuideMethod()` and in the `ConfigKeys` enum so existing config files still validate. The alias is reported by core, so the CLI flag and config paths warn identically without duplicating logic.
+- **#82 managed directory.** One `GUIDE_MANAGED_NOTICE` constant, printed by `cf guides info`, returned by `guide_status`, and quoted verbatim in the README.
+- **D6 default stands: submodule.** It pins a reviewable commit, updates through git rather than the GitHub API, and keeps a contribute-back path open. The one real cost — teammates cloning without `--recurse-submodules` — is what auto-init removes, so the reason to switch defaults went away rather than being traded off.
+- **Notices channel.** CLI notices go to stderr so piped stdout stays machine-readable; MCP has no stderr, so they ride in a `notices` array attached by one shared helper. Verified over the real transport that a sibling field reaches the client, since `context_build` and `prompt_get` return plain text with no payload to embed a field into.
+- **Three findings the design did not anticipate.** The `NETWORK_ERROR_PATTERNS` entry is `/connection timed out/i` (git's wording), not `/timed out/i`, so a new pattern was needed for our own timeout message to pick up the offline remediation text. Git blocks the `file` transport for submodule clones and treats every local path that way, so fixtures set `GIT_ALLOW_PROTOCOL=file`; production sources are https and need no such flag. `prompt.ts` reaches the guide via `PROMPT_FILE_RELATIVE_PATH`, which was absent from the design's grep list.
+
+Verification walkthrough, run against the real guide repo (v0.17.3) with `node packages/cli/dist/index.js`:
+
+```
+$ cf guides info                 # in a clone made without --recurse-submodules
+  Method:     submodule
+  Checkout:   not initialized
+  (guide directory still empty afterward — info is read-only)
+
+$ cf build 2>err.txt >out.txt
+  [stderr] Initialized the guide submodule at project-documents/ai-project-guide (e11dcd4).
+  (guide directory now populated; stdout carries no notice; --json parses clean)
+
+$ (cd project-documents/ai-project-guide && git checkout HEAD~1) && cf build
+  [stderr] The guide submodule ... is checked out at a different commit than this
+           project pins. It was left unchanged. Run cf guides update ...
+  (git submodule status byte-identical before and after)
+
+$ cf init --name g925-tb --no-ide --strategy manual
+  [stderr] Strategy 'manual' is deprecated; use 'tarball' instead.
+  [stdout] Method:   tarball        (no .gitmodules created)
+```
+
+Tests: core 1153, cli 557, mcp 202. Real-git fixtures cover the three checkout states; the CLI and MCP command tests mock the core barrel, so separate fixture-backed tests prove the behavior rather than just the call.
+
 ### Electron package removed
 - Deleted `packages/electron` (180 files, ~22.5k lines, 46MB). It had been `private: true` at 0.0.1 — never published — and untouched since 2026-04-16 (a docs-only license commit). README had carried "deprecated, scheduled for removal" since; this executes it.
 - Safe by dependency direction: electron imported `@context-forge/core` in 32 places, and nothing imported electron. Removal touched only the root `dev` script (which pointed at it and would have broken), the electron/react/tailwind/vite keywords, `onlyBuiltDependencies` (`electron`, `electron-winstaller`, `@tailwindcss/oxide` all became dead), the README's access-point/deprecation/structure mentions, and `.claude/rules/electron.md` (rules for paths that no longer exist). `pnpm-workspace.yaml` needed no edit — `packages/*` glob.

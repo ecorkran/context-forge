@@ -342,60 +342,60 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: tests pass. Commit:
         `feat(mcp): auto-init guide submodule in context tools, report checkout state`.
 
-- [ ] **Task 24: `cf guides info` prints checkout state** (effort: 1)
-  - [ ] In `showStatus()` (`guides.ts` ~line 63) add a `Checkout:` line for
+- [x] **Task 24: `cf guides info` prints checkout state** (effort: 1)
+  - [x] In `showStatus()` (`guides.ts` ~line 63) add a `Checkout:` line for
         submodule installs using `CHECKOUT_STATE_LABELS`; `--json` already
         prints the whole `GuideInfo`, so `checkout` appears automatically.
-  - [ ] Add a `guides.test.ts` case: `cloned()` → text output contains
+  - [x] Add a `guides.test.ts` case: `cloned()` → text output contains
         `Checkout:` and "not initialized"; directory unchanged afterward.
-  - [ ] Success criteria: test passes. Commit:
+  - [x] Success criteria: test passes. Commit:
         `feat(cli): show submodule checkout state in cf guides info`.
 
 ### Part 4 — `cf init --strategy` and Help (D8)
 
-- [ ] **Task 25: `GUIDE_STRATEGIES` descriptor and install help** (effort: 1)
-  - [ ] In `guides.ts` export `GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }>`
+- [x] **Task 25: `GUIDE_STRATEGIES` descriptor and install help** (effort: 1)
+  - [x] In `guides.ts` export `GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }>`
         with the three summaries from the design's Implementation Details.
-  - [ ] Add a small `strategyHelpText()` that renders the option description
+  - [x] Add a small `strategyHelpText()` that renders the option description
         from the table; use it for `cf guides install --strategy` (replace
         the literal at ~line 119).
-  - [ ] Success criteria: `cf guides install --help` lists all three names
+  - [x] Success criteria: `cf guides install --help` lists all three names
         with their one-line trade-offs; adding a fourth `GuideMethod`
         without a table entry is a type error.
 
-- [ ] **Task 26: `cf init --strategy <method>`** (effort: 1)
-  - [ ] In `init.ts` add `.option('--strategy <method>', strategyHelpText())`
+- [x] **Task 26: `cf init --strategy <method>`** (effort: 1)
+  - [x] In `init.ts` add `.option('--strategy <method>', strategyHelpText())`
         and pass `normalizeGuideMethod(opts.strategy)` (with the alias
         warning to stderr) into `guidesInstallAction(cwd, { strategy })`
         at ~line 118. Existing "already installed" / install-failure
         handling is unchanged.
-  - [ ] Success criteria: `cf init --help` shows the same strategy text as
+  - [x] Success criteria: `cf init --help` shows the same strategy text as
         `cf guides install --help`.
 
-- [ ] **Task 27: `init --strategy` and help tests** (effort: 2)
-  - [ ] `init.test.ts`: `--strategy tarball` calls `guidesInstallAction`
+- [x] **Task 27: `init --strategy` and help tests** (effort: 2)
+  - [x] `init.test.ts`: `--strategy tarball` calls `guidesInstallAction`
         with `tarball` and no `.gitmodules` is created; `--strategy manual`
         does the same plus a stderr deprecation line; `--strategy bogus`
         fails with the valid-values message before any install.
-  - [ ] `help.test.ts` (or `guides.test.ts`): both `--help` outputs contain
+  - [x] `help.test.ts` (or `guides.test.ts`): both `--help` outputs contain
         `submodule`, `clone`, and `tarball`.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat(cli): add --strategy to cf init, shared strategy help text`.
 
 ### Part 5 — Managed-Directory Notice and Docs (D9)
 
-- [ ] **Task 28: `GUIDE_MANAGED_NOTICE`** (effort: 1)
-  - [ ] Add the constant to `types.ts` with the exact D9 sentence. Print it
+- [x] **Task 28: `GUIDE_MANAGED_NOTICE`** (effort: 1)
+  - [x] Add the constant to `types.ts` with the exact D9 sentence. Print it
         from `showStatus()` in the installed branch; return it as
         `managedNotice` from `guide_status`.
-  - [ ] Success criteria: `cf guides info` (installed) shows the line.
+  - [x] Success criteria: `cf guides info` (installed) shows the line.
 
-- [ ] **Task 29: Managed-notice tests** (effort: 1)
-  - [ ] `guides.test.ts`: installed text output contains the constant's
+- [x] **Task 29: Managed-notice tests** (effort: 1)
+  - [x] `guides.test.ts`: installed text output contains the constant's
         text (import the constant; do not retype the sentence).
-  - [ ] `guideTools.test.ts`: `guide_status` result includes `managedNotice`
+  - [x] `guideTools.test.ts`: `guide_status` result includes `managedNotice`
         equal to the constant.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat: state that the guide directory is managed content`.
 
 - [ ] **Task 30: README** (effort: 2)
