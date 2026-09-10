@@ -304,42 +304,42 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: list the covered call sites in the commit body;
         CLI typechecks.
 
-- [ ] **Task 21: CLI auto-init tests** (effort: 3)
-  - [ ] In `build.test.ts` using the Task 9 fixture `cloned()` with a
+- [x] **Task 21: CLI auto-init tests** (effort: 3)
+  - [x] In `build.test.ts` using the Task 9 fixture `cloned()` with a
         registered project: `cf build` exits 0, stderr contains the
         initialized notice with a short SHA, guide dir is populated;
         `cf build --json` stdout parses as JSON and stderr still carries
         the notice. `outOfSync()`: stderr warning names `cf guides update`,
         checkout unchanged.
-  - [ ] In `prompt.test.ts` and `setup-ide.test.ts`: one `cloned()` case
+  - [x] In `prompt.test.ts` and `setup-ide.test.ts`: one `cloned()` case
         each asserting the command proceeds and the notice is on stderr.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat(cli): auto-init uninitialized guide submodule before reads`.
 
-- [ ] **Task 22: MCP `context_build` / `prompt_list` / `prompt_get` and `guide_status`** (effort: 2)
-  - [ ] In `packages/mcp-server/src/tools/contextTools.ts`, before
+- [x] **Task 22: MCP `context_build` / `prompt_list` / `prompt_get` and `guide_status`** (effort: 2)
+  - [x] In `packages/mcp-server/src/tools/contextTools.ts`, before
         `createContextPipeline` (~line 57) and `resolvePromptFilePath`
         (~line 98), call `ensureCheckout()`; when `action !== 'none'`
         append `message` to a `notices: string[]` array on the tool result
         without changing the primary payload shape (D4).
-  - [ ] `guideTools.ts` `guide_status`: include `checkout` (raw state) and
+  - [x] `guideTools.ts` `guide_status`: include `checkout` (raw state) and
         its `CHECKOUT_STATE_LABELS` text in the result for submodule
         installs.
-  - [ ] Success criteria: MCP typechecks; `grep -rn "notices" packages/mcp-server/src`
+  - [x] Success criteria: MCP typechecks; `grep -rn "notices" packages/mcp-server/src`
         shows one shared shape, not per-tool ad hoc fields.
 
-- [ ] **Task 23: MCP tests** (effort: 2)
-  - [ ] `contextTools.test.ts`: `context_build` on `cloned()` returns the
+- [x] **Task 23: MCP tests** (effort: 2)
+  - [x] `contextTools.test.ts`: `context_build` on `cloned()` returns the
         existing payload plus one `notices` entry; on `initialized()` no
         `notices` key (or empty array — pick one and assert it).
-  - [ ] Same file: `prompt_list` and `prompt_get` each get one `cloned()`
+  - [x] Same file: `prompt_list` and `prompt_get` each get one `cloned()`
         case asserting the call succeeds and returns one `notices` entry
         (review F001 — both wired call sites need their own assertion; the
         shared `resolvePromptFilePath` site is not assumed covered by the
         `context_build` test).
-  - [ ] `guideTools.test.ts`: `guide_status` on `cloned()` reports
+  - [x] `guideTools.test.ts`: `guide_status` on `cloned()` reports
         `checkout: 'not_initialized'` and does not initialize.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat(mcp): auto-init guide submodule in context tools, report checkout state`.
 
 - [ ] **Task 24: `cf guides info` prints checkout state** (effort: 1)

@@ -3,6 +3,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { registerGuideTools } from '../src/tools/guideTools.js';
+// Imported, not retyped: the assertion must track the constant if it changes.
+import { GUIDE_MANAGED_NOTICE } from '@context-forge/core';
 
 // --- Mocks ---
 
@@ -30,7 +32,10 @@ vi.mock('@context-forge/core/node', async () => {
       update: mockUpdate,
       syncWorktrees: mockSyncWorktrees,
     })),
-    // Mirrors the real constant in core/guides/types.ts.
+    // Mirrors the real constants in core/guides/types.ts.
+    GUIDE_MANAGED_NOTICE:
+      'This directory is managed by cf and overwritten on `cf guides update`. ' +
+      'Put project-specific customizations under `project-documents/user/`.',
     CHECKOUT_STATE_LABELS: {
       in_sync: 'in sync',
       out_of_sync: 'out of sync',
@@ -195,6 +200,29 @@ describe('guide_status checkout reporting (#80)', () => {
     expect(parsed.checkoutLabel).toBe('not initialized');
     // guide_status is a status command: it reports, it does not repair.
     expect(mockInstall).not.toHaveBeenCalled();
+  });
+
+  it('includes the managed-directory notice so a client can surface it (#82)', async () => {
+    mockStatus.mockResolvedValue({
+      installed: true,
+      method: 'submodule',
+      checkout: 'in_sync',
+      version: 'v0.13.2',
+      path: '/test/project/project-documents/ai-project-guide',
+      source: 'https://github.com/ecorkran/ai-project-guide.git',
+      latestVersion: 'v0.13.2',
+      updateAvailable: false,
+      usingBundledPrompt: false,
+    });
+
+    const result = await client.callTool({
+      name: 'guide_status',
+      arguments: { projectId: 'test-project' },
+    });
+
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.managedNotice).toBe(GUIDE_MANAGED_NOTICE);
   });
 
   it('omits the label for a tarball install, which has no checkout state', async () => {

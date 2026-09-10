@@ -153,6 +153,15 @@ export interface InstallStrategy {
 }
 
 // Constants
+
+/**
+ * Stated wherever the guide directory is described, so a user learns the rule
+ * before `cf guides update` overwrites an edit they made in place (D9, #82).
+ */
+export const GUIDE_MANAGED_NOTICE =
+  'This directory is managed by cf and overwritten on `cf guides update`. ' +
+  'Put project-specific customizations under `project-documents/user/`.';
+
 export const DEFAULT_SOURCE_GIT = 'https://github.com/ecorkran/ai-project-guide.git';
 export const DEFAULT_SOURCE_API = 'https://api.github.com/repos/ecorkran/ai-project-guide';
 export const GUIDE_RELATIVE_PATH = 'project-documents/ai-project-guide';

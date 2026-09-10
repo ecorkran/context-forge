@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import type { GuideMethod } from '@context-forge/core';
+import { CHECKOUT_STATE_LABELS, GUIDE_MANAGED_NOTICE } from '@context-forge/core';
 import {
   FileProjectStore,
   GuideManager,
@@ -62,11 +63,17 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   console.log(`  ${label('Installed:')}  ${info.installed ? valueStyle('yes') : dim('no')}`);
   if (info.installed) {
     console.log(`  ${label('Method:')}     ${valueStyle(info.method ?? 'unknown')}`);
+    // Only submodule installs have a checkout state (D1).
+    if (info.checkout) {
+      console.log(`  ${label('Checkout:')}   ${valueStyle(CHECKOUT_STATE_LABELS[info.checkout])}`);
+    }
     console.log(`  ${label('Version:')}    ${valueStyle(info.version ?? 'unknown')}`);
     console.log(`  ${label('Path:')}       ${dim(info.path)}`);
     if (info.updateAvailable) {
       console.log(`  ${label('Update:')}     ${warn(`${info.latestVersion} available`)}`);
     }
+    console.log();
+    console.log(dim(`  ${GUIDE_MANAGED_NOTICE}`));
   } else {
     console.log(`  ${label('Guides:')}     ${dim('not installed (required for context generation)')}`);
     console.log(`  ${dim('  Run cf guides install to install guides.')}`);
@@ -82,18 +89,22 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
  * their `--strategy` help from this single descriptor (D8), so the wording
  * cannot drift between them.
  */
-export const GUIDE_STRATEGIES: ReadonlyArray<{ name: GuideMethod; tradeoff: string }> = [
-  {
-    name: 'submodule',
-    tradeoff: 'version-pinned and updatable, but teammates must run git submodule update',
+export const GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }> = {
+  submodule: {
+    summary: 'version-pinned and updatable, but teammates must run git submodule update',
   },
-  { name: 'clone', tradeoff: 'a full working copy you can commit to, larger checkout' },
-  { name: 'tarball', tradeoff: 'plain files with no git wiring, simplest for teams' },
-];
+  clone: { summary: 'a full working copy you can commit to, larger checkout' },
+  tarball: { summary: 'plain files with no git wiring, simplest for teams' },
+};
 
-/** Render the shared `--strategy` help text from GUIDE_STRATEGIES. */
+/**
+ * Render the shared `--strategy` help text from GUIDE_STRATEGIES, so
+ * `cf init` and `cf guides install` cannot describe strategies differently.
+ */
 export function strategyHelpText(): string {
-  const rendered = GUIDE_STRATEGIES.map((s) => `${s.name} (${s.tradeoff})`).join('; ');
+  const rendered = Object.entries(GUIDE_STRATEGIES)
+    .map(([name, { summary }]) => `${name} (${summary})`)
+    .join('; ');
   return `Installation strategy — ${rendered}`;
 }
 

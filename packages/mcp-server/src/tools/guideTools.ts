@@ -8,7 +8,7 @@ import {
   BranchGuardWarnError,
 } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
-import { GuideDetector, CHECKOUT_STATE_LABELS } from '@context-forge/core/node';
+import { GuideDetector, CHECKOUT_STATE_LABELS, GUIDE_MANAGED_NOTICE } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import { errorResult, jsonResult, withNotices } from './contextTools.js';
 
@@ -82,6 +82,7 @@ export function registerGuideTools(server: McpServer): void {
           ...info,
           ...(checkoutLabel ? { checkoutLabel } : {}),
           ...(worktreeSync ? { worktreeSync } : {}),
+          managedNotice: GUIDE_MANAGED_NOTICE,
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);

@@ -12,6 +12,7 @@ export {
   type EnsureCheckoutResult,
   CHECKOUT_STATE_LABELS,
   GUIDE_INIT_TIMEOUT_MS,
+  GUIDE_MANAGED_NOTICE,
   GUIDE_METHODS,
   GUIDE_METHOD_DEPRECATED_ALIASES,
   normalizeGuideMethod,
