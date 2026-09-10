@@ -63,6 +63,27 @@ export class GuideDetector {
    * @param operationPath - worktree path for filesystem checks (defaults to projectPath)
    */
   async detect(projectPath: string, source?: string, operationPath?: string): Promise<GuideInfo> {
+    const info = await this.detectLocal(projectPath, source, operationPath);
+    const latestVersion = await this.fetchLatestVersion(info.source);
+    return {
+      ...info,
+      latestVersion,
+      updateAvailable: isNewerVersion(info.version, latestVersion),
+    };
+  }
+
+  /**
+   * Everything detect() reports except the remote's latest version, answered
+   * from the filesystem and local git alone — no `git ls-remote`. Read
+   * commands (`cf build`, `context_build`, ...) reach this through
+   * GuideManager.ensureCheckout() so a routine build never waits on the
+   * network (D10); status commands keep using detect().
+   */
+  async detectLocal(
+    projectPath: string,
+    source?: string,
+    operationPath?: string
+  ): Promise<GuideInfo> {
     const resolvedSource = source || DEFAULT_SOURCE_GIT;
     const effectivePath = operationPath || projectPath;
     const guidePath = join(effectivePath, GUIDE_RELATIVE_PATH);
@@ -80,8 +101,6 @@ export class GuideDetector {
     };
 
     if (!existsSync(guidePath)) {
-      // Check latest version even when not installed
-      baseInfo.latestVersion = await this.fetchLatestVersion(resolvedSource);
       return baseInfo;
     }
 
@@ -89,8 +108,6 @@ export class GuideDetector {
     const method = this.detectMethod(projectPath, guidePath);
     const checkout = await this.resolveCheckout(method, effectivePath);
     const version = await this.detectVersion(guidePath, method);
-    const latestVersion = await this.fetchLatestVersion(resolvedSource);
-    const updateAvailable = isNewerVersion(version, latestVersion);
 
     return {
       installed: true,
@@ -99,8 +116,8 @@ export class GuideDetector {
       version,
       path: guidePath,
       source: resolvedSource,
-      latestVersion,
-      updateAvailable,
+      latestVersion: null,
+      updateAvailable: false,
       usingBundledPrompt: false,
     };
   }

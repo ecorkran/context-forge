@@ -1,6 +1,10 @@
 import { Command } from 'commander';
-import type { GuideMethod } from '@context-forge/core';
-import { CHECKOUT_STATE_LABELS, GUIDE_MANAGED_NOTICE } from '@context-forge/core';
+import {
+  CHECKOUT_STATE_LABELS,
+  GUIDE_MANAGED_NOTICE,
+  GUIDE_STRATEGIES,
+  guideMethodDeprecationMessage,
+} from '@context-forge/core';
 import {
   FileProjectStore,
   GuideManager,
@@ -83,19 +87,9 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   }
 }
 
-/**
- * The installation strategies offered by `cf guides install` and `cf init`,
- * with the one-line trade-off shown in help for each. Both commands render
- * their `--strategy` help from this single descriptor (D8), so the wording
- * cannot drift between them.
- */
-export const GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }> = {
-  submodule: {
-    summary: 'version-pinned and updatable, but teammates must run git submodule update',
-  },
-  clone: { summary: 'a full working copy you can commit to, larger checkout' },
-  tarball: { summary: 'plain files with no git wiring, simplest for teams' },
-};
+// The strategy descriptor lives in core so the MCP server renders the same
+// text (D8); re-exported here for the CLI tests that read it.
+export { GUIDE_STRATEGIES };
 
 /**
  * Render the shared `--strategy` help text from GUIDE_STRATEGIES, so
@@ -126,11 +120,7 @@ export async function guidesInstallAction(
   const result = await manager.install(opts?.strategy, opts?.source);
 
   if (result.deprecatedAlias) {
-    console.error(
-      warn(
-        `Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`
-      )
-    );
+    console.error(warn(guideMethodDeprecationMessage(result.deprecatedAlias, result.method)));
   }
 
   console.log(success('Guide installed successfully.'));

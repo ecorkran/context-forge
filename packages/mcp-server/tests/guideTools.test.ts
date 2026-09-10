@@ -49,6 +49,12 @@ vi.mock('@context-forge/core/node', async () => {
     })),
     BranchGuardBlockedError: actual.BranchGuardBlockedError,
     BranchGuardWarnError: actual.BranchGuardWarnError,
+    // Strategy vocabulary is data, not behavior: pass the real definitions
+    // through so the tool schema and description are the ones users see.
+    GUIDE_METHODS: actual.GUIDE_METHODS,
+    GUIDE_METHOD_DEPRECATED_ALIASES: actual.GUIDE_METHOD_DEPRECATED_ALIASES,
+    GUIDE_STRATEGIES: actual.GUIDE_STRATEGIES,
+    guideMethodDeprecationMessage: actual.guideMethodDeprecationMessage,
   };
 });
 

@@ -8,9 +8,28 @@ import {
   BranchGuardWarnError,
 } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
-import { GuideDetector, CHECKOUT_STATE_LABELS, GUIDE_MANAGED_NOTICE } from '@context-forge/core/node';
+import {
+  GuideDetector,
+  CHECKOUT_STATE_LABELS,
+  GUIDE_MANAGED_NOTICE,
+  GUIDE_METHODS,
+  GUIDE_METHOD_DEPRECATED_ALIASES,
+  GUIDE_STRATEGIES,
+  guideMethodDeprecationMessage,
+} from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import { errorResult, jsonResult, withNotices } from './contextTools.js';
+
+/** Every spelling `guide_install` accepts: canonical methods plus deprecated aliases. */
+const GUIDE_STRATEGY_INPUTS: readonly string[] = [
+  ...GUIDE_METHODS,
+  ...Object.keys(GUIDE_METHOD_DEPRECATED_ALIASES),
+];
+
+/** Strategy trade-offs for the tool description, from the same table the CLI help uses (D8). */
+const GUIDE_STRATEGY_DESCRIPTION = Object.entries(GUIDE_STRATEGIES)
+  .map(([name, { summary }]) => `"${name}" (${summary})`)
+  .join(', ');
 
 interface ResolvedProject {
   projectPath: string;
@@ -82,7 +101,8 @@ export function registerGuideTools(server: McpServer): void {
           ...info,
           ...(checkoutLabel ? { checkoutLabel } : {}),
           ...(worktreeSync ? { worktreeSync } : {}),
-          managedNotice: GUIDE_MANAGED_NOTICE,
+          // Same gate as the CLI: the notice describes an existing directory.
+          ...(info.installed ? { managedNotice: GUIDE_MANAGED_NOTICE } : {}),
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
@@ -98,8 +118,8 @@ export function registerGuideTools(server: McpServer): void {
       title: 'Install Guide',
       description:
         'Install the AI project guide into a project directory. ' +
-        'Supports three strategies: "submodule" (default, requires git repo), ' +
-        '"clone" (standalone git clone), or "tarball" (tarball download, no git needed). ' +
+        `Strategies: ${GUIDE_STRATEGY_DESCRIPTION}. ` +
+        'Omit strategy to use the guide.git_strategy config value. ' +
         'Error if the guide is already installed — use guide_update instead.',
       inputSchema: {
         projectId: z
@@ -109,7 +129,7 @@ export function registerGuideTools(server: McpServer): void {
         strategy: z
           // 'manual' is a deprecated alias for 'tarball'; accepted on input so
           // existing callers keep working, normalized by GuideManager.install().
-          .enum(['submodule', 'clone', 'tarball', 'manual'])
+          .enum(GUIDE_STRATEGY_INPUTS)
           .optional()
           .describe(
             "Installation strategy. Overrides guide.git_strategy config for this call. " +
@@ -134,7 +154,7 @@ export function registerGuideTools(server: McpServer): void {
         return withNotices(
           jsonResult(result),
           result.deprecatedAlias
-            ? [`Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`]
+            ? [guideMethodDeprecationMessage(result.deprecatedAlias, result.method)]
             : []
         );
       } catch (error: unknown) {

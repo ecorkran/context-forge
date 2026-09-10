@@ -288,4 +288,24 @@ describe('GuideDetector', () => {
       expect(isNewerVersion('v0.13.2', null)).toBe(false);
     });
   });
+
+  describe('detectLocal()', () => {
+    it('answers from local state only and never runs ls-remote', async () => {
+      mockExistsSync.mockImplementation((p) => String(p) === guidePath);
+      mockReadFileSync.mockReturnValue('v0.17.3\n');
+      mockGitExec.mockImplementation(async (args) => {
+        throw new Error(`unexpected git call: ${args.join(' ')}`);
+      });
+
+      const info = await detector.detectLocal(projectPath);
+
+      expect(info.installed).toBe(true);
+      expect(info.method).toBe('tarball');
+      expect(info.version).toBe('v0.17.3');
+      expect(info.latestVersion).toBeNull();
+      expect(info.updateAvailable).toBe(false);
+      const commands = mockGitExec.mock.calls.map(([args]) => args[0]);
+      expect(commands).not.toContain('ls-remote');
+    });
+  });
 });

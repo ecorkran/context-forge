@@ -11,11 +11,18 @@ vi.mock('fs', () => ({
 }));
 
 // Mock gitExec (used by uninstall via dynamic import)
-vi.mock('../../src/guides/gitExec.js', () => ({
-  gitExec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
-  isGitAvailable: vi.fn().mockResolvedValue(true),
-  isGitRepo: vi.fn().mockResolvedValue(true),
-}));
+vi.mock('../../src/guides/gitExec.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/guides/gitExec.js')>(
+    '../../src/guides/gitExec.js'
+  );
+  return {
+    gitExec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
+    isGitAvailable: vi.fn().mockResolvedValue(true),
+    isGitRepo: vi.fn().mockResolvedValue(true),
+    // Text, not behavior: GuideManager appends it, and the test checks how often.
+    GUIDE_OFFLINE_REMEDIATION: actual.GUIDE_OFFLINE_REMEDIATION,
+  };
+});
 
 // Mock dependencies
 vi.mock('../../src/guides/GuideDetector.js', () => ({
@@ -58,7 +65,7 @@ import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
 import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
-import { gitExec } from '../../src/guides/gitExec.js';
+import { gitExec, GUIDE_OFFLINE_REMEDIATION } from '../../src/guides/gitExec.js';
 import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
 import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
 import {
@@ -716,6 +723,45 @@ describe('GuideManager', () => {
       const manager = new GuideManager(projectPath, mockConfigManager as never);
 
       await expect(manager.install('symlink')).rejects.toThrow(/Invalid guide strategy/);
+    });
+  });
+
+  describe('ensureCheckout() offline remediation', () => {
+    const uninitialized: GuideInfo = { ...installedInfo, checkout: 'not_initialized' };
+
+    function managerWhoseInitFails(message: string): GuideManager {
+      (GuideDetector as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        detectLocal: vi.fn().mockResolvedValue(uninitialized),
+      }));
+      (SubmoduleStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        init: vi.fn().mockRejectedValue(new Error(message)),
+      }));
+      return new GuideManager(projectPath, mockConfigManager as never);
+    }
+
+    function occurrences(haystack: string, needle: string): number {
+      return haystack.split(needle).length - 1;
+    }
+
+    it('appends the remediation once when gitExec did not recognize the failure', async () => {
+      const manager = managerWhoseInitFails('fatal: bad submodule config');
+
+      const err = await manager.ensureCheckout().catch((e: unknown) => e as Error);
+
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toContain('fatal: bad submodule config');
+      expect(occurrences((err as Error).message, GUIDE_OFFLINE_REMEDIATION)).toBe(1);
+    });
+
+    it('does not repeat the remediation gitExec already appended', async () => {
+      const fromGitExec =
+        'git submodule update timed out after 60s\n' +
+        `  This looks like a network/DNS problem reaching the remote. ${GUIDE_OFFLINE_REMEDIATION}`;
+      const manager = managerWhoseInitFails(fromGitExec);
+
+      const err = await manager.ensureCheckout().catch((e: unknown) => e as Error);
+
+      expect(occurrences((err as Error).message, GUIDE_OFFLINE_REMEDIATION)).toBe(1);
     });
   });
 });

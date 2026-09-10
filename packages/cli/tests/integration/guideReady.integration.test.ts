@@ -44,6 +44,7 @@ function gitAvailable(): boolean {
 const maybe = gitAvailable() ? describe : describe.skip;
 
 let roots: string[] = [];
+const previousGitAllowProtocol = process.env.GIT_ALLOW_PROTOCOL;
 
 function makeUninitializedClone(): { hostPath: string; guidePath: string } {
   process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -75,6 +76,9 @@ afterEach(() => {
   vi.restoreAllMocks();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots = [];
+  // makeUninitializedClone sets this process-wide; do not leak it to later tests.
+  if (previousGitAllowProtocol === undefined) delete process.env.GIT_ALLOW_PROTOCOL;
+  else process.env.GIT_ALLOW_PROTOCOL = previousGitAllowProtocol;
 });
 
 maybe('ensureGuideReady against real repositories', () => {

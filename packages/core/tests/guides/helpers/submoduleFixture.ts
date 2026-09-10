@@ -28,8 +28,13 @@ export interface SubmoduleFixture {
  * the test process rather than passed as a git flag, because the code under
  * test builds its own git invocations and must not need such a flag to work.
  */
-export function allowLocalSubmoduleTransport(): void {
+export function allowLocalSubmoduleTransport(): () => void {
+  const previous = process.env.GIT_ALLOW_PROTOCOL;
   process.env.GIT_ALLOW_PROTOCOL = 'file';
+  return () => {
+    if (previous === undefined) delete process.env.GIT_ALLOW_PROTOCOL;
+    else process.env.GIT_ALLOW_PROTOCOL = previous;
+  };
 }
 
 /** Deterministic identity and settings so fixtures do not read user git config. */
@@ -127,10 +132,13 @@ function toFixture(hostPath: string, cleanup: () => void): SubmoduleFixture {
  * and the guide directory is empty. `git submodule status` prefixes `-`.
  */
 export function cloned(): SubmoduleFixture {
-  allowLocalSubmoduleTransport();
+  const restoreEnv = allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
-  return toFixture(hostPath, cleanup);
+  return toFixture(hostPath, () => {
+    cleanup();
+    restoreEnv();
+  });
 }
 
 /**
@@ -138,11 +146,14 @@ export function cloned(): SubmoduleFixture {
  * pinned commit. `git submodule status` prefixes a space.
  */
 export function initialized(): SubmoduleFixture {
-  allowLocalSubmoduleTransport();
+  const restoreEnv = allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
   git(['submodule', 'update', '--init', GUIDE_RELATIVE_PATH], hostPath);
-  return toFixture(hostPath, cleanup);
+  return toFixture(hostPath, () => {
+    cleanup();
+    restoreEnv();
+  });
 }
 
 /**
@@ -151,7 +162,7 @@ export function initialized(): SubmoduleFixture {
  * status` prefixes `+`.
  */
 export function outOfSync(): SubmoduleFixture {
-  allowLocalSubmoduleTransport();
+  const restoreEnv = allowLocalSubmoduleTransport();
   const roots = createOrigins();
   const { hostPath, cleanup } = cloneHost(roots);
   const guidePath = join(hostPath, GUIDE_RELATIVE_PATH);
@@ -160,5 +171,8 @@ export function outOfSync(): SubmoduleFixture {
   writeFileSync(join(guidePath, 'README.md'), '# guide v2\n', 'utf-8');
   git(['add', '.'], guidePath);
   git(['commit', '-q', '-m', 'guide: second commit'], guidePath);
-  return toFixture(hostPath, cleanup);
+  return toFixture(hostPath, () => {
+    cleanup();
+    restoreEnv();
+  });
 }

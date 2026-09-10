@@ -107,7 +107,9 @@ export class GuideManager {
    */
   async ensureCheckout(): Promise<EnsureCheckoutResult> {
     const source = await this.resolveSource();
-    const info = await this.detector.detect(this.projectPath, source, this.operationPath);
+    // Local detection only: this runs inside every read command, and the
+    // remote's latest version is not needed to decide whether to init (D10).
+    const info = await this.detector.detectLocal(this.projectPath, source, this.operationPath);
 
     if (!info.installed || info.method !== 'submodule') {
       return { action: 'none' };
@@ -153,7 +155,14 @@ export class GuideManager {
       // Re-thrown with remediation, never swallowed: proceeding against an
       // empty guide tree would fail later with a far less useful message.
       const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`${message}\n  ${GUIDE_OFFLINE_REMEDIATION}`);
+      // gitExec already appends the remediation for recognizable network
+      // failures (including our own timeout); add it only when it did not,
+      // so the user never reads the same guidance twice.
+      throw new Error(
+        message.includes(GUIDE_OFFLINE_REMEDIATION)
+          ? message
+          : `${message}\n  ${GUIDE_OFFLINE_REMEDIATION}`
+      );
     }
   }
 

@@ -24,8 +24,9 @@ export const GUIDE_METHOD_DEPRECATED_ALIASES: Readonly<Record<string, GuideMetho
  */
 export function normalizeGuideMethod(input: string): GuideMethod {
   const candidate = input.trim();
-  if ((GUIDE_METHODS as readonly string[]).includes(candidate)) {
-    return candidate as GuideMethod;
+  const canonical = GUIDE_METHODS.find((method) => method === candidate);
+  if (canonical) {
+    return canonical;
   }
   const aliased = GUIDE_METHOD_DEPRECATED_ALIASES[candidate];
   if (aliased) {
@@ -43,6 +44,30 @@ export function normalizeGuideMethod(input: string): GuideMethod {
 export function isDeprecatedGuideMethodAlias(input: string): boolean {
   return input.trim() in GUIDE_METHOD_DEPRECATED_ALIASES;
 }
+
+/**
+ * The one spelling of the D5 deprecation warning. The CLI prints it to stderr
+ * and the MCP server returns it as a notice, so the sentence lives here rather
+ * than at each boundary.
+ */
+export function guideMethodDeprecationMessage(alias: string, method: GuideMethod): string {
+  return `Strategy '${alias}' is deprecated; use '${method}' instead.`;
+}
+
+/**
+ * The installation strategies offered to users, with the one-line trade-off
+ * shown for each. `cf init --help`, `cf guides install --help` and the MCP
+ * `guide_install` description all render from this single descriptor (D8),
+ * so the wording cannot drift between surfaces. Adding a GuideMethod without
+ * an entry here is a compile error.
+ */
+export const GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }> = {
+  submodule: {
+    summary: 'version-pinned and updatable, but teammates must run git submodule update',
+  },
+  clone: { summary: 'a full working copy you can commit to, larger checkout' },
+  tarball: { summary: 'plain files with no git wiring, simplest for teams' },
+};
 
 /**
  * Checkout state of a submodule-installed guide, as `git submodule status`

@@ -27,7 +27,10 @@ export function jsonResult(data: unknown): { content: { type: 'text'; text: stri
  * that ignore the field see exactly what they saw before. Absent when there is
  * nothing to report, so a quiet call stays byte-identical.
  */
-export function withNotices<T extends object>(result: T, notices: string[]): T {
+export function withNotices<T extends object>(
+  result: T,
+  notices: string[],
+): T | (T & { notices: string[] }) {
   return notices.length > 0 ? { ...result, notices } : result;
 }
 
@@ -36,14 +39,13 @@ export function withNotices<T extends object>(result: T, notices: string[]): T {
  * return any notice the caller should surface.
  *
  * Mirrors the CLI's ensureGuideReady, minus the printing: MCP tools carry the
- * message in the result instead.
+ * message in the result instead. There is no separate operation path here:
+ * the MCP worktree overlay has already rewritten `projectPath` to the
+ * worktree when one is selected.
  */
-export async function ensureGuideForProject(
-  projectPath: string,
-  operationPath?: string,
-): Promise<string[]> {
+export async function ensureGuideForProject(projectPath: string): Promise<string[]> {
   const cm = new ConfigManager(projectPath);
-  const manager = new GuideManager(projectPath, cm, operationPath);
+  const manager = new GuideManager(projectPath, cm);
   const result = await manager.ensureCheckout();
   return result.action === 'none' || !result.message ? [] : [result.message];
 }

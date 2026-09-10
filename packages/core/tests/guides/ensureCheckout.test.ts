@@ -110,14 +110,14 @@ maybe('GuideManager.ensureCheckout()', () => {
 
 describe('GuideManager.ensureCheckout() for non-submodule installs', () => {
   it('is a no-op for a tarball install', async () => {
-    const detect = vi.fn().mockResolvedValue({
+    const detectLocal = vi.fn().mockResolvedValue({
       installed: true,
       method: 'tarball',
       checkout: null,
     });
     const manager = new GuideManager('/test/project', stubConfig());
     // Replace the detector with one reporting a tarball install.
-    (manager as unknown as { detector: { detect: unknown } }).detector = { detect };
+    (manager as unknown as { detector: { detectLocal: unknown } }).detector = { detectLocal };
 
     const result = await manager.ensureCheckout();
 
@@ -125,13 +125,13 @@ describe('GuideManager.ensureCheckout() for non-submodule installs', () => {
   });
 
   it('is a no-op for a clone install', async () => {
-    const detect = vi.fn().mockResolvedValue({
+    const detectLocal = vi.fn().mockResolvedValue({
       installed: true,
       method: 'clone',
       checkout: null,
     });
     const manager = new GuideManager('/test/project', stubConfig());
-    (manager as unknown as { detector: { detect: unknown } }).detector = { detect };
+    (manager as unknown as { detector: { detectLocal: unknown } }).detector = { detectLocal };
 
     const result = await manager.ensureCheckout();
 

@@ -115,12 +115,13 @@ export function registerPromptCommand(program: Command): void {
           );
         }
 
+        // The prompt file lives inside the guide, so the checkout must exist
+        // before anything reads it (#80) — including shorthand resolution,
+        // which opens the prompt file for P<n> inputs.
+        await ensureGuideReady(project.projectPath!, opPath);
+
         // Resolve shorthand or name to instruction key
         const resolvedPhase = await resolvePhaseInput(phase, opPath);
-
-        // The prompt file lives inside the guide, so the checkout must exist
-        // before it is read (#80).
-        await ensureGuideReady(project.projectPath!, opPath);
 
         const promptFilePath = path.join(opPath, PROMPT_FILE_RELATIVE_PATH);
         const parser = new SystemPromptParser(promptFilePath);

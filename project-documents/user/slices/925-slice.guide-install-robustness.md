@@ -300,6 +300,19 @@ Slice review 20260909 (`925-review.slice.guide-install-robustness.md`, verdict C
 - **F005 (note, three spellings for one checkout state):** addressed by exporting `checkSyncStatus()`'s existing union as `SubmoduleCheckoutState`, typing `GuideInfo.checkout` with it, and defining display text once in `CHECKOUT_STATE_LABELS` (Component Structure). The success-criteria string "Checkout: not initialized" is that label.
 - **F006 (note, no NFR restatement):** no action.
 
+Code review 20260910 (`925-review.code.guide-install-robustness.md`, GLM 5.3, verdict CONCERNS, reviewed `a91eba9`). All findings verified against the code and resolved in the follow-up commit:
+
+- **F001 (concern):** `cf prompt get P<n>` resolved the shorthand, which reads the prompt file, before `ensureGuideReady`. Reordered; a CLI test pins the order.
+- **F002 (concern):** `ensureCheckout()` went through `detect()`, which runs `git ls-remote` unbounded, so every read command gained a network round-trip. Added `GuideDetector.detectLocal()` (filesystem and local git only); `detect()` now composes it with the latest-version fetch, and `ensureCheckout()` uses `detectLocal()`. Status commands are unchanged. A detector test asserts no `ls-remote` call.
+- **F003 (concern):** `initGuideCheckout` appended `GUIDE_OFFLINE_REMEDIATION` unconditionally, duplicating the hint `gitExec` adds on recognized network errors. Now appended only when absent; two GuideManager tests cover both paths.
+- **F004 (concern):** the MCP `guide_install` enum, its strategy description, and the deprecation sentence were hand-copied. `GUIDE_STRATEGIES` moved to core, the enum is derived from `GUIDE_METHODS` plus the alias table, and `guideMethodDeprecationMessage()` is the single spelling used by CLI and MCP.
+- **F005 (concern):** stale enum fixture in `configTools.test.ts` updated.
+- **F006 (concern):** `withNotices` returns `T | (T & { notices: string[] })`.
+- **F007 (note):** MCP `guide_status` gates `managedNotice` on `installed`, matching the CLI.
+- **F008 (note):** dead `operationPath` parameter removed from `ensureGuideForProject`; the MCP worktree overlay already rewrites `projectPath`.
+- **F009 (note):** fixtures restore `GIT_ALLOW_PROTOCOL` in cleanup / `afterEach`.
+- **F010 (note):** `normalizeGuideMethod` narrows with `find`, no casts.
+
 ## Risk Assessment
 
 - **Auto-init performs a network fetch inside a read command.** Mitigated by scoping to the single state that has no other resolution, printing what happened, and failing with the existing remediation text when the fetch cannot complete. `cf guides info` stays read-only so a user can always inspect first.
