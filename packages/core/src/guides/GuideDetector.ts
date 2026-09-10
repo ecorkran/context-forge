@@ -122,7 +122,7 @@ export class GuideDetector {
       return 'clone';
     }
 
-    return 'manual';
+    return 'tarball';
   }
 
   /** Detect current version based on method */

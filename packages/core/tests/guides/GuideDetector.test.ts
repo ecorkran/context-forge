@@ -113,7 +113,7 @@ describe('GuideDetector', () => {
       expect(info.version).toBe('v0.12.0');
     });
 
-    it('detects manual method with version from marker file', async () => {
+    it('detects tarball method with version from marker file', async () => {
       const markerPath = join(guidePath, VERSION_MARKER_FILE);
       mockExistsSync.mockImplementation((p) => {
         const path = String(p);
@@ -130,11 +130,11 @@ describe('GuideDetector', () => {
       const info = await detector.detect(projectPath);
 
       expect(info.installed).toBe(true);
-      expect(info.method).toBe('manual');
+      expect(info.method).toBe('tarball');
       expect(info.version).toBe('v0.11.0');
     });
 
-    it('detects manual method with null version when no marker', async () => {
+    it('detects tarball method with null version when no marker', async () => {
       mockExistsSync.mockImplementation((p) => {
         const path = String(p);
         if (path === guidePath) return true;
@@ -147,7 +147,7 @@ describe('GuideDetector', () => {
       const info = await detector.detect(projectPath);
 
       expect(info.installed).toBe(true);
-      expect(info.method).toBe('manual');
+      expect(info.method).toBe('tarball');
       expect(info.version).toBeNull();
     });
 

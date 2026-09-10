@@ -1,7 +1,48 @@
 // Guide management types and strategy interface
 
 /** Installation method used for the ai-project-guide */
-export type GuideMethod = 'submodule' | 'clone' | 'manual';
+export type GuideMethod = 'submodule' | 'clone' | 'tarball';
+
+/** Canonical guide methods, in the order they are presented to users. */
+export const GUIDE_METHODS: readonly GuideMethod[] = ['submodule', 'clone', 'tarball'];
+
+/**
+ * Deprecated strategy names accepted on input, mapped to their canonical
+ * replacement. Callers check this to emit a deprecation warning without
+ * re-comparing strings. This is the only place an alias is spelled in core
+ * source outside the ConfigKeys enum (which keeps `manual` so existing
+ * shared config files still validate).
+ */
+export const GUIDE_METHOD_DEPRECATED_ALIASES: Readonly<Record<string, GuideMethod>> = {
+  manual: 'tarball',
+};
+
+/**
+ * Normalize a strategy name from any input boundary (config value, CLI
+ * `--strategy` flag, MCP tool parameter) into a canonical GuideMethod.
+ * Throws when the input is neither canonical nor a known deprecated alias.
+ */
+export function normalizeGuideMethod(input: string): GuideMethod {
+  const candidate = input.trim();
+  if ((GUIDE_METHODS as readonly string[]).includes(candidate)) {
+    return candidate as GuideMethod;
+  }
+  const aliased = GUIDE_METHOD_DEPRECATED_ALIASES[candidate];
+  if (aliased) {
+    return aliased;
+  }
+  throw new Error(
+    `Invalid guide strategy '${input}'. Valid values: ${GUIDE_METHODS.join(', ')}.`
+  );
+}
+
+/**
+ * True when `input` is a deprecated alias rather than a canonical method.
+ * Lets a boundary decide whether to print the D5 deprecation warning.
+ */
+export function isDeprecatedGuideMethodAlias(input: string): boolean {
+  return input.trim() in GUIDE_METHOD_DEPRECATED_ALIASES;
+}
 
 /** Full status of a guide installation */
 export interface GuideInfo {

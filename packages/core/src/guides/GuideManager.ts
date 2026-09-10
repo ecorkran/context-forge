@@ -217,7 +217,7 @@ export class GuideManager {
         return new SubmoduleStrategy();
       case 'clone':
         return new CloneStrategy();
-      case 'manual':
+      case 'tarball':
         return new TarballStrategy();
     }
   }

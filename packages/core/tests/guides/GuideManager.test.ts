@@ -385,13 +385,13 @@ describe('GuideManager', () => {
     });
   });
 
-  describe('update - TarballStrategy (manual) evaluates guard like any other strategy', () => {
-    it("info.method === 'manual', guard returns proceed -> TarballStrategy.update() is called normally", async () => {
-      const manualInstalledInfo: GuideInfo = { ...installedInfo, method: 'manual' };
-      mockDetect.mockResolvedValue(manualInstalledInfo);
+  describe('update - TarballStrategy (tarball) evaluates guard like any other strategy', () => {
+    it("info.method === 'tarball', guard returns proceed -> TarballStrategy.update() is called normally", async () => {
+      const tarballInstalledInfo: GuideInfo = { ...installedInfo, method: 'tarball' };
+      mockDetect.mockResolvedValue(tarballInstalledInfo);
       vi.mocked(evaluateBranchGuard).mockResolvedValue({ outcome: 'proceed' });
       const mockTarballUpdate = vi.fn().mockResolvedValue({
-        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'manual',
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'tarball',
       });
       (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
         install: vi.fn(),
@@ -405,9 +405,9 @@ describe('GuideManager', () => {
       expect(result.success).toBe(true);
     });
 
-    it("info.method === 'manual', guard returns block -> TarballStrategy.update() NOT called, BranchGuardBlockedError thrown", async () => {
-      const manualInstalledInfo: GuideInfo = { ...installedInfo, method: 'manual' };
-      mockDetect.mockResolvedValue(manualInstalledInfo);
+    it("info.method === 'tarball', guard returns block -> TarballStrategy.update() NOT called, BranchGuardBlockedError thrown", async () => {
+      const tarballInstalledInfo: GuideInfo = { ...installedInfo, method: 'tarball' };
+      mockDetect.mockResolvedValue(tarballInstalledInfo);
       vi.mocked(evaluateBranchGuard).mockResolvedValue({
         outcome: 'block', trunk: 'dev/erik', current: 'main',
       });
@@ -521,7 +521,7 @@ describe('GuideManager', () => {
       expect(mockGitExec).toHaveBeenCalledTimes(1);
     });
 
-    it('removes clone/manual directory without git operations', async () => {
+    it('removes clone/tarball directory without git operations', async () => {
       const cloneInfo = { ...installedInfo, method: 'clone' as const };
       mockDetect.mockResolvedValue(cloneInfo);
       mockExistsSync.mockReturnValue(true);

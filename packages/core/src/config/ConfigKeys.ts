@@ -31,7 +31,10 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: 'submodule',
     description: 'Strategy for managing the AI project guide via git',
-    enum: ['submodule', 'clone', 'manual'],
+    // 'manual' is a deprecated alias for 'tarball'. It stays in the enum so
+    // existing shared config files keep validating; normalizeGuideMethod()
+    // maps it to 'tarball' when the value is read.
+    enum: ['submodule', 'clone', 'tarball', 'manual'],
     scope: ConfigScope.Shared,
   },
   'workflow.auto_advance': {
