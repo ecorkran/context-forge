@@ -30,6 +30,12 @@ vi.mock('@context-forge/core/node', async () => {
       update: mockUpdate,
       syncWorktrees: mockSyncWorktrees,
     })),
+    // Mirrors the real constant in core/guides/types.ts.
+    CHECKOUT_STATE_LABELS: {
+      in_sync: 'in sync',
+      out_of_sync: 'out of sync',
+      not_initialized: 'not initialized',
+    },
     GuideDetector: vi.fn().mockImplementation(() => ({
       checkSyncStatus: mockCheckSyncStatus,
     })),
@@ -145,6 +151,77 @@ describe('guide_status', () => {
   });
 });
 
+describe('guide_status checkout reporting (#80)', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockGetById.mockResolvedValue(sampleProject);
+    // The sample project has worktrees, so guide_status also reports their
+    // per-worktree sync state.
+    mockCheckSyncStatus.mockResolvedValue('in_sync');
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('reports an uninitialized checkout with its display label, without initializing', async () => {
+    mockStatus.mockResolvedValue({
+      installed: true,
+      method: 'submodule',
+      checkout: 'not_initialized',
+      version: null,
+      path: '/test/project/project-documents/ai-project-guide',
+      source: 'https://github.com/ecorkran/ai-project-guide.git',
+      latestVersion: 'v0.13.2',
+      updateAvailable: false,
+      usingBundledPrompt: false,
+    });
+
+    const result = await client.callTool({
+      name: 'guide_status',
+      arguments: { projectId: 'test-project' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.checkout).toBe('not_initialized');
+    expect(parsed.checkoutLabel).toBe('not initialized');
+    // guide_status is a status command: it reports, it does not repair.
+    expect(mockInstall).not.toHaveBeenCalled();
+  });
+
+  it('omits the label for a tarball install, which has no checkout state', async () => {
+    mockStatus.mockResolvedValue({
+      installed: true,
+      method: 'tarball',
+      checkout: null,
+      version: 'v0.13.2',
+      path: '/test/project/project-documents/ai-project-guide',
+      source: 'https://github.com/ecorkran/ai-project-guide.git',
+      latestVersion: 'v0.13.2',
+      updateAvailable: false,
+      usingBundledPrompt: false,
+    });
+
+    const result = await client.callTool({
+      name: 'guide_status',
+      arguments: { projectId: 'test-project' },
+    });
+
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.checkout).toBeNull();
+    expect(parsed.checkoutLabel).toBeUndefined();
+  });
+});
+
 describe('guide_install', () => {
   let client: Client;
   let cleanup: () => Promise<void>;
@@ -202,7 +279,7 @@ describe('guide_install', () => {
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
     expect(parsed.method).toBe('tarball');
-    expect(parsed.notices).toBeUndefined();
+    expect(result.notices).toBeUndefined();
     expect(mockInstall).toHaveBeenCalledWith('tarball', undefined);
   });
 
@@ -224,9 +301,12 @@ describe('guide_install', () => {
     const content = result.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text);
     expect(parsed.method).toBe('tarball');
-    expect(parsed.notices).toHaveLength(1);
-    expect(parsed.notices[0]).toContain('deprecated');
-    expect(parsed.notices[0]).toContain('tarball');
+    // notices ride alongside content, the one shape every tool uses; the
+    // primary payload is unchanged for clients that ignore the field.
+    const notices = result.notices as string[];
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('deprecated');
+    expect(notices[0]).toContain('tarball');
     // The raw alias reaches core, which owns normalization.
     expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
   });

@@ -8,9 +8,9 @@ import {
   BranchGuardWarnError,
 } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
-import { GuideDetector } from '@context-forge/core/node';
+import { GuideDetector, CHECKOUT_STATE_LABELS } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
-import { errorResult, jsonResult } from './contextTools.js';
+import { errorResult, jsonResult, withNotices } from './contextTools.js';
 
 interface ResolvedProject {
   projectPath: string;
@@ -74,7 +74,15 @@ export function registerGuideTools(server: McpServer): void {
           }
         }
 
-        return jsonResult(worktreeSync ? { ...info, worktreeSync } : info);
+        // info.checkout is the raw state; pair it with display text so a
+        // client need not carry its own label table.
+        const checkoutLabel = info.checkout ? CHECKOUT_STATE_LABELS[info.checkout] : undefined;
+
+        return jsonResult({
+          ...info,
+          ...(checkoutLabel ? { checkoutLabel } : {}),
+          ...(worktreeSync ? { worktreeSync } : {}),
+        });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -120,16 +128,13 @@ export function registerGuideTools(server: McpServer): void {
         const manager = new GuideManager(projectPath, cm);
         const result = await manager.install(strategy, source);
         // Deprecation surfaces as a structured notice rather than a log line,
-        // since an MCP client has no stderr channel to read (D4).
-        return jsonResult(
+        // since an MCP client has no stderr channel to read (D4). Same shared
+        // shape every other tool uses.
+        return withNotices(
+          jsonResult(result),
           result.deprecatedAlias
-            ? {
-                ...result,
-                notices: [
-                  `Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`,
-                ],
-              }
-            : result
+            ? [`Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`]
+            : []
         );
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
