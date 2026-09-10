@@ -159,8 +159,8 @@ is the place to look for an existing real-git temp-repo pattern.
 
 ### Part 2 — Checkout Detection and Init (D1, D2, D10)
 
-- [ ] **Task 9: Test fixture — real git repo with a guide submodule** (effort: 3)
-  - [ ] Add a helper under `packages/core/tests/guides/` (e.g.
+- [x] **Task 9: Test fixture — real git repo with a guide submodule** (effort: 3)
+  - [x] Add a helper under `packages/core/tests/guides/` (e.g.
         `helpers/submoduleFixture.ts`) that creates, in a temp directory: a
         bare "guide" repo with one commit and one tag, and a "host" repo
         that adds it as a submodule at `GUIDE_RELATIVE_PATH` and commits.
@@ -169,43 +169,43 @@ is the place to look for an existing real-git temp-repo pattern.
         directory empty); `initialized()` — same then
         `git submodule update --init`; `outOfSync()` — initialized then a
         second guide commit checked out inside the submodule.
-  - [ ] Check whether `SubmoduleStrategy.test.ts` already has a temp-repo
+  - [x] Check whether `SubmoduleStrategy.test.ts` already has a temp-repo
         helper; extend it rather than duplicating.
-  - [ ] Helper returns paths and a cleanup function; tests skip when
+  - [x] Helper returns paths and a cleanup function; tests skip when
         `isGitAvailable()` is false.
-  - [ ] Success criteria: a smoke test asserts `git submodule status` output
+  - [x] Success criteria: a smoke test asserts `git submodule status` output
         begins with `-` for `cloned()`, a space for `initialized()`, and
         `+` for `outOfSync()`.
 
-- [ ] **Task 10: `SubmoduleCheckoutState`, labels, `GuideInfo.checkout`** (effort: 1)
-  - [ ] In `types.ts` export
+- [x] **Task 10: `SubmoduleCheckoutState`, labels, `GuideInfo.checkout`** (effort: 1)
+  - [x] In `types.ts` export
         `type SubmoduleCheckoutState = 'in_sync' | 'out_of_sync' | 'not_initialized'`,
         `CHECKOUT_STATE_LABELS: Record<SubmoduleCheckoutState, string>`
         (`not_initialized` label is exactly "not initialized" — the success
         criteria string), and `GUIDE_INIT_TIMEOUT_MS = 60_000`.
-  - [ ] Add `checkout: SubmoduleCheckoutState | null` to `GuideInfo` (null
+  - [x] Add `checkout: SubmoduleCheckoutState | null` to `GuideInfo` (null
         for clone/tarball and for not-installed).
-  - [ ] Retype `GuideDetector.checkSyncStatus()` return as
+  - [x] Retype `GuideDetector.checkSyncStatus()` return as
         `SubmoduleCheckoutState | 'error'` using the exported type.
-  - [ ] Success criteria: typecheck passes once Task 11 populates the field.
+  - [x] Success criteria: typecheck passes once Task 11 populates the field.
 
-- [ ] **Task 11: `GuideDetector.detect()` populates `checkout`** (effort: 2)
-  - [ ] When the detected method is `submodule`, call
+- [x] **Task 11: `GuideDetector.detect()` populates `checkout`** (effort: 2)
+  - [x] When the detected method is `submodule`, call
         `checkSyncStatus(operationPath ?? projectPath)` and store the
         result; if it returns `'error'`, throw (git unavailable or not a
         repo is surfaced, not swallowed — D1/D7). Otherwise set `null`.
-  - [ ] `detect()` remains read-only — no `git submodule update` here.
-  - [ ] Success criteria: `GuideInfo.checkout` is populated for submodule
+  - [x] `detect()` remains read-only — no `git submodule update` here.
+  - [x] Success criteria: `GuideInfo.checkout` is populated for submodule
         installs.
 
-- [ ] **Task 12: `GuideDetector` checkout tests** (effort: 2)
-  - [ ] Using the Task 9 fixture: `cloned()` → `checkout === 'not_initialized'`
+- [x] **Task 12: `GuideDetector` checkout tests** (effort: 2)
+  - [x] Using the Task 9 fixture: `cloned()` → `checkout === 'not_initialized'`
         and `installed === true`; `initialized()` → `'in_sync'`;
         `outOfSync()` → `'out_of_sync'`; a tarball fixture (existing mocked
         test) → `checkout === null`.
-  - [ ] Assert the fixture directory is unchanged after `detect()` (compare
+  - [x] Assert the fixture directory is unchanged after `detect()` (compare
         `git submodule status` before and after).
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `feat(core): report submodule checkout state in GuideInfo`.
 
 - [ ] **Task 13: `gitExec` optional `timeoutMs`** (effort: 1)
