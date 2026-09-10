@@ -185,6 +185,62 @@ describe('guide_install', () => {
     expect(parsed.method).toBe('clone');
   });
 
+  it('accepts the canonical tarball strategy and returns no notices', async () => {
+    mockInstall.mockResolvedValue({
+      success: true,
+      version: 'v0.13.2',
+      method: 'tarball',
+      path: '/test/project/project-documents/ai-project-guide',
+    });
+
+    const result = await client.callTool({
+      name: 'guide_install',
+      arguments: { projectId: 'test-project', strategy: 'tarball' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.method).toBe('tarball');
+    expect(parsed.notices).toBeUndefined();
+    expect(mockInstall).toHaveBeenCalledWith('tarball', undefined);
+  });
+
+  it('accepts the deprecated manual alias and returns one notice (D4, D5)', async () => {
+    mockInstall.mockResolvedValue({
+      success: true,
+      version: 'v0.13.2',
+      method: 'tarball',
+      path: '/test/project/project-documents/ai-project-guide',
+      deprecatedAlias: 'manual',
+    });
+
+    const result = await client.callTool({
+      name: 'guide_install',
+      arguments: { projectId: 'test-project', strategy: 'manual' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text);
+    expect(parsed.method).toBe('tarball');
+    expect(parsed.notices).toHaveLength(1);
+    expect(parsed.notices[0]).toContain('deprecated');
+    expect(parsed.notices[0]).toContain('tarball');
+    // The raw alias reaches core, which owns normalization.
+    expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
+  });
+
+  it('rejects a strategy outside the accepted set', async () => {
+    const result = await client.callTool({
+      name: 'guide_install',
+      arguments: { projectId: 'test-project', strategy: 'symlink' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(mockInstall).not.toHaveBeenCalled();
+  });
+
   it('returns error result when already installed', async () => {
     mockInstall.mockRejectedValue(new Error('Guide is already installed.'));
 

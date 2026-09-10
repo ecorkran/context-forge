@@ -200,6 +200,94 @@ describe('cf guides install', () => {
   });
 });
 
+describe('cf guides install — deprecated strategy alias (D5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  it('passes the raw --strategy string through to the manager for normalization', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
+  });
+
+  it('reports the canonical method on stdout for an alias install', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    const stdout = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(stdout).toContain('tarball');
+    expect(stdout).not.toContain('deprecated');
+  });
+
+  it('prints the deprecation warning to stderr only (D4)', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
+
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).toContain('deprecated');
+    expect(stderr).toContain('tarball');
+  });
+
+  it('prints no deprecation warning for a canonical strategy', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'tarball', '--project', 'proj_001']);
+
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).not.toContain('deprecated');
+  });
+
+  it('warns identically when the alias came from config rather than the flag (F002)', async () => {
+    // No --strategy flag: the alias reaches the CLI only via the manager's
+    // config-sourced result, which is the path review finding F002 called out.
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'tarball',
+      path: '/tmp/test/project-documents/ai-project-guide', deprecatedAlias: 'manual',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'guides', 'install', '--project', 'proj_001']);
+
+    expect(mockInstall).toHaveBeenCalledWith(undefined, undefined);
+    const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(stderr).toContain('deprecated');
+    const stdout = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(stdout).toContain('tarball');
+  });
+});
+
 describe('guidesInstallAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,11 +1,11 @@
 import { Command } from 'commander';
+import type { GuideMethod } from '@context-forge/core';
 import {
   FileProjectStore,
   GuideManager,
   ConfigManager,
   BranchGuardWarnError,
 } from '@context-forge/core/node';
-import type { GuideMethod } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -76,15 +76,51 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
   }
 }
 
-/** Install guides for a project. Errors propagate to the caller. */
+/**
+ * The installation strategies offered by `cf guides install` and `cf init`,
+ * with the one-line trade-off shown in help for each. Both commands render
+ * their `--strategy` help from this single descriptor (D8), so the wording
+ * cannot drift between them.
+ */
+export const GUIDE_STRATEGIES: ReadonlyArray<{ name: GuideMethod; tradeoff: string }> = [
+  {
+    name: 'submodule',
+    tradeoff: 'version-pinned and updatable, but teammates must run git submodule update',
+  },
+  { name: 'clone', tradeoff: 'a full working copy you can commit to, larger checkout' },
+  { name: 'tarball', tradeoff: 'plain files with no git wiring, simplest for teams' },
+];
+
+/** Render the shared `--strategy` help text from GUIDE_STRATEGIES. */
+export function strategyHelpText(): string {
+  const rendered = GUIDE_STRATEGIES.map((s) => `${s.name} (${s.tradeoff})`).join('; ');
+  return `Installation strategy — ${rendered}`;
+}
+
+/**
+ * Install guides for a project. Errors propagate to the caller.
+ *
+ * `strategy` is the raw `--strategy` string; GuideManager.install() validates
+ * it and reports a deprecated alias, so the flag path and the config path
+ * produce the same warning here (D5). The warning goes to stderr so stdout
+ * stays machine-readable (D4).
+ */
 export async function guidesInstallAction(
   projectPath: string,
-  opts?: { strategy?: GuideMethod; source?: string }
+  opts?: { strategy?: string; source?: string }
 ): Promise<void> {
   const cm = new ConfigManager(projectPath);
   const manager = new GuideManager(projectPath, cm);
 
   const result = await manager.install(opts?.strategy, opts?.source);
+
+  if (result.deprecatedAlias) {
+    console.error(
+      warn(
+        `Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`
+      )
+    );
+  }
 
   console.log(success('Guide installed successfully.'));
   console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
@@ -116,13 +152,13 @@ export function registerGuidesCommand(program: Command): void {
   const installCmd = cmd
     .command('install')
     .description('Install the AI project guide')
-    .option('--strategy <method>', 'Installation strategy: submodule, clone, or manual')
+    .option('--strategy <method>', strategyHelpText())
     .option('--source <url>', 'Source repository URL');
   withProjectOption(installCmd);
   installCmd.action(async (opts: { strategy?: string; source?: string; project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
-        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy as GuideMethod | undefined, source: opts.source });
+        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy, source: opts.source });
       } catch (err) {
         handleError(err);
       }

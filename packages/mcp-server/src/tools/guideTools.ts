@@ -44,7 +44,7 @@ export function registerGuideTools(server: McpServer): void {
       title: 'Guide Status',
       description:
         'Check the installation status of the AI project guide for a project. ' +
-        'Returns whether the guide is installed, what method was used (submodule/clone/manual), ' +
+        'Returns whether the guide is installed, what method was used (submodule/clone/tarball), ' +
         'current version, latest available version, and whether an update is available.',
       inputSchema: {
         projectId: z
@@ -90,7 +90,7 @@ export function registerGuideTools(server: McpServer): void {
       description:
         'Install the AI project guide into a project directory. ' +
         'Supports three strategies: "submodule" (default, requires git repo), ' +
-        '"clone" (standalone git clone), or "manual" (tarball download, no git needed). ' +
+        '"clone" (standalone git clone), or "tarball" (tarball download, no git needed). ' +
         'Error if the guide is already installed — use guide_update instead.',
       inputSchema: {
         projectId: z
@@ -98,9 +98,14 @@ export function registerGuideTools(server: McpServer): void {
           .optional()
           .describe('Project ID or name. Omit to resolve from CWD.'),
         strategy: z
-          .enum(['submodule', 'clone', 'manual'])
+          // 'manual' is a deprecated alias for 'tarball'; accepted on input so
+          // existing callers keep working, normalized by GuideManager.install().
+          .enum(['submodule', 'clone', 'tarball', 'manual'])
           .optional()
-          .describe('Installation strategy. Overrides guide.git_strategy config for this call.'),
+          .describe(
+            "Installation strategy. Overrides guide.git_strategy config for this call. " +
+              "'manual' is a deprecated alias for 'tarball'."
+          ),
         source: z
           .string()
           .optional()
@@ -114,7 +119,18 @@ export function registerGuideTools(server: McpServer): void {
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
         const result = await manager.install(strategy, source);
-        return jsonResult(result);
+        // Deprecation surfaces as a structured notice rather than a log line,
+        // since an MCP client has no stderr channel to read (D4).
+        return jsonResult(
+          result.deprecatedAlias
+            ? {
+                ...result,
+                notices: [
+                  `Strategy '${result.deprecatedAlias}' is deprecated; use '${result.method}' instead.`,
+                ],
+              }
+            : result
+        );
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);

@@ -99,32 +99,32 @@ is the place to look for an existing real-git temp-repo pattern.
   - [x] Success criteria: `pnpm --filter @context-forge/core test` passes in
         full. Commit: `refactor(core): rename guide strategy manual to tarball`.
 
-- [ ] **Task 5: Remove silent catches in `resolveStrategy()` / `resolveSource()`** (effort: 2)
-  - [ ] In `packages/core/src/guides/GuideManager.ts` remove the `catch`
+- [x] **Task 5: Remove silent catches in `resolveStrategy()` / `resolveSource()`** (effort: 2)
+  - [x] In `packages/core/src/guides/GuideManager.ts` remove the `catch`
         blocks at ~lines 177 and 192. Config read errors propagate (D7).
-  - [ ] `resolveStrategy()` returns
+  - [x] `resolveStrategy()` returns
         `normalizeGuideMethod(configValue)` where the config value comes
         from `ConfigManager.get()`; an unset key already yields the
         `ConfigKeys` default with `source: 'default'`, so no fallback branch
         is needed. Delete the `'submodule'` literal at ~line 196.
-  - [ ] `resolveStrategy()` (or its caller `install()`) must surface whether
+  - [x] `resolveStrategy()` (or its caller `install()`) must surface whether
         the config value was the deprecated alias so `cf guides install` can
         print the D5 warning for the config-file case. Choose one return
         shape (e.g. `{ method, deprecatedAlias?: string }`) and use it for
         both the CLI flag and the config path.
-  - [ ] Success criteria: `grep -n "'submodule'" GuideManager.ts` shows only
+  - [x] Success criteria: `grep -n "'submodule'" GuideManager.ts` shows only
         method comparisons (`=== 'submodule'`, `case 'submodule'`), no
         default assignment. No `catch {}` without an explanatory comment
         remains in the file.
 
-- [ ] **Task 6: Tests for config-sourced strategy** (effort: 2)
-  - [ ] In `GuideManager.test.ts`: (a) unset key → `install()` uses the
+- [x] **Task 6: Tests for config-sourced strategy** (effort: 2)
+  - [x] In `GuideManager.test.ts`: (a) unset key → `install()` uses the
         `ConfigKeys` default (read the expected value from `ConfigKeys`, do
         not hard-code); (b) `guide.git_strategy: manual` in config →
         `TarballStrategy` selected and the alias is reported; (c) a
         `ConfigManager.get()` that throws → `install()` rejects with that
         error, no install attempted.
-  - [ ] Success criteria: tests pass. Commit:
+  - [x] Success criteria: tests pass. Commit:
         `fix(core): source guide strategy default from ConfigKeys, drop silent catches`.
 
 - [ ] **Task 7: Alias handling at CLI and MCP input boundaries** (effort: 2)
