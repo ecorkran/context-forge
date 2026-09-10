@@ -69,7 +69,11 @@ Three changes, in dependency order:
 packages/core/src/guides/
   types.ts              GuideMethod = 'submodule' | 'clone' | 'tarball'
                         normalizeGuideMethod(input) — alias handling, ONE place
-                        GuideInfo.checkout: 'initialized' | 'uninitialized' | 'n/a'
+                        SubmoduleCheckoutState = 'in_sync' | 'out_of_sync' | 'not_initialized'
+                          (the existing checkSyncStatus() union, exported — one vocabulary)
+                        CHECKOUT_STATE_LABELS: Record<SubmoduleCheckoutState, string> — display text, once
+                        GuideInfo.checkout: SubmoduleCheckoutState | null (null for clone/tarball)
+                        GUIDE_INIT_TIMEOUT_MS — the auto-init fetch bound (see D10)
   GuideDetector.ts      detect() populates checkout for submodule installs
   GuideManager.ts       ensureCheckout(): Promise<EnsureCheckoutResult>
                         resolveStrategy() — no catch, default from ConfigKeys
@@ -128,6 +132,8 @@ cf build / cf prompt / cf setup-ide / context_build / prompt_*
 
 - **D8 — `cf init --strategy`.** Same option name and help text as `cf guides install --strategy`; the descriptor for the three strategies (name, one-line trade-off) lives in one exported constant in `guides.ts` and both commands render help from it. `init` already swallows "already installed" and prints a warning on other install failures; that behavior is unchanged.
 
+- **D10 — Auto-init fetch is time-bounded; install/update are not.** `gitExec` gains an optional `{ timeoutMs }` option passed straight through to `execFile` (`timeout` + `killSignal: 'SIGTERM'`). `SubmoduleStrategy.init()` is the only caller that sets it, using `GUIDE_INIT_TIMEOUT_MS` from `types.ts` (one constant, no inline number; initial value 60 s, generous for a small repo fetch on a slow link). On expiry `gitExec` rejects with a message that says the fetch timed out after N seconds, which `withNetworkErrorHint` already recognizes (`/timed out/i` is in `NETWORK_ERROR_PATTERNS`), so the remediation text is appended automatically and the read command fails cleanly. `install()` and `update()` keep today's unbounded behavior: they are explicit user actions on a possibly large first fetch, and a timeout there would be a new way to fail without a new benefit. Widening the timeout to them is out of scope.
+
 - **D9 — Managed-directory wording lives in one constant.** `GUIDE_MANAGED_NOTICE` in `packages/core/src/guides/types.ts`, printed by `cf guides info` and returned by `guide_status`. README quotes the same sentence. Text: "This directory is managed by cf and overwritten on `cf guides update`. Put project-specific customizations under `project-documents/user/`."
 
 ## Implementation Details
@@ -157,6 +163,8 @@ interface EnsureCheckoutResult {
 ### Auto-init failure path
 
 `SubmoduleStrategy.init()` runs `git submodule update --init <path>` scoped to the guide path. On a fresh clone this fetches from the guide remote, so it can fail behind a proxy exactly as `cf guides install` can. The error is wrapped with `withNetworkErrorHint` (already done by `gitExec`) and the caller appends `GUIDE_OFFLINE_REMEDIATION`, mirroring the #78 fix in `setup-ide.ts:113`. The command then fails with that message rather than proceeding against an empty tree.
+
+**Hang and timeout class.** Two ways this fetch could block instead of fail: a credential prompt, and a proxy that accepts the connection and never answers. The first is already closed: every `gitExec` call runs with `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` (`gitExec.ts:12`, from #77), so git errors out rather than waiting on stdin or a browser sign-in. The second is not closed today — `gitExec` passes no `timeout` to `execFile`, so a blackholed connection waits for the OS TCP timeout, which can be minutes. That is tolerable for a user-initiated `cf guides install`; it is not tolerable inside `cf build` or an MCP tool call. See D10.
 
 ### Rename sweep (exact locations)
 
@@ -229,6 +237,14 @@ Non-test occurrences of `'manual'` today: `ConfigKeys.ts:34`, `types.ts:4`, `Gui
 4. Managed-directory statement: `cf guides info` in any installed project shows the line; `grep -n "overwritten on" README.md` finds the same sentence.
 
 5. Clean up: `cf project delete g925 g925-tb` (or the equivalent) and remove the `/tmp` directories.
+
+## Review Resolution
+
+Slice review 20260909 (`925-review.slice.guide-install-robustness.md`, verdict CONCERNS, clears the `concerns` threshold). Resolved in this document rather than in the review:
+
+- **F004 (concern, hang/timeout not enumerated):** addressed by the "Hang and timeout class" paragraph under Auto-init failure path and by D10, which bounds the auto-init fetch with a single named constant while leaving user-initiated install/update unbounded.
+- **F005 (note, three spellings for one checkout state):** addressed by exporting `checkSyncStatus()`'s existing union as `SubmoduleCheckoutState`, typing `GuideInfo.checkout` with it, and defining display text once in `CHECKOUT_STATE_LABELS` (Component Structure). The success-criteria string "Checkout: not initialized" is that label.
+- **F006 (note, no NFR restatement):** no action.
 
 ## Risk Assessment
 
