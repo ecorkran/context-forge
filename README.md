@@ -30,6 +30,27 @@ https://github.com/ecorkran/context-visualizer
 
 ## Get Started
 
+Most people should install [Squadron](https://github.com/ecorkran/squadron) and let it
+set up Context Forge for them. Squadron drives multi-agent pipelines through `cf`, so it
+installs and configures both. If you only want the methodology and context engine, the
+standalone path below is fully supported.
+
+### Recommended: install via Squadron
+
+```bash
+uv tool install squadron-ai     # or: pipx install squadron-ai
+sq setup                        # installs cf, /sq:* and /cf:* commands, checks providers
+```
+
+`sq setup` is interactive and idempotent, so it is safe to re-run. Then, inside each
+project you want to work on:
+
+```bash
+cf init                         # creates the project, installs guides, configures your IDE
+```
+
+### Context Forge on its own
+
 ```bash
 # 1. Install globally (one package gets you everything)
 npm install -g @context-forge/context-forge
@@ -180,7 +201,7 @@ This is a pattern, not an accident. The tool stays close to the metal:
 - **No hand-holding.** There's an onboarding flow if you want it (`/cf:onboard`). There's `cf next` if you want guidance. But the tool doesn't gate your progress or force you through ceremonies. You're the architect. Act like it.
 
 ### Naming Things
-Started as a simple Electron utility called Context Builder, it's long since outgrown its name.  We haven't picked a new one yet.  Naming things is hard.  One of the only two hard things, together with cache invalidation and off-by-one errors.  
+Started as a simple Electron utility called Context Builder, and long since outgrew both the name and the Electron app. It stays Context Forge because the npm org carries four packages and seventy-odd releases, and renaming that costs every existing user more than a better name is worth. Naming things is hard. One of the only two hard things, together with cache invalidation and off-by-one errors.
 
 
 ## Access Points
@@ -216,6 +237,7 @@ Three interfaces — use whichever fits your workflow:
 | `cf unset <field>` | Clear an optional project field (distinct from setting it empty) |
 | `cf get` | Show all project fields |
 | `cf check` | Run consistency checks (`--fix`, `--slice`, `--set-review-none <index>` to exempt a slice from review) |
+| `cf validate` | Validate project artifacts against their machine-readable schemas |
 | **Listing** | **Browse project artifacts** |
 | `cf list projects` | All registered projects |
 | `cf list initiatives` | Architecture initiatives with slice counts (alias: `cf list arch`) |
@@ -283,9 +305,11 @@ packages/
 
 All interfaces consume `@context-forge/core` directly. The MCP server and CLI produce identical results for the same operations — they're different access patterns to the same engine.
 
-1829 tests across all packages. TypeScript, strict mode, no `any`.
+Comprehensive test coverage across all packages. TypeScript, strict mode, no `any`.
 
 ## Related
+
+**[Squadron](https://github.com/ecorkran/squadron)** — Multi-agent pipeline orchestration built on Context Forge. Runs reviews, analyses, and multi-step work across providers, driving `cf` for project state and context. `sq setup` installs both, which is the recommended way in.
 
 **[context-visualizer](https://github.com/ecorkran/context-visualizer)** — React app that visualizes project structure through the MCP server. See your slice plans, task completion, and project hierarchy rendered visually.
 
