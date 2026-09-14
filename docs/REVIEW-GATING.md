@@ -3,7 +3,7 @@ docType: guide
 scope: review-gating
 audience: [project-managers, ai-agent-developers]
 dateCreated: 20260709
-dateUpdated: 20260709
+dateUpdated: 20260913
 ---
 
 # Review Gating
@@ -93,9 +93,9 @@ Set `workflow.review_gate_effective_date` to a `YYYYMMDD` cutoff. Any slice or a
 
 **Purpose:** turn on gating for a project that already has history, without retroactively demanding reviews for work completed before the gate existed.
 
-### Docs-only slices (`codeReview: none`)
+### Docs-only slices (`review: none`)
 
-A slice-design frontmatter field. When a slice design declares `codeReview: none`, the `code` (pre-advance) gate is cleared unconditionally for that slice — it produces no code, so it cannot produce a code review. Default (field absent) means the code review is still required.
+A slice-design frontmatter field. When a slice design declares `review: none`, every slice-scoped gate is cleared unconditionally for that slice — a docs, analysis, or minimal-doc slice produces no code and no design worth reviewing. Default (field absent) means reviews are still required.
 
 Write it by hand, or run:
 
@@ -103,9 +103,9 @@ Write it by hand, or run:
 cf check --set-review-none <index>
 ```
 
-This writes `codeReview: none` to the slice's design frontmatter for you.
+This writes `review: none` to the slice's design frontmatter for you. (The field was called `codeReview` when it was introduced in slice 911; it was renamed to `review` in slice 914.)
 
-**Scoped to the pre-advance boundary only** — a docs-only slice still owes arch/slice/tasks reviews normally; only the code-review gate is skipped.
+**Scoped to the three slice-level boundaries** — `slice` (pre-tasks), `tasks` (pre-implementation), and `code` (pre-advance) are all skipped. The `arch` (pre-slice-plan) boundary is unaffected: it gates the architecture document, which is a different artifact that a slice's frontmatter has no authority over.
 
 ## Worked Example
 
@@ -122,10 +122,10 @@ cf next
 cf next
 # → gate clears, next action recommended normally
 
-# 4. A docs-only slice with no code to review
+# 4. A docs-only slice with nothing to review
 cf check --set-review-none 243
 cf next
-# → the code (pre-advance) gate no longer applies to slice 243
+# → the slice, tasks, and code gates no longer apply to slice 243
 
 # 5. Grandfather pre-existing work
 cf config set workflow.review_gate_effective_date 20260101
