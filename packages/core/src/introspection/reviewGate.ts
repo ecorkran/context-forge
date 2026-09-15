@@ -238,7 +238,7 @@ export async function evaluateReviewGate(
   return {
     status: 'review-failed',
     reviewType,
-    rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index}.`,
+    rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index} (${docs.review}).`,
     artifactPath: docs.review,
   };
 }

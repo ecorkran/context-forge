@@ -1,6 +1,7 @@
 import { readdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DocumentDetectionResult } from '../types.js';
+import { parseFrontmatter } from './frontmatterParser.js';
 
 const USER_DOCS = 'project-documents/user';
 
@@ -41,6 +42,31 @@ function matchFiles(files: string[], idx: string, suffix: string, dir: string): 
     .filter((f) => pattern.test(f) && f.endsWith('.md'))
     .sort()
     .map((f) => join(dir, f));
+}
+
+/**
+ * Filter candidate paths to exclude those whose own frontmatter declares a
+ * docType OTHER than the one expected. Used to keep a same-prefix sibling
+ * (e.g. a `.response.md` file) from shadowing the real document it happens
+ * to sort after (#90). A candidate with no docType field at all is kept
+ * (older/hand-authored documents predate the convention of setting it, and
+ * an absent field is not proof of the wrong type) — only an explicit,
+ * differing docType is grounds for exclusion.
+ */
+async function filterByDocType(
+  projectPath: string,
+  relativePaths: string[],
+  docType: string,
+): Promise<string[]> {
+  const checks = await Promise.all(
+    relativePaths.map(async (relativePath) => {
+      const fm = await parseFrontmatter(join(projectPath, relativePath));
+      const declared = fm.data.docType;
+      const excluded = declared !== undefined && declared !== docType;
+      return excluded ? null : relativePath;
+    }),
+  );
+  return checks.filter((p): p is string => p !== null);
 }
 
 /**
@@ -90,7 +116,13 @@ export async function detectDocuments(
   // undefined, not passed through into a malformed match prefix.) When a type
   // is supplied, reviews accrue over re-runs, so the lexicographically last
   // match (most recent) wins — unlike sibling detectors above, which take the
-  // first match ([0]) because those documents are singular.
+  // first match ([0]) because those documents are singular. A prefix match
+  // alone is not sufficient: a non-review file (e.g. a *.response.md sibling)
+  // can share the same index/type prefix and sort after the real review,
+  // silently shadowing it (#90). Filter to files whose own frontmatter
+  // declares docType: review before picking the last one; a candidate that
+  // fails that check is excluded rather than falling back to picking it
+  // anyway, so a shadowing sibling can never be selected.
   let review: string | null = null;
   if (reviewType !== undefined && reviewType !== '') {
     const reviewMatches = matchFiles(
@@ -99,7 +131,8 @@ export async function detectDocuments(
       `-review.${reviewType}.`,
       join(USER_DOCS, 'reviews'),
     );
-    review = reviewMatches.at(-1) ?? null;
+    const typed = await filterByDocType(projectPath, reviewMatches, 'review');
+    review = typed.at(-1) ?? null;
   }
 
   return { sliceDesign, taskFile, architecture, slicePlan, review };
