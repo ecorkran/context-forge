@@ -46,10 +46,19 @@ export function resolveFileByIndex(
     );
   }
 
-  // Match files like {index}-{prefix}*.md
+  // Match files like {index}-{prefix}*.md. Tolerates leading zeros on the
+  // index in the filename (e.g. an index of '3' matches both
+  // '3-slices.foo.md' and '003-slices.foo.md'), matching documentDetector.ts's
+  // matchFiles() and resolveSlicePlanPathByIndex()'s convention (#91) — an
+  // exact-prefix match previously missed zero-padded filenames, leading a
+  // caller to derive and store a non-padded stem that then failed to
+  // resolve back to the real file.
+  const prefixPatterns = mapping.prefixes.map(
+    (prefix) => new RegExp(`^0*${index}-${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+  );
   const matches = files.filter((f) => {
     if (!f.endsWith('.md')) return false;
-    return mapping.prefixes.some((prefix) => f.startsWith(`${index}-${prefix}`));
+    return prefixPatterns.some((pattern) => pattern.test(f));
   });
 
   if (matches.length === 0) {
