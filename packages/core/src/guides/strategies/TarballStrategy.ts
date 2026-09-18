@@ -21,6 +21,27 @@ export function parseGitHubOwnerRepo(source: string): { owner: string; repo: str
   return { owner: match[1], repo: match[2] };
 }
 
+/**
+ * Top-level entries dropped from the extracted tarball. A tarball install
+ * promises plain files with no git wiring, and the guide repo has at times
+ * carried its own .gitmodules and a self-referential project-documents/
+ * gitlink that would otherwise land inside the consumer's guide directory.
+ */
+const TARBALL_EXCLUDED_ENTRIES = ['.gitmodules', '.gitignore', 'project-documents'] as const;
+
+/**
+ * Whether a raw tarball entry path should be skipped. node-tar calls filter
+ * before `strip` is applied, so the path still begins with the archive root
+ * ({owner}-{repo}-{hash}/); directory entries end with a slash.
+ */
+export function isGitWiringEntry(entryPath: string): boolean {
+  const parts = entryPath.replace(/^\.\//, '').split('/');
+  const relative = parts.slice(1).join('/');
+  return TARBALL_EXCLUDED_ENTRIES.some(
+    (name) => relative === name || relative === `${name}/` || relative.startsWith(`${name}/`)
+  );
+}
+
 export class TarballStrategy implements InstallStrategy {
   async detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
@@ -146,7 +167,7 @@ export class TarballStrategy implements InstallStrategy {
     await pipeline(
       nodeStream,
       createGunzip(),
-      extract({ cwd: targetDir, strip: 1 })
+      extract({ cwd: targetDir, strip: 1, filter: (entryPath) => !isGitWiringEntry(entryPath) })
     );
   }
 }

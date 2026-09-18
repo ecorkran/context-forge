@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TarballStrategy, parseGitHubOwnerRepo } from '../../../src/guides/strategies/TarballStrategy.js';
+import { TarballStrategy, parseGitHubOwnerRepo, isGitWiringEntry } from '../../../src/guides/strategies/TarballStrategy.js';
 import { VERSION_MARKER_FILE } from '../../../src/guides/types.js';
 
 vi.mock('fs', () => ({
@@ -36,6 +36,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { extract } from 'tar';
 import { gitExec } from '../../../src/guides/gitExec.js';
 
 const mockExistsSync = vi.mocked(existsSync);
@@ -99,6 +100,9 @@ describe('TarballStrategy', () => {
         expect.stringContaining(VERSION_MARKER_FILE),
         'v0.13.2',
         'utf-8'
+      );
+      expect(vi.mocked(extract)).toHaveBeenCalledWith(
+        expect.objectContaining({ strip: 1, filter: expect.any(Function) })
       );
       expect(result.success).toBe(true);
       expect(result.version).toBe('v0.13.2');
@@ -165,6 +169,33 @@ describe('TarballStrategy', () => {
       expect(result.previousVersion).toBe('v0.12.0');
       expect(result.newVersion).toBe('v0.13.2');
       expect(mockFetch).toHaveBeenCalled();
+    });
+  });
+
+  describe('isGitWiringEntry()', () => {
+    // Real entry shapes from the v0.17.5 GitHub tarball: archive root prefix,
+    // trailing slash on directories.
+    const root = 'ecorkran-ai-project-guide-3f14d43';
+
+    it('drops the guide repo .gitmodules and .gitignore', () => {
+      expect(isGitWiringEntry(`${root}/.gitmodules`)).toBe(true);
+      expect(isGitWiringEntry(`${root}/.gitignore`)).toBe(true);
+    });
+
+    it('drops the self-referential project-documents gitlink directory', () => {
+      expect(isGitWiringEntry(`${root}/project-documents/`)).toBe(true);
+      expect(isGitWiringEntry(`${root}/project-documents/ai-project-guide/`)).toBe(true);
+    });
+
+    it('keeps guide content and intentional dotfiles', () => {
+      expect(isGitWiringEntry(`${root}/project-guides/guide.ai-project.process.md`)).toBe(false);
+      expect(isGitWiringEntry(`${root}/.claude/rules/typescript.md`)).toBe(false);
+      expect(isGitWiringEntry(`${root}/`)).toBe(false);
+    });
+
+    it('does not match prefixes of longer names', () => {
+      expect(isGitWiringEntry(`${root}/.gitignore-templates/node`)).toBe(false);
+      expect(isGitWiringEntry(`${root}/project-documents-archive/x.md`)).toBe(false);
     });
   });
 
