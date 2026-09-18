@@ -187,7 +187,7 @@ export class GuideManager {
     }
 
     const strategy = this.getStrategy(info.method);
-    const result = await strategy.update(this.projectPath, targetDir);
+    const result = await strategy.update(this.projectPath, targetDir, source);
 
     // Sync the worktree's submodule checkout if operating from a non-default worktree
     if (this.operationPath && this.operationPath !== this.projectPath && info.method === 'submodule') {

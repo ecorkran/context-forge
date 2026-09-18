@@ -173,7 +173,7 @@ export interface DetectionResult {
 /** Strategy interface for guide installation methods */
 export interface InstallStrategy {
   install(projectPath: string, source: string, targetDir: string): Promise<InstallResult>;
-  update(projectPath: string, targetDir: string): Promise<UpdateResult>;
+  update(projectPath: string, targetDir: string, source: string): Promise<UpdateResult>;
   detect(projectPath: string, targetDir: string): Promise<DetectionResult | null>;
 }
 

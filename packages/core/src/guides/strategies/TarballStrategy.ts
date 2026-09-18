@@ -68,7 +68,7 @@ export class TarballStrategy implements InstallStrategy {
     return { success: true, version: latestTag, method: 'tarball', path: targetDir };
   }
 
-  async update(_projectPath: string, targetDir: string): Promise<UpdateResult> {
+  async update(_projectPath: string, targetDir: string, source: string): Promise<UpdateResult> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
     let previousVersion: string | null = null;
     try {
@@ -77,8 +77,6 @@ export class TarballStrategy implements InstallStrategy {
       // No previous version
     }
 
-    // Determine source from the default (marker doesn't store it)
-    const source = DEFAULT_SOURCE_GIT;
     const latestTag = await this.fetchLatestTag(source);
     if (!latestTag) {
       throw new Error('Could not determine latest version from remote.');

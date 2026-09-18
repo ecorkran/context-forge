@@ -413,6 +413,31 @@ describe('GuideManager', () => {
       expect(result.success).toBe(true);
     });
 
+    it('passes the configured guide.source through to TarballStrategy.update()', async () => {
+      const customSource = 'https://github.com/acme/guide-mirror.git';
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.source') return { value: customSource, source: 'user' };
+        return { value: '', source: 'default' };
+      });
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball', source: customSource });
+      const mockTarballUpdate = vi.fn().mockResolvedValue({
+        success: true, previousVersion: 'v0.12.0', newVersion: 'v0.13.2', method: 'tarball',
+      });
+      (TarballStrategy as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+        install: vi.fn(),
+        update: mockTarballUpdate,
+      }));
+
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+      await manager.update();
+
+      expect(mockTarballUpdate).toHaveBeenCalledWith(
+        projectPath,
+        `${projectPath}/${GUIDE_RELATIVE_PATH}`,
+        customSource
+      );
+    });
+
     it("info.method === 'tarball', guard returns block -> TarballStrategy.update() NOT called, BranchGuardBlockedError thrown", async () => {
       const tarballInstalledInfo: GuideInfo = { ...installedInfo, method: 'tarball' };
       mockDetect.mockResolvedValue(tarballInstalledInfo);

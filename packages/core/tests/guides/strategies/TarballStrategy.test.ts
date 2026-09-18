@@ -145,7 +145,7 @@ describe('TarballStrategy', () => {
         stderr: '',
       });
 
-      const result = await strategy.update(projectPath, targetDir);
+      const result = await strategy.update(projectPath, targetDir, source);
 
       expect(result.previousVersion).toBe('v0.13.2');
       expect(result.newVersion).toBe('v0.13.2');
@@ -164,11 +164,32 @@ describe('TarballStrategy', () => {
         status: 200,
       });
 
-      const result = await strategy.update(projectPath, targetDir);
+      const result = await strategy.update(projectPath, targetDir, source);
 
       expect(result.previousVersion).toBe('v0.12.0');
       expect(result.newVersion).toBe('v0.13.2');
       expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('resolves the latest tag from the passed source, not the default', async () => {
+      const customSource = 'https://github.com/acme/guide-mirror.git';
+      mockReadFileSync.mockReturnValue('v0.12.0\n');
+      mockGitExec.mockResolvedValue({
+        stdout: 'def456\trefs/tags/v0.13.2\n',
+        stderr: '',
+      });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+
+      await strategy.update(projectPath, targetDir, customSource);
+
+      expect(mockGitExec).toHaveBeenCalledWith(
+        ['ls-remote', '--tags', '--sort=-v:refname', customSource],
+        expect.any(String)
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.github.com/repos/acme/guide-mirror/tarball/v0.13.2',
+        expect.anything()
+      );
     });
   });
 
