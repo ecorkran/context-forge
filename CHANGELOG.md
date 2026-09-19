@@ -13,6 +13,20 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 20260919
+
+### Changed
+- **Node.js 20.18.1 or newer is required** (previously 18). Node 18 reached end of life in April 2025 and Node 20 in April 2026; the tarball download now uses undici 7, which needs 20.18.1. Nothing else changes on a supported Node.
+- README documents what the `tarball` strategy actually needs: one person reaches github.com and api.github.com once, the guide lands as plain files, and `cf guides update` shows up as an ordinary reviewable diff.
+
+### Fixed
+- **Tarball guide installs work behind a corporate proxy.** `cf guides install` and `cf guides update` with the `tarball` strategy now honor `HTTPS_PROXY`, `HTTP_PROXY`, and `NO_PROXY` for the archive download. Previously only the tag lookup did, so the install failed halfway with a bare connection error. Failures now name the URL, which call failed, and which proxy variable applied; an exhausted GitHub API rate limit is reported as such instead of a generic status (#86).
+- `cf guides update` with the `tarball` strategy honors a configured `guide.source`. It previously always updated from the public default, silently replacing a fork's content (#85).
+- Tarball installs drop the guide repository's own git wiring (`.gitmodules`, `.gitignore`, and a self-referential `project-documents/` entry present in guide tags before v0.17.8) at extract time, so the guide lands as plain files in every case.
+- The review gate no longer picks a same-prefix sibling (for example a `*.response.md` file) over the actual review artifact, which produced a spurious UNKNOWN verdict and a misleading "review failed" reason. The failure rationale now names the file it read (#90).
+- `cf set plan|arch|slice|tasks <index>` matches zero-padded filenames (`003-slices.foo.md` for index `3`), so `cf next` and `cf check --slice` no longer report an existing slice plan as missing (#91).
+- The `git.integration_branch` config description no longer implies the integration branch prefixes slice branch names; only the fork and merge target change.
+
 ## [0.14.0] - 20260910
 
 ### Added

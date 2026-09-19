@@ -7,6 +7,18 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-19
+
+### Issue sweep and 0.15.0 release
+
+- **#90, #91, #85, #86 fixed directly on main** — single-file bug fixes, no slice. #90 and #91 were the same defect class: a filename-prefix match with no check of the semantic field behind it (a review candidate's `docType`; zero-padding in `resolveFileByIndex`, whose sibling functions had been fixed in `59bab33` while this one was missed).
+- **#86 proxy.** The download half moved from Node's built-in `fetch` to undici's `EnvHttpProxyAgent`, closed in `finally` because an open keep-alive socket held the CLI process for the agent's idle timeout. undici 6's agent emits an experimental warning on every use; undici 7 does not but requires Node 20.18.1, so engines moved from >=18 to >=20.18.1 — the reason this is a minor bump. Both halves were verified live and separately: `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.proxy GIT_CONFIG_VALUE_0=` disables git's proxy so only the fetch goes through a bogus `HTTPS_PROXY`.
+- **Guide upstream moved under us.** ai-project-guide v0.17.8 removed its self-referential submodule; v0.17.10 added `.gitattributes export-ignore`, making it the first tarball free of dev-only paths. The cf extract filter (`1df7421`) covers older tags either way. Guide issues #22 and #23 filed as counterparts to cf #94 and #95 (managed begin/end markers with merge; rules exclude list) — marker strings proposed, not yet agreed, nothing implemented on either side.
+- **Filed** #93 (`--version <tag>` pinning and local tarball source), #94, #95. **Closed** #85, fixed in `d16d0ff` without the commit referencing it.
+- **Released 0.15.0.** All four packages in lockstep. Tests at release: core 1184, cli 558, mcp 202.
+
+Tags: @context-forge/core@0.15.0, @context-forge/cli@0.15.0, @context-forge/mcp@0.15.0, @context-forge/context-forge@0.15.0
+
 ## 2026-09-10
 
 ### Slice 925 code review and 0.14.0 release
