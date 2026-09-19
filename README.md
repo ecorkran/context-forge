@@ -165,7 +165,16 @@ sitting at a commit other than the one your project pins is reported and left
 alone, since that is usually deliberate.
 
 Pick `tarball` when teammates should not have to think about git submodules at
-all. Pick `clone` when you intend to edit the guide in place. The strategy name
+all. The guide lands as plain files in your repo — the archive's own git files
+(`.gitmodules`, `.gitignore`) are dropped at extract time — so once one person
+runs the install, everyone else gets the guide from your repo like any other
+file. That one person needs to reach github.com (to resolve the latest tag) and
+api.github.com (to download the archive); the source must be a github.com
+repository, and a `guide.source` config value is honored on both install and
+update. `cf guides update` replaces the directory, so a guide bump shows up as
+an ordinary reviewable diff.
+
+Pick `clone` when you intend to edit the guide in place. The strategy name
 `manual` is a deprecated alias for `tarball`; it still works and prints a
 deprecation notice.
 
