@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TarballStrategy, parseGitHubOwnerRepo, isGitWiringEntry } from '../../../src/guides/strategies/TarballStrategy.js';
+import {
+  TarballStrategy,
+  parseGitHubOwnerRepo,
+  isGitWiringEntry,
+  describeRateLimit,
+  activeProxyEnvVars,
+} from '../../../src/guides/strategies/TarballStrategy.js';
 import { VERSION_MARKER_FILE } from '../../../src/guides/types.js';
 
 vi.mock('fs', () => ({
@@ -31,12 +37,19 @@ vi.mock('stream/promises', () => ({
   pipeline: vi.fn(async () => {}),
 }));
 
-// Mock global fetch
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+// The download goes through undici's fetch with an EnvHttpProxyAgent dispatcher
+const { mockFetch, mockDispatcherClose } = vi.hoisted(() => ({
+  mockFetch: vi.fn(),
+  mockDispatcherClose: vi.fn(async () => {}),
+}));
+vi.mock('undici', () => ({
+  fetch: mockFetch,
+  EnvHttpProxyAgent: vi.fn(() => ({ close: mockDispatcherClose })),
+}));
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { extract } from 'tar';
+import { EnvHttpProxyAgent } from 'undici';
 import { gitExec } from '../../../src/guides/gitExec.js';
 
 const mockExistsSync = vi.mocked(existsSync);
@@ -134,6 +147,103 @@ describe('TarballStrategy', () => {
 
       await expect(strategy.install(projectPath, source, targetDir))
         .rejects.toThrow(/network\/DNS problem/i);
+    });
+
+    it('names the download call and URL when the fetch fails', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+
+      await expect(strategy.install(projectPath, source, targetDir))
+        .rejects.toThrow('Downloading guide tarball from https://api.github.com/repos/ecorkran/ai-project-guide/tarball/v0.13.2 failed');
+    });
+
+    it('routes the download through EnvHttpProxyAgent and closes it afterwards', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+
+      await strategy.install(projectPath, source, targetDir);
+
+      expect(EnvHttpProxyAgent).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ dispatcher: expect.objectContaining({ close: mockDispatcherClose }) })
+      );
+      expect(mockDispatcherClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the proxy agent even when the download fails', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+
+      await expect(strategy.install(projectPath, source, targetDir)).rejects.toThrow();
+      expect(mockDispatcherClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('says which proxy variable applied when one is set', async () => {
+      vi.stubEnv('HTTPS_PROXY', 'http://proxy.corp.example:3128');
+      try {
+        mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+        mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+
+        await expect(strategy.install(projectPath, source, targetDir))
+          .rejects.toThrow('via proxy (HTTPS_PROXY)');
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('reports an exhausted GitHub rate limit specifically', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        headers: new Headers({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1790000000' }),
+      });
+
+      await expect(strategy.install(projectPath, source, targetDir))
+        .rejects.toThrow(/rate limit exceeded.*60 per hour.*Resets at/s);
+    });
+
+    it('reports other HTTP failures with status and URL', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        headers: new Headers(),
+      });
+
+      await expect(strategy.install(projectPath, source, targetDir))
+        .rejects.toThrow(/Downloading guide tarball from .*tarball\/v0\.13\.2 failed: HTTP 404 Not Found/);
+    });
+  });
+
+  describe('describeRateLimit()', () => {
+    it('returns null for a 403 that is not a rate limit', () => {
+      expect(describeRateLimit(403, new Headers({ 'x-ratelimit-remaining': '42' }))).toBeNull();
+    });
+
+    it('recognizes 429 with remaining 0', () => {
+      expect(describeRateLimit(429, new Headers({ 'x-ratelimit-remaining': '0' })))
+        .toMatch(/rate limit exceeded/);
+    });
+
+    it('omits the reset time when the header is missing or malformed', () => {
+      const message = describeRateLimit(403, new Headers({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': 'soon' }));
+      expect(message).toMatch(/rate limit exceeded/);
+      expect(message).not.toMatch(/Resets at/);
+    });
+  });
+
+  describe('activeProxyEnvVars()', () => {
+    it('returns only the variables that are set, in precedence order', () => {
+      expect(activeProxyEnvVars({ http_proxy: 'http://p:1', HTTPS_PROXY: 'http://p:2', NO_PROXY: 'x' }))
+        .toEqual(['HTTPS_PROXY', 'http_proxy']);
+    });
+
+    it('returns an empty list when nothing is set', () => {
+      expect(activeProxyEnvVars({})).toEqual([]);
     });
   });
 

@@ -118,7 +118,7 @@ cf setup-ide codex|openai|agents # AGENTS.md, .agents/skills/<name>/SKILL.md
 
 </details>
 
-Requirements: Node.js 18+.
+Requirements: Node.js 20.18+.
 
 ## How It Works
 Context Forge is built around a structured development methodology called [ai-project-guide](https://github.com/ecorkran/ai-project-guide). 
@@ -169,7 +169,8 @@ all. The guide lands as plain files in your repo — the archive's own git files
 (`.gitmodules`, `.gitignore`) are dropped at extract time — so once one person
 runs the install, everyone else gets the guide from your repo like any other
 file. That one person needs to reach github.com (to resolve the latest tag) and
-api.github.com (to download the archive); the source must be a github.com
+api.github.com (to download the archive); the standard `HTTPS_PROXY` /
+`NO_PROXY` variables are honored for both. The source must be a github.com
 repository, and a `guide.source` config value is honored on both install and
 update. `cf guides update` replaces the directory, so a guide bump shows up as
 an ordinary reviewable diff.

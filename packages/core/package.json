@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/ecorkran/context-forge/tree/main/packages/core#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.18.1"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
@@ -57,6 +57,7 @@
   "dependencies": {
     "env-paths": "^4.0.0",
     "smol-toml": "^1.6.0",
-    "tar": "^7.5.10"
+    "tar": "^7.5.10",
+    "undici": "^7.29.1"
   }
 }
