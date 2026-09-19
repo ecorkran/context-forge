@@ -120,7 +120,7 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: '',
     description:
-      'Optional long-lived integration branch that work branches fork from and merge into instead of main (e.g. "dev/erik" yields "dev/erik/910-slice.foo", forked from and merged into "dev/erik"). Empty means no integration branch — work branches fork from and merge into main directly. Relative and contained: must not be absolute or escape via "..".',
+      'Optional long-lived integration branch that work branches fork from and merge into instead of main (e.g. "dev/erik": a slice branch is still named "910-slice.foo", but is forked from and merged into "dev/erik"). Empty means no integration branch — work branches fork from and merge into main directly. Relative and contained: must not be absolute or escape via "..".',
     scope: ConfigScope.Personal,
     validate: (value) => {
       if (typeof value !== 'string') return 'must be a string';
