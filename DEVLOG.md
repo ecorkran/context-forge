@@ -16,6 +16,9 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 - **`--strategy` is persisted** to the shared project config when it differs from what config resolves to. Found by running the migration: after `install --strategy tarball` the config still said `submodule`, so the next bare install went back. Written only after the install succeeds, and always as the canonical name, never the `manual` alias. The config file itself is left uncommitted on purpose: a pathspec commit of `.context-forge.toml` would sweep in whatever else the user had edited there.
 - **Uninstall prunes empty parents under `.git/modules/`**, stopping at the first directory with contents so another submodule's data is never touched.
 - Verified end to end with the built CLI in scratch repos: bare `cf init` → tarball, committed; `init --strategy submodule` → `uninstall` → `install --strategy tarball` → bare reinstall honors the saved strategy; `.git/modules` gone after uninstall. Tests: core 1200, cli 558, mcp 202.
+- **Released 0.16.0.** All four packages in lockstep. Minor rather than patch: a changed default is a behavior change for anyone running a bare `cf init`.
+
+Tags: @context-forge/core@0.16.0, @context-forge/cli@0.16.0, @context-forge/mcp@0.16.0, @context-forge/context-forge@0.16.0
 
 ## 2026-09-19
 

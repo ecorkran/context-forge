@@ -13,7 +13,7 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.0] - 20260921
 
 ### Changed
 - **`tarball` is now the default guide install strategy** for `cf init` and `cf guides install` (previously `submodule`). The guide lands as plain files with no git wiring. Pass `--strategy submodule` to get the old behavior. Existing installs are unaffected: cf reads the installed strategy from disk, and a project whose config already names a strategy keeps it.
