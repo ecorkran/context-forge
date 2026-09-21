@@ -54,6 +54,7 @@ vi.mock('@context-forge/core/node', async () => {
     GUIDE_METHODS: actual.GUIDE_METHODS,
     GUIDE_METHOD_DEPRECATED_ALIASES: actual.GUIDE_METHOD_DEPRECATED_ALIASES,
     GUIDE_STRATEGIES: actual.GUIDE_STRATEGIES,
+    describeGuideStrategy: actual.describeGuideStrategy,
     guideMethodDeprecationMessage: actual.guideMethodDeprecationMessage,
   };
 });

@@ -16,6 +16,8 @@ export {
   GUIDE_METHODS,
   GUIDE_METHOD_DEPRECATED_ALIASES,
   GUIDE_STRATEGIES,
+  DEFAULT_GUIDE_METHOD,
+  describeGuideStrategy,
   guideMethodDeprecationMessage,
 } from './guides/types.js';
 

@@ -6,7 +6,7 @@ import {
   describeRateLimit,
   activeProxyEnvVars,
 } from '../../../src/guides/strategies/TarballStrategy.js';
-import { VERSION_MARKER_FILE } from '../../../src/guides/types.js';
+import { VERSION_MARKER_FILE, GUIDE_RELATIVE_PATH } from '../../../src/guides/types.js';
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
@@ -18,6 +18,7 @@ vi.mock('fs', () => ({
 
 vi.mock('../../../src/guides/gitExec.js', () => ({
   gitExec: vi.fn(),
+  commitPathIfChanged: vi.fn(async () => true),
   withNetworkErrorHint: (message: string) =>
     /enotfound|econnrefused|etimedout|could not resolve host/i.test(message)
       ? `${message}\nnetwork/DNS problem`
@@ -50,12 +51,13 @@ vi.mock('undici', () => ({
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { extract } from 'tar';
 import { EnvHttpProxyAgent } from 'undici';
-import { gitExec } from '../../../src/guides/gitExec.js';
+import { gitExec, commitPathIfChanged } from '../../../src/guides/gitExec.js';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockGitExec = vi.mocked(gitExec);
+const mockCommitPath = vi.mocked(commitPathIfChanged);
 
 describe('TarballStrategy', () => {
   let strategy: TarballStrategy;
@@ -120,6 +122,35 @@ describe('TarballStrategy', () => {
       expect(result.success).toBe(true);
       expect(result.version).toBe('v0.13.2');
       expect(result.method).toBe('tarball');
+    });
+
+    it('commits only the guide path, after the marker is written, and reports it', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+
+      const result = await strategy.install(projectPath, source, targetDir);
+
+      expect(mockCommitPath).toHaveBeenCalledWith(
+        projectPath,
+        GUIDE_RELATIVE_PATH,
+        'docs: install ai-project-guide v0.13.2'
+      );
+      // The marker is part of the install; committing before it lands would
+      // leave the version file as a stray untracked change.
+      expect(mockWriteFileSync.mock.invocationCallOrder[0]).toBeLessThan(
+        mockCommitPath.mock.invocationCallOrder[0]
+      );
+      expect(result.committed).toBe(true);
+    });
+
+    it('reports committed: false when there was nothing to commit', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+      mockCommitPath.mockResolvedValueOnce(false);
+
+      const result = await strategy.install(projectPath, source, targetDir);
+
+      expect(result.committed).toBe(false);
     });
 
     it('propagates network failure from ls-remote with descriptive error', async () => {
@@ -260,6 +291,7 @@ describe('TarballStrategy', () => {
       expect(result.previousVersion).toBe('v0.13.2');
       expect(result.newVersion).toBe('v0.13.2');
       expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockCommitPath).not.toHaveBeenCalled();
     });
 
     it('downloads and replaces when newer version available', async () => {
@@ -279,6 +311,12 @@ describe('TarballStrategy', () => {
       expect(result.previousVersion).toBe('v0.12.0');
       expect(result.newVersion).toBe('v0.13.2');
       expect(mockFetch).toHaveBeenCalled();
+      expect(mockCommitPath).toHaveBeenCalledWith(
+        projectPath,
+        GUIDE_RELATIVE_PATH,
+        'docs: update ai-project-guide v0.13.2'
+      );
+      expect(result.committed).toBe(true);
     });
 
     it('resolves the latest tag from the passed source, not the default', async () => {
