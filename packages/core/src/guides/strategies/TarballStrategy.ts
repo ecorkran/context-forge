@@ -7,8 +7,8 @@ import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
 import { fetch as undiciFetch, EnvHttpProxyAgent } from 'undici';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
-import { VERSION_MARKER_FILE, DEFAULT_SOURCE_GIT } from '../types.js';
-import { gitExec, withNetworkErrorHint } from '../gitExec.js';
+import { VERSION_MARKER_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
+import { gitExec, withNetworkErrorHint, commitPathIfChanged } from '../gitExec.js';
 
 /**
  * Proxy variables honored by the tarball download. Git reads these on its own
@@ -92,7 +92,7 @@ export class TarballStrategy implements InstallStrategy {
     }
   }
 
-  async install(_projectPath: string, source: string, targetDir: string): Promise<InstallResult> {
+  async install(projectPath: string, source: string, targetDir: string): Promise<InstallResult> {
     const resolvedSource = source || DEFAULT_SOURCE_GIT;
     const latestTag = await this.fetchLatestTag(resolvedSource);
     if (!latestTag) {
@@ -102,10 +102,18 @@ export class TarballStrategy implements InstallStrategy {
     await this.downloadAndExtract(resolvedSource, latestTag, targetDir);
     writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
 
-    return { success: true, version: latestTag, method: 'tarball', path: targetDir };
+    // Same commit the submodule strategy makes, so a tarball install does not
+    // leave the guide untracked for the user to notice later.
+    const committed = await commitPathIfChanged(
+      projectPath,
+      GUIDE_RELATIVE_PATH,
+      `docs: install ai-project-guide ${latestTag}`
+    );
+
+    return { success: true, version: latestTag, method: 'tarball', path: targetDir, committed };
   }
 
-  async update(_projectPath: string, targetDir: string, source: string): Promise<UpdateResult> {
+  async update(projectPath: string, targetDir: string, source: string): Promise<UpdateResult> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
     let previousVersion: string | null = null;
     try {
@@ -128,7 +136,13 @@ export class TarballStrategy implements InstallStrategy {
     await this.downloadAndExtract(source, latestTag, targetDir);
     writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
 
-    return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
+    const committed = await commitPathIfChanged(
+      projectPath,
+      GUIDE_RELATIVE_PATH,
+      `docs: update ai-project-guide ${latestTag}`
+    );
+
+    return { success: true, previousVersion, newVersion: latestTag, method: 'tarball', committed };
   }
 
   /**

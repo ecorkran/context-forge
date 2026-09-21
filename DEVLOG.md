@@ -7,6 +7,16 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-21
+
+### Tarball becomes the default guide strategy
+
+- **Default flipped `submodule` → `tarball`**, reversing the PM decision recorded on #81 (20260909). What changed: squadron's README was the only thing steering new users off submodule, and the people hitting the default are corporate teams who end up with untracked-file and nested-repo confusion. `DEFAULT_GUIDE_METHOD` is derived from the `guide.git_strategy` config default, and `describeGuideStrategy` marks it in the CLI help and the MCP tool description, so the three cannot disagree. Existing installs are unaffected — detection reads the strategy from disk.
+- **Tarball install/update now commit**, matching what submodule already did. `commitPathIfChanged` gates on `git status --porcelain -- <path>` rather than an exit code (`gitExec` does not surface one): empty output covers both "unchanged" and "gitignored", so neither case needs its own branch. The pathspec on `commit` keeps the user's other staged work out. Tested against real git, not mocks — pathspec isolation and how an ignored path reports are git's behavior, and a mock would only restate the assumption.
+- **`--strategy` is persisted** to the shared project config when it differs from what config resolves to. Found by running the migration: after `install --strategy tarball` the config still said `submodule`, so the next bare install went back. Written only after the install succeeds, and always as the canonical name, never the `manual` alias. The config file itself is left uncommitted on purpose: a pathspec commit of `.context-forge.toml` would sweep in whatever else the user had edited there.
+- **Uninstall prunes empty parents under `.git/modules/`**, stopping at the first directory with contents so another submodule's data is never touched.
+- Verified end to end with the built CLI in scratch repos: bare `cf init` → tarball, committed; `init --strategy submodule` → `uninstall` → `install --strategy tarball` → bare reinstall honors the saved strategy; `.git/modules` gone after uninstall. Tests: core 1200, cli 558, mcp 202.
+
 ## 2026-09-19
 
 ### Issue sweep and 0.15.0 release

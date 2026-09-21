@@ -3,6 +3,7 @@ import {
   CHECKOUT_STATE_LABELS,
   GUIDE_MANAGED_NOTICE,
   GUIDE_STRATEGIES,
+  describeGuideStrategy,
   guideMethodDeprecationMessage,
 } from '@context-forge/core';
 import {
@@ -97,7 +98,7 @@ export { GUIDE_STRATEGIES };
  */
 export function strategyHelpText(): string {
   const rendered = Object.entries(GUIDE_STRATEGIES)
-    .map(([name, { summary }]) => `${name} (${summary})`)
+    .map(([name, { summary }]) => describeGuideStrategy(name, summary))
     .join('; ');
   return `Installation strategy — ${rendered}`;
 }
@@ -127,6 +128,28 @@ export async function guidesInstallAction(
   console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
   console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
   console.log(`  ${label('Path:')}     ${dim(result.path)}`);
+  reportCommitted(result.committed);
+  if (result.persistedStrategy) {
+    console.log(
+      `  ${label('Config:')}   guide.git_strategy = ${valueStyle(result.persistedStrategy)} ` +
+        dim('(saved to the shared project config; commit it so teammates get the same strategy)')
+    );
+  }
+}
+
+/**
+ * Say whether the guide change was committed. Silent when the strategy reports
+ * nothing (`undefined`), so strategies with no commit step print no line.
+ */
+function reportCommitted(committed: boolean | undefined): void {
+  if (committed === undefined) return;
+  console.log(
+    `  ${label('Commit:')}   ${
+      committed
+        ? valueStyle('committed (not pushed)')
+        : dim('not committed — not a git repository, or the guide path is gitignored')
+    }`
+  );
 }
 
 export function registerGuidesCommand(program: Command): void {
@@ -244,6 +267,7 @@ export function registerGuidesCommand(program: Command): void {
             `  ${label('Version:')}  ${dim(result.previousVersion ?? 'unknown')} → ${valueStyle(result.newVersion ?? 'unknown')}`
           );
           console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+          reportCommitted(result.committed);
         }
       } catch (err) {
         handleError(err);

@@ -13,6 +13,17 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **`tarball` is now the default guide install strategy** for `cf init` and `cf guides install` (previously `submodule`). The guide lands as plain files with no git wiring. Pass `--strategy submodule` to get the old behavior. Existing installs are unaffected: cf reads the installed strategy from disk, and a project whose config already names a strategy keeps it.
+- Tarball installs and updates are committed for you, the same way submodule installs already were. The commit touches only the guide directory, leaves anything else you have staged alone, and never pushes. Skipped, and reported, when the project is not a git repository or gitignores the guide.
+- A strategy passed with `--strategy` is saved to `guide.git_strategy` in the shared project config when it differs from what config resolves to, so a later bare install, or a teammate's, uses the same one. Previously the choice lived only in the flag and the next install silently went back to the default.
+- README documents switching an existing submodule install to tarball: `cf guides uninstall`, then `cf guides install --strategy tarball`.
+
+### Fixed
+- `cf guides uninstall` no longer leaves empty directories behind under `.git/modules/`. Module data belonging to other submodules is left alone.
+
 ## [0.15.0] - 20260919
 
 ### Changed

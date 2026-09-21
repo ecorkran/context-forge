@@ -29,7 +29,7 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
   },
   'guide.git_strategy': {
     type: 'string',
-    default: 'submodule',
+    default: 'tarball',
     description: 'Strategy for managing the AI project guide via git',
     // 'manual' is a deprecated alias for 'tarball'. It stays in the enum so
     // existing shared config files keep validating; normalizeGuideMethod()

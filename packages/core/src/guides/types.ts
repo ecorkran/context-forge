@@ -1,4 +1,5 @@
 // Guide management types and strategy interface
+import { CONFIG_KEYS } from '../config/ConfigKeys.js';
 
 /** Installation method used for the ai-project-guide */
 export type GuideMethod = 'submodule' | 'clone' | 'tarball';
@@ -62,12 +63,29 @@ export function guideMethodDeprecationMessage(alias: string, method: GuideMethod
  * an entry here is a compile error.
  */
 export const GUIDE_STRATEGIES: Record<GuideMethod, { summary: string }> = {
+  tarball: { summary: 'plain files with no git wiring, simplest for teams' },
   submodule: {
     summary: 'version-pinned and updatable, but teammates must run git submodule update',
   },
   clone: { summary: 'a full working copy you can commit to, larger checkout' },
-  tarball: { summary: 'plain files with no git wiring, simplest for teams' },
 };
+
+/**
+ * The strategy used when neither a flag nor config names one. Read from the
+ * config key's default so the two cannot disagree.
+ */
+export const DEFAULT_GUIDE_METHOD: GuideMethod = normalizeGuideMethod(
+  CONFIG_KEYS['guide.git_strategy'].default as string
+);
+
+/**
+ * One strategy rendered for help text, marking the default. Shared by the CLI
+ * `--strategy` help and the MCP tool description (D8).
+ */
+export function describeGuideStrategy(name: string, summary: string): string {
+  const marker = name === DEFAULT_GUIDE_METHOD ? 'default; ' : '';
+  return `${name} (${marker}${summary})`;
+}
 
 /**
  * Checkout state of a submodule-installed guide, as `git submodule status`
@@ -133,6 +151,18 @@ export interface InstallResult {
    * warning; absent when the canonical name was used (D5).
    */
   deprecatedAlias?: string;
+  /**
+   * Whether the strategy committed the installed guide. False when the project
+   * is not a git work tree or gitignores the guide; absent for strategies that
+   * have nothing to commit (clone).
+   */
+  committed?: boolean;
+  /**
+   * Set when an explicit strategy differed from the configured one and was
+   * written to the shared project config, so a later bare install — or a
+   * teammate's — uses the same strategy. Absent when nothing was written.
+   */
+  persistedStrategy?: GuideMethod;
 }
 
 /** Result of a guide update */
@@ -147,6 +177,8 @@ export interface UpdateResult {
    * newVersion (the host pointer was already current). Absent otherwise.
    */
   worktreeSynced?: boolean;
+  /** Whether the update was committed; see InstallResult.committed. */
+  committed?: boolean;
 }
 
 /** Result of uninstalling a guide */

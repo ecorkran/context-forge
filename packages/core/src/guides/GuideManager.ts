@@ -1,17 +1,17 @@
 // Orchestration layer for guide lifecycle management
-import { join } from 'path';
-import { mkdirSync, rmSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { mkdirSync, rmSync, rmdirSync, readdirSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult, EnsureCheckoutResult } from './types.js';
 import {
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
   GUIDE_INIT_TIMEOUT_MS,
+  DEFAULT_GUIDE_METHOD,
   normalizeGuideMethod,
   isDeprecatedGuideMethodAlias,
 } from './types.js';
 import { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
-import { CONFIG_KEYS } from '../config/ConfigKeys.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
@@ -78,9 +78,27 @@ export class GuideManager {
     // Create user artifact directories so the project is ready to use
     this.createUserDirectories();
 
-    return resolved.deprecatedAlias
-      ? { ...result, deprecatedAlias: resolved.deprecatedAlias }
-      : result;
+    const persistedStrategy = strategyOverride ? await this.persistStrategy(method) : undefined;
+
+    return {
+      ...result,
+      ...(resolved.deprecatedAlias ? { deprecatedAlias: resolved.deprecatedAlias } : {}),
+      ...(persistedStrategy ? { persistedStrategy } : {}),
+    };
+  }
+
+  /**
+   * Record an explicitly chosen strategy in the shared project config when it
+   * differs from what config already resolves to. Without this, the choice
+   * lives only in the flag: the next bare install, or a teammate's first one,
+   * silently goes back to the default.
+   */
+  private async persistStrategy(method: GuideMethod): Promise<GuideMethod | undefined> {
+    if (!this.configManager) return undefined;
+    const configured = (await this.resolveStrategy()).method;
+    if (configured === method) return undefined;
+    await this.configManager.set('guide.git_strategy', method, 'project');
+    return method;
   }
 
   /**
@@ -236,6 +254,7 @@ export class GuideManager {
         if (existsSync(modulesPath)) {
           rmSync(modulesPath, { recursive: true, force: true });
         }
+        this.pruneEmptyModuleParents(modulesPath);
         // Remove the submodule entry from index and .gitmodules
         await gitExec(['rm', '-f', GUIDE_RELATIVE_PATH], this.projectPath);
         // Commit the removal
@@ -253,6 +272,22 @@ export class GuideManager {
     }
 
     return { success: true, method, version };
+  }
+
+  /**
+   * Remove the now-empty directories between a deleted submodule's module
+   * directory and `.git/modules`, then `.git/modules` itself if nothing else
+   * lives there. Stops at the first directory that still has contents, so
+   * another submodule's module data is never touched.
+   */
+  private pruneEmptyModuleParents(modulesPath: string): void {
+    const gitDir = join(this.projectPath, '.git');
+    let dir = dirname(modulesPath);
+    while (dir !== gitDir && dir.startsWith(gitDir) && existsSync(dir)) {
+      if (readdirSync(dir).length > 0) return;
+      rmdirSync(dir);
+      dir = dirname(dir);
+    }
   }
 
   /** Sync guide submodule checkout in multiple worktrees */
@@ -308,7 +343,7 @@ export class GuideManager {
    */
   private async resolveStrategy(): Promise<ResolvedStrategy> {
     if (!this.configManager) {
-      return { method: normalizeGuideMethod(CONFIG_KEYS['guide.git_strategy'].default as string) };
+      return { method: DEFAULT_GUIDE_METHOD };
     }
     const result = await this.configManager.get('guide.git_strategy');
     if (typeof result.value !== 'string') {

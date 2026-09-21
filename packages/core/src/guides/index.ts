@@ -22,6 +22,8 @@ export {
   GUIDE_RELATIVE_PATH,
   VERSION_MARKER_FILE,
   GUIDE_STRATEGIES,
+  DEFAULT_GUIDE_METHOD,
+  describeGuideStrategy,
   guideMethodDeprecationMessage,
 } from './types.js';
 // gitExec itself stays internal; only the shared remediation text is public (#78).

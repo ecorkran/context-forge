@@ -146,34 +146,49 @@ differ in how it is tracked.
 
 | Strategy | Trade-off |
 | --- | --- |
-| `submodule` (default) | version-pinned and updatable, but teammates must run git submodule update |
+| `tarball` (default) | plain files with no git wiring, simplest for teams |
+| `submodule` | version-pinned and updatable, but teammates must run git submodule update |
 | `clone` | a full working copy you can commit to, larger checkout |
-| `tarball` | plain files with no git wiring, simplest for teams |
 
-**Why submodule is the default.** It records the exact guide commit your project
-was built against, so the pin is reviewable in a diff and reproducible on any
-checkout. It updates in place through git rather than through the GitHub API,
-which keeps the network surface small, and it leaves a working path for
-contributing improvements back upstream.
+**Why tarball is the default.** The guide lands as plain files in your repo — the
+archive's own git files (`.gitmodules`, `.gitignore`) are dropped at extract
+time — so once one person runs the install, everyone else gets the guide from
+your repo like any other file. Nobody has to think about submodule checkout, CI
+needs no `submodules: true`, and there is no second repository nested inside
+yours. The install is committed for you (`docs: install ai-project-guide
+<version>`), touching only the guide directory and never pushing; if the project
+is not a git repository, or gitignores the guide, the commit is skipped and the
+output says so. `cf guides update` replaces the directory and commits the same
+way, so a guide bump shows up as an ordinary reviewable diff.
 
-The historical cost of that default was that a teammate cloning your repo
-without `--recurse-submodules` got an empty guide directory. Context Forge now
-initializes the checkout automatically the first time a command reads guide
-content, reporting what it did on stderr. `cf guides info` shows the checkout
-state and never modifies it, so you can always inspect before acting. A checkout
-sitting at a commit other than the one your project pins is reported and left
-alone, since that is usually deliberate.
-
-Pick `tarball` when teammates should not have to think about git submodules at
-all. The guide lands as plain files in your repo — the archive's own git files
-(`.gitmodules`, `.gitignore`) are dropped at extract time — so once one person
-runs the install, everyone else gets the guide from your repo like any other
-file. That one person needs to reach github.com (to resolve the latest tag) and
-api.github.com (to download the archive); the standard `HTTPS_PROXY` /
+The person running the install needs to reach github.com (to resolve the latest
+tag) and api.github.com (to download the archive); the standard `HTTPS_PROXY` /
 `NO_PROXY` variables are honored for both. The source must be a github.com
 repository, and a `guide.source` config value is honored on both install and
-update. `cf guides update` replaces the directory, so a guide bump shows up as
-an ordinary reviewable diff.
+update.
+
+Pick `submodule` with `--strategy submodule` when you want the exact guide commit
+pinned and reviewable in a diff, updates that go through git rather than the
+GitHub API, or a working path for contributing improvements back upstream. A
+teammate who clones without `--recurse-submodules` is covered: Context Forge
+initializes the checkout automatically the first time a command reads guide
+content, reporting what it did on stderr. `cf guides info` shows the checkout
+state and never modifies it. A checkout sitting at a commit other than the one
+your project pins is reported and left alone, since that is usually deliberate.
+
+**The strategy you pass is remembered.** When `--strategy` names something other
+than what the project's config already resolves to, it is written to
+`guide.git_strategy` in the shared project config (`.context-forge.toml`), so a
+later bare `cf guides install`, or a teammate's, uses the same strategy. Commit
+that file.
+
+**Switching an existing submodule install to tarball:**
+
+```bash
+cf guides uninstall                     # removes the submodule, its .git/modules data, and commits
+cf guides install --strategy tarball    # installs as plain files and commits
+git add .context-forge.toml && git commit -m "chore: set guide strategy to tarball"
+```
 
 Pick `clone` when you intend to edit the guide in place. The strategy name
 `manual` is a deprecated alias for `tarball`; it still works and prints a

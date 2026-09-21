@@ -67,7 +67,7 @@ describe('ConfigManager', () => {
     it('returns enum default for guide.git_strategy', async () => {
       const cm = new ConfigManager();
       const result = await cm.get('guide.git_strategy');
-      expect(result.value).toBe('submodule');
+      expect(result.value).toBe('tarball');
       expect(result.source).toBe('default');
     });
 

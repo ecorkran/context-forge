@@ -126,3 +126,26 @@ export async function isGitRepo(dir: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Stage and commit one path, and only that path, when it has changes.
+ *
+ * Returns false without committing when `repoPath` is not a git work tree, or
+ * when git reports nothing to commit under `relPath` — which covers both an
+ * unchanged path and one the project gitignores. The pathspec on `commit`
+ * keeps anything else the user has staged out of this commit. Never pushes.
+ */
+export async function commitPathIfChanged(
+  repoPath: string,
+  relPath: string,
+  message: string
+): Promise<boolean> {
+  if (!(await isGitRepo(repoPath))) return false;
+
+  const { stdout } = await gitExec(['status', '--porcelain', '--', relPath], repoPath);
+  if (!stdout) return false;
+
+  await gitExec(['add', '-A', '--', relPath], repoPath);
+  await gitExec(['commit', '-m', message, '--', relPath], repoPath);
+  return true;
+}

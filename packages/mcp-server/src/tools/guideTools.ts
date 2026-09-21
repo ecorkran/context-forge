@@ -15,6 +15,7 @@ import {
   GUIDE_METHODS,
   GUIDE_METHOD_DEPRECATED_ALIASES,
   GUIDE_STRATEGIES,
+  describeGuideStrategy,
   guideMethodDeprecationMessage,
 } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
@@ -28,7 +29,7 @@ const GUIDE_STRATEGY_INPUTS: readonly string[] = [
 
 /** Strategy trade-offs for the tool description, from the same table the CLI help uses (D8). */
 const GUIDE_STRATEGY_DESCRIPTION = Object.entries(GUIDE_STRATEGIES)
-  .map(([name, { summary }]) => `"${name}" (${summary})`)
+  .map(([name, { summary }]) => describeGuideStrategy(name, summary))
   .join(', ');
 
 interface ResolvedProject {
