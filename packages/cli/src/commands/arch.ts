@@ -12,8 +12,6 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@context-forge/core';
 import {
   resolveOperationPath,
-  getWorktreeIndexRange,
-  isInIndexRange,
   resolveAllOperationPaths,
 } from '../utils/worktree-overlay.js';
 import { UserError } from '../utils/errors.js';
@@ -43,27 +41,23 @@ export async function archListAction(opts: { json?: boolean; all?: boolean; proj
     );
   }
 
-  let indexRange: [number, number] | undefined;
-  let operationPath: string;
-
-  if (opts.all && rawProject.worktrees?.length) {
-    operationPath = project.projectPath;
-    // No index filtering in --all mode
-  } else {
-    operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
-    indexRange = getWorktreeIndexRange(rawProject, worktreeId);
-  }
+  // Initiatives are never range-filtered (#97, D7), so only the operation path
+  // is worktree-derived here.
+  const operationPath =
+    opts.all && rawProject.worktrees?.length
+      ? project.projectPath
+      : resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
   // Attempt initiative-plan-driven listing first
   const initiativePlanPath = await resolveInitiativePlanPath(operationPath);
 
   if (initiativePlanPath) {
-    await archListFromPlan(initiativePlanPath, operationPath, project, indexRange, opts);
+    await archListFromPlan(initiativePlanPath, operationPath, project, opts);
     return;
   }
 
   // Fallback: filesystem-scan based listing (legacy buildModel behavior)
-  await archListFromModel(opts, project, rawProject, operationPath, indexRange);
+  await archListFromModel(opts, project, rawProject, operationPath);
 }
 
 /** List initiatives driven from the initiative plan file (primary path). */
@@ -71,16 +65,20 @@ async function archListFromPlan(
   initiativePlanPath: string,
   operationPath: string,
   project: ReturnType<typeof resolveProject> extends Promise<infer T> ? NonNullable<T> : never,
-  indexRange: [number, number] | undefined,
   opts: { json?: boolean; all?: boolean },
 ): Promise<void> {
   const introspector = new ArtifactIntrospector();
   const planResult = await introspector.parseSlicePlan(initiativePlanPath);
 
-  const filteredEntries = planResult.entries.filter((e) => isInIndexRange(e.index, indexRange));
+  // No range filter: an initiative plan is a project-level artifact, while
+  // indexRange is a slice-index concept. Filtering initiatives by a worktree's
+  // slice band hid every initiative outside it (#97, D7).
+  const filteredEntries = planResult.entries;
 
   if (filteredEntries.length === 0) {
-    console.log(dim('No initiatives found in initiative plan.'));
+    // Nothing is filtered on this path any more, so this means the plan is
+    // genuinely empty. Name the file so the reader can check it (D8).
+    console.log(dim(`No initiatives listed in ${initiativePlanPath}.`));
     return;
   }
 
@@ -155,7 +153,6 @@ async function archListFromModel(
   project: ReturnType<typeof resolveProject> extends Promise<infer T> ? NonNullable<T> : never,
   rawProject: Awaited<ReturnType<InstanceType<typeof FileProjectStore>['getById']>>,
   operationPath: string,
-  indexRange: [number, number] | undefined,
 ): Promise<void> {
   let model;
 
@@ -169,12 +166,13 @@ async function archListFromModel(
     model = await buildModel(operationPath);
   }
 
+  // No range filter — see archListFromPlan (#97, D7).
   const initiativeKeys = Object.keys(model.initiatives)
-    .filter((key) => isInIndexRange(parseInt(key, 10), indexRange))
     .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
   if (initiativeKeys.length === 0) {
-    console.log(dim('No initiatives found in project.'));
+    // Genuinely empty, not filtered out (D8).
+    console.log(dim(`No initiatives found under ${operationPath}.`));
     return;
   }
 

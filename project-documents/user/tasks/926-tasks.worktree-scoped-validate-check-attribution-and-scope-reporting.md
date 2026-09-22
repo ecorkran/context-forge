@@ -246,7 +246,7 @@ is a separately published npm install, not this working tree.
         CI rather than waiting on Task 19's one-time manual diff. D3's
         additive-only guarantee is the primary defense for an external
         consumer, so it deserves an automated gate.
-  - [ ] Do the same for `cf check`'s single-checkout output in Task 14's
+  - [x] Do the same for `cf check`'s single-checkout output in Task 14's
         test file, where the two-worktree fixture already lives.
   - [x] Success criteria: `pnpm --filter @context-forge/cli test` passes;
         deliberately adding a stray field to either output fails the test.
@@ -263,79 +263,79 @@ is a separately published npm install, not this working tree.
 
 ### Part 4 — #87: check attribution (D5a, D6)
 
-- [ ] **Task 12: Extract `mergeCheckResults` to core** (effort: 2)
-  - [ ] Move the function to core (alongside the consistency types in
+- [x] **Task 12: Extract `mergeCheckResults` to core** (effort: 2)
+  - [x] Move the function to core (alongside the consistency types in
         `packages/core/src/introspection/`). The CLI copy
         (`packages/cli/src/commands/check.ts:47-71`) and the MCP copy
         (`packages/mcp-server/src/tools/workflowTools.ts:26-52`) are
         verbatim duplicates; both already carry a TODO to extract it.
-  - [ ] Switch both call sites to the core function and delete both local
+  - [x] Switch both call sites to the core function and delete both local
         copies, including the now-satisfied TODO comments.
-  - [ ] Pure move — no behavior change in this task. Attribution comes
+  - [x] Pure move — no behavior change in this task. Attribution comes
         next, so it lands in one place instead of two.
-  - [ ] Success criteria: `pnpm -r build` and `pnpm -r test` pass;
+  - [x] Success criteria: `pnpm -r build` and `pnpm -r test` pass;
         the existing MCP merge tests
         (`packages/mcp-server/tests/workflowTools.test.ts:608-712`) pass
         unchanged, retargeted at the core function.
-  - [ ] Commit checkpoint: extraction verified green before attribution.
+  - [x] Commit checkpoint: extraction verified green before attribution.
 
-- [ ] **Task 13: Carry worktree identity onto findings** (effort: 3)
-  - [ ] Add an optional worktree field (name and path) to
+- [x] **Task 13: Carry worktree identity onto findings** (effort: 3)
+  - [x] Add an optional worktree field (name and path) to
         `ConsistencyFinding`
         (`packages/core/src/introspection/types.ts:232-245`). Optional, so
         single-checkout projects and existing producers are unaffected.
-  - [ ] In `check.ts:221-223`, the per-worktree views are built from
+  - [x] In `check.ts:221-223`, the per-worktree views are built from
         `wt.id` but discard it. Keep each view paired with its worktree so
         the findings it produces can be tagged **before** they reach the
         merge.
-  - [ ] Attribution must be attached pre-merge. The dedup key
+  - [x] Attribution must be attached pre-merge. The dedup key
         (`rule|location|description`) has no worktree component, so
         deriving attribution after the merge would misattribute
         first-seen-wins duplicates.
-  - [ ] Do **not** add worktree to the dedup key. Aggregate rules run per
+  - [x] Do **not** add worktree to the dedup key. Aggregate rules run per
         view and legitimately produce identical findings across views;
         the merge is supposed to collapse them. Adding worktree to the key
         would multiply project-level findings by worktree count.
-  - [ ] Do not derive attribution from `location` — it is not always a
+  - [x] Do not derive attribution from `location` — it is not always a
         filesystem path (`ConsistencyChecker.ts:461` emits a
         `slice plan entry N` string). It comes from the producing view.
-  - [ ] Do not encode it in the description string (D5a), despite the
+  - [x] Do not encode it in the description string (D5a), despite the
         existing `[917] `-prefix precedent at
         `ConsistencyChecker.ts:128-131`.
-  - [ ] Leave the top-level `projectPath` as-is (D6) — it keeps meaning
+  - [x] Leave the top-level `projectPath` as-is (D6) — it keeps meaning
         "the invoking checkout."
-  - [ ] Success criteria: `cf check --json` from a two-worktree project
+  - [x] Success criteria: `cf check --json` from a two-worktree project
         carries per-finding worktree identity; `pnpm -r typecheck` passes.
 
-- [ ] **Task 14: Tests for merge attribution** (effort: 3)
-  - [ ] `packages/cli/tests/commands/check.test.ts` has **zero** worktree
+- [x] **Task 14: Tests for merge attribution** (effort: 3)
+  - [x] `packages/cli/tests/commands/check.test.ts` has **zero** worktree
         coverage today: its fixture project has no `worktrees`, so
         `mergeCheckResults` always returns at its `results.length === 1`
         early guard and the multi-view path is never exercised. Add a
         two-worktree fixture.
-  - [ ] Assert: findings from each view carry that view's worktree; a
+  - [x] Assert: findings from each view carry that view's worktree; a
         finding arising identically in two worktrees still dedups to one
         entry (and the attribution is deterministic, not arbitrary);
         a single-worktree project produces findings with no attribution
         change from today.
-  - [ ] Mirror the equivalent cases for the MCP `workflow_check` path so
+  - [x] Mirror the equivalent cases for the MCP `workflow_check` path so
         both consumers of the shared merge are covered.
-  - [ ] Success criteria: `pnpm -r test` passes.
+  - [x] Success criteria: `pnpm -r test` passes.
 
-- [ ] **Task 15: Render the worktree label** (effort: 2)
-  - [ ] `printCheckOutput` (`check.ts:273-310`) currently receives only
+- [x] **Task 15: Render the worktree label** (effort: 2)
+  - [x] `printCheckOutput` (`check.ts:273-310`) currently receives only
         `projectName` — worktree information never reaches the renderer.
         Pass what it needs.
-  - [ ] Prefix each finding with its worktree name, per #87's suggestion,
+  - [x] Prefix each finding with its worktree name, per #87's suggestion,
         so a reader can tell at a glance which checkout a finding belongs
         to. Existing slice grouping stays as-is.
-  - [ ] Suppress the label when the project has no registered worktrees,
+  - [x] Suppress the label when the project has no registered worktrees,
         or only the implicit `default` — single-checkout users must see no
         change.
-  - [ ] Success criteria: with two worktrees, `cf check` shows the
+  - [x] Success criteria: with two worktrees, `cf check` shows the
         owning worktree on each finding; with none, output is
         byte-identical to the pre-slice build.
-  - [ ] Commit checkpoint: #87 fixed and pinned.
+  - [x] Commit checkpoint: #87 fixed and pinned.
 
 ### Part 5 — #97: initiative filter removal (D7, D8)
 
