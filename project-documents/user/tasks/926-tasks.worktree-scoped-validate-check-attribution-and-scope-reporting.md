@@ -339,59 +339,59 @@ is a separately published npm install, not this working tree.
 
 ### Part 5 — #97: initiative filter removal (D7, D8)
 
-- [ ] **Task 16: Stop range-filtering initiatives** (effort: 1)
-  - [ ] Remove the `isInIndexRange` filter from `archListFromPlan`
+- [x] **Task 16: Stop range-filtering initiatives** (effort: 1)
+  - [x] Remove the `isInIndexRange` filter from `archListFromPlan`
         (`packages/cli/src/commands/arch.ts:80`) and from the
         `archListFromModel` fallback (`arch.ts:173`). An initiative plan
         is a project-level artifact; `indexRange` is a slice-index
         concept.
-  - [ ] Change **only** these two call sites. The other six
+  - [x] Change **only** these two call sites. The other six
         `isInIndexRange` call sites (`slice.ts`, `task.ts`, `plan.ts`,
         `future.ts`, `project.ts`, `WorkflowNavigator.ts`) filter genuinely
         slice-indexed things and are correct.
-  - [ ] Drop the now-unused `indexRange` plumbing on this path only if it
+  - [x] Drop the now-unused `indexRange` plumbing on this path only if it
         becomes dead; do not disturb `operationPath` resolution, which is
         already correct.
-  - [ ] Success criteria: `cf list arch` and `cf list arch --all` return
+  - [x] Success criteria: `cf list arch` and `cf list arch --all` return
         identical output from a worktree in a two-worktree project.
 
-- [ ] **Task 17: Correct the empty-initiatives message (D8)** (effort: 1)
-  - [ ] **Scope narrowed after the tasks review (F001).** D8 says a
+- [x] **Task 17: Correct the empty-initiatives message (D8)** (effort: 1)
+  - [x] **Scope narrowed after the tasks review (F001).** D8 says a
         "filtered" branch belongs on *paths that retain a filter*. After
         Task 16 the arch initiative paths retain none, so a
         filtered-vs-empty branch here would be unreachable. Do **not**
         add one — that was the original wording and it would produce dead
         code.
-  - [ ] Instead, correct the wording only. The message at `arch.ts:83`
+  - [x] Instead, correct the wording only. The message at `arch.ts:83`
         (and its `archListFromModel` counterpart) should state plainly
         that the plan contains no initiative entries, rather than implying
         a lookup failure.
-  - [ ] The six other `isInIndexRange` call sites do retain filters and
+  - [x] The six other `isInIndexRange` call sites do retain filters and
         would genuinely benefit from D8's distinction, but they are
         explicitly out of scope (see Task 16). Do not expand into them.
         If the distinction looks needed there, report it for a future
         slice rather than widening this one.
-  - [ ] Success criteria: an empty initiative list reads as an accurate
+  - [x] Success criteria: an empty initiative list reads as an accurate
         statement about the plan's contents; no unreachable branch is
         added.
 
-- [ ] **Task 18: Two-worktree tests for `cf list arch`** (effort: 2)
-  - [ ] Add a test with **two** registered worktrees. One is not enough:
+- [x] **Task 18: Two-worktree tests for `cf list arch`** (effort: 2)
+  - [x] Add a test with **two** registered worktrees. One is not enough:
         `getWorktreeIndexRange` returns `undefined` for single-worktree
         projects (`packages/core/src/utils/worktree-overlay.ts:33`), so no
         filtering occurs and a one-worktree test passes against the
         unfixed code.
-  - [ ] Cover both the plan-driven and `archListFromModel` fallback paths.
-  - [ ] Assert the default and `--all` forms agree — that is the real
+  - [x] Cover both the plan-driven and `archListFromModel` fallback paths.
+  - [x] Assert the default and `--all` forms agree — that is the real
         invariant.
-  - [ ] `packages/cli/tests/commands/list-arch-index-targeting.test.ts`
+  - [x] `packages/cli/tests/commands/list-arch-index-targeting.test.ts`
         covers `list slices`/`list tasks` archIndex targeting and does not
         assert the removed filter, so it should not need rewriting. If it
         does, stop and confirm with the Project Manager rather than
         weakening it.
-  - [ ] Success criteria: the test fails against the pre-Task-16 code and
+  - [x] Success criteria: the test fails against the pre-Task-16 code and
         passes after it.
-  - [ ] Commit checkpoint: #97 fixed and pinned.
+  - [x] Commit checkpoint: #97 fixed and pinned.
 
 ### Part 6 — #98: dual managed-marker recognition (rider)
 
