@@ -9,7 +9,7 @@ import {
   detectDocuments,
   updateFrontmatterField,
 } from '@context-forge/core/node';
-import { formatDateProject } from '@context-forge/core';
+import { formatDateProject, mergeCheckResults } from '@context-forge/core';
 import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
@@ -41,33 +41,6 @@ function askConfirmation(prompt: string): Promise<boolean> {
 
 function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
   return 'fixLog' in result;
-}
-
-/** Merge findings from multiple checkAll runs, deduplicating by rule+location+description. */
-function mergeCheckResults(results: ConsistencyCheckResult[]): ConsistencyCheckResult {
-  if (results.length === 1) return results[0];
-  const seen = new Set<string>();
-  const allFindings: ConsistencyFinding[] = [];
-  for (const result of results) {
-    for (const finding of result.findings) {
-      const key = `${finding.rule}|${finding.location}|${finding.description}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        allFindings.push(finding);
-      }
-    }
-  }
-  const projectPath = results[0].projectPath;
-  const errors = allFindings.filter((f) => f.severity === 'error').length;
-  const warnings = allFindings.filter((f) => f.severity === 'warning').length;
-  const infos = allFindings.filter((f) => f.severity === 'info').length;
-  const total = allFindings.length;
-  const parts: string[] = [];
-  if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`);
-  if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
-  if (infos > 0) parts.push(`${infos} info${infos !== 1 ? 's' : ''}`);
-  const summary = total === 0 ? 'No inconsistencies found' : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
-  return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
 }
 
 function formatFinding(finding: ConsistencyFinding, fixResult?: ConsistencyFixResult): string {

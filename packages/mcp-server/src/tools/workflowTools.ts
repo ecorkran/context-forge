@@ -10,8 +10,7 @@ import {
   getStoragePath,
   createVersionedBackup,
 } from '@context-forge/core/node';
-import type { ConsistencyCheckResult, ConsistencyFinding } from '@context-forge/core';
-import { applyWorktreeOverlay, resolveProject } from '@context-forge/core';
+import { applyWorktreeOverlay, resolveProject, mergeCheckResults } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -20,36 +19,6 @@ function errorResult(message: string): { content: { type: 'text'; text: string }
 
 function jsonResult(data: unknown): { content: { type: 'text'; text: string }[] } {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-}
-
-/**
- * Merge findings from multiple checkAll runs, deduplicating by rule+location+description.
- * TODO: Extract to @context-forge/core shared utility (200-slices future work item 7)
- */
-function mergeCheckResults(results: ConsistencyCheckResult[]): ConsistencyCheckResult {
-  if (results.length === 1) return results[0];
-  const seen = new Set<string>();
-  const allFindings: ConsistencyFinding[] = [];
-  for (const result of results) {
-    for (const finding of result.findings) {
-      const key = `${finding.rule}|${finding.location}|${finding.description}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        allFindings.push(finding);
-      }
-    }
-  }
-  const projectPath = results[0].projectPath;
-  const errors = allFindings.filter((f) => f.severity === 'error').length;
-  const warnings = allFindings.filter((f) => f.severity === 'warning').length;
-  const infos = allFindings.filter((f) => f.severity === 'info').length;
-  const total = allFindings.length;
-  const parts: string[] = [];
-  if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`);
-  if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
-  if (infos > 0) parts.push(`${infos} info${infos !== 1 ? 's' : ''}`);
-  const summary = total === 0 ? 'No inconsistencies found' : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
-  return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
 }
 
 export function registerWorkflowTools(server: McpServer): void {

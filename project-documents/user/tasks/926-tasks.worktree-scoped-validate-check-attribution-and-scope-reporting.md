@@ -163,83 +163,83 @@ is a separately published npm install, not this working tree.
 
 ### Part 3 — #92/#96: per-path outcome reporting (D3, D4)
 
-- [ ] **Task 6: Define the outcome vocabulary** (effort: 1)
-  - [ ] In `packages/core/src/schema/frontmatterFileValidator.ts`, add an
+- [x] **Task 6: Define the outcome vocabulary** (effort: 1)
+  - [x] In `packages/core/src/schema/frontmatterFileValidator.ts`, add an
         `as const` object with the five outcomes from the design's D4
         table: checked, skipped-out-of-scope, skipped-not-markdown,
         skipped-not-found, skipped-no-frontmatter. Derive the union type
         from it.
-  - [ ] Per the project rule against scattered comparison values, every
+  - [x] Per the project rule against scattered comparison values, every
         later comparison references this object — no bare string literals
         at call sites.
-  - [ ] Export the constant and the type from `packages/core/src/index.ts`.
-  - [ ] Success criteria: typecheck passes; the literal strings appear in
+  - [x] Export the constant and the type from `packages/core/src/index.ts`.
+  - [x] Success criteria: typecheck passes; the literal strings appear in
         exactly one place in source.
 
-- [ ] **Task 7: Record per-path outcomes in the validator** (effort: 3)
-  - [ ] Change `resolveExplicitPaths`
+- [x] **Task 7: Record per-path outcomes in the validator** (effort: 3)
+  - [x] Change `resolveExplicitPaths`
         (`frontmatterFileValidator.ts:52-66`) to return, for each input
         path, the resolved absolute path plus its outcome — instead of
         silently dropping via the three `continue` branches. Map each
         branch to its outcome: non-`.md` → skipped-not-markdown;
         out-of-root → skipped-out-of-scope; nonexistent →
         skipped-not-found.
-  - [ ] In `validateFrontmatterFiles`, record the fourth skip: a file that
+  - [x] In `validateFrontmatterFiles`, record the fourth skip: a file that
         reaches the loop but has no parseable frontmatter (line 94)
         becomes skipped-no-frontmatter, and still does not increment
         `filesChecked`.
-  - [ ] Extend `FrontmatterFileValidationResult` (lines 17-20) with the
+  - [x] Extend `FrontmatterFileValidationResult` (lines 17-20) with the
         per-path list and the resolved document root. `findings` and
         `filesChecked` keep their current meaning exactly — `filesChecked`
         still counts only files whose frontmatter was parsed and
         validated.
-  - [ ] Preserve the relative-path base: explicit relative paths resolve
+  - [x] Preserve the relative-path base: explicit relative paths resolve
         against `process.cwd()` as they do today (line 58), which is not
         necessarily the document root.
-  - [ ] The full-walk (no-paths) form produces no per-path list — there
+  - [x] The full-walk (no-paths) form produces no per-path list — there
         are no caller-supplied paths to report on. Do not synthesize one
         from the ~500 discovered documents.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core typecheck`
+  - [x] Success criteria: `pnpm --filter @context-forge/core typecheck`
         passes; no call site outside this file needs changing yet.
 
-- [ ] **Task 8: Tests for outcome recording** (effort: 2)
-  - [ ] Extend `packages/core/tests/schema/frontmatterFileValidator.test.ts`
+- [x] **Task 8: Tests for outcome recording** (effort: 2)
+  - [x] Extend `packages/core/tests/schema/frontmatterFileValidator.test.ts`
         with one case per outcome value, asserting both the outcome and
         that `filesChecked` counts only `checked` entries.
-  - [ ] Add a case mixing in-scope and out-of-scope paths in one call,
+  - [x] Add a case mixing in-scope and out-of-scope paths in one call,
         asserting the in-scope file is still validated (this is the
         pairing behavior #92 observed but could not confirm).
-  - [ ] Add a regression case pinning that a default-checkout call with
+  - [x] Add a regression case pinning that a default-checkout call with
         in-scope paths returns the same `filesChecked` and `findings` as
         before the slice.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test` passes.
+  - [x] Success criteria: `pnpm --filter @context-forge/core test` passes.
 
-- [ ] **Task 9: Surface outcomes in validate's JSON (D3, D5)** (effort: 2)
-  - [ ] Replace the inline `Record<string, unknown>` at
+- [x] **Task 9: Surface outcomes in validate's JSON (D3, D5)** (effort: 2)
+  - [x] Replace the inline `Record<string, unknown>` at
         `packages/cli/src/commands/validate.ts:137-148` with a declared,
         exported interface. The untyped shape is how this output drifted
         from its documentation in the first place.
-  - [ ] Keep all five existing fields byte-identical in name, type, and
+  - [x] Keep all five existing fields byte-identical in name, type, and
         meaning. Add the per-path list, a derived skipped count, and the
         resolved `documentRoot` (D5 — validate currently emits no path at
         all, so a caller cannot tell which checkout was scanned).
-  - [ ] Emit the per-path list only for explicit-path invocations; omit it
+  - [x] Emit the per-path list only for explicit-path invocations; omit it
         or leave it empty for the full walk.
-  - [ ] Leave the human-readable output path alone except where it would
+  - [x] Leave the human-readable output path alone except where it would
         now be actively misleading; this task is about `--json`.
-  - [ ] Success criteria: `node packages/cli/dist/index.js validate
+  - [x] Success criteria: `node packages/cli/dist/index.js validate
         frontmatter --json CHANGELOG.md` still reports `filesChecked: 0`
         and now reports that path as skipped-out-of-scope.
 
-- [ ] **Task 10: CLI tests for the JSON contract** (effort: 2)
-  - [ ] Extend `packages/cli/tests/commands/validate.test.ts`: assert the
+- [x] **Task 10: CLI tests for the JSON contract** (effort: 2)
+  - [x] Extend `packages/cli/tests/commands/validate.test.ts`: assert the
         five legacy fields are unchanged for an in-scope invocation, and
         that the new fields appear as specified.
-  - [ ] Add the #96 acceptance case: a call whose paths are **all**
+  - [x] Add the #96 acceptance case: a call whose paths are **all**
         out-of-scope is distinguishable, from JSON alone, from a call that
         checked nothing for an unknown reason. This is the property
         squadron's gate needs.
-  - [ ] **Automated single-checkout regression (tasks review F002).** Add
+  - [x] **Automated single-checkout regression (tasks review F002).** Add
         a test that pins the *whole* `--json` object for a single-checkout
         project — not just the five legacy fields individually — so an
         accidental change to shape, ordering, or a field's meaning fails
@@ -248,17 +248,17 @@ is a separately published npm install, not this working tree.
         consumer, so it deserves an automated gate.
   - [ ] Do the same for `cf check`'s single-checkout output in Task 14's
         test file, where the two-worktree fixture already lives.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes;
+  - [x] Success criteria: `pnpm --filter @context-forge/cli test` passes;
         deliberately adding a stray field to either output fails the test.
-  - [ ] Commit checkpoint: #92/#96 fixed and pinned.
+  - [x] Commit checkpoint: #92/#96 fixed and pinned.
 
-- [ ] **Task 11: Correct the `--fix` and help text** (effort: 1)
-  - [ ] `validate.ts:169` help text advertises that out-of-root paths are
+- [x] **Task 11: Correct the `--fix` and help text** (effort: 1)
+  - [x] `validate.ts:169` help text advertises that out-of-root paths are
         "silently skipped" — this slice makes that false. Reword to say
         skipped paths are reported.
-  - [ ] Confirm `--fix` still only applies `fixAction`s already present on
+  - [x] Confirm `--fix` still only applies `fixAction`s already present on
         findings; skipped paths must never be fix targets.
-  - [ ] Success criteria: `node packages/cli/dist/index.js validate
+  - [x] Success criteria: `node packages/cli/dist/index.js validate
         frontmatter --help` describes the actual behavior.
 
 ### Part 4 — #87: check attribution (D5a, D6)
