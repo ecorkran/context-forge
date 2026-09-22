@@ -13,11 +13,13 @@ status: not_started
 
 ## Overview
 
-Fixes GitHub issues #88, #92, #96, and #87 — four defects on the worktree-aware validation and check surface. Three of them (#88, #92, #96) make `cf validate frontmatter` report a clean pass when it examined nothing; the fourth (#87) makes `cf check` blame the wrong checkout for a finding.
+Fixes GitHub issues #88, #92, #96, #87, and #97 — five defects on the worktree-aware command surface. Three of them (#88, #92, #96) make `cf validate frontmatter` report a clean pass when it examined nothing; #87 makes `cf check` blame the wrong checkout for a finding; #97 makes `cf list arch` report no initiatives when the plan is fully populated.
 
-All four share one root question the codebase answers inconsistently: *which checkout does this path belong to?* `cf check` already answers it (`applyWorktreeOverlay` per worktree, [check.ts:221-223](packages/cli/src/commands/check.ts#L221-L223)); `cf validate frontmatter` never asks it, and `cf check` discards the answer before rendering. This slice makes both commands resolve and retain worktree identity, and makes the validator say what it skipped instead of silently returning zero.
+The first four share one root question the codebase answers inconsistently: *which checkout does this path belong to?* `cf check` already answers it (`applyWorktreeOverlay` per worktree, [check.ts:221-223](packages/cli/src/commands/check.ts#L221-L223)); `cf validate frontmatter` never asks it, and `cf check` discards the answer before rendering. This slice makes both commands resolve and retain worktree identity, and makes the validator say what it skipped instead of silently returning zero.
 
-The defects are all **silent** — exit 0, no warning. Two external consumers depend on this surface: squadron's pre-commit frontmatter gate and its `test_schema_drift.py` suite, which asserts on `filesChecked` precisely because a zero cannot currently be trusted.
+**#97 is a deliberate rider, not part of that group.** Its mechanism is the opposite: `cf list arch` resolves the worktree path *correctly* ([arch.ts:28](packages/cli/src/commands/arch.ts#L28), `resolveOperationPath` at line 53) and then applies a **slice**-index range to **initiative** indices — a category error one layer above path resolution. It shares no code with the other four and needs none of this slice's shared primitive. It is bundled because it is a two-call-site deletion on the same worktree-behavior surface, discovered in the same session, and too small to justify its own slice; it is *not* bundled because it shares a root cause. Task breakdown should keep it as an independent work item.
+
+The defects are all **silent** — exit 0 or a falsely reassuring message, no warning. Two external consumers depend on the validate surface: squadron's pre-commit frontmatter gate and its `test_schema_drift.py` suite, which asserts on `filesChecked` precisely because a zero cannot currently be trusted.
 
 ## Value
 
@@ -25,6 +27,7 @@ Developer-facing and tooling-facing.
 
 - A validator that reports "0 files checked" when it should have checked something is worse than no validator — it produces false confidence, and both a CI step and a human reading exit 0 conclude the documents are fine. #88 makes this the *normal* outcome inside a worktree.
 - `cf check` misattribution costs real investigation time. The issue reporter went looking for a filename-matching bug that did not exist, and nearly missed a genuine finding sitting in the same output. Worktrees are becoming the normal way to run several agents on one project, and a lagging branch is the ordinary state of one — so this noise grows with parallelism and is worst exactly when parallelism is highest.
+- **(#97)** `cf list arch` is unusable from any project with two or more registered worktrees — it reports "No initiatives found in initiative plan" against a fully populated plan. The message actively misleads: a user has no reason to suspect a filter, and `--all` (the workaround) is not an obvious thing to reach for when the tool claims the data does not exist.
 - #96 unblocks squadron's commit gate. Today it must fail closed on any `filesChecked: 0`, forcing `--no-verify` on every release-shaped commit (`CHANGELOG.md`, `pyproject.toml`, `uv.lock` — all legitimately out of scope). It also lets squadron delete a local duplicate of cf's scope predicate.
 
 ## Technical Scope
@@ -36,6 +39,7 @@ Developer-facing and tooling-facing.
 3. Worktree attribution on `cf check` findings, in both terminal and JSON output (#87).
 4. A single shared path→worktree resolution helper used by both commands.
 5. Extraction of the duplicated `mergeCheckResults` into core, so the CLI and the MCP `workflow_check` tool share one attribution-aware merge.
+6. Removal of the initiative-index range filter in `cf list arch`, on both the plan-driven and fallback paths (#97).
 
 **Explicitly excluded:**
 
@@ -43,6 +47,7 @@ Developer-facing and tooling-facing.
 - `--worktree` / `--this-worktree` filter flags on `cf check`. Issue #87 lists these as follow-on considerations, not required for the fix. Attribution first; filtering can be proposed separately once labels reveal the real volume.
 - Any change to frontmatter schema rules or `--fix` behavior.
 - Recursive document discovery. `discoverAllDocuments` stays non-recursive over `DOC_SCAN_DIRS`.
+- Any change to the other six `isInIndexRange` call sites (#97). They filter slice-indexed things correctly; only the two `arch.ts` sites are wrong. See D7.
 
 ## Dependencies
 
@@ -155,6 +160,14 @@ Related constraint: `location` cannot be used to derive attribution, because it 
 
 **D6 — Keep `cf check`'s top-level `projectPath`, add per-finding attribution.** Issue #87 notes `projectPath` names the invoking checkout even for foreign findings. Changing or removing it would be a breaking change for existing consumers. Instead it keeps its literal meaning (the invoking checkout) and per-finding worktree identity is added where the ambiguity actually is. Consider documenting the field's meaning rather than altering it.
 
+**D7 — Do not range-filter initiatives (#97).** An initiative plan is a project-level artifact; a worktree's `indexRange` is a slice-index concept. Applying one to the other is a category error, so the filter is removed from `archListFromPlan` ([arch.ts:80](packages/cli/src/commands/arch.ts#L80)) and from the `archListFromModel` fallback ([arch.ts:173](packages/cli/src/commands/arch.ts#L173)). This makes the default path agree with `--all`, which already lists initiatives unfiltered ([arch.ts:49-51](packages/cli/src/commands/arch.ts#L49-L51)) — so it removes an inconsistency rather than introducing behavior. **Selected by PM, 20260922.**
+
+Rejected: *filter by the initiative's slice span* (truer to worktree scoping, but adds machinery to scope an artifact that should not be scoped); *keep the filter and fix only the message* (leaves a worktree user unable to list initiatives at all, which is the actual complaint).
+
+Scope note: `isInIndexRange` has eight non-test call sites. The other six — in `slice.ts`, `task.ts`, `plan.ts`, `future.ts`, `project.ts`, and `WorkflowNavigator.ts` — filter genuinely slice-indexed things and are **correct**. Only the two `arch.ts` sites misapply a slice range to initiative indices. This defect is contained; do not generalize the fix.
+
+**D8 — Distinguish "empty" from "filtered" in empty-result messages.** #97's secondary complaint. With D7 the initiative path can no longer be over-filtered, but the message at [arch.ts:83](packages/cli/src/commands/arch.ts#L83) still claims the plan holds no initiatives whenever the list is empty. Any empty-result message on a path that retains a filter must distinguish "the plan is empty" from "entries were excluded by the active filter." Cheap to do while the code is open, and it is the property that would have made #97 self-diagnosing.
+
 ### Patterns and Conventions
 
 - Outcome constants defined once as an `as const` object with a derived union type; no bare string literals at comparison sites.
@@ -249,8 +262,10 @@ Consumes the worktree registration/overlay machinery from the 180–188 worktree
 5. **(#87)** `cf check` terminal output identifies which worktree each finding came from, when more than one is registered.
 6. **(#87)** `cf check --json` carries per-finding worktree identity.
 7. **(#87)** The MCP `workflow_check` tool carries the same attribution as the CLI, via the shared merge — no second, divergent implementation remains.
-8. Single-checkout projects see byte-identical terminal output to today.
-9. No invocation that previously reported findings reports fewer.
+8. **(#97)** `cf list arch` from a worktree in a project with two or more registered worktrees lists the same initiatives as the main checkout, and as `--all`.
+9. **(#97)** The `archListFromModel` fallback path behaves identically — the fix covers both call sites, not just the primary one.
+10. Single-checkout projects see byte-identical terminal output to today.
+11. No invocation that previously reported findings reports fewer.
 
 ### Technical Requirements
 
@@ -261,6 +276,7 @@ Consumes the worktree registration/overlay machinery from the 180–188 worktree
 - Integration test reproducing #88 with two registered worktrees — this is the defect that most needs a real-filesystem test, since the bug is precisely that a unit test with a mocked root would pass.
 - **Close the CLI worktree-coverage gap.** `packages/cli/tests/commands/check.test.ts` has *zero* worktree coverage today: its fixture project has no `worktrees`, so `projectViews` is always a single element and `mergeCheckResults` always returns at its `results.length === 1` early guard ([check.ts:48](packages/cli/src/commands/check.ts#L48)). The multi-view merge path is entirely untested CLI-side. MCP has three such tests (`packages/mcp-server/tests/workflowTools.test.ts:608-712`) which should be mirrored, and — once the merge is shared — retargeted at the extracted core function.
 - A regression test pinning default-checkout output identical to pre-slice behavior.
+- **(#97)** A `cf list arch` test with **two** registered worktrees. One worktree is not enough: `getWorktreeIndexRange` returns `undefined` for a single-worktree project ([worktree-overlay.ts:33](packages/core/src/utils/worktree-overlay.ts#L33)), so no filtering occurs and a one-worktree test passes against the unfixed code. Cover both the plan-driven and fallback paths. Existing `list-arch-index-targeting.test.ts` covers `list slices`/`list tasks` archIndex targeting and does not assert the removed filter, so nothing there should need rewriting.
 - `CHANGELOG.md` entry; `cf validate frontmatter --help` text updated (it currently advertises "others are silently skipped" at [validate.ts:169](packages/cli/src/commands/validate.ts#L169), which this slice makes false).
 
 ### Integration Requirements
@@ -348,6 +364,28 @@ cf check --json | jq '.findings[] | {rule, worktree: .worktree.name}'
 
 Each finding names its worktree.
 
+**Step 6a — #97, initiatives visible from a worktree.** This needs a *second* registered worktree; with only one, `getWorktreeIndexRange` returns `undefined` and the bug is masked.
+
+```bash
+git worktree add /private/tmp/cf-wt-repro -b tmp-wt-repro main
+cd /private/tmp/cf-wt-repro
+cf worktree init --name wtrepro --range 920-929 --path /private/tmp/cf-wt-repro -o
+cf list arch
+```
+
+*Before:* `No initiatives found in initiative plan.` — against a fully populated plan.
+*After:* the same 7 initiatives the main checkout lists.
+
+Cross-check that `--all` and the default now agree, which is the actual invariant:
+
+```bash
+cf list arch --json > /tmp/default.json
+cf list arch --all --json > /tmp/all.json
+diff /tmp/default.json /tmp/all.json && echo "agree"
+```
+
+Clean up: `git worktree remove /private/tmp/cf-wt-repro && git branch -D tmp-wt-repro` (and `cf worktree rm wtrepro`).
+
 **Step 7 — no regression for single-checkout users.** In a project with no registered worktrees, `cf check` and `cf validate frontmatter` output must be identical to the pre-slice build. Diff against output captured before starting.
 
 **Step 8 — the external consumer.** From squadron, in a worktree:
@@ -385,9 +423,10 @@ Suggested order — each step leaves the system working:
 3. **Add outcome reporting** (#92/#96) — thread per-path outcomes through `resolveExplicitPaths` and the main loop, declare the result interface, extend the JSON.
 4. **Extract `mergeCheckResults` to core** — pure move of the verbatim CLI/MCP duplicate, with both call sites switched and existing MCP tests retargeted. No behavior change; do this *before* adding attribution so the attribution change lands in one place.
 5. **Fix #87** — attribution through the extracted merge and `printCheckOutput` (which must now receive worktree context, not just `projectName`). Independent of steps 2–3; could be done in parallel.
-6. **Update help text, CHANGELOG, and external verification** (step 8 above).
+6. **Fix #97** — remove the `indexRange` filter at both `arch.ts` call sites, plus the D8 message fix. Fully independent of steps 1–5; touches no file the rest of the slice touches. Can land first, last, or in parallel.
+7. **Update help text, CHANGELOG, and external verification** (step 8 above).
 
-Steps 2 and 4 are separable; if the slice needs to be cut short, step 2 is the one that must land — it is the only defect that manufactures false confidence in a validator.
+Steps 2, 5, and 6 are separable; if the slice needs to be cut short, step 2 is the one that must land — it is the only defect that manufactures false confidence in a validator. Step 6 is the cheapest and could ship on its own at any point.
 
 **Testing strategy:** unit tests for the resolver and outcome vocabulary; a real-filesystem integration test for the two-worktree case; a pinned-output regression test for backwards compatibility. Per project rules, the fixture must use the actual format the parser consumes in production — real document paths from a real worktree, not synthetic roots.
 
@@ -395,4 +434,4 @@ Steps 2 and 4 are separable; if the slice needs to be cut short, step 2 is the o
 
 - **The bug hides from careless tests.** Any test that constructs `documentRoot` from the same value the code under test uses will pass while the product is broken. The two-worktree integration test must derive paths from actual registered worktree records.
 - **`cf validate frontmatter` has no `--worktree` flag** while sibling commands do. Adding one is not required by any of the four issues and is left out of scope, but it is worth noting as a consistency gap for future consideration.
-- **Effort:** 3/5.
+- **Effort:** 3/5. Unchanged by the #97 rider — it is a two-call-site deletion plus a message fix, small enough not to move the rating.
