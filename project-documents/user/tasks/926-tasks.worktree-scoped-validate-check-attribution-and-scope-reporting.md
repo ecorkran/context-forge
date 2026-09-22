@@ -31,6 +31,12 @@ status: not_started
   `cf validate frontmatter`; a per-path outcome report replacing silent
   skipping; worktree attribution on `cf check` findings (CLI + MCP); the
   `cf list arch` initiative-filter removal.
+- **Rider added after the design and its review:** GitHub #98 (dual
+  managed-marker recognition, Part 6). Added at PM direction on 20260922.
+  It is unrelated to the worktree surface and shares no code with Parts
+  1–5 — it is bundled for size, and because ai-project-guide#22 is
+  implemented and waiting on it. The slice design and its PASS review
+  predate this addition and do not cover it.
 - Next planned slice: none scheduled; the 900 initiative returns to
   complete when this slice merges.
 
@@ -46,7 +52,12 @@ type. An unmodified squadron must keep working. No coordinated squadron
 release is part of this slice.
 
 **Implementation order rationale:** the shared resolver first, because it
-is a pure refactor that both later fixes build on; then #88 (the smallest
+is a pure refactor that establishes the canonical matching rule in one
+place. Note (tasks review F003) that it is consumed only by the
+`findProjectByCwd` refactor in Task 3 — Task 4 (#88) uses the existing
+`resolveOperationPath`, and Task 13 (#87) uses the existing per-worktree
+view building. Part 1 is not a prerequisite for those fixes; it is
+deduplication that stands on its own. Then #88 (the smallest
 change and the highest-severity defect); then outcome reporting, which
 reshapes the validator result; then the merge extraction before
 attribution, so the attribution change lands in one place rather than two.
@@ -223,7 +234,17 @@ is a separately published npm install, not this working tree.
         out-of-scope is distinguishable, from JSON alone, from a call that
         checked nothing for an unknown reason. This is the property
         squadron's gate needs.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes.
+  - [ ] **Automated single-checkout regression (tasks review F002).** Add
+        a test that pins the *whole* `--json` object for a single-checkout
+        project — not just the five legacy fields individually — so an
+        accidental change to shape, ordering, or a field's meaning fails
+        CI rather than waiting on Task 19's one-time manual diff. D3's
+        additive-only guarantee is the primary defense for an external
+        consumer, so it deserves an automated gate.
+  - [ ] Do the same for `cf check`'s single-checkout output in Task 14's
+        test file, where the two-worktree fixture already lives.
+  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes;
+        deliberately adding a stray field to either output fails the test.
   - [ ] Commit checkpoint: #92/#96 fixed and pinned.
 
 - [ ] **Task 11: Correct the `--fix` and help text** (effort: 1)
@@ -329,12 +350,25 @@ is a separately published npm install, not this working tree.
   - [ ] Success criteria: `cf list arch` and `cf list arch --all` return
         identical output from a worktree in a two-worktree project.
 
-- [ ] **Task 17: Distinguish empty from filtered (D8)** (effort: 1)
-  - [ ] The message at `arch.ts:83` claims the plan holds no initiatives
-        whenever the list is empty. On any path that still applies a
-        filter, distinguish "the plan is empty" from "entries were
-        excluded by the active filter."
-  - [ ] Success criteria: an empty result states which case it is.
+- [ ] **Task 17: Correct the empty-initiatives message (D8)** (effort: 1)
+  - [ ] **Scope narrowed after the tasks review (F001).** D8 says a
+        "filtered" branch belongs on *paths that retain a filter*. After
+        Task 16 the arch initiative paths retain none, so a
+        filtered-vs-empty branch here would be unreachable. Do **not**
+        add one — that was the original wording and it would produce dead
+        code.
+  - [ ] Instead, correct the wording only. The message at `arch.ts:83`
+        (and its `archListFromModel` counterpart) should state plainly
+        that the plan contains no initiative entries, rather than implying
+        a lookup failure.
+  - [ ] The six other `isInIndexRange` call sites do retain filters and
+        would genuinely benefit from D8's distinction, but they are
+        explicitly out of scope (see Task 16). Do not expand into them.
+        If the distinction looks needed there, report it for a future
+        slice rather than widening this one.
+  - [ ] Success criteria: an empty initiative list reads as an accurate
+        statement about the plan's contents; no unreachable branch is
+        added.
 
 - [ ] **Task 18: Two-worktree tests for `cf list arch`** (effort: 2)
   - [ ] Add a test with **two** registered worktrees. One is not enough:
@@ -354,7 +388,88 @@ is a separately published npm install, not this working tree.
         passes after it.
   - [ ] Commit checkpoint: #97 fixed and pinned.
 
-### Part 6 — Verification and release prep
+### Part 6 — #98: dual managed-marker recognition (rider)
+
+**Unrelated to the worktree surface.** Added after the slice design and its
+PASS review, at PM direction, because it is a two-function change with an
+external repo waiting on it. It shares no code with Parts 1–5. Treat it as
+an independent unit: it may be implemented, committed, and merged at any
+point in the sequence.
+
+**Cross-repo contract — read before starting.** ai-project-guide#22 changes
+what `scripts/setup-ide` emits. cf only ever *reads* the marker; the guide
+script is the sole writer, so there is no cf-side emitter to update.
+**cf must recognize the new form before the guide emits it** — reversing
+that order makes `isManagedInstall` return false on every existing install,
+which reverts cf to prompting and backing up files it currently treats as
+managed. The peer session has #22 implemented but explicitly withheld from
+landing until this ships. This work is inert until then: nothing emits the
+new form yet, so it is safe to merge early.
+
+- [ ] **Task 22: Recognize both marker forms, search whole file** (effort: 2)
+  - [ ] In `packages/cli/src/commands/setup-ide.ts`, replace the single
+        `MANAGED_MARKER` constant (line 72) with a single exported
+        collection holding both forms — the legacy exact-match line
+        `[//]: # (context-forge:managed)` and the new
+        `<!-- BEGIN:context-forge -->`. Per the project rule against
+        scattered comparison values, the literals appear in exactly one
+        place. Keep the legacy constant exported if anything still imports
+        it; it is harmless to retain indefinitely.
+  - [ ] In `isManagedInstall` (line 79), treat presence of **either** form
+        as managed. Legacy keeps its trimmed exact-line match; the new form
+        matches a line *containing* the begin marker (it may be indented or
+        followed by trailing content).
+  - [ ] Remove the 20-line window (`content.split('\n').slice(0, 20)`,
+        line 84) and search the whole file. This is **required**, not
+        optional: once #22 preserves user content and appends the managed
+        block, a project's own preamble pushes the begin marker past line
+        20. This repo's CLAUDE.md has its marker at line 3 of 150 today, so
+        a both-forms-but-still-20-lines fix would pass on every current
+        file and fail on exactly the files #22 creates. No performance
+        concern — at most two marker files per target, ~10KB each, already
+        fully read by `readFileSync` before the existing slice.
+  - [ ] Do **not** add `<!-- context-forge:generated -->` (the peer's
+        standalone marker for `.github/instructions/*` and
+        `.github/prompts/*`). Verified no-op: those paths appear only in
+        `propagateDirs`, which is pure `copyFileSync`/`cpSync` and never
+        inspects content. No target's `markerFiles` includes them —
+        `markerFiles` is only `CLAUDE.md`, `AGENTS.md`, and
+        `.github/copilot-instructions.md` across all four targets.
+  - [ ] Success criteria: a file carrying either marker at any line is
+        reported managed; a file with neither is not.
+
+- [ ] **Task 23: Tests for dual-marker recognition** (effort: 2)
+  - [ ] Extend `packages/cli/tests/commands/setup-ide.test.ts`: new-form
+        marker near the top; new-form marker far below line 20 (the #22
+        preserve-and-append shape); legacy marker still recognized;
+        both forms present in one file; neither present; an END marker
+        without a BEGIN (should not count as managed).
+  - [ ] **Invert the existing test at line 367**,
+        `'ignores a marker appearing after line 20'`. It pins the 20-line
+        cap as intended behavior, so this is a deliberate behavior change,
+        not a test rewritten to go green. Rename it to state the new rule
+        and keep a comment noting it was inverted for #98 — so a future
+        reader sees a decision rather than an erosion.
+  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes.
+
+- [ ] **Task 24: Confirm script-failure output is surfaced** (effort: 1)
+  - [ ] #22 makes `setup-ide` exit non-zero, leaving the file untouched,
+        when it finds broken or duplicate marker pairs. The actionable
+        part is the script's own stderr message.
+  - [ ] Confirm cf surfaces it rather than swallowing it. Already verified
+        by inspection and simulation: `execFileSync` uses
+        `stdio: 'inherit'` (line 168), so script stderr reaches the
+        terminal verbatim, and cf then raises a `UserError` naming the
+        exit code and pointing at that output. This task is a
+        confirmation against the real script once #22 lands, not new work.
+  - [ ] If it turns out a real failure is swallowed, stop and report —
+        do not restructure error handling as part of this rider.
+  - [ ] Success criteria: a simulated broken-marker failure shows the
+        script's message followed by cf's exit-code error.
+  - [ ] Commit checkpoint: #98 complete; notify the ai-project-guide
+        session that #22 is unblocked.
+
+### Part 7 — Verification and release prep
 
 - [ ] **Task 19: Full verification walkthrough** (effort: 2)
   - [ ] Run `pnpm -r build && pnpm -r test && pnpm -r typecheck` clean.
@@ -378,8 +493,11 @@ is a separately published npm install, not this working tree.
   - [ ] Success criteria: 6/6 passing; gate behavior unchanged.
 
 - [ ] **Task 21: CHANGELOG and docs** (effort: 1)
-  - [ ] Add a CHANGELOG entry covering all five issues, noting the
-        additive JSON fields and the `cf list arch` behavior change.
+  - [ ] Add a CHANGELOG entry covering all six issues, noting the
+        additive JSON fields, the `cf list arch` behavior change, and
+        (#98) that cf now recognizes both managed-marker forms anywhere in
+        the file. Call out #98 as the prerequisite for ai-project-guide#22
+        so the ordering is recoverable from the changelog alone.
   - [ ] Note the new `documentRoot` and per-path fields as available for
         consumers; do not document them as required.
   - [ ] Success criteria: CHANGELOG describes the user-visible changes;
