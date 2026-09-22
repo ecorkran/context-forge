@@ -1,0 +1,387 @@
+---
+docType: tasks
+slice: worktree-scoped-validate-check-attribution-and-scope-reporting
+project: context-forge
+lld: user/slices/926-slice.worktree-scoped-validate-check-attribution-and-scope-reporting.md
+dependencies: []
+projectState: main is green, working tree clean at 15de0a1. v0.16.0 is tagged and published (all four packages; tarball is now the default guide strategy). Slice 926 design is approved with a PASS slice review (no concerns; the single NOTE is self-resolving — the parent architecture states no NFRs). No code has been written for this slice. `resolveExplicitPaths` in packages/core/src/schema/frontmatterFileValidator.ts still drops paths through three unrecorded `continue` branches; validate.ts:89 still discards `worktreeId`; `mergeCheckResults` is still duplicated verbatim in CLI and MCP; `arch.ts:80` and `arch.ts:173` still range-filter initiative indices.
+dateCreated: 20260922
+dateUpdated: 20260922
+status: not_started
+---
+
+## Context Summary
+
+- Working on slice 926: fix GitHub #88, #92, #96 (`cf validate frontmatter`
+  reports a clean pass when it examined nothing), #87 (`cf check` blames the
+  wrong checkout for a finding), and #97 (`cf list arch` reports no
+  initiatives against a populated plan).
+- Design decisions D1–D8 in the slice design are settled — do not
+  relitigate during implementation. Notably: generalize the existing
+  `findProjectByCwd` matcher rather than write a new one (D1); the shared
+  resolver goes in core, not CLI (D2); **all JSON changes are additive
+  only** (D3); per-path outcomes carry a reason, not just a count (D4);
+  attribution is a structured field, never a description prefix (D5a);
+  `cf check`'s top-level `projectPath` keeps its current meaning (D6);
+  initiatives are not range-filtered at all (D7).
+- Prerequisites: none. Worktree registration, detection, and overlay all
+  ship today (`resolveProjectWorktree`, `findProjectByCwd`,
+  `applyWorktreeOverlay`, `resolveOperationPath`).
+- Delivers: `resolveWorktreeForPath()` in core; worktree-correct roots for
+  `cf validate frontmatter`; a per-path outcome report replacing silent
+  skipping; worktree attribution on `cf check` findings (CLI + MCP); the
+  `cf list arch` initiative-filter removal.
+- Next planned slice: none scheduled; the 900 initiative returns to
+  complete when this slice merges.
+
+Full rationale lives in
+`user/slices/926-slice.worktree-scoped-validate-check-attribution-and-scope-reporting.md`.
+
+**External consumer — read before changing any output.** squadron's
+pre-commit `frontmatter_gate.py` and `tests/documents/test_schema_drift.py`
+parse `cf validate frontmatter --json` today. Every change here is
+additive: the five existing fields (`filesChecked`, `totalFindings`,
+`errors`, `warnings`, `findings`) keep their exact current meaning and
+type. An unmodified squadron must keep working. No coordinated squadron
+release is part of this slice.
+
+**Implementation order rationale:** the shared resolver first, because it
+is a pure refactor that both later fixes build on; then #88 (the smallest
+change and the highest-severity defect); then outcome reporting, which
+reshapes the validator result; then the merge extraction before
+attribution, so the attribution change lands in one place rather than two.
+#97 is independent of everything else and can move anywhere in the
+sequence.
+
+**Existing test locations:** core schema tests in
+`packages/core/tests/schema/`, core utils in `packages/core/tests/utils/`,
+CLI commands in `packages/cli/tests/commands/`, MCP in
+`packages/mcp-server/tests/`. Real-git temp-repo patterns exist in
+`packages/core/tests/guides/strategies/`.
+
+**Commands:** `pnpm -r build`, `pnpm -r test`, `pnpm -r typecheck`. Test a
+local build with `node packages/cli/dist/index.js <args>` — the global `cf`
+is a separately published npm install, not this working tree.
+
+---
+
+## Tasks
+
+### Part 1 — Shared path→worktree resolver (D1, D2)
+
+- [ ] **Task 1: Add `resolveWorktreeForPath()` to core** (effort: 2)
+  - [ ] Add the function to `packages/core/src/utils/worktree-overlay.ts`
+        (or a sibling module in the same directory). Signature takes a
+        project and an absolute path; returns the owning worktree's
+        identity (id, name, root path) or null when nothing matches.
+  - [ ] Port the matching rule from `findProjectByCwd`
+        (`packages/cli/src/utils/project.ts:65-77`) exactly: candidates are
+        the project's `projectPath` plus every worktree's `worktreePath`;
+        a candidate matches when the path equals it or starts with it plus
+        a separator; longest path wins; on a tie prefer the worktree over
+        the project root. Handle a trailing slash on stored paths, as the
+        existing code does.
+  - [ ] A worktree with no `worktreePath` is skipped (it cannot own a
+        path). Do not invent a fallback.
+  - [ ] Export from `packages/core/src/index.ts`.
+  - [ ] Do not change `findProjectByCwd` yet — that is Task 3.
+  - [ ] Success criteria: `pnpm --filter @context-forge/core typecheck`
+        passes; the function is importable from `@context-forge/core`.
+
+- [ ] **Task 2: Tests for `resolveWorktreeForPath()`** (effort: 2)
+  - [ ] Add `packages/core/tests/utils/` coverage for: path inside a
+        registered worktree; path inside the project root but no worktree;
+        path outside everything (null); nested worktree paths where the
+        longest must win; the equal-length tie preferring the worktree;
+        a worktree with `worktreePath` undefined; a stored path with a
+        trailing slash.
+  - [ ] Include a case proving a path that merely shares a string prefix
+        with a root but is not inside it does **not** match (e.g. a sibling
+        directory whose name extends the root's name).
+  - [ ] Success criteria: `pnpm --filter @context-forge/core test` passes.
+
+- [ ] **Task 3: Refactor `findProjectByCwd` to delegate** (effort: 2)
+  - [ ] Change `findProjectByCwd` (`packages/cli/src/utils/project.ts:38`)
+        to call `resolveWorktreeForPath` with `process.cwd()` instead of
+        carrying its own candidate-building and sorting. Its external
+        signature and return type (`CwdMatch`) must not change.
+  - [ ] Remove the now-duplicated matching logic. The rule must exist in
+        exactly one place after this task.
+  - [ ] Success criteria: `pnpm -r test` passes with no changes to any
+        existing test in `packages/cli/tests/utils/` — the refactor is
+        behavior-preserving, so existing assertions are the proof.
+  - [ ] Commit checkpoint: the resolver plus its delegation, green build.
+
+### Part 2 — #88: worktree-correct validate root
+
+- [ ] **Task 4: Apply `worktreeId` in `cf validate frontmatter`** (effort: 1)
+  - [ ] In `packages/cli/src/commands/validate.ts:89`, stop discarding
+        `worktreeId` from `resolveProjectWorktree` — destructure it.
+  - [ ] Replace the `project.projectPath` argument at line 100 with the
+        worktree-resolved operation path, using the existing
+        `resolveOperationPath(project, worktreeId)` helper from
+        `packages/cli/src/utils/worktree-overlay.ts` (the same helper
+        `guides.ts` and `status.ts` already use). Keep the existing
+        `projectPath` as the fallback when it returns nothing.
+  - [ ] Do not change `frontmatterFileValidator.ts` in this task — the
+        validator keeps deriving `documentRoot` from the path it is given.
+  - [ ] Success criteria: from a registered sibling worktree,
+        `node packages/cli/dist/index.js validate frontmatter --json <a
+        file inside that worktree>` reports `filesChecked: 1`, where it
+        reported `0` before.
+
+- [ ] **Task 5: Two-worktree integration test for #88** (effort: 3)
+  - [ ] Add a CLI test registering a project with **two** worktrees whose
+        `worktreePath`s are real temporary directories containing real
+        `project-documents/user/**` markdown fixtures.
+  - [ ] Assert: an explicit path inside the non-default worktree is
+        checked (`filesChecked: 1`), and the no-paths full-walk form still
+        walks that same worktree.
+  - [ ] Derive fixture paths from the registered worktree records, not
+        from a constant the code under test also reads. A test that builds
+        its expected root the same way the product does will pass against
+        the unfixed code — that is exactly how this bug survived.
+  - [ ] Success criteria: the test fails against the pre-Task-4 code and
+        passes after it. Verify both directions before moving on.
+  - [ ] Commit checkpoint: #88 fixed and pinned.
+
+### Part 3 — #92/#96: per-path outcome reporting (D3, D4)
+
+- [ ] **Task 6: Define the outcome vocabulary** (effort: 1)
+  - [ ] In `packages/core/src/schema/frontmatterFileValidator.ts`, add an
+        `as const` object with the five outcomes from the design's D4
+        table: checked, skipped-out-of-scope, skipped-not-markdown,
+        skipped-not-found, skipped-no-frontmatter. Derive the union type
+        from it.
+  - [ ] Per the project rule against scattered comparison values, every
+        later comparison references this object — no bare string literals
+        at call sites.
+  - [ ] Export the constant and the type from `packages/core/src/index.ts`.
+  - [ ] Success criteria: typecheck passes; the literal strings appear in
+        exactly one place in source.
+
+- [ ] **Task 7: Record per-path outcomes in the validator** (effort: 3)
+  - [ ] Change `resolveExplicitPaths`
+        (`frontmatterFileValidator.ts:52-66`) to return, for each input
+        path, the resolved absolute path plus its outcome — instead of
+        silently dropping via the three `continue` branches. Map each
+        branch to its outcome: non-`.md` → skipped-not-markdown;
+        out-of-root → skipped-out-of-scope; nonexistent →
+        skipped-not-found.
+  - [ ] In `validateFrontmatterFiles`, record the fourth skip: a file that
+        reaches the loop but has no parseable frontmatter (line 94)
+        becomes skipped-no-frontmatter, and still does not increment
+        `filesChecked`.
+  - [ ] Extend `FrontmatterFileValidationResult` (lines 17-20) with the
+        per-path list and the resolved document root. `findings` and
+        `filesChecked` keep their current meaning exactly — `filesChecked`
+        still counts only files whose frontmatter was parsed and
+        validated.
+  - [ ] Preserve the relative-path base: explicit relative paths resolve
+        against `process.cwd()` as they do today (line 58), which is not
+        necessarily the document root.
+  - [ ] The full-walk (no-paths) form produces no per-path list — there
+        are no caller-supplied paths to report on. Do not synthesize one
+        from the ~500 discovered documents.
+  - [ ] Success criteria: `pnpm --filter @context-forge/core typecheck`
+        passes; no call site outside this file needs changing yet.
+
+- [ ] **Task 8: Tests for outcome recording** (effort: 2)
+  - [ ] Extend `packages/core/tests/schema/frontmatterFileValidator.test.ts`
+        with one case per outcome value, asserting both the outcome and
+        that `filesChecked` counts only `checked` entries.
+  - [ ] Add a case mixing in-scope and out-of-scope paths in one call,
+        asserting the in-scope file is still validated (this is the
+        pairing behavior #92 observed but could not confirm).
+  - [ ] Add a regression case pinning that a default-checkout call with
+        in-scope paths returns the same `filesChecked` and `findings` as
+        before the slice.
+  - [ ] Success criteria: `pnpm --filter @context-forge/core test` passes.
+
+- [ ] **Task 9: Surface outcomes in validate's JSON (D3, D5)** (effort: 2)
+  - [ ] Replace the inline `Record<string, unknown>` at
+        `packages/cli/src/commands/validate.ts:137-148` with a declared,
+        exported interface. The untyped shape is how this output drifted
+        from its documentation in the first place.
+  - [ ] Keep all five existing fields byte-identical in name, type, and
+        meaning. Add the per-path list, a derived skipped count, and the
+        resolved `documentRoot` (D5 — validate currently emits no path at
+        all, so a caller cannot tell which checkout was scanned).
+  - [ ] Emit the per-path list only for explicit-path invocations; omit it
+        or leave it empty for the full walk.
+  - [ ] Leave the human-readable output path alone except where it would
+        now be actively misleading; this task is about `--json`.
+  - [ ] Success criteria: `node packages/cli/dist/index.js validate
+        frontmatter --json CHANGELOG.md` still reports `filesChecked: 0`
+        and now reports that path as skipped-out-of-scope.
+
+- [ ] **Task 10: CLI tests for the JSON contract** (effort: 2)
+  - [ ] Extend `packages/cli/tests/commands/validate.test.ts`: assert the
+        five legacy fields are unchanged for an in-scope invocation, and
+        that the new fields appear as specified.
+  - [ ] Add the #96 acceptance case: a call whose paths are **all**
+        out-of-scope is distinguishable, from JSON alone, from a call that
+        checked nothing for an unknown reason. This is the property
+        squadron's gate needs.
+  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes.
+  - [ ] Commit checkpoint: #92/#96 fixed and pinned.
+
+- [ ] **Task 11: Correct the `--fix` and help text** (effort: 1)
+  - [ ] `validate.ts:169` help text advertises that out-of-root paths are
+        "silently skipped" — this slice makes that false. Reword to say
+        skipped paths are reported.
+  - [ ] Confirm `--fix` still only applies `fixAction`s already present on
+        findings; skipped paths must never be fix targets.
+  - [ ] Success criteria: `node packages/cli/dist/index.js validate
+        frontmatter --help` describes the actual behavior.
+
+### Part 4 — #87: check attribution (D5a, D6)
+
+- [ ] **Task 12: Extract `mergeCheckResults` to core** (effort: 2)
+  - [ ] Move the function to core (alongside the consistency types in
+        `packages/core/src/introspection/`). The CLI copy
+        (`packages/cli/src/commands/check.ts:47-71`) and the MCP copy
+        (`packages/mcp-server/src/tools/workflowTools.ts:26-52`) are
+        verbatim duplicates; both already carry a TODO to extract it.
+  - [ ] Switch both call sites to the core function and delete both local
+        copies, including the now-satisfied TODO comments.
+  - [ ] Pure move — no behavior change in this task. Attribution comes
+        next, so it lands in one place instead of two.
+  - [ ] Success criteria: `pnpm -r build` and `pnpm -r test` pass;
+        the existing MCP merge tests
+        (`packages/mcp-server/tests/workflowTools.test.ts:608-712`) pass
+        unchanged, retargeted at the core function.
+  - [ ] Commit checkpoint: extraction verified green before attribution.
+
+- [ ] **Task 13: Carry worktree identity onto findings** (effort: 3)
+  - [ ] Add an optional worktree field (name and path) to
+        `ConsistencyFinding`
+        (`packages/core/src/introspection/types.ts:232-245`). Optional, so
+        single-checkout projects and existing producers are unaffected.
+  - [ ] In `check.ts:221-223`, the per-worktree views are built from
+        `wt.id` but discard it. Keep each view paired with its worktree so
+        the findings it produces can be tagged **before** they reach the
+        merge.
+  - [ ] Attribution must be attached pre-merge. The dedup key
+        (`rule|location|description`) has no worktree component, so
+        deriving attribution after the merge would misattribute
+        first-seen-wins duplicates.
+  - [ ] Do **not** add worktree to the dedup key. Aggregate rules run per
+        view and legitimately produce identical findings across views;
+        the merge is supposed to collapse them. Adding worktree to the key
+        would multiply project-level findings by worktree count.
+  - [ ] Do not derive attribution from `location` — it is not always a
+        filesystem path (`ConsistencyChecker.ts:461` emits a
+        `slice plan entry N` string). It comes from the producing view.
+  - [ ] Do not encode it in the description string (D5a), despite the
+        existing `[917] `-prefix precedent at
+        `ConsistencyChecker.ts:128-131`.
+  - [ ] Leave the top-level `projectPath` as-is (D6) — it keeps meaning
+        "the invoking checkout."
+  - [ ] Success criteria: `cf check --json` from a two-worktree project
+        carries per-finding worktree identity; `pnpm -r typecheck` passes.
+
+- [ ] **Task 14: Tests for merge attribution** (effort: 3)
+  - [ ] `packages/cli/tests/commands/check.test.ts` has **zero** worktree
+        coverage today: its fixture project has no `worktrees`, so
+        `mergeCheckResults` always returns at its `results.length === 1`
+        early guard and the multi-view path is never exercised. Add a
+        two-worktree fixture.
+  - [ ] Assert: findings from each view carry that view's worktree; a
+        finding arising identically in two worktrees still dedups to one
+        entry (and the attribution is deterministic, not arbitrary);
+        a single-worktree project produces findings with no attribution
+        change from today.
+  - [ ] Mirror the equivalent cases for the MCP `workflow_check` path so
+        both consumers of the shared merge are covered.
+  - [ ] Success criteria: `pnpm -r test` passes.
+
+- [ ] **Task 15: Render the worktree label** (effort: 2)
+  - [ ] `printCheckOutput` (`check.ts:273-310`) currently receives only
+        `projectName` — worktree information never reaches the renderer.
+        Pass what it needs.
+  - [ ] Prefix each finding with its worktree name, per #87's suggestion,
+        so a reader can tell at a glance which checkout a finding belongs
+        to. Existing slice grouping stays as-is.
+  - [ ] Suppress the label when the project has no registered worktrees,
+        or only the implicit `default` — single-checkout users must see no
+        change.
+  - [ ] Success criteria: with two worktrees, `cf check` shows the
+        owning worktree on each finding; with none, output is
+        byte-identical to the pre-slice build.
+  - [ ] Commit checkpoint: #87 fixed and pinned.
+
+### Part 5 — #97: initiative filter removal (D7, D8)
+
+- [ ] **Task 16: Stop range-filtering initiatives** (effort: 1)
+  - [ ] Remove the `isInIndexRange` filter from `archListFromPlan`
+        (`packages/cli/src/commands/arch.ts:80`) and from the
+        `archListFromModel` fallback (`arch.ts:173`). An initiative plan
+        is a project-level artifact; `indexRange` is a slice-index
+        concept.
+  - [ ] Change **only** these two call sites. The other six
+        `isInIndexRange` call sites (`slice.ts`, `task.ts`, `plan.ts`,
+        `future.ts`, `project.ts`, `WorkflowNavigator.ts`) filter genuinely
+        slice-indexed things and are correct.
+  - [ ] Drop the now-unused `indexRange` plumbing on this path only if it
+        becomes dead; do not disturb `operationPath` resolution, which is
+        already correct.
+  - [ ] Success criteria: `cf list arch` and `cf list arch --all` return
+        identical output from a worktree in a two-worktree project.
+
+- [ ] **Task 17: Distinguish empty from filtered (D8)** (effort: 1)
+  - [ ] The message at `arch.ts:83` claims the plan holds no initiatives
+        whenever the list is empty. On any path that still applies a
+        filter, distinguish "the plan is empty" from "entries were
+        excluded by the active filter."
+  - [ ] Success criteria: an empty result states which case it is.
+
+- [ ] **Task 18: Two-worktree tests for `cf list arch`** (effort: 2)
+  - [ ] Add a test with **two** registered worktrees. One is not enough:
+        `getWorktreeIndexRange` returns `undefined` for single-worktree
+        projects (`packages/core/src/utils/worktree-overlay.ts:33`), so no
+        filtering occurs and a one-worktree test passes against the
+        unfixed code.
+  - [ ] Cover both the plan-driven and `archListFromModel` fallback paths.
+  - [ ] Assert the default and `--all` forms agree — that is the real
+        invariant.
+  - [ ] `packages/cli/tests/commands/list-arch-index-targeting.test.ts`
+        covers `list slices`/`list tasks` archIndex targeting and does not
+        assert the removed filter, so it should not need rewriting. If it
+        does, stop and confirm with the Project Manager rather than
+        weakening it.
+  - [ ] Success criteria: the test fails against the pre-Task-16 code and
+        passes after it.
+  - [ ] Commit checkpoint: #97 fixed and pinned.
+
+### Part 6 — Verification and release prep
+
+- [ ] **Task 19: Full verification walkthrough** (effort: 2)
+  - [ ] Run `pnpm -r build && pnpm -r test && pnpm -r typecheck` clean.
+  - [ ] Execute the design's Verification Walkthrough steps 1–7 against a
+        local build, including the step-6a `cf list arch` repro and its
+        temporary-worktree cleanup.
+  - [ ] Confirm step 7 explicitly: in a project with no registered
+        worktrees, `cf check` and `cf validate frontmatter` output is
+        identical to a pre-slice build. Capture the before-output first.
+  - [ ] Success criteria: every step produces the documented "after"
+        result.
+
+- [ ] **Task 20: External consumer verification** (effort: 2)
+  - [ ] Run squadron's `tests/documents/test_schema_drift.py` from a
+        squadron worktree against this build. It currently fails 3/6
+        because of #88; expect 6/6.
+  - [ ] Confirm an **unmodified** squadron `frontmatter_gate.py` still
+        works against the new output — the additive-only guarantee (D3).
+  - [ ] Do not modify squadron in this slice. If either check fails,
+        report to the Project Manager rather than changing squadron.
+  - [ ] Success criteria: 6/6 passing; gate behavior unchanged.
+
+- [ ] **Task 21: CHANGELOG and docs** (effort: 1)
+  - [ ] Add a CHANGELOG entry covering all five issues, noting the
+        additive JSON fields and the `cf list arch` behavior change.
+  - [ ] Note the new `documentRoot` and per-path fields as available for
+        consumers; do not document them as required.
+  - [ ] Success criteria: CHANGELOG describes the user-visible changes;
+        `pnpm -r build` still clean.
+  - [ ] Commit checkpoint: slice complete, ready for merge to `main`.
