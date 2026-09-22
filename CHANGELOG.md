@@ -13,7 +13,7 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.17.0] - 20260922
 
 ### Fixed
 - **`cf validate frontmatter` now validates the worktree you are standing in**, not the project root. From a registered worktree every explicit path fell outside the document root and was silently dropped, so the command reported a clean pass having examined nothing — `filesChecked: 0`, exit 0. Anything gating on it passed everything (#88).
