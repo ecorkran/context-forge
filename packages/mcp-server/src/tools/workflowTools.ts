@@ -11,10 +11,10 @@ import {
   createVersionedBackup,
 } from '@context-forge/core/node';
 import {
-  applyWorktreeOverlay,
   resolveProject,
   mergeCheckResults,
   attributeFindings,
+  buildAttributedViews,
 } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
@@ -250,19 +250,15 @@ export function registerWorkflowTools(server: McpServer): void {
         // view but produce the same results, so deduplication collapses them correctly.
         // Each view stays paired with its worktree so findings can be attributed
         // before the merge; the dedup key has no worktree component (#87).
-        // Only attribute when there is more than one checkout to tell apart —
-        // a migrated project has one worktree named "default", so keying on
-        // the array's presence would add a field to single-checkout output.
-        const worktrees = project.worktrees ?? [];
-        const attributable = worktrees.length > 1;
-        const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => ({
-              view: applyWorktreeOverlay(project, wt.id),
-              worktree: attributable
-                ? { id: wt.id, name: wt.name, path: wt.worktreePath }
-                : undefined,
-            }))
-          : [{ view: project, worktree: undefined }];
+        // Shared with cf check so the count-not-presence rule cannot drift
+        // between the two consumers of the same merge.
+        const projectViews = buildAttributedViews(project);
+        // Top-level projectPath means the invoking checkout. workflow_check
+        // takes no worktree argument and `project` here is the raw stored
+        // record, so the project root is that checkout. Passing it explicitly
+        // stops the merge inheriting the first registered worktree's overlaid
+        // path from results[0].
+        const invokingPath = project.projectPath;
 
         let result;
         if (args.sliceIndex !== undefined) {
@@ -274,13 +270,13 @@ export function registerWorkflowTools(server: McpServer): void {
           const checkResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
             attributeFindings(fixMode ? await checker.fix(view) : await checker.check(view), worktree),
           ));
-          result = mergeCheckResults(checkResults);
+          result = mergeCheckResults(checkResults, invokingPath);
         } else {
           // All-slices mode (no confirmation prompt in MCP)
           const checkResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
             attributeFindings(fixMode ? await checker.fixAll(view) : await checker.checkAll(view), worktree),
           ));
-          result = mergeCheckResults(checkResults);
+          result = mergeCheckResults(checkResults, invokingPath);
         }
 
         return jsonResult(result);

@@ -73,10 +73,17 @@ const MIGRATED_DEFAULT_PROJECT = {
   ],
 };
 
-/** A result carrying one finding, shaped like ConsistencyChecker output. */
-function resultWith(description: string, location = '/repo/x.md') {
+/**
+ * A result carrying one finding, shaped like ConsistencyChecker output.
+ *
+ * `projectPath` defaults to the project root but is overridable: in production
+ * each view's projectPath has been overlaid to its own worktree path, so a
+ * fixture that hardcodes one value for every view cannot detect the merge
+ * picking the wrong one.
+ */
+function resultWith(description: string, location = '/repo/x.md', projectPath = '/repo/main') {
   return {
-    projectPath: '/repo/main',
+    projectPath,
     findings: [
       {
         rule: 'task-vs-plan',
@@ -307,13 +314,35 @@ describe('cf check worktree attribution (#87)', () => {
   it('keeps the top-level projectPath meaning the invoking checkout (D6)', async () => {
     mockGetAll.mockResolvedValue([TWO_WORKTREE_PROJECT]);
     mockGetById.mockResolvedValue(TWO_WORKTREE_PROJECT);
+    // Each view reports its OWN overlaid path, as applyWorktreeOverlay makes
+    // it do in production. An earlier version of this test hardcoded
+    // '/repo/main' in every mock result, so the assertion could not fail —
+    // and it was masking a real defect: mergeCheckResults inherited
+    // results[0].projectPath, i.e. the first *registered* worktree, not the
+    // invoking checkout. Caught by the code review for this slice.
     mockCheckAll
-      .mockResolvedValueOnce(resultWith('a'))
-      .mockResolvedValueOnce(resultWith('b'));
+      .mockResolvedValueOnce(resultWith('a', '/repo/a.md', '/repo/wt-alpha'))
+      .mockResolvedValueOnce(resultWith('b', '/repo/b.md', '/repo/wt-beta'));
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_wt', '--json']);
 
+    // --project resolves without a worktree, so the invoking checkout is the
+    // project root — not alpha's path, which results[0] would have supplied.
     expect(jsonFrom(stdoutWrite).projectPath).toBe('/repo/main');
+  });
+
+  it('does not inherit the first registered worktree path as projectPath', async () => {
+    mockGetAll.mockResolvedValue([TWO_WORKTREE_PROJECT]);
+    mockGetById.mockResolvedValue(TWO_WORKTREE_PROJECT);
+    mockCheckAll
+      .mockResolvedValueOnce(resultWith('a', '/repo/a.md', '/repo/wt-alpha'))
+      .mockResolvedValueOnce(resultWith('b', '/repo/b.md', '/repo/wt-beta'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_wt', '--json']);
+
+    // The specific wrong answer, named so a regression is unambiguous.
+    expect(jsonFrom(stdoutWrite).projectPath).not.toBe('/repo/wt-alpha');
   });
 });

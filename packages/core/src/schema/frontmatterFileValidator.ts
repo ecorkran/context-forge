@@ -112,12 +112,14 @@ function resolveExplicitPaths(paths: string[], documentRoot: string): PathResult
  * Validate frontmatter across a project's methodology documents.
  *
  * No paths: walks the six scan directories under project-documents/user/,
- * exactly as `cf check` Rule 12 does.
- * Explicit paths: kept only if they resolve to an existing .md file inside
- * the document root (project-documents/user/); everything else is silently
- * skipped.
- * Files whose frontmatter is absent or unparseable are skipped (matching
- * Rule 12) and are not counted in filesChecked.
+ * exactly as `cf check` Rule 12 does, and reports no per-path list.
+ * Explicit paths: validated only if they resolve to an existing .md file
+ * inside the document root (project-documents/user/). Everything else is
+ * reported in `pathResults` with the reason it was skipped — nothing is
+ * dropped silently (#92/#96).
+ * Files whose frontmatter is absent or unparseable are not counted in
+ * filesChecked (matching Rule 12) and are reported as
+ * `skipped-no-frontmatter`.
  */
 export async function validateFrontmatterFiles(
   projectPath: string,

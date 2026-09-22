@@ -77,14 +77,22 @@ const SKIP_REASON: Record<Exclude<PathOutcome, 'checked'>, string> = {
   [PathOutcome.SkippedNoFrontmatter]: 'no frontmatter',
 };
 
+/** A path result whose outcome is one of the skip reasons. */
+type SkippedPathResult = PathResult & { outcome: Exclude<PathOutcome, 'checked'> };
+
+function isSkipped(result: PathResult): result is SkippedPathResult {
+  return result.outcome !== PathOutcome.Checked;
+}
+
 function printSkipped(pathResults: PathResult[] | undefined): void {
-  const skipped = (pathResults ?? []).filter((r) => r.outcome !== PathOutcome.Checked);
+  // A narrowing predicate rather than a cast: adding a new PathOutcome without
+  // a SKIP_REASON entry then fails to compile instead of rendering undefined.
+  const skipped = (pathResults ?? []).filter(isSkipped);
   if (skipped.length === 0) return;
 
   console.log(dim(`  ${skipped.length} path${skipped.length !== 1 ? 's' : ''} skipped:`));
   for (const r of skipped) {
-    const reason = SKIP_REASON[r.outcome as Exclude<PathOutcome, 'checked'>];
-    console.log(dim(`    - ${r.inputPath} (${reason})`));
+    console.log(dim(`    - ${r.inputPath} (${SKIP_REASON[r.outcome]})`));
   }
   console.log('');
 }

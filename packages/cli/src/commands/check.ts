@@ -9,17 +9,22 @@ import {
   detectDocuments,
   updateFrontmatterField,
 } from '@context-forge/core/node';
-import { formatDateProject, mergeCheckResults, attributeFindings } from '@context-forge/core';
+import {
+  formatDateProject,
+  mergeCheckResults,
+  attributeFindings,
+  buildAttributedViews,
+} from '@context-forge/core';
 import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
   ConsistencyFinding,
-  FindingWorktree,
+  AttributedView,
   ProjectData,
 } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
@@ -45,15 +50,9 @@ function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixRe
   return 'fixLog' in result;
 }
 
-/** A project view paired with the worktree it was overlaid from, if any. */
-interface ProjectView {
-  view: ProjectData;
-  worktree?: FindingWorktree;
-}
-
 /** Run a checker over each view and attribute the findings to their worktree. */
 async function runAttributed(
-  views: ProjectView[],
+  views: AttributedView[],
   run: (view: ProjectData) => Promise<ConsistencyCheckResult>,
 ): Promise<ConsistencyCheckResult[]> {
   return Promise.all(
@@ -180,7 +179,7 @@ export function registerCheckCommand(program: Command): void {
         }
 
         const store = new FileProjectStore();
-        const { id } = await resolveProjectWorktree({ project: opts.project }, store);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -217,25 +216,16 @@ export function registerCheckCommand(program: Command): void {
         // can be attributed before the merge. The dedup key has no worktree
         // component, so attributing after the merge would misattribute
         // first-seen-wins duplicates (#87).
-        // Attribution is only meaningful when there is more than one checkout
-        // to tell apart, so a single-worktree project attaches none and its
-        // output stays byte-identical to the pre-slice build. Note that a
-        // migrated project has exactly one worktree named "default" rather
-        // than no worktrees at all, so this must key on the count — not on
-        // the absence of a worktrees array, and not on that name, since a
-        // user-visible label is not logical structure.
-        const worktrees = project.worktrees ?? [];
-        const attributable = worktrees.length > 1;
-        const projectViews: ProjectView[] = worktrees.length > 0
-          ? worktrees.map((wt) => ({
-              view: applyWorktreeOverlay(project, wt.id),
-              worktree: attributable
-                ? { id: wt.id, name: wt.name, path: wt.worktreePath }
-                : undefined,
-            }))
-          : [{ view: project }];
+        // buildAttributedViews owns the count-not-presence rule; it is shared
+        // with MCP's workflow_check so the invariant cannot drift between the
+        // two consumers of the same merge.
+        const projectViews = buildAttributedViews(project);
+        const showWorktree = projectViews.some((v) => v.worktree !== undefined);
 
-        const showWorktree = attributable;
+        // Top-level projectPath means the invoking checkout (D6). Each view's
+        // own projectPath has been overlaid to its worktree path, so the merge
+        // must be told which one that is.
+        const invokingPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
         let result: ConsistencyCheckResult;
 
@@ -246,12 +236,12 @@ export function registerCheckCommand(program: Command): void {
             view: { ...pv.view, fileSlice: `${singleSlice}-slice` },
           }));
           const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
-          const merged = mergeCheckResults(checkResults);
+          const merged = mergeCheckResults(checkResults, invokingPath);
           result = fixMode ? await checker.applyFixes(merged) : merged;
         } else if (fixMode) {
           // All-slices fix mode — prompt for confirmation unless --yes
           const dryRunResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
-          const dryRun = mergeCheckResults(dryRunResults);
+          const dryRun = mergeCheckResults(dryRunResults, invokingPath);
           const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
 
           if (fixableCount === 0) {
@@ -273,7 +263,7 @@ export function registerCheckCommand(program: Command): void {
           }
         } else {
           const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
-          result = mergeCheckResults(checkResults);
+          result = mergeCheckResults(checkResults, invokingPath);
         }
 
         if (opts.json) {
