@@ -411,8 +411,8 @@ managed. The peer session has #22 implemented but explicitly withheld from
 landing until this ships. This work is inert until then: nothing emits the
 new form yet, so it is safe to merge early.
 
-- [ ] **Task 22: Recognize both marker forms, search whole file** (effort: 2)
-  - [ ] In `packages/cli/src/commands/setup-ide.ts`, replace the single
+- [x] **Task 22: Recognize both marker forms, search whole file** (effort: 2)
+  - [x] In `packages/cli/src/commands/setup-ide.ts`, replace the single
         `MANAGED_MARKER` constant (line 72) with a single exported
         collection holding both forms — the legacy exact-match line
         `[//]: # (context-forge:managed)` and the new
@@ -420,11 +420,11 @@ new form yet, so it is safe to merge early.
         scattered comparison values, the literals appear in exactly one
         place. Keep the legacy constant exported if anything still imports
         it; it is harmless to retain indefinitely.
-  - [ ] In `isManagedInstall` (line 79), treat presence of **either** form
+  - [x] In `isManagedInstall` (line 79), treat presence of **either** form
         as managed. Legacy keeps its trimmed exact-line match; the new form
         matches a line *containing* the begin marker (it may be indented or
         followed by trailing content).
-  - [ ] Remove the 20-line window (`content.split('\n').slice(0, 20)`,
+  - [x] Remove the 20-line window (`content.split('\n').slice(0, 20)`,
         line 84) and search the whole file. This is **required**, not
         optional: once #22 preserves user content and appends the managed
         block, a project's own preamble pushes the begin marker past line
@@ -433,45 +433,45 @@ new form yet, so it is safe to merge early.
         file and fail on exactly the files #22 creates. No performance
         concern — at most two marker files per target, ~10KB each, already
         fully read by `readFileSync` before the existing slice.
-  - [ ] Do **not** add `<!-- context-forge:generated -->` (the peer's
+  - [x] Do **not** add `<!-- context-forge:generated -->` (the peer's
         standalone marker for `.github/instructions/*` and
         `.github/prompts/*`). Verified no-op: those paths appear only in
         `propagateDirs`, which is pure `copyFileSync`/`cpSync` and never
         inspects content. No target's `markerFiles` includes them —
         `markerFiles` is only `CLAUDE.md`, `AGENTS.md`, and
         `.github/copilot-instructions.md` across all four targets.
-  - [ ] Success criteria: a file carrying either marker at any line is
+  - [x] Success criteria: a file carrying either marker at any line is
         reported managed; a file with neither is not.
 
-- [ ] **Task 23: Tests for dual-marker recognition** (effort: 2)
-  - [ ] Extend `packages/cli/tests/commands/setup-ide.test.ts`: new-form
+- [x] **Task 23: Tests for dual-marker recognition** (effort: 2)
+  - [x] Extend `packages/cli/tests/commands/setup-ide.test.ts`: new-form
         marker near the top; new-form marker far below line 20 (the #22
         preserve-and-append shape); legacy marker still recognized;
         both forms present in one file; neither present; an END marker
         without a BEGIN (should not count as managed).
-  - [ ] **Invert the existing test at line 367**,
+  - [x] **Invert the existing test at line 367**,
         `'ignores a marker appearing after line 20'`. It pins the 20-line
         cap as intended behavior, so this is a deliberate behavior change,
         not a test rewritten to go green. Rename it to state the new rule
         and keep a comment noting it was inverted for #98 — so a future
         reader sees a decision rather than an erosion.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli test` passes.
+  - [x] Success criteria: `pnpm --filter @context-forge/cli test` passes.
 
-- [ ] **Task 24: Confirm script-failure output is surfaced** (effort: 1)
-  - [ ] #22 makes `setup-ide` exit non-zero, leaving the file untouched,
+- [x] **Task 24: Confirm script-failure output is surfaced** (effort: 1)
+  - [x] #22 makes `setup-ide` exit non-zero, leaving the file untouched,
         when it finds broken or duplicate marker pairs. The actionable
         part is the script's own stderr message.
-  - [ ] Confirm cf surfaces it rather than swallowing it. Already verified
+  - [x] Confirm cf surfaces it rather than swallowing it. Already verified
         by inspection and simulation: `execFileSync` uses
         `stdio: 'inherit'` (line 168), so script stderr reaches the
         terminal verbatim, and cf then raises a `UserError` naming the
         exit code and pointing at that output. This task is a
         confirmation against the real script once #22 lands, not new work.
-  - [ ] If it turns out a real failure is swallowed, stop and report —
+  - [x] If it turns out a real failure is swallowed, stop and report —
         do not restructure error handling as part of this rider.
-  - [ ] Success criteria: a simulated broken-marker failure shows the
+  - [x] Success criteria: a simulated broken-marker failure shows the
         script's message followed by cf's exit-code error.
-  - [ ] Commit checkpoint: #98 complete; notify the ai-project-guide
+  - [x] Commit checkpoint: #98 complete; notify the ai-project-guide
         session that #22 is unblocked.
 
 ### Part 7 — `rules.exclude` config key (rider)

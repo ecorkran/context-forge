@@ -134,4 +134,28 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       return null;
     },
   },
+  'rules.exclude': {
+    type: 'string',
+    default: '',
+    description:
+      'Comma-separated filename globs for scoped rule files to skip when installing rules (e.g. "dart.md,swift*.md"). Matching is basename-only and skip-only — an already-installed file is never deleted. Empty means install everything. Consumed by the guide\'s setup-ide script, not by cf itself: cf stores and validates the value, the script acts on it. Rules marked alwaysApply are not excludable.',
+    scope: ConfigScope.Shared,
+    validate: (value) => {
+      if (typeof value !== 'string') return 'must be a string';
+      if (value === '') return null; // empty = no exclusions (identity default)
+      // The consuming script matches with a literal bash `case`, so " swift*.md"
+      // would silently never match. A pattern that quietly does nothing is the
+      // exact failure this key must not have.
+      const entries = value.split(',');
+      for (const entry of entries) {
+        if (entry === '') {
+          return 'must not contain an empty entry (check for a doubled or trailing comma)';
+        }
+        if (entry !== entry.trim()) {
+          return `entry "${entry}" must not have surrounding whitespace — patterns are matched literally`;
+        }
+      }
+      return null;
+    },
+  },
 };

@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
+import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
 import {
   getUserConfigPath,
   getProjectConfigPath,
@@ -433,7 +434,10 @@ describe('ConfigManager', () => {
     it('returns all registered keys with defaults when no config files', async () => {
       const cm = new ConfigManager();
       const entries = await cm.list();
-      expect(entries).toHaveLength(14);
+      // Derived from the registry, not a literal: the point is that list()
+      // returns every registered key, and a hardcoded count only forces an
+      // unrelated edit each time a key is added.
+      expect(entries).toHaveLength(Object.keys(CONFIG_KEYS).length);
       const keys = entries.map((e) => e.key);
       expect(keys).toContain('guide.auto_update');
       expect(keys).toContain('guide.source');
