@@ -6,7 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: []
 dateCreated: 20260922
 dateUpdated: 20260922
-status: in_progress
+status: complete
 ---
 
 # Slice Design: 926 — Worktree-Scoped Validate/Check Attribution and Scope Reporting

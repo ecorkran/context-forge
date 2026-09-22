@@ -7,7 +7,7 @@ dependencies: []
 projectState: main is green, working tree clean at 15de0a1. v0.16.0 is tagged and published (all four packages; tarball is now the default guide strategy). Slice 926 design is approved with a PASS slice review (no concerns; the single NOTE is self-resolving — the parent architecture states no NFRs). No code has been written for this slice. `resolveExplicitPaths` in packages/core/src/schema/frontmatterFileValidator.ts still drops paths through three unrecorded `continue` branches; validate.ts:89 still discards `worktreeId`; `mergeCheckResults` is still duplicated verbatim in CLI and MCP; `arch.ts:80` and `arch.ts:173` still range-filter initiative indices.
 dateCreated: 20260922
 dateUpdated: 20260922
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
