@@ -7,7 +7,7 @@ dependencies: []
 projectState: main is green, working tree clean at 15de0a1. v0.16.0 is tagged and published (all four packages; tarball is now the default guide strategy). Slice 926 design is approved with a PASS slice review (no concerns; the single NOTE is self-resolving — the parent architecture states no NFRs). No code has been written for this slice. `resolveExplicitPaths` in packages/core/src/schema/frontmatterFileValidator.ts still drops paths through three unrecorded `continue` branches; validate.ts:89 still discards `worktreeId`; `mergeCheckResults` is still duplicated verbatim in CLI and MCP; `arch.ts:80` and `arch.ts:173` still range-filter initiative indices.
 dateCreated: 20260922
 dateUpdated: 20260922
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -85,48 +85,48 @@ is a separately published npm install, not this working tree.
 
 ### Part 1 — Shared path→worktree resolver (D1, D2)
 
-- [ ] **Task 1: Add `resolveWorktreeForPath()` to core** (effort: 2)
-  - [ ] Add the function to `packages/core/src/utils/worktree-overlay.ts`
+- [x] **Task 1: Add `resolveWorktreeForPath()` to core** (effort: 2)
+  - [x] Add the function to `packages/core/src/utils/worktree-overlay.ts`
         (or a sibling module in the same directory). Signature takes a
         project and an absolute path; returns the owning worktree's
         identity (id, name, root path) or null when nothing matches.
-  - [ ] Port the matching rule from `findProjectByCwd`
+  - [x] Port the matching rule from `findProjectByCwd`
         (`packages/cli/src/utils/project.ts:65-77`) exactly: candidates are
         the project's `projectPath` plus every worktree's `worktreePath`;
         a candidate matches when the path equals it or starts with it plus
         a separator; longest path wins; on a tie prefer the worktree over
         the project root. Handle a trailing slash on stored paths, as the
         existing code does.
-  - [ ] A worktree with no `worktreePath` is skipped (it cannot own a
+  - [x] A worktree with no `worktreePath` is skipped (it cannot own a
         path). Do not invent a fallback.
-  - [ ] Export from `packages/core/src/index.ts`.
-  - [ ] Do not change `findProjectByCwd` yet — that is Task 3.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core typecheck`
+  - [x] Export from `packages/core/src/index.ts`.
+  - [x] Do not change `findProjectByCwd` yet — that is Task 3.
+  - [x] Success criteria: `pnpm --filter @context-forge/core typecheck`
         passes; the function is importable from `@context-forge/core`.
 
-- [ ] **Task 2: Tests for `resolveWorktreeForPath()`** (effort: 2)
-  - [ ] Add `packages/core/tests/utils/` coverage for: path inside a
+- [x] **Task 2: Tests for `resolveWorktreeForPath()`** (effort: 2)
+  - [x] Add `packages/core/tests/utils/` coverage for: path inside a
         registered worktree; path inside the project root but no worktree;
         path outside everything (null); nested worktree paths where the
         longest must win; the equal-length tie preferring the worktree;
         a worktree with `worktreePath` undefined; a stored path with a
         trailing slash.
-  - [ ] Include a case proving a path that merely shares a string prefix
+  - [x] Include a case proving a path that merely shares a string prefix
         with a root but is not inside it does **not** match (e.g. a sibling
         directory whose name extends the root's name).
-  - [ ] Success criteria: `pnpm --filter @context-forge/core test` passes.
+  - [x] Success criteria: `pnpm --filter @context-forge/core test` passes.
 
-- [ ] **Task 3: Refactor `findProjectByCwd` to delegate** (effort: 2)
-  - [ ] Change `findProjectByCwd` (`packages/cli/src/utils/project.ts:38`)
+- [x] **Task 3: Refactor `findProjectByCwd` to delegate** (effort: 2)
+  - [x] Change `findProjectByCwd` (`packages/cli/src/utils/project.ts:38`)
         to call `resolveWorktreeForPath` with `process.cwd()` instead of
         carrying its own candidate-building and sorting. Its external
         signature and return type (`CwdMatch`) must not change.
-  - [ ] Remove the now-duplicated matching logic. The rule must exist in
+  - [x] Remove the now-duplicated matching logic. The rule must exist in
         exactly one place after this task.
-  - [ ] Success criteria: `pnpm -r test` passes with no changes to any
+  - [x] Success criteria: `pnpm -r test` passes with no changes to any
         existing test in `packages/cli/tests/utils/` — the refactor is
         behavior-preserving, so existing assertions are the proof.
-  - [ ] Commit checkpoint: the resolver plus its delegation, green build.
+  - [x] Commit checkpoint: the resolver plus its delegation, green build.
 
 ### Part 2 — #88: worktree-correct validate root
 

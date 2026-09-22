@@ -7,6 +7,7 @@ import {
 import { formatDateProject } from '@context-forge/core';
 import type { FrontmatterFinding } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
+import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { withJsonOption, withProjectOption, withFixOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
@@ -86,7 +87,7 @@ function printHumanOutput(
 
 async function validateFrontmatterAction(paths: string[], opts: ValidateFrontmatterOpts): Promise<void> {
   const store = new FileProjectStore();
-  const { id } = await resolveProjectWorktree({ project: opts.project }, store);
+  const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
   const project = await store.getById(id);
 
   if (!project) {
@@ -96,8 +97,11 @@ async function validateFrontmatterAction(paths: string[], opts: ValidateFrontmat
     throw new UserError('No projectPath configured. Set one with: cf set projectPath /path/to/project');
   }
 
+  // Validate the worktree the caller is actually in, not the project root (#88).
+  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
+
   const { findings, filesChecked } = await validateFrontmatterFiles(
-    project.projectPath,
+    operationPath,
     paths.length > 0 ? paths : undefined,
     { projectName: project.name },
   );
