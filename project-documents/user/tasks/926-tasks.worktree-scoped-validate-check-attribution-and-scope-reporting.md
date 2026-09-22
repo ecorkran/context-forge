@@ -490,14 +490,33 @@ in `scripts/setup-ide` on the guide side. cf never reads this key itself.
 **Contract agreed with the peer session (20260922):**
 - Key name `rules.exclude`; comma-separated filename globs, no spaces
   around commas (e.g. `dart.md,swift*.md`).
-- **No environment variable.** `CONTEXT_FORGE_RULES_EXCLUDE` was proposed
-  and declined: no cf config key is env-overridable today. The only two
-  env vars in the codebase are deliberately not config —
-  `CONTEXT_FORGE_DATA_DIR` (`storagePaths.ts:66`) is a bootstrap path
-  override that must work before config is readable, and `CF_JSON`
-  (`index.ts:175`) mirrors the `--json` flag. Introducing an env alias for
-  one key sets a precedent we would owe every other key. The guide script
-  reads the value via `cf config get rules.exclude`.
+- **Three-tier resolution, implemented entirely on the guide side**
+  (PM ruling 20260922, reversing an earlier config-only decision). The
+  script resolves exclusions as: `CONTEXT_FORGE_RULES_EXCLUDE` if set →
+  else `cf config get rules.exclude` when `cf` is on PATH → else no
+  exclusions.
+  - **cf does not read the env var.** The precedent that no cf config key
+    is env-overridable is preserved: the only two env vars in the codebase
+    remain deliberately not config — `CONTEXT_FORGE_DATA_DIR`
+    (`storagePaths.ts:66`) is a bootstrap path override that must work
+    before config is readable, and `CF_JSON` (`index.ts:175`) mirrors the
+    `--json` flag. `CONTEXT_FORGE_RULES_EXCLUDE` is an input to the bash
+    script, not an alias for the cf key, so it sets no precedent on cf's
+    config surface.
+  - **Why the env tier is required.** `scripts/setup-ide` is 1078 lines of
+    standalone bash with zero `cf` invocations, and its `show_usage`
+    documents it as directly runnable — it is genuinely run standalone
+    during guide development. Under config-only, a standalone caller has no
+    channel for exclusions at all. An earlier decision here rested on an
+    incorrect claim that the script already shelled out to cf; it does not.
+  - **Env-only was rejected.** It would delete this Part entirely and lose
+    persistence (exclusions are a project property that should be committed
+    and shared, not per-shell), inspectability via `cf config get`, and
+    set-time validation — which matters precisely because a malformed
+    pattern fails silently.
+  - The script should report which tier supplied active exclusions, so a
+    stale `CONTEXT_FORGE_RULES_EXCLUDE` shadowing the config value is
+    visible rather than silent.
 - Matching is basename-only, skip-only (never deletes an already-installed
   file), and unset/empty means exactly current behavior.
 - `alwaysApply` rules are not excludable — they compile into the managed
