@@ -217,18 +217,25 @@ export function registerCheckCommand(program: Command): void {
         // can be attributed before the merge. The dedup key has no worktree
         // component, so attributing after the merge would misattribute
         // first-seen-wins duplicates (#87).
+        // Attribution is only meaningful when there is more than one checkout
+        // to tell apart, so a single-worktree project attaches none and its
+        // output stays byte-identical to the pre-slice build. Note that a
+        // migrated project has exactly one worktree named "default" rather
+        // than no worktrees at all, so this must key on the count — not on
+        // the absence of a worktrees array, and not on that name, since a
+        // user-visible label is not logical structure.
         const worktrees = project.worktrees ?? [];
+        const attributable = worktrees.length > 1;
         const projectViews: ProjectView[] = worktrees.length > 0
           ? worktrees.map((wt) => ({
               view: applyWorktreeOverlay(project, wt.id),
-              worktree: { id: wt.id, name: wt.name, path: wt.worktreePath },
+              worktree: attributable
+                ? { id: wt.id, name: wt.name, path: wt.worktreePath }
+                : undefined,
             }))
           : [{ view: project }];
 
-        // Label findings only when there is more than one checkout to tell
-        // apart. Keyed on count, not on the migrated worktree's "default"
-        // name — a user-visible label is not logical structure.
-        const showWorktree = projectViews.length > 1;
+        const showWorktree = attributable;
 
         let result: ConsistencyCheckResult;
 

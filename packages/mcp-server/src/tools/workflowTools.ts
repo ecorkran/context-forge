@@ -250,11 +250,17 @@ export function registerWorkflowTools(server: McpServer): void {
         // view but produce the same results, so deduplication collapses them correctly.
         // Each view stays paired with its worktree so findings can be attributed
         // before the merge; the dedup key has no worktree component (#87).
+        // Only attribute when there is more than one checkout to tell apart —
+        // a migrated project has one worktree named "default", so keying on
+        // the array's presence would add a field to single-checkout output.
         const worktrees = project.worktrees ?? [];
+        const attributable = worktrees.length > 1;
         const projectViews = worktrees.length > 0
           ? worktrees.map((wt) => ({
               view: applyWorktreeOverlay(project, wt.id),
-              worktree: { id: wt.id, name: wt.name, path: wt.worktreePath },
+              worktree: attributable
+                ? { id: wt.id, name: wt.name, path: wt.worktreePath }
+                : undefined,
             }))
           : [{ view: project, worktree: undefined }];
 

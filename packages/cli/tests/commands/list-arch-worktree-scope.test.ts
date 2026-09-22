@@ -160,6 +160,36 @@ describe('cf list arch does not range-filter initiatives (#97)', () => {
     expect(text()).toContain('001-initiative-plan.product.md');
   });
 
+  it('does not filter in the archListFromModel fallback either', async () => {
+    // No initiative plan → resolveInitiativePlanPath returns null and the
+    // filesystem-scan fallback runs. It carried the same defect at its own
+    // call site, so it needs its own coverage.
+    rmSync(join(root, 'project-documents', 'user', 'project-guides'), {
+      recursive: true,
+      force: true,
+    });
+    const archDir = join(root, 'project-documents', 'user', 'architecture');
+    mkdirSync(archDir, { recursive: true });
+    // Indices stay under 900: buildModel deliberately partitions 900+ into
+    // maintenanceInitiatives and removes them from `initiatives`, which is
+    // pre-existing behavior unrelated to this slice.
+    for (const [idx, name] of [[200, 'foundation'], [700, 'reporting']] as const) {
+      writeFileSync(
+        join(archDir, `${idx}-arch.${name}.md`),
+        `---\ndocType: architecture\nproject: scratch\nstatus: complete\n---\n\n# ${name}\n`,
+      );
+    }
+    // alpha owns 200-299, so 700 is outside its band and would have been
+    // filtered out before the fix.
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_scratch', worktreeId: 'wt_alpha' });
+
+    await archListAction({});
+
+    expect(text()).toContain('200');
+    expect(text()).toContain('700');
+    expect(text()).not.toContain('No initiatives');
+  });
+
   it('is unaffected by worktree for a single-checkout project', async () => {
     mockGetById.mockResolvedValue({
       id: 'proj_scratch',

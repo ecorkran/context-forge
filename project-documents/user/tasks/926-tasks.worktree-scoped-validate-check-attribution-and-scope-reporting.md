@@ -522,47 +522,47 @@ in `scripts/setup-ide` on the guide side. cf never reads this key itself.
 - `alwaysApply` rules are not excludable — they compile into the managed
   block rather than being copied as files.
 
-- [ ] **Task 25: Add the `rules.exclude` registry entry** (effort: 1)
-  - [ ] Add one entry to `CONFIG_KEYS`
+- [x] **Task 25: Add the `rules.exclude` registry entry** (effort: 1)
+  - [x] Add one entry to `CONFIG_KEYS`
         (`packages/core/src/config/ConfigKeys.ts:17`) under a new `rules.`
         namespace.
-  - [ ] `type: 'string'` — `ConfigKeyDefinition.type` is only
+  - [x] `type: 'string'` — `ConfigKeyDefinition.type` is only
         `'string' | 'boolean' | 'number'`; there is no list type, so a
         delimited string is the only representable form. This is why the
         comma-separated format was agreed.
-  - [ ] `default: ''` — empty is the identity default (no exclusions),
+  - [x] `default: ''` — empty is the identity default (no exclusions),
         matching `git.integration_branch` and
         `workflow.review_gate_effective_date`.
-  - [ ] `scope: ConfigScope.Shared`. "This project has no Dart code" is a
+  - [x] `scope: ConfigScope.Shared`. "This project has no Dart code" is a
         property of the project, not of the developer, so every
         contributor should get the same exclusions. 14 of 15 existing keys
         are Shared; the lone Personal key is `git.integration_branch`, a
         per-developer workflow preference.
-  - [ ] Add a `validate` function following the established shape: empty
+  - [x] Add a `validate` function following the established shape: empty
         returns null (identity); otherwise reject entries with surrounding
         whitespace, since the guide's bash `case` match is literal and
         ` swift*.md` would silently never match. Reject an empty entry
         from a doubled or trailing comma for the same reason. A silently
         non-matching pattern is the exact failure this key must not have.
-  - [ ] The description must state the format, that matching is
+  - [x] The description must state the format, that matching is
         basename-only and skip-only, and that the consumer is the guide's
         `setup-ide` script — not cf itself. Someone reading
         `cf config get rules.exclude` should not have to guess who acts
         on it.
-  - [ ] Success criteria: `cf config set rules.exclude 'dart.md,swift*.md'`
+  - [x] Success criteria: `cf config set rules.exclude 'dart.md,swift*.md'`
         round-trips through `cf config get`; a value with a space around a
         comma is rejected with a message naming the problem.
 
-- [ ] **Task 26: Tests for the `rules.exclude` key** (effort: 1)
-  - [ ] Extend `packages/core/tests/config/ConfigKeys.test.ts`: the key
+- [x] **Task 26: Tests for the `rules.exclude` key** (effort: 1)
+  - [x] Extend `packages/core/tests/config/ConfigKeys.test.ts`: the key
         exists with the expected type, default, and scope; empty validates;
         a well-formed multi-glob list validates; a list with spaces around
         a comma is rejected; a doubled/trailing comma is rejected.
-  - [ ] Check whether `packages/cli/tests/commands/config.test.ts` asserts
+  - [x] Check whether `packages/cli/tests/commands/config.test.ts` asserts
         anything about the full key set (a count or an enumerated list). If
         it does, update it — a new key must not silently break it.
-  - [ ] Success criteria: `pnpm -r test` passes.
-  - [ ] Commit checkpoint: `rules.exclude` available; notify the
+  - [x] Success criteria: `pnpm -r test` passes.
+  - [x] Commit checkpoint: `rules.exclude` available; notify the
         ai-project-guide session that the key is live.
 
 ### Part 8 — Verification and release prep

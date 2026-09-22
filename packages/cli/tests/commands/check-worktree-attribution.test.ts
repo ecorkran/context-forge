@@ -58,6 +58,21 @@ const SINGLE_CHECKOUT_PROJECT = {
   projectPath: '/repo/main',
 };
 
+/**
+ * The realistic single-checkout shape. A migrated project has exactly one
+ * worktree named "default" whose path equals projectPath — it does NOT have an
+ * absent worktrees array. Gating attribution on the array's presence rather
+ * than its length adds a worktree field to output that must stay unchanged.
+ */
+const MIGRATED_DEFAULT_PROJECT = {
+  id: 'proj_migrated',
+  name: 'migrated-project',
+  projectPath: '/repo/main',
+  worktrees: [
+    { id: 'wt_default', name: 'default', indexRange: [100, 999], worktreePath: '/repo/main' },
+  ],
+};
+
 /** A result carrying one finding, shaped like ConsistencyChecker output. */
 function resultWith(description: string, location = '/repo/x.md') {
   return {
@@ -211,6 +226,34 @@ describe('cf check worktree attribution (#87)', () => {
       infos: 0,
       summary: '1 finding: 1 warning',
     });
+  });
+
+  it('leaves findings unattributed for a migrated single "default" worktree', async () => {
+    // Caught by the real-CLI walkthrough, not by the zero-worktrees test: this
+    // repo has one migrated "default" worktree, and cf check --json gained a
+    // worktree field against the published build.
+    mockGetAll.mockResolvedValue([MIGRATED_DEFAULT_PROJECT]);
+    mockGetById.mockResolvedValue(MIGRATED_DEFAULT_PROJECT);
+    mockCheckAll.mockResolvedValue(resultWith('a finding'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_migrated', '--json']);
+
+    const findings = jsonFrom(stdoutWrite).findings as Array<Record<string, unknown>>;
+    expect(findings[0]).not.toHaveProperty('worktree');
+  });
+
+  it('shows no worktree label for a migrated single "default" worktree', async () => {
+    mockGetAll.mockResolvedValue([MIGRATED_DEFAULT_PROJECT]);
+    mockGetById.mockResolvedValue(MIGRATED_DEFAULT_PROJECT);
+    mockCheckAll.mockResolvedValue(resultWith('a finding'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_migrated']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('a finding');
+    expect(output).not.toContain('[default]');
   });
 
   it('shows the worktree name on each finding with two worktrees', async () => {
