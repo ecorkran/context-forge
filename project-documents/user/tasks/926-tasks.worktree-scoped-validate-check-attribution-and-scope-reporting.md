@@ -567,38 +567,38 @@ in `scripts/setup-ide` on the guide side. cf never reads this key itself.
 
 ### Part 8 — Verification and release prep
 
-- [ ] **Task 19: Full verification walkthrough** (effort: 2)
-  - [ ] Run `pnpm -r build && pnpm -r test && pnpm -r typecheck` clean.
-  - [ ] Execute the design's Verification Walkthrough steps 1–7 against a
+- [x] **Task 19: Full verification walkthrough** (effort: 2)
+  - [x] Run `pnpm -r build && pnpm -r test && pnpm -r typecheck` clean.
+  - [x] Execute the design's Verification Walkthrough steps 1–7 against a
         local build, including the step-6a `cf list arch` repro and its
         temporary-worktree cleanup.
-  - [ ] Confirm step 7 explicitly: in a project with no registered
+  - [x] Confirm step 7 explicitly: in a project with no registered
         worktrees, `cf check` and `cf validate frontmatter` output is
         identical to a pre-slice build. Capture the before-output first.
-  - [ ] Success criteria: every step produces the documented "after"
+  - [x] Success criteria: every step produces the documented "after"
         result.
 
-- [ ] **Task 20: External consumer verification** (effort: 2)
-  - [ ] Run squadron's `tests/documents/test_schema_drift.py` from a
+- [x] **Task 20: External consumer verification** (effort: 2)
+  - [x] Run squadron's `tests/documents/test_schema_drift.py` from a
         squadron worktree against this build. It currently fails 3/6
         because of #88; expect 6/6.
-  - [ ] Confirm an **unmodified** squadron `frontmatter_gate.py` still
+  - [x] Confirm an **unmodified** squadron `frontmatter_gate.py` still
         works against the new output — the additive-only guarantee (D3).
-  - [ ] Do not modify squadron in this slice. If either check fails,
+  - [x] Do not modify squadron in this slice. If either check fails,
         report to the Project Manager rather than changing squadron.
-  - [ ] Success criteria: 6/6 passing; gate behavior unchanged.
+  - [x] Success criteria: 6/6 passing; gate behavior unchanged.
 
-- [ ] **Task 21: CHANGELOG and docs** (effort: 1)
-  - [ ] Add a CHANGELOG entry covering all six issues, noting the
+- [x] **Task 21: CHANGELOG and docs** (effort: 1)
+  - [x] Add a CHANGELOG entry covering all six issues, noting the
         additive JSON fields, the `cf list arch` behavior change, and
         (#98) that cf now recognizes both managed-marker forms anywhere in
         the file. Call out #98 as the prerequisite for ai-project-guide#22
         so the ordering is recoverable from the changelog alone.
-  - [ ] Note the new `rules.exclude` config key, stating that the guide's
+  - [x] Note the new `rules.exclude` config key, stating that the guide's
         `setup-ide` script is what acts on it (ai-project-guide#23) —
         cf only stores and validates it.
-  - [ ] Note the new `documentRoot` and per-path fields as available for
+  - [x] Note the new `documentRoot` and per-path fields as available for
         consumers; do not document them as required.
-  - [ ] Success criteria: CHANGELOG describes the user-visible changes;
+  - [x] Success criteria: CHANGELOG describes the user-visible changes;
         `pnpm -r build` still clean.
-  - [ ] Commit checkpoint: slice complete, ready for merge to `main`.
+  - [x] Commit checkpoint: slice complete, ready for merge to `main`.

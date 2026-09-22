@@ -6,7 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: []
 dateCreated: 20260922
 dateUpdated: 20260922
-status: not_started
+status: in_progress
 ---
 
 # Slice Design: 926 — Worktree-Scoped Validate/Check Attribution and Scope Reporting
@@ -287,115 +287,224 @@ Consumes the worktree registration/overlay machinery from the 180–188 worktree
 
 ### Verification Walkthrough
 
+**Executed 20260922 against commit a33b8b7. Every step below reports what actually happened, not what was expected.** Where the design's original prediction differed from reality, the correction is called out inline.
+
 Confirms all four issues from a real two-worktree setup. Commands run against a local build — the global `cf` is a separately published npm install, so use `node packages/cli/dist/index.js` after `pnpm -r build`.
 
-**Setup** — a project with two registered worktrees:
+> **Trap: `--version` cannot tell the two builds apart.** The working tree carries the last published version number until a release bumps it, so both the global `cf` and the local build report `0.16.0`. Confirm you are running local code by checking for a field the change introduces (`documentRoot` in `cf validate frontmatter --json`), never by comparing version strings. An external tool that shells out to bare `cf` will silently get the published build; put a shim named `cf` first on `PATH` that execs the local `dist/index.js` rather than patching the tool.
+
+Throughout, `cf` means the **published** build (the "before") and `node packages/cli/dist/index.js` means the **local** build (the "after"). Running both is what makes each step a real comparison.
+
+**Setup** — a project with two registered worktrees. Two are required: `getWorktreeIndexRange` returns `undefined` for a single-worktree project, so several of these defects are masked with only one.
 
 ```bash
-cf worktree list
-#   Name         Range      Path
-#   default      [100-959]  ~/source/repos/manta/context-forge
-# * cf-pr        [960-999]  ~/source/repos/manta/context-forge-pr
+git worktree add /private/tmp/cf-wt-repro -b tmp-wt-repro <branch>
+node packages/cli/dist/index.js worktree init \
+  --name wtrepro --range 920-929 --path /private/tmp/cf-wt-repro -o
+
+node packages/cli/dist/index.js worktree list
+#   Name     Range                 Path
+# * default  [100-999]             ~/source/repos/manta/context-forge
+#   wtrepro  [920-929] [override]  /private/tmp/cf-wt-repro
 ```
 
-**Step 1 — #88, the silent false pass.** From inside `context-forge-pr`:
+The `-o` (override) flag is needed because 920-929 overlaps `default`'s range; cf warns and proceeds.
+
+**Step 1 — #88, the silent false pass.** From inside the second worktree:
 
 ```bash
-cd ~/source/repos/manta/context-forge-pr
-cf validate frontmatter --json project-documents/user/slices/926-slice.worktree-scoped-validate-check-attribution-and-scope-reporting.md
+cd /private/tmp/cf-wt-repro
+TARGET=project-documents/user/slices/926-slice.worktree-scoped-validate-check-attribution-and-scope-reporting.md
+
+cf validate frontmatter --json $TARGET | jq '{filesChecked}'
+# { "filesChecked": 0 }            <-- published build: nothing examined, exit 0
+
+node <repo>/packages/cli/dist/index.js validate frontmatter --json $TARGET \
+  | jq '{filesChecked, documentRoot}'
+# {
+#   "filesChecked": 1,
+#   "documentRoot": "/private/tmp/cf-wt-repro/project-documents/user"
+# }
 ```
 
-*Before:* `"filesChecked": 0`, exit 0 — nothing examined, looks like a pass.
-*After:* `"filesChecked": 1`, and `documentRoot` names the **`context-forge-pr`** checkout, not the default one.
+✅ Confirmed. `documentRoot` names the `cf-wt-repro` checkout, not the default one.
 
-**Step 2 — the no-paths form still works.** Same directory:
+**Step 2 — the no-paths form still works.** Same directory, local build:
 
 ```bash
-cf validate frontmatter --json | head -5
+node <repo>/packages/cli/dist/index.js validate frontmatter --json \
+  | jq '{filesChecked, documentRoot, hasPathResults: has("pathResults")}'
+# {
+#   "filesChecked": 270,
+#   "documentRoot": "/private/tmp/cf-wt-repro/project-documents/user",
+#   "hasPathResults": false
+# }
 ```
 
-`filesChecked` should be in the hundreds, unchanged from before the slice.
+✅ Confirmed. 270 files, and no per-path list is synthesized for a full walk.
 
-**Step 3 — #92, out-of-scope is now visible.** From the default checkout:
+**Step 3 — #92, out-of-scope is now visible.**
 
 ```bash
-cf validate frontmatter --json CHANGELOG.md
+node <repo>/packages/cli/dist/index.js validate frontmatter --json CHANGELOG.md \
+  | jq '{filesChecked, filesSkipped, pathResults}'
+# {
+#   "filesChecked": 0,
+#   "filesSkipped": 1,
+#   "pathResults": [
+#     {
+#       "inputPath": "CHANGELOG.md",
+#       "resolvedPath": "/private/tmp/cf-wt-repro/CHANGELOG.md",
+#       "outcome": "skipped-out-of-scope"
+#     }
+#   ]
+# }
 ```
 
-*Before:* `filesChecked: 0` and nothing else — indistinguishable from step 1's bug.
-*After:* still `filesChecked: 0` (correct — it is out of scope), but `paths` now contains `{"path": "CHANGELOG.md", "outcome": "skipped-out-of-scope"}`.
+✅ Confirmed. Still `filesChecked: 0`, correctly — but now with a reason.
 
-**Step 4 — #96, the two zeros are now distinguishable.** Compare step 1's *before* output with step 3's *after* output. Both have `filesChecked: 0`; only one has an explanation. A caller can now write the decision that was previously impossible:
+> **Correction to the original design.** This section previously named the field `paths` with a `path` key per entry. As implemented it is **`pathResults`**, and each entry carries **`inputPath`** (the path exactly as supplied) and **`resolvedPath`** (absolute). Keeping the caller's own spelling matters: a relative path resolves against `process.cwd()`, which is not necessarily the document root, so echoing it back unchanged is what lets a caller match outcomes to what it passed in.
+
+**Step 4 — #96, the two zeros are now distinguishable.** Compare step 1's *before* with step 3's *after*. Both are `filesChecked: 0`; only one explains itself. The decision that was previously impossible:
 
 ```bash
-cf validate frontmatter --json CHANGELOG.md pyproject.toml \
-  | jq 'if (.paths | length > 0) and (all(.paths[]; .outcome | startswith("skipped-")))
+node <repo>/packages/cli/dist/index.js validate frontmatter --json CHANGELOG.md pyproject.toml \
+  | jq 'if (.pathResults // [] | length > 0) and (all(.pathResults[]; .outcome | startswith("skipped-")))
         then "benign: nothing in scope" else "investigate" end'
 # "benign: nothing in scope"
+
+# Contrast, a real in-scope file:
+node <repo>/packages/cli/dist/index.js validate frontmatter --json $TARGET | jq '<same filter>'
+# "investigate"
 ```
 
-A release-shaped commit stops forcing `--no-verify`.
+✅ Confirmed, both branches. Note the `// []` guard — a full walk emits no `pathResults` at all, so a filter without it errors rather than returning a verdict. A release-shaped commit stops forcing `--no-verify`.
 
-**Step 5 — #87, attribution.** With a slice whose review landed in one worktree but not the other:
+**Step 5 — #87, attribution.**
 
 ```bash
-cd ~/source/repos/manta/context-forge
-cf check
+node <repo>/packages/cli/dist/index.js check
 ```
 
-*Before:*
+Actual output:
 ```
-  Slice 917
-  ⚠ [917] Slice 917 requires a tasks review before proceeding
-```
-*After:*
-```
-  Slice 917
-  ⚠ [cf-pr] [917] Slice 917 requires a tasks review before proceeding
+  Slice 921
+  ⚠ [default] [921] Slice 921 requires a slice review before proceeding — no review artifact found.
+    → Run the slice review for slice 921
+  ⚠ [default] [921] Slice 921 requires a tasks review before proceeding — no review artifact found.
+  ⚠ [wtrepro] [921] Slice 921 requires a slice review before proceeding — no review artifact found.
+  ⚠ [wtrepro] [921] Slice 921 requires a tasks review before proceeding — no review artifact found.
 ```
 
-The reader can see the finding belongs to the other checkout and stop looking for it locally.
+✅ Confirmed. The reader can see which checkout each finding belongs to.
+
+> **Caveat discovered here, now [#100](https://github.com/ecorkran/context-forge/issues/100).** Notice slice 921's findings appear once *per worktree*. They do not dedup because the merge key is `rule|location|description` and `location` is an absolute path built from the overlaid project path, so it differs per checkout. This **predates this slice** — the duplication happened before, just unlabeled, so you saw the same warning twice with nothing to explain it. Nothing here changed the dedup key or the `location` values; the labels only make existing behavior legible. Filed rather than fixed: normalizing `location` changes what it means inside the merge, and `cf check --json` has external consumers.
 
 **Step 6 — JSON attribution.**
 
 ```bash
-cf check --json | jq '.findings[] | {rule, worktree: .worktree.name}'
+node <repo>/packages/cli/dist/index.js check --json \
+  | jq -r '.findings[] | "\(.rule)  →  \(.worktree.name)"' | sort | uniq -c
+#    1 frontmatter-vs-computed  →  default
+#    1 frontmatter-vs-computed  →  wtrepro
+#    1 missing-artifact         →  default
+#    2 review-gate              →  default
+#    2 review-gate              →  wtrepro
+#    1 task-vs-plan             →  default
+#    1 task-vs-plan             →  wtrepro
 ```
 
-Each finding names its worktree.
+✅ Confirmed. Each finding names its worktree.
 
-**Step 6a — #97, initiatives visible from a worktree.** This needs a *second* registered worktree; with only one, `getWorktreeIndexRange` returns `undefined` and the bug is masked.
+**Step 6a — #97, initiatives visible from a worktree.** From inside `/private/tmp/cf-wt-repro`:
 
 ```bash
-git worktree add /private/tmp/cf-wt-repro -b tmp-wt-repro main
-cd /private/tmp/cf-wt-repro
-cf worktree init --name wtrepro --range 920-929 --path /private/tmp/cf-wt-repro -o
 cf list arch
+# No initiatives found in initiative plan.      <-- published build, against a populated plan
+
+node <repo>/packages/cli/dist/index.js list arch
+# Architecture Initiatives: 001-initiative-plan.context-forge.md
+#   140  Context Forge v2: MCP Server Architecture    ✓ complete
+#   160  Project Workflow System                      ✓ complete
+#   180  Initiative Contexts (Worktrees)              ✓ complete
+#   200  Developer Onboarding & First-Run Experience  ✓ complete
+#   220  Event-Driven Pipeline                        ○ not started
+#   240  Review-Aware Workflow Gating                 ✓ complete
+#   900  Maintenance & Refactoring                    ◐ in progress
 ```
 
-*Before:* `No initiatives found in initiative plan.` — against a fully populated plan.
-*After:* the same 7 initiatives the main checkout lists.
+✅ Confirmed — the bug reproduced exactly as reported and is fixed.
 
-Cross-check that `--all` and the default now agree, which is the actual invariant:
+Cross-check that `--all` and the default agree, which is the actual invariant:
 
 ```bash
-cf list arch --json > /tmp/default.json
-cf list arch --all --json > /tmp/all.json
+node <repo>/packages/cli/dist/index.js list arch --json > /tmp/default.json
+node <repo>/packages/cli/dist/index.js list arch --all --json > /tmp/all.json
 diff /tmp/default.json /tmp/all.json && echo "agree"
+# agree
 ```
 
-Clean up: `git worktree remove /private/tmp/cf-wt-repro && git branch -D tmp-wt-repro` (and `cf worktree rm wtrepro`).
+✅ Confirmed.
 
-**Step 7 — no regression for single-checkout users.** In a project with no registered worktrees, `cf check` and `cf validate frontmatter` output must be identical to the pre-slice build. Diff against output captured before starting.
+> **Note on counts.** The table shows 8 rows but `--json` returns 7 entries. `buildModel` deliberately partitions 900+ indices into `maintenanceInitiatives` and removes them from `initiatives`; this is pre-existing behavior unrelated to this slice. A test fixture asserting on index 900 through the `archListFromModel` fallback path will fail for this reason, not because of range filtering — use indices under 900 there.
 
-**Step 8 — the external consumer.** From squadron, in a worktree:
+Clean up:
 
 ```bash
-cd ~/source/repos/manta/squadron-pr
-uv run pytest tests/documents/test_schema_drift.py
+node <repo>/packages/cli/dist/index.js worktree rm wtrepro --yes
+git worktree remove --force /private/tmp/cf-wt-repro
+git branch -D tmp-wt-repro
 ```
 
-Expect 6 passed (currently 3 fail). These tests assert on `filesChecked` precisely because of #88, so they are a direct external check on the fix.
+`--yes` is required: `worktree rm` prompts interactively, and a piped `y` does not reach it.
+
+**Step 7 — no regression for single-checkout users.** Capture the "before" with the published build first, then diff:
+
+```bash
+cf check --json > /tmp/before.json;  node <repo>/packages/cli/dist/index.js check --json > /tmp/after.json
+diff /tmp/before.json /tmp/after.json && echo IDENTICAL
+# IDENTICAL
+
+cf check > /tmp/b.txt;  node <repo>/packages/cli/dist/index.js check > /tmp/a.txt
+diff /tmp/b.txt /tmp/a.txt && echo IDENTICAL
+# IDENTICAL
+
+cf validate frontmatter > /tmp/b2.txt;  node <repo>/packages/cli/dist/index.js validate frontmatter > /tmp/a2.txt
+diff /tmp/b2.txt /tmp/a2.txt && echo IDENTICAL
+# IDENTICAL
+```
+
+For `cf validate frontmatter --json`, the five legacy fields must be unchanged while new ones are added (D3):
+
+```
+filesChecked: 270 both   totalFindings: 0 both   errors: 0 both   warnings: 0 both
+findings: byte-identical
+keys added: documentRoot, filesSkipped
+```
+
+✅ Confirmed.
+
+> **This step found a real bug (fixed in a33b8b7).** The first run was *not* identical: `cf check --json` gained a `worktree` field on every finding. A migrated project has exactly **one** worktree named `default` whose path equals `projectPath` — it does **not** have an absent `worktrees` array. Attribution had been gated on the array's presence rather than its length, so every real single-checkout project picked up a field it should not have. Unit tests missed it because they used a project with no `worktrees` at all, which is a rarer shape. Only diffing against the actual published binary surfaced it. Attribution and the human label now share one predicate: more than one worktree.
+
+**Step 8 — the external consumer.** Run from a *registered worktree* of squadron; the main checkout is not one, so #88 never fires there and the tests pass on both builds (6/6), proving nothing.
+
+`test_schema_drift.py` invokes bare `cf` via `subprocess.run`, with no env override. Do not patch it — put a shim first on `PATH`:
+
+```bash
+printf '#!/bin/sh\nexec node <repo>/packages/cli/dist/index.js "$@"\n' > "$TMP/cf"
+chmod +x "$TMP/cf"; export PATH="$TMP:$PATH"
+cd ~/source/repos/manta/squadron-pr && uv run pytest tests/documents/test_schema_drift.py
+```
+
+Result (20260922):
+- published 0.16.0 — **3 failed, 3 passed**. All three failures are the `filesChecked == 0` assertion: `cf checked 0 of 3 fixtures — a skipped fixture proves nothing`.
+- local build — **6 passed**.
+
+✅ Confirmed, and the gate is more than merely unbroken. With an unmodified `frontmatter_gate.py` (which reads only `filesChecked` and the exit code, so the three added fields are inert to it):
+- published build, inside a worktree: a clean document **FAILS** and a bad-status document **FAILS**. The gate could not tell them apart — it failed closed on everything, which is correct on broken input but useless as a gate.
+- local build: clean **PASSES**; bad-status **FAILS** carrying cf's own finding text.
+
+So #88 had silently disabled squadron's gate inside worktrees. Its D10 fail-closed branch exists specifically to compensate; that branch is still reachable for genuine zero-of-N cases and its unit tests still pass, but its real-world trigger is gone. Squadron's own unit suite: 21/21 with the local build on `PATH`. No squadron files were modified.
 
 ## Risk Assessment
 
