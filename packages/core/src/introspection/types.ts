@@ -229,6 +229,20 @@ export interface FutureWorkCollectorResult {
 /** Severity level for consistency findings */
 export type ConsistencySeverity = 'info' | 'warning' | 'error';
 
+/**
+ * Which checkout a finding came from.
+ *
+ * Structured, never encoded into `description` — a user-visible label is not
+ * logical structure. Absent for single-checkout projects and for any producer
+ * that does not run per-worktree.
+ */
+export interface FindingWorktree {
+  id: string;
+  name: string;
+  /** The worktree's path, when one is registered. */
+  path?: string;
+}
+
 /** A single consistency finding from a detection rule */
 export interface ConsistencyFinding {
   rule: string;
@@ -242,6 +256,8 @@ export interface ConsistencyFinding {
     filePath: string;
     detail: Record<string, unknown>;
   };
+  /** The worktree whose view produced this finding. Attached before the merge. */
+  worktree?: FindingWorktree;
 }
 
 /** Result of running all consistency checks on a project */

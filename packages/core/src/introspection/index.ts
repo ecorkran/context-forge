@@ -9,5 +9,5 @@ export { normalizeStatus } from './parsers/statusNormalizer.js';
 export { deriveEntryStatus } from './statusDerivation.js';
 export type { EntryStatusSignals } from './statusDerivation.js';
 
-// mergeCheckResults is a pure function with no fs dependency — browser-safe
-export { mergeCheckResults } from './mergeCheckResults.js';
+// mergeCheckResults / attributeFindings are pure functions — browser-safe
+export { mergeCheckResults, attributeFindings } from './mergeCheckResults.js';

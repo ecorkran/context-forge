@@ -10,7 +10,12 @@ import {
   getStoragePath,
   createVersionedBackup,
 } from '@context-forge/core/node';
-import { applyWorktreeOverlay, resolveProject, mergeCheckResults } from '@context-forge/core';
+import {
+  applyWorktreeOverlay,
+  resolveProject,
+  mergeCheckResults,
+  attributeFindings,
+} from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -243,24 +248,31 @@ export function registerWorkflowTools(server: McpServer): void {
         // Build project views: one per worktree overlay so all workflow fields are visible.
         // Findings are merged and deduplicated — aggregate rules (filesystem scan) run per
         // view but produce the same results, so deduplication collapses them correctly.
-        // TODO: Extract merge logic to @context-forge/core shared utility (200-slices future work item 7)
+        // Each view stays paired with its worktree so findings can be attributed
+        // before the merge; the dedup key has no worktree component (#87).
         const worktrees = project.worktrees ?? [];
         const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
-          : [project];
+          ? worktrees.map((wt) => ({
+              view: applyWorktreeOverlay(project, wt.id),
+              worktree: { id: wt.id, name: wt.name, path: wt.worktreePath },
+            }))
+          : [{ view: project, worktree: undefined }];
 
         let result;
         if (args.sliceIndex !== undefined) {
           // Single-slice mode
-          const sliceViews = projectViews.map((v) => ({ ...v, fileSlice: `${args.sliceIndex}-slice` }));
-          const checkResults = await Promise.all(sliceViews.map((v) =>
-            fixMode ? checker.fix(v) : checker.check(v),
+          const sliceViews = projectViews.map((pv) => ({
+            ...pv,
+            view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` },
+          }));
+          const checkResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
+            attributeFindings(fixMode ? await checker.fix(view) : await checker.check(view), worktree),
           ));
           result = mergeCheckResults(checkResults);
         } else {
           // All-slices mode (no confirmation prompt in MCP)
-          const checkResults = await Promise.all(projectViews.map((v) =>
-            fixMode ? checker.fixAll(v) : checker.checkAll(v),
+          const checkResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
+            attributeFindings(fixMode ? await checker.fixAll(view) : await checker.checkAll(view), worktree),
           ));
           result = mergeCheckResults(checkResults);
         }

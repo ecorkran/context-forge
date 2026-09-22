@@ -1,4 +1,26 @@
-import type { ConsistencyCheckResult, ConsistencyFinding } from './types.js';
+import type {
+  ConsistencyCheckResult,
+  ConsistencyFinding,
+  FindingWorktree,
+} from './types.js';
+
+/**
+ * Tag every finding in a result with the worktree whose view produced it.
+ *
+ * Must run before mergeCheckResults: the dedup key carries no worktree, so a
+ * duplicate the merge collapses would otherwise lose its origin and be
+ * attributed first-seen-wins (#87).
+ */
+export function attributeFindings(
+  result: ConsistencyCheckResult,
+  worktree?: FindingWorktree,
+): ConsistencyCheckResult {
+  if (!worktree) return result;
+  return {
+    ...result,
+    findings: result.findings.map((f) => ({ ...f, worktree })),
+  };
+}
 
 /**
  * Merge findings from multiple checkAll runs, deduplicating by
