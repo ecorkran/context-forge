@@ -31,12 +31,17 @@ status: not_started
   `cf validate frontmatter`; a per-path outcome report replacing silent
   skipping; worktree attribution on `cf check` findings (CLI + MCP); the
   `cf list arch` initiative-filter removal.
-- **Rider added after the design and its review:** GitHub #98 (dual
-  managed-marker recognition, Part 6). Added at PM direction on 20260922.
-  It is unrelated to the worktree surface and shares no code with Parts
-  1–5 — it is bundled for size, and because ai-project-guide#22 is
-  implemented and waiting on it. The slice design and its PASS review
-  predate this addition and do not cover it.
+- **Two riders added after the design and its PASS review**, both at PM
+  direction on 20260922, both unrelated to the worktree surface and
+  sharing no code with Parts 1–5 or with each other. The design and its
+  review predate both and do not cover them:
+  - **Part 6 — GitHub #98** (dual managed-marker recognition). Bundled
+    because ai-project-guide#22 is implemented and waiting on it.
+  - **Part 7 — `rules.exclude` config key.** Counterpart to
+    ai-project-guide#23. One registry entry; cf stores and validates the
+    key, the guide's `setup-ide` script acts on it.
+  Each is independently implementable, committable, and mergeable at any
+  point in the sequence.
 - Next planned slice: none scheduled; the 900 initiative returns to
   complete when this slice merges.
 
@@ -469,7 +474,79 @@ new form yet, so it is safe to merge early.
   - [ ] Commit checkpoint: #98 complete; notify the ai-project-guide
         session that #22 is unblocked.
 
-### Part 7 — Verification and release prep
+### Part 7 — `rules.exclude` config key (rider)
+
+**Second rider, added 20260922 at PM direction.** Counterpart to
+ai-project-guide#23 (excluding irrelevant scoped rules — e.g. a project
+with no Dart code skipping `dart.md`). Unrelated to the worktree surface
+and to #98; shares no code with any other Part. The design and its PASS
+review predate it.
+
+**Scope is deliberately tiny: cf owns the key, the guide owns the
+behavior.** cf adds one registry entry so the key is settable,
+gettable, and validated. All matching, skipping, and warning logic lives
+in `scripts/setup-ide` on the guide side. cf never reads this key itself.
+
+**Contract agreed with the peer session (20260922):**
+- Key name `rules.exclude`; comma-separated filename globs, no spaces
+  around commas (e.g. `dart.md,swift*.md`).
+- **No environment variable.** `CONTEXT_FORGE_RULES_EXCLUDE` was proposed
+  and declined: no cf config key is env-overridable today. The only two
+  env vars in the codebase are deliberately not config —
+  `CONTEXT_FORGE_DATA_DIR` (`storagePaths.ts:66`) is a bootstrap path
+  override that must work before config is readable, and `CF_JSON`
+  (`index.ts:175`) mirrors the `--json` flag. Introducing an env alias for
+  one key sets a precedent we would owe every other key. The guide script
+  reads the value via `cf config get rules.exclude`.
+- Matching is basename-only, skip-only (never deletes an already-installed
+  file), and unset/empty means exactly current behavior.
+- `alwaysApply` rules are not excludable — they compile into the managed
+  block rather than being copied as files.
+
+- [ ] **Task 25: Add the `rules.exclude` registry entry** (effort: 1)
+  - [ ] Add one entry to `CONFIG_KEYS`
+        (`packages/core/src/config/ConfigKeys.ts:17`) under a new `rules.`
+        namespace.
+  - [ ] `type: 'string'` — `ConfigKeyDefinition.type` is only
+        `'string' | 'boolean' | 'number'`; there is no list type, so a
+        delimited string is the only representable form. This is why the
+        comma-separated format was agreed.
+  - [ ] `default: ''` — empty is the identity default (no exclusions),
+        matching `git.integration_branch` and
+        `workflow.review_gate_effective_date`.
+  - [ ] `scope: ConfigScope.Shared`. "This project has no Dart code" is a
+        property of the project, not of the developer, so every
+        contributor should get the same exclusions. 14 of 15 existing keys
+        are Shared; the lone Personal key is `git.integration_branch`, a
+        per-developer workflow preference.
+  - [ ] Add a `validate` function following the established shape: empty
+        returns null (identity); otherwise reject entries with surrounding
+        whitespace, since the guide's bash `case` match is literal and
+        ` swift*.md` would silently never match. Reject an empty entry
+        from a doubled or trailing comma for the same reason. A silently
+        non-matching pattern is the exact failure this key must not have.
+  - [ ] The description must state the format, that matching is
+        basename-only and skip-only, and that the consumer is the guide's
+        `setup-ide` script — not cf itself. Someone reading
+        `cf config get rules.exclude` should not have to guess who acts
+        on it.
+  - [ ] Success criteria: `cf config set rules.exclude 'dart.md,swift*.md'`
+        round-trips through `cf config get`; a value with a space around a
+        comma is rejected with a message naming the problem.
+
+- [ ] **Task 26: Tests for the `rules.exclude` key** (effort: 1)
+  - [ ] Extend `packages/core/tests/config/ConfigKeys.test.ts`: the key
+        exists with the expected type, default, and scope; empty validates;
+        a well-formed multi-glob list validates; a list with spaces around
+        a comma is rejected; a doubled/trailing comma is rejected.
+  - [ ] Check whether `packages/cli/tests/commands/config.test.ts` asserts
+        anything about the full key set (a count or an enumerated list). If
+        it does, update it — a new key must not silently break it.
+  - [ ] Success criteria: `pnpm -r test` passes.
+  - [ ] Commit checkpoint: `rules.exclude` available; notify the
+        ai-project-guide session that the key is live.
+
+### Part 8 — Verification and release prep
 
 - [ ] **Task 19: Full verification walkthrough** (effort: 2)
   - [ ] Run `pnpm -r build && pnpm -r test && pnpm -r typecheck` clean.
@@ -498,6 +575,9 @@ new form yet, so it is safe to merge early.
         (#98) that cf now recognizes both managed-marker forms anywhere in
         the file. Call out #98 as the prerequisite for ai-project-guide#22
         so the ordering is recoverable from the changelog alone.
+  - [ ] Note the new `rules.exclude` config key, stating that the guide's
+        `setup-ide` script is what acts on it (ai-project-guide#23) —
+        cf only stores and validates it.
   - [ ] Note the new `documentRoot` and per-path fields as available for
         consumers; do not document them as required.
   - [ ] Success criteria: CHANGELOG describes the user-visible changes;
