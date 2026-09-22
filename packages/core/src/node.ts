@@ -23,6 +23,8 @@ export {
   validateFrontmatterFiles,
   discoverAllDocuments,
   DOC_SCAN_DIRS,
+  PathOutcome,
+  type PathResult,
   type FrontmatterFileValidationResult,
 } from './schema/frontmatterFileValidator.js';
 

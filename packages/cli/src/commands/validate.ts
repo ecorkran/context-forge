@@ -3,7 +3,9 @@ import {
   FileProjectStore,
   validateFrontmatterFiles,
   updateFrontmatterField,
+  PathOutcome,
 } from '@context-forge/core/node';
+import type { PathResult } from '@context-forge/core/node';
 import { formatDateProject } from '@context-forge/core';
 import type { FrontmatterFinding } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
@@ -31,6 +33,31 @@ interface FixLogRecord {
   after: string;
 }
 
+/**
+ * The `--json` contract for `cf validate frontmatter`.
+ *
+ * External consumers parse this (squadron's frontmatter_gate.py among them).
+ * The five original fields — filesChecked, totalFindings, errors, warnings,
+ * findings — keep their exact name, type, and meaning. Everything added here
+ * is additive; nothing existing may change shape.
+ */
+export interface ValidateFrontmatterJson {
+  filesChecked: number;
+  totalFindings: number;
+  errors: number;
+  warnings: number;
+  findings: FrontmatterFinding[];
+  /** The document root actually scanned — names the checkout (D5). */
+  documentRoot: string;
+  /** Count of supplied paths that were not validated. Zero for a full walk. */
+  filesSkipped: number;
+  /** Per-path outcomes, explicit-path invocations only. */
+  pathResults?: PathResult[];
+  fixed?: number;
+  fixLog?: FixLogRecord[];
+  fixErrors?: string[];
+}
+
 /** Group findings by file path, preserving first-seen order. */
 function groupByFile(findings: FrontmatterFinding[]): Map<string, FrontmatterFinding[]> {
   const groups = new Map<string, FrontmatterFinding[]>();
@@ -42,16 +69,45 @@ function groupByFile(findings: FrontmatterFinding[]): Map<string, FrontmatterFin
   return groups;
 }
 
+/** Human-readable reason per skip outcome. */
+const SKIP_REASON: Record<Exclude<PathOutcome, 'checked'>, string> = {
+  [PathOutcome.SkippedOutOfScope]: 'outside the document root',
+  [PathOutcome.SkippedNotMarkdown]: 'not a .md file',
+  [PathOutcome.SkippedNotFound]: 'does not exist',
+  [PathOutcome.SkippedNoFrontmatter]: 'no frontmatter',
+};
+
+function printSkipped(pathResults: PathResult[] | undefined): void {
+  const skipped = (pathResults ?? []).filter((r) => r.outcome !== PathOutcome.Checked);
+  if (skipped.length === 0) return;
+
+  console.log(dim(`  ${skipped.length} path${skipped.length !== 1 ? 's' : ''} skipped:`));
+  for (const r of skipped) {
+    const reason = SKIP_REASON[r.outcome as Exclude<PathOutcome, 'checked'>];
+    console.log(dim(`    - ${r.inputPath} (${reason})`));
+  }
+  console.log('');
+}
+
 function printHumanOutput(
   findings: FrontmatterFinding[],
   filesChecked: number,
   fixLog: FixLogRecord[],
   fixErrors: string[],
+  pathResults?: PathResult[],
 ): void {
   console.log(label('Frontmatter Validation'));
   console.log('');
 
+  printSkipped(pathResults);
+
   if (findings.length === 0) {
+    // "No inconsistencies found (0 files checked)" reads as a pass when nothing
+    // was examined — the #92/#96 complaint. Say so plainly instead.
+    if (filesChecked === 0) {
+      console.log('  No files were checked');
+      return;
+    }
     console.log(`  No inconsistencies found (${filesChecked} file${filesChecked !== 1 ? 's' : ''} checked)`);
     return;
   }
@@ -100,7 +156,7 @@ async function validateFrontmatterAction(paths: string[], opts: ValidateFrontmat
   // Validate the worktree the caller is actually in, not the project root (#88).
   const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
-  const { findings, filesChecked } = await validateFrontmatterFiles(
+  const { findings, filesChecked, pathResults, documentRoot } = await validateFrontmatterFiles(
     operationPath,
     paths.length > 0 ? paths : undefined,
     { projectName: project.name },
@@ -138,13 +194,20 @@ async function validateFrontmatterAction(paths: string[], opts: ValidateFrontmat
   }
 
   if (opts.json) {
-    const jsonOutput: Record<string, unknown> = {
+    const jsonOutput: ValidateFrontmatterJson = {
       filesChecked,
       totalFindings: findings.length,
       errors: findings.filter((f) => f.severity === 'error').length,
       warnings: findings.filter((f) => f.severity === 'warning').length,
       findings,
+      documentRoot,
+      filesSkipped: pathResults
+        ? pathResults.filter((r) => r.outcome !== PathOutcome.Checked).length
+        : 0,
     };
+    if (pathResults) {
+      jsonOutput.pathResults = pathResults;
+    }
     if (opts.fix) {
       jsonOutput.fixed = fixLog.length;
       jsonOutput.fixLog = fixLog;
@@ -152,7 +215,7 @@ async function validateFrontmatterAction(paths: string[], opts: ValidateFrontmat
     }
     printJson(jsonOutput);
   } else {
-    printHumanOutput(findings, filesChecked, fixLog, fixErrors);
+    printHumanOutput(findings, filesChecked, fixLog, fixErrors, pathResults);
   }
 
   if (remaining.length > 0 || fixErrors.length > 0) {
@@ -170,7 +233,7 @@ export function registerValidateCommand(program: Command): void {
     .description(
       'Validate YAML frontmatter against per-docType schema. ' +
         'With no paths, walks all methodology documents; with paths, validates only ' +
-        'the in-root .md files among them (others are silently skipped). ' +
+        'the in-root .md files among them and reports every skipped path with a reason. ' +
         'Unlike cf check --fix, --fix here applies without a confirmation prompt — ' +
         'findings are per-document and deterministic, and this command is meant for scripts.',
     );

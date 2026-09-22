@@ -130,36 +130,36 @@ is a separately published npm install, not this working tree.
 
 ### Part 2 — #88: worktree-correct validate root
 
-- [ ] **Task 4: Apply `worktreeId` in `cf validate frontmatter`** (effort: 1)
-  - [ ] In `packages/cli/src/commands/validate.ts:89`, stop discarding
+- [x] **Task 4: Apply `worktreeId` in `cf validate frontmatter`** (effort: 1)
+  - [x] In `packages/cli/src/commands/validate.ts:89`, stop discarding
         `worktreeId` from `resolveProjectWorktree` — destructure it.
-  - [ ] Replace the `project.projectPath` argument at line 100 with the
+  - [x] Replace the `project.projectPath` argument at line 100 with the
         worktree-resolved operation path, using the existing
         `resolveOperationPath(project, worktreeId)` helper from
         `packages/cli/src/utils/worktree-overlay.ts` (the same helper
         `guides.ts` and `status.ts` already use). Keep the existing
         `projectPath` as the fallback when it returns nothing.
-  - [ ] Do not change `frontmatterFileValidator.ts` in this task — the
+  - [x] Do not change `frontmatterFileValidator.ts` in this task — the
         validator keeps deriving `documentRoot` from the path it is given.
-  - [ ] Success criteria: from a registered sibling worktree,
+  - [x] Success criteria: from a registered sibling worktree,
         `node packages/cli/dist/index.js validate frontmatter --json <a
         file inside that worktree>` reports `filesChecked: 1`, where it
         reported `0` before.
 
-- [ ] **Task 5: Two-worktree integration test for #88** (effort: 3)
-  - [ ] Add a CLI test registering a project with **two** worktrees whose
+- [x] **Task 5: Two-worktree integration test for #88** (effort: 3)
+  - [x] Add a CLI test registering a project with **two** worktrees whose
         `worktreePath`s are real temporary directories containing real
         `project-documents/user/**` markdown fixtures.
-  - [ ] Assert: an explicit path inside the non-default worktree is
+  - [x] Assert: an explicit path inside the non-default worktree is
         checked (`filesChecked: 1`), and the no-paths full-walk form still
         walks that same worktree.
-  - [ ] Derive fixture paths from the registered worktree records, not
+  - [x] Derive fixture paths from the registered worktree records, not
         from a constant the code under test also reads. A test that builds
         its expected root the same way the product does will pass against
         the unfixed code — that is exactly how this bug survived.
-  - [ ] Success criteria: the test fails against the pre-Task-4 code and
+  - [x] Success criteria: the test fails against the pre-Task-4 code and
         passes after it. Verify both directions before moving on.
-  - [ ] Commit checkpoint: #88 fixed and pinned.
+  - [x] Commit checkpoint: #88 fixed and pinned.
 
 ### Part 3 — #92/#96: per-path outcome reporting (D3, D4)
 
