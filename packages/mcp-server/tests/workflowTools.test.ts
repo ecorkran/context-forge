@@ -712,4 +712,88 @@ describe('workflow_check with worktree parity', () => {
     expect(parsed.totalFindings).toBe(1);
     expect(parsed.findings).toHaveLength(1);
   });
+
+  it('attributes each finding to the worktree whose view produced it (#87)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A)
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_B);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const parsed = parseResult(result) as {
+      findings: Array<{ description: string; worktree?: { id: string; name: string } }>;
+    };
+    // workflow_check shares the merge with the CLI, so it must attribute too --
+    // fixing only the CLI would leave this consumer misattributing.
+    expect(parsed.findings.find((f) => f.description === 'Finding from worktree A')?.worktree).toEqual({
+      id: MOCK_WORKTREE.id,
+      name: MOCK_WORKTREE.name,
+      path: MOCK_WORKTREE.worktreePath,
+    });
+    expect(parsed.findings.find((f) => f.description === 'Finding from worktree B')?.worktree).toEqual({
+      id: MOCK_WORKTREE_B.id,
+      name: MOCK_WORKTREE_B.name,
+      path: MOCK_WORKTREE_B.worktreePath,
+    });
+  });
+
+  it('attributes a deduped finding to the first view, deterministically', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A)
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const parsed = parseResult(result) as {
+      findings: Array<{ worktree?: { name: string } }>;
+    };
+    expect(parsed.findings).toHaveLength(1);
+    expect(parsed.findings[0].worktree?.name).toBe(MOCK_WORKTREE.name);
+  });
+
+  it('leaves findings unattributed for a project without worktrees', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT_A);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const parsed = parseResult(result) as { findings: Array<Record<string, unknown>> };
+    expect(parsed.findings[0]).not.toHaveProperty('worktree');
+  });
+
+  it('does not derive attribution from location, which is not always a path', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_A)
+      .mockResolvedValueOnce(MOCK_CHECK_RESULT_B);
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const parsed = parseResult(result) as {
+      findings: Array<{ location: string; worktree?: { name: string } }>;
+    };
+    // Worktree B's finding has location "slice plan entry 250" -- not a
+    // filesystem path at all. It is still attributed, because attribution
+    // comes from the producing view rather than from the location string.
+    const fromB = parsed.findings.find((f) => f.location === 'slice plan entry 250');
+    expect(fromB?.worktree?.name).toBe(MOCK_WORKTREE_B.name);
+  });
 });

@@ -8,3 +8,11 @@ export { normalizeStatus } from './parsers/statusNormalizer.js';
 // deriveEntryStatus is a pure function with no fs dependency — browser-safe
 export { deriveEntryStatus } from './statusDerivation.js';
 export type { EntryStatusSignals } from './statusDerivation.js';
+
+// mergeCheckResults / attributeFindings / buildAttributedViews are pure — browser-safe
+export {
+  mergeCheckResults,
+  attributeFindings,
+  buildAttributedViews,
+  type AttributedView,
+} from './mergeCheckResults.js';

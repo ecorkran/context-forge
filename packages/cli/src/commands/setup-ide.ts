@@ -69,20 +69,49 @@ function askConfirmation(prompt: string): Promise<boolean> {
   });
 }
 
+/** Legacy managed marker. Matched as a trimmed exact line. */
 export const MANAGED_MARKER = '[//]: # (context-forge:managed)';
 
 /**
+ * Current managed marker, opening a BEGIN/END pair. Matched as a substring:
+ * the line may be indented or carry trailing content.
+ */
+export const MANAGED_BEGIN_MARKER = '<!-- BEGIN:context-forge -->';
+
+/**
+ * Every form that marks a file as context-forge-managed.
+ *
+ * The guide's `setup-ide` script is the sole writer of these markers; cf only
+ * reads them. Both forms live here so the literals appear in exactly one place.
+ */
+export const MANAGED_MARKERS = [
+  { marker: MANAGED_MARKER, match: 'exact-line' },
+  { marker: MANAGED_BEGIN_MARKER, match: 'contains' },
+] as const;
+
+/** True if a single line carries any managed marker. */
+function lineIsManagedMarker(line: string): boolean {
+  return MANAGED_MARKERS.some(({ marker, match }) =>
+    match === 'exact-line' ? line.trim() === marker : line.includes(marker),
+  );
+}
+
+/**
  * Returns true if any of the given (root-relative, `/`-separated) files exists
- * and carries the managed marker in its first 20 lines. Returns false when none
- * of the listed files exists (new install).
+ * and carries a managed marker anywhere in the file. Returns false when none of
+ * the listed files exists (new install).
+ *
+ * The whole file is searched, not a leading window: the guide preserves
+ * pre-existing user content and appends the managed block below it, so the
+ * marker's position is a function of how much the project wrote above it and is
+ * unbounded (#98).
  */
 export function isManagedInstall(projectPath: string, markerFiles: string[]): boolean {
   for (const relPath of markerFiles) {
     const filePath = path.join(projectPath, ...relPath.split('/'));
     if (!fs.existsSync(filePath)) continue;
     const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n').slice(0, 20);
-    if (lines.some((line) => line.trim() === MANAGED_MARKER)) {
+    if (content.split('\n').some(lineIsManagedMarker)) {
       return true;
     }
   }

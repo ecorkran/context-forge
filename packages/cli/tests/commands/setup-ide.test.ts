@@ -364,12 +364,68 @@ describe('isManagedInstall', () => {
     expect(mockReadFileSync).not.toHaveBeenCalled();
   });
 
-  it('ignores a marker appearing after line 20', () => {
+  it('recognizes a marker appearing after line 20', () => {
+    // INVERTED for #98 (was: 'ignores a marker appearing after line 20',
+    // expecting false). The 20-line cap was a deliberate behavior change, not
+    // a test rewritten to go green: the guide now preserves pre-existing user
+    // content and appends the managed block below it, so the marker's position
+    // depends on how much the project wrote above it and is unbounded. A file
+    // with a 60-line preamble puts it around line 64; a 500-line one puts it
+    // at 500. There is no window that can be correct.
     const lines = Array.from({ length: 25 }, (_, i) =>
       i === 21 ? '[//]: # (context-forge:managed)' : `line ${i}`,
     );
     mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
     mockReadFileSync.mockReturnValue(lines.join('\n'));
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('recognizes the new BEGIN marker near the top', () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue('<!-- BEGIN:context-forge -->\n\n# Content');
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('recognizes the new BEGIN marker far below line 20 (#22 preserve-and-append)', () => {
+    // The realistic first-adoption shape: a project with an existing CLAUDE.md
+    // keeps its content and gets the managed block appended below.
+    const preamble = Array.from({ length: 60 }, (_, i) => `existing line ${i}`);
+    const content = [...preamble, '', '<!-- BEGIN:context-forge -->', 'managed', '<!-- END:context-forge -->'].join('\n');
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue(content);
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('recognizes an indented BEGIN marker with trailing content', () => {
+    // The new form matches as a substring, unlike the legacy exact-line form.
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue('  <!-- BEGIN:context-forge --> v2\n# Content');
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('still recognizes the legacy marker', () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('recognizes a file carrying both marker forms', () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue(
+      '[//]: # (context-forge:managed)\n\n<!-- BEGIN:context-forge -->\nmanaged\n<!-- END:context-forge -->',
+    );
+
+    expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(true);
+  });
+
+  it('does not treat an END marker without a BEGIN as managed', () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
+    mockReadFileSync.mockReturnValue('# Content\n\n<!-- END:context-forge -->\n');
 
     expect(isManagedInstall('/tmp/test', TARGETS.claude.markerFiles)).toBe(false);
   });

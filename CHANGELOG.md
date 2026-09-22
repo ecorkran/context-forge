@@ -13,6 +13,24 @@ All notable changes to Context Forge will be documented in this file.  This file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **`cf validate frontmatter` now validates the worktree you are standing in**, not the project root. From a registered worktree every explicit path fell outside the document root and was silently dropped, so the command reported a clean pass having examined nothing — `filesChecked: 0`, exit 0. Anything gating on it passed everything (#88).
+- **Skipped paths are reported instead of vanishing.** `cf validate frontmatter` told you how many files it checked but never which of your paths it ignored or why. A path that is out of scope, not markdown, missing, or has no frontmatter now says so, in both `--json` and human output. "I checked nothing because everything you gave me was out of scope" is now distinguishable from "I checked nothing" (#92, #96).
+- Human output no longer prints `No inconsistencies found (0 files checked)` when nothing was examined. It lists the skipped paths with reasons and says `No files were checked`.
+- **`cf check` findings name the worktree they came from** in a multi-worktree project. Each finding carries a structured `worktree` field in `--json` and is prefixed with `[worktree-name]` in human output, so you can tell whose checkout a finding belongs to instead of hunting for it locally. Single-checkout projects — including a migrated project with one `default` worktree — see no change at all (#87).
+- **`cf list arch` lists every initiative from a worktree.** It was filtering initiative indices through the worktree's *slice* index range, so a worktree owning 920-929 hid every initiative outside that band — usually all of them, reporting `No initiatives found in initiative plan.` against a fully populated plan. An initiative plan is a project-level artifact and is no longer range-filtered; `cf list arch` and `cf list arch --all` now agree (#97).
+- The empty-initiative messages name the plan file or the directory that was scanned, so "none" is a statement you can go verify.
+
+### Added
+- `cf validate frontmatter --json` gains three fields, all additive — the existing `filesChecked`, `totalFindings`, `errors`, `warnings`, and `findings` keep their exact name, type, and meaning, so external consumers parsing this output keep working unchanged:
+  - `documentRoot` — the document root actually scanned, so a caller can tell which checkout it was.
+  - `filesSkipped` — how many supplied paths were not validated.
+  - `pathResults` — per-path outcome (`checked`, `skipped-out-of-scope`, `skipped-not-markdown`, `skipped-not-found`, `skipped-no-frontmatter`) for explicit-path calls. A full walk emits no path list.
+- **`rules.exclude` config key** — comma-separated filename globs for scoped rule files to skip when installing rules (e.g. `dart.md,swift*.md`). Matching is basename-only and skip-only; an already-installed file is never deleted. cf stores and validates the value; the guide's `setup-ide` script is what acts on it (ai-project-guide#23). Validation rejects surrounding whitespace and empty entries from doubled or trailing commas, because the consuming script matches patterns literally and a malformed one would silently never match.
+- **cf recognizes both managed-marker forms**, the legacy `[//]: # (context-forge:managed)` and the newer `<!-- BEGIN:context-forge -->`, anywhere in a file rather than only in its first 20 lines. **This must ship before ai-project-guide#22**, which makes the guide preserve your existing instructions file and append its managed block below — that pushes the marker past any fixed window, and without this change cf would stop recognizing managed installs and start prompting and writing `.bak` files on files it already manages (#98).
+
 ## [0.16.0] - 20260921
 
 ### Changed

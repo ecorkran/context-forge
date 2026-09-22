@@ -9,15 +9,22 @@ import {
   detectDocuments,
   updateFrontmatterField,
 } from '@context-forge/core/node';
-import { formatDateProject } from '@context-forge/core';
+import {
+  formatDateProject,
+  mergeCheckResults,
+  attributeFindings,
+  buildAttributedViews,
+} from '@context-forge/core';
 import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
   ConsistencyFinding,
+  AttributedView,
+  ProjectData,
 } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
 import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
@@ -43,38 +50,26 @@ function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixRe
   return 'fixLog' in result;
 }
 
-/** Merge findings from multiple checkAll runs, deduplicating by rule+location+description. */
-function mergeCheckResults(results: ConsistencyCheckResult[]): ConsistencyCheckResult {
-  if (results.length === 1) return results[0];
-  const seen = new Set<string>();
-  const allFindings: ConsistencyFinding[] = [];
-  for (const result of results) {
-    for (const finding of result.findings) {
-      const key = `${finding.rule}|${finding.location}|${finding.description}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        allFindings.push(finding);
-      }
-    }
-  }
-  const projectPath = results[0].projectPath;
-  const errors = allFindings.filter((f) => f.severity === 'error').length;
-  const warnings = allFindings.filter((f) => f.severity === 'warning').length;
-  const infos = allFindings.filter((f) => f.severity === 'info').length;
-  const total = allFindings.length;
-  const parts: string[] = [];
-  if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`);
-  if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
-  if (infos > 0) parts.push(`${infos} info${infos !== 1 ? 's' : ''}`);
-  const summary = total === 0 ? 'No inconsistencies found' : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
-  return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
+/** Run a checker over each view and attribute the findings to their worktree. */
+async function runAttributed(
+  views: AttributedView[],
+  run: (view: ProjectData) => Promise<ConsistencyCheckResult>,
+): Promise<ConsistencyCheckResult[]> {
+  return Promise.all(
+    views.map(async ({ view, worktree }) => attributeFindings(await run(view), worktree)),
+  );
 }
 
-function formatFinding(finding: ConsistencyFinding, fixResult?: ConsistencyFixResult): string {
+function formatFinding(
+  finding: ConsistencyFinding,
+  fixResult?: ConsistencyFixResult,
+  showWorktree = false,
+): string {
   const icon = SEVERITY_ICON[finding.severity] ?? '?';
   const colorFn = finding.severity === 'error' ? errorStyle : finding.severity === 'warning' ? warnStyle : dim;
   const lines: string[] = [];
-  lines.push(colorFn(`  ${icon} ${finding.description}`));
+  const prefix = showWorktree && finding.worktree ? `[${finding.worktree.name}] ` : '';
+  lines.push(colorFn(`  ${icon} ${prefix}${finding.description}`));
 
   if (fixResult && finding.fixable) {
     // Match on rule AND file: several findings can share a rule (e.g. multiple
@@ -184,7 +179,7 @@ export function registerCheckCommand(program: Command): void {
         }
 
         const store = new FileProjectStore();
-        const { id } = await resolveProjectWorktree({ project: opts.project }, store);
+        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
         const project = await store.getById(id);
 
         if (!project) {
@@ -217,31 +212,44 @@ export function registerCheckCommand(program: Command): void {
         // Build project views: one per worktree overlay so all workflow fields are visible.
         // Findings are merged and deduplicated — aggregate rules (filesystem scan) run per
         // view but produce the same results, so deduplication collapses them correctly.
-        const worktrees = project.worktrees ?? [];
-        const projectViews = worktrees.length > 0
-          ? worktrees.map((wt) => applyWorktreeOverlay(project, wt.id))
-          : [project];
+        // Each view stays paired with the worktree that produced it, so findings
+        // can be attributed before the merge. The dedup key has no worktree
+        // component, so attributing after the merge would misattribute
+        // first-seen-wins duplicates (#87).
+        // buildAttributedViews owns the count-not-presence rule; it is shared
+        // with MCP's workflow_check so the invariant cannot drift between the
+        // two consumers of the same merge.
+        const projectViews = buildAttributedViews(project);
+        const showWorktree = projectViews.some((v) => v.worktree !== undefined);
+
+        // Top-level projectPath means the invoking checkout (D6). Each view's
+        // own projectPath has been overlaid to its worktree path, so the merge
+        // must be told which one that is.
+        const invokingPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
         let result: ConsistencyCheckResult;
 
         if (singleSlice !== null) {
           // Narrow to single slice — set fileSlice temporarily and use check()
-          const sliceViews = projectViews.map((v) => ({ ...v, fileSlice: `${singleSlice}-slice` }));
-          const checkResults = await Promise.all(sliceViews.map((v) => checker.check(v)));
-          const merged = mergeCheckResults(checkResults);
+          const sliceViews = projectViews.map((pv) => ({
+            ...pv,
+            view: { ...pv.view, fileSlice: `${singleSlice}-slice` },
+          }));
+          const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
+          const merged = mergeCheckResults(checkResults, invokingPath);
           result = fixMode ? await checker.applyFixes(merged) : merged;
         } else if (fixMode) {
           // All-slices fix mode — prompt for confirmation unless --yes
-          const dryRunResults = await Promise.all(projectViews.map((v) => checker.checkAll(v)));
-          const dryRun = mergeCheckResults(dryRunResults);
+          const dryRunResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
+          const dryRun = mergeCheckResults(dryRunResults, invokingPath);
           const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
 
           if (fixableCount === 0) {
-            printCheckOutput(dryRun, project.name, false);
+            printCheckOutput(dryRun, project.name, false, showWorktree);
             console.log(dim('No fixable findings — nothing to apply.'));
             return;
           } else if (!opts.yes) {
-            printCheckOutput(dryRun, project.name, false);
+            printCheckOutput(dryRun, project.name, false, showWorktree);
             const confirmed = await askConfirmation(
               `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `,
             );
@@ -254,8 +262,8 @@ export function registerCheckCommand(program: Command): void {
             result = await checker.applyFixes(dryRun);
           }
         } else {
-          const checkResults = await Promise.all(projectViews.map((v) => checker.checkAll(v)));
-          result = mergeCheckResults(checkResults);
+          const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
+          result = mergeCheckResults(checkResults, invokingPath);
         }
 
         if (opts.json) {
@@ -263,7 +271,7 @@ export function registerCheckCommand(program: Command): void {
           return;
         }
 
-        printCheckOutput(result, project.name, fixMode);
+        printCheckOutput(result, project.name, fixMode, showWorktree);
       } catch (err) {
         handleError(err);
       }
@@ -274,6 +282,7 @@ function printCheckOutput(
   result: ConsistencyCheckResult,
   projectName: string,
   fixMode: boolean,
+  showWorktree = false,
 ): void {
   const modeLabel = fixMode ? ' (fix mode)' : '';
   console.log(label(`Consistency Check: ${projectName}${modeLabel}`));
@@ -292,7 +301,7 @@ function printCheckOutput(
     console.log(label(`  ${groupLabel}`));
 
     for (const finding of findings) {
-      console.log(formatFinding(finding, fixRes));
+      console.log(formatFinding(finding, fixRes, showWorktree));
     }
     console.log('');
   }

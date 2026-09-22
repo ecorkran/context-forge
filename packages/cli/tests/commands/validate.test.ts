@@ -7,14 +7,18 @@ const mockGetById = vi.fn();
 const mockValidateFrontmatterFiles = vi.fn();
 const mockUpdateFrontmatterField = vi.fn();
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getAll: mockGetAll,
-    getById: mockGetById,
-  })),
-  validateFrontmatterFiles: (...args: unknown[]) => mockValidateFrontmatterFiles(...args),
-  updateFrontmatterField: (...args: unknown[]) => mockUpdateFrontmatterField(...args),
-}));
+vi.mock('@context-forge/core/node', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@context-forge/core/node')>();
+  return {
+    ...actual,
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getAll: mockGetAll,
+      getById: mockGetById,
+    })),
+    validateFrontmatterFiles: (...args: unknown[]) => mockValidateFrontmatterFiles(...args),
+    updateFrontmatterField: (...args: unknown[]) => mockUpdateFrontmatterField(...args),
+  };
+});
 
 const sampleProject = {
   id: 'proj_001',
@@ -153,6 +157,129 @@ describe('cf validate frontmatter', () => {
     expect(parsed.errors).toBe(0);
     expect(parsed.findings).toHaveLength(1);
     expect(parsed.findings[0].filePath).toBe(statusFinding.filePath);
+  });
+
+  it('--json pins the whole single-checkout object (D3 additive-only)', async () => {
+    // squadron parses this output. The five legacy fields must keep their exact
+    // name, type and meaning; new fields may only be added. Pinning the whole
+    // object means an accidental rename, reorder or removal fails here rather
+    // than in an external consumer.
+    mockValidateFrontmatterFiles.mockResolvedValue({
+      findings: [],
+      filesChecked: 3,
+      documentRoot: '/tmp/test/project-documents/user',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'validate', 'frontmatter', '--project', 'proj_001', '--json']);
+
+    const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
+    expect(JSON.parse(raw)).toEqual({
+      filesChecked: 3,
+      totalFindings: 0,
+      errors: 0,
+      warnings: 0,
+      findings: [],
+      documentRoot: '/tmp/test/project-documents/user',
+      filesSkipped: 0,
+    });
+  });
+
+  it('--json omits pathResults for a full walk', async () => {
+    mockValidateFrontmatterFiles.mockResolvedValue({
+      findings: [],
+      filesChecked: 2,
+      documentRoot: '/tmp/test/project-documents/user',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'validate', 'frontmatter', '--project', 'proj_001', '--json']);
+
+    const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+    expect(parsed).not.toHaveProperty('pathResults');
+    expect(parsed.filesSkipped).toBe(0);
+  });
+
+  it('--json distinguishes all-out-of-scope from checked-nothing (#96)', async () => {
+    // The property squadron's gate needs: "I examined nothing because every
+    // path you gave me was out of scope" must be readable from JSON alone.
+    mockValidateFrontmatterFiles.mockResolvedValue({
+      findings: [],
+      filesChecked: 0,
+      documentRoot: '/tmp/test/project-documents/user',
+      pathResults: [
+        {
+          inputPath: 'CHANGELOG.md',
+          resolvedPath: '/tmp/test/CHANGELOG.md',
+          outcome: 'skipped-out-of-scope',
+        },
+        {
+          inputPath: 'README.md',
+          resolvedPath: '/tmp/test/README.md',
+          outcome: 'skipped-out-of-scope',
+        },
+      ],
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'validate', 'frontmatter', 'CHANGELOG.md', 'README.md',
+      '--project', 'proj_001', '--json',
+    ]);
+
+    const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+    expect(parsed.filesChecked).toBe(0);
+    expect(parsed.filesSkipped).toBe(2);
+    expect(parsed.pathResults.every((r: { outcome: string }) => r.outcome === 'skipped-out-of-scope')).toBe(true);
+    // Contrast: a zero with no supplied paths carries no skip list at all.
+    expect(parsed.documentRoot).toBe('/tmp/test/project-documents/user');
+  });
+
+  it('--json counts only non-checked entries as skipped', async () => {
+    mockValidateFrontmatterFiles.mockResolvedValue({
+      findings: [],
+      filesChecked: 1,
+      documentRoot: '/tmp/test/project-documents/user',
+      pathResults: [
+        { inputPath: 'a.md', resolvedPath: '/tmp/test/project-documents/user/a.md', outcome: 'checked' },
+        { inputPath: 'b.txt', resolvedPath: '/tmp/test/b.txt', outcome: 'skipped-not-markdown' },
+        { inputPath: 'c.md', resolvedPath: '/tmp/test/c.md', outcome: 'skipped-not-found' },
+      ],
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'validate', 'frontmatter', 'a.md', 'b.txt', 'c.md',
+      '--project', 'proj_001', '--json',
+    ]);
+
+    const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+    expect(parsed.filesChecked).toBe(1);
+    expect(parsed.filesSkipped).toBe(2);
+    expect(parsed.pathResults).toHaveLength(3);
+  });
+
+  it('reports skipped paths with reasons in human output', async () => {
+    mockValidateFrontmatterFiles.mockResolvedValue({
+      findings: [],
+      filesChecked: 0,
+      documentRoot: '/tmp/test/project-documents/user',
+      pathResults: [
+        { inputPath: 'CHANGELOG.md', resolvedPath: '/tmp/test/CHANGELOG.md', outcome: 'skipped-out-of-scope' },
+      ],
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      'node', 'cf', 'validate', 'frontmatter', 'CHANGELOG.md', '--project', 'proj_001',
+    ]);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('CHANGELOG.md');
+    expect(output).toContain('outside the document root');
+    // The misleading pass message must not appear when nothing was examined.
+    expect(output).not.toContain('No inconsistencies found');
+    expect(output).toContain('No files were checked');
   });
 
   it('--json in fix mode includes fixed, fixLog, and fixErrors', async () => {
