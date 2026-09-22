@@ -1,5 +1,69 @@
 import type { ProjectData } from '../types/index.js';
 
+/** The worktree (or project root) that owns a given filesystem path. */
+export interface WorktreeMatch {
+  /** Worktree id, or undefined when the match was the project root itself. */
+  worktreeId?: string;
+  /** Worktree name, or undefined when the match was the project root itself. */
+  name?: string;
+  /** The matched root: the worktree's worktreePath, or the project's projectPath. */
+  rootPath: string;
+}
+
+/** Strip a single trailing separator so `/a/b/` and `/a/b` compare equal. */
+function stripTrailingSeparator(path: string): string {
+  return path.endsWith('/') || path.endsWith('\\') ? path.slice(0, -1) : path;
+}
+
+/**
+ * Resolve which worktree (or the project root) owns an absolute path.
+ *
+ * Candidates are the project's `projectPath` plus every worktree's
+ * `worktreePath`. A candidate matches when the path equals it, or starts with
+ * it followed by a separator — a bare string prefix is not enough, so
+ * `/repo-old` does not match the root `/repo`. The longest matching root wins;
+ * on an exact tie a worktree is preferred over the project root.
+ *
+ * Returns null when nothing owns the path. A worktree with no `worktreePath`
+ * cannot own one and is skipped.
+ */
+export function resolveWorktreeForPath(
+  project: ProjectData,
+  absolutePath: string,
+): WorktreeMatch | null {
+  const candidates: WorktreeMatch[] = [];
+
+  if (project.projectPath) {
+    candidates.push({ rootPath: project.projectPath });
+  }
+  for (const wt of project.worktrees ?? []) {
+    if (wt.worktreePath) {
+      candidates.push({ worktreeId: wt.id, name: wt.name, rootPath: wt.worktreePath });
+    }
+  }
+
+  const matches = candidates
+    .filter((c) => {
+      const root = stripTrailingSeparator(c.rootPath);
+      return (
+        absolutePath === root ||
+        absolutePath.startsWith(root + '/') ||
+        absolutePath.startsWith(root + '\\')
+      );
+    })
+    .sort((a, b) => {
+      // Longest root wins; on tie, prefer a worktree over the project root.
+      const lenDiff =
+        stripTrailingSeparator(b.rootPath).length - stripTrailingSeparator(a.rootPath).length;
+      if (lenDiff !== 0) return lenDiff;
+      if (a.worktreeId && !b.worktreeId) return -1;
+      if (!a.worktreeId && b.worktreeId) return 1;
+      return 0;
+    });
+
+  return matches[0] ?? null;
+}
+
 /** Overlay worktree-scoped fields onto a project copy. */
 export function applyWorktreeOverlay(project: ProjectData, worktreeId: string): ProjectData {
   const wt = (project.worktrees ?? []).find((w) => w.id === worktreeId);

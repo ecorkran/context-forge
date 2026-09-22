@@ -56,4 +56,6 @@ export {
   isInIndexRange,
   getWorktreeIndexRange,
   getWorktreeRangeOverride,
+  resolveWorktreeForPath,
+  type WorktreeMatch,
 } from './utils/worktree-overlay.js';
