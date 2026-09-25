@@ -13,6 +13,7 @@ import {
 import {
   resolveProject,
   mergeCheckResults,
+  mergeFixResults,
   attributeFindings,
   buildAttributedViews,
 } from '@context-forge/core';
@@ -267,16 +268,30 @@ export function registerWorkflowTools(server: McpServer): void {
             ...pv,
             view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` },
           }));
-          const checkResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
-            attributeFindings(fixMode ? await checker.fix(view) : await checker.check(view), worktree),
-          ));
-          result = mergeCheckResults(checkResults, invokingPath);
+          if (fixMode) {
+            const fixResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
+              attributeFindings(await checker.fix(view), worktree),
+            ));
+            result = mergeFixResults(fixResults, invokingPath);
+          } else {
+            const checkResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
+              attributeFindings(await checker.check(view), worktree),
+            ));
+            result = mergeCheckResults(checkResults, invokingPath);
+          }
         } else {
           // All-slices mode (no confirmation prompt in MCP)
-          const checkResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
-            attributeFindings(fixMode ? await checker.fixAll(view) : await checker.checkAll(view), worktree),
-          ));
-          result = mergeCheckResults(checkResults, invokingPath);
+          if (fixMode) {
+            const fixResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
+              attributeFindings(await checker.fixAll(view), worktree),
+            ));
+            result = mergeFixResults(fixResults, invokingPath);
+          } else {
+            const checkResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
+              attributeFindings(await checker.checkAll(view), worktree),
+            ));
+            result = mergeCheckResults(checkResults, invokingPath);
+          }
         }
 
         return jsonResult(result);
