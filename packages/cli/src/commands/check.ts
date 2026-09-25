@@ -51,10 +51,10 @@ function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixRe
 }
 
 /** Run a checker over each view and attribute the findings to their worktree. */
-async function runAttributed(
+async function runAttributed<T extends ConsistencyCheckResult>(
   views: AttributedView[],
-  run: (view: ProjectData) => Promise<ConsistencyCheckResult>,
-): Promise<ConsistencyCheckResult[]> {
+  run: (view: ProjectData) => Promise<T>,
+): Promise<T[]> {
   return Promise.all(
     views.map(async ({ view, worktree }) => attributeFindings(await run(view), worktree)),
   );

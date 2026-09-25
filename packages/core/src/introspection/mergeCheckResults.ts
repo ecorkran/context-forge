@@ -1,6 +1,7 @@
 import type {
   ConsistencyCheckResult,
   ConsistencyFinding,
+  ConsistencyFixResult,
   FindingWorktree,
 } from './types.js';
 import type { ProjectData } from '../types/index.js';
@@ -47,10 +48,10 @@ export function buildAttributedViews(project: ProjectData): AttributedView[] {
  * duplicate the merge collapses would otherwise lose its origin and be
  * attributed first-seen-wins (#87).
  */
-export function attributeFindings(
-  result: ConsistencyCheckResult,
+export function attributeFindings<T extends ConsistencyCheckResult>(
+  result: T,
   worktree?: FindingWorktree,
-): ConsistencyCheckResult {
+): T {
   if (!worktree) return result;
   return {
     ...result,
@@ -149,4 +150,23 @@ export function mergeCheckResults(
       ? 'No inconsistencies found'
       : `${total} finding${total !== 1 ? 's' : ''}: ${parts.join(', ')}`;
   return { projectPath, findings: allFindings, totalFindings: total, errors, warnings, infos, summary };
+}
+
+/**
+ * Merge fix results from multiple per-view fix runs. Finding dedup delegates
+ * to mergeCheckResults, so the merged findings/counts follow the same
+ * root-normalized rules. `fixed` is summed and `fixLog`/`fixErrors` are
+ * concatenated in result order, with no dedup — each entry is a real write to
+ * a distinct file in its own checkout, so collapsing them would hide that a
+ * fix was applied there.
+ */
+export function mergeFixResults(
+  results: ConsistencyFixResult[],
+  invokingPath?: string,
+): ConsistencyFixResult {
+  const merged = mergeCheckResults(results, invokingPath);
+  const fixed = results.reduce((sum, r) => sum + r.fixed, 0);
+  const fixLog = results.flatMap((r) => r.fixLog);
+  const fixErrors = results.flatMap((r) => r.fixErrors);
+  return { ...merged, fixed, fixLog, fixErrors };
 }

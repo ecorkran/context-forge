@@ -9,9 +9,10 @@ export { normalizeStatus } from './parsers/statusNormalizer.js';
 export { deriveEntryStatus } from './statusDerivation.js';
 export type { EntryStatusSignals } from './statusDerivation.js';
 
-// mergeCheckResults / attributeFindings / buildAttributedViews are pure — browser-safe
+// mergeCheckResults / mergeFixResults / attributeFindings / buildAttributedViews are pure — browser-safe
 export {
   mergeCheckResults,
+  mergeFixResults,
   attributeFindings,
   buildAttributedViews,
   type AttributedView,

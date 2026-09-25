@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mergeCheckResults } from '../../src/introspection/mergeCheckResults.js';
-import type { ConsistencyCheckResult, ConsistencyFinding } from '../../src/introspection/types.js';
+import { mergeCheckResults, mergeFixResults } from '../../src/introspection/mergeCheckResults.js';
+import type {
+  ConsistencyCheckResult,
+  ConsistencyFinding,
+  ConsistencyFixResult,
+  FixLogEntry,
+} from '../../src/introspection/types.js';
 
 function makeFinding(overrides: Partial<ConsistencyFinding> = {}): ConsistencyFinding {
   return {
@@ -30,6 +35,27 @@ function makeResult(
     infos,
     summary: `${findings.length} findings`,
   };
+}
+
+function makeFixLogEntry(overrides: Partial<FixLogEntry> = {}): FixLogEntry {
+  return {
+    rule: 'review-gate',
+    action: 'update-checkbox',
+    filePath: '/repo/main/project-documents/user/architecture/900-slices.maintenance-and-refactoring.md',
+    before: 'unchecked',
+    after: 'checked',
+    ...overrides,
+  };
+}
+
+function makeFixResult(
+  projectPath: string,
+  findings: ConsistencyFinding[],
+  fixed: number,
+  fixLog: FixLogEntry[],
+  fixErrors: string[] = [],
+): ConsistencyFixResult {
+  return { ...makeResult(projectPath, findings), fixed, fixLog, fixErrors };
 }
 
 describe('mergeCheckResults', () => {
@@ -154,5 +180,80 @@ describe('mergeCheckResults', () => {
     expect(merged.warnings).toBe(1);
     expect(merged.infos).toBe(0);
     expect(merged.summary).toContain('2 findings');
+  });
+});
+
+describe('mergeFixResults', () => {
+  it('sums fixed across two results', () => {
+    const results = [
+      makeFixResult('/repo/main', [], 2, []),
+      makeFixResult('/repo/wt-2', [], 3, []),
+    ];
+
+    const merged = mergeFixResults(results);
+
+    expect(merged.fixed).toBe(5);
+  });
+
+  it('includes fixLog entries from both views — two entries for the same logical fix in two checkouts', () => {
+    const finding = makeFinding();
+    const logA = makeFixLogEntry({ filePath: '/repo/main/docs/foo.md' });
+    const logB = makeFixLogEntry({ filePath: '/repo/wt-2/docs/foo.md' });
+    const results = [
+      makeFixResult('/repo/main', [finding], 1, [logA]),
+      makeFixResult('/repo/wt-2', [finding], 1, [logB]),
+    ];
+
+    const merged = mergeFixResults(results);
+
+    expect(merged.fixLog).toHaveLength(2);
+    expect(merged.fixLog.map((e) => e.filePath)).toEqual([
+      '/repo/main/docs/foo.md',
+      '/repo/wt-2/docs/foo.md',
+    ]);
+  });
+
+  it('concatenates fixErrors without dedup', () => {
+    const results = [
+      makeFixResult('/repo/main', [], 0, [], ['failed to write /repo/main/foo.md']),
+      makeFixResult('/repo/wt-2', [], 0, [], ['failed to write /repo/wt-2/foo.md']),
+    ];
+
+    const merged = mergeFixResults(results);
+
+    expect(merged.fixErrors).toEqual([
+      'failed to write /repo/main/foo.md',
+      'failed to write /repo/wt-2/foo.md',
+    ]);
+  });
+
+  it('dedups findings identically to mergeCheckResults', () => {
+    const findingA = makeFinding({ location: '/repo/main/docs/foo.md' });
+    const findingB = makeFinding({ location: '/repo/wt-2/docs/foo.md' });
+    const results = [
+      makeFixResult('/repo/main', [findingA], 1, [makeFixLogEntry({ filePath: '/repo/main/docs/foo.md' })]),
+      makeFixResult('/repo/wt-2', [findingB], 1, [makeFixLogEntry({ filePath: '/repo/wt-2/docs/foo.md' })]),
+    ];
+
+    const merged = mergeFixResults(results);
+
+    expect(merged.findings).toHaveLength(1);
+    expect(merged.findings[0].location).toBe('/repo/main/docs/foo.md');
+    // Fix fields are not deduped even though the finding collapsed to one.
+    expect(merged.fixed).toBe(2);
+    expect(merged.fixLog).toHaveLength(2);
+  });
+
+  it('single result passes through with fix fields intact', () => {
+    const finding = makeFinding();
+    const log = makeFixLogEntry();
+    const result = makeFixResult('/repo/main', [finding], 1, [log], ['some error']);
+
+    const merged = mergeFixResults([result], '/repo/invoking');
+
+    expect(merged.fixed).toBe(1);
+    expect(merged.fixLog).toEqual([log]);
+    expect(merged.fixErrors).toEqual(['some error']);
+    expect(merged.projectPath).toBe('/repo/invoking');
   });
 });
