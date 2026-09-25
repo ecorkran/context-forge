@@ -12,6 +12,7 @@ import {
 import {
   formatDateProject,
   mergeCheckResults,
+  mergeFixResults,
   attributeFindings,
   buildAttributedViews,
 } from '@context-forge/core';
@@ -235,11 +236,22 @@ export function registerCheckCommand(program: Command): void {
             ...pv,
             view: { ...pv.view, fileSlice: `${singleSlice}-slice` },
           }));
-          const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
-          const merged = mergeCheckResults(checkResults, invokingPath);
-          result = fixMode ? await checker.applyFixes(merged) : merged;
+          if (fixMode) {
+            // Fixes apply per view, before the merge — once #100's dedup
+            // collapses cross-worktree duplicates, fixing the merged result
+            // would only write the first checkout's file (D5).
+            const fixResults = await runAttributed(sliceViews, (v) => checker.fix(v));
+            result = mergeFixResults(fixResults, invokingPath);
+          } else {
+            const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
+            result = mergeCheckResults(checkResults, invokingPath);
+          }
         } else if (fixMode) {
-          // All-slices fix mode — prompt for confirmation unless --yes
+          // All-slices fix mode — prompt for confirmation unless --yes. The dry
+          // run stays merged for display and the confirmation count, but fixes
+          // apply per view (D5): each per-view dry-run result carries its own
+          // checkout's fixAction file paths, so applying against the merged
+          // result would only write the first-seen checkout.
           const dryRunResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
           const dryRun = mergeCheckResults(dryRunResults, invokingPath);
           const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
@@ -257,9 +269,11 @@ export function registerCheckCommand(program: Command): void {
               console.log('Aborted.');
               return;
             }
-            result = await checker.applyFixes(dryRun);
+            const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
+            result = mergeFixResults(fixResults, invokingPath);
           } else {
-            result = await checker.applyFixes(dryRun);
+            const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
+            result = mergeFixResults(fixResults, invokingPath);
           }
         } else {
           const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
