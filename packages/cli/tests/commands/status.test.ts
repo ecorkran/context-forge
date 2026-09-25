@@ -210,6 +210,28 @@ describe('cf status', () => {
     expect(output).toContain('Warnings:');
     expect(output).toContain('⚠ Slice 127');
   });
+
+  it('an unrelated UserError (unknown --worktree) is not masked by the first-run git-worktree suggestion', async () => {
+    // Reproduces a bug found during slice 927's verification walkthrough: the
+    // project resolves successfully (git worktree discovery's first entry is
+    // always the current checkout itself, which matches sampleProject's own
+    // projectPath), but a LATER UserError — an unknown --worktree name — was
+    // being caught by the same handler as resolution failure and swallowed
+    // into a bogus "looks like a git worktree" suggestion with exit 0.
+    mockGetById.mockResolvedValue(sampleProject);
+    mockListGitWorktrees.mockResolvedValue([
+      { path: '/tmp/test', head: 'abc', branch: 'refs/heads/main', bare: false },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'status', '--project', 'proj_001', '--worktree', 'nope']);
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => String(c[0])).join('\n');
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(errOutput).toContain("Worktree 'nope' not found");
+    expect(output).not.toContain('appears to be a git worktree');
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
 });
 
 describe('cf status first-run suggestion', () => {
