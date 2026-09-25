@@ -5,8 +5,8 @@ slice: 927
 parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: [926]
 dateCreated: 20260924
-dateUpdated: 20260924
-status: not_started
+dateUpdated: 20260925
+status: complete
 ---
 
 # Slice Design: 927 — Worktree Dedup and Explicit-Project Worktree Resolution
@@ -154,37 +154,119 @@ Once #100 collapses cross-worktree duplicates, applying fixes after the merge on
 
 ### Functional Requirements
 
-- [ ] In a project with 2 registered worktrees, `cf check` reports each path-derived project-level finding once, not once per worktree.
-- [ ] The personal-scope-key finding (shared config holds a personal key) is reported once across 2 worktrees.
-- [ ] `cf check --json` keeps the same shape; the kept finding's `location` is still absolute.
-- [ ] Single-worktree / migrated-`default` projects: `cf check` output is byte-identical to before.
-- [ ] `cf validate frontmatter --project <name>` run from inside a registered worktree of that project validates that worktree (`documentRoot` in `--json` names the worktree).
-- [ ] `--project <name>` run from outside any of that project's checkouts resolves to the project root, as before.
-- [ ] `--project <name>` run from inside a *different* project's checkout resolves to the named project's root.
-- [ ] Migrated single-worktree project: `cf status --json --project <name>` run from the project root reports `worktree.name: "default"`, matching bare `cf status --json` from the same directory.
-- [ ] `cf status --project <name> --worktree <name2>` still selects `<name2>` regardless of CWD; an unknown `<name2>` still exits non-zero with a `UserError` (regression guard for status's own check).
-- [ ] `cf check --fix` in a project with 2 worktrees sharing the same fixable finding writes the fix in **both** checkouts; `fixLog` lists both files.
-- [ ] MCP `workflow_check` with `fix: true` across 2 worktrees returns `fixed`, `fixLog`, and `fixErrors` (currently dropped by the merge).
+- [x] In a project with 2 registered worktrees, `cf check` reports each path-derived project-level finding once, not once per worktree.
+- [x] The personal-scope-key finding (shared config holds a personal key) is reported once across 2 worktrees.
+- [x] `cf check --json` keeps the same shape; the kept finding's `location` is still absolute.
+- [x] Single-worktree / migrated-`default` projects: `cf check` output is byte-identical to before.
+- [x] `cf validate frontmatter --project <name>` run from inside a registered worktree of that project validates that worktree (`documentRoot` in `--json` names the worktree).
+- [x] `--project <name>` run from outside any of that project's checkouts resolves to the project root, as before.
+- [x] `--project <name>` run from inside a *different* project's checkout resolves to the named project's root.
+- [x] Migrated single-worktree project: `cf status --json --project <name>` run from the project root reports `worktree.name: "default"`, matching bare `cf status --json` from the same directory.
+- [x] `cf status --project <name> --worktree <name2>` still selects `<name2>` regardless of CWD; an unknown `<name2>` still exits non-zero with a `UserError` (regression guard for status's own check).
+- [x] `cf check --fix` in a project with 2 worktrees sharing the same fixable finding writes the fix in **both** checkouts; `fixLog` lists both files.
+- [x] MCP `workflow_check` with `fix: true` across 2 worktrees returns `fixed`, `fixLog`, and `fixErrors` (currently dropped by the merge).
 
 ### Technical Requirements
 
-- [ ] `mergeCheckResults` unit tests cover: absolute-path location collapse, description-embedded root collapse, root-prefix boundary (`/repo` vs `/repo-other` do not collapse), non-path locations unchanged.
-- [ ] `mergeFixResults` unit tests cover: `fixed` summed, `fixLog`/`fixErrors` concatenated (not deduped), findings deduped the same as `mergeCheckResults`.
-- [ ] `resolveProjectWorktree` unit tests cover the explicit-branch cases: CWD in a worktree of the named project, CWD outside it, CWD in another project's checkout, CWD at a migrated project's root. The `worktree` option and its tests are removed.
-- [ ] At least one #100 test uses the real finding shape from the issue (the 900-slices plan path under two different roots).
-- [ ] `pnpm -r build` and the full test suite pass.
+- [x] `mergeCheckResults` unit tests cover: absolute-path location collapse, description-embedded root collapse, root-prefix boundary (`/repo` vs `/repo-other` do not collapse), non-path locations unchanged.
+- [x] `mergeFixResults` unit tests cover: `fixed` summed, `fixLog`/`fixErrors` concatenated (not deduped), findings deduped the same as `mergeCheckResults`.
+- [x] `resolveProjectWorktree` unit tests cover the explicit-branch cases: CWD in a worktree of the named project, CWD outside it, CWD in another project's checkout, CWD at a migrated project's root. The `worktree` option and its tests are removed.
+- [x] At least one #100 test uses the real finding shape from the issue (the 900-slices plan path under two different roots).
+- [x] `pnpm -r build` and the full test suite pass.
 
 ### Verification Walkthrough
 
-To be filled in with actual commands and output during implementation. Outline:
+Run against this repo (the local build, `node packages/cli/dist/index.js`, not the
+global `cf`) with a temporary worktree at `/private/tmp/cf-wt-927` (macOS resolves
+`/tmp` to `/private/tmp`; `git worktree list` reports the resolved path, so commands
+below use it directly).
 
-1. Register a second worktree (`git worktree add /tmp/cf-wt-927 …`, `cf worktree init`).
-2. `cf check` from the main checkout: confirm the slice-921 review warnings appear once, not twice. `cf check --json | jq '.findings | length'` should drop by the duplicate count.
-3. `cd /tmp/cf-wt-927 && cf validate frontmatter --project context-forge --json | jq .documentRoot` should name `/tmp/cf-wt-927/...`.
-4. `cd /tmp && cf validate frontmatter --project context-forge --json | jq .documentRoot` should name the main checkout.
-5. `cf status --project context-forge --worktree nope` should give a non-zero exit and an error message.
-6. Uncheck the same plan entry in both checkouts, run `cf check --fix --yes`, and confirm both files are re-checked and `fixLog` lists both.
-7. Remove the temporary worktree.
+1. **Register a second worktree.**
+   ```
+   git worktree add /tmp/cf-wt-927 -b 927-wt-verify main
+   cd /private/tmp/cf-wt-927 && node <repo>/packages/cli/dist/index.js worktree init \
+     --name wt927 --range 5000-5099 --path /private/tmp/cf-wt-927 \
+     --project context-forge --override
+   ```
+   `--override` was required: the project's `default` worktree already owns the
+   full `[100, 999]` range (it holds this repo's real `900-arch`/`900-slices`
+   artifacts), so a plain disjoint-range registration is what `--override` is
+   for — without it, `cf worktree init` refuses to shrink `default`'s range.
+   Result: `Worktree context 'wt927' created (5000-5099) on project 'context-forge'.`
+
+2. **`cf check` from the main checkout: confirm findings aren't duplicated.**
+   ```
+   node packages/cli/dist/index.js check --project context-forge --json
+   ```
+   Result: 5 findings total (1 info, 4 warnings), all attributed to
+   `[default]`; none attributed to `wt927` (its overlaid range/path has no
+   matching in-range content, so it contributes nothing to this run) and no
+   finding appeared twice. `totalFindings` matched `findings.length` (5),
+   confirming the JSON shape's invariant held.
+
+3. **From inside the second worktree, `--project` resolves to its own root.**
+   ```
+   cd /private/tmp/cf-wt-927 && node <repo>/packages/cli/dist/index.js validate \
+     frontmatter --project context-forge --json
+   ```
+   Result: `documentRoot: "/private/tmp/cf-wt-927/project-documents/user"` —
+   confirms Task 2's CWD-aware explicit-`--project` resolution (#101).
+
+4. **From outside any checkout, `--project` resolves to the main checkout.**
+   ```
+   cd /private/tmp && node <repo>/packages/cli/dist/index.js validate \
+     frontmatter --project context-forge --json
+   ```
+   Result: `documentRoot: "/Users/manta/source/repos/manta/context-forge/project-documents/user"`.
+
+5. **`cf status --project context-forge --worktree nope` exits non-zero with an error.**
+   ```
+   node packages/cli/dist/index.js status --project context-forge --worktree nope
+   ```
+   First run of this step surfaced a real bug, not a slice-927 regression but
+   blocking one of this slice's own success criteria: the command printed
+   `This directory appears to be a git worktree of project 'context-forge'.`
+   and exited **0**. Root cause: `status.ts`'s catch block routed *every*
+   `UserError` — not just a project-resolution failure — through a
+   first-run "looks like an unregistered git worktree" suggestion, and that
+   suggestion always finds a match when CWD is a registered project root
+   (`git worktree list`'s first entry is always the current checkout itself).
+   Confirmed this reproduces with zero sibling worktrees, i.e. pre-existing,
+   not caused by this walkthrough's temporary worktree. Fixed in
+   `fix(cli): don't mask a later cf status error as a resolution failure`
+   (commit 0c77949): the suggestion now fires only when project *resolution*
+   itself threw, not for a later `UserError` in the same command. After the
+   fix:
+   ```
+   Worktree 'nope' not found. Run cf worktree list to see available worktrees.
+   ```
+   exit code 1 — confirmed both in plain-text and `--json` form. Regression
+   test added: `packages/cli/tests/commands/status.test.ts`, "an unrelated
+   UserError (unknown --worktree) is not masked by the first-run
+   git-worktree suggestion".
+
+6. **`cf check --fix --yes` fixes the same fixable finding in both checkouts.**
+   Not re-run by hand against this repo's live project data — doing so would
+   require either mutating this repo's real `900-slices` plan mid-slice, or
+   hand-editing the user's global project store outside `cf`'s own commands,
+   both of which risk real state corruption for a check that's already
+   covered. This exact scenario (two real checkouts, same fixable
+   `task-vs-plan` finding, real `ConsistencyChecker`/`ArtifactIntrospector`
+   over real temp directories, `cf check --fix --yes`) is proven end-to-end
+   by the automated integration test added in Task 15:
+   `packages/cli/tests/commands/check-worktree-fix.test.ts` — both checkout
+   files are asserted fixed on disk, `fixLog` has 2 entries (one per
+   checkout path), `fixed === 2`, and the displayed finding stays deduped to
+   1. That test passes; see Task 15/15a in the task file for full detail.
+
+7. **Remove the temporary worktree.**
+   ```
+   node packages/cli/dist/index.js worktree rm wt927 --project context-forge --yes
+   git worktree remove --force /private/tmp/cf-wt-927
+   git branch -D 927-wt-verify
+   ```
+   Confirmed via `git worktree list` (shows only the main checkout) and
+   `cf worktree list --project context-forge --json` (shows only `default`).
 
 ## Risk Assessment
 
