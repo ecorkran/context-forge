@@ -78,6 +78,7 @@ wrong), then the walkthrough.
 
 - [ ] **Task 4: Guard `cf status --worktree` behavior** (effort 1)
   - [ ] In the existing `cf status` command tests, add or confirm cases: `--project X --worktree <name>` selects `<name>` even when CWD is in a different worktree of X; `--worktree <bogus>` throws `UserError`
+  - [ ] Add a case pinning criterion 8: for a migrated single-worktree project (`default` worktree path equals `projectPath`), with CWD stubbed at the project root and no `--worktree` flag, `cf status --json --project <name>` reports `worktree.name === 'default'` and `resolutionSource: 'flag'`
   - [ ] If equivalent tests already exist, note which ones and add nothing
   - [ ] Success: tests pass
 
@@ -107,7 +108,7 @@ wrong), then the walkthrough.
     2. `description` embedding the root under two roots (personal-scope-key shape) → one finding
     3. Boundary: roots `/repo` and `/repo-other` with otherwise identical text → **two** findings
     4. Non-path location (`slice plan entry 250`) identical across views → one finding (unchanged behavior)
-    5. Real shape from #100: the `900-slices` plan path under two roots (see issue #100 for the exact finding) → one finding
+    5. Real shape from #100: the `900-slices` plan path under two roots (the slice-921 review-gate warning whose `location` is `900-slices.maintenance-and-refactoring.md` under two checkout roots — recorded in `926-slice...md`'s verification walkthrough, steps 5–6) → one finding
     6. Single result → returned with only `projectPath` replaced by `invokingPath` (byte-identical otherwise)
     7. Counts (`totalFindings`, `errors`, `warnings`, `infos`, `summary`) reflect the deduped list
   - [ ] Success: `pnpm --filter @context-forge/core test` passes
@@ -134,6 +135,10 @@ wrong), then the walkthrough.
   - [ ] In `mergeCheckResults.test.ts`, add cases: `fixed` summed across two results; `fixLog` entries from both views present (two entries for the same logical fix in two checkouts); `fixErrors` concatenated; findings deduped identically to `mergeCheckResults`; single result passes through with fix fields intact
   - [ ] Success: core tests pass
 
+- [ ] **Task 12a: Commit checkpoint**
+  - [ ] `pnpm -r build` and `pnpm --filter @context-forge/core test` pass
+  - [ ] Commit: `feat(core): add mergeFixResults for per-view fix merging`
+
 - [ ] **Task 13: CLI single-slice fix mode applies per view** (effort 2)
   - [ ] In `check.ts` single-slice path: when `fixMode`, run `checker.fix(v)` per view via `runAttributed`, then `mergeFixResults(…, invokingPath)`; otherwise unchanged (`check` + `mergeCheckResults`)
   - [ ] Remove the post-merge `checker.applyFixes(merged)` call
@@ -147,10 +152,16 @@ wrong), then the walkthrough.
   - [ ] Success: CLI build passes
 
 - [ ] **Task 15: Test CLI per-view fixing** (effort 3)
-  - [ ] In `packages/cli/tests/commands/check.test.ts` (or `check-worktree-attribution.test.ts` if its two-worktree fixture fits better), build a project with two worktrees whose checkouts both contain the same fixable state (e.g. the same unchecked plan entry for a complete slice)
-  - [ ] Assert for single-slice `--fix`: both checkout files are fixed; `fixLog` has two entries with different file paths
+  - [ ] `check.test.ts` and `check-worktree-attribution.test.ts` both mock `ConsistencyChecker` entirely — this test needs the real implementation running against real files, so it does not fit either as-is. Follow 926 Task 5's precedent: use the real `ConsistencyChecker` over real temp directories (mock only the project store), not a mocked checker
+  - [ ] Build a project with two real worktree checkouts, each containing a `project-documents/.../900-slices.*.md` fixture with the same unchecked entry for a complete slice (same fixable state in both checkouts)
+  - [ ] Assert for single-slice `--fix`: both checkout files are fixed on disk; `fixLog` has two entries with different file paths
   - [ ] Assert for all-slices `--fix --yes`: same; the displayed finding appears once
+  - [ ] This test must fail against pre-Task-13/14 code (confirm by running it against the current tree before Task 13's change, or by inspecting that the old post-merge `applyFixes` path would fix only one checkout)
   - [ ] Success: CLI tests pass
+
+- [ ] **Task 15a: Commit checkpoint**
+  - [ ] `pnpm -r build` and `pnpm --filter @context-forge/cli test` pass
+  - [ ] Commit: `fix(cli): apply check fixes per worktree before merging`
 
 - [ ] **Task 16: MCP `workflow_check` uses `mergeFixResults`** (effort 1)
   - [ ] In `packages/mcp-server/src/tools/workflowTools.ts`, in both fix branches (single-slice and all-slices), use `mergeFixResults` when `fixMode`, `mergeCheckResults` otherwise
@@ -162,7 +173,7 @@ wrong), then the walkthrough.
 
 - [ ] **Task 18: Commit Part 3**
   - [ ] `pnpm -r build` and `pnpm -r test` pass
-  - [ ] Commit: `fix: apply check fixes per worktree before merging results`
+  - [ ] Commit: `fix(mcp): merge per-view fix results in workflow_check`
 
 ## Part 4 — Verification and Close-Out
 
