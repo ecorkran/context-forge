@@ -45,46 +45,46 @@ wrong), then the walkthrough.
 
 ## Branch Setup
 
-- [ ] **Task 0: Create slice branch**
-  - [ ] Run `cf config get git.integration_branch`; the target is its value, or `main` if empty
-  - [ ] `git checkout -b 927-slice.worktree-dedup-and-explicit-project-worktree-resolution {target}`
-  - [ ] Success: on the new branch, `git status` clean
+- [x] **Task 0: Create slice branch**
+  - [x] Run `cf config get git.integration_branch`; the target is its value, or `main` if empty
+  - [x] `git checkout -b 927-slice.worktree-dedup-and-explicit-project-worktree-resolution {target}`
+  - [x] Success: on the new branch, `git status` clean
 
 ## Part 1 — #101 and Rider: Explicit `--project` Resolution
 
-- [ ] **Task 1: Remove the resolver's `worktree` option** (effort 1)
-  - [ ] In `packages/cli/src/utils/project.ts`, delete the `worktree` field from `ResolveProjectWorktreeOptions` and the `if (opts.worktree) { … }` block in the explicit branch
-  - [ ] Update the JSDoc on `resolveProjectWorktree` to drop the sentence about `opts.worktree`
-  - [ ] Delete the two tests in `packages/cli/tests/utils/project.test.ts` that pass `worktree:` (currently near lines 280 and 299, `'feature'` and `'nonexistent'`)
-  - [ ] Confirm no remaining references: `grep -rn "worktree:" packages/cli/src | grep resolveProjectWorktree` returns nothing
-  - [ ] Do **not** touch `cf status`'s own `--worktree` handling (`status.ts`, the `findWorktreeByNameOrId` block after the resolver call)
-  - [ ] Success: `pnpm --filter @context-forge/cli build` passes with no type errors
+- [x] **Task 1: Remove the resolver's `worktree` option** (effort 1)
+  - [x] In `packages/cli/src/utils/project.ts`, delete the `worktree` field from `ResolveProjectWorktreeOptions` and the `if (opts.worktree) { … }` block in the explicit branch
+  - [x] Update the JSDoc on `resolveProjectWorktree` to drop the sentence about `opts.worktree`
+  - [x] Delete the two tests in `packages/cli/tests/utils/project.test.ts` that pass `worktree:` (currently near lines 280 and 299, `'feature'` and `'nonexistent'`)
+  - [x] Confirm no remaining references: `grep -rn "worktree:" packages/cli/src | grep resolveProjectWorktree` returns nothing
+  - [x] Do **not** touch `cf status`'s own `--worktree` handling (`status.ts`, the `findWorktreeByNameOrId` block after the resolver call)
+  - [x] Success: `pnpm --filter @context-forge/cli build` passes with no type errors
 
-- [ ] **Task 2: Make the explicit `--project` branch CWD-aware** (effort 2)
-  - [ ] In the explicit branch, after the project is found, call `resolveWorktreeForPath(project, process.cwd())` (import from `@context-forge/core`, same as `findProjectByCwd`)
-  - [ ] If the result is a worktree match for *this* project, set `resolved.worktreeId` to its id; otherwise leave `worktreeId` unset
-  - [ ] `source` stays `'flag'`
-  - [ ] Check how `findProjectByCwd` reads the `resolveWorktreeForPath` return value and follow the same pattern. Don't guess the return shape.
-  - [ ] Update the JSDoc: the explicit branch now also derives `worktreeId` from CWD
-  - [ ] Success: CLI build passes
+- [x] **Task 2: Make the explicit `--project` branch CWD-aware** (effort 2)
+  - [x] In the explicit branch, after the project is found, call `resolveWorktreeForPath(project, process.cwd())` (import from `@context-forge/core`, same as `findProjectByCwd`)
+  - [x] If the result is a worktree match for *this* project, set `resolved.worktreeId` to its id; otherwise leave `worktreeId` unset
+  - [x] `source` stays `'flag'`
+  - [x] Check how `findProjectByCwd` reads the `resolveWorktreeForPath` return value and follow the same pattern. Don't guess the return shape.
+  - [x] Update the JSDoc: the explicit branch now also derives `worktreeId` from CWD
+  - [x] Success: CLI build passes
 
-- [ ] **Task 3: Test explicit-branch resolution** (effort 2)
-  - [ ] In `packages/cli/tests/utils/project.test.ts`, add cases for `resolveProjectWorktree({ project })` with CWD stubbed (use the existing CWD-stub pattern in that file):
+- [x] **Task 3: Test explicit-branch resolution** (effort 2)
+  - [x] In `packages/cli/tests/utils/project.test.ts`, add cases for `resolveProjectWorktree({ project })` with CWD stubbed (use the existing CWD-stub pattern in that file):
     1. CWD inside a registered worktree of the named project → `worktreeId` is that worktree, `source: 'flag'`
     2. CWD outside all of that project's checkouts → no `worktreeId`
     3. CWD inside a *different* project's checkout → no `worktreeId` (named project's root)
     4. Migrated single-worktree project (`default` worktree path equals `projectPath`), CWD at the project root → `worktreeId` is `default`
-  - [ ] Success: `pnpm --filter @context-forge/cli test` passes
+  - [x] Success: `pnpm --filter @context-forge/cli test` passes
 
-- [ ] **Task 4: Guard `cf status --worktree` behavior** (effort 1)
-  - [ ] In the existing `cf status` command tests, add or confirm cases: `--project X --worktree <name>` selects `<name>` even when CWD is in a different worktree of X; `--worktree <bogus>` throws `UserError`
-  - [ ] Add a case pinning criterion 8: for a migrated single-worktree project (`default` worktree path equals `projectPath`), with CWD stubbed at the project root and no `--worktree` flag, `cf status --json --project <name>` reports `worktree.name === 'default'` and `resolutionSource: 'flag'`
-  - [ ] If equivalent tests already exist, note which ones and add nothing
-  - [ ] Success: tests pass
+- [x] **Task 4: Guard `cf status --worktree` behavior** (effort 1)
+  - [x] In the existing `cf status` command tests, add or confirm cases: `--project X --worktree <name>` selects `<name>` even when CWD is in a different worktree of X; `--worktree <bogus>` throws `UserError`
+  - [x] Add a case pinning criterion 8: for a migrated single-worktree project (`default` worktree path equals `projectPath`), with CWD stubbed at the project root and no `--worktree` flag, `cf status --json --project <name>` reports `worktree.name === 'default'` and `resolutionSource: 'flag'`
+  - [x] If equivalent tests already exist, note which ones and add nothing
+  - [x] Success: tests pass
 
-- [ ] **Task 5: Commit Part 1**
-  - [ ] `pnpm -r build` and `pnpm -r test` pass
-  - [ ] Commit: `fix(cli): resolve worktree from CWD under explicit --project` with `Fixes #101` in the body
+- [x] **Task 5: Commit Part 1**
+  - [x] `pnpm -r build` and `pnpm -r test` pass
+  - [x] Commit: `fix(cli): resolve worktree from CWD under explicit --project` with `Fixes #101` in the body
 
 ## Part 2 — #100: Root-Normalized Dedup Key
 

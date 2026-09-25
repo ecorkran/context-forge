@@ -4,7 +4,7 @@ import type {
   FindingWorktree,
 } from './types.js';
 import type { ProjectData } from '../types/index.js';
-import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
+import { applyWorktreeOverlay, stripTrailingSeparator } from '../utils/worktree-overlay.js';
 
 /** A project view paired with the worktree it was overlaid from, if any. */
 export interface AttributedView {
@@ -59,8 +59,50 @@ export function attributeFindings(
 }
 
 /**
+ * Replace every occurrence of `viewRoot` in `text` with a fixed token, so two
+ * views of the same project produce identical dedup keys regardless of which
+ * checkout root their paths were built from.
+ *
+ * A match requires a path separator or end-of-string immediately after the
+ * root, mirroring resolveWorktreeForPath's boundary check — `/repo` does not
+ * match inside `/repo-other`.
+ */
+function replaceRoot(text: string, viewRoot: string): string {
+  const root = stripTrailingSeparator(viewRoot);
+  if (!root) return text;
+  let result = '';
+  let rest = text;
+  let index = rest.indexOf(root);
+  while (index !== -1) {
+    const after = rest[index + root.length];
+    if (after === undefined || after === '/' || after === '\\') {
+      result += rest.slice(0, index) + '\u0000ROOT\u0000';
+      rest = rest.slice(index + root.length);
+    } else {
+      result += rest.slice(0, index + root.length);
+      rest = rest.slice(index + root.length);
+    }
+    index = rest.indexOf(root);
+  }
+  return result + rest;
+}
+
+/**
+ * Build the dedup key for one finding, with the view's checkout root
+ * normalized out of `location` and `description` so the same logical finding
+ * from two different worktree views collapses to one key. See "#100 — Dedup
+ * Key Normalization" in the slice 927 design.
+ */
+function dedupKey(finding: ConsistencyFinding, viewRoot: string | undefined): string {
+  const norm = (s: string) => (viewRoot ? replaceRoot(s, viewRoot) : s);
+  return `${finding.rule}|${norm(finding.location)}|${norm(finding.description)}`;
+}
+
+/**
  * Merge findings from multiple checkAll runs, deduplicating by
- * rule+location+description.
+ * rule+location+description with the view's checkout root normalized out of
+ * the key (see dedupKey). The kept finding is pushed unmodified — normalization
+ * affects the dedup key only, never the finding's own `location`/`description`.
  *
  * The dedup key deliberately carries no worktree component. Aggregate rules
  * run once per view and legitimately produce identical project-level findings
@@ -86,7 +128,7 @@ export function mergeCheckResults(
   const allFindings: ConsistencyFinding[] = [];
   for (const result of results) {
     for (const finding of result.findings) {
-      const key = `${finding.rule}|${finding.location}|${finding.description}`;
+      const key = dedupKey(finding, result.projectPath);
       if (!seen.has(key)) {
         seen.add(key);
         allFindings.push(finding);
