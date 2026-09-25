@@ -264,41 +264,44 @@ describe('resolveProjectWorktree', () => {
     await expect(resolveProjectWorktree({}, store)).rejects.toThrow('No project specified');
   });
 
-  it('resolves --worktree option when --project is explicit', async () => {
-    const projectsWithWorktrees = [
-      {
-        id: 'project_002',
-        name: 'orchestration',
-        projectPath: '/repos/orch',
-        worktrees: [
-          { id: 'wt_001', name: 'feature', worktreePath: '/repos/orch-feature' },
-        ],
-      },
-    ];
-    const store = mockStore(projectsWithWorktrees);
-    store.getById = vi.fn().mockResolvedValue(projectsWithWorktrees[0]);
-    const result = await resolveProjectWorktree({ project: 'orchestration', worktree: 'feature' }, store);
-    expect(result.id).toBe('project_002');
-    expect(result.worktreeId).toBe('wt_001');
-    expect(result.source).toBe('flag');
+  it('explicit --project with CWD inside a registered worktree of that project resolves worktreeId', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/orch-feature/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree({ project: 'orchestration' }, store);
+    expect(result).toEqual({ id: 'project_002', source: 'flag', worktreeId: 'wt_001' });
   });
 
-  it('unknown --worktree returns worktreeId undefined (does not error)', async () => {
-    const projectsWithWorktrees = [
+  it('explicit --project with CWD outside all of that project\'s checkouts resolves no worktreeId', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/tmp/unrelated');
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree({ project: 'orchestration' }, store);
+    expect(result).toEqual({ id: 'project_002', source: 'flag' });
+    expect(result.worktreeId).toBeUndefined();
+  });
+
+  it('explicit --project with CWD inside a different project\'s checkout resolves the named project\'s root', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/cf/src');
+    const store = mockStore(projects);
+    const result = await resolveProjectWorktree({ project: 'orchestration' }, store);
+    expect(result).toEqual({ id: 'project_002', source: 'flag' });
+    expect(result.worktreeId).toBeUndefined();
+  });
+
+  it('explicit --project on a migrated single-worktree project with CWD at the project root resolves the default worktree', async () => {
+    const migratedProjects = [
       {
-        id: 'project_002',
-        name: 'orchestration',
-        projectPath: '/repos/orch',
+        id: 'project_003',
+        name: 'migrated',
+        projectPath: '/repos/migrated',
         worktrees: [
-          { id: 'wt_001', name: 'feature', worktreePath: '/repos/orch-feature' },
+          { id: 'default', name: 'default', worktreePath: '/repos/migrated' },
         ],
       },
     ];
-    const store = mockStore(projectsWithWorktrees);
-    store.getById = vi.fn().mockResolvedValue(projectsWithWorktrees[0]);
-    const result = await resolveProjectWorktree({ project: 'orchestration', worktree: 'nonexistent' }, store);
-    expect(result.id).toBe('project_002');
-    expect(result.worktreeId).toBeUndefined();
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/migrated');
+    const store = mockStore(migratedProjects);
+    const result = await resolveProjectWorktree({ project: 'migrated' }, store);
+    expect(result).toEqual({ id: 'project_003', source: 'flag', worktreeId: 'default' });
   });
 });
 
