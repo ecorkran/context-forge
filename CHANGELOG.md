@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 20260925
+
 ### Fixed
 - **`cf check` in a multi-worktree project no longer repeats project-level findings once per worktree.** The dedup key now normalizes each view's checkout root out of a finding's `location` and `description` before comparing, so the same logical finding from two checkouts collapses to one. `--json` output shape and the kept finding's absolute `location` are unchanged; single-checkout projects see no change at all (#100).
 - **`--project foo` run from inside one of foo's worktrees now operates on that worktree**, not silently on the project root. This affects every command that resolves a project via the explicit `--project` flag. `cf status --project foo --worktree bar` still overrides with `bar` regardless of CWD (#101).
 - **`cf check --fix` in a multi-worktree project fixes every checkout that has the same fixable finding**, not just the first one seen. Fixes now apply per checkout before findings are merged and deduped, so a stale checkbox present in two worktrees gets corrected in both. MCP `workflow_check` with `fix: true` across multiple worktrees now also reports `fixed`/`fixLog`/`fixErrors` correctly merged from every checkout — previously these fields were silently dropped.
 - **`cf status` no longer swallows unrelated errors as a "looks like a git worktree" suggestion.** An unknown `--worktree` name (or any other error after a project has already resolved) now correctly exits non-zero with its real error message, instead of printing a bogus first-run suggestion and exiting 0.
+- `cf check --fix` in a multi-worktree project no longer prints a misleading "Fixed 2 of 1 findings" when cross-checkout dedup collapses the displayed finding count below the number of files actually fixed; the message now reports both numbers plainly.
 
 ## [0.17.0] - 20260922
 
