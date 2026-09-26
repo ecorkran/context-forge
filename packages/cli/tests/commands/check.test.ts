@@ -189,6 +189,33 @@ describe('cf check', () => {
     expect(output).toContain('Fixed 1 of 2');
   });
 
+  it('reports file-update count separately when a cross-checkout fix collapses to fewer findings', async () => {
+    // #100: two checkouts sharing one logical finding dedup to a single
+    // displayed finding, but each checkout's file still gets its own write,
+    // so `fixed` (2) can exceed `totalFindings` (1). "Fixed 2 of 1 findings"
+    // would be nonsense; the message must describe both numbers plainly.
+    mockGetById.mockResolvedValue(sampleProject);
+    mockCheckAll.mockResolvedValue({ ...findingsResult, findings: [findingsResult.findings[0]], totalFindings: 1 });
+    mockApplyFixes.mockResolvedValue({
+      ...findingsResult,
+      findings: [findingsResult.findings[0]],
+      totalFindings: 1,
+      fixed: 2,
+      fixLog: [
+        { rule: 'task-vs-plan', action: 'update-checkbox', filePath: '/tmp/wt-a/plan.md', before: '[ ]', after: '[x]' },
+        { rule: 'task-vs-plan', action: 'update-checkbox', filePath: '/tmp/wt-b/plan.md', before: '[ ]', after: '[x]' },
+      ],
+      fixErrors: [],
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix', '--yes']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).not.toContain('Fixed 2 of 1');
+    expect(output).toContain('Fixed 1 finding(s) (2 file update(s) across checkouts)');
+  });
+
   it('pairs each fixed finding with its own fixLog entry when several share a rule', async () => {
     // Two frontmatter-schema fixes in one run (as strict status validation
     // produces): each rendered "Fixed:" line must name its own file, not the

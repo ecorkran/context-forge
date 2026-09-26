@@ -60,6 +60,24 @@ export function attributeFindings<T extends ConsistencyCheckResult>(
 }
 
 /**
+ * Run `check` against every attributed view, tagging each result with its
+ * worktree before the caller merges them.
+ *
+ * Shared by `cf check` and MCP's `workflow_check` for the same reason as
+ * `buildAttributedViews`: both run this exact attribute-then-collect step
+ * ahead of `mergeCheckResults`/`mergeFixResults`, and duplicating it risked
+ * the two consumers drifting apart.
+ */
+export function runAttributed<T extends ConsistencyCheckResult>(
+  views: AttributedView[],
+  check: (view: ProjectData) => Promise<T>,
+): Promise<T[]> {
+  return Promise.all(
+    views.map(async ({ view, worktree }) => attributeFindings(await check(view), worktree)),
+  );
+}
+
+/**
  * Replace every occurrence of `viewRoot` in `text` with a fixed token, so two
  * views of the same project produce identical dedup keys regardless of which
  * checkout root their paths were built from.

@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath, ConfigManager } from '@context-forge/core/node';
-import { resolveProject } from '@context-forge/core';
+import { resolveProject, type ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -27,17 +27,21 @@ export function registerStatusCommand(program: Command): void {
         }
 
         const store = new FileProjectStore();
-        let id: string, source: ResolutionSource, cwdWorktreeId: string | undefined, rawProject;
+        let id: string,
+          source: ResolutionSource,
+          cwdWorktreeId: string | undefined,
+          maybeProject: ProjectData | undefined;
         try {
           ({ id, source, worktreeId: cwdWorktreeId } = await resolveProjectWorktree({ project: opts.project }, store));
-          rawProject = await store.getById(id);
-          if (!rawProject) {
+          maybeProject = await store.getById(id);
+          if (!maybeProject) {
             throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
           }
         } catch (err) {
           resolutionFailed = true;
           throw err;
         }
+        const rawProject: ProjectData = maybeProject;
 
         // ── --worktrees dashboard ──────────────────────────────────────────
         if (opts.worktrees) {

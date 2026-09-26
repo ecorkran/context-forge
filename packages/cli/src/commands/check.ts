@@ -13,15 +13,13 @@ import {
   formatDateProject,
   mergeCheckResults,
   mergeFixResults,
-  attributeFindings,
   buildAttributedViews,
+  runAttributed,
 } from '@context-forge/core';
 import type {
   ConsistencyCheckResult,
   ConsistencyFixResult,
   ConsistencyFinding,
-  AttributedView,
-  ProjectData,
 } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
@@ -49,16 +47,6 @@ function askConfirmation(prompt: string): Promise<boolean> {
 
 function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
   return 'fixLog' in result;
-}
-
-/** Run a checker over each view and attribute the findings to their worktree. */
-async function runAttributed<T extends ConsistencyCheckResult>(
-  views: AttributedView[],
-  run: (view: ProjectData) => Promise<T>,
-): Promise<T[]> {
-  return Promise.all(
-    views.map(async ({ view, worktree }) => attributeFindings(await run(view), worktree)),
-  );
 }
 
 function formatFinding(
@@ -269,12 +257,10 @@ export function registerCheckCommand(program: Command): void {
               console.log('Aborted.');
               return;
             }
-            const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
-            result = mergeFixResults(fixResults, invokingPath);
-          } else {
-            const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
-            result = mergeFixResults(fixResults, invokingPath);
           }
+
+          const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
+          result = mergeFixResults(fixResults, invokingPath);
         } else {
           const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
           result = mergeCheckResults(checkResults, invokingPath);
@@ -321,7 +307,11 @@ function printCheckOutput(
   }
 
   if (fixRes) {
-    console.log(label(`Fixed ${fixRes.fixed} of ${result.totalFindings} findings`));
+    const fixSummary =
+      fixRes.fixed > result.totalFindings
+        ? `Fixed ${result.totalFindings} finding(s) (${fixRes.fixed} file update(s) across checkouts)`
+        : `Fixed ${fixRes.fixed} of ${result.totalFindings} findings`;
+    console.log(label(fixSummary));
     if (fixRes.fixErrors.length > 0) {
       for (const err of fixRes.fixErrors) {
         console.log(errorStyle(`  Fix error: ${err}`));
