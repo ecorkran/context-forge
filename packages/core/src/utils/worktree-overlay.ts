@@ -11,7 +11,7 @@ export interface WorktreeMatch {
 }
 
 /** Strip a single trailing separator so `/a/b/` and `/a/b` compare equal. */
-function stripTrailingSeparator(path: string): string {
+export function stripTrailingSeparator(path: string): string {
   return path.endsWith('/') || path.endsWith('\\') ? path.slice(0, -1) : path;
 }
 

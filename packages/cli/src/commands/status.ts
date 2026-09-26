@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { Command } from 'commander';
 import { FileProjectStore, WorkflowNavigator, GitWorktreeDiscovery, parseSlicePlan, resolveArtifactPath, ConfigManager } from '@context-forge/core/node';
-import { resolveProject } from '@context-forge/core';
+import { resolveProject, type ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -20,18 +20,28 @@ export function registerStatusCommand(program: Command): void {
     .option('--worktree <name>', 'Show status for a specific worktree')
     .option('--worktrees', 'Show summary of all worktrees');
   statusCmd.action(async (opts: { json?: boolean; project?: string; worktree?: string; worktrees?: boolean }) => {
+      let resolutionFailed = false;
       try {
         if (opts.worktree && opts.worktrees) {
           throw new UserError('--worktree and --worktrees are mutually exclusive.');
         }
 
         const store = new FileProjectStore();
-        const { id, source, worktreeId: cwdWorktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const rawProject = await store.getById(id);
-
-        if (!rawProject) {
-          throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+        let id: string,
+          source: ResolutionSource,
+          cwdWorktreeId: string | undefined,
+          maybeProject: ProjectData | undefined;
+        try {
+          ({ id, source, worktreeId: cwdWorktreeId } = await resolveProjectWorktree({ project: opts.project }, store));
+          maybeProject = await store.getById(id);
+          if (!maybeProject) {
+            throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+          }
+        } catch (err) {
+          resolutionFailed = true;
+          throw err;
         }
+        const rawProject: ProjectData = maybeProject;
 
         // ── --worktrees dashboard ──────────────────────────────────────────
         if (opts.worktrees) {
@@ -182,8 +192,12 @@ export function registerStatusCommand(program: Command): void {
           }
         }
       } catch (err) {
-        // First-run messaging: suggest cf worktree init if CWD is a git worktree of a known project
-        if (err instanceof UserError) {
+        // First-run messaging: suggest cf worktree init if CWD is a git worktree of a
+        // known project — but only when project *resolution* itself failed. A UserError
+        // thrown later (e.g. an unknown --worktree name) means a project already
+        // resolved; showing this suggestion then would misreport an unrelated error as
+        // "no project found" and swallow the real one (exit 0 instead of erroring).
+        if (resolutionFailed && err instanceof UserError) {
           const shown = await showWorktreeSuggestion();
           if (shown) return;
         }

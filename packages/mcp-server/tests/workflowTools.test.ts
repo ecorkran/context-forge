@@ -796,4 +796,61 @@ describe('workflow_check with worktree parity', () => {
     const fromB = parsed.findings.find((f) => f.location === 'slice plan entry 250');
     expect(fromB?.worktree?.name).toBe(MOCK_WORKTREE_B.name);
   });
+
+  it('with fix: true across 2 worktrees, returns fixed/fixLog/fixErrors merged from both views (#100 fix path)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    // Before this slice, mergeCheckResults dropped fix fields entirely — this
+    // pins that workflow_check now uses mergeFixResults in fix mode, so fixed/
+    // fixLog/fixErrors survive the merge with entries from both views.
+    mockFixAll
+      .mockResolvedValueOnce({
+        ...MOCK_CHECK_RESULT_A,
+        fixed: 1,
+        fixLog: [
+          {
+            rule: 'task-vs-plan',
+            action: 'update-checkbox',
+            filePath: '/home/user/projects/test-project-feature/plan.md',
+            before: '[ ]',
+            after: '[x]',
+          },
+        ],
+        fixErrors: [],
+      })
+      .mockResolvedValueOnce({
+        ...MOCK_CHECK_RESULT_B,
+        fixed: 1,
+        fixLog: [
+          {
+            rule: 'missing-artifact',
+            action: 'update-checkbox',
+            filePath: '/home/user/projects/test-project-bugfix/plan.md',
+            before: '[ ]',
+            after: '[x]',
+          },
+        ],
+        fixErrors: ['fix failed for some other finding'],
+      });
+
+    const result = await client.callTool({
+      name: 'workflow_check',
+      arguments: { projectId: MOCK_PROJECT.id, fix: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockFixAll).toHaveBeenCalledTimes(2);
+    const parsed = parseResult(result) as {
+      fixed: number;
+      fixLog: Array<{ filePath: string }>;
+      fixErrors: string[];
+    };
+    expect(parsed.fixed).toBe(2);
+    expect(parsed.fixLog).toHaveLength(2);
+    expect(parsed.fixLog.map((e) => e.filePath)).toEqual([
+      '/home/user/projects/test-project-feature/plan.md',
+      '/home/user/projects/test-project-bugfix/plan.md',
+    ]);
+    expect(parsed.fixErrors).toEqual(['fix failed for some other finding']);
+  });
 });

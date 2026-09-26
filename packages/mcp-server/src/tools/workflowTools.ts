@@ -13,8 +13,9 @@ import {
 import {
   resolveProject,
   mergeCheckResults,
-  attributeFindings,
+  mergeFixResults,
   buildAttributedViews,
+  runAttributed,
 } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
@@ -267,16 +268,22 @@ export function registerWorkflowTools(server: McpServer): void {
             ...pv,
             view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` },
           }));
-          const checkResults = await Promise.all(sliceViews.map(async ({ view, worktree }) =>
-            attributeFindings(fixMode ? await checker.fix(view) : await checker.check(view), worktree),
-          ));
-          result = mergeCheckResults(checkResults, invokingPath);
+          if (fixMode) {
+            const fixResults = await runAttributed(sliceViews, (v) => checker.fix(v));
+            result = mergeFixResults(fixResults, invokingPath);
+          } else {
+            const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
+            result = mergeCheckResults(checkResults, invokingPath);
+          }
         } else {
           // All-slices mode (no confirmation prompt in MCP)
-          const checkResults = await Promise.all(projectViews.map(async ({ view, worktree }) =>
-            attributeFindings(fixMode ? await checker.fixAll(view) : await checker.checkAll(view), worktree),
-          ));
-          result = mergeCheckResults(checkResults, invokingPath);
+          if (fixMode) {
+            const fixResults = await runAttributed(projectViews, (v) => checker.fixAll(v));
+            result = mergeFixResults(fixResults, invokingPath);
+          } else {
+            const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
+            result = mergeCheckResults(checkResults, invokingPath);
+          }
         }
 
         return jsonResult(result);

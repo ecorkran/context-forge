@@ -75,19 +75,15 @@ export interface ResolvedProjectWorktree {
 export interface ResolveProjectWorktreeOptions {
   /** Explicit --project flag value (name or id). */
   project?: string;
-  /** Explicit --worktree flag value (name or id) — overrides CWD-derived worktreeId. */
-  worktree?: string;
 }
 
 /**
  * Resolves which project and (optionally) worktree to use via a three-step chain:
  *
- * 1. explicit --project flag → findByNameOrId
+ * 1. explicit --project flag → findByNameOrId, then CWD is checked against
+ *    that project's own worktrees via resolveWorktreeForPath
  * 2. CWD detection → findProjectByCwd (worktree-aware)
  * 3. Throw UserError with guidance
- *
- * When opts.worktree is provided and a project was resolved, also resolves the
- * worktreeId via findWorktreeByNameOrId.
  */
 export async function resolveProjectWorktree(
   opts: ResolveProjectWorktreeOptions,
@@ -106,10 +102,8 @@ export async function resolveProjectWorktree(
       );
     }
     const resolved: ResolvedProjectWorktree = { id: project.id, source: 'flag' };
-    if (opts.worktree) {
-      const wt = await findWorktreeByNameOrId(project.id, opts.worktree, store);
-      if (wt) resolved.worktreeId = wt.id;
-    }
+    const match = resolveWorktreeForPath(project, process.cwd());
+    if (match?.worktreeId) resolved.worktreeId = match.worktreeId;
     return resolved;
   }
 
