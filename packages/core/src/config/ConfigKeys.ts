@@ -138,7 +138,7 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: '',
     description:
-      'Comma-separated filename globs for scoped rule files to skip when installing rules (e.g. "dart.md,swift*.md"). Matching is basename-only and skip-only — an already-installed file is never deleted. Empty means install everything. Consumed by the guide\'s setup-ide script, not by cf itself: cf stores and validates the value, the script acts on it. Rules marked alwaysApply are not excludable.',
+      'Comma-separated filename globs for scoped rule files to skip when installing rules (e.g. "dart.md,swift*.md"). Matching is basename-only. As of ai-project-guide v0.19.0, setup-ide also prunes a previously-installed file that now matches an exclude pattern, via its per-target manifest — not just skips it on future installs. Empty means install everything. Consumed by the guide\'s setup-ide script, not by cf itself: cf stores and validates the value, the script acts on it. Rules marked alwaysApply are not excludable.',
     scope: ConfigScope.Shared,
     validate: (value) => {
       if (typeof value !== 'string') return 'must be a string';
