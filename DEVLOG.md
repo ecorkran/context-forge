@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-09-29
+
+### Release 0.18.1
+
+- **Contents:** CLI tables truncate wide cells to fit the terminal (#107); refreshed `rules.exclude` config description for guide v0.19.0 pruning. Added a `/release` skill for this repo.
+
+Tags: @context-forge/core@0.18.1, @context-forge/cli@0.18.1, @context-forge/mcp@0.18.1, @context-forge/context-forge@0.18.1
+
 ## 2026-09-25
 
 ### Slice 927 — worktree dedup, explicit-project resolution, and 0.18.0

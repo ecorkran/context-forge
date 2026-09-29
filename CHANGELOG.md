@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 20260929
+
+### Changed
+- **Wide tables now fit your terminal.** `cf list` and similar table output shrinks the widest columns with a trailing `…` when a row would overflow the terminal width, instead of wrapping into an unreadable mess. The active/next markers sit in their own column so they are never cut. Piped (non-TTY) output is unchanged (#107).
+- `cf config` help for `rules.exclude` now describes ai-project-guide v0.19.0+ behavior: `setup-ide` also prunes already-installed rule files that newly match an exclude pattern.
+
 ## [0.18.0] - 20260925
 
 ### Fixed
