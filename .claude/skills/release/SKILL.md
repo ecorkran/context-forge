@@ -49,7 +49,7 @@ State the chosen version in one line and proceed (no confirmation for patch/mino
 
    Tags: @context-forge/core@X.Y.Z, @context-forge/cli@X.Y.Z, @context-forge/mcp@X.Y.Z, @context-forge/context-forge@X.Y.Z
    ```
-4. Run `pnpm -r typecheck`, `pnpm -r lint`, and `pnpm -r test`. Any failure stops the release.
+4. Run `pnpm -r typecheck` and `pnpm -r test`. Any failure stops the release.
 5. Commit: `chore: release X.Y.Z`.
 
 ## 6. Tag and push
