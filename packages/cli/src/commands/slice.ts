@@ -189,9 +189,9 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
     const file = e.designFile
       ? dim(e.designFile.split('/').pop() ?? e.designFile)
       : dim('—');
-    const indicator = e.isActive ? success(' ← active') : e.isNext ? dim(' ← next') : '';
-    return [String(e.index), e.name, status, file + indicator];
+    const indicator = e.isActive ? success('← active') : e.isNext ? dim('← next') : '';
+    return [String(e.index), e.name, status, file, indicator];
   });
 
-  console.log(renderTable(['#', 'Slice', 'Status', 'File'], rows));
+  console.log(renderTable(['#', 'Slice', 'Status', 'File', ''], rows));
 }

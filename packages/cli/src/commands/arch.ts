@@ -140,11 +140,11 @@ async function archListFromPlan(
   const rows = entries.map((e) => {
     const statusLabel = renderEntryStatus(e.status, e.isChecked);
     const file = e.archFile ? dim(e.archFile) : dim('—');
-    const indicator = e.isActive ? success(' ← active') : '';
-    return [String(e.index), e.name, statusLabel, file + indicator];
+    const indicator = e.isActive ? success('← active') : '';
+    return [String(e.index), e.name, statusLabel, file, indicator];
   });
 
-  console.log(renderTable(['#', 'Initiative', 'Status', 'Arch File'], rows));
+  console.log(renderTable(['#', 'Initiative', 'Status', 'Arch File', ''], rows));
 }
 
 /** Fallback: list initiatives from buildModel filesystem scan. */
@@ -213,18 +213,19 @@ async function archListFromModel(
   console.log(label('\nArchitecture Initiatives'));
 
   const rows = entries.map((e) => {
-    const indicator = e.isActive ? success(' ← active') : '';
+    const indicator = e.isActive ? success('← active') : '';
     return [
       e.index,
       e.name,
       dim(e.archDoc),
       dim(e.slicePlan),
-      e.progress + indicator,
+      e.progress,
+      indicator,
     ];
   });
 
   console.log(renderTable(
-    ['Index', 'Initiative', 'Arch Doc', 'Slice Plan', 'Progress'],
+    ['Index', 'Initiative', 'Arch Doc', 'Slice Plan', 'Progress', ''],
     rows,
   ));
 }
