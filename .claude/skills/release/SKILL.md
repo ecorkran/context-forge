@@ -69,8 +69,19 @@ The tag must point at HEAD, or pnpm's git checks block the publish. If a fix lan
 
 ## 8. Confirm on npm
 
-For each of `@context-forge/core`, `@context-forge/cli`, `@context-forge/mcp`, `@context-forge/context-forge`, run `npm view <name> version`. All four must report X.Y.Z. The registry can lag a minute after publish — retry once or twice before calling it a failure.
+Packages publish one at a time, each gated by its own PM approval, so a full run can take several minutes. Don't check until the PM says the publish finished.
 
-Never check `npm view context-forge` — that is an unrelated third-party package.
+Query the registry directly — `npm view` goes through a cache that lags behind a fresh publish:
+
+```
+for p in core cli mcp context-forge; do
+  echo "$p: $(curl -s "https://registry.npmjs.org/@context-forge%2F$p?t=$(date +%s)" \
+    | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["dist-tags"]["latest"], d["time"].get("X.Y.Z","MISSING"))')"
+done
+```
+
+Each package must show `X.Y.Z` as latest with a publish timestamp. If any is missing, re-check every 30 seconds for up to 5 minutes before calling it a failure. Only a package still missing after that is a real partial publish: re-run `pnpm publish -r --access public` (it skips versions already published).
+
+Never check `context-forge` unscoped — that is an unrelated third-party package.
 
 Report "X.Y.Z live on npm" when all four match.
