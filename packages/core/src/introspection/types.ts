@@ -94,6 +94,8 @@ export interface DocumentDetectionResult {
   architecture: string | null;
   slicePlan: string | null;
   review: string | null;
+  /** Split-review parts (`*.part-N.md`) in numeric part order; empty when the review is unsplit (#106). */
+  reviewParts: string[];
 }
 
 // --- ProjectModel types (for buildModel output, matching parse.py) ---

@@ -69,6 +69,12 @@ async function filterByDocType(
   return checks.filter((p): p is string => p !== null);
 }
 
+/** Part number from a `*.part-N.md` filename, or null when the file is not a split-review part. */
+function partNumber(path: string): number | null {
+  const match = /\.part-(\d+)\.md$/.exec(path);
+  return match ? Number(match[1]) : null;
+}
+
 /**
  * Detect methodology documents for a given slice index under a project path.
  * Checks project-documents/user/ subdirectories for matching files.
@@ -123,7 +129,13 @@ export async function detectDocuments(
   // declares docType: review before picking the last one; a candidate that
   // fails that check is excluded rather than falling back to picking it
   // anyway, so a shadowing sibling can never be selected.
+  //
+  // Split reviews (`*.part-N.md`, one per split task file) are returned in
+  // numeric part order as reviewParts so the gate can evaluate all of them
+  // (#106); `review` stays the last part so single-review consumers still work.
+  // Lexicographic order would put part-10 before part-2.
   let review: string | null = null;
+  let reviewParts: string[] = [];
   if (reviewType !== undefined && reviewType !== '') {
     const reviewMatches = matchFiles(
       reviewFiles,
@@ -132,8 +144,13 @@ export async function detectDocuments(
       join(USER_DOCS, 'reviews'),
     );
     const typed = await filterByDocType(projectPath, reviewMatches, 'review');
-    review = typed.at(-1) ?? null;
+    reviewParts = typed
+      .map((path) => ({ path, part: partNumber(path) }))
+      .filter((entry): entry is { path: string; part: number } => entry.part !== null)
+      .sort((a, b) => a.part - b.part)
+      .map((entry) => entry.path);
+    review = reviewParts.at(-1) ?? typed.at(-1) ?? null;
   }
 
-  return { sliceDesign, taskFile, architecture, slicePlan, review };
+  return { sliceDesign, taskFile, architecture, slicePlan, review, reviewParts };
 }

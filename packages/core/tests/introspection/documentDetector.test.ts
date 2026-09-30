@@ -211,6 +211,52 @@ describe('detectDocuments', () => {
   });
 });
 
+describe('split review parts (#106)', () => {
+  const REVIEWS = 'project-documents/user/reviews';
+
+  function makeRoot(files: string[]): string {
+    const root = mkdtempSync(join(tmpdir(), 'document-detector-parts-'));
+    mkdirSync(join(root, REVIEWS), { recursive: true });
+    for (const name of files) {
+      writeFileSync(join(root, REVIEWS, name), '---\ndocType: review\nverdict: PASS\n---\n');
+    }
+    return root;
+  }
+
+  it('orders parts numerically, so part-10 follows part-2', async () => {
+    const names = [1, 2, 10].map((n) => `914-review.tasks.big.part-${n}.md`);
+    const root = makeRoot([names[2], names[0], names[1]]);
+    try {
+      const result = await detectDocuments(root, 914, 'tasks');
+      expect(result.reviewParts).toEqual(names.map((n) => join(REVIEWS, n)));
+      expect(result.review).toBe(join(REVIEWS, names[2]));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('leaves reviewParts empty for a single unsuffixed review', async () => {
+    const root = makeRoot(['914-review.tasks.big.md']);
+    try {
+      const result = await detectDocuments(root, 914, 'tasks');
+      expect(result.reviewParts).toEqual([]);
+      expect(result.review).toBe(join(REVIEWS, '914-review.tasks.big.md'));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores a leftover unsuffixed review when parts exist', async () => {
+    const root = makeRoot(['914-review.tasks.big.md', '914-review.tasks.big.part-1.md']);
+    try {
+      const result = await detectDocuments(root, 914, 'tasks');
+      expect(result.reviewParts).toEqual([join(REVIEWS, '914-review.tasks.big.part-1.md')]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('checkFileExists', () => {
   it('returns true for existing relative path', async () => {
     const exists = await checkFileExists(

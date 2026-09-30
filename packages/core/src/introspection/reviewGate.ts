@@ -228,17 +228,21 @@ export async function evaluateReviewGate(
     };
   }
 
-  const frontmatter = await parseFrontmatter(join(projectPath, docs.review));
-  const verdict = normalizeVerdict(frontmatter.data.verdict);
+  // Split reviews (#106): every part must clear, so one failing part blocks the
+  // gate even when a later part passes. An unsplit review is a list of one.
   const threshold = gate.thresholdFor(boundary);
-  const outcome = evaluateVerdict(verdict, threshold, gate.unknownAs);
+  const reviewPaths = docs.reviewParts.length > 0 ? docs.reviewParts : [docs.review];
+  for (const reviewPath of reviewPaths) {
+    const frontmatter = await parseFrontmatter(join(projectPath, reviewPath));
+    const verdict = normalizeVerdict(frontmatter.data.verdict);
+    if (evaluateVerdict(verdict, threshold, gate.unknownAs) === 'clears') continue;
 
-  if (outcome === 'clears') return null;
-
-  return {
-    status: 'review-failed',
-    reviewType,
-    rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index} (${docs.review}).`,
-    artifactPath: docs.review,
-  };
+    return {
+      status: 'review-failed',
+      reviewType,
+      rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index} (${reviewPath}).`,
+      artifactPath: reviewPath,
+    };
+  }
+  return null;
 }

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Review gates now evaluate every split review (`*.part-N.md`) in numeric part order and block if any part fails to clear, instead of reading only the last one. A failing part-1 no longer hides behind a passing part-2, and part-10 no longer sorts before part-2 (#106)
+
 ## [0.18.1] - 20260929
 
 ### Changed

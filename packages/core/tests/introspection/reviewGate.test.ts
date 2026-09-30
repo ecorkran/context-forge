@@ -187,6 +187,43 @@ describe('evaluateReviewGate', () => {
     expect(config.get).not.toHaveBeenCalled();
   });
 
+  describe('split tasks reviews (#106)', () => {
+    function makeRoot(verdicts: Array<string | null>): string {
+      const root = mkdtempSync(join(tmpdir(), 'cf-gate-parts-'));
+      const dir = join(root, 'project-documents', 'user', 'reviews');
+      mkdirSync(dir, { recursive: true });
+      verdicts.forEach((verdict, i) => {
+        const verdictLine = verdict === null ? '' : `verdict: ${verdict}\n`;
+        writeFileSync(
+          join(dir, `950-review.tasks.big.part-${i + 1}.md`),
+          `---\ndocType: review\n${verdictLine}---\n`,
+        );
+      });
+      return root;
+    }
+
+    it('blocks when an earlier part fails even though the last part passes', async () => {
+      const root = makeRoot(['FAIL', 'PASS']);
+      const result = await evaluateReviewGate(root, 950, 'preImplementation', makeStubConfig(BASE_VALUES));
+      expect(result?.status).toBe('review-failed');
+      expect(result?.artifactPath).toContain('part-1');
+    });
+
+    it('clears when every part passes', async () => {
+      const root = makeRoot(['PASS', 'PASS', 'PASS']);
+      const result = await evaluateReviewGate(root, 950, 'preImplementation', makeStubConfig(BASE_VALUES));
+      expect(result).toBeNull();
+    });
+
+    it('treats a part with no verdict as UNKNOWN through unknownAs', async () => {
+      const root = makeRoot(['PASS', null]);
+      const strict = makeStubConfig({ ...BASE_VALUES, 'workflow.review_unknown_as': 'fail' });
+      const lenient = makeStubConfig({ ...BASE_VALUES, 'workflow.review_unknown_as': 'pass' });
+      expect((await evaluateReviewGate(root, 950, 'preImplementation', strict))?.status).toBe('review-failed');
+      expect(await evaluateReviewGate(root, 950, 'preImplementation', lenient)).toBeNull();
+    });
+  });
+
   describe('review-exempt declaration (#57, slice 911; widened to all slice-scoped boundaries, slice 914)', () => {
     it('review: none at preAdvance clears the gate even with no review artifact present', async () => {
       // Fixture 405: complete tasks, review: none, no review artifact at all.
