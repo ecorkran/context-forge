@@ -28,7 +28,17 @@ import {
 } from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import { evaluateReviewGate, isBlockingGate, type Boundary, type GateResult } from './reviewGate.js';
+import {
+  evaluateReviewGate,
+  evaluateExemption,
+  isBlockingGate,
+  resolveGateConfig,
+  EXEMPT_NOTE,
+  EXEMPT_REASON,
+  type Boundary,
+  type ExemptReason,
+  type GateResult,
+} from './reviewGate.js';
 import { isInIndexRange } from '../utils/worktree-overlay.js';
 
 /**
@@ -289,6 +299,9 @@ export class WorkflowNavigator {
       // (only if the action doesn't already have a more specific suggestedCommand)
       if (action.phase && !action.suggestedCommand && !currentPhase.startsWith(action.phase.split(':')[0])) {
         result.suggestedCommand = `cf set phase '${action.phase}'`;
+      }
+      if (slice.gateExempt) {
+        result.rationale = `${result.rationale} (${EXEMPT_NOTE[slice.gateExempt]})`;
       }
       return result;
     };
@@ -611,7 +624,7 @@ export class WorkflowNavigator {
 
     const index = extractSliceIndex(project.fileSlice);
     const name = extractSliceName(project.fileSlice);
-    const base: SliceStatus = { name, index, status: 'no-active-slice' };
+    let base: SliceStatus = { name, index, status: 'no-active-slice' };
 
     if (index === null) {
       return base;
@@ -628,6 +641,11 @@ export class WorkflowNavigator {
     if (!docs.sliceDesign) {
       return { ...base, status: 'needs-design' };
     }
+
+    // review: none applies identically at every slice boundary, so one check
+    // covers every stage below, including those that evaluate no gate.
+    const gateExempt = await this.reviewNoneExemption(projectPath, docs.sliceDesign);
+    if (gateExempt) base = { ...base, gateExempt };
 
     // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
     if (!docs.taskFile) {
@@ -685,6 +703,19 @@ export class WorkflowNavigator {
     }
 
     return { ...base, status: 'in-implementation', taskProgress };
+  }
+
+  /**
+   * The slice's review-none exemption when gating is on, else undefined. Grandfathered
+   * slices are not surfaced (evaluateExemption checks the cutoff first).
+   */
+  private async reviewNoneExemption(projectPath: string, sliceDesign: string): Promise<ExemptReason | undefined> {
+    if (!this.config) return undefined;
+    const gate = await resolveGateConfig(this.config);
+    if (gate === null) return undefined;
+    const frontmatter = await parseFrontmatter(join(projectPath, sliceDesign));
+    const exemption = evaluateExemption('preImplementation', gate, frontmatter.data);
+    return exemption?.reason === EXEMPT_REASON.ReviewNone ? exemption.reason : undefined;
   }
 
   /**

@@ -1,10 +1,12 @@
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 import { ConsistencyChecker } from '../../src/introspection/ConsistencyChecker.js';
 import { ArtifactIntrospector } from '../../src/introspection/ArtifactIntrospector.js';
 import type { IArtifactIntrospector } from '../../src/introspection/interfaces.js';
 import type { ProjectData } from '../../src/types/project.js';
-import type { SlicePlanResult, SlicePlanEntry } from '../../src/introspection/types.js';
+import type { SlicePlanResult, SlicePlanEntry, ConsistencyFinding } from '../../src/introspection/types.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
@@ -200,5 +202,75 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
     );
     expect(codeFinding).toBeDefined();
     expect(codeFinding!.severity).toBe('error');
+  });
+});
+
+describe('ConsistencyChecker — exemption and weak-clear info findings (slice 928)', () => {
+  const infoFindings = (findings: ConsistencyFinding[]) =>
+    findings.filter((f) => f.rule === 'review-gate' && f.severity === 'info');
+
+  describe('review: none exemption', () => {
+    const project = makeProject({ fileSlice: '405-slice.gate-docs-only', fileTasks: '405-tasks.gate-docs-only' });
+
+    it('unchecked plan entry → exactly one info finding at the slice design, not one per boundary', async () => {
+      const checker = new ConsistencyChecker(
+        makeIntrospectorWithPlanEntry({ index: 405, isChecked: false }), makeStubConfig(GATE_ENABLED_DEFAULTS),
+      );
+      const infos = infoFindings((await checker.check(project)).findings);
+      expect(infos).toHaveLength(1);
+      expect(infos[0].description).toContain('Slice 405 is review-exempt');
+      expect(infos[0].description).toContain('review: none');
+      expect(infos[0].location).toContain('405-slice.gate-docs-only.md');
+      expect(infos[0].fixable).toBe(false);
+    });
+
+    it('checked plan entry → no info finding', async () => {
+      const checker = new ConsistencyChecker(
+        makeIntrospectorWithPlanEntry({ index: 405, isChecked: true }), makeStubConfig(GATE_ENABLED_DEFAULTS),
+      );
+      expect(infoFindings((await checker.check(project)).findings)).toHaveLength(0);
+    });
+  });
+
+  describe('weak-provenance clear', () => {
+    const INDEX = 980;
+
+    /** Temp project with a slice design, an in-progress task file, and slice/tasks reviews. */
+    function makeWeakProject(sliceReviewProvenance: string[]): ProjectData {
+      const root = mkdtempSync(join(tmpdir(), 'cf-check-weak-'));
+      const user = join(root, 'project-documents', 'user');
+      for (const dir of ['slices', 'tasks', 'reviews']) mkdirSync(join(user, dir), { recursive: true });
+      writeFileSync(join(user, 'slices', `${INDEX}-slice.weak.md`), '---\nslice: weak\nstatus: in_progress\n---\n');
+      writeFileSync(join(user, 'tasks', `${INDEX}-tasks.weak.md`), '---\nslice: weak\n---\n\n- [x] One\n- [ ] Two\n');
+      writeFileSync(
+        join(user, 'reviews', `${INDEX}-review.slice.weak.md`),
+        ['---', 'docType: review', 'verdict: PASS', ...sliceReviewProvenance, '---', ''].join('\n'),
+      );
+      writeFileSync(join(user, 'reviews', `${INDEX}-review.tasks.weak.md`), '---\ndocType: review\nverdict: PASS\nverdictSource: stated\n---\n');
+      return makeProject({ projectPath: root, fileSlice: `${INDEX}-slice.weak`, fileTasks: `${INDEX}-tasks.weak` });
+    }
+
+    const checkerFor = (isChecked: boolean) => new ConsistencyChecker(
+      makeIntrospectorWithPlanEntry({ index: INDEX, isChecked }), makeStubConfig(GATE_ENABLED_DEFAULTS),
+    );
+
+    it('derived PASS at default policy, unchecked entry → one info finding naming the review and derived', async () => {
+      const result = await checkerFor(false).check(makeWeakProject(['verdictSource: derived']));
+      const infos = infoFindings(result.findings);
+      expect(infos).toHaveLength(1);
+      expect(infos[0].location).toContain(`${INDEX}-review.slice.weak.md`);
+      expect(infos[0].description).toContain('derived');
+      expect(infos[0].description).toContain('workflow.review_weak_pass_as');
+    });
+
+    it('derived PASS with checked entry → no info finding', async () => {
+      const result = await checkerFor(true).check(makeWeakProject(['verdictSource: derived']));
+      expect(infoFindings(result.findings)).toHaveLength(0);
+    });
+
+    it('clean stated PASS → no info finding', async () => {
+      const result = await checkerFor(false).check(makeWeakProject(['verdictSource: stated']));
+      expect(infoFindings(result.findings)).toHaveLength(0);
+    });
   });
 });

@@ -31,9 +31,14 @@ import {
   type Boundary,
   type GateEvaluation,
   type GateResult,
+  type ExemptReason,
   isBlockingGate,
+  EXEMPT_NOTE,
+  EXEMPT_REASON,
+  WEAK_PASS_KEY,
   type ResolvedGate,
 } from './reviewGate.js';
+import { describeWeakEvidence } from './reviewProvenance.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -654,6 +659,9 @@ export class ConsistencyChecker {
     if (slicePlanPath === null) return [];
 
     const findings: ConsistencyFinding[] = [];
+    // Exemptions and weak clears are reported only while the slice is in flight (TD-5).
+    const inFlight = planEntry !== null && !planEntry.isChecked;
+    let exemptReason: ExemptReason | null = null;
 
     const boundaries: { boundary: Boundary; guard: boolean }[] = [
       { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
@@ -674,6 +682,11 @@ export class ConsistencyChecker {
         findings.push(errorFinding);
         continue;
       }
+      if (result?.status === 'exempt' && result.reason === EXEMPT_REASON.ReviewNone) {
+        exemptReason = result.reason;
+      } else if (result?.status === 'clears' && inFlight) {
+        findings.push(...(await this.buildWeakClearFindings(result.weakParts, projectPath)));
+      }
       if (!isBlockingGate(result)) continue;
 
       findings.push(
@@ -681,6 +694,36 @@ export class ConsistencyChecker {
       );
     }
 
+    // One finding per exempt slice, not per boundary: exemption is a property of the slice.
+    if (exemptReason !== null && inFlight && docs?.sliceDesign) {
+      findings.push({
+        rule: 'review-gate',
+        severity: 'info',
+        location: join(projectPath, docs.sliceDesign),
+        description: `Slice ${sliceIndex} is review-exempt (${EXEMPT_NOTE[exemptReason]}) — slice, tasks, and code review gates are skipped. Confirm this is intended.`,
+        suggestedFix: 'If reviews are owed, remove review: none from the slice design frontmatter',
+        fixable: false,
+      });
+    }
+
+    return findings;
+  }
+
+  /** One info finding per review part that cleared on weak provenance (TD-5). */
+  private async buildWeakClearFindings(weakParts: string[], projectPath: string): Promise<ConsistencyFinding[]> {
+    const findings: ConsistencyFinding[] = [];
+    for (const part of weakParts) {
+      const location = join(projectPath, part);
+      const frontmatter = await this.introspector.parseFrontmatter(location);
+      findings.push({
+        rule: 'review-gate',
+        severity: 'info',
+        location,
+        description: `Review ${part} cleared on weak provenance (${describeWeakEvidence(frontmatter.data)}). Set ${WEAK_PASS_KEY} to block such verdicts.`,
+        suggestedFix: `Rerun the review for a stated verdict, or set ${WEAK_PASS_KEY} to concerns or fail`,
+        fixable: false,
+      });
+    }
     return findings;
   }
 

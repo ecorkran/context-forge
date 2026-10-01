@@ -191,6 +191,12 @@ export const EXEMPT_REASON = {
 
 export type ExemptReason = (typeof EXEMPT_REASON)[keyof typeof EXEMPT_REASON];
 
+/** Display text per exemption reason. The only place this text exists. Callers surface review-none only. */
+export const EXEMPT_NOTE: Record<ExemptReason, string> = {
+  [EXEMPT_REASON.ReviewNone]: 'review gate skipped: slice declares review: none',
+  [EXEMPT_REASON.Grandfathered]: 'review gate skipped: created before the review gate effective date',
+};
+
 /** The gate was skipped: the gated artifact is exempt from review at this boundary. */
 export interface GateExemption {
   status: 'exempt';

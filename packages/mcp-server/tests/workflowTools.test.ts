@@ -346,6 +346,28 @@ describe('workflow_next', () => {
     expect(parsed.summary).toContain('slice 100');
   });
 
+  it('constructs WorkflowNavigator with a ConfigManager for the project path (review gating needs it)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetNext.mockResolvedValue({ recommendation: 'r', rationale: 'r', summary: 's' });
+
+    await client.callTool({ name: 'workflow_next', arguments: { projectId: MOCK_PROJECT.id } });
+
+    const { ConfigManager, WorkflowNavigator } = await import('@context-forge/core/node');
+    expect(ConfigManager).toHaveBeenCalledWith(MOCK_PROJECT.projectPath);
+    const configInstance = vi.mocked(ConfigManager).mock.results[0]?.value;
+    expect(WorkflowNavigator).toHaveBeenCalledWith(configInstance);
+  });
+
+  it('passes the review-exemption note in getNext rationale through unchanged (slice 928)', async () => {
+    const rationale = 'Slice 970 is in progress with 2 tasks left to complete. (review gate skipped: slice declares review: none)';
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetNext.mockResolvedValue({ recommendation: 'Continue implementation', rationale, summary: 's' });
+
+    const result = await client.callTool({ name: 'workflow_next', arguments: { projectId: MOCK_PROJECT.id } });
+
+    expect((parseResult(result) as { rationale: string }).rationale).toBe(rationale);
+  });
+
   it('returns error for missing project', async () => {
     mockGetById.mockResolvedValue(undefined);
 
@@ -401,6 +423,28 @@ describe('workflow_check', () => {
     ],
     fixErrors: [],
   };
+
+  it('passes review-gate info findings through unchanged and counts them (slice 928)', async () => {
+    const infoFinding = {
+      rule: 'review-gate',
+      severity: 'info',
+      location: '/fake/970-slice.docs-only.md',
+      description: 'Slice 970 is review-exempt (review gate skipped: slice declares review: none) — slice, tasks, and code review gates are skipped. Confirm this is intended.',
+      suggestedFix: 'If reviews are owed, remove review: none from the slice design frontmatter',
+      fixable: false,
+    };
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
+    mockCheckAll.mockResolvedValue({
+      ...MOCK_CHECK_RESULT, findings: [infoFinding], totalFindings: 1, warnings: 0, infos: 1, summary: '1 finding: 1 info',
+    });
+
+    const result = await client.callTool({ name: 'workflow_check', arguments: { projectId: MOCK_PROJECT.id } });
+
+    const parsed = parseResult(result) as { findings: unknown[]; infos: number };
+    expect(parsed.findings).toContainEqual(infoFinding);
+    expect(parsed.infos).toBe(1);
+  });
 
   it('constructs ConsistencyChecker with a ConfigManager for the project path', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
