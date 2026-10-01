@@ -265,7 +265,13 @@ export class ConsistencyChecker {
     const taskResult = await this.safeParseTaskFile(docs?.taskFile, projectPath);
     const sliceFrontmatter = await this.safeParseFrontmatter(docs?.sliceDesign, projectPath);
 
-    const planEntry = slicePlanResult?.entries.find((e) => e.index === sliceIndex) ?? null;
+    // Prefer an explicit (NNN) entry over an auto-numbered one sharing the index (#67),
+    // so a real slice never resolves to a placeholder.
+    const indexMatches = slicePlanResult?.entries.filter((e) => e.index === sliceIndex) ?? [];
+    const planEntry =
+      indexMatches.find((e) => e.indexSource === 'explicit') ??
+      indexMatches.find((e) => e.indexSource === 'fallback') ??
+      null;
     const sliceDesignRel = docs?.sliceDesign ?? null;
 
     const findings: ConsistencyFinding[] = [];
@@ -735,25 +741,31 @@ export class ConsistencyChecker {
     slicePlanPath: string,
   ): ConsistencyFinding[] {
     const findings: ConsistencyFinding[] = [];
-    const indexMap = new Map<number, string[]>();
+    const indexMap = new Map<number, SlicePlanEntry[]>();
 
     for (const entry of entries) {
-      const names = indexMap.get(entry.index) ?? [];
-      names.push(entry.name);
-      indexMap.set(entry.index, names);
+      const group = indexMap.get(entry.index) ?? [];
+      group.push(entry);
+      indexMap.set(entry.index, group);
     }
 
-    for (const [index, names] of indexMap) {
-      if (names.length > 1) {
-        findings.push({
-          rule: 'duplicate-index',
-          severity: 'error',
-          location: slicePlanPath,
-          description: `Duplicate slice index ${index}: '${names.join("' and '")}'`,
-          suggestedFix: 'Renumber one of the entries',
-          fixable: false,
-        });
-      }
+    for (const [index, group] of indexMap) {
+      if (group.length < 2) continue;
+      const explicit = group.filter((e) => e.indexSource === 'explicit').map((e) => e.name);
+      const fallback = group.filter((e) => e.indexSource === 'fallback').map((e) => e.name);
+      // Mixed sources (#67): an unindexed entry was auto-numbered into a real index.
+      // All-fallback can't occur within one file (the fallback counter is monotonic).
+      const mixed = explicit.length > 0 && fallback.length > 0;
+      findings.push({
+        rule: 'duplicate-index',
+        severity: 'error',
+        location: slicePlanPath,
+        description: mixed
+          ? `Slice index ${index}: '(${index}) ${explicit.join("' and '")}' collides with auto-numbered unindexed entry '${fallback.join("' and '")}'`
+          : `Duplicate slice index ${index}: '${group.map((e) => e.name).join("' and '")}'`,
+        suggestedFix: mixed ? 'Give the unindexed entry an explicit (NNN) index' : 'Renumber one of the entries',
+        fixable: false,
+      });
     }
 
     return findings;
