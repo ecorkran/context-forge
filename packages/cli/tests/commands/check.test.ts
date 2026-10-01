@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import { registerCheckCommand } from '../../src/commands/check.js';
 import { ConsistencyChecker, ConfigManager } from '@context-forge/core/node';
@@ -309,19 +309,31 @@ describe('cf check', () => {
 });
 
 describe('cf check --set-review-none', () => {
+  const SLICE_DESIGN = 'project-documents/user/slices/100-slice.auth.md';
+  const originalIsTTY = process.stdin.isTTY;
+
+  function setTTY(value: boolean | undefined): void {
+    Object.defineProperty(process.stdin, 'isTTY', { value, configurable: true });
+  }
+
+  function answerPrompt(answer: string): void {
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb(answer));
+  }
+
+  function run(...extra: string[]): Promise<Command> {
+    return createProgram().parseAsync([
+      'node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '100', ...extra,
+    ]);
+  }
+
+  const output = () => vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-  });
-
-  it('writes review: none to the detected slice-design file', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockDetectDocuments.mockResolvedValue({
-      sliceDesign: 'project-documents/user/slices/100-slice.auth.md',
+      sliceDesign: SLICE_DESIGN,
       taskFile: null,
       architecture: null,
       slicePlan: null,
@@ -330,14 +342,24 @@ describe('cf check --set-review-none', () => {
     mockUpdateFrontmatterField.mockResolvedValue({
       rule: '',
       action: 'update-frontmatter',
-      filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
+      filePath: `/tmp/test/${SLICE_DESIGN}`,
       field: 'review',
       before: '',
       after: 'none',
     });
+    setTTY(false);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
 
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '100']);
+  afterEach(() => {
+    setTTY(originalIsTTY);
+  });
+
+  it('with --yes writes review: none, printing the slice path and waiver text', async () => {
+    await run('--yes');
 
     expect(mockDetectDocuments).toHaveBeenCalledWith('/tmp/test', 100);
     expect(mockUpdateFrontmatterField).toHaveBeenCalledWith(
@@ -346,17 +368,56 @@ describe('cf check --set-review-none', () => {
       'none',
       expect.any(String),
     );
+    expect(mockQuestion).not.toHaveBeenCalled();
     // Must never touch the checker/fix pipeline — this is a direct mutation.
     expect(mockCheck).not.toHaveBeenCalled();
     expect(mockCheckAll).not.toHaveBeenCalled();
 
-    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('review: none');
-    expect(output).toContain('slice 100');
+    expect(output()).toContain(SLICE_DESIGN);
+    expect(output()).toContain('waives the slice, tasks, and code review gates');
+    expect(output()).toContain('Project Manager decision');
+    expect(output()).toContain('Set review: none on slice 100');
+  });
+
+  it('non-TTY without --yes → errors naming --yes, writes nothing', async () => {
+    await run();
+
+    expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('--yes is required'));
+  });
+
+  it('--json without --yes → errors, writes nothing', async () => {
+    setTTY(true);
+    await run('--json');
+
+    expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('--yes is required with --json'));
+  });
+
+  it('TTY, user declines → prints Cancelled., writes nothing', async () => {
+    setTTY(true);
+    answerPrompt('n');
+    await run();
+
+    expect(mockQuestion).toHaveBeenCalledWith('Proceed? [y/N] ', expect.any(Function));
+    expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
+    expect(output()).toContain('Cancelled.');
+  });
+
+  it('TTY, user confirms → writes review: none', async () => {
+    setTTY(true);
+    answerPrompt('y');
+    await run();
+
+    expect(output()).toContain('waives the slice, tasks, and code review gates');
+    expect(mockUpdateFrontmatterField).toHaveBeenCalledWith(
+      expect.stringContaining('100-slice.auth.md'), 'review', 'none', expect.any(String),
+    );
   });
 
   it('errors when no slice-design file exists for the index', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
     mockDetectDocuments.mockResolvedValue({
       sliceDesign: null,
       taskFile: null,
@@ -365,50 +426,27 @@ describe('cf check --set-review-none', () => {
       review: null,
     });
 
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '999']);
+    await run('--yes');
 
     expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('No slice-design file found'));
   });
 
   it('errors on a non-numeric index', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', 'abc']);
+    await createProgram().parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', 'abc']);
 
     expect(mockDetectDocuments).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Invalid slice index'));
   });
 
-  it('outputs JSON with --json flag', async () => {
-    mockGetById.mockResolvedValue(sampleProject);
-    mockDetectDocuments.mockResolvedValue({
-      sliceDesign: 'project-documents/user/slices/100-slice.auth.md',
-      taskFile: null,
-      architecture: null,
-      slicePlan: null,
-      review: null,
-    });
-    mockUpdateFrontmatterField.mockResolvedValue({
-      rule: '',
-      action: 'update-frontmatter',
-      filePath: '/tmp/test/project-documents/user/slices/100-slice.auth.md',
-      field: 'review',
-      before: '',
-      after: 'none',
-    });
-
-    const program = createProgram();
-    await program.parseAsync([
-      'node', 'cf', 'check', '--project', 'proj_001', '--set-review-none', '100', '--json',
-    ]);
+  it('outputs JSON with --json --yes and no prose', async () => {
+    await run('--json', '--yes');
 
     const raw = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw);
     expect(parsed.slice).toBe(100);
     expect(parsed.field).toBe('review');
     expect(parsed.after).toBe('none');
+    expect(console.log).not.toHaveBeenCalled();
   });
 });
