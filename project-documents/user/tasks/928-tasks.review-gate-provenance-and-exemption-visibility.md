@@ -106,6 +106,7 @@ stage.
 
 - [ ] **Task 7: Implement `classifyEvidence` in `reviewProvenance.ts`** (effort 2)
   - [ ] Create `packages/core/src/introspection/reviewProvenance.ts` (keeps `reviewGate.ts` near 300 lines)
+    - [ ] Note: design TD-3 places `PROVENANCE` in `reviewGate.ts`; this move is the design's own ~300-line escape hatch (Technical Requirements). `reviewProvenance.ts` is the single source of truth for provenance tokens. Do not move them back. `EXEMPT_REASON` / `EXEMPT_NOTE` stay in `reviewGate.ts`
   - [ ] Define one `as const` object `PROVENANCE` holding the field names (`verdictSource`, `recoveryTurn`) and recognized tokens (`stated`, `derived`, `true`, `false`)
   - [ ] Export `type EvidenceStrength = 'strong' | 'weak'` and `classifyEvidence(data: Record<string, string>): EvidenceStrength` implementing design TD-3's table exactly (trim + lowercase before comparing)
   - [ ] Export a helper that returns a short human description of the weak signals present (for example `derived from finding severities`, `recovered on a second prompt`), used by Task 9's rationale and Task 13's finding text. Text defined once, here
@@ -176,7 +177,11 @@ stage.
     - [ ] Derived PASS at default policy, unchecked entry → one `info` finding naming the review path and `derived`
     - [ ] Same with checked entry → none
     - [ ] Clean stated PASS → no finding
-  - [ ] Success: `pnpm --filter @context-forge/core test` passes
+  - [ ] MCP parity (criteria 10, 11, 11a; Integration Requirements). In `packages/mcp-server/tests/workflowTools.test.ts`:
+    - [ ] `workflow_next` constructs `WorkflowNavigator` with a `ConfigManager` for the project path (gating depends on it), mirroring the existing `workflow_check` construction test
+    - [ ] `workflow_next` returns a `getNext` rationale containing `EXEMPT_NOTE['review-none']` unchanged
+    - [ ] `workflow_check` returns an `info` `review-gate` finding unchanged, and counts it in `infos`
+  - [ ] Success: `pnpm --filter @context-forge/core test` and `pnpm --filter @context-forge/mcp test` pass
   - [ ] Commit: `feat(core): surface review exemptions and weak-provenance clears`
 
 ## Part 4 — `--set-review-none` Confirmation
@@ -240,7 +245,6 @@ stage.
   - [ ] Add `workflow.review_weak_pass_as` to the config table (near line 35) and the key descriptions (near line 45)
   - [ ] Add a short section on provenance: what `verdictSource` / `recoveryTurn` mean, the TD-3 rules (absent = no signal, unrecognized = weak), per-part evaluation, and the weak-clear `info` finding
   - [ ] Add a short section on exemption visibility: `cf next` note, `cf check` info finding (incomplete slices only), `--set-review-none` confirmation and `--yes`
-  - [ ] Optional: fix #84 (documented field that doesn't exist) while in the file; not required
   - [ ] Commit: `docs: document review provenance policy and exemption visibility`
 
 - [ ] **Task 23: Full build and test** (effort 1)
@@ -248,6 +252,7 @@ stage.
   - [ ] `pnpm -r test` passes
   - [ ] `grep -rn "'review-none'\|'grandfathered'" packages/*/src` hits only the `EXEMPT_REASON` definition
   - [ ] `grep -rn "'derived'\|'stated'" packages/core/src` hits only `reviewProvenance.ts`
+  - [ ] No `any` in code this slice touched (no lint rule enforces it): `git diff main --name-only -- 'packages/*/src' | xargs grep -nE ':\s*any\b|as any\b|<any>'` returns nothing
 
 - [ ] **Task 24: Verification walkthrough** (effort 2)
   - [ ] Run design § Verification Walkthrough steps 1–6 against a scratch copy of a project with gating on, using `node packages/cli/dist/index.js`
