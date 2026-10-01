@@ -7,7 +7,7 @@ dependencies: []
 projectState: main is at 6edc49c with 0.18.1 published; #106 per-part review gating (20ffeb0) is on main, unreleased. Slice 928 design is revised after a CONCERNS review (F001–F006 resolved in the design; 240-arch contract principle already amended). No code written for this slice. evaluateReviewGate still returns null for gating-off, exempt, and clears alike.
 dateCreated: 20261001
 dateUpdated: 20261001
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -237,26 +237,26 @@ stage.
 
 ## Part 6 — Docs and Final Validation
 
-- [ ] **Task 21: CHANGELOG** (effort 1)
-  - [ ] Under `## [Unreleased]` in `CHANGELOG.md`, add entries for #89/#105 (new `workflow.review_weak_pass_as`; weak-provenance clears reported by `cf check`), #83 (exemption visibility in `cf check` / `cf next`; `--set-review-none` confirmation, `--yes` now required non-interactively), and #67, under the appropriate Added / Changed / Fixed headings
-  - [ ] Call out the `--set-review-none` change as behavior-visible for scripts
+- [x] **Task 21: CHANGELOG** (effort 1)
+  - [x] Under `## [Unreleased]` in `CHANGELOG.md`, add entries for #89/#105 (new `workflow.review_weak_pass_as`; weak-provenance clears reported by `cf check`), #83 (exemption visibility in `cf check` / `cf next`; `--set-review-none` confirmation, `--yes` now required non-interactively), and #67, under the appropriate Added / Changed / Fixed headings
+  - [x] Call out the `--set-review-none` change as behavior-visible for scripts
 
-- [ ] **Task 22: `docs/REVIEW-GATING.md`** (effort 2)
-  - [ ] Add `workflow.review_weak_pass_as` to the config table (near line 35) and the key descriptions (near line 45)
-  - [ ] Add a short section on provenance: what `verdictSource` / `recoveryTurn` mean, the TD-3 rules (absent = no signal, unrecognized = weak), per-part evaluation, and the weak-clear `info` finding
-  - [ ] Add a short section on exemption visibility: `cf next` note, `cf check` info finding (incomplete slices only), `--set-review-none` confirmation and `--yes`
-  - [ ] Commit: `docs: document review provenance policy and exemption visibility`
+- [x] **Task 22: `docs/REVIEW-GATING.md`** (effort 2)
+  - [x] Add `workflow.review_weak_pass_as` to the config table (near line 35) and the key descriptions (near line 45)
+  - [x] Add a short section on provenance: what `verdictSource` / `recoveryTurn` mean, the TD-3 rules (absent = no signal, unrecognized = weak), per-part evaluation, and the weak-clear `info` finding
+  - [x] Add a short section on exemption visibility: `cf next` note, `cf check` info finding (incomplete slices only), `--set-review-none` confirmation and `--yes`
+  - [x] Commit: `docs: document review provenance policy and exemption visibility`
 
-- [ ] **Task 23: Full build and test** (effort 1)
-  - [ ] `pnpm -r build` succeeds
-  - [ ] `pnpm -r test` passes
-  - [ ] `grep -rn "'review-none'\|'grandfathered'" packages/*/src` hits only the `EXEMPT_REASON` definition
-  - [ ] `grep -rn "'derived'\|'stated'" packages/core/src` hits only `reviewProvenance.ts`
-  - [ ] No `any` in code this slice touched (no lint rule enforces it): `git diff main --name-only -- 'packages/*/src' | xargs grep -nE ':\s*any\b|as any\b|<any>'` returns nothing
+- [x] **Task 23: Full build and test** (effort 1)
+  - [x] `pnpm -r build` succeeds
+  - [x] `pnpm -r test` passes
+  - [x] `grep -rn "'review-none'\|'grandfathered'" packages/*/src` hits only the `EXEMPT_REASON` definition
+  - [x] `grep -rn "'derived'\|'stated'" packages/core/src` hits only `reviewProvenance.ts`
+  - [x] No `any` in code this slice touched (no lint rule enforces it): `git diff main --name-only -- packages | grep /src/ | xargs grep -nE ':\s*any\b|as any\b|<any>'` returns nothing (the earlier `'packages/*/src'` pathspec matched no files)
 
-- [ ] **Task 24: Verification walkthrough** (effort 2)
-  - [ ] Run design § Verification Walkthrough steps 1–6 against a scratch copy of a project with gating on, using `node packages/cli/dist/index.js`
-  - [ ] For step 4, also confirm the `cf next` note on a slice with tasks partly checked
-  - [ ] Record any deviation and fix before proceeding
-  - [ ] Success: every step behaves as described; scratch edits reverted
-  - [ ] Commit any fixes found: `fix: …` as appropriate
+- [x] **Task 24: Verification walkthrough** (effort 2)
+  - [x] Run design § Verification Walkthrough steps 1–6 against a scratch copy of a project with gating on, using `node packages/cli/dist/index.js`
+  - [x] For step 4, also confirm the `cf next` note on a slice with tasks partly checked
+  - [x] Record any deviation and fix before proceeding
+  - [x] Success: every step behaves as described; scratch edits reverted
+  - [x] Commit any fixes found: `fix: …` as appropriate
