@@ -16,7 +16,7 @@ import {
   type GateResult,
   type ResolvedGate,
   type ThresholdToken,
-  type UnknownPolicy,
+  type StandInPolicy,
 } from '../../src/introspection/reviewGate.js';
 import type { ConfigManager } from '../../src/config/ConfigManager.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
@@ -92,7 +92,8 @@ describe('evaluateVerdict', () => {
 const BASE_VALUES = {
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns' as ThresholdToken,
-  'workflow.review_unknown_as': 'fail' as UnknownPolicy,
+  'workflow.review_unknown_as': 'fail' as StandInPolicy,
+  'workflow.review_weak_pass_as': 'pass' as StandInPolicy,
   'workflow.review_gates.arch.threshold': '',
   'workflow.review_gates.slice.threshold': '',
   'workflow.review_gates.tasks.threshold': '',
@@ -355,6 +356,7 @@ describe('evaluateExemption', () => {
   const gate = (effectiveDate: string): ResolvedGate => ({
     threshold: 'pass',
     unknownAs: 'fail',
+    weakPassAs: 'pass',
     effectiveDate,
     thresholdFor: () => 'pass',
   });

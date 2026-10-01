@@ -821,6 +821,7 @@ const GATE_ENABLED_DEFAULTS = {
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',
+  'workflow.review_weak_pass_as': 'pass',
   'workflow.review_gates.arch.threshold': '',
   'workflow.review_gates.slice.threshold': '',
   'workflow.review_gates.tasks.threshold': '',

@@ -71,6 +71,14 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     enum: ['fail', 'concerns', 'pass'],
     scope: ConfigScope.Shared,
   },
+  'workflow.review_weak_pass_as': {
+    type: 'string',
+    default: 'pass',
+    description:
+      'How to treat a PASS whose review artifact reports weak provenance (verdictSource other than "stated", or recoveryTurn: true): "pass" accepts it, "concerns" evaluates it as CONCERNS against the gate threshold, "fail" blocks',
+    enum: ['pass', 'concerns', 'fail'],
+    scope: ConfigScope.Shared,
+  },
   'workflow.review_gates.code.threshold': {
     type: 'string',
     default: '',

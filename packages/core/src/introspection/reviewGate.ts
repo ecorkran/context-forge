@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { detectDocuments } from './parsers/documentDetector.js';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
+import { classifyEvidence, describeWeakEvidence } from './reviewProvenance.js';
 
 /** Frontmatter verdict vocabulary (uppercase, untrusted external data) */
 export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
@@ -9,8 +10,8 @@ export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
 /** Config token for the verdict floor that clears a gate (lowercase, project policy) */
 export type ThresholdToken = 'pass' | 'concerns';
 
-/** Config token for how to treat an UNKNOWN/absent/unparseable verdict */
-export type UnknownPolicy = 'fail' | 'concerns' | 'pass';
+/** Config token naming the stand-in verdict for an untrusted one (UNKNOWN, or a weak-provenance PASS) */
+export type StandInPolicy = 'fail' | 'concerns' | 'pass';
 
 /** Outcome of evaluating a present review's verdict against policy */
 export type GateOutcome = 'clears' | 'pending' | 'failed';
@@ -38,9 +39,12 @@ const BOUNDARY_THRESHOLD_KEY: Record<Boundary, string> = {
   preAdvance: 'workflow.review_gates.code.threshold',
 };
 
+/** Config key for the weak-provenance PASS stand-in policy; named in rationales and findings. */
+export const WEAK_PASS_KEY = 'workflow.review_weak_pass_as';
+
 const KNOWN_VERDICTS: readonly Verdict[] = ['PASS', 'CONCERNS', 'FAIL', 'UNKNOWN'];
 const KNOWN_THRESHOLDS: readonly ThresholdToken[] = ['pass', 'concerns'];
-const KNOWN_UNKNOWN_POLICIES: readonly UnknownPolicy[] = ['fail', 'concerns', 'pass'];
+const KNOWN_STAND_IN_POLICIES: readonly StandInPolicy[] = ['fail', 'concerns', 'pass'];
 
 /** Maps a lifecycle boundary to the review type owed at that boundary. */
 export function positionToReviewType(boundary: Boundary): string {
@@ -71,12 +75,12 @@ function parseThresholdToken(raw: string, key: string): ThresholdToken {
   );
 }
 
-function parseUnknownPolicy(raw: string, key: string): UnknownPolicy {
-  if ((KNOWN_UNKNOWN_POLICIES as readonly string[]).includes(raw)) {
-    return raw as UnknownPolicy;
+function parseStandInPolicy(raw: string, key: string): StandInPolicy {
+  if ((KNOWN_STAND_IN_POLICIES as readonly string[]).includes(raw)) {
+    return raw as StandInPolicy;
   }
   throw new Error(
-    `Config key "${key}" must be one of [${KNOWN_UNKNOWN_POLICIES.map((v) => `"${v}"`).join(', ')}], got "${raw}"`
+    `Config key "${key}" must be one of [${KNOWN_STAND_IN_POLICIES.map((v) => `"${v}"`).join(', ')}], got "${raw}"`
   );
 }
 
@@ -87,7 +91,7 @@ function parseUnknownPolicy(raw: string, key: string): UnknownPolicy {
 export function evaluateVerdict(
   verdict: Verdict,
   threshold: ThresholdToken,
-  unknownAs: UnknownPolicy
+  unknownAs: StandInPolicy
 ): GateOutcome {
   switch (verdict) {
     case 'PASS':
@@ -96,17 +100,22 @@ export function evaluateVerdict(
       return 'failed';
     case 'CONCERNS':
       return threshold === 'concerns' ? 'clears' : 'failed';
-    case 'UNKNOWN': {
-      const standIn: Verdict = unknownAs === 'fail' ? 'FAIL' : unknownAs === 'concerns' ? 'CONCERNS' : 'PASS';
-      return evaluateVerdict(standIn, threshold, unknownAs);
-    }
+    case 'UNKNOWN':
+      return evaluateVerdict(standInVerdict(unknownAs), threshold, unknownAs);
   }
+}
+
+/** The verdict a stand-in policy substitutes for an untrusted one. */
+export function standInVerdict(policy: StandInPolicy): Verdict {
+  return policy === 'fail' ? 'FAIL' : policy === 'concerns' ? 'CONCERNS' : 'PASS';
 }
 
 /** Resolved gate policy, ready for the navigator to evaluate any boundary. */
 export interface ResolvedGate {
   threshold: ThresholdToken;
-  unknownAs: UnknownPolicy;
+  unknownAs: StandInPolicy;
+  /** Stand-in for a PASS whose review reports weak provenance (TD-2) */
+  weakPassAs: StandInPolicy;
   thresholdFor(boundary: Boundary): ThresholdToken;
   /** YYYYMMDD cutoff, or '' for no cutoff. Grandfathers artifacts dated earlier out of every boundary. */
   effectiveDate: string;
@@ -132,7 +141,9 @@ export async function resolveGateConfig(config: ConfigManager): Promise<Resolved
     String(globalThresholdRaw.value),
     'workflow.review_threshold'
   );
-  const unknownAs = parseUnknownPolicy(String(unknownAsRaw.value), 'workflow.review_unknown_as');
+  const unknownAs = parseStandInPolicy(String(unknownAsRaw.value), 'workflow.review_unknown_as');
+  const weakPassAsRaw = await config.get(WEAK_PASS_KEY);
+  const weakPassAs = parseStandInPolicy(String(weakPassAsRaw.value), WEAK_PASS_KEY);
 
   const overrides = new Map<Boundary, ThresholdToken>();
   for (const boundary of Object.keys(BOUNDARY_THRESHOLD_KEY) as Boundary[]) {
@@ -150,6 +161,7 @@ export async function resolveGateConfig(config: ConfigManager): Promise<Resolved
   return {
     threshold: globalThreshold,
     unknownAs,
+    weakPassAs,
     effectiveDate,
     thresholdFor(boundary: Boundary): ThresholdToken {
       return overrides.get(boundary) ?? globalThreshold;
@@ -283,19 +295,30 @@ export async function evaluateReviewGate(
 
   // Split reviews (#106): every part must clear, so one failing part blocks the
   // gate even when a later part passes. An unsplit review is a list of one.
+  // Provenance is classified per part (TD-4): a weak PASS is evaluated as the
+  // weakPassAs stand-in; CONCERNS/FAIL/UNKNOWN ignore provenance.
   const threshold = gate.thresholdFor(boundary);
   const reviewPaths = docs.reviewParts.length > 0 ? docs.reviewParts : [docs.review];
+  const weakParts: string[] = [];
   for (const reviewPath of reviewPaths) {
     const frontmatter = await parseFrontmatter(join(projectPath, reviewPath));
     const verdict = normalizeVerdict(frontmatter.data.verdict);
-    if (evaluateVerdict(verdict, threshold, gate.unknownAs) === 'clears') continue;
+    const isWeakPass = verdict === 'PASS' && classifyEvidence(frontmatter.data) === 'weak';
+    const effective = isWeakPass ? standInVerdict(gate.weakPassAs) : verdict;
+    if (evaluateVerdict(effective, threshold, gate.unknownAs) === 'clears') {
+      if (isWeakPass) weakParts.push(reviewPath);
+      continue;
+    }
 
+    const verdictText = isWeakPass
+      ? `${verdict} (${describeWeakEvidence(frontmatter.data)}) treated as ${effective} by ${WEAK_PASS_KEY}`
+      : verdict;
     return {
       status: 'review-failed',
       reviewType,
-      rationale: `Review artifact present but verdict ${verdict} does not clear threshold '${threshold}' for slice ${index} (${reviewPath}).`,
+      rationale: `Review artifact present but verdict ${verdictText} does not clear threshold '${threshold}' for slice ${index} (${reviewPath}).`,
       artifactPath: reviewPath,
     };
   }
-  return { status: 'clears', weakParts: [] };
+  return { status: 'clears', weakParts };
 }
