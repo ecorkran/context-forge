@@ -171,44 +171,59 @@ export interface GateEvaluation {
   artifactPath?: string;
 }
 
+/** Why a gate was skipped without consulting a review. Single source of these tokens. */
+export const EXEMPT_REASON = {
+  ReviewNone: 'review-none',
+  Grandfathered: 'grandfathered',
+} as const;
+
+export type ExemptReason = (typeof EXEMPT_REASON)[keyof typeof EXEMPT_REASON];
+
+/** The gate was skipped: the gated artifact is exempt from review at this boundary. */
+export interface GateExemption {
+  status: 'exempt';
+  reason: ExemptReason;
+  rationale: string;
+}
+
+/** Every review part cleared. weakParts lists parts that cleared on weak provenance. */
+export interface GateClearance {
+  status: 'clears';
+  weakParts: string[];
+}
+
+/** Outcome of evaluating one boundary while gating is on. */
+export type GateResult = GateClearance | GateExemption | GateEvaluation;
+
+/** True when the result blocks progress (pending-review or review-failed). */
+export function isBlockingGate(result: GateResult | null): result is GateEvaluation {
+  return result !== null && (result.status === 'pending-review' || result.status === 'review-failed');
+}
+
 /**
- * Composite gate evaluation for one boundary of one slice/arch index.
- * Returns null when gating is off OR the review clears — i.e. "nothing to flag."
- * Returns a GateEvaluation when the review is absent (pending-review) or
- * present-but-not-clearing (review-failed). Pure I/O over the pure helpers;
- * both WorkflowNavigator and ConsistencyChecker call this.
+ * Exemption checks for one boundary, given the gated artifact's already-parsed
+ * frontmatter (architecture at preSlicePlan, slice design elsewhere). Pure.
+ * Returns the exempt variant, or null when the boundary must be evaluated.
  */
-export async function evaluateReviewGate(
-  projectPath: string,
-  index: number,
+export function evaluateExemption(
   boundary: Boundary,
-  config: ConfigManager,
-  resolved?: ResolvedGate,
-): Promise<GateEvaluation | null> {
-  const gate = resolved ?? (await resolveGateConfig(config));
-  if (gate === null) return null;
-
-  const reviewType = positionToReviewType(boundary);
-  const docs = await detectDocuments(projectPath, index, reviewType);
-
-  // preSlicePlan gates an architecture index; every other boundary gates a
-  // slice index — read whichever artifact's frontmatter is relevant to this
-  // boundary, once, shared by both checks below.
-  const gatedArtifactPath = boundary === 'preSlicePlan' ? docs.architecture : docs.sliceDesign;
-  const gatedArtifactFrontmatter = gatedArtifactPath
-    ? await parseFrontmatter(join(projectPath, gatedArtifactPath))
-    : null;
+  gate: ResolvedGate,
+  gatedFrontmatter: Record<string, string> | null,
+): GateExemption | null {
+  if (gatedFrontmatter === null) return null;
 
   // Effective-date grandfather cutoff: a slice/architecture designed before this
   // date is exempt from every gate boundary, uniformly, so turning on gating on
   // a project with existing history doesn't retroactively demand reviews for
   // work that predates the gate. Checked before the docs-only declaration below
   // since a grandfathered slice needs no declaration at all.
-  if (gate.effectiveDate !== '' && gatedArtifactFrontmatter) {
-    const dateCreated = gatedArtifactFrontmatter.data.dateCreated;
-    if (dateCreated && dateCreated < gate.effectiveDate) {
-      return null;
-    }
+  const dateCreated = gatedFrontmatter.dateCreated;
+  if (gate.effectiveDate !== '' && dateCreated && dateCreated < gate.effectiveDate) {
+    return {
+      status: 'exempt',
+      reason: EXEMPT_REASON.Grandfathered,
+      rationale: `created ${dateCreated}, before review gate effective date ${gate.effectiveDate}`,
+    };
   }
 
   // Review-exempt declaration (#57): a slice-design frontmatter of review: none
@@ -216,9 +231,47 @@ export async function evaluateReviewGate(
   // slice/tasks/code reviews (docs, analysis, minimal-doc, etc). Absent (the
   // default) leaves gates unaffected. Does not apply to preSlicePlan, which
   // gates the architecture index, a different document from this slice-design.
-  if (boundary !== 'preSlicePlan' && gatedArtifactFrontmatter?.data.review === 'none') {
-    return null;
+  if (boundary !== 'preSlicePlan' && gatedFrontmatter.review === 'none') {
+    return {
+      status: 'exempt',
+      reason: EXEMPT_REASON.ReviewNone,
+      rationale: 'slice design declares review: none',
+    };
   }
+  return null;
+}
+
+/**
+ * Composite gate evaluation for one boundary of one slice/arch index.
+ * Returns null only when gating is off. Otherwise one of:
+ * - exempt: grandfathered or review: none — no review consulted
+ * - pending-review: no review artifact exists
+ * - review-failed: a review part's verdict does not clear the threshold
+ * - clears: every review part clears
+ * Pure I/O over the pure helpers; both WorkflowNavigator and ConsistencyChecker call this.
+ */
+export async function evaluateReviewGate(
+  projectPath: string,
+  index: number,
+  boundary: Boundary,
+  config: ConfigManager,
+  resolved?: ResolvedGate,
+): Promise<GateResult | null> {
+  const gate = resolved ?? (await resolveGateConfig(config));
+  if (gate === null) return null;
+
+  const reviewType = positionToReviewType(boundary);
+  const docs = await detectDocuments(projectPath, index, reviewType);
+
+  // preSlicePlan gates an architecture index; every other boundary gates a
+  // slice index — read whichever artifact's frontmatter is relevant to this boundary.
+  const gatedArtifactPath = boundary === 'preSlicePlan' ? docs.architecture : docs.sliceDesign;
+  const gatedArtifactFrontmatter = gatedArtifactPath
+    ? await parseFrontmatter(join(projectPath, gatedArtifactPath))
+    : null;
+
+  const exemption = evaluateExemption(boundary, gate, gatedArtifactFrontmatter?.data ?? null);
+  if (exemption !== null) return exemption;
 
   if (docs.review === null) {
     return {
@@ -244,5 +297,5 @@ export async function evaluateReviewGate(
       artifactPath: reviewPath,
     };
   }
-  return null;
+  return { status: 'clears', weakParts: [] };
 }

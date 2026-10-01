@@ -8,13 +8,26 @@ import {
   evaluateVerdict,
   resolveGateConfig,
   evaluateReviewGate,
+  evaluateExemption,
+  isBlockingGate,
+  EXEMPT_REASON,
   type Boundary,
+  type GateEvaluation,
+  type GateResult,
+  type ResolvedGate,
   type ThresholdToken,
   type UnknownPolicy,
 } from '../../src/introspection/reviewGate.js';
+import type { ConfigManager } from '../../src/config/ConfigManager.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
+
+/** Narrows to a blocking result so its GateEvaluation fields can be asserted. */
+function asBlocking(result: GateResult | null): GateEvaluation {
+  if (!isBlockingGate(result)) throw new Error(`expected a blocking gate, got ${JSON.stringify(result)}`);
+  return result;
+}
 
 describe('positionToReviewType', () => {
   it('maps each boundary to its review type', () => {
@@ -154,26 +167,24 @@ describe('evaluateReviewGate', () => {
 
   it('returns pending-review with no artifactPath when the review is absent', async () => {
     const config = makeStubConfig(BASE_VALUES);
-    const result = await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config);
-    expect(result).not.toBeNull();
-    expect(result?.status).toBe('pending-review');
-    expect(result?.reviewType).toBe('code');
-    expect(result?.artifactPath).toBeUndefined();
+    const result = asBlocking(await evaluateReviewGate(PROJECT_ROOT, 300, 'preAdvance', config));
+    expect(result.status).toBe('pending-review');
+    expect(result.reviewType).toBe('code');
+    expect(result.artifactPath).toBeUndefined();
   });
 
   it('returns review-failed with artifactPath when the verdict does not clear', async () => {
     const config = makeStubConfig(BASE_VALUES);
-    const result = await evaluateReviewGate(PROJECT_ROOT, 400, 'preAdvance', config);
-    expect(result).not.toBeNull();
-    expect(result?.status).toBe('review-failed');
-    expect(result?.rationale).toContain('FAIL');
-    expect(result?.artifactPath).toBe('project-documents/user/reviews/400-review.code.first.md');
+    const result = asBlocking(await evaluateReviewGate(PROJECT_ROOT, 400, 'preAdvance', config));
+    expect(result.status).toBe('review-failed');
+    expect(result.rationale).toContain('FAIL');
+    expect(result.artifactPath).toBe('project-documents/user/reviews/400-review.code.first.md');
   });
 
-  it('returns null when the verdict clears the threshold', async () => {
+  it('returns clears with no weak parts when the verdict clears the threshold', async () => {
     const config = makeStubConfig(BASE_VALUES);
     const result = await evaluateReviewGate(PROJECT_ROOT, 401, 'preAdvance', config);
-    expect(result).toBeNull();
+    expect(result).toEqual({ status: 'clears', weakParts: [] });
   });
 
   it('accepts a pre-resolved ResolvedGate and skips re-reading config', async () => {
@@ -204,15 +215,15 @@ describe('evaluateReviewGate', () => {
 
     it('blocks when an earlier part fails even though the last part passes', async () => {
       const root = makeRoot(['FAIL', 'PASS']);
-      const result = await evaluateReviewGate(root, 950, 'preImplementation', makeStubConfig(BASE_VALUES));
-      expect(result?.status).toBe('review-failed');
-      expect(result?.artifactPath).toContain('part-1');
+      const result = asBlocking(await evaluateReviewGate(root, 950, 'preImplementation', makeStubConfig(BASE_VALUES)));
+      expect(result.status).toBe('review-failed');
+      expect(result.artifactPath).toContain('part-1');
     });
 
     it('clears when every part passes', async () => {
       const root = makeRoot(['PASS', 'PASS', 'PASS']);
       const result = await evaluateReviewGate(root, 950, 'preImplementation', makeStubConfig(BASE_VALUES));
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'clears', weakParts: [] });
     });
 
     it('treats a part with no verdict as UNKNOWN through unknownAs', async () => {
@@ -220,7 +231,7 @@ describe('evaluateReviewGate', () => {
       const strict = makeStubConfig({ ...BASE_VALUES, 'workflow.review_unknown_as': 'fail' });
       const lenient = makeStubConfig({ ...BASE_VALUES, 'workflow.review_unknown_as': 'pass' });
       expect((await evaluateReviewGate(root, 950, 'preImplementation', strict))?.status).toBe('review-failed');
-      expect(await evaluateReviewGate(root, 950, 'preImplementation', lenient)).toBeNull();
+      expect(await evaluateReviewGate(root, 950, 'preImplementation', lenient)).toEqual({ status: 'clears', weakParts: [] });
     });
   });
 
@@ -229,16 +240,16 @@ describe('evaluateReviewGate', () => {
       // Fixture 405: complete tasks, review: none, no review artifact at all.
       const config = makeStubConfig(BASE_VALUES);
       const result = await evaluateReviewGate(PROJECT_ROOT, 405, 'preAdvance', config);
-      expect(result).toBeNull();
+      expect(result).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.ReviewNone });
     });
 
     it('review: none also clears preTasks and preImplementation — a review-exempt slice needs no reviews at all', async () => {
       // Fixture 405: review: none applies to every slice-scoped boundary, not just preAdvance.
       const config = makeStubConfig(BASE_VALUES);
       const preTasks = await evaluateReviewGate(PROJECT_ROOT, 405, 'preTasks', config);
-      expect(preTasks).toBeNull();
+      expect(preTasks).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.ReviewNone });
       const preImplementation = await evaluateReviewGate(PROJECT_ROOT, 405, 'preImplementation', config);
-      expect(preImplementation).toBeNull();
+      expect(preImplementation).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.ReviewNone });
     });
 
     it('regression: a slice WITHOUT the review declaration, missing a code review, still returns pending-review at preAdvance', async () => {
@@ -272,7 +283,8 @@ describe('evaluateReviewGate', () => {
       writeSliceDesign(root, 900, 'old-slice', '20260101');
       const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
       const result = await evaluateReviewGate(root, 900, 'preAdvance', config);
-      expect(result).toBeNull();
+      expect(result).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.Grandfathered });
+      expect(result?.status === 'exempt' && result.rationale).toContain('20260601');
     });
 
     it('preAdvance: a slice dated on/after the cutoff still gates normally (pending-review)', async () => {
@@ -289,7 +301,7 @@ describe('evaluateReviewGate', () => {
       writeArchDoc(root, 900, 'old-arch', '20260101');
       const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_gate_effective_date': '20260601' });
       const result = await evaluateReviewGate(root, 900, 'preSlicePlan', config);
-      expect(result).toBeNull();
+      expect(result).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.Grandfathered });
     });
 
     it('preSlicePlan: an architecture dated on/after the cutoff still gates normally', async () => {
@@ -333,8 +345,59 @@ describe('evaluateReviewGate', () => {
 
       vi.mocked(config.get).mockClear();
       const result = await evaluateReviewGate(root, 900, 'preAdvance', config, resolved!);
-      expect(result).toBeNull();
+      expect(result).toMatchObject({ status: 'exempt', reason: EXEMPT_REASON.Grandfathered });
       expect(config.get).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('evaluateExemption', () => {
+  const gate = (effectiveDate: string): ResolvedGate => ({
+    threshold: 'pass',
+    unknownAs: 'fail',
+    effectiveDate,
+    thresholdFor: () => 'pass',
+  });
+  const SLICE_BOUNDARIES: Boundary[] = ['preTasks', 'preImplementation', 'preAdvance'];
+
+  it('review: none exempts every slice boundary but not preSlicePlan', () => {
+    for (const boundary of SLICE_BOUNDARIES) {
+      expect(evaluateExemption(boundary, gate(''), { review: 'none' })?.reason).toBe(EXEMPT_REASON.ReviewNone);
+    }
+    expect(evaluateExemption('preSlicePlan', gate(''), { review: 'none' })).toBeNull();
+  });
+
+  it('grandfathers an artifact created before the effective date, at every boundary', () => {
+    const fm = { dateCreated: '20260101' };
+    for (const boundary of [...SLICE_BOUNDARIES, 'preSlicePlan'] as Boundary[]) {
+      const result = evaluateExemption(boundary, gate('20260601'), fm);
+      expect(result?.reason).toBe(EXEMPT_REASON.Grandfathered);
+      expect(result?.rationale).toContain('20260601');
+    }
+  });
+
+  it('grandfather wins over review: none', () => {
+    const result = evaluateExemption('preAdvance', gate('20260601'), { dateCreated: '20260101', review: 'none' });
+    expect(result?.reason).toBe(EXEMPT_REASON.Grandfathered);
+  });
+
+  it('applies no cutoff when the effective date is empty or the artifact is newer', () => {
+    expect(evaluateExemption('preAdvance', gate(''), { dateCreated: '20200101' })).toBeNull();
+    expect(evaluateExemption('preAdvance', gate('20260601'), { dateCreated: '20260601' })).toBeNull();
+  });
+
+  it('returns null for null or empty frontmatter', () => {
+    expect(evaluateExemption('preAdvance', gate('20260601'), null)).toBeNull();
+    expect(evaluateExemption('preAdvance', gate('20260601'), {})).toBeNull();
+  });
+});
+
+describe('isBlockingGate', () => {
+  it('is true only for pending-review and review-failed', () => {
+    expect(isBlockingGate(null)).toBe(false);
+    expect(isBlockingGate({ status: 'clears', weakParts: [] })).toBe(false);
+    expect(isBlockingGate({ status: 'exempt', reason: EXEMPT_REASON.ReviewNone, rationale: '' })).toBe(false);
+    expect(isBlockingGate({ status: 'pending-review', reviewType: 'code', rationale: '' })).toBe(true);
+    expect(isBlockingGate({ status: 'review-failed', reviewType: 'code', rationale: '' })).toBe(true);
   });
 });

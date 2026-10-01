@@ -30,6 +30,8 @@ import {
   positionToReviewType,
   type Boundary,
   type GateEvaluation,
+  type GateResult,
+  isBlockingGate,
   type ResolvedGate,
 } from './reviewGate.js';
 
@@ -583,7 +585,7 @@ export class ConsistencyChecker {
     boundary: Boundary,
     resolvedGate: ResolvedGate,
     fallbackLocation: string,
-  ): Promise<{ gate: GateEvaluation | null; errorFinding: ConsistencyFinding | null }> {
+  ): Promise<{ gate: GateResult | null; errorFinding: ConsistencyFinding | null }> {
     try {
       const gate = await evaluateReviewGate(
         projectPath, index, boundary, this.config!, resolvedGate,
@@ -672,7 +674,7 @@ export class ConsistencyChecker {
         findings.push(errorFinding);
         continue;
       }
-      if (result === null) continue;
+      if (!isBlockingGate(result)) continue;
 
       findings.push(
         this.buildGateFinding(result, boundary, 'slice', sliceIndex, projectPath, slicePlanPath),
@@ -806,7 +808,7 @@ export class ConsistencyChecker {
         findings.push(errorFinding);
         continue;
       }
-      if (result === null) continue;
+      if (!isBlockingGate(result)) continue;
 
       findings.push(
         this.buildGateFinding(result, 'preSlicePlan', 'architecture', archIndex, projectPath, archPath),

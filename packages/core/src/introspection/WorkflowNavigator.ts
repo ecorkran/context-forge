@@ -28,7 +28,7 @@ import {
 } from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
+import { evaluateReviewGate, isBlockingGate, type Boundary, type GateResult } from './reviewGate.js';
 import { isInIndexRange } from '../utils/worktree-overlay.js';
 
 /**
@@ -173,7 +173,7 @@ export class WorkflowNavigator {
         const archIndex = extractSliceIndex(project.fileArch);
         if (archIndex !== null) {
           const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
-          if (gate) {
+          if (isBlockingGate(gate)) {
             return gate.status === 'pending-review'
               ? {
                   recommendation: 'Review required before creating the slice plan',
@@ -632,7 +632,7 @@ export class WorkflowNavigator {
     // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
     if (!docs.taskFile) {
       const gate = await this.evaluateGate(projectPath, index, 'preTasks');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -659,7 +659,7 @@ export class WorkflowNavigator {
     if (taskResult.inferredStatus === STATUS.Complete) {
       // pre-advance / 'code' gate — implementation done, code review owed before advancing
       const gate = await this.evaluateGate(projectPath, index, 'preAdvance');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -674,7 +674,7 @@ export class WorkflowNavigator {
     // Fires only at the transition into implementation, not on every partial-progress call.
     if (taskResult.completedTasks === 0) {
       const gate = await this.evaluateGate(projectPath, index, 'preImplementation');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -690,14 +690,14 @@ export class WorkflowNavigator {
   /**
    * Evaluates the review gate for a boundary. Returns null when gating is off (no config,
    * or review_enabled false) — caller keeps its existing status, byte-identical to pre-241
-   * behavior. Returns a GateEvaluation when the boundary's review is absent (pending-review)
-   * or present-but-not-clearing (review-failed).
+   * behavior. Otherwise returns the GateResult; only isBlockingGate() results
+   * (pending-review / review-failed) change the caller's status.
    */
   private async evaluateGate(
     projectPath: string,
     index: number,
     boundary: Boundary,
-  ): Promise<GateEvaluation | null> {
+  ): Promise<GateResult | null> {
     if (!this.config) return null;
     return evaluateReviewGate(projectPath, index, boundary, this.config);
   }
