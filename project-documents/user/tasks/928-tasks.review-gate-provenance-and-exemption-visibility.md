@@ -42,10 +42,10 @@ Full rationale: `user/slices/928-slice.review-gate-provenance-and-exemption-visi
 **Testing locally:** the global `cf` is the published npm build. Use
 `node packages/cli/dist/index.js` after `pnpm -r build`.
 
-**Known scope edge (by design):** `deriveSliceStatus` evaluates no gate for a
-slice that is mid-implementation (tasks started, not complete), so `cf next`
-shows no exemption note there. `cf check` still reports it, because
-`ruleReviewGate` evaluates `preImplementation` whenever a task file exists.
+**Mid-implementation note:** `deriveSliceStatus` evaluates no gate for a slice
+with task progress that isn't complete. Task 11 covers that case with
+`evaluateExemption` (extracted in Task 1), so the `cf next` note shows at every
+stage.
 
 ## Branch Setup
 
@@ -60,9 +60,11 @@ shows no exemption note there. `cf check` still reports it, because
   - [ ] In `packages/core/src/introspection/reviewGate.ts`, add an `as const` object `EXEMPT_REASON` with keys for `review-none` and `grandfathered`, and derive `type ExemptReason` from it (see the `LogLevel` pattern in `.claude/rules/typescript.md`)
   - [ ] Add exported `type GateResult` per design TD-1: `{ status: 'clears'; weakParts: string[] }` | `{ status: 'exempt'; reason: ExemptReason; rationale: string }` | `GateEvaluation`
   - [ ] Add exported type guard `isBlockingGate(result: GateResult | null): result is GateEvaluation` (true for `pending-review` / `review-failed`)
+  - [ ] Extract the grandfather and `review: none` checks (near lines 207–221) into an exported pure function `evaluateExemption(boundary, gate: ResolvedGate, gatedFrontmatter: Record<string, string> | null)` returning the `exempt` variant or `null` (design TD-5, mid-implementation bullet). No I/O: callers pass the frontmatter they already parsed
+    - [ ] Grandfather → `exempt` with `grandfathered` reason and a short rationale naming the effective date
+    - [ ] `review: none` (not at `preSlicePlan`) → `exempt` with `review-none` reason
   - [ ] Change `evaluateReviewGate` return type to `Promise<GateResult | null>`:
-    - [ ] Grandfather branch (currently `return null` near line 210) → `exempt` with `grandfathered` reason and a short rationale naming the effective date
-    - [ ] `review: none` branch (near line 220) → `exempt` with `review-none` reason
+    - [ ] Call `evaluateExemption` with the gated artifact's parsed frontmatter (existing code near line 198); return its result when non-null
     - [ ] Final `return null` after the per-part loop → `{ status: 'clears', weakParts: [] }`
     - [ ] Gating-off path (`gate === null`) still returns `null`
   - [ ] Update the JSDoc on `evaluateReviewGate` to describe the four outcomes
@@ -83,6 +85,7 @@ shows no exemption note there. `cf check` still reports it, because
 - [ ] **Task 4: Refactor tests and checkpoint** (effort 2)
   - [ ] In `packages/core/tests/introspection/reviewGate.test.ts` and `reviewGate.cutoffIntegration.test.ts`, update assertions that expect `null` for a clearing, `review: none`, or grandfathered case to expect the matching `GateResult` variant. Assertions for gating-off keep `null`
   - [ ] Add tests for design criterion 9: `review-none` exempt at `preTasks`, `preImplementation`, `preAdvance`; `grandfathered` below the effective date; `{ status: 'clears', weakParts: [] }` for a passing review; `null` only when gating is off
+  - [ ] Unit-test `evaluateExemption` directly: `review: none` exempt at slice boundaries but not `preSlicePlan`; grandfather cutoff; empty effective date; `null` frontmatter → `null`
   - [ ] Add a test that `preSlicePlan` with `grandfathered` produces no `cf check` finding (`ruleArchReviewGate` treats it as nothing to flag)
   - [ ] Navigator and checker suites pass **unmodified** (proves no behavior change)
   - [ ] Success: `pnpm --filter @context-forge/core test` passes
@@ -146,12 +149,15 @@ shows no exemption note there. `cf check` still reports it, because
   - [ ] In `reviewGate.ts`, add exported `EXEMPT_NOTE: Record<ExemptReason, string>`; the `review-none` entry reads `review gate skipped: slice declares review: none`. This is the only place that text exists
   - [ ] `SliceStatus` (`packages/core/src/introspection/types.ts` near line 296) gains `gateExempt?: ExemptReason` with a JSDoc line
   - [ ] `deriveSliceStatus`: when any gate it evaluates returns `exempt` with reason `review-none`, set `gateExempt` on the returned status. `grandfathered` is not surfaced
+  - [ ] Mid-implementation branch (final `in-implementation` return, where no gate is evaluated): when `this.config` is set and `resolveGateConfig` returns non-null, parse `docs.sliceDesign` frontmatter and call `evaluateExemption('preImplementation', gate, frontmatter.data)`; set `gateExempt` on a `review-none` result. Never block from this branch
   - [ ] `getNext`'s `enrich()` (near line 286): when `slice.gateExempt` is set, append ` (${EXEMPT_NOTE[slice.gateExempt]})` to the action's `rationale`. Confirm `slice` is in scope at `enrich`'s definition; if not, pass it in rather than duplicating the append at each call site
   - [ ] Success: core typechecks
 
 - [ ] **Task 12: Test the exemption note** (effort 2)
   - [ ] New file `packages/core/tests/introspection/WorkflowNavigator.reviewVisibility.test.ts` (do not grow `WorkflowNavigator.test.ts`, already ~1500 lines)
   - [ ] Gating on, `review: none` slice with a design and no task file → `getNext` rationale ends with the `EXEMPT_NOTE` text; `getStatus().activeSlice.gateExempt === 'review-none'`
+  - [ ] Same `review: none` slice mid-implementation (some tasks checked, not all) → note present, status still `in-implementation`
+  - [ ] Same slice with all tasks complete → note present
   - [ ] Same slice with gating off → no note, no `gateExempt`
   - [ ] Grandfathered slice → no note
   - [ ] Normal passing slice → no note
@@ -245,7 +251,7 @@ shows no exemption note there. `cf check` still reports it, because
 
 - [ ] **Task 24: Verification walkthrough** (effort 2)
   - [ ] Run design § Verification Walkthrough steps 1–6 against a scratch copy of a project with gating on, using `node packages/cli/dist/index.js`
-  - [ ] For step 4, use a slice that has a design and **no task file**, so `cf next` evaluates a gate (see Known scope edge above)
+  - [ ] For step 4, also confirm the `cf next` note on a slice with tasks partly checked
   - [ ] Record any deviation and fix before proceeding
   - [ ] Success: every step behaves as described; scratch edits reverted
   - [ ] Commit any fixes found: `fix: …` as appropriate
