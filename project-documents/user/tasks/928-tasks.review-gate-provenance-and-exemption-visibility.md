@@ -215,25 +215,25 @@ stage.
 
 ## Part 5 — #67 Fallback Index Collision
 
-- [ ] **Task 18: Source-aware `ruleDuplicateIndex` wording** (effort 2)
-  - [ ] In `ConsistencyChecker.ruleDuplicateIndex` (near line 688), group entries (not just names) by index so `indexSource` is available
-  - [ ] All `explicit` in a group → current text and fix, unchanged
-  - [ ] Mixed `explicit` and `fallback` → the TD-7 wording (`Slice index N: '(N) Real Name' collides with auto-numbered unindexed entry 'Other Name'`) and suggested fix `Give the unindexed entry an explicit (NNN) index`
-  - [ ] No branch for all-`fallback` (cannot occur within one file)
-  - [ ] Success: core typechecks
+- [x] **Task 18: Source-aware `ruleDuplicateIndex` wording** (effort 2)
+  - [x] In `ConsistencyChecker.ruleDuplicateIndex` (near line 688), group entries (not just names) by index so `indexSource` is available
+  - [x] All `explicit` in a group → current text and fix, unchanged
+  - [x] Mixed `explicit` and `fallback` → the TD-7 wording (`Slice index N: '(N) Real Name' collides with auto-numbered unindexed entry 'Other Name'`) and suggested fix `Give the unindexed entry an explicit (NNN) index`
+  - [x] No branch for all-`fallback` (cannot occur within one file)
+  - [x] Success: core typechecks
 
-- [ ] **Task 19: Prefer explicit entries in `checkSlice` lookup** (effort 1)
-  - [ ] In `checkSlice` (near line 261), replace the single `find` with: an entry matching the index with `indexSource === 'explicit'`, else one with `fallback`, else `null`
-  - [ ] Success: core typechecks
+- [x] **Task 19: Prefer explicit entries in `checkSlice` lookup** (effort 1)
+  - [x] In `checkSlice` (near line 261), replace the single `find` with: an entry matching the index with `indexSource === 'explicit'`, else one with `fallback`, else `null`
+  - [x] Success: core typechecks
 
-- [ ] **Task 20: Test #67** (effort 2)
-  - [ ] Add tests next to the existing `duplicate-index` tests in `ConsistencyChecker.test.ts`, or in a new `ConsistencyChecker.duplicateIndex.test.ts` (preferred; that file is already ~1900 lines)
-  - [ ] Plan with `(5) Real` and a fifth unindexed entry → mixed-source wording (criterion 13)
-  - [ ] Two explicit `(5)` entries → unchanged wording
-  - [ ] `checkSlice(5)` on the mixed plan resolves to `(5) Real` (observable through a plan-entry-dependent finding, such as a review-gate or task-vs-plan finding)
-  - [ ] Parser tests (`slicePlanParser.test.ts`) unchanged and passing
-  - [ ] Success: core tests pass
-  - [ ] Commit: `fix(core): clarify fallback index collisions and prefer explicit plan entries (closes #67)`
+- [x] **Task 20: Test #67** (effort 2)
+  - [x] Add tests next to the existing `duplicate-index` tests in `ConsistencyChecker.test.ts`, or in a new `ConsistencyChecker.duplicateIndex.test.ts` (preferred; that file is already ~1900 lines)
+  - [x] Plan with `(5) Real` and a fifth unindexed entry → mixed-source wording (criterion 13)
+  - [x] Two explicit `(5)` entries → unchanged wording
+  - [x] `checkSlice(5)` on the mixed plan resolves to `(5) Real` (observable through a plan-entry-dependent finding, such as a review-gate or task-vs-plan finding)
+  - [x] Parser tests (`slicePlanParser.test.ts`) unchanged and passing
+  - [x] Success: core tests pass
+  - [x] Commit: `fix(core): clarify fallback index collisions and prefer explicit plan entries (closes #67)`
 
 ## Part 6 — Docs and Final Validation
 

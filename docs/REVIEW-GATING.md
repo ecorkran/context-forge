@@ -3,7 +3,7 @@ docType: guide
 scope: review-gating
 audience: [project-managers, ai-agent-developers]
 dateCreated: 20260709
-dateUpdated: 20260913
+dateUpdated: 20261001
 ---
 
 # Review Gating
@@ -27,13 +27,14 @@ There is no `review_type` config key, and there never will be — review type is
 
 ## Config Keys
 
-All eight keys live under the `workflow.*` namespace. Read any of them with `cf config get <key>`; each one-liner below is quoted verbatim from that key's `description` in source, so the CLI's help text and this doc never diverge.
+All nine keys live under the `workflow.*` namespace. Read any of them with `cf config get <key>`; each one-liner below is quoted verbatim from that key's `description` in source, so the CLI's help text and this doc never diverge.
 
 | Key | Type | Default | Allowed values |
 |---|---|---|---|
 | `workflow.review_enabled` | boolean | `false` | — |
 | `workflow.review_threshold` | string | `concerns` | `pass`, `concerns` |
 | `workflow.review_unknown_as` | string | `fail` | `fail`, `concerns`, `pass` |
+| `workflow.review_weak_pass_as` | string | `pass` | `pass`, `concerns`, `fail` |
 | `workflow.review_gates.code.threshold` | string | `''` | `''`, `pass`, `concerns` |
 | `workflow.review_gates.arch.threshold` | string | `''` | `''`, `pass`, `concerns` |
 | `workflow.review_gates.slice.threshold` | string | `''` | `''`, `pass`, `concerns` |
@@ -43,6 +44,7 @@ All eight keys live under the `workflow.*` namespace. Read any of them with `cf 
 - **`workflow.review_enabled`** — Enable review gating in the workflow navigator (off by default; no behavior change when false).
 - **`workflow.review_threshold`** — Verdict floor that clears a review gate: "pass" requires PASS; "concerns" clears on PASS or CONCERNS.
 - **`workflow.review_unknown_as`** — How to treat an UNKNOWN/absent/unparseable verdict: "fail" blocks, "concerns" treats as CONCERNS, "pass" clears.
+- **`workflow.review_weak_pass_as`** — How to treat a PASS whose review artifact reports weak provenance (verdictSource other than "stated", or recoveryTurn: true): "pass" accepts it, "concerns" evaluates it as CONCERNS against the gate threshold, "fail" blocks.
 - **`workflow.review_gates.code.threshold`** — Per-gate override: verdict floor for the code (pre-advance) review gate (empty = use `workflow.review_threshold`).
 - **`workflow.review_gates.arch.threshold`** — Per-gate override: verdict floor for the arch (pre-slice-plan) review gate (empty = use `workflow.review_threshold`).
 - **`workflow.review_gates.slice.threshold`** — Per-gate override: verdict floor for the slice (pre-tasks) review gate (empty = use `workflow.review_threshold`).
@@ -64,6 +66,17 @@ A present review artifact's frontmatter `verdict` is normalized to one of `PASS`
 
 `review_unknown_as` substitutes a stand-in verdict before the matrix runs again: `fail` → treat as `FAIL`, `concerns` → treat as `CONCERNS`, `pass` → treat as `PASS`. An `UNKNOWN` verdict arises from a review file whose frontmatter `verdict` field is missing or unrecognized — it is never silently cleared without going through this substitution.
 
+### Verdict provenance
+
+Squadron records how it got a verdict in two optional review frontmatter fields:
+
+- **`verdictSource`** — `stated` (the model stated the verdict) or `derived` (squadron rebuilt it from the finding severities).
+- **`recoveryTurn: true`** — the verdict came only after squadron asked a second time.
+
+A `PASS` is **weak** when `verdictSource` is `derived`, when `recoveryTurn` is `true`, or when either field holds a value Context Forge doesn't recognize. An absent field is no signal, so hand-written and older reviews are never weak. A weak `PASS` is evaluated as the `review_weak_pass_as` stand-in instead of `PASS`, then run through the matrix above. At the default `pass`, nothing changes. `concerns` blocks under a `pass` threshold and clears under `concerns`. `fail` always blocks. A declined weak PASS is `review-failed`, and its rationale names the provenance and the key. `CONCERNS`, `FAIL`, and `UNKNOWN` verdicts ignore provenance.
+
+Split reviews (`*.part-N.md`) are judged part by part, so one derived part can block even when the other parts' PASS verdicts were stated.
+
 **Absent vs. present matters:**
 - No review artifact exists at all → **`pending-review`**.
 - A review artifact exists but its verdict doesn't clear the threshold → **`review-failed`**.
@@ -81,6 +94,8 @@ With gating on, `cf check` (no `--slice` flag — i.e. `checkAll()`) surfaces a 
 
 - Slice/artifact complete but review absent → **`warning`**.
 - Review present but verdict fails the threshold → **`error`**.
+- Slice still open (plan entry unchecked) and a review cleared on weak provenance → **`info`**, one per review part, naming the review and why its PASS is weak. This shows at the default `review_weak_pass_as: pass`, so you see a rebuilt or recovered PASS without having to block on it.
+- Slice still open and declared `review: none` → one **`info`** per slice (see [Exemption visibility](#exemption-visibility)).
 - **Never auto-fixable.** `cf check --fix` cannot resolve a `review-gate` finding — a human has to actually write or complete the review. (Contrast with other checker rules like stale-checkbox findings, which `--fix` can correct automatically.)
 
 ## Escape Hatches
@@ -103,9 +118,18 @@ Write it by hand, or run:
 cf check --set-review-none <index>
 ```
 
-This writes `review: none` to the slice's design frontmatter for you. (The field was called `codeReview` when it was introduced in slice 911; it was renamed to `review` in slice 914.)
+This prints the slice design path and what the waiver skips, then asks `Proceed? [y/N]`. Declining writes nothing. Waiving reviews is a Project Manager decision, so in a non-interactive shell, or with `--json`, the command errors unless you pass `--yes`. With confirmation, it writes `review: none` to the slice's design frontmatter for you. (The field was called `codeReview` when it was introduced in slice 911; it was renamed to `review` in slice 914.)
 
 **Scoped to the three slice-level boundaries** — `slice` (pre-tasks), `tasks` (pre-implementation), and `code` (pre-advance) are all skipped. The `arch` (pre-slice-plan) boundary is unaffected: it gates the architecture document, which is a different artifact that a slice's frontmatter has no authority over.
+
+### Exemption visibility
+
+A `review: none` slice is never silently waved through while gating is on:
+
+- **`cf next`** (and MCP `workflow_next`) append `(review gate skipped: slice declares review: none)` to the rationale at every slice stage: design only, mid-implementation, and complete. `cf status --json` exposes the same thing as `activeSlice.gateExempt: "review-none"`.
+- **`cf check`** reports one `info` finding per exempt slice while its plan entry is unchecked. Complete slices stay quiet, so history doesn't fill up with noise.
+
+Grandfathered work isn't flagged in either place. The effective date is a deliberate, project-wide cutoff.
 
 ## Worked Example
 
@@ -123,9 +147,10 @@ cf next
 # → gate clears, next action recommended normally
 
 # 4. A docs-only slice with nothing to review
-cf check --set-review-none 243
+cf check --set-review-none 243        # prompts; add --yes in scripts
 cf next
-# → the slice, tasks, and code gates no longer apply to slice 243
+# → the slice, tasks, and code gates no longer apply to slice 243;
+#   the rationale ends with "(review gate skipped: slice declares review: none)"
 
 # 5. Grandfather pre-existing work
 cf config set workflow.review_gate_effective_date 20260101
