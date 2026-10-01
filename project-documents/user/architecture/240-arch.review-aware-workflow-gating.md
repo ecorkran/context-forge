@@ -45,7 +45,7 @@ Initiative 240 inserts a deterministic, AI-free review gate into that state mach
 
 - **Extend, don't replace.** The gate inserts at a named priority point in the existing `getNext()` cascade (after task completion is confirmed, before the advance recommendation). It does not restructure the existing flow. Projects that do not enable review gating see identical behavior to today.
 
-- **Frontmatter as cross-project contract.** The review artifact's frontmatter schema (`verdict`, `score`, `criteria`, `provenance`) is owned by Squadron slice 300. CF reads `verdict` and (when present) `score`. It carries `criteria` and `provenance` as opaque fields with no v1 consumer — they are preserved for downstream tools that do consume them. CF must not extend or reinterpret this schema unilaterally.
+- **Frontmatter as cross-project contract.** The review artifact's frontmatter schema (`verdict`, `score`, `criteria`, `provenance`) is owned by Squadron slice 300. CF reads `verdict` and (when present) `score`. It carries `criteria` and `provenance` as opaque fields with no v1 consumer — they are preserved for downstream tools that do consume them. CF must not extend or reinterpret this schema unilaterally. Two provenance keys were later added by squadron for CF to read: `verdictSource` (`stated` | `derived`, squadron slice 919 D6) and `recoveryTurn` (`true`, squadron slice 924). CF slice 928 consumes them through `workflow.review_weak_pass_as`.
 
 - **Fail-fast on configuration errors.** An invalid `workflow.review_threshold` value or an unrecognized per-gate config is a config error surfaced immediately, not a silent pass or silent block. The `validate` hook in `ConfigKeyDefinition` is the enforcement point.
 

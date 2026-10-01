@@ -6,7 +6,7 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: []
 interfaces: []
 dateCreated: 20260930
-dateUpdated: 20260930
+dateUpdated: 20261001
 status: not_started
 ---
 
@@ -35,8 +35,9 @@ This slice makes the gate's result say *why* it didn't block, lets a project dec
 - `reviewGate.ts`: a new result union (TD-1), provenance reading (TD-3), and a weak-PASS policy (TD-2).
 - `ConfigKeys.ts`: one new key, `workflow.review_weak_pass_as`.
 - `WorkflowNavigator`: carry an exemption note through `SliceStatus` and append it to the `cf next` / `workflow_next` rationale.
-- `ConsistencyChecker.ruleReviewGate`: one `info` finding per exempt slice whose plan entry is incomplete.
-- `packages/cli/src/commands/check.ts`: `--set-review-none` explains itself and requires confirmation.
+- `ConsistencyChecker.ruleReviewGate`: one `info` finding per exempt slice whose plan entry is incomplete, and one per review part that cleared on weak provenance (TD-5).
+- `packages/cli/src/commands/check.ts`: `--set-review-none` explains itself and requires confirmation. The file's private copy of `askConfirmation` is deleted in favor of `utils/confirm.ts`.
+- `240-arch.review-aware-workflow-gating.md`: amend the "Frontmatter as cross-project contract" principle to name `verdictSource` and `recoveryTurn` and their owning squadron slices. Done with this design revision, so it isn't an implementation task.
 - #67: `ruleDuplicateIndex` wording that knows about `indexSource`, and `checkSlice`'s plan-entry lookup preferring explicit indices.
 - Docs: CHANGELOG entry, and docs/REVIEW-GATING.md updated for the new key and the exemption visibility.
 
@@ -74,8 +75,8 @@ reviewGate.ts
         │                                  │
         ▼                                  ▼
 WorkflowNavigator.deriveSliceStatus   ConsistencyChecker.ruleReviewGate
-  exempt → SliceStatus.gateNote         exempt + entry incomplete → info finding
-  getNext(): enrich() appends note      clears → nothing
+  exempt → SliceStatus.gateExempt       exempt + entry incomplete → info finding
+  getNext(): enrich() appends note      clears + weakParts + entry incomplete → info finding
 ```
 
 ### Data Flow
@@ -85,7 +86,7 @@ For each review part (in the #106 loop):
 1. `verdict = normalizeVerdict(fm.verdict)` (unchanged).
 2. If `verdict === 'PASS'` and `classifyEvidence(fm) === 'weak'`, evaluate the stand-in verdict `weakPassAs` instead (`'pass'` → PASS, `'concerns'` → CONCERNS, `'fail'` → FAIL) against the boundary's threshold, using the existing `evaluateVerdict`.
 3. If the part doesn't clear, return `review-failed`. The rationale names the provenance, for example: `verdict PASS (derived from finding severities; recovered on a second prompt) treated as CONCERNS by workflow.review_weak_pass_as, does not clear threshold 'pass' …`.
-4. If every part clears, return `{ status: 'clears' }`.
+4. If every part clears, return `{ status: 'clears', weakParts }`, where `weakParts` lists each part that was a weak-evidence PASS and cleared anyway.
 
 Exemption flow: the grandfather check returns `{ status: 'exempt', reason: 'grandfathered' }`, and the `review: none` check returns `{ status: 'exempt', reason: 'review-none' }`. Callers act only on `review-none`.
 
@@ -99,16 +100,18 @@ No new persisted state. The only write is the existing `--set-review-none` front
 
 ```ts
 type GateResult =
-  | { status: 'clears' }
+  | { status: 'clears'; weakParts: string[] }   // review paths that cleared on weak provenance (usually empty)
   | { status: 'exempt'; reason: ExemptReason; rationale: string }
   | GateEvaluation;               // 'pending-review' | 'review-failed' (unchanged shape)
 type ExemptReason = 'review-none' | 'grandfathered';
 ```
 
+- `weakParts` exists so a weak PASS that clears under the default policy is still reportable (TD-5). It's always present on `clears`, so callers don't need to handle an undefined case.
+
 - `null` now means only "gating is off" (no config, or `review_enabled: false`). The pre-241 short-circuit stays identical.
 - We use a variant instead of a separate `isReviewExempt()` helper because a helper would re-read the same frontmatter the gate already parsed, and callers could still mix up "clears" and "exempt" by skipping the helper. The union makes the compiler force both callers to handle every case.
 - `grandfathered` exists so the type doesn't pretend a grandfathered slice cleared. It isn't displayed: turning on gating for a project with history would otherwise flood `cf check` with info findings.
-- `ExemptReason` values are defined once as an `as const` object in `reviewGate.ts`. Callers compare against that object, never against string literals.
+- `ExemptReason` values are defined once as an `as const` object in `reviewGate.ts`. Callers compare against that object, never against string literals. The display text for each reason (`EXEMPT_NOTE`) lives in the same file, keyed by reason. Every surface (the `cf next` rationale and the `cf check` finding) builds its text from that map.
 
 ### TD-2: One policy key, stand-in verdict, no new gate status
 
@@ -141,6 +144,7 @@ Either field weak → `'weak'`.
 
 - **Absent is not weak.** The slice plan entry said absent or malformed values should "degrade like an unknown verdict." Doing that for *absent* would turn every hand-written review into UNKNOWN, and under the default `review_unknown_as: fail` that blocks existing projects. That breaks the no-change-by-default rule, so absent means "no signal."
 - **Present but unrecognized means weak.** A value we can't vouch for is treated as weak evidence and goes through `review_weak_pass_as`, not `review_unknown_as`. The verdict itself was readable, so only its provenance is in doubt. At the default `'pass'` this changes nothing, and it never throws.
+- **Tradeoff, stated plainly:** this handles a malformed value more leniently than the plan entry asked. `verdictSource: garbage` on a PASS clears at defaults, where "degrade like unknown" would have blocked under `review_unknown_as: fail`. It doesn't clear silently, though: it lands in `weakParts`, and `cf check` reports it (TD-5).
 - The accepted values live in one `as const` object (`PROVENANCE`) in `reviewGate.ts`.
 
 ### TD-4: Split reviews — provenance per part
@@ -149,11 +153,12 @@ Settles design question (c). The #106 loop already evaluates each part on its ow
 
 ### TD-5: Exemption visibility
 
-- **`SliceStatus.gateNote?: string`** (new, optional). `deriveSliceStatus` sets it when any boundary it evaluated returned `exempt` with reason `review-none`: `review gate skipped: slice declares review: none`. The status itself falls through as today (`needs-tasks` / `in-implementation` / `complete`).
-- **`getNext`:** `enrich()` appends ` (review gate skipped: slice declares review: none)` to `rationale` when `slice.gateNote` is set. That's one place, and it covers every recommendation branch that follows an exempt fall-through. `workflow_next` (MCP) calls the same `getNext`, so it picks up the note with no extra work.
-- **`cf check`:** `ruleReviewGate` currently evaluates up to three boundaries per slice. Exemption is a property of the slice, not of a boundary, so it emits **at most one** `info` finding per slice, and only when `planEntry` exists and `!planEntry.isChecked`:
-  `Slice 925 is review-exempt (review: none) — slice, tasks, and code review gates are skipped. Confirm this is intended.` The location is the slice design path. It isn't fixable.
-- Nothing is emitted for complete exempt slices, which keeps history quiet as #83 asks.
+- **`SliceStatus.gateExempt?: ExemptReason`** (new, optional, typed). `deriveSliceStatus` sets it to `review-none` when any boundary it evaluated returned `exempt` with that reason. The status itself falls through as today (`needs-tasks` / `in-implementation` / `complete`). A runner can tell "gate waived" from "gate cleared" by reading this field, without parsing the rationale.
+- **`getNext`:** `enrich()` appends ` (${EXEMPT_NOTE[slice.gateExempt]})` to `rationale` when `gateExempt` is set. That's one place, and it covers every recommendation branch that follows an exempt fall-through. `workflow_next` (MCP) calls the same `getNext`, so it picks up the note with no extra work.
+- **`cf check`, exemption:** `ruleReviewGate` currently evaluates up to three boundaries per slice. Exemption is a property of the slice, not of a boundary, so it emits **at most one** `info` finding per slice, and only when `planEntry` exists and `!planEntry.isChecked`:
+  `Slice 925 is review-exempt (review: none) — slice, tasks, and code review gates are skipped. Confirm this is intended.` The text comes from `EXEMPT_NOTE`. The location is the slice design path. It isn't fixable.
+- **`cf check`, weak clear:** when a boundary returns `clears` with a non-empty `weakParts`, it emits one `info` finding per weak part, under the same incomplete-plan-entry rule. Example: `Review <path> cleared on weak provenance (verdictSource: derived). Set workflow.review_weak_pass_as to block such verdicts.` That way a rebuilt or recovered PASS is visible at the default config, not only after a PM has opted in to blocking. `cf next` doesn't show it, because the recommendation hasn't changed and the place to read it is `cf check`.
+- **Complete slices get nothing, for both findings.** That keeps history quiet as #83 asks, and it's a real tradeoff. 924 and 925 are now checked, so this slice would *not* flag them retroactively. The coverage is time-based: an exemption or weak clear is reported while the slice is in flight, which is when someone can still act on it.
 
 ### TD-6: `--set-review-none` confirmation
 
@@ -169,6 +174,7 @@ Proceed? [y/N]
 - `--yes` skips the prompt. `--json` without `--yes` is an error, so a JSON caller can't hang on a prompt.
 - When `process.stdin.isTTY` is false and there's no `--yes`, it throws a `UserError` saying `--yes` is required. Without that check, `readline` on a closed stdin never resolves, and an agent's call would just hang or exit silently.
 - On decline it prints `Cancelled.` and writes nothing. This copies the `cf worktree rm` pattern.
+- `check.ts` currently carries a private copy of `askConfirmation`, identical to `utils/confirm.ts`. Delete it and import the shared one, so every prompt in `check.ts` (`--fix` and `--set-review-none`) uses the same helper.
 
 `--yes` is still one flag away for an agent. The guard is that it has to be a deliberate, visible act in the transcript. The rule against agents doing it at all lives in the guide (004-slice-design), not here.
 
@@ -199,11 +205,13 @@ It's small and independent of the gate, so it's in.
 |---|---|---|---|---|
 | `workflow.review_weak_pass_as` | string | `pass` | `pass`, `concerns`, `fail` | How to treat a PASS whose review artifact reports weak provenance (`verdictSource` other than `stated`, or `recoveryTurn: true`). `pass` accepts it (default), `concerns` evaluates it as CONCERNS against the gate's threshold, `fail` blocks. |
 
-**`ResolvedGate`** gains `weakPassAs: UnknownPolicy`. It uses the same three-token vocabulary, so the type can be reused. If that reads badly, rename the type to `StandInPolicy` and alias the old name.
+**`StandInPolicy`** replaces `UnknownPolicy` (`'fail' | 'concerns' | 'pass'`). Both config keys pick a stand-in verdict, so they share one type and one token list. `UnknownPolicy` is used only inside `reviewGate.ts` and isn't exported from the package, so it's a straight rename with no alias. `parseUnknownPolicy` becomes `parseStandInPolicy`.
+
+**`ResolvedGate`** gains `weakPassAs: StandInPolicy`, and `unknownAs` becomes `StandInPolicy`.
 
 **`evaluateReviewGate`** returns `Promise<GateResult | null>` (TD-1).
 
-**`SliceStatus`** gains `gateNote?: string`.
+**`SliceStatus`** gains `gateExempt?: ExemptReason`.
 
 **`cf check --set-review-none <index>`** adds the confirmation step from TD-6. `--yes` is already registered on `check`.
 
@@ -218,7 +226,12 @@ It's small and independent of the gate, so it's in.
 
 ### Consumes from Other Slices
 
-- Squadron's frontmatter contract (`verdictSource`, `recoveryTurn`). If squadron renames or drops a key, affected artifacts fall back to "no signal" (absent), which is today's behavior.
+- Squadron's review frontmatter contract, extended by two keys squadron emits for CF's gate:
+  - `verdictSource: stated | derived`: squadron slice 919 Part 2, decision D6 (#97). Absent when squadron parsed no verdict at all.
+  - `recoveryTurn: true`: squadron slice 924. Emitted only when the recovery turn ran.
+  - Both are emitted by `squadron/src/squadron/review/persistence.py` (squadron v0.17.0, `_review_frontmatter_lines`).
+- 240-arch says CF must not extend or reinterpret this schema unilaterally. These keys aren't unilateral: squadron added them so CF could read them (919 names Context Forge as the consumer). This slice amends 240-arch's contract principle to list them and their owners.
+- **If squadron renames or drops a key,** artifacts read as "no signal" and a configured `review_weak_pass_as` stops catching anything. That's a break in squadron's contract, not a CF config error. CF can't detect it from artifacts, because a review with no provenance keys is also what every hand-written review looks like. The guard is on the producer side: a change to these keys goes through a squadron slice that names CF as a consumer. A CF-side "policy set but no provenance seen" finding was considered and rejected, because it would fire on any project that mixes hand-written and squadron reviews.
 
 ## Success Criteria
 
@@ -232,9 +245,10 @@ It's small and independent of the gate, so it's in.
 6. `verdictSource: stated`, an absent `verdictSource`, and `recoveryTurn: false` never count as weak. `verdictSource: garbage` and `recoveryTurn: yes` count as weak. None of these throw.
 7. CONCERNS and FAIL verdicts behave identically whatever their provenance.
 8. Split review: parts [stated PASS, derived PASS] under `weak_pass_as: fail` → `review-failed` pointing at the derived part.
-9. `evaluateReviewGate` returns `{status:'exempt', reason:'review-none'}` for a `review: none` slice at preTasks, preImplementation, and preAdvance. It returns `{status:'exempt', reason:'grandfathered'}` below the effective date, `{status:'clears'}` for a passing review, and `null` only when gating is off.
-10. `cf next` on an active `review: none` slice shows the fall-through recommendation with `(review gate skipped: slice declares review: none)` in the rationale. `workflow_next` shows the same.
+9. `evaluateReviewGate` returns `{status:'exempt', reason:'review-none'}` for a `review: none` slice at preTasks, preImplementation, and preAdvance. It returns `{status:'exempt', reason:'grandfathered'}` below the effective date, `{status:'clears', weakParts: []}` for a clean passing review, and `null` only when gating is off. A derived PASS under the default policy returns `clears` with that review's path in `weakParts`.
+10. `cf next` on an active `review: none` slice shows the fall-through recommendation with `EXEMPT_NOTE['review-none']` in the rationale, and `SliceStatus.gateExempt === 'review-none'`. `workflow_next` shows the same.
 11. `cf check` emits exactly one `info` finding per exempt slice with an incomplete plan entry, and none for complete ones.
+11a. At the default `review_weak_pass_as`, `cf check` emits one `info` finding per weak part that cleared on an incomplete slice, naming the path and the provenance. It emits none for complete slices, and none for a clean PASS.
 12. `cf check --set-review-none N` in a non-TTY without `--yes` exits non-zero and writes nothing. With `--yes` it writes and prints the waiver text. Interactively, answering "n" writes nothing.
 13. A plan with `(5) Real` and a fifth unindexed entry: `ruleDuplicateIndex` reports the mixed-source wording, and `checkSlice(5)` resolves to `(5) Real`.
 
@@ -256,6 +270,7 @@ Run from the repo root after `pnpm -r build`, using `node packages/cli/dist/inde
 
 1. **Default is unchanged.** Pick a slice whose slice review has `verdict: PASS`. Add `verdictSource: derived` to that review's frontmatter.
    `node packages/cli/dist/index.js next` → same recommendation as before the edit (for example "needs tasks").
+   `node packages/cli/dist/index.js check` → one `info` finding: the review cleared on weak provenance (`derived`).
 2. **Decline a derived PASS.**
    `node packages/cli/dist/index.js config set workflow.review_threshold pass`
    `node packages/cli/dist/index.js config set workflow.review_weak_pass_as concerns`
@@ -284,9 +299,9 @@ Run from the repo root after `pnpm -r build`, using `node packages/cli/dist/inde
 ### Development Approach
 
 1. **Refactor:** introduce `GateResult`. Update `evaluateReviewGate`, `WorkflowNavigator.evaluateGate`/`deriveSliceStatus`, and `ConsistencyChecker.safeEvaluateGate`/`ruleReviewGate`/`ruleArchReviewGate` so that `clears` and `exempt` behave exactly like today's `null`. The existing tests stay green. Commit.
-2. **Provenance:** add `classifyEvidence`, the config key, `weakPassAs` in `ResolvedGate`, and per-part evaluation. Add tests.
-3. **Visibility:** `gateNote` plus the `enrich` append, and the `ruleReviewGate` info finding. Add tests.
-4. **CLI confirmation:** `setReviewNoneAction` prompt, TTY check, and `--json` handling. Add tests.
+2. **Provenance:** rename `UnknownPolicy` → `StandInPolicy`, then add `classifyEvidence`, the config key, `weakPassAs` in `ResolvedGate`, per-part evaluation, and `weakParts` on `clears`. Add tests.
+3. **Visibility:** `EXEMPT_NOTE`, `gateExempt` plus the `enrich` append, and the `ruleReviewGate` exemption and weak-clear info findings. Add tests.
+4. **CLI confirmation:** delete `check.ts`'s private `askConfirmation`, then add the `setReviewNoneAction` prompt, the TTY check, and `--json` handling. Add tests.
 5. **#67:** `ruleDuplicateIndex` wording and `checkSlice` lookup preference. Add tests.
 6. Docs (CHANGELOG, docs/REVIEW-GATING.md), full build, and the full test suite.
 
@@ -294,3 +309,14 @@ Run from the repo root after `pnpm -r build`, using `node packages/cli/dist/inde
 
 - Squadron frontmatter is untrusted input. Nothing in this slice may throw on a frontmatter value, only on the project's own config.
 - `ruleArchReviewGate` (preSlicePlan) never sees `review-none` exemptions, but it can see `grandfathered` and must treat it as "nothing to flag."
+
+## Review Resolution (20261001)
+
+How the design addresses the findings in `user/reviews/928-review.slice.review-gate-provenance-and-exemption-visibility.md` (verdict CONCERNS):
+
+- **F001 (contract ownership, drift):** owners named in Consumes from Other Slices. 240-arch's contract principle gets amended. The suggested drift finding was rejected, with the reason recorded there.
+- **F002 (free-text exemption note):** `gateNote: string` became typed `gateExempt?: ExemptReason`. All display text comes from `EXEMPT_NOTE` (TD-1, TD-5).
+- **F003 (weak PASS invisible at defaults):** `clears` carries `weakParts`, and `cf check` reports them (TD-5, criterion 11a). The lenient handling of malformed values is stated as a tradeoff (TD-3).
+- **F004 (complete slices not covered):** the time-based coverage is stated in TD-5.
+- **F005 (duplicate `askConfirmation`):** the private copy in `check.ts` is deleted (TD-6).
+- **F006 (`weakPassAs` type):** settled as a straight rename to `StandInPolicy` (API Contracts).
