@@ -4,7 +4,7 @@ layer: project
 project: context-forge
 source: user/project-guides/000-concept.context-builder-2.md
 dateCreated: 20260323
-dateUpdated: 20260628
+dateUpdated: 20261002
 status: in_progress
 ---
 
@@ -24,7 +24,7 @@ Variable gaps based on expected initiative breadth. The project predates formal 
 
 3. [x] **(180) Initiative Contexts (Worktrees)** — Support parallel development via git worktrees by introducing per-initiative workflow state (`WorktreeContext`), worktree-aware CWD resolution, and CLI commands for worktree management. Dependencies: [160]. Status: complete
 
-4. [x] **(200) Developer Onboarding & First-Run Experience** — Collapse multi-step setup into single `cf init` command with detection-based composition, add `project_create` MCP tool for AI-driven project creation, provide onboarding skill for conversational guidance. Dependencies: [140, 160, 180]. Status: complete
+4. [ ] **(200) Developer Onboarding & First-Run Experience** — Collapse multi-step setup into single `cf init` command with detection-based composition, add `project_create` MCP tool for AI-driven project creation, provide onboarding skill for conversational guidance. Dependencies: [140, 160, 180]. Status: complete
 
 5. [ ] **(220) Event-Driven Pipeline** — Persistent MCP server daemon with Streamable HTTP transport, storage-layer event emission, server-initiated notifications for multi-client coordination and event-driven automation. Dependencies: [140]. Status: active (slice 221 in progress)
 
