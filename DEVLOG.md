@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-01
+
+### Release 0.18.2
+
+- **Contents:** Slice 928 — review gate provenance and exemption visibility: `workflow.review_weak_pass_as` gates derived/recovered PASS verdicts (#89, #105); `review: none` exemptions and weak-provenance clears surface in `cf check` / `cf next` (#83); `cf check --set-review-none` requires confirmation or `--yes` (#83); fallback slice-plan index collisions get their own wording (#67). Also: split reviews gate on every part (#106); confirm prompts resolve "no" on EOF.
+
+Tags: @context-forge/core@0.18.2, @context-forge/cli@0.18.2, @context-forge/mcp@0.18.2, @context-forge/context-forge@0.18.2
+
 ## 2026-09-29
 
 ### Release 0.18.1

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 20261001
+
 ### Added
 
 - **New `workflow.review_weak_pass_as` config key** (`pass` | `concerns` | `fail`, default `pass`). A PASS whose review reports weak provenance — squadron's `verdictSource: derived` (the verdict was rebuilt from finding severities) or `recoveryTurn: true` (the verdict came only on a second prompt) — can now be evaluated as CONCERNS or FAIL instead of trusted as PASS. Each part of a split review is judged separately. The default changes nothing (#89, #105)
