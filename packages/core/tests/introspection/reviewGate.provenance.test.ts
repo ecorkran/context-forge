@@ -59,9 +59,12 @@ const DERIVED = ['verdictSource: derived'];
 const RECOVERED = ['verdictSource: stated', 'recoveryTurn: true'];
 
 describe('evaluateReviewGate — weak-provenance PASS (slice 928)', () => {
-  it('1: key at default → derived PASS clears, reported in weakParts', async () => {
+  it('1: key at default → derived PASS clears, reported in weakParts with its evidence', async () => {
     const { root, paths } = makeProject([{ verdict: 'PASS', provenance: DERIVED }]);
-    expect(await gate(root)).toEqual({ status: 'clears', weakParts: [paths[0]] });
+    expect(await gate(root)).toEqual({
+      status: 'clears',
+      weakParts: [{ path: paths[0], evidence: 'derived from finding severities' }],
+    });
   });
 
   it('2: concerns + threshold pass → derived PASS is review-failed, rationale names provenance and key', async () => {
@@ -85,7 +88,7 @@ describe('evaluateReviewGate — weak-provenance PASS (slice 928)', () => {
   it('4: concerns + threshold concerns → derived PASS clears', async () => {
     const { root, paths } = makeProject([{ verdict: 'PASS', provenance: DERIVED }]);
     const result = await gate(root, { [WEAK_PASS_KEY]: 'concerns', 'workflow.review_threshold': 'concerns' });
-    expect(result).toEqual({ status: 'clears', weakParts: [paths[0]] });
+    expect(result).toEqual({ status: 'clears', weakParts: [expect.objectContaining({ path: paths[0] })] });
   });
 
   it('5: fail → derived PASS blocks at both thresholds', async () => {
@@ -106,7 +109,7 @@ describe('evaluateReviewGate — weak-provenance PASS (slice 928)', () => {
   it('6: unrecognized values are weak and never throw', async () => {
     for (const provenance of [['verdictSource: garbage'], ['recoveryTurn: yes']]) {
       const { root, paths } = makeProject([{ verdict: 'PASS', provenance }]);
-      expect(await gate(root)).toEqual({ status: 'clears', weakParts: [paths[0]] });
+      expect(await gate(root)).toEqual({ status: 'clears', weakParts: [expect.objectContaining({ path: paths[0] })] });
       expect(asBlocking(await gate(root, { [WEAK_PASS_KEY]: 'fail' })).status).toBe('review-failed');
     }
   });
@@ -138,7 +141,7 @@ describe('evaluateReviewGate — weak-provenance PASS (slice 928)', () => {
       { verdict: 'PASS', provenance: ['verdictSource: stated'] },
       { verdict: 'PASS', provenance: DERIVED },
     ]);
-    expect(await gate(root)).toEqual({ status: 'clears', weakParts: [paths[1]] });
+    expect(await gate(root)).toEqual({ status: 'clears', weakParts: [expect.objectContaining({ path: paths[1] })] });
   });
 });
 

@@ -5,10 +5,12 @@ import { ConsistencyChecker, ConfigManager } from '@context-forge/core/node';
 
 const mockQuestion = vi.fn();
 const mockClose = vi.fn();
+const mockOn = vi.fn();
 vi.mock('node:readline', () => ({
   createInterface: vi.fn(() => ({
     question: mockQuestion,
     close: mockClose,
+    on: mockOn,
   })),
 }));
 
@@ -348,6 +350,7 @@ describe('cf check --set-review-none', () => {
       after: 'none',
     });
     setTTY(false);
+    mockOn.mockReset();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -402,6 +405,18 @@ describe('cf check --set-review-none', () => {
     await run();
 
     expect(mockQuestion).toHaveBeenCalledWith('Proceed? [y/N] ', expect.any(Function));
+    expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
+    expect(output()).toContain('Cancelled.');
+  });
+
+  it('TTY, stdin closes without an answer (EOF) → treated as no, writes nothing', async () => {
+    setTTY(true);
+    mockQuestion.mockImplementation(() => {});
+    mockOn.mockImplementation((event: string, handler: () => void) => {
+      if (event === 'close') handler();
+    });
+    await run();
+
     expect(mockUpdateFrontmatterField).not.toHaveBeenCalled();
     expect(output()).toContain('Cancelled.');
   });

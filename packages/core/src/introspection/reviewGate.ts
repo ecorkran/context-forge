@@ -204,10 +204,18 @@ export interface GateExemption {
   rationale: string;
 }
 
+/** A review part that cleared on weak provenance. */
+export interface WeakPart {
+  /** Relative path (from projectPath) to the review part */
+  path: string;
+  /** Human description of the weak signals, from describeWeakEvidence() */
+  evidence: string;
+}
+
 /** Every review part cleared. weakParts lists parts that cleared on weak provenance. */
 export interface GateClearance {
   status: 'clears';
-  weakParts: string[];
+  weakParts: WeakPart[];
 }
 
 /** Outcome of evaluating one boundary while gating is on. */
@@ -305,19 +313,20 @@ export async function evaluateReviewGate(
   // weakPassAs stand-in; CONCERNS/FAIL/UNKNOWN ignore provenance.
   const threshold = gate.thresholdFor(boundary);
   const reviewPaths = docs.reviewParts.length > 0 ? docs.reviewParts : [docs.review];
-  const weakParts: string[] = [];
+  const weakParts: WeakPart[] = [];
   for (const reviewPath of reviewPaths) {
     const frontmatter = await parseFrontmatter(join(projectPath, reviewPath));
     const verdict = normalizeVerdict(frontmatter.data.verdict);
     const isWeakPass = verdict === 'PASS' && classifyEvidence(frontmatter.data) === 'weak';
+    const evidence = isWeakPass ? describeWeakEvidence(frontmatter.data) : '';
     const effective = isWeakPass ? standInVerdict(gate.weakPassAs) : verdict;
     if (evaluateVerdict(effective, threshold, gate.unknownAs) === 'clears') {
-      if (isWeakPass) weakParts.push(reviewPath);
+      if (isWeakPass) weakParts.push({ path: reviewPath, evidence });
       continue;
     }
 
     const verdictText = isWeakPass
-      ? `${verdict} (${describeWeakEvidence(frontmatter.data)}) treated as ${effective} by ${WEAK_PASS_KEY}`
+      ? `${verdict} (${evidence}) treated as ${effective} by ${WEAK_PASS_KEY}`
       : verdict;
     return {
       status: 'review-failed',

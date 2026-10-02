@@ -32,13 +32,13 @@ import {
   type GateEvaluation,
   type GateResult,
   type ExemptReason,
+  type WeakPart,
   isBlockingGate,
   EXEMPT_NOTE,
   EXEMPT_REASON,
   WEAK_PASS_KEY,
   type ResolvedGate,
 } from './reviewGate.js';
-import { describeWeakEvidence } from './reviewProvenance.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -672,6 +672,9 @@ export class ConsistencyChecker {
     const boundaries: { boundary: Boundary; guard: boolean }[] = [
       { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
       { boundary: 'preImplementation', guard: !!docs?.taskFile && docs.taskFile.length > 0 },
+      // Note: preAdvance runs only for a checked entry, so it never reaches the inFlight
+      // weak-clear branch below. Code-review weak clears are deliberately not reported
+      // (TD-5: incomplete plan entries only). Loosening this guard changes that.
       {
         boundary: 'preAdvance',
         guard: !!planEntry?.isChecked && docs?.sliceDesign !== null && docs?.sliceDesign !== undefined,
@@ -691,7 +694,7 @@ export class ConsistencyChecker {
       if (result?.status === 'exempt' && result.reason === EXEMPT_REASON.ReviewNone) {
         exemptReason = result.reason;
       } else if (result?.status === 'clears' && inFlight) {
-        findings.push(...(await this.buildWeakClearFindings(result.weakParts, projectPath)));
+        findings.push(...this.buildWeakClearFindings(result.weakParts, projectPath));
       }
       if (!isBlockingGate(result)) continue;
 
@@ -715,22 +718,19 @@ export class ConsistencyChecker {
     return findings;
   }
 
-  /** One info finding per review part that cleared on weak provenance (TD-5). */
-  private async buildWeakClearFindings(weakParts: string[], projectPath: string): Promise<ConsistencyFinding[]> {
-    const findings: ConsistencyFinding[] = [];
-    for (const part of weakParts) {
-      const location = join(projectPath, part);
-      const frontmatter = await this.introspector.parseFrontmatter(location);
-      findings.push({
-        rule: 'review-gate',
-        severity: 'info',
-        location,
-        description: `Review ${part} cleared on weak provenance (${describeWeakEvidence(frontmatter.data)}). Set ${WEAK_PASS_KEY} to block such verdicts.`,
-        suggestedFix: `Rerun the review for a stated verdict, or set ${WEAK_PASS_KEY} to concerns or fail`,
-        fixable: false,
-      });
-    }
-    return findings;
+  /**
+   * One info finding per review part that cleared on weak provenance (TD-5). Uses the
+   * evidence the gate already parsed, so no second read of the review.
+   */
+  private buildWeakClearFindings(weakParts: WeakPart[], projectPath: string): ConsistencyFinding[] {
+    return weakParts.map((part) => ({
+      rule: 'review-gate',
+      severity: 'info',
+      location: join(projectPath, part.path),
+      description: `Review ${part.path} cleared on weak provenance (${part.evidence}). Set ${WEAK_PASS_KEY} to block such verdicts.`,
+      suggestedFix: `Rerun the review for a stated verdict, or set ${WEAK_PASS_KEY} to concerns or fail`,
+      fixable: false,
+    }));
   }
 
   // --- Aggregate Rules (checkAll only) ---

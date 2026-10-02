@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `cf check` no longer reports an auto-numbered unindexed slice-plan entry as a plain duplicate of a real `(NNN)` slice. The finding now names the collision and says to give the unindexed entry an explicit index, and per-slice checks resolve the index to the real slice instead of the placeholder (#67)
+- `cf check --fix` and `cf setup-ide` confirmation prompts no longer hang when stdin closes without an answer (Ctrl-D or an empty pipe); EOF now counts as "no"
 - Review gates now evaluate every split review (`*.part-N.md`) in numeric part order and block if any part fails to clear, instead of reading only the last one. A failing part-1 no longer hides behind a passing part-2, and part-10 no longer sorts before part-2 (#106)
 
 ## [0.18.1] - 20260929

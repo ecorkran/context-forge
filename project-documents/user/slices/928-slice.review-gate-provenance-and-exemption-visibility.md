@@ -352,3 +352,11 @@ How the design addresses the findings in `user/reviews/928-review.slice.review-g
 - **F004 (complete slices not covered):** the time-based coverage is stated in TD-5.
 - **F005 (duplicate `askConfirmation`):** the private copy in `check.ts` is deleted (TD-6).
 - **F006 (`weakPassAs` type):** settled as a straight rename to `StandInPolicy` (API Contracts).
+
+## Code Review Resolution (20261001)
+
+Code review: `user/reviews/928-review.code.review-gate-provenance-and-exemption-visibility.md` (glm-5.3-flash, CONCERNS, reviewed 74d0375). The verdict is left as recorded; resolutions:
+
+- **CONCERN — `buildWeakClearFindings` re-parsed review frontmatter unprotected.** Fixed. `GateClearance.weakParts` is now `WeakPart[]` (`{ path, evidence }`), with `evidence` from `describeWeakEvidence()` captured while the gate already has the frontmatter. The checker builds findings from it with no second read, so there's no unguarded introspector call and no empty `()` description. This refines TD-1's `weakParts: string[]`.
+- **NOTE — `askConfirmation` hung on EOF; `setup-ide.ts` kept a duplicate.** Fixed. The shared helper resolves `false` on readline `close`, which covers `cf check --fix` too. `setup-ide.ts` now imports it, so it's the only copy.
+- **NOTE — the `preAdvance` guard makes code-review weak clears unreachable in `cf check`.** Intended (TD-5: incomplete plan entries only). There's now a comment on the guard so loosening it is an explicit decision.
