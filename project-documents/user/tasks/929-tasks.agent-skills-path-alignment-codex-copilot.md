@@ -219,10 +219,11 @@ The global `cf` is the published npm package and won't show your changes.
   - [ ] At `README.md:113-114`, change the copilot layout from
         `.github/{instructions,prompts}/` to `.github/instructions/` plus
         `.agents/skills/<name>/SKILL.md`.
-  - [ ] Search the README for `.codex/skills` and change any machine-level
-        Codex path to `~/.agents/skills`.
-  - [ ] Success criteria: the README has no `~/.codex/skills` as the
-        install location.
+  - [ ] The Codex layout line already reads `.agents/skills/<name>/SKILL.md`
+        and the README has no `~/.codex/skills` (checked in the task review).
+        No Codex edit is expected. Grep once to confirm and move on.
+  - [ ] Success criteria: the copilot line is updated, and the README has no
+        `~/.codex/skills` as the install location.
 
 - [ ] **Task 8: CHANGELOG entry** (effort: 1)
   - [ ] Under `## [Unreleased]` in `CHANGELOG.md`, add entries in the
@@ -275,6 +276,12 @@ The global `cf` is the published npm package and won't show your changes.
         `~/.agents/skills`, the legacy line lists the 9 `cf-*` skills,
         `~/.codex/skills` has no `cf-*` left (`.system` intact), and a
         second run prints no legacy line.
+  - [ ] Criterion 6 (setup-ide/init parity): the unit tests mock the
+        installer at those call sites, so check it live. Recreate
+        `~/.codex/skills/cf-status/SKILL.md`, run
+        `node packages/cli/dist/index.js setup-ide codex --yes` in a scratch
+        project, and confirm the same legacy line prints and `cf-status` is
+        gone from `~/.codex/skills`.
   - [ ] Run walkthrough step 3 (`--local` leaves `cf-dummy`; default-scope
         uninstall removes it), then re-run step 1's install to restore the
         machine-level skills.
