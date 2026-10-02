@@ -1,4 +1,3 @@
-import * as readline from 'node:readline';
 import { join } from 'node:path';
 import { Command } from 'commander';
 import {
@@ -25,6 +24,7 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
 
@@ -33,17 +33,6 @@ const SEVERITY_ICON: Record<string, string> = {
   warning: '⚠',
   info: 'ℹ',
 };
-
-/** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
-function askConfirmation(prompt: string): Promise<boolean> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === 'y');
-    });
-  });
-}
 
 function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
   return 'fixLog' in result;
@@ -115,6 +104,10 @@ interface CheckOpts {
  * for it (not the architecture gate, which is a different document). A direct,
  * single-purpose mutation — not part of the check/fix pipeline, since it
  * doesn't depend on any finding having been detected first.
+ *
+ * Waiving reviews is a PM decision (slice 928 TD-6), so the write needs either --yes
+ * or an interactive "y". --json without --yes, or a non-TTY stdin without --yes, is
+ * an error rather than a prompt that would hang. Declining writes nothing.
  */
 async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<void> {
   const index = parseInt(indexArg, 10);
@@ -139,6 +132,22 @@ async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<v
     );
   }
 
+  if (opts.json && !opts.yes) {
+    throw new UserError('--yes is required with --json for --set-review-none');
+  }
+  if (!opts.yes && !process.stdin.isTTY) {
+    throw new UserError('--yes is required for --set-review-none in a non-interactive shell');
+  }
+  if (!opts.json) {
+    console.log(label(`Slice ${index}: ${docs.sliceDesign}`));
+    console.log('Setting review: none waives the slice, tasks, and code review gates for this slice.');
+    console.log('This is a Project Manager decision.');
+  }
+  if (!opts.yes && !(await askConfirmation('Proceed? [y/N] '))) {
+    console.log('Cancelled.');
+    return;
+  }
+
   const filePath = join(project.projectPath, docs.sliceDesign);
   const entry = await updateFrontmatterField(filePath, 'review', 'none', formatDateProject());
 
@@ -147,7 +156,6 @@ async function setReviewNoneAction(indexArg: string, opts: CheckOpts): Promise<v
     return;
   }
   console.log(label(`Set review: none on slice ${index}`));
-  console.log(dim(`  ${docs.sliceDesign}`));
 }
 
 export function registerCheckCommand(program: Command): void {

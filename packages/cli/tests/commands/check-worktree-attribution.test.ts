@@ -19,7 +19,7 @@ const mockConfigGet = vi.fn();
 const mockDetectDocuments = vi.fn();
 
 vi.mock('node:readline', () => ({
-  createInterface: vi.fn(() => ({ question: vi.fn(), close: vi.fn() })),
+  createInterface: vi.fn(() => ({ question: vi.fn(), close: vi.fn(), on: vi.fn() })),
 }));
 
 vi.mock('@context-forge/core/node', () => ({

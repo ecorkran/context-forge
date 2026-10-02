@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20260930
 dateUpdated: 20261001
-status: not_started
+status: complete
 ---
 
 # Slice Design: review-gate-provenance-and-exemption-visibility
@@ -267,22 +267,53 @@ It's small and independent of the gate, so it's in.
 
 ### Verification Walkthrough
 
-Run from the repo root after `pnpm -r build`, using `node packages/cli/dist/index.js` (the global `cf` is the published npm build). Use a scratch copy of a project with gating on (`cf config set workflow.review_enabled true`).
+Verified 20261001 against the built branch. Run after `pnpm -r build`, using `node packages/cli/dist/index.js` (the global `cf` is the published npm build).
 
-1. **Default is unchanged.** Pick a slice whose slice review has `verdict: PASS`. Add `verdictSource: derived` to that review's frontmatter.
-   `node packages/cli/dist/index.js next` → same recommendation as before the edit (for example "needs tasks").
-   `node packages/cli/dist/index.js check` → one `info` finding: the review cleared on weak provenance (`derived`).
+**Setup: an isolated scratch project.** Point `CONTEXT_FORGE_DATA_DIR` at an empty directory so the walkthrough never touches your real project store. In zsh a `CF="node …"` variable won't word-split, so use a small wrapper script named `cf` in a scratch directory:
+
+```sh
+#!/bin/sh
+export CONTEXT_FORGE_DATA_DIR=<scratch>/cfdata
+exec node <repo>/packages/cli/dist/index.js "$@"
+```
+
+In `<scratch>/walk`, `git init` and create:
+
+- `project-documents/user/architecture/100-slices.walk.md`: a `## Slices` heading with `1. [ ] **(1) Alpha** — …` and `2. [ ] **(2) Docs** — …`
+- `slices/1-slice.alpha.md` (no task file) and `reviews/1-review.slice.alpha.md` with `verdict: PASS`
+- `slices/2-slice.docs.md`, `tasks/2-tasks.docs.md` with one of two tasks checked, and `reviews/2-review.tasks.docs.md` with `verdict: PASS`
+
+Then:
+
+```sh
+cf init --lite --no-ide
+cf set plan 100-slices.walk
+cf set slice 1-slice.alpha
+cf config set workflow.review_enabled true
+```
+
+`cf check` also prints frontmatter-schema warnings for these minimal fixtures. They're unrelated, so filter for the lines below.
+
+1. **Default is unchanged.** Add `verdictSource: derived` under `verdict: PASS` in `1-review.slice.alpha.md`.
+   - `cf next` → unchanged: `Create task breakdown (Phase 5)`.
+   - `cf check` → `ℹ [1] Review project-documents/user/reviews/1-review.slice.alpha.md cleared on weak provenance (derived from finding severities). Set workflow.review_weak_pass_as to block such verdicts.`
 2. **Decline a derived PASS.**
-   `node packages/cli/dist/index.js config set workflow.review_threshold pass`
-   `node packages/cli/dist/index.js config set workflow.review_weak_pass_as concerns`
-   `node packages/cli/dist/index.js next` → "Blocked: review verdict does not clear threshold", with a rationale naming `derived` and `workflow.review_weak_pass_as`.
-3. **Recovered PASS.** Change `verdictSource` back to `stated` and add `recoveryTurn: true`. `next` is still blocked, and the rationale names the recovery. Remove `recoveryTurn` and `next` clears.
-4. **Exemption shows up.** On an in-progress slice, run `node packages/cli/dist/index.js check --set-review-none <index> < /dev/null` → error saying `--yes` is required. `git diff` shows nothing written.
-   Run it again with `--yes` → prints the slice path and the waiver text, then writes the field.
-   `node packages/cli/dist/index.js check` → one `info` finding: `Slice <index> is review-exempt (review: none) …`.
-   `node packages/cli/dist/index.js next` → rationale ends with `(review gate skipped: slice declares review: none)`.
-5. **#67.** Temporarily add a fifth unindexed entry to a scratch plan that also holds a `(5)` entry. `check` reports the collision with the auto-numbered wording.
-6. Revert the scratch edits.
+   - `cf config set workflow.review_threshold pass`
+   - `cf config set workflow.review_weak_pass_as concerns`
+   - `cf next` → `Blocked: review verdict does not clear threshold`, with rationale `Review artifact present but verdict PASS (derived from finding severities) treated as CONCERNS by workflow.review_weak_pass_as does not clear threshold 'pass' for slice 1 (…1-review.slice.alpha.md).`
+3. **Recovered PASS.** Change `verdictSource` to `stated` and add `recoveryTurn: true`.
+   - `cf next` → still blocked, and the rationale reads `verdict PASS (recovered on a second prompt) treated as CONCERNS …`.
+   - Delete the `recoveryTurn` line, and `cf next` clears: `Create task breakdown (Phase 5)`.
+4. **Exemption shows up** on in-progress slice 2.
+   - `cf check --set-review-none 2 < /dev/null` → `--yes is required for --set-review-none in a non-interactive shell`, exit 1. `git diff` shows the slice design unchanged.
+   - `cf check --set-review-none 2 --json < /dev/null` → `{"error":true,"code":"UNKNOWN","message":"--yes is required with --json for --set-review-none"}`, exit 1.
+   - `cf check --set-review-none 2 --yes` → prints `Slice 2: project-documents/user/slices/2-slice.docs.md`, the waiver line, and the PM-decision line, then `Set review: none on slice 2`. The diff adds `review: none` and bumps `dateUpdated`.
+   - `cf check` → `ℹ [2] Slice 2 is review-exempt (review gate skipped: slice declares review: none) — slice, tasks, and code review gates are skipped. Confirm this is intended.` The earlier `Slice 2 requires a slice review` warning is gone.
+   - `cf next` reports on the active slice only, so first run `cf set slice 2-slice.docs`. Then `cf next` → `Rationale: Slice 2 is in progress with 1 task left to complete. (review gate skipped: slice declares review: none)`, and `cf status --json` shows `"gateExempt": "review-none"`.
+5. **#67.** Append unindexed entries `3.`–`7.` (`**Unindexed A**` … `**Unindexed E**`) and then `8. [ ] **(5) Real** — …` to the plan.
+   - `cf check` → `✗ Slice index 5: '(5) Real' collides with auto-numbered unindexed entry 'Unindexed E'`, fix `Give the unindexed entry an explicit (NNN) index`.
+   - Caveat: the fallback counter runs across the whole file, so `Unindexed A`/`B` also collide with `(1)`/`(2)` and get the same wording. That's expected.
+6. **Clean up.** Delete the scratch directory and `cfdata`. The real project store was never touched.
 
 ## Risk Assessment
 
@@ -321,3 +352,11 @@ How the design addresses the findings in `user/reviews/928-review.slice.review-g
 - **F004 (complete slices not covered):** the time-based coverage is stated in TD-5.
 - **F005 (duplicate `askConfirmation`):** the private copy in `check.ts` is deleted (TD-6).
 - **F006 (`weakPassAs` type):** settled as a straight rename to `StandInPolicy` (API Contracts).
+
+## Code Review Resolution (20261001)
+
+Code review: `user/reviews/928-review.code.review-gate-provenance-and-exemption-visibility.md` (glm-5.3-flash, CONCERNS, reviewed 74d0375). The verdict is left as recorded; resolutions:
+
+- **CONCERN — `buildWeakClearFindings` re-parsed review frontmatter unprotected.** Fixed. `GateClearance.weakParts` is now `WeakPart[]` (`{ path, evidence }`), with `evidence` from `describeWeakEvidence()` captured while the gate already has the frontmatter. The checker builds findings from it with no second read, so there's no unguarded introspector call and no empty `()` description. This refines TD-1's `weakParts: string[]`.
+- **NOTE — `askConfirmation` hung on EOF; `setup-ide.ts` kept a duplicate.** Fixed. The shared helper resolves `false` on readline `close`, which covers `cf check --fix` too. `setup-ide.ts` now imports it, so it's the only copy.
+- **NOTE — the `preAdvance` guard makes code-review weak clears unreachable in `cf check`.** Intended (TD-5: incomplete plan entries only). There's now a comment on the guard so loosening it is an explicit decision.

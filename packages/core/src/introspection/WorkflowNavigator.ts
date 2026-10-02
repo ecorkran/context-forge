@@ -28,7 +28,17 @@ import {
 } from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
-import { evaluateReviewGate, type Boundary, type GateEvaluation } from './reviewGate.js';
+import {
+  evaluateReviewGate,
+  evaluateExemption,
+  isBlockingGate,
+  resolveGateConfig,
+  EXEMPT_NOTE,
+  EXEMPT_REASON,
+  type Boundary,
+  type ExemptReason,
+  type GateResult,
+} from './reviewGate.js';
 import { isInIndexRange } from '../utils/worktree-overlay.js';
 
 /**
@@ -173,7 +183,7 @@ export class WorkflowNavigator {
         const archIndex = extractSliceIndex(project.fileArch);
         if (archIndex !== null) {
           const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
-          if (gate) {
+          if (isBlockingGate(gate)) {
             return gate.status === 'pending-review'
               ? {
                   recommendation: 'Review required before creating the slice plan',
@@ -289,6 +299,9 @@ export class WorkflowNavigator {
       // (only if the action doesn't already have a more specific suggestedCommand)
       if (action.phase && !action.suggestedCommand && !currentPhase.startsWith(action.phase.split(':')[0])) {
         result.suggestedCommand = `cf set phase '${action.phase}'`;
+      }
+      if (slice.gateExempt) {
+        result.rationale = `${result.rationale} (${EXEMPT_NOTE[slice.gateExempt]})`;
       }
       return result;
     };
@@ -611,7 +624,7 @@ export class WorkflowNavigator {
 
     const index = extractSliceIndex(project.fileSlice);
     const name = extractSliceName(project.fileSlice);
-    const base: SliceStatus = { name, index, status: 'no-active-slice' };
+    let base: SliceStatus = { name, index, status: 'no-active-slice' };
 
     if (index === null) {
       return base;
@@ -629,10 +642,15 @@ export class WorkflowNavigator {
       return { ...base, status: 'needs-design' };
     }
 
+    // review: none applies identically at every slice boundary, so one check
+    // covers every stage below, including those that evaluate no gate.
+    const gateExempt = await this.reviewNoneExemption(projectPath, docs.sliceDesign);
+    if (gateExempt) base = { ...base, gateExempt };
+
     // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
     if (!docs.taskFile) {
       const gate = await this.evaluateGate(projectPath, index, 'preTasks');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -659,7 +677,7 @@ export class WorkflowNavigator {
     if (taskResult.inferredStatus === STATUS.Complete) {
       // pre-advance / 'code' gate — implementation done, code review owed before advancing
       const gate = await this.evaluateGate(projectPath, index, 'preAdvance');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -674,7 +692,7 @@ export class WorkflowNavigator {
     // Fires only at the transition into implementation, not on every partial-progress call.
     if (taskResult.completedTasks === 0) {
       const gate = await this.evaluateGate(projectPath, index, 'preImplementation');
-      if (gate) {
+      if (isBlockingGate(gate)) {
         return {
           ...base,
           status: gate.status,
@@ -688,16 +706,29 @@ export class WorkflowNavigator {
   }
 
   /**
+   * The slice's review-none exemption when gating is on, else undefined. Grandfathered
+   * slices are not surfaced (evaluateExemption checks the cutoff first).
+   */
+  private async reviewNoneExemption(projectPath: string, sliceDesign: string): Promise<ExemptReason | undefined> {
+    if (!this.config) return undefined;
+    const gate = await resolveGateConfig(this.config);
+    if (gate === null) return undefined;
+    const frontmatter = await parseFrontmatter(join(projectPath, sliceDesign));
+    const exemption = evaluateExemption('preImplementation', gate, frontmatter.data);
+    return exemption?.reason === EXEMPT_REASON.ReviewNone ? exemption.reason : undefined;
+  }
+
+  /**
    * Evaluates the review gate for a boundary. Returns null when gating is off (no config,
    * or review_enabled false) — caller keeps its existing status, byte-identical to pre-241
-   * behavior. Returns a GateEvaluation when the boundary's review is absent (pending-review)
-   * or present-but-not-clearing (review-failed).
+   * behavior. Otherwise returns the GateResult; only isBlockingGate() results
+   * (pending-review / review-failed) change the caller's status.
    */
   private async evaluateGate(
     projectPath: string,
     index: number,
     boundary: Boundary,
-  ): Promise<GateEvaluation | null> {
+  ): Promise<GateResult | null> {
     if (!this.config) return null;
     return evaluateReviewGate(projectPath, index, boundary, this.config);
   }

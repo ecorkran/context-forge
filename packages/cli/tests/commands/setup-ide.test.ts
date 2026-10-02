@@ -90,6 +90,7 @@ vi.mock('node:readline', () => ({
   createInterface: vi.fn().mockImplementation(() => ({
     question: mockQuestion,
     close: mockRlClose,
+    on: vi.fn(),
   })),
 }));
 

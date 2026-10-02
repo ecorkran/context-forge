@@ -18,3 +18,6 @@ export {
   runAttributed,
   type AttributedView,
 } from './mergeCheckResults.js';
+
+// Type-only: reviewGate.ts reads files, so its runtime values stay out of the browser-safe barrel
+export type { ExemptReason } from './reviewGate.js';

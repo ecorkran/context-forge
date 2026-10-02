@@ -15,8 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New `workflow.review_weak_pass_as` config key** (`pass` | `concerns` | `fail`, default `pass`). A PASS whose review reports weak provenance — squadron's `verdictSource: derived` (the verdict was rebuilt from finding severities) or `recoveryTurn: true` (the verdict came only on a second prompt) — can now be evaluated as CONCERNS or FAIL instead of trusted as PASS. Each part of a split review is judged separately. The default changes nothing (#89, #105)
+- **`cf check` now reports weak-provenance clears** as an `info` finding naming the review and why its PASS is weak, while the slice is still open. You see a rebuilt or recovered PASS even at the default config (#89, #105)
+- **Review exemptions are now visible.** A slice that declares `review: none` gets an `info` finding in `cf check` while its plan entry is open, and `cf next` / MCP `workflow_next` append `(review gate skipped: slice declares review: none)` to the rationale at every stage. Exemptions no longer hide behind a normal-looking recommendation (#83)
+
+### Changed
+
+- **`cf check --set-review-none` now asks before writing.** It prints the slice design path and what the waiver skips, then prompts `Proceed? [y/N]`. Declining writes nothing. **Scripts and agents must now pass `--yes`**: without it, a non-interactive shell or `--json` run exits with an error instead of writing (#83)
+
 ### Fixed
 
+- `cf check` no longer reports an auto-numbered unindexed slice-plan entry as a plain duplicate of a real `(NNN)` slice. The finding now names the collision and says to give the unindexed entry an explicit index, and per-slice checks resolve the index to the real slice instead of the placeholder (#67)
+- `cf check --fix` and `cf setup-ide` confirmation prompts no longer hang when stdin closes without an answer (Ctrl-D or an empty pipe); EOF now counts as "no"
 - Review gates now evaluate every split review (`*.part-N.md`) in numeric part order and block if any part fails to clear, instead of reading only the last one. A failing part-1 no longer hides behind a passing part-2, and part-10 no longer sorts before part-2 (#106)
 
 ## [0.18.1] - 20260929

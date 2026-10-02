@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
+import { askConfirmation } from '../utils/confirm.js';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
@@ -57,17 +57,6 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
     label: 'agents',
   },
 };
-
-/** Prompt user for y/N confirmation via stdin. Returns true if confirmed. */
-function askConfirmation(prompt: string): Promise<boolean> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === 'y');
-    });
-  });
-}
 
 /** Legacy managed marker. Matched as a trimmed exact line. */
 export const MANAGED_MARKER = '[//]: # (context-forge:managed)';

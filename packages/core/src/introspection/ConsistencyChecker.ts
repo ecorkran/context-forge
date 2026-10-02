@@ -30,6 +30,13 @@ import {
   positionToReviewType,
   type Boundary,
   type GateEvaluation,
+  type GateResult,
+  type ExemptReason,
+  type WeakPart,
+  isBlockingGate,
+  EXEMPT_NOTE,
+  EXEMPT_REASON,
+  WEAK_PASS_KEY,
   type ResolvedGate,
 } from './reviewGate.js';
 
@@ -258,7 +265,13 @@ export class ConsistencyChecker {
     const taskResult = await this.safeParseTaskFile(docs?.taskFile, projectPath);
     const sliceFrontmatter = await this.safeParseFrontmatter(docs?.sliceDesign, projectPath);
 
-    const planEntry = slicePlanResult?.entries.find((e) => e.index === sliceIndex) ?? null;
+    // Prefer an explicit (NNN) entry over an auto-numbered one sharing the index (#67),
+    // so a real slice never resolves to a placeholder.
+    const indexMatches = slicePlanResult?.entries.filter((e) => e.index === sliceIndex) ?? [];
+    const planEntry =
+      indexMatches.find((e) => e.indexSource === 'explicit') ??
+      indexMatches.find((e) => e.indexSource === 'fallback') ??
+      null;
     const sliceDesignRel = docs?.sliceDesign ?? null;
 
     const findings: ConsistencyFinding[] = [];
@@ -583,7 +596,7 @@ export class ConsistencyChecker {
     boundary: Boundary,
     resolvedGate: ResolvedGate,
     fallbackLocation: string,
-  ): Promise<{ gate: GateEvaluation | null; errorFinding: ConsistencyFinding | null }> {
+  ): Promise<{ gate: GateResult | null; errorFinding: ConsistencyFinding | null }> {
     try {
       const gate = await evaluateReviewGate(
         projectPath, index, boundary, this.config!, resolvedGate,
@@ -652,10 +665,16 @@ export class ConsistencyChecker {
     if (slicePlanPath === null) return [];
 
     const findings: ConsistencyFinding[] = [];
+    // Exemptions and weak clears are reported only while the slice is in flight (TD-5).
+    const inFlight = planEntry !== null && !planEntry.isChecked;
+    let exemptReason: ExemptReason | null = null;
 
     const boundaries: { boundary: Boundary; guard: boolean }[] = [
       { boundary: 'preTasks', guard: docs?.sliceDesign !== null && docs?.sliceDesign !== undefined },
       { boundary: 'preImplementation', guard: !!docs?.taskFile && docs.taskFile.length > 0 },
+      // Note: preAdvance runs only for a checked entry, so it never reaches the inFlight
+      // weak-clear branch below. Code-review weak clears are deliberately not reported
+      // (TD-5: incomplete plan entries only). Loosening this guard changes that.
       {
         boundary: 'preAdvance',
         guard: !!planEntry?.isChecked && docs?.sliceDesign !== null && docs?.sliceDesign !== undefined,
@@ -672,14 +691,46 @@ export class ConsistencyChecker {
         findings.push(errorFinding);
         continue;
       }
-      if (result === null) continue;
+      if (result?.status === 'exempt' && result.reason === EXEMPT_REASON.ReviewNone) {
+        exemptReason = result.reason;
+      } else if (result?.status === 'clears' && inFlight) {
+        findings.push(...this.buildWeakClearFindings(result.weakParts, projectPath));
+      }
+      if (!isBlockingGate(result)) continue;
 
       findings.push(
         this.buildGateFinding(result, boundary, 'slice', sliceIndex, projectPath, slicePlanPath),
       );
     }
 
+    // One finding per exempt slice, not per boundary: exemption is a property of the slice.
+    if (exemptReason !== null && inFlight && docs?.sliceDesign) {
+      findings.push({
+        rule: 'review-gate',
+        severity: 'info',
+        location: join(projectPath, docs.sliceDesign),
+        description: `Slice ${sliceIndex} is review-exempt (${EXEMPT_NOTE[exemptReason]}) — slice, tasks, and code review gates are skipped. Confirm this is intended.`,
+        suggestedFix: 'If reviews are owed, remove review: none from the slice design frontmatter',
+        fixable: false,
+      });
+    }
+
     return findings;
+  }
+
+  /**
+   * One info finding per review part that cleared on weak provenance (TD-5). Uses the
+   * evidence the gate already parsed, so no second read of the review.
+   */
+  private buildWeakClearFindings(weakParts: WeakPart[], projectPath: string): ConsistencyFinding[] {
+    return weakParts.map((part) => ({
+      rule: 'review-gate',
+      severity: 'info',
+      location: join(projectPath, part.path),
+      description: `Review ${part.path} cleared on weak provenance (${part.evidence}). Set ${WEAK_PASS_KEY} to block such verdicts.`,
+      suggestedFix: `Rerun the review for a stated verdict, or set ${WEAK_PASS_KEY} to concerns or fail`,
+      fixable: false,
+    }));
   }
 
   // --- Aggregate Rules (checkAll only) ---
@@ -690,25 +741,31 @@ export class ConsistencyChecker {
     slicePlanPath: string,
   ): ConsistencyFinding[] {
     const findings: ConsistencyFinding[] = [];
-    const indexMap = new Map<number, string[]>();
+    const indexMap = new Map<number, SlicePlanEntry[]>();
 
     for (const entry of entries) {
-      const names = indexMap.get(entry.index) ?? [];
-      names.push(entry.name);
-      indexMap.set(entry.index, names);
+      const group = indexMap.get(entry.index) ?? [];
+      group.push(entry);
+      indexMap.set(entry.index, group);
     }
 
-    for (const [index, names] of indexMap) {
-      if (names.length > 1) {
-        findings.push({
-          rule: 'duplicate-index',
-          severity: 'error',
-          location: slicePlanPath,
-          description: `Duplicate slice index ${index}: '${names.join("' and '")}'`,
-          suggestedFix: 'Renumber one of the entries',
-          fixable: false,
-        });
-      }
+    for (const [index, group] of indexMap) {
+      if (group.length < 2) continue;
+      const explicit = group.filter((e) => e.indexSource === 'explicit').map((e) => e.name);
+      const fallback = group.filter((e) => e.indexSource === 'fallback').map((e) => e.name);
+      // Mixed sources (#67): an unindexed entry was auto-numbered into a real index.
+      // All-fallback can't occur within one file (the fallback counter is monotonic).
+      const mixed = explicit.length > 0 && fallback.length > 0;
+      findings.push({
+        rule: 'duplicate-index',
+        severity: 'error',
+        location: slicePlanPath,
+        description: mixed
+          ? `Slice index ${index}: '(${index}) ${explicit.join("' and '")}' collides with auto-numbered unindexed entry '${fallback.join("' and '")}'`
+          : `Duplicate slice index ${index}: '${group.map((e) => e.name).join("' and '")}'`,
+        suggestedFix: mixed ? 'Give the unindexed entry an explicit (NNN) index' : 'Renumber one of the entries',
+        fixable: false,
+      });
     }
 
     return findings;
@@ -806,7 +863,7 @@ export class ConsistencyChecker {
         findings.push(errorFinding);
         continue;
       }
-      if (result === null) continue;
+      if (!isBlockingGate(result)) continue;
 
       findings.push(
         this.buildGateFinding(result, 'preSlicePlan', 'architecture', archIndex, projectPath, archPath),
