@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`cf setup-ide` now removes files the guide no longer installs from registered worktrees.** Worktrees used to keep every rule, agent, or skill the guide dropped, forever. A worktree file is deleted only when its bytes still match what the guide wrote; a file you edited is kept and named in a warning. The guide's install manifest (`.context-forge/<target>.manifest`) is now copied into each worktree so the next run has a baseline. For copilot, stale generated `.github/prompts/*.prompt.md` files are swept from worktrees too. With a guide older than v0.19.0, worktrees are copied but not pruned, and one notice says so (#103)
+- **Answering "no" at the `cf setup-ide` overwrite prompt no longer touches worktrees.** Propagation and command install used to run anyway
+
 ## [0.18.3] - 20261003
 
 ### Fixed
