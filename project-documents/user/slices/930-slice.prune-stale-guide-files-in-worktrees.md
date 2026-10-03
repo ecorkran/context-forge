@@ -229,15 +229,28 @@ This settles plan item (e). Generated `.github/prompts/*.prompt.md` files predat
 
 ### Verification Walkthrough
 
-Run from the project root with the local build (`node packages/cli/dist/index.js`, shown as `cf` below). These steps use a throwaway worktree.
+Run from the project root with the local build. Verified 20261003 on branch `930-slice.prune-stale-guide-files-in-worktrees` (69b961e); every step below behaved as written. Define the command first:
+
+```bash
+cf() { node "$PWD/packages/cli/dist/index.js" "$@"; }
+pnpm -r build
+```
+
+These steps register a throwaway worktree in the real project store, run the guide script at the root, and install commands to the machine-level directory. Back up the store first (`cp ~/.config/context-forge/projects.json /tmp/projects.json.pre930`). Check `cf worktree list --json` for range overlaps before step 1.
 
 1. **Create a worktree and propagate once.**
    ```bash
    git worktree add ../cf-wt-930 -b wt-930-test
-   cf worktree init --name wt-930 --path "$(cd ../cf-wt-930 && pwd)" --range 100-199
+   cf worktree init --name wt-930 --path "$(cd ../cf-wt-930 && pwd)" --range 100-199 --override
    cf setup-ide claude
+   cmp .context-forge/claude.manifest ../cf-wt-930/.context-forge/claude.manifest
    ```
-   Expect `→ propagating to worktree: ...`, and `../cf-wt-930/.context-forge/claude.manifest` identical to the root's (`cmp` exits 0).
+   `--override` matters: without it, registering 100-199 chops the range of an existing worktree that overlaps it (here `default`, 100-999), and `cf worktree rm` does not restore it. Expect:
+   ```
+     → propagating to worktree: wt-930 (/…/cf-wt-930)
+     Propagated to 1 worktree.
+   ```
+   `cmp` exits 0.
 
 2. **Simulate a guide drop.** Add an entry for a file the guide will no longer write: copy a real agent file to a new name in both trees, and append its line to both manifests.
    ```bash
@@ -248,22 +261,39 @@ Run from the project root with the local build (`node packages/cli/dist/index.js
    echo "$line" >> ../cf-wt-930/.context-forge/claude.manifest
    cf setup-ide claude
    ```
-   Expect the guide's `Removed .claude/agents/old-agent.md` at the root, then cf's `Removed .claude/agents/old-agent.md (no longer installed by the guide)` under the worktree header. The file is gone from both trees.
-
-3. **Edited file is kept.** Repeat step 2, but append a line to the worktree's copy of `old-agent.md` before running `cf setup-ide claude`. Expect `Kept .claude/agents/old-agent.md: ... edited since` for the worktree, and the file is still there.
-
-4. **User file is untouched.** Create `../cf-wt-930/.claude/rules/my-rule.md` (not in any manifest) and run `cf setup-ide claude`. The file survives.
-
-5. **No worktree manifest (D2).** Delete `../cf-wt-930/.context-forge/`, then repeat step 2 but add the manifest line at the root only. The worktree copy is still removed, and the worktree manifest is re-seeded.
-
-6. **Generated prompt sweep.** Create `../cf-wt-930/.github/prompts/x.prompt.md` containing `<!-- context-forge:generated -->`, plus `y.prompt.md` without it, then run `cf setup-ide copilot`. Expect `Removed superseded prompt file: .github/prompts/x.prompt.md`, and `y.prompt.md` is kept.
-
-7. **Clean up.**
-   ```bash
-   cf worktree rm wt-930
-   git worktree remove ../cf-wt-930 && git branch -D wt-930-test
-   git checkout -- .context-forge .claude
+   Expect the guide's `🧹 Removed .claude/agents/old-agent.md (no longer installed by the guide)` at the root, then under the worktree header:
    ```
+       Removed .claude/agents/old-agent.md (no longer installed by the guide)
+   ```
+   The file is gone from both trees.
+
+3. **Edited file is kept.** Repeat step 2, but run `echo "my local edit" >> ../cf-wt-930/.claude/agents/old-agent.md` before `cf setup-ide claude`. Expect:
+   ```
+       Kept .claude/agents/old-agent.md: no longer installed by the guide, but edited since — remove it by hand if unneeded
+   ```
+   The file is still in the worktree. Delete it by hand before step 4: the worktree manifest no longer lists it, so later runs won't consider it.
+
+4. **User file is untouched.** `echo "# my rule" > ../cf-wt-930/.claude/rules/my-rule.md`, then `cf setup-ide claude`. Only the header and count lines print, and the file survives.
+
+5. **No worktree manifest (D2).** `rm -rf ../cf-wt-930/.context-forge`, then repeat step 2, appending the manifest line at the root only. Expect the same `Removed …` line under the worktree header; `cmp` of the two manifests exits 0 (re-seeded).
+
+6. **Generated prompt sweep.**
+   ```bash
+   mkdir -p ../cf-wt-930/.github/prompts
+   printf '<!-- context-forge:generated -->\n# x\n' > ../cf-wt-930/.github/prompts/x.prompt.md
+   printf '# y, mine\n' > ../cf-wt-930/.github/prompts/y.prompt.md
+   cf setup-ide copilot
+   ```
+   Expect `    Removed superseded prompt file: .github/prompts/x.prompt.md`; `y.prompt.md` is kept.
+
+7. **Clean up.** Run this even if an earlier step failed.
+   ```bash
+   cf worktree rm wt-930 --yes
+   git worktree remove --force ../cf-wt-930 && git branch -D wt-930-test
+   git checkout -- .context-forge .claude AGENTS.md
+   git status --porcelain --untracked-files=all
+   ```
+   `--force` is needed because the worktree holds untracked generated files. The copilot run in step 6 leaves untracked output at the root (`.context-forge/copilot.manifest`, `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`). Remove whatever `git status` lists that was not there before step 1, until it prints nothing. In this repo the guide also regenerates `.claude/rules/electron.md` at the root (deleted by hand in ff80db3, but still in the committed manifest). Remove it too.
 
 Not covered by cf (D2): worktrees created before the root ever had a manifest may still contain `.claude/agents/code-review-agent.md` or `.claude/skills/analyze/SKILL.md`. Delete those by hand.
 
