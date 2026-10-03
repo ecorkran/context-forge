@@ -7,6 +7,7 @@ import {
   installCommands,
   uninstallCommands,
   installCommandsAction,
+  uninstallCommandsAction,
   resolveCommandTarget,
   resolveInstallDir,
   sweepLegacyGlobalDir,
@@ -404,6 +405,74 @@ describe('installCommandsAction', () => {
       expect(() => installCommandsAction('codex')).toThrow();
       for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
     });
+  });
+});
+
+describe('uninstallCommandsAction (stubbed home)', () => {
+  let home: string;
+  let installDir: string;
+  let legacyDir: string;
+  let bundled: string[];
+
+  beforeEach(() => {
+    home = useFakeHome();
+    installDir = path.join(home, '.agents', 'skills');
+    legacyDir = path.join(home, '.codex', 'skills');
+    bundled = getExpectedSkills();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    restoreHome();
+    vi.restoreAllMocks();
+  });
+
+  function logLines(): string[] {
+    return vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+  }
+
+  it('removes from both dirs and prints a separate line for each', () => {
+    installCommands('agents', installDir);
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+
+    uninstallCommandsAction('codex');
+
+    for (const skill of bundled) {
+      expect(fs.existsSync(path.join(installDir, skill))).toBe(false);
+      expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+    }
+    const lines = logLines();
+    expect(lines.some((l) => l.includes(`from ${installDir}`))).toBe(true);
+    expect(lines.some((l) => l.includes(`from legacy location ${legacyDir}`))).toBe(true);
+  });
+
+  it('prints only the legacy line when skills exist only in the legacy dir', () => {
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+
+    uninstallCommandsAction('codex');
+
+    const output = logLines().join('\n');
+    expect(output).toContain('legacy location');
+    expect(output).not.toContain(`from ${installDir}`);
+    expect(output).not.toContain('No skills found');
+  });
+
+  it('prints only "No skills found to remove." when both dirs are empty', () => {
+    uninstallCommandsAction('codex');
+
+    expect(logLines()).toHaveLength(1);
+    expect(logLines()[0]).toContain('No skills found to remove.');
+  });
+
+  it('--local leaves the legacy dir untouched', () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-uninstall-local-'));
+    vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+
+    uninstallCommandsAction('codex', { local: true });
+
+    for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+    fs.rmSync(projectDir, { recursive: true, force: true });
   });
 });
 

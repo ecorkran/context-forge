@@ -296,6 +296,27 @@ export function installCommandsAction(ide: string = 'claude', opts: InstallScope
   installCommandsForTarget(resolveCommandTarget(ide), opts);
 }
 
+/**
+ * Uninstall and report, resolving the target from user input. In the default
+ * scope, also sweeps the legacy machine-level dir. Errors propagate.
+ */
+export function uninstallCommandsAction(ide: string = 'claude', opts: InstallScopeOptions = {}): void {
+  const target = resolveCommandTarget(ide);
+  const descriptor = COMMAND_TARGETS[target];
+  const dir = resolveInstallDir(target, opts);
+  const removed = uninstallCommands(target, dir);
+  if (removed.length > 0) {
+    console.log(success(`Removed ${removed.length} ${descriptor.noun} from ${dir}`));
+    for (const entry of removed) {
+      console.log(`  ${dim(descriptor.invocationHint(entry))}`);
+    }
+  }
+  const legacyRemoved = isDefaultScope(opts) ? sweepAndReportLegacy(target, dir) : [];
+  if (removed.length === 0 && legacyRemoved.length === 0) {
+    console.log(dim(`No ${descriptor.noun} found to remove.`));
+  }
+}
+
 interface InstallCliOptions {
   ide: string;
   local?: boolean;
@@ -328,18 +349,7 @@ export function registerUninstallCommandsCommand(program: Command): void {
     .option('--target <dir>', 'Explicit target directory (overrides --ide/--local resolution)')
     .action((opts: InstallCliOptions) => {
       try {
-        const target = resolveCommandTarget(opts.ide);
-        const descriptor = COMMAND_TARGETS[target];
-        const dir = resolveInstallDir(target, { local: opts.local, targetDir: opts.target });
-        const removed = uninstallCommands(target, dir);
-        if (removed.length === 0) {
-          console.log(dim(`No ${descriptor.noun} found to remove.`));
-        } else {
-          console.log(success(`Removed ${removed.length} ${descriptor.noun} from ${dir}`));
-          for (const entry of removed) {
-            console.log(`  ${dim(descriptor.invocationHint(entry))}`);
-          }
-        }
+        uninstallCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
