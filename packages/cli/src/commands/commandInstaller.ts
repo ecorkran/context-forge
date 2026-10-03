@@ -261,10 +261,34 @@ function reportInstall(target: CommandTarget, dir: string, result: InstallResult
   }
 }
 
-/** Install and report for an already-resolved command target. Errors propagate. */
+/** True when neither --local nor an explicit target dir is set (machine-level scope). */
+function isDefaultScope(opts: InstallScopeOptions): boolean {
+  return !opts.local && !opts.targetDir;
+}
+
+/** Sweep the legacy dir (default scope only) and print one line if anything was removed. */
+function sweepAndReportLegacy(target: CommandTarget, installDir: string): string[] {
+  const removed = sweepLegacyGlobalDir(target, installDir);
+  const descriptor = COMMAND_TARGETS[target];
+  if (removed.length > 0 && descriptor.legacyGlobalDir) {
+    console.log(
+      dim(
+        `Removed ${removed.length} ${descriptor.noun} from legacy location ${descriptor.legacyGlobalDir()}: ` +
+          removed.map((e) => descriptor.invocationHint(e)).join(', '),
+      ),
+    );
+  }
+  return removed;
+}
+
+/**
+ * Install and report for an already-resolved command target. In the default
+ * scope, then sweeps the legacy machine-level dir. Errors propagate.
+ */
 export function installCommandsForTarget(target: CommandTarget, opts: InstallScopeOptions = {}): void {
   const dir = resolveInstallDir(target, opts);
   reportInstall(target, dir, installCommands(target, dir));
+  if (isDefaultScope(opts)) sweepAndReportLegacy(target, dir);
 }
 
 /** Install and report, resolving the target from user input. Errors propagate. */

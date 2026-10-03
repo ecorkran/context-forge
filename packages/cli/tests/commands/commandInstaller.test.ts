@@ -355,6 +355,56 @@ describe('installCommandsAction', () => {
       /No command delivery/,
     );
   });
+
+  describe('legacy Codex sweep (stubbed home)', () => {
+    let home: string;
+    let legacyDir: string;
+    let bundled: string[];
+
+    beforeEach(() => {
+      home = useFakeHome();
+      legacyDir = path.join(home, '.codex', 'skills');
+      bundled = getExpectedSkills();
+      for (const skill of bundled) writeSkill(legacyDir, skill);
+    });
+
+    afterEach(restoreHome);
+
+    it('default scope installs to ~/.agents/skills and sweeps the legacy dir', () => {
+      installCommandsAction('codex');
+
+      expect(fs.existsSync(path.join(home, '.agents', 'skills', 'cf-status', 'SKILL.md'))).toBe(true);
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+      expect(logOutput()).toContain(`from legacy location ${legacyDir}`);
+      expect(logOutput()).toContain('$cf-status');
+    });
+
+    it('prints no legacy line when the legacy dir is already clean', () => {
+      installCommandsAction('codex');
+      vi.mocked(console.log).mockClear();
+
+      installCommandsAction('codex');
+
+      expect(logOutput()).not.toContain('legacy location');
+    });
+
+    it('--local and --target leave the legacy dir untouched', () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tempDir);
+      installCommandsAction('codex', { local: true });
+      installCommandsAction('codex', { targetDir: path.join(tempDir, 'explicit') });
+
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+      expect(logOutput()).not.toContain('legacy location');
+    });
+
+    it('a failed install throws and leaves the legacy skills in place', () => {
+      // A file where the .agents directory should be makes mkdir fail.
+      fs.writeFileSync(path.join(home, '.agents'), 'not a dir');
+
+      expect(() => installCommandsAction('codex')).toThrow();
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+    });
+  });
 });
 
 describe('COMMAND_TARGETS descriptor', () => {
