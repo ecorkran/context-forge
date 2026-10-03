@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
 import { UserError } from '../utils/errors.js';
-import { normalizeTarget, TARGETS, type TargetDescriptor } from './ideTargets.js';
+import { GENERATED_MARKER, normalizeTarget, TARGETS, type TargetDescriptor } from './ideTargets.js';
 import { cksum, manifestPath, readManifest, MANIFEST_DIR, type ManifestEntry } from './installManifest.js';
 
 /** Printed once per run when the root has no manifest after the guide script (D4). */
@@ -125,6 +125,33 @@ function pruneWorktree(
   }
 }
 
+const PROMPT_FILE_SUFFIX = '.prompt.md';
+
+/**
+ * Deletes `*.prompt.md` files carrying GENERATED_MARKER from the given
+ * worktree-relative dirs, mirroring the guide's marker check at the root, and
+ * removes a dir this leaves empty. Unmarked files are user-authored and kept.
+ * Returns the removed worktree-relative paths.
+ */
+export function sweepGeneratedPrompts(worktreePath: string, dirs: readonly string[]): string[] {
+  const removed: string[] = [];
+  for (const relDir of dirs) {
+    const absDir = path.join(worktreePath, ...relDir.split('/'));
+    if (!fs.existsSync(absDir)) continue;
+
+    const swept = fs
+      .readdirSync(absDir, { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith(PROMPT_FILE_SUFFIX))
+      .filter((d) => fs.readFileSync(path.join(absDir, d.name), 'utf-8').includes(GENERATED_MARKER));
+    for (const d of swept) {
+      fs.unlinkSync(path.join(absDir, d.name));
+      removed.push(`${relDir}/${d.name}`);
+    }
+    if (swept.length > 0 && fs.readdirSync(absDir).length === 0) fs.rmdirSync(absDir);
+  }
+  return removed;
+}
+
 /** Byte copy of the root manifest via a temp file + rename, so it is never left truncated. */
 function copyManifest(rootPath: string, wtPath: string, target: string): void {
   const dstPath = manifestPath(wtPath, target);
@@ -198,6 +225,10 @@ export function propagateToWorktrees(
     console.log(`  → propagating to worktree: ${wt.name ?? wt.id} (${wtPath})`);
     copyRootOutput(rootPath, wtPath, descriptor);
     if (newRoot !== null) pruneWorktree(wtPath, resolvedTarget, rootBaseline, newRoot);
+    // Runs on the D4 path too: generated prompt files are never in any manifest.
+    for (const rel of sweepGeneratedPrompts(wtPath, descriptor.generatedPromptDirs ?? [])) {
+      console.log(`    Removed superseded prompt file: ${rel}`);
+    }
     // Last per worktree: an earlier failure leaves the old manifest in place.
     if (newRoot !== null) copyManifest(rootPath, wtPath, resolvedTarget);
   }

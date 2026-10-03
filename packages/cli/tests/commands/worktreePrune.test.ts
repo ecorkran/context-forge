@@ -4,7 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
 import { cksum, manifestPath, type ManifestEntry } from '../../src/commands/installManifest.js';
-import { propagateToWorktrees, pruneStaleFiles } from '../../src/commands/worktreePropagation.js';
+import { propagateToWorktrees, pruneStaleFiles, sweepGeneratedPrompts } from '../../src/commands/worktreePropagation.js';
+import { GENERATED_MARKER } from '../../src/commands/ideTargets.js';
 
 // Real temp dirs throughout: this file must not share node:fs mocks with
 // worktreePropagation.test.ts (vi.mock is file-scoped).
@@ -282,5 +283,91 @@ describe('propagateToWorktrees — end to end', () => {
     expect(logLines().some((l) => l.includes(PRE_MANIFEST_NOTE))).toBe(false);
     expect(fs.readFileSync(manifestPath(wt, 'claude'), 'utf-8')).toBe('');
     expectManifestCarried(root, wt, 'claude');
+  });
+});
+
+// ─── generated prompt sweep ─────────────────────────────────────────────────
+
+const PROMPTS = '.github/prompts';
+const MARKED = `${GENERATED_MARKER}\n# generated prompt\n`;
+
+describe('sweepGeneratedPrompts', () => {
+  let wt: string;
+
+  beforeEach(() => {
+    wt = mkdir('wt');
+  });
+
+  it('removes marked files and keeps unmarked ones', () => {
+    writeFile(wt, `${PROMPTS}/x.prompt.md`, MARKED);
+    writeFile(wt, `${PROMPTS}/y.prompt.md`, '# my own prompt\n');
+
+    expect(sweepGeneratedPrompts(wt, [PROMPTS])).toEqual([`${PROMPTS}/x.prompt.md`]);
+    expect(exists(wt, `${PROMPTS}/x.prompt.md`)).toBe(false);
+    expect(exists(wt, `${PROMPTS}/y.prompt.md`)).toBe(true);
+  });
+
+  it('removes the directory when only marked files were present', () => {
+    writeFile(wt, `${PROMPTS}/x.prompt.md`, MARKED);
+
+    sweepGeneratedPrompts(wt, [PROMPTS]);
+
+    expect(exists(wt, PROMPTS)).toBe(false);
+    expect(exists(wt, '.github')).toBe(true);
+  });
+
+  it('missing directory → []', () => {
+    expect(sweepGeneratedPrompts(wt, [PROMPTS])).toEqual([]);
+  });
+});
+
+describe('propagateToWorktrees — generated prompt sweep', () => {
+  let root: string;
+  let wt: string;
+  const removedLine = `    Removed superseded prompt file: ${PROMPTS}/x.prompt.md`;
+
+  beforeEach(() => {
+    root = mkdir('root');
+    wt = mkdir('wt');
+    writeFile(wt, `${PROMPTS}/x.prompt.md`, MARKED);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('copilot run with a root manifest removes the marked file and reports it', () => {
+    writeManifest(root, 'copilot', [entry('.github/instructions/a.instructions.md', 'a')]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'copilot', null);
+
+    expect(exists(wt, `${PROMPTS}/x.prompt.md`)).toBe(false);
+    expect(logLines()).toContain(removedLine);
+  });
+
+  it('copilot run with no root manifest (D4) still sweeps, and the notice prints once', () => {
+    propagateToWorktrees(projectWith(root, [wt]), 'copilot', null);
+
+    expect(exists(wt, `${PROMPTS}/x.prompt.md`)).toBe(false);
+    expect(logLines()).toContain(removedLine);
+    expect(logLines().filter((l) => l.includes(PRE_MANIFEST_NOTE))).toHaveLength(1);
+  });
+
+  it('copilot run with an empty root manifest still sweeps', () => {
+    writeManifest(root, 'copilot', []);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'copilot', null);
+
+    expect(exists(wt, `${PROMPTS}/x.prompt.md`)).toBe(false);
+  });
+
+  it('a claude run never touches .github/prompts', () => {
+    writeManifest(root, 'claude', []);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(exists(wt, `${PROMPTS}/x.prompt.md`)).toBe(true);
+    expect(logLines()).not.toContain(removedLine);
   });
 });

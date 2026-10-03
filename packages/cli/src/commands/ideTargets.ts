@@ -51,6 +51,11 @@ export interface TargetDescriptor {
   propagateDirs: string[];
   /** Label used in prompts and completion messages. */
   label: string;
+  /**
+   * Directories whose `*.prompt.md` files carrying GENERATED_MARKER are swept from
+   * worktrees. Those files predate the install manifest, so it never lists them.
+   */
+  generatedPromptDirs?: string[];
 }
 
 /**
@@ -68,6 +73,7 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
     markerFiles: ['.github/copilot-instructions.md', 'AGENTS.md'],
     propagateDirs: ['.github/instructions', '.github/prompts', AGENT_SKILLS_DIR],
     label: 'GitHub Copilot',
+    generatedPromptDirs: ['.github/prompts'],
   },
   cursor: {
     markerFiles: ['AGENTS.md'],
@@ -100,3 +106,9 @@ export const MANAGED_MARKERS = [
   { marker: MANAGED_MARKER, match: 'exact-line' },
   { marker: MANAGED_BEGIN_MARKER, match: 'contains' },
 ] as const;
+
+/**
+ * Tags a file the guide generated wholesale (e.g. legacy `.github/prompts/*.prompt.md`).
+ * Written only by the guide; cf reads it to sweep superseded prompt files.
+ */
+export const GENERATED_MARKER = '<!-- context-forge:generated -->';
