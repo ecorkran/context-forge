@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GUIDE_METHODS,
   GUIDE_METHOD_DEPRECATED_ALIASES,
+  guideExcludeNotices,
   isDeprecatedGuideMethodAlias,
   normalizeGuideMethod,
 } from '../../src/guides/types.js';
@@ -85,5 +86,32 @@ describe('GUIDE_METHOD_DEPRECATED_ALIASES', () => {
     for (const method of GUIDE_METHODS) {
       expect(GUIDE_METHOD_DEPRECATED_ALIASES).not.toHaveProperty(method);
     }
+  });
+});
+
+describe('guideExcludeNotices', () => {
+  it('names each unmatched pattern and the version', () => {
+    expect(
+      guideExcludeNotices({ method: 'tarball', unmatchedExclude: ['tool-guide', 'x'], newVersion: 'v0.19.3' })
+    ).toEqual([
+      'guide.exclude entry "tool-guide" matched nothing in v0.19.3',
+      'guide.exclude entry "x" matched nothing in v0.19.3',
+    ]);
+  });
+
+  it('uses the install version when there is no newVersion', () => {
+    expect(guideExcludeNotices({ method: 'tarball', unmatchedExclude: ['x'], version: 'v0.19.3' })).toEqual([
+      'guide.exclude entry "x" matched nothing in v0.19.3',
+    ]);
+  });
+
+  it('says the key was ignored for a non-tarball install', () => {
+    expect(guideExcludeNotices({ method: 'submodule', excludeIgnored: true })).toEqual([
+      'guide.exclude is set but ignored for submodule installs',
+    ]);
+  });
+
+  it('returns nothing when there is nothing to report', () => {
+    expect(guideExcludeNotices({ method: 'tarball', exclude: ['tool-guides'], version: 'v0.19.3' })).toEqual([]);
   });
 });

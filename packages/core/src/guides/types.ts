@@ -56,6 +56,29 @@ export function guideMethodDeprecationMessage(alias: string, method: GuideMethod
 }
 
 /**
+ * Warnings about guide.exclude for an install or update result: one per
+ * pattern that matched nothing, and one when a non-tarball install ignored the
+ * key. Shared by the CLI (stderr) and MCP (notices) so the wording lives here.
+ */
+export function guideExcludeNotices(result: {
+  method: GuideMethod;
+  exclude?: string[];
+  unmatchedExclude?: string[];
+  excludeIgnored?: boolean;
+  newVersion?: string | null;
+  version?: string | null;
+}): string[] {
+  const version = result.newVersion ?? result.version ?? 'the guide';
+  const notices = (result.unmatchedExclude ?? []).map(
+    (pattern) => `guide.exclude entry "${pattern}" matched nothing in ${version}`
+  );
+  if (result.excludeIgnored) {
+    notices.push(`guide.exclude is set but ignored for ${result.method} installs`);
+  }
+  return notices;
+}
+
+/**
  * The installation strategies offered to users, with the one-line trade-off
  * shown for each. `cf init --help`, `cf guides install --help` and the MCP
  * `guide_install` description all render from this single descriptor (D8),

@@ -19,6 +19,7 @@ export {
   DEFAULT_GUIDE_METHOD,
   describeGuideStrategy,
   guideMethodDeprecationMessage,
+  guideExcludeNotices,
 } from './guides/types.js';
 
 // Project schema (field metadata, aliases, phase maps)
