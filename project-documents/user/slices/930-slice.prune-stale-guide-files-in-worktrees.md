@@ -7,7 +7,7 @@ dependencies: [929]
 interfaces: []
 dateCreated: 20261003
 dateUpdated: 20261003
-status: not_started
+status: complete
 ---
 
 # Slice Design: Prune Stale Guide Files in Worktrees

@@ -7,7 +7,7 @@ dependencies: [929]
 projectState: main is clean at 6fa3d73; published version is 0.18.3. propagateToWorktrees in setup-ide.ts (300 lines) only adds and overwrites files in worktrees, so files the guide stops shipping linger there. The guide (vendored 0.19.3) writes .context-forge/<target>.manifest and prunes at the root. The 930 design passed two reviews (CONCERNS), all findings resolved; D2 confirmed by the PM.
 dateCreated: 20261003
 dateUpdated: 20261003
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -187,13 +187,13 @@ The global `cf` is the published npm package and won't show your changes.
 
 ### Part 4 — Prune
 
-- [ ] **Task 6: Implement `pruneStaleFiles`** (effort: 3)
-  - [ ] In `worktreePropagation.ts`, export
+- [x] **Task 6: Implement `pruneStaleFiles`** (effort: 3)
+  - [x] In `worktreePropagation.ts`, export
         `pruneStaleFiles(worktreePath, baselineEntries, newRootEntries)`
         returning `{ removed: string[], kept: string[] }`. No printing.
-  - [ ] Stale paths = baseline paths not in the new root's paths. Skip a
+  - [x] Stale paths = baseline paths not in the new root's paths. Skip a
         stale path that doesn't exist in the worktree.
-  - [ ] For each candidate, in this order (design, Patterns and
+  - [x] For each candidate, in this order (design, Patterns and
         Conventions):
     1. Containment: skip (and add to `kept`) a path that is absolute,
        has a `..` segment, or whose parent directory's realpath is not
@@ -203,19 +203,19 @@ The global `cf` is the published npm package and won't show your changes.
        baseline entry for that path, delete it immediately, then remove
        empty parent directories while the relative directory has at least
        three segments. Otherwise add to `kept`.
-  - [ ] `kept` carries enough to print the right warning per reason
+  - [x] `kept` carries enough to print the right warning per reason
         (containment, non-regular, edited). Keep the shape simple, e.g. a
         reason field; the edited-file message is the design's `Kept ...`
         line.
-  - [ ] No try/catch. Filesystem errors, including `EACCES`, propagate.
-  - [ ] Success criteria: build passes; the function is about 50 lines or
+  - [x] No try/catch. Filesystem errors, including `EACCES`, propagate.
+  - [x] Success criteria: build passes; the function is about 50 lines or
         less (split a helper out if needed).
 
-- [ ] **Task 6a: `pruneStaleFiles` tests** (effort: 3)
-  - [ ] Create `packages/cli/tests/commands/worktreePrune.test.ts` using
+- [x] **Task 6a: `pruneStaleFiles` tests** (effort: 3)
+  - [x] Create `packages/cli/tests/commands/worktreePrune.test.ts` using
         real temp dirs; remove them in `afterEach`. Build manifest entries
         from the seeded files with `cksum` so the fixtures are exact.
-  - [ ] Cases:
+  - [x] Cases:
     1. Dropped, unedited file → removed.
     2. Dropped, edited file → kept with reason "edited", and still on
        disk.
@@ -232,33 +232,33 @@ The global `cf` is the published npm package and won't show your changes.
        directory → kept. Both with reason "non-regular".
     9. Empty dirs: removing `.claude/skills/old/SKILL.md` removes
        `.claude/skills/old` but not `.claude/skills`.
-  - [ ] Success criteria: the new tests pass, and all cli tests pass.
-  - [ ] Commit: `feat: prune stale guide files in worktrees by checksum`
+  - [x] Success criteria: the new tests pass, and all cli tests pass.
+  - [x] Commit: `feat: prune stale guide files in worktrees by checksum`
 
 ### Part 5 — Wiring
 
-- [ ] **Task 7: Propagate only when the guide script ran** (effort: 1)
-  - [ ] `setupIdeAction` returns `Promise<boolean>`: `false` on the
+- [x] **Task 7: Propagate only when the guide script ran** (effort: 1)
+  - [x] `setupIdeAction` returns `Promise<boolean>`: `false` on the
         declined-prompt path, `true` after the script runs. A non-zero
         script exit still throws its `UserError`.
-  - [ ] In the command action, skip propagation and command install when it
+  - [x] In the command action, skip propagation and command install when it
         returns `false`. `init.ts` ignores the return value; leave it alone.
-  - [ ] Success criteria: build passes.
+  - [x] Success criteria: build passes.
 
-- [ ] **Task 7a: Tests for skipped propagation** (effort: 1)
-  - [ ] In `worktreePropagation.test.ts` (it already has the command-action
+- [x] **Task 7a: Tests for skipped propagation** (effort: 1)
+  - [x] In `worktreePropagation.test.ts` (it already has the command-action
         mocks), add: user answers `n` at the overwrite prompt → no
         `cpSync`/`copyFileSync` into any worktree and no
         `→ propagating to worktree:` line; guide script exits non-zero →
         same, and the error is reported.
-  - [ ] Success criteria: the tests pass, and all cli tests pass.
-  - [ ] Commit: `fix: skip worktree propagation when setup-ide is declined`
+  - [x] Success criteria: the tests pass, and all cli tests pass.
+  - [x] Commit: `fix: skip worktree propagation when setup-ide is declined`
 
-- [ ] **Task 8: Root snapshot and per-worktree structure** (effort: 2)
-  - [ ] Command action: read `rootBaseline = readManifest(root, target)`
+- [x] **Task 8: Root snapshot and per-worktree structure** (effort: 2)
+  - [x] Command action: read `rootBaseline = readManifest(root, target)`
         *before* calling `setupIdeAction`, and pass it to
         `propagateToWorktrees(project, target, rootBaseline)`.
-  - [ ] In `propagateToWorktrees`, read `newRoot` after the existing
+  - [x] In `propagateToWorktrees`, read `newRoot` after the existing
         worktree filter and empty-list return. Do **not** return early when
         `newRoot` is `null`. Every worktree runs the same loop, in this
         order (Tasks 8b and 9 fill in steps 2–4):
@@ -266,41 +266,41 @@ The global `cf` is the published npm package and won't show your changes.
     2. Prune — only when `newRoot` is not `null` (Task 8b).
     3. Generated prompt sweep — always, whatever `newRoot` is (Task 9, D5).
     4. Manifest copy — only when `newRoot` is not `null` (Task 8b).
-  - [ ] When `newRoot` is `null`, print the D4 notice (exact text in D4)
+  - [x] When `newRoot` is `null`, print the D4 notice (exact text in D4)
         once after the loop, before the `Propagated to N worktree(s).`
         line. That line is unchanged.
-  - [ ] Moved mocked-fs tests: give them the new third argument. If they
+  - [x] Moved mocked-fs tests: give them the new third argument. If they
         break because `readManifest` reads through the mocked `fs`, make the
         mock report the manifest as missing for them (the D4 path, which is
         today's copy-only behavior). Do not loosen their existing
         assertions.
-  - [ ] Success criteria: build passes and existing tests pass.
+  - [x] Success criteria: build passes and existing tests pass.
 
-- [ ] **Task 8a: Old-guide path tests** (effort: 1)
-  - [ ] In `worktreePrune.test.ts`, add end-to-end setup: a real temp
+- [x] **Task 8a: Old-guide path tests** (effort: 1)
+  - [x] In `worktreePrune.test.ts`, add end-to-end setup: a real temp
         root, temp worktrees, and a `ProjectData` fixture registering them.
-  - [ ] D4 case: no root manifest, two worktrees → files copied, nothing
+  - [x] D4 case: no root manifest, two worktrees → files copied, nothing
         deleted, no worktree manifest written, and the notice printed
         exactly once.
-  - [ ] Success criteria: the test passes, and all cli tests pass.
-  - [ ] Commit: `feat: snapshot root manifest and handle pre-manifest guides`
+  - [x] Success criteria: the test passes, and all cli tests pass.
+  - [x] Commit: `feat: snapshot root manifest and handle pre-manifest guides`
 
-- [ ] **Task 8b: Prune, output, and manifest copy** (effort: 2)
-  - [ ] Step 2 of the loop: baseline = worktree manifest entries plus
+- [x] **Task 8b: Prune, output, and manifest copy** (effort: 2)
+  - [x] Step 2 of the loop: baseline = worktree manifest entries plus
         `rootBaseline` entries (either may be `null`). If both are `null`,
         skip pruning. Otherwise call `pruneStaleFiles` and print under the
         worktree header: the design's `Removed ...` line per removal, the
         `Kept ...` line per edited file, and a one-line warning naming the
         path for each containment or non-regular skip.
-  - [ ] Step 4 of the loop: copy the root manifest to
+  - [x] Step 4 of the loop: copy the root manifest to
         `.context-forge/.<target>.manifest.tmp` in the worktree, then rename
         it to `<target>.manifest`. Create `.context-forge/` if missing.
         This is the last step per worktree.
-  - [ ] Success criteria: build passes; existing tests pass;
+  - [x] Success criteria: build passes; existing tests pass;
         `worktreePropagation.ts` is under ~300 lines.
 
-- [ ] **Task 8c: End-to-end prune tests** (effort: 3)
-  - [ ] In `worktreePrune.test.ts`, with a root manifest present:
+- [x] **Task 8c: End-to-end prune tests** (effort: 3)
+  - [x] In `worktreePrune.test.ts`, with a root manifest present:
     1. Worktree has a manifest; root drops a path → file removed,
        `Removed ... (no longer installed by the guide)` printed.
     2. Same, but the worktree copy is edited → file kept, and the
@@ -314,29 +314,29 @@ The global `cf` is the published npm package and won't show your changes.
        worktree manifest is copied as an empty file.
     7. After each of cases 1–6, the worktree manifest is byte-identical
        to the root's, and no `.<target>.manifest.tmp` remains.
-  - [ ] Success criteria: the tests pass, and all cli tests pass.
-  - [ ] Commit: `feat: carry install manifest into worktrees after pruning`
+  - [x] Success criteria: the tests pass, and all cli tests pass.
+  - [x] Commit: `feat: carry install manifest into worktrees after pruning`
 
-- [ ] **Task 9: Generated prompt sweep** (effort: 2)
-  - [ ] Add `GENERATED_MARKER = '<!-- context-forge:generated -->'` in
+- [x] **Task 9: Generated prompt sweep** (effort: 2)
+  - [x] Add `GENERATED_MARKER = '<!-- context-forge:generated -->'` in
         `ideTargets.ts` next to `MANAGED_MARKERS`.
-  - [ ] Add optional `generatedPromptDirs?: string[]` to
+  - [x] Add optional `generatedPromptDirs?: string[]` to
         `TargetDescriptor` with a doc comment; set it to
         `['.github/prompts']` on copilot only.
-  - [ ] In `worktreePropagation.ts`, export
+  - [x] In `worktreePropagation.ts`, export
         `sweepGeneratedPrompts(worktreePath, dirs)` returning removed
         relative paths: delete `*.prompt.md` files that contain the marker;
         remove the directory if that leaves it empty. Leave unmarked files.
         (The design writes `sweepGeneratedPrompts(worktreePath)`; passing
         the descriptor's dirs keeps the sweep descriptor-driven.)
-  - [ ] Call it at step 3 of the per-worktree loop (Task 8) for
+  - [x] Call it at step 3 of the per-worktree loop (Task 8) for
         descriptors that set the field, on both the manifest and the D4
         paths. Print `Removed superseded prompt file: <rel>` for each.
-  - [ ] No code checks the target name to decide whether to sweep.
-  - [ ] Success criteria: build passes.
+  - [x] No code checks the target name to decide whether to sweep.
+  - [x] Success criteria: build passes.
 
-- [ ] **Task 9a: Sweep tests** (effort: 2)
-  - [ ] In `worktreePrune.test.ts`:
+- [x] **Task 9a: Sweep tests** (effort: 2)
+  - [x] In `worktreePrune.test.ts`:
     1. Marked file removed, unmarked file kept.
     2. Only marked files present → directory removed.
     3. Missing directory → returns `[]`.
@@ -346,48 +346,48 @@ The global `cf` is the published npm package and won't show your changes.
     6. Copilot run with an empty root manifest: the marked file is
        removed.
     7. A claude run never touches `.github/prompts`.
-  - [ ] Success criteria: the tests pass, and all cli tests pass.
-  - [ ] Commit: `feat: sweep generated prompt files from worktrees`
+  - [x] Success criteria: the tests pass, and all cli tests pass.
+  - [x] Commit: `feat: sweep generated prompt files from worktrees`
 
 ### Part 6 — Verification and close-out
 
-- [ ] **Task 10: Full build and size check** (effort: 1)
-  - [ ] Run `pnpm -r build` and the full test suite once each.
-  - [ ] `wc -l` `setup-ide.ts`, `worktreePropagation.ts`,
+- [x] **Task 10: Full build and size check** (effort: 1)
+  - [x] Run `pnpm -r build` and the full test suite once each.
+  - [x] `wc -l` `setup-ide.ts`, `worktreePropagation.ts`,
         `installManifest.ts`, and `ideTargets.ts`; each is at or under
         ~300 lines.
-  - [ ] Grep confirms the marker literals appear only in `ideTargets.ts`
+  - [x] Grep confirms the marker literals appear only in `ideTargets.ts`
         among the `src` files.
-  - [ ] Success criteria: build and all suites pass; sizes within limit.
+  - [x] Success criteria: build and all suites pass; sizes within limit.
 
-- [ ] **Task 11: CHANGELOG** (effort: 1)
-  - [ ] Under `## [Unreleased]`, add a `### Fixed` entry: `cf setup-ide`
+- [x] **Task 11: CHANGELOG** (effort: 1)
+  - [x] Under `## [Unreleased]`, add a `### Fixed` entry: `cf setup-ide`
         now prunes files the guide no longer installs from registered
         worktrees (checksum-gated, edited files kept), carries the install
         manifest into each worktree, sweeps generated copilot prompt files,
         and no longer propagates when the overwrite prompt is declined.
         Reference #103.
-  - [ ] Success criteria: entry present; no other sections changed.
-  - [ ] Commit: `docs: add CHANGELOG entry for worktree pruning`
+  - [x] Success criteria: entry present; no other sections changed.
+  - [x] Commit: `docs: add CHANGELOG entry for worktree pruning`
 
-- [ ] **Task 12: Verification walkthrough** (effort: 2)
-  - [ ] Run `pnpm -r build`, then walkthrough steps 1–7 from the slice
+- [x] **Task 12: Verification walkthrough** (effort: 2)
+  - [x] Run `pnpm -r build`, then walkthrough steps 1–7 from the slice
         design with the local build. Step 1 registers a throwaway worktree
         in the real project store; step 7 removes it. Do step 7 even if an
         earlier step fails.
-  - [ ] After step 7, `git status` on the slice branch shows no changes
+  - [x] After step 7, `git status` on the slice branch shows no changes
         under `.claude/` or `.context-forge/`.
-  - [ ] Success criteria: every expected result in steps 1–6 matches. If
+  - [x] Success criteria: every expected result in steps 1–6 matches. If
         anything differs, record the actual output in the slice design's
         walkthrough section.
-  - [ ] Commit any notes: `docs: record slice 930 verification results`
+  - [x] Commit any notes: `docs: record slice 930 verification results`
 
-- [ ] **Task 13: Close out** (effort: 1)
-  - [ ] Set the slice design and this task file to `status: complete`
+- [x] **Task 13: Close out** (effort: 1)
+  - [x] Set the slice design and this task file to `status: complete`
         (update `dateUpdated`), and check off 930 in the 900 slice plan.
-  - [ ] Run `cf check` and confirm no new warnings for 930.
-  - [ ] Commit: `docs: mark slice 930 complete`
-  - [ ] Stop here. Merging to `main` and releasing are the PM's call.
+  - [x] Run `cf check` and confirm no new warnings for 930.
+  - [x] Commit: `docs: mark slice 930 complete`
+  - [x] Stop here. Merging to `main` and releasing are the PM's call.
 
 ---
 
