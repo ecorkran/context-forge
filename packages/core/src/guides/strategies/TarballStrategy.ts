@@ -1,6 +1,6 @@
 // Tarball-based (manual) guide installation strategy
-import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, renameSync } from 'fs';
+import { basename, dirname, join } from 'path';
 import { createGunzip } from 'zlib';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -79,6 +79,18 @@ export function isGitWiringEntry(entryPath: string): boolean {
   );
 }
 
+/**
+ * Suffixes for the sibling directories extractAndSwap uses next to the guide
+ * directory (e.g. project-documents/.ai-project-guide.staging). Siblings, so
+ * both renames stay on one filesystem.
+ */
+const STAGING_SUFFIX = '.staging';
+const PREVIOUS_SUFFIX = '.previous';
+
+function siblingPath(targetDir: string, suffix: string): string {
+  return join(dirname(targetDir), `.${basename(targetDir)}${suffix}`);
+}
+
 export class TarballStrategy implements InstallStrategy {
   async detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
@@ -99,8 +111,7 @@ export class TarballStrategy implements InstallStrategy {
       throw new Error('Could not determine latest version from remote.');
     }
 
-    await this.downloadAndExtract(resolvedSource, latestTag, targetDir);
-    writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
+    await this.extractAndSwap(resolvedSource, latestTag, targetDir, []);
 
     // Same commit the submodule strategy makes, so a tarball install does not
     // leave the guide untracked for the user to notice later.
@@ -131,10 +142,7 @@ export class TarballStrategy implements InstallStrategy {
       return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
     }
 
-    // Remove existing contents and re-download
-    rmSync(targetDir, { recursive: true, force: true });
-    await this.downloadAndExtract(source, latestTag, targetDir);
-    writeFileSync(join(targetDir, VERSION_MARKER_FILE), latestTag, 'utf-8');
+    await this.extractAndSwap(source, latestTag, targetDir, []);
 
     const committed = await commitPathIfChanged(
       projectPath,
@@ -143,6 +151,38 @@ export class TarballStrategy implements InstallStrategy {
     );
 
     return { success: true, previousVersion, newVersion: latestTag, method: 'tarball', committed };
+  }
+
+  /**
+   * Build the new guide in a staging directory, then swap it into place. Any
+   * failure before the swap (network, rate limit, broken archive) leaves the
+   * existing guide untouched; a failed swap restores it.
+   */
+  private async extractAndSwap(
+    source: string,
+    tag: string,
+    targetDir: string,
+    _exclude: readonly string[]
+  ): Promise<void> {
+    const staging = siblingPath(targetDir, STAGING_SUFFIX);
+    const previous = siblingPath(targetDir, PREVIOUS_SUFFIX);
+
+    // Leftovers from an earlier crash
+    rmSync(staging, { recursive: true, force: true });
+    rmSync(previous, { recursive: true, force: true });
+
+    await this.downloadAndExtract(source, tag, staging);
+    writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
+
+    const hadGuide = existsSync(targetDir);
+    if (hadGuide) renameSync(targetDir, previous);
+    try {
+      renameSync(staging, targetDir);
+    } catch (err) {
+      if (hadGuide) renameSync(previous, targetDir);
+      throw err;
+    }
+    rmSync(previous, { recursive: true, force: true });
   }
 
   /**
@@ -177,11 +217,11 @@ export class TarballStrategy implements InstallStrategy {
     return tags[0];
   }
 
-  /** Download tarball from GitHub API and extract to targetDir */
+  /** Download tarball from GitHub API and extract into extractDir */
   private async downloadAndExtract(
     source: string,
     tag: string,
-    targetDir: string
+    extractDir: string
   ): Promise<void> {
     const { owner, repo } = parseGitHubOwnerRepo(source);
     const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${tag}`;
@@ -222,15 +262,15 @@ export class TarballStrategy implements InstallStrategy {
         throw new Error(`${failurePrefix}: empty response body`);
       }
 
-      mkdirSync(targetDir, { recursive: true });
+      mkdirSync(extractDir, { recursive: true });
 
       // GitHub tarballs have a top-level directory like {owner}-{repo}-{hash}/
-      // We strip 1 level and extract directly into targetDir
+      // We strip 1 level and extract directly into extractDir
       const nodeStream = Readable.fromWeb(response.body as never);
       await pipeline(
         nodeStream,
         createGunzip(),
-        extract({ cwd: targetDir, strip: 1, filter: (entryPath) => !isGitWiringEntry(entryPath) })
+        extract({ cwd: extractDir, strip: 1, filter: (entryPath) => !isGitWiringEntry(entryPath) })
       );
     } finally {
       await dispatcher.close();

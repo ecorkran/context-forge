@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   TarballStrategy,
   parseGitHubOwnerRepo,
@@ -14,6 +14,7 @@ vi.mock('fs', () => ({
   writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
   rmSync: vi.fn(),
+  renameSync: vi.fn(),
 }));
 
 vi.mock('../../../src/guides/gitExec.js', () => ({
@@ -48,7 +49,7 @@ vi.mock('undici', () => ({
   EnvHttpProxyAgent: vi.fn(() => ({ close: mockDispatcherClose })),
 }));
 
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, rmSync, renameSync } from 'fs';
 import { extract } from 'tar';
 import { EnvHttpProxyAgent } from 'undici';
 import { gitExec, commitPathIfChanged } from '../../../src/guides/gitExec.js';
@@ -58,6 +59,8 @@ const mockReadFileSync = vi.mocked(readFileSync);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockGitExec = vi.mocked(gitExec);
 const mockCommitPath = vi.mocked(commitPathIfChanged);
+const mockRmSync = vi.mocked(rmSync);
+const mockRenameSync = vi.mocked(renameSync);
 
 describe('TarballStrategy', () => {
   let strategy: TarballStrategy;
@@ -338,6 +341,88 @@ describe('TarballStrategy', () => {
         'https://api.github.com/repos/acme/guide-mirror/tarball/v0.13.2',
         expect.anything()
       );
+    });
+  });
+
+  describe('staging and swap', () => {
+    const staging = '/test/project/project-documents/.ai-project-guide.staging';
+    const previous = '/test/project/project-documents/.ai-project-guide.previous';
+
+    // clearAllMocks keeps implementations; these tests install their own.
+    afterEach(() => {
+      for (const mock of [mockExistsSync, mockRmSync, mockRenameSync, mockWriteFileSync]) {
+        mock.mockReset();
+      }
+    });
+
+    function mockNewerRelease(): void {
+      mockReadFileSync.mockReturnValue('v0.12.0\n');
+      mockGitExec.mockResolvedValue({ stdout: 'def456\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+    }
+
+    it('extracts into staging, then swaps it into place in order', async () => {
+      mockNewerRelease();
+      mockExistsSync.mockImplementation((p) => p === targetDir);
+      const calls: string[] = [];
+      mockRmSync.mockImplementation((p) => { calls.push(`rm ${p}`); });
+      mockRenameSync.mockImplementation((from, to) => { calls.push(`rename ${from} -> ${to}`); });
+      mockWriteFileSync.mockImplementation((p) => { calls.push(`write ${p}`); });
+      vi.mocked(extract).mockImplementationOnce(((opts: { cwd: string }) => {
+        calls.push(`extract ${opts.cwd}`);
+        const { PassThrough } = require('stream');
+        return new PassThrough();
+      }) as never);
+
+      await strategy.update(projectPath, targetDir, source);
+
+      expect(calls).toEqual([
+        `rm ${staging}`,
+        `rm ${previous}`,
+        `extract ${staging}`,
+        `write ${staging}/${VERSION_MARKER_FILE}`,
+        `rename ${targetDir} -> ${previous}`,
+        `rename ${staging} -> ${targetDir}`,
+        `rm ${previous}`,
+      ]);
+    });
+
+    it('leaves the guide untouched when the download fails', async () => {
+      mockNewerRelease();
+      mockExistsSync.mockImplementation((p) => p === targetDir);
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+
+      await expect(strategy.update(projectPath, targetDir, source)).rejects.toThrow('fetch failed');
+
+      expect(mockRenameSync).not.toHaveBeenCalled();
+      expect(mockRmSync).not.toHaveBeenCalledWith(targetDir, expect.anything());
+    });
+
+    it('restores the previous guide when the swap rename fails', async () => {
+      mockNewerRelease();
+      mockExistsSync.mockImplementation((p) => p === targetDir);
+      const swapError = new Error('EXDEV: rename failed');
+      mockRenameSync.mockImplementation((from) => {
+        if (from === staging) throw swapError;
+      });
+
+      await expect(strategy.update(projectPath, targetDir, source)).rejects.toBe(swapError);
+
+      expect(mockRenameSync.mock.calls).toEqual([
+        [targetDir, previous],
+        [staging, targetDir],
+        [previous, targetDir],
+      ]);
+    });
+
+    it('skips moving the guide aside on a first install', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+      mockExistsSync.mockReturnValue(false);
+
+      await strategy.install(projectPath, source, targetDir);
+
+      expect(mockRenameSync.mock.calls).toEqual([[staging, targetDir]]);
     });
   });
 
