@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-03
+
+### Release 0.18.3
+
+- **Contents:** Slice 929 — agent skills path alignment: machine-level Codex skills install to `~/.agents/skills`, and default-scope install/uninstall clears cf's own skills from the legacy `~/.codex/skills` (#99); `cf setup-ide copilot` propagates `.agents/skills/` to worktrees (#102).
+
+Tags: @context-forge/core@0.18.3, @context-forge/cli@0.18.3, @context-forge/mcp@0.18.3, @context-forge/context-forge@0.18.3
+
 ## 2026-10-01
 
 ### Release 0.18.2

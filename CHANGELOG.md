@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 20261003
+
 ### Fixed
 
 - **Machine-level Codex skills now install to `~/.agents/skills`**, the shared Agent Skills location. Codex marks `~/.codex/skills` as deprecated, and squadron already writes to `~/.agents/skills`, so the old path left two copies of every skill. The next default-scope `cf install-commands --ide codex`, `cf setup-ide codex`, or `cf init --ide codex` removes cf's own skills from the legacy `~/.codex/skills` and reports what it removed. Other skills there are left alone. `cf uninstall-commands --ide codex` cleans both locations (#99)
