@@ -14,15 +14,18 @@ status: not_started
 
 ## Overview
 
-A tarball install puts the whole ai-project-guide into the project, including all of `tool-guides/`, `framework-guides/` and the 3.5 MB `z-attachments/`. Most projects use a few of these. This slice adds a `guide.exclude` config key: a comma-separated list of paths relative to the guide root. A tarball install or update skips every archive entry under a listed path, records the list it applied, and re-extracts when the configured list stops matching the recorded one, even when the guide version has not changed.
+A tarball install puts the whole ai-project-guide into the project, including all of `tool-guides/` and `framework-guides/`. Most projects use a few of these. This slice adds a `guide.exclude` config key: a comma-separated list of paths relative to the guide root. A tarball install or update skips every archive entry under a listed path, records the list it applied, and re-extracts when the configured list stops matching the recorded one, even when the guide version has not changed.
 
 The feature request came from the ai-project-guide side (PM-approved 20261002).
+
+**Placement.** The PM placed this slice in the 200 (developer onboarding) slice plan as an accepted extension. The 200 architecture treats guide install as an existing mechanism that `cf init` composes. This slice changes what that mechanism writes, not how init composes it, so the init flow and the MCP onboarding tools keep their current shape (see Integration Points).
 
 ## Value
 
 - Projects carry only the guide content they use. Less noise in the repo, in diffs on `cf guides update`, and in what agents find when they search the guide.
 - A changed exclude list takes effect on the next `cf guides update`, without waiting for a guide release.
 - An exclude cannot remove what cf needs to run (`scripts/`, `project-guides/`). Setting one fails at once and names the key.
+- Side benefit: tarball install and update stop deleting the existing guide before the new one is ready (see Data Flow). Today a failed download during update leaves the project with no guide.
 
 ## Technical Scope
 
@@ -32,6 +35,7 @@ The feature request came from the ai-project-guide side (PM-approved 20261002).
 - Tarball install and update skip matching entries. The built-in git-wiring excludes (`.gitmodules`, `.gitignore`, `project-documents`) go through the same matcher.
 - An exclude record file in the guide directory, next to the version marker.
 - `cf guides update` re-extracts at the same version when the configured excludes differ from the record.
+- Tarball install and update extract into a staging directory and swap it into place only after everything succeeds.
 - Reporting: excludes that matched nothing, excludes ignored by a non-tarball install, and the applied and pending excludes in `cf guides status`. MCP `guide_install`, `guide_update` and `guide_status` return the same information.
 
 **Excluded**
@@ -39,6 +43,7 @@ The feature request came from the ai-project-guide side (PM-approved 20261002).
 - General globbing (`*` inside a segment, `?`, character classes, negation). See Technology Choices.
 - Fixing links from shipped guides into excluded content. PM accepted that these links break.
 - Any change to the guide repo or its `setup-ide` script.
+- Any change to `cf init`'s detection logic.
 
 ## Dependencies
 
@@ -55,23 +60,23 @@ None. Everything this slice touches exists today.
 ### Component Structure
 
 ```
-ConfigKeys ('guide.exclude' validate) ──┐
-                                        ├──> guides/guideExclude.ts
-TarballStrategy (filter, record) ───────┘      parseGuideExclude()
-       ▲                                       isExcludedGuidePath()
-       │ constructed with the parsed list      PROTECTED_GUIDE_PATHS
+ConfigKeys ('guide.exclude' validate) ──> config/guideExclude.ts
+                                            parseGuideExclude()
+TarballStrategy (filter, record) ────────>  isExcludedGuidePath()
+       ▲                                    PROTECTED_GUIDE_PATHS
+       │ constructed with the parsed list
 GuideManager (reads config, builds strategy, reports)
        ▲
 CLI guides.ts / MCP guideTools.ts (render the result)
 ```
 
-- **`packages/core/src/guides/guideExclude.ts`** (new). It holds the pattern rules in one place:
+- **`packages/core/src/config/guideExclude.ts`** (new). It holds the pattern rules in one place:
   - `parseGuideExclude(raw: string): string[]` turns a config string into normalized, deduplicated, sorted patterns. It throws a `GuideExcludeError` that names `guide.exclude` and the bad entry.
   - `isExcludedGuidePath(relativePath: string, patterns: readonly string[]): string | null` returns the pattern that matched, or null. The matched pattern is what lets the strategy report patterns that matched nothing.
   - `PROTECTED_GUIDE_PATHS = ['project-guides', 'scripts']`.
-  - It imports nothing from `config/`, so `ConfigKeys` can import it without a cycle.
+  - It is a pure module with no imports from `guides/`. It lives under `config/` because `guides/` already imports from `config/` (`guides/types.ts` reads `CONFIG_KEYS`). That keeps the dependency direction guides → config, and `config/` imports nothing from the guide domain.
 - **`ConfigKeys.ts`** adds `guide.exclude`. Its `validate` calls `parseGuideExclude` and returns the error message.
-- **`TarballStrategy`** gets a constructor taking `exclude: readonly string[]`. `isGitWiringEntry` becomes `isSkippedTarballEntry(entryPath, exclude)`. It strips the archive root and checks the built-in `TARBALL_EXCLUDED_ENTRIES` first, then the user list, both through `isExcludedGuidePath`. The prefix logic that is inline today moves into the matcher.
+- **`TarballStrategy`** gets a constructor taking `exclude: readonly string[]`. `isGitWiringEntry` becomes `isSkippedTarballEntry(entryPath, exclude)`. It strips the archive root and checks the built-in `TARBALL_EXCLUDED_ENTRIES` first, then the user list, both through `isExcludedGuidePath`. The prefix logic that is inline today moves into the matcher. Install and update share one private `extractAndSwap(source, tag, targetDir)` that does the staging and swap described below.
 - **`GuideManager`** resolves `guide.exclude` the same way as `guide.source`: config read errors propagate, and without a `ConfigManager` the list is empty. It passes the list to `new TarballStrategy(exclude)` in `getStrategy`, and adds the exclude fields to install, update and status results.
 - **CLI `guides.ts`** and **MCP `guideTools.ts`** only render the new fields.
 
@@ -79,33 +84,50 @@ The `InstallStrategy` interface does not change. Only the tarball strategy knows
 
 ### Data Flow
 
+**Staging and swap** (`extractAndSwap`, used by every tarball install and update). This replaces today's "delete the guide directory, then download into it":
+1. Remove any leftover staging or previous directory from an earlier crash. Staging is `project-documents/.ai-project-guide.staging`, and previous is `project-documents/.ai-project-guide.previous`. Both are siblings of the guide directory and never inside it.
+2. Download and extract into staging with the exclude filter.
+3. Write the version marker and the exclude record into staging. Staging is now complete.
+4. If the guide directory exists, rename it to previous. Rename staging to the guide directory. Remove previous.
+5. If the second rename fails, rename previous back and rethrow.
+
+Any failure in steps 1–3, including a network error, a rate limit or a broken archive, throws with the guide directory untouched. The marker and record are written together before the swap, so the record can never be out of step with the version on disk. Both renames stay inside `project-documents/`, so they are same-filesystem renames.
+
 **Install** (`cf guides install`, `cf init`, MCP `guide_install`):
 1. `GuideManager` reads `guide.exclude` and parses it. A bad hand-edited value, or one that covers a protected path, throws before any download.
-2. `TarballStrategy.install` downloads and extracts. The filter drops matching entries and notes which patterns matched.
-3. The strategy writes the version marker and, if the list is not empty, the exclude record. Then it commits as it does today.
+2. `TarballStrategy.install` runs `extractAndSwap`. The filter drops matching entries and notes which patterns matched.
+3. The strategy commits as it does today.
 4. The result carries `exclude` (applied list) and `unmatchedExclude` (patterns that matched no entry).
 
 **Update** (`cf guides update`, MCP `guide_update`):
 1. `GuideManager` parses the configured list as above.
 2. `TarballStrategy.update` reads the version marker and the exclude record. A missing record means nothing was excluded. That is accurate for every install made before this slice.
 3. Same version and same list: return early, as today.
-4. Same version, different list: remove the guide directory and re-extract the same tag with the new list. The commit message names the change (`docs: re-extract ai-project-guide v0.19.3 (guide.exclude changed)`).
-5. Different version: same as today, using the configured list.
+4. Same version, different list: `extractAndSwap` the same tag with the new list. The commit message names the change (`docs: re-extract ai-project-guide v0.19.3 (guide.exclude changed)`).
+5. Different version: `extractAndSwap` the new tag with the configured list, as today but without the delete-first gap.
 6. The result carries `excludeChanged: true` when step 4 ran, plus `exclude` and `unmatchedExclude`.
+
+**Commit failure.** Unchanged from today. If `commitPathIfChanged` throws, the error propagates. The new guide is already in place on disk, so the user can commit it by hand.
+
+**Local edits in the guide directory** are replaced on update, as they are today. The directory is cf-managed, and `GUIDE_MANAGED_NOTICE` already says so in `cf guides status`.
 
 **Status** (`cf guides status`, MCP `guide_status`): `GuideManager.status()` adds `excludeApplied` (read from the record, so it is what is actually on disk) and `excludeConfigured` (from config) to the detector's `GuideInfo`. Status never downloads anything new for this.
 
 ### State Management
 
-The only new state is the exclude record: `project-documents/ai-project-guide/.context-forge-guide-exclude`. It holds one normalized pattern per line, sorted. It is written only when the list is not empty. If it is missing, nothing is excluded. It sits inside the guide directory, so update and uninstall replace or remove it with everything else. It is committed with the guide, so a teammate's checkout shows what was excluded. The constant `EXCLUDE_RECORD_FILE` sits next to `VERSION_MARKER_FILE` in `guides/types.ts`.
+The only new persistent state is the exclude record: `project-documents/ai-project-guide/.context-forge-guide-exclude`. It holds one normalized pattern per line, sorted. It is written only when the list is not empty. If it is missing, nothing is excluded. It sits inside the guide directory, so update and uninstall replace or remove it with everything else. It is committed with the guide, so a teammate's checkout shows what was excluded. The constant `EXCLUDE_RECORD_FILE` sits next to `VERSION_MARKER_FILE` in `guides/types.ts`.
+
+A hand-deleted record on a filtered install reads as "nothing excluded", so the next update re-extracts with the configured list. That re-creates the record, so the state corrects itself.
 
 Lists are compared as normalized, sorted arrays, so reordering or a trailing slash in config does not trigger a re-extract.
+
+The staging and previous directories exist only while `extractAndSwap` runs, plus after a crash, until the next install or update clears them.
 
 ## Technical Decisions
 
 ### Technology Choices
 
-**(a) Pattern form: a narrow built-in form, no new dependency.** A pattern is a guide-relative path to a file or directory. Optionally it ends in `/` or `/**`, which mean the same thing as the bare path. A pattern matches a path that equals it or starts with it plus `/`. Examples: `z-attachments`, `tool-guides/`, `tool-guides/**`, `framework-guides/react/`, `CHANGELOG.md`.
+**(a) Pattern form: a narrow built-in form, no new dependency.** A pattern is a guide-relative path to a file or directory. Optionally it ends in `/` or `/**`, which mean the same thing as the bare path. A pattern matches a path that equals it or starts with it plus `/`. Examples: `tool-guides`, `tool-guides/`, `tool-guides/**`, `framework-guides/react/`, `CHANGELOG.md`.
 
 Why: the examples in the request (`tool-guides/**`, `tool-guides/some-tool/`) are all prefixes. `path.matchesGlob` needs Node 22, and the floor is 20.18.1. A glob library would add a dependency and a second set of rules for a case nobody asked for. If someone asks for `tool-guides/*-legacy/` later, the parser can grow, because unsupported characters are rejected now (see the parsing rules below) rather than read as literal text.
 
@@ -164,7 +186,7 @@ CLI output when update re-extracts at the same version:
 ```
 ✓ Guide re-extracted with updated excludes.
   Version:  v0.19.3
-  Excluded: tool-guides, z-attachments
+  Excluded: framework-guides, tool-guides
 ```
 
 ### Database / Storage Schema
@@ -173,14 +195,14 @@ Config, in `.context-forge.toml`:
 
 ```toml
 [guide]
-exclude = "tool-guides/**,z-attachments"
+exclude = "tool-guides/**,framework-guides"
 ```
 
 Record, in `project-documents/ai-project-guide/.context-forge-guide-exclude`:
 
 ```
+framework-guides
 tool-guides
-z-attachments
 ```
 
 ## Integration Points
@@ -192,18 +214,21 @@ z-attachments
 ### Consumes from Other Slices
 - Config two-tier lookup and `validate` hook (existing).
 - Guide install/update orchestration in `GuideManager` and the branch guard in front of update (existing, unchanged).
+- **`cf init` (slice 200 initiative).** Init calls `guidesInstallAction`, so a fresh init with `guide.exclude` already set installs a filtered guide. Init skips guide install when a guide is already present ("Guides already installed — skipping"). Setting or changing `guide.exclude` on an existing project therefore takes effect only through `cf guides update`. Init's detection is unchanged. The `cf guides status` pending line tells the user to run the update.
+- **Setup time.** GitHub serves the whole tarball, so the download size does not change. Filtering only cuts what gets written to disk and committed. The staging swap adds two directory renames. The onboarding target ("from `npm install` to useful context output in under two minutes") is unaffected.
 - Slice 930's worktree propagation copies IDE files, not the guide. A tarball guide reaches worktrees through git, so excludes reach them the same way. Nothing to integrate.
 
 ## Success Criteria
 
 ### Functional Requirements
-- `cf config set guide.exclude "tool-guides/**,z-attachments"` succeeds. After `cf guides install` with the tarball strategy, neither directory exists in the guide, and everything else does, including `scripts/setup-ide` and `project-guides/prompt.ai-project.system.md`.
+- `cf config set guide.exclude "tool-guides/**,framework-guides"` succeeds. After `cf guides install` with the tarball strategy, neither directory exists in the guide, and everything else does, including `scripts/setup-ide` and `project-guides/prompt.ai-project.system.md`.
 - `cf config set guide.exclude scripts` fails with a message naming `guide.exclude` and `scripts`. The same holds for `project-guides`, `project-guides/templates`, `**`, `../x`, `/abs`, `tool-*`.
 - A protected or malformed value written directly into `.context-forge.toml` makes install and update fail before any download, with the same message.
 - At the same guide version, changing `guide.exclude` and running `cf guides update` re-extracts: newly excluded paths are gone and newly included paths come back. The output says it re-extracted, and the commit message names the exclude change.
 - Running `cf guides update` again with no change prints "already at the latest version" and does not re-extract.
 - Reordering entries or adding a trailing `/` does not trigger a re-extract.
 - An existing tarball install with no record and no key set: update behaves exactly as before.
+- A failed download or extract during update leaves the existing guide directory exactly as it was, with no staging or previous directory left behind on the next run.
 - A pattern that matches nothing produces a warning naming the pattern. The install still succeeds.
 - With a submodule or clone install and the key set: install, update and status each say the key is ignored. No files are filtered.
 - `cf guides status` shows the applied excludes, and shows the pending-change line when config differs from the record.
@@ -212,13 +237,21 @@ z-attachments
 ### Technical Requirements
 - `guideExclude.ts` has unit tests covering normalization, every rejection rule, protected-path checks in both directions (ancestor and descendant), and matching (exact file, directory prefix, no false prefix match such as `tool-guides` vs `tool-guides-old/x`).
 - The `isGitWiringEntry` tests move to `isSkippedTarballEntry` and still pass unchanged for the built-in entries. New cases cover user patterns on raw entry paths, including the archive root prefix and directory entries ending in `/`.
-- `TarballStrategy` tests cover: install writes the record only when the list is not empty, same-version re-extract when the record differs, early return when it matches, a missing record treated as an empty list, and unmatched-pattern reporting.
+- `TarballStrategy` tests cover:
+  - install writes the record only when the list is not empty;
+  - same-version re-extract when the record differs;
+  - early return when it matches;
+  - a missing record treated as an empty list;
+  - unmatched-pattern reporting;
+  - a download failure leaving the existing guide untouched;
+  - leftover staging and previous directories cleared at the start.
 - `ConfigKeys` tests cover `guide.exclude` validation.
 - Keep `pnpm -r build` and all package test suites passing.
 - Document the key in the config key description, and add a short README note under guide install covering the key, the pattern form, protected paths and the tarball-only limit.
 
 ### Integration Requirements
-- `cf init` with a pre-set `guide.exclude` installs a filtered guide (it goes through `GuideManager.install`).
+- A fresh `cf init` with a pre-set `guide.exclude` installs a filtered guide (it goes through `GuideManager.install`).
+- `cf init` on a project that already has a guide still skips guide install. The new exclude list applies on `cf guides update`.
 - `cf setup-ide` still works after an install with excludes, because `scripts/` is protected.
 
 ### Verification Walkthrough
@@ -229,7 +262,7 @@ Run from a scratch project using the local build (`node packages/cli/dist/index.
    ```bash
    mkdir /tmp/cf212 && cd /tmp/cf212 && git init -q
    cf init --strategy tarball
-   ls project-documents/ai-project-guide        # tool-guides/ and z-attachments/ present
+   ls project-documents/ai-project-guide        # tool-guides/ and framework-guides/ present
    ```
 2. Refused excludes:
    ```bash
@@ -239,26 +272,27 @@ Run from a scratch project using the local build (`node packages/cli/dist/index.
    ```
 3. Apply excludes at the same version:
    ```bash
-   cf config set guide.exclude "tool-guides/**, z-attachments,"
+   cf config set guide.exclude "tool-guides/**, framework-guides,"
    cf guides status          # shows the pending-change line
    cf guides update          # "Guide re-extracted with updated excludes."
-   ls project-documents/ai-project-guide        # no tool-guides/, no z-attachments/
-   cat project-documents/ai-project-guide/.context-forge-guide-exclude   # tool-guides, z-attachments
+   ls project-documents/ai-project-guide        # no tool-guides/, no framework-guides/
+   cat project-documents/ai-project-guide/.context-forge-guide-exclude   # framework-guides, tool-guides
    git log --oneline -1      # docs: re-extract ai-project-guide vX.Y.Z (guide.exclude changed)
    ```
 4. No-op update: `cf guides update` prints "already at the latest version", and `git log` shows no new commit.
-5. Un-exclude one path: `cf config set guide.exclude z-attachments`, then `cf guides update`. `tool-guides/` is back.
+5. Un-exclude one path: `cf config set guide.exclude framework-guides`, then `cf guides update`. `tool-guides/` is back.
 6. Typo warning: `cf config set guide.exclude tool-guide`, then `cf guides update`. Expect a warning that `tool-guide` matched nothing.
-7. Still works: `cf setup-ide claude` and `cf build` both succeed.
-8. Non-tarball: in a second scratch project, `cf init --strategy submodule`, then set `guide.exclude`. `cf guides status` and `cf guides update` both say the key is ignored for submodule installs.
-9. Hand-edit guard: put `exclude = "scripts"` under `[guide]` in `.context-forge.toml` and run `cf guides update`. It fails before downloading, with the protected-path message.
+7. Failure leaves the guide intact: with the network off (or `guide.source` pointed at an unreachable host), change `guide.exclude` and run `cf guides update`. It fails, and `ls project-documents/ai-project-guide` still shows the previous guide. `ls -a project-documents` shows no `.ai-project-guide.staging` after the next successful update.
+8. Still works: `cf setup-ide claude` and `cf build` both succeed.
+9. Non-tarball: in a second scratch project, `cf init --strategy submodule`, then set `guide.exclude`. `cf guides status` and `cf guides update` both say the key is ignored for submodule installs.
+10. Hand-edit guard: put `exclude = "scripts"` under `[guide]` in `.context-forge.toml` and run `cf guides update`. It fails before downloading, with the protected-path message.
 
 ## Implementation Notes
 
 ### Development Approach
-1. `guideExclude.ts` and its tests (parser, matcher, protected paths). No I/O, easy to test exhaustively.
+1. `config/guideExclude.ts` and its tests (parser, matcher, protected paths). No I/O, easy to test exhaustively.
 2. `guide.exclude` in `ConfigKeys` plus validation tests.
-3. `TarballStrategy`: constructor, `isSkippedTarballEntry`, record write/read, same-version re-extract, unmatched tracking. Update the existing tests.
+3. `TarballStrategy`: `extractAndSwap` first, with tests for the failure cases. Then the constructor, `isSkippedTarballEntry`, record write/read, same-version re-extract and unmatched tracking. Update the existing tests.
 4. `GuideManager`: resolve the key, pass it to the strategy, add `excludeIgnored`, augment `status()`.
 5. CLI and MCP rendering, then README and the key description.
 6. Run the verification walkthrough against the real GitHub tarball.
@@ -269,3 +303,13 @@ Effort: 2/5.
 - The filter sees raw paths that still include the archive root. The matcher works on guide-relative paths, so `isSkippedTarballEntry` strips the root first, exactly as `isGitWiringEntry` does today.
 - Re-extract at the same version downloads the tarball again. That is one request against the 60/hour unauthenticated GitHub limit, the same cost as a normal update.
 - Excluding content can break links inside shipped guides, such as a project guide linking into `tool-guides/`. PM accepted this. The README note says so.
+
+### Review Resolution
+
+Responses to `212-review.slice.guide-exclude-globs-for-tarball-installs.md` (CONCERNS):
+
+- **F001 (re-extract failure modes):** addressed. Install and update now go through a staging directory, written in full (marker and record included) before an atomic swap. Commit failure and local edits behave as today, and both are now stated. See Data Flow.
+- **F002 (placement in the 200 plan):** addressed. The PM placed the slice there as an accepted extension. See Overview.
+- **F003 (init interaction, setup-time target):** addressed. See Integration Points: init skips existing guides, and download size is unchanged.
+- **F004 (config → guides dependency):** addressed. The parser moved to `config/guideExclude.ts`, so the dependency runs guides → config only.
+- **F005 (missing record):** no change. A missing record is accurate for old installs, and a hand-deleted one corrects itself on the next update.
