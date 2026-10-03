@@ -9,8 +9,33 @@ import {
   installCommandsAction,
   resolveCommandTarget,
   resolveInstallDir,
+  sweepLegacyGlobalDir,
   COMMAND_TARGETS,
 } from '../../src/commands/commandInstaller.js';
+
+// os.homedir() is stubbed per test via fakeHome; unset means the real home.
+const homeStub = vi.hoisted(() => ({ fakeHome: undefined as string | undefined }));
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, homedir: () => homeStub.fakeHome ?? actual.homedir() };
+});
+
+/** Point os.homedir() at a fresh temp dir; returns it. Call restoreHome() in afterEach. */
+function useFakeHome(): string {
+  homeStub.fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-home-'));
+  return homeStub.fakeHome;
+}
+
+function restoreHome(): void {
+  if (homeStub.fakeHome) fs.rmSync(homeStub.fakeHome, { recursive: true, force: true });
+  homeStub.fakeHome = undefined;
+}
+
+/** Write a minimal skill directory (name/SKILL.md) under dir. */
+function writeSkill(dir: string, name: string): void {
+  fs.mkdirSync(path.join(dir, name), { recursive: true });
+  fs.writeFileSync(path.join(dir, name, 'SKILL.md'), `---\nname: ${name}\n---\n`);
+}
 
 /** Read the source cf/ directory to determine expected Claude command files. */
 function getExpectedFiles(): string[] {
@@ -240,6 +265,55 @@ describe('commandInstaller', () => {
       const commandNames = expectedFiles.map((f) => `cf-${f.replace(/\.md$/, '')}`).sort();
       expect(expectedSkills).toEqual(commandNames);
     });
+  });
+});
+
+describe('sweepLegacyGlobalDir', () => {
+  let home: string;
+  let legacyDir: string;
+  let installDir: string;
+
+  beforeEach(() => {
+    home = useFakeHome();
+    legacyDir = path.join(home, '.codex', 'skills');
+    installDir = path.join(home, '.agents', 'skills');
+  });
+
+  afterEach(restoreHome);
+
+  it('removes exactly the bundled skills, leaving other entries and the dir', () => {
+    const bundled = getExpectedSkills();
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+    fs.mkdirSync(path.join(legacyDir, '.system'), { recursive: true });
+    writeSkill(legacyDir, 'other-skill');
+    writeSkill(legacyDir, 'cf-custom');
+
+    const removed = sweepLegacyGlobalDir('agents', installDir);
+
+    expect(removed.sort()).toEqual(bundled);
+    for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+    expect(fs.existsSync(path.join(legacyDir, '.system'))).toBe(true);
+    expect(fs.existsSync(path.join(legacyDir, 'other-skill', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(legacyDir, 'cf-custom', 'SKILL.md'))).toBe(true);
+  });
+
+  it('returns [] when the legacy dir is missing', () => {
+    expect(sweepLegacyGlobalDir('agents', installDir)).toEqual([]);
+  });
+
+  it('skips the sweep when the legacy dir is a symlink to the install dir', () => {
+    installCommands('agents', installDir);
+    fs.mkdirSync(path.dirname(legacyDir), { recursive: true });
+    fs.symlinkSync(installDir, legacyDir, 'dir');
+
+    expect(sweepLegacyGlobalDir('agents', installDir)).toEqual([]);
+    for (const skill of getExpectedSkills()) {
+      expect(fs.existsSync(path.join(installDir, skill, 'SKILL.md'))).toBe(true);
+    }
+  });
+
+  it('returns [] for a target without a legacy dir', () => {
+    expect(sweepLegacyGlobalDir('claude', path.join(home, '.claude', 'commands'))).toEqual([]);
   });
 });
 

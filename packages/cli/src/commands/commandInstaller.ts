@@ -20,6 +20,11 @@ export interface CommandTargetDescriptor {
   localDir: string;
   /** Machine-level install directory (the default scope). */
   globalDir: () => string;
+  /**
+   * Machine-level directory cf used to install into. Default-scope install and
+   * uninstall sweep cf's bundled entries out of it.
+   */
+  legacyGlobalDir?: () => string;
   /** Install/prune strategy: flat .md files under cf/, or one directory per skill. */
   layout: 'flat-md' | 'skill-dirs';
   /** Maps a raw installed entry name to how the user invokes it. */
@@ -50,6 +55,7 @@ export const COMMAND_TARGETS: Record<CommandTarget, CommandTargetDescriptor> = {
     // treats $HOME/.agents/skills as the user root and $CODEX_HOME/skills as
     // deprecated; squadron writes here too (slice 929 D1).
     globalDir: () => path.join(os.homedir(), '.agents', 'skills'),
+    legacyGlobalDir: () => path.join(os.homedir(), '.codex', 'skills'),
     layout: 'skill-dirs',
     invocationHint: (entry) => '$' + entry,
     noun: 'skills',
@@ -218,6 +224,23 @@ export function uninstallCommands(target: CommandTarget, targetDir: string): str
   }
 
   return removed;
+}
+
+/**
+ * Remove cf's bundled entries from the target's legacy machine-level directory.
+ * Returns the removed names. No-op when the target has no legacy dir, the dir
+ * is missing, or it resolves to the same real directory as installDir (D3a).
+ * Errors propagate (D3b) — a partial sweep finishes on the next run.
+ */
+export function sweepLegacyGlobalDir(target: CommandTarget, installDir: string): string[] {
+  const legacyGlobalDir = COMMAND_TARGETS[target].legacyGlobalDir;
+  if (!legacyGlobalDir) return [];
+  const legacyDir = legacyGlobalDir();
+  if (!fs.existsSync(legacyDir)) return [];
+  if (fs.existsSync(installDir) && fs.realpathSync(legacyDir) === fs.realpathSync(installDir)) {
+    return [];
+  }
+  return uninstallCommands(target, legacyDir);
 }
 
 function reportInstall(target: CommandTarget, dir: string, result: InstallResult): void {
