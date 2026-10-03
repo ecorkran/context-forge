@@ -197,6 +197,27 @@ deprecation notice.
 > This directory is managed by cf and overwritten on `cf guides update`. Put
 > project-specific customizations under `project-documents/user/`.
 
+#### Leaving guide content out (`guide.exclude`)
+
+Most projects use only a few of the guide's `tool-guides/` and
+`framework-guides/`. A tarball install can skip the rest:
+
+```bash
+cf config set guide.exclude "tool-guides/**,framework-guides"
+cf guides update        # re-extracts at the same version without the excluded paths
+```
+
+- Each entry is a path relative to the guide root, matched as that file or
+  directory and everything under it. A trailing `/` or `/**` means the same as
+  the bare path; no other wildcards are supported.
+- `project-guides` and `scripts` are protected: cf needs them, so an entry that
+  equals, contains, or sits inside either one is refused.
+- Tarball installs only. Submodule and clone installs ignore the key and say so.
+- A change applies on the next `cf guides update` (or a fresh install); `cf guides
+  info` shows the applied list and flags a pending change. The key lives in the
+  shared `.context-forge.toml`, so commit it with the guide.
+- Links from the remaining guide content into an excluded path will break.
+
 ## Review Gating
 
 Optionally require a review artifact (with a clearing verdict) before Context Forge recommends advancing past a lifecycle boundary — deterministic, AI-free routing with **zero behavior change unless you turn it on**:
