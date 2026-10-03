@@ -1013,6 +1013,33 @@ describe('propagateToWorktrees', () => {
 
     expect(mockCopyFileSync).toHaveBeenCalledWith(claudeMdPath, `${wtPath}/CLAUDE.md`);
     expect(mockCopyFileSync).toHaveBeenCalledTimes(1);
+
+    // One header for the real worktree only, and the singular count line.
+    const logLines = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+    expect(logLines.filter((l) => l.includes('→ propagating to worktree:'))).toEqual([
+      `  → propagating to worktree: feature (${wtPath})`,
+    ]);
+    expect(logLines).toContain('  Propagated to 1 worktree.');
+  });
+
+  it('prints one header per worktree and the plural count line', () => {
+    const projectWithTwo = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
+        { id: 'wt_002', name: 'other', worktreePath: '/tmp/wt2' },
+      ],
+    };
+    mockExistsSync.mockImplementation((p: string) => p === '/tmp/wt1' || p === '/tmp/wt2');
+
+    propagateToWorktrees(projectWithTwo, 'claude');
+
+    const logLines = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+    expect(logLines.filter((l) => l.includes('→ propagating to worktree:'))).toEqual([
+      '  → propagating to worktree: feature (/tmp/wt1)',
+      '  → propagating to worktree: other (/tmp/wt2)',
+    ]);
+    expect(logLines).toContain('  Propagated to 2 worktrees.');
   });
 
   it('an unresolvable target throws instead of returning silently', () => {
