@@ -125,7 +125,7 @@ The checksum is computed in TypeScript rather than by shelling out to `cksum`. P
 
 ### D2: Baseline = worktree manifest ∪ root's pre-run manifest
 
-This refines plan item (b). The plan said a worktree with no manifest should never be pruned, only seeded. Every existing worktree is in that state today, because cf ≤ 0.18.3 never copied the manifest. Under that rule, the first `setup-ide` after this ships would drop nothing in them, and whatever the guide drops in that same run would linger until the next one.
+This refines plan item (b), confirmed by the PM on 20261003. The plan said a worktree with no manifest should never be pruned, only seeded. Every existing worktree is in that state today, because cf ≤ 0.18.3 never copied the manifest. Under that rule, the first `setup-ide` after this ships would drop nothing in them, and whatever the guide drops in that same run would linger until the next one.
 
 Instead, the baseline is the worktree's own manifest plus the root's manifest as it was just before the script ran. This mirrors the guide, whose baseline is its own manifest plus a legacy table. Safety still comes from the checksum gate, not from where the baseline came from. A file is deleted only if its bytes equal a version the guide wrote and the guide has stopped shipping that path. That is exactly the guide's own deletion guarantee.
 
