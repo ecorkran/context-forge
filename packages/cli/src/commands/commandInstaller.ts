@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { success, dim } from '../output/styles.js';
-import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets.js';
+import { normalizeTarget, invalidTargetMessage, AGENT_SKILLS_DIR, type Target } from './ideTargets.js';
 import { UserError } from '../utils/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +20,11 @@ export interface CommandTargetDescriptor {
   localDir: string;
   /** Machine-level install directory (the default scope). */
   globalDir: () => string;
+  /**
+   * Machine-level directory cf used to install into. Default-scope install and
+   * uninstall sweep cf's bundled entries out of it.
+   */
+  legacyGlobalDir?: () => string;
   /** Install/prune strategy: flat .md files under cf/, or one directory per skill. */
   layout: 'flat-md' | 'skill-dirs';
   /** Maps a raw installed entry name to how the user invokes it. */
@@ -45,9 +50,12 @@ export const COMMAND_TARGETS: Record<CommandTarget, CommandTargetDescriptor> = {
   },
   agents: {
     sourceDir: 'codex',
-    localDir: '.agents/skills',
-    // Codex's machine-level skills directory (design D2 — live-verified before merge).
-    globalDir: () => path.join(os.homedir(), '.codex', 'skills'),
+    localDir: AGENT_SKILLS_DIR,
+    // Shared Agent Skills user root. Codex (codex-rs/ext/skills/src/host_roots.rs)
+    // treats $HOME/.agents/skills as the user root and $CODEX_HOME/skills as
+    // deprecated; squadron writes here too (slice 929 D1).
+    globalDir: () => path.join(os.homedir(), '.agents', 'skills'),
+    legacyGlobalDir: () => path.join(os.homedir(), '.codex', 'skills'),
     layout: 'skill-dirs',
     invocationHint: (entry) => '$' + entry,
     noun: 'skills',
@@ -218,6 +226,23 @@ export function uninstallCommands(target: CommandTarget, targetDir: string): str
   return removed;
 }
 
+/**
+ * Remove cf's bundled entries from the target's legacy machine-level directory.
+ * Returns the removed names. No-op when the target has no legacy dir, the dir
+ * is missing, or it resolves to the same real directory as installDir (D3a).
+ * Errors propagate (D3b) — a partial sweep finishes on the next run.
+ */
+export function sweepLegacyGlobalDir(target: CommandTarget, installDir: string): string[] {
+  const legacyGlobalDir = COMMAND_TARGETS[target].legacyGlobalDir;
+  if (!legacyGlobalDir) return [];
+  const legacyDir = legacyGlobalDir();
+  if (!fs.existsSync(legacyDir)) return [];
+  if (fs.existsSync(installDir) && fs.realpathSync(legacyDir) === fs.realpathSync(installDir)) {
+    return [];
+  }
+  return uninstallCommands(target, legacyDir);
+}
+
 function reportInstall(target: CommandTarget, dir: string, result: InstallResult): void {
   const descriptor = COMMAND_TARGETS[target];
   const installedDir = descriptor.layout === 'flat-md' ? path.join(dir, 'cf') : dir;
@@ -236,15 +261,60 @@ function reportInstall(target: CommandTarget, dir: string, result: InstallResult
   }
 }
 
-/** Install and report for an already-resolved command target. Errors propagate. */
+/** True when neither --local nor an explicit target dir is set (machine-level scope). */
+function isDefaultScope(opts: InstallScopeOptions): boolean {
+  return !opts.local && !opts.targetDir;
+}
+
+/** Sweep the legacy dir (default scope only) and print one line if anything was removed. */
+function sweepAndReportLegacy(target: CommandTarget, installDir: string): string[] {
+  const removed = sweepLegacyGlobalDir(target, installDir);
+  const descriptor = COMMAND_TARGETS[target];
+  if (removed.length > 0 && descriptor.legacyGlobalDir) {
+    console.log(
+      dim(
+        `Removed ${removed.length} ${descriptor.noun} from legacy location ${descriptor.legacyGlobalDir()}: ` +
+          removed.map((e) => descriptor.invocationHint(e)).join(', '),
+      ),
+    );
+  }
+  return removed;
+}
+
+/**
+ * Install and report for an already-resolved command target. In the default
+ * scope, then sweeps the legacy machine-level dir. Errors propagate.
+ */
 export function installCommandsForTarget(target: CommandTarget, opts: InstallScopeOptions = {}): void {
   const dir = resolveInstallDir(target, opts);
   reportInstall(target, dir, installCommands(target, dir));
+  if (isDefaultScope(opts)) sweepAndReportLegacy(target, dir);
 }
 
 /** Install and report, resolving the target from user input. Errors propagate. */
 export function installCommandsAction(ide: string = 'claude', opts: InstallScopeOptions = {}): void {
   installCommandsForTarget(resolveCommandTarget(ide), opts);
+}
+
+/**
+ * Uninstall and report, resolving the target from user input. In the default
+ * scope, also sweeps the legacy machine-level dir. Errors propagate.
+ */
+export function uninstallCommandsAction(ide: string = 'claude', opts: InstallScopeOptions = {}): void {
+  const target = resolveCommandTarget(ide);
+  const descriptor = COMMAND_TARGETS[target];
+  const dir = resolveInstallDir(target, opts);
+  const removed = uninstallCommands(target, dir);
+  if (removed.length > 0) {
+    console.log(success(`Removed ${removed.length} ${descriptor.noun} from ${dir}`));
+    for (const entry of removed) {
+      console.log(`  ${dim(descriptor.invocationHint(entry))}`);
+    }
+  }
+  const legacyRemoved = isDefaultScope(opts) ? sweepAndReportLegacy(target, dir) : [];
+  if (removed.length === 0 && legacyRemoved.length === 0) {
+    console.log(dim(`No ${descriptor.noun} found to remove.`));
+  }
 }
 
 interface InstallCliOptions {
@@ -264,7 +334,7 @@ export function registerInstallCommandsCommand(program: Command): void {
       try {
         installCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
-        console.error(`Error: ${(err as Error).message}`);
+        console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
     });
@@ -279,20 +349,9 @@ export function registerUninstallCommandsCommand(program: Command): void {
     .option('--target <dir>', 'Explicit target directory (overrides --ide/--local resolution)')
     .action((opts: InstallCliOptions) => {
       try {
-        const target = resolveCommandTarget(opts.ide);
-        const descriptor = COMMAND_TARGETS[target];
-        const dir = resolveInstallDir(target, { local: opts.local, targetDir: opts.target });
-        const removed = uninstallCommands(target, dir);
-        if (removed.length === 0) {
-          console.log(dim(`No ${descriptor.noun} found to remove.`));
-        } else {
-          console.log(success(`Removed ${removed.length} ${descriptor.noun} from ${dir}`));
-          for (const entry of removed) {
-            console.log(`  ${dim(descriptor.invocationHint(entry))}`);
-          }
-        }
+        uninstallCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
-        console.error(`Error: ${(err as Error).message}`);
+        console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
     });

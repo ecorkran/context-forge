@@ -13,6 +13,9 @@ export const TARGET_NAMES: readonly Target[] = ['claude', 'copilot', 'cursor', '
 /** Aliases resolved to a canonical target before anything downstream sees the input. */
 export const TARGET_ALIASES: Record<string, Target> = { openai: 'agents', codex: 'agents' };
 
+/** Project-relative Agent Skills directory (`<name>/SKILL.md`), shared by Codex and Copilot. */
+export const AGENT_SKILLS_DIR = '.agents/skills';
+
 /** Resolves a target string (case/whitespace-insensitive) to its canonical form, or null if unknown. */
 export function normalizeTarget(input: string): Target | null {
   const normalized = input.trim().toLowerCase();

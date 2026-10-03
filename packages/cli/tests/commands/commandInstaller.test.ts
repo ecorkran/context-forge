@@ -7,10 +7,36 @@ import {
   installCommands,
   uninstallCommands,
   installCommandsAction,
+  uninstallCommandsAction,
   resolveCommandTarget,
   resolveInstallDir,
+  sweepLegacyGlobalDir,
   COMMAND_TARGETS,
 } from '../../src/commands/commandInstaller.js';
+
+// os.homedir() is stubbed per test via fakeHome; unset means the real home.
+const homeStub = vi.hoisted(() => ({ fakeHome: undefined as string | undefined }));
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, homedir: () => homeStub.fakeHome ?? actual.homedir() };
+});
+
+/** Point os.homedir() at a fresh temp dir; returns it. Call restoreHome() in afterEach. */
+function useFakeHome(): string {
+  homeStub.fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-home-'));
+  return homeStub.fakeHome;
+}
+
+function restoreHome(): void {
+  if (homeStub.fakeHome) fs.rmSync(homeStub.fakeHome, { recursive: true, force: true });
+  homeStub.fakeHome = undefined;
+}
+
+/** Write a minimal skill directory (name/SKILL.md) under dir. */
+function writeSkill(dir: string, name: string): void {
+  fs.mkdirSync(path.join(dir, name), { recursive: true });
+  fs.writeFileSync(path.join(dir, name, 'SKILL.md'), `---\nname: ${name}\n---\n`);
+}
 
 /** Read the source cf/ directory to determine expected Claude command files. */
 function getExpectedFiles(): string[] {
@@ -74,7 +100,7 @@ describe('commandInstaller', () => {
   describe('resolveInstallDir', () => {
     it('defaults to the machine-level directory per target', () => {
       expect(resolveInstallDir('claude')).toBe(path.join(os.homedir(), '.claude', 'commands'));
-      expect(resolveInstallDir('agents')).toBe(path.join(os.homedir(), '.codex', 'skills'));
+      expect(resolveInstallDir('agents')).toBe(path.join(os.homedir(), '.agents', 'skills'));
     });
 
     it('resolves --local to the project-local directory per target', () => {
@@ -243,6 +269,55 @@ describe('commandInstaller', () => {
   });
 });
 
+describe('sweepLegacyGlobalDir', () => {
+  let home: string;
+  let legacyDir: string;
+  let installDir: string;
+
+  beforeEach(() => {
+    home = useFakeHome();
+    legacyDir = path.join(home, '.codex', 'skills');
+    installDir = path.join(home, '.agents', 'skills');
+  });
+
+  afterEach(restoreHome);
+
+  it('removes exactly the bundled skills, leaving other entries and the dir', () => {
+    const bundled = getExpectedSkills();
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+    fs.mkdirSync(path.join(legacyDir, '.system'), { recursive: true });
+    writeSkill(legacyDir, 'other-skill');
+    writeSkill(legacyDir, 'cf-custom');
+
+    const removed = sweepLegacyGlobalDir('agents', installDir);
+
+    expect(removed.sort()).toEqual(bundled);
+    for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+    expect(fs.existsSync(path.join(legacyDir, '.system'))).toBe(true);
+    expect(fs.existsSync(path.join(legacyDir, 'other-skill', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(legacyDir, 'cf-custom', 'SKILL.md'))).toBe(true);
+  });
+
+  it('returns [] when the legacy dir is missing', () => {
+    expect(sweepLegacyGlobalDir('agents', installDir)).toEqual([]);
+  });
+
+  it('skips the sweep when the legacy dir is a symlink to the install dir', () => {
+    installCommands('agents', installDir);
+    fs.mkdirSync(path.dirname(legacyDir), { recursive: true });
+    fs.symlinkSync(installDir, legacyDir, 'dir');
+
+    expect(sweepLegacyGlobalDir('agents', installDir)).toEqual([]);
+    for (const skill of getExpectedSkills()) {
+      expect(fs.existsSync(path.join(installDir, skill, 'SKILL.md'))).toBe(true);
+    }
+  });
+
+  it('returns [] for a target without a legacy dir', () => {
+    expect(sweepLegacyGlobalDir('claude', path.join(home, '.claude', 'commands'))).toEqual([]);
+  });
+});
+
 describe('installCommandsAction', () => {
   let tempDir: string;
 
@@ -280,6 +355,127 @@ describe('installCommandsAction', () => {
     expect(() => installCommandsAction('copilot', { targetDir: tempDir })).toThrow(
       /No command delivery/,
     );
+  });
+
+  describe('legacy Codex sweep (stubbed home)', () => {
+    let home: string;
+    let legacyDir: string;
+    let bundled: string[];
+
+    beforeEach(() => {
+      home = useFakeHome();
+      legacyDir = path.join(home, '.codex', 'skills');
+      bundled = getExpectedSkills();
+      for (const skill of bundled) writeSkill(legacyDir, skill);
+    });
+
+    afterEach(restoreHome);
+
+    it('default scope installs to ~/.agents/skills and sweeps the legacy dir', () => {
+      installCommandsAction('codex');
+
+      expect(fs.existsSync(path.join(home, '.agents', 'skills', 'cf-status', 'SKILL.md'))).toBe(true);
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+      expect(logOutput()).toContain(`from legacy location ${legacyDir}`);
+      expect(logOutput()).toContain('$cf-status');
+    });
+
+    it('prints no legacy line when the legacy dir is already clean', () => {
+      installCommandsAction('codex');
+      vi.mocked(console.log).mockClear();
+
+      installCommandsAction('codex');
+
+      expect(logOutput()).not.toContain('legacy location');
+    });
+
+    it('--local and --target leave the legacy dir untouched', () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tempDir);
+      installCommandsAction('codex', { local: true });
+      installCommandsAction('codex', { targetDir: path.join(tempDir, 'explicit') });
+
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+      expect(logOutput()).not.toContain('legacy location');
+    });
+
+    it('a failed install throws and leaves the legacy skills in place', () => {
+      // A file where the .agents directory should be makes mkdir fail.
+      fs.writeFileSync(path.join(home, '.agents'), 'not a dir');
+
+      expect(() => installCommandsAction('codex')).toThrow();
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+    });
+  });
+});
+
+describe('uninstallCommandsAction (stubbed home)', () => {
+  let home: string;
+  let installDir: string;
+  let legacyDir: string;
+  let bundled: string[];
+
+  beforeEach(() => {
+    home = useFakeHome();
+    installDir = path.join(home, '.agents', 'skills');
+    legacyDir = path.join(home, '.codex', 'skills');
+    bundled = getExpectedSkills();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    restoreHome();
+    vi.restoreAllMocks();
+  });
+
+  function logLines(): string[] {
+    return vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+  }
+
+  it('removes from both dirs and prints a separate line for each', () => {
+    installCommands('agents', installDir);
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+
+    uninstallCommandsAction('codex');
+
+    for (const skill of bundled) {
+      expect(fs.existsSync(path.join(installDir, skill))).toBe(false);
+      expect(fs.existsSync(path.join(legacyDir, skill))).toBe(false);
+    }
+    const lines = logLines();
+    expect(lines.some((l) => l.includes(`from ${installDir}`))).toBe(true);
+    expect(lines.some((l) => l.includes(`from legacy location ${legacyDir}`))).toBe(true);
+  });
+
+  it('prints only the legacy line when skills exist only in the legacy dir', () => {
+    for (const skill of bundled) writeSkill(legacyDir, skill);
+
+    uninstallCommandsAction('codex');
+
+    const output = logLines().join('\n');
+    expect(output).toContain('legacy location');
+    expect(output).not.toContain(`from ${installDir}`);
+    expect(output).not.toContain('No skills found');
+  });
+
+  it('prints only "No skills found to remove." when both dirs are empty', () => {
+    uninstallCommandsAction('codex');
+
+    expect(logLines()).toHaveLength(1);
+    expect(logLines()[0]).toContain('No skills found to remove.');
+  });
+
+  it('--local leaves the legacy dir untouched', () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-uninstall-local-'));
+    vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
+    try {
+      for (const skill of bundled) writeSkill(legacyDir, skill);
+
+      uninstallCommandsAction('codex', { local: true });
+
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+    } finally {
+      fs.rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 });
 

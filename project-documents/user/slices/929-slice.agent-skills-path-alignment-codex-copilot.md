@@ -7,7 +7,7 @@ dependencies: []
 interfaces: [930]
 dateCreated: 20261002
 dateUpdated: 20261002
-status: not_started
+status: complete
 ---
 
 # Slice Design: Agent Skills Path Alignment (Codex + Copilot)
@@ -178,32 +178,40 @@ ls ~/.agents/skills     # cf-* now alongside sq-*
 node packages/cli/dist/index.js install-commands --ide codex   # re-run: no legacy line
 ```
 
+*Verified 20261002.* Actual legacy line: `Removed 9 skills from legacy location /Users/manta/.codex/skills: $cf-build, $cf-check, $cf-get, $cf-next, $cf-onboard, $cf-project, $cf-prompt, $cf-set, $cf-status`. Afterward `~/.codex/skills` held only `.system`, and the re-run printed only the install line and invocation list.
+
+**1a. `setup-ide` / `init` parity (criterion 6).** The unit tests mock the installer at these call sites, so check live. In a scratch git repo with `CONTEXT_FORGE_DATA_DIR` pointed at a scratch dir, seed `~/.codex/skills/cf-status/SKILL.md`, then run `cf init --name <scratch> --ide codex < /dev/null`. Seed it again and run `cf setup-ide codex --yes`. *Verified 20261002:* each run printed `Removed 1 skills from legacy location /Users/manta/.codex/skills: $cf-status`, and `~/.codex/skills` was left with only `.system`. (`setup-ide` needs a registered project, so `init` has to run first.)
+
 **2. Codex discovers the skills from the new location.** Start `codex` in any project and type `$cf-` at the prompt. Each cf skill should appear exactly once (no duplicates from two roots). Run `$cf-status` and confirm it runs `cf status`.
 
-**3. Scope flags don't touch the legacy dir.** Recreate a dummy legacy skill, then use `--local`:
+**3. Scope flags don't touch the legacy dir.** Recreate a bundled legacy skill, then use `--local`:
 
 ```bash
-mkdir -p ~/.codex/skills/cf-dummy && echo x > ~/.codex/skills/cf-dummy/SKILL.md
+mkdir -p ~/.codex/skills/cf-status && echo x > ~/.codex/skills/cf-status/SKILL.md
 cd "$(mktemp -d)" && node /Users/manta/source/repos/manta/context-forge/packages/cli/dist/index.js install-commands --ide codex --local
-ls ~/.codex/skills      # cf-dummy still present
+ls ~/.codex/skills      # cf-status still present
 node /Users/manta/source/repos/manta/context-forge/packages/cli/dist/index.js uninstall-commands --ide codex
-ls ~/.codex/skills      # cf-dummy gone (default-scope uninstall sweeps legacy)
+ls ~/.codex/skills      # cf-status gone (default-scope uninstall sweeps legacy)
 ```
 
 Re-run step 1's install afterward to restore the machine-level skills.
+
+*Correction (20261002):* this step originally seeded `cf-dummy`. That name is not bundled, so the sweep correctly leaves it in place: D2/D3 remove only the nine bundled names and never touch hand-made `cf-*` skills. The seed is now a bundled name. *Verified:* `--local` left `cf-status` in place. The default-scope uninstall printed `Removed 1 skills from legacy location /Users/manta/.codex/skills: $cf-status`, with no `No skills found` line (the install dir was already empty).
 
 **4. Copilot worktree propagation (#102).** No guide release currently ships skills, so seed one at the root. The guide's prune only removes files its own manifest lists, so it leaves the seeded skill alone. Use a scratch project with one registered worktree, isolated from the real project store the same way slice 928's walkthrough did (the `CONTEXT_FORGE_DATA_DIR` env var plus a `cf` wrapper script):
 
 ```bash
 # in the scratch project root (a git repo with project-documents/ and the guide installed)
 git worktree add ../scratch-wt -b wt-test
-cf worktree init --name wt --path "$(cd ../scratch-wt && pwd)"
+cf worktree init --name wt --range 100-199 --path "$(cd ../scratch-wt && pwd)"
 mkdir -p .agents/skills/demo && printf -- '---\nname: demo\ndescription: seeded\n---\n' > .agents/skills/demo/SKILL.md
 cf setup-ide copilot --yes
 ls ../scratch-wt/.agents/skills # expect: demo
 ```
 
 On a build without this slice, the same steps leave `../scratch-wt/.agents/skills` missing.
+
+*Verified 20261002.* Corrections: `cf worktree init` requires `--range`, and the `cf` wrapper has to be a script on `PATH`, because zsh does not word-split a `$CF` variable. To build the scratch project, run `git init`, then `cf init --name <scratch> --ide codex < /dev/null`, then commit, so `git worktree add` has a HEAD. The setup printed `Propagated to 1 worktree.`, and `ls ../scratch-wt/.agents/skills` printed `demo`. Afterward the real project store contained no scratch project.
 
 ## Implementation Notes
 
