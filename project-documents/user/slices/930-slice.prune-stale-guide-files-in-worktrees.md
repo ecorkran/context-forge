@@ -20,6 +20,10 @@ This slice makes propagation prune with the guide's own rule: delete a worktree 
 
 This closes the cf side of GitHub #103.
 
+This is a defect fix, so it belongs in the 900 maintenance initiative. cf's propagation leaves worktrees out of step with the root, and this brings them back in step. The manifest reader, the CRC, and the prune step are the smallest machinery that can do that without running the guide in every worktree (D1). Two pieces are in scope only because pruning needs them:
+- **Moving propagation out of `setup-ide.ts`.** Without it, the new logic pushes the file over the size limit.
+- **The declined-prompt fix.** Without it, answering "no" to the overwrite prompt would delete files in worktrees.
+
 ## Value
 
 - Worktrees stop accumulating dead guide files. Today a dropped skill or agent shows up twice or with stale instructions in every worktree, and the only fix is deleting it by hand in each one.
@@ -121,6 +125,10 @@ This settles plan item (a). The alternative was running the guide's `setup-ide` 
 
 The cost is one duplicated rule (old minus new, checksum gate). It is small, and the format it depends on is a documented interface.
 
+This doesn't conflict with D2's refusal to copy the legacy table. The rule, the format, and the marker are an interface. They change only in a breaking guide release, and cf's parser throws on a format change. The legacy table is data, a list of file paths. It can grow in any guide release, and nothing in cf would notice. Copying a stable rule is acceptable; copying a list that changes on every release is not.
+
+Drift in the CRC is the dangerous kind, because it would delete the wrong files. The fixture test pins it in a way that stays current: it reads this repo's committed `.context-forge/claude.manifest` and checks that `cksum` reproduces the recorded CRC and size for each listed file. That manifest is rewritten by whatever guide version is vendored, so every `cf guides update` re-tests the contract. The test doesn't run the guide script itself, which keeps bash out of the test suite.
+
 The checksum is computed in TypeScript rather than by shelling out to `cksum`. Propagation should not need another binary on PATH; `cksum` is not reliably on PATH on Windows outside git-bash. The algorithm is the POSIX one: CRC-32 with polynomial `0x04C11DB7`, processed MSB-first from an initial value of 0. The byte length is appended least significant byte first, using only as many bytes as needed, and the result is complemented. It is about 15 lines plus a 256-entry table. Correctness is pinned by fixtures taken from this repo's real `.context-forge/claude.manifest` lines and their files.
 
 ### D2: Baseline = worktree manifest ∪ root's pre-run manifest
@@ -160,6 +168,8 @@ This settles plan item (e). Generated `.github/prompts/*.prompt.md` files predat
 - **Failure partway through.** An error in worktree N stops the run. Worktrees before N are complete. Worktree N may be partly pruned, but it keeps its old manifest, because the manifest copy comes last. Later worktrees are untouched. Re-running after the fix finishes the job for any worktree that has its own manifest.
   - One case is not recovered. Suppose worktree N had no manifest of its own and depended on the root's pre-run snapshot (D2). The re-run snapshots the root's *new* manifest, so the files dropped in the failed run are no longer stale candidates. They stay in the worktree.
   - That gap is accepted. It needs a failure *and* a worktree with no manifest, and that combination only exists during the first run after upgrading. It also fails the safe way: files are kept, never wrongly deleted. Such files land in the same bucket as the legacy-table files in D2.
+- **Concurrent edits.** A file can change between the checksum read and the delete. That window is accepted. It lasts milliseconds inside a command the user just ran, and the guide has the same window at the root. Each candidate is read and deleted right away, with no batching, so the window stays as short as it can be.
+- **Temp manifest.** The temp file is `.context-forge/.<target>.manifest.tmp`. `readManifest` opens only the exact `<target>.manifest` path, so a stray temp file left by a killed run is never read as a manifest. The next run overwrites it.
 - **Output.** These lines go under the existing `→ propagating to worktree:` header:
   - `Removed <rel> (no longer installed by the guide)`
   - `Kept <rel>: no longer installed by the guide, but edited since — remove it by hand if unneeded`
@@ -273,6 +283,7 @@ Not covered by cf (D2): worktrees created before the root ever had a manifest ma
 
 ### Development Approach
 
+0. Characterization tests before any move. `setup-ide.test.ts` already covers the worktree filter (missing path, zero worktrees, the root-path "default" worktree) and the copy set for every target. It does not assert the per-worktree `→ propagating to worktree:` header or the final `Propagated to N worktree(s).` line. Add those two assertions first.
 1. `installManifest.ts`: `cksum`, `parseManifestLine`, `readManifest`, with tests (real-fixture CRC first).
 2. Move `propagateToWorktrees` to `worktreePropagation.ts` with no behavior change; existing tests pass.
 3. Add `pruneStaleFiles` and its tests.
@@ -302,3 +313,17 @@ Slice review: `user/reviews/930-review.slice.prune-stale-guide-files-in-worktree
   - A non-zero exit already throws before propagation runs. The design now states this.
   - Checking this turned up a real gap: a declined overwrite prompt returns normally and propagation still runs. `setupIdeAction` now returns whether the script ran, and the command propagates only on `true`.
   - The manifest copy uses a temp file plus rename.
+
+## Review Resolution — second pass (20261003)
+
+Slice review: `user/reviews/930-review.slice.prune-stale-guide-files-in-worktrees.md` (CONCERNS, claude-sonnet-5-5, reviewedSha 68dddd6). The first review is in `reviews/archive/`.
+
+- **F002 (characterization tests): accepted.** The worktree filter and copy set are already covered. The header line and count line are not. Step 0 of the Development Approach adds those assertions before the move.
+- **F003 (scope): accepted.** The Overview now says why this fix is maintenance work, and why the extraction and the declined-prompt fix are in scope only because pruning needs them.
+- **F004 (concurrent edits, stray temp file): accepted.** The window between the checksum read and the delete is accepted and bounded. The temp manifest has a name `readManifest` never opens. Both are in Patterns and Conventions.
+- **F005 (duplicated guide logic): accepted in part.**
+  - The CRC fixture test now reads the committed manifest. Each guide update therefore re-checks the contract against the vendored guide.
+  - D1 now explains why copying the rule is consistent with not copying the legacy table.
+  - A test that runs the guide script was declined, to keep bash out of the suite.
+  - Drift in the depth rule or the marker is a breaking interface change on the guide side, and no extra detection was added for it.
+- **F001, F006, F007:** pass or note, no change.

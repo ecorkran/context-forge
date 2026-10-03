@@ -13,42 +13,47 @@ aiModel: claude-sonnet-5-5
 status: complete
 dateCreated: 20261003
 dateUpdated: 20261003
-reviewedSha: 4451807a2dd3aef8c9077015a81352e3c7cef010
+reviewedSha: 68dddd6bf45c73348ee24f70afeb4eb8cf8c7609
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
-durationSeconds: 26.1
+durationSeconds: 22.3
 squadronVersion: 0.18.2
 findings:
   - id: F001
-    severity: note
-    category: scope
-    summary: "Parent architecture is thin; slice fits the maintenance charter by a loose reading"
+    severity: pass
+    category: scope-alignment
+    summary: "Fits the maintenance charter and its principles"
     location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Overview"
   - id: F002
     severity: concern
-    category: dependency-direction
-    summary: "Propagation extraction risks a circular module dependency"
-    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Component Structure"
+    category: testing
+    summary: "\"No behavior changes without tests\" is met only partly for the existing propagation path"
+    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Migration Plan"
   - id: F003
     severity: concern
-    category: error-handling
-    summary: "Failure modes for the new delete and read paths are only partially specified"
-    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Patterns and Conventions"
+    category: scope-creep
+    summary: "Scope grows beyond a themed maintenance slice"
+    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Technical Scope"
   - id: F004
     severity: concern
-    category: failure-modes
-    summary: "Manifest carry-over and snapshot ordering depend on an unstated script-failure behavior"
-    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Data Flow"
-  - id: F005
-    severity: pass
-    category: integration
-    summary: "Layering, dependency direction, and integration points are consistent"
-    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Integration Points"
-  - id: F006
-    severity: pass
     category: error-handling
-    summary: "Interface contracts and error posture are explicit"
-    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Interfaces Required"
+    summary: "Failure modes for new I/O paths are mostly handled, but the cksum-reads and concurrent-writer cases are unaddressed"
+    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Patterns and Conventions"
+  - id: F005
+    severity: concern
+    category: dependency-boundaries
+    summary: "Duplicated guide logic is a standing coupling with no drift detection"
+    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#D1"
+  - id: F006
+    severity: note
+    category: dependency-boundaries
+    summary: "Dependency direction is correct after the leaf-module extraction"
+    location: "project-documents/user/slices/930-slice.prune-stale-guide-files-in-worktrees.md#Component Structure"
+  - id: F007
+    severity: note
+    category: nfr
+    summary: "No NFR applies to this path"
+    location: "project-documents/user/architecture/900-arch.maintenance-and-refactoring.md"
 ---
 
 # Review: slice — slice 930
@@ -58,53 +63,40 @@ findings:
 
 ## Findings
 
-### [NOTE] Parent architecture is thin; slice fits the maintenance charter by a loose reading
+### [PASS] Fits the maintenance charter and its principles
 
-The 900 architecture lists themes such as pattern consolidation, dead-code removal, and developer experience. It names no worktree or setup-ide work. This slice fixes a defect (GitHub #103): stale guide files accumulate in worktrees. It also adds a new capability, manifest parsing and a CRC implementation. The work is bounded and has explicit exclusions, so I don't see scope creep. The architecture doc has no anchor for it, though, and the "Anticipated Slices" list could be updated. The principle "No behavior changes without tests" is met by the Technical Requirements, which require tests for each behavior change.
+The slice fixes a defect: worktrees accumulate dead guide files. That is cross-cutting maintenance, so it fits the charter. It has concrete success criteria (1–11) and a walkthrough, which meets "opportunistic but intentional". It also lists exclusions: root pruning, `.gitignore` writing, and the vendored guide tree. The extraction of `worktreePropagation.ts` and `installManifest.ts` also keeps `setup-ide.ts` under the size limit.
 
-### [CONCERN] Propagation extraction risks a circular module dependency
+### [CONCERN] "No behavior changes without tests" is met only partly for the existing propagation path
 
-`worktreePropagation.ts` needs `TARGETS`, `TargetDescriptor` (including the new `generatedPromptDirs`), and `GENERATED_MARKER`. All of these stay in `setup-ide.ts`. `setup-ide.ts` in turn calls `propagateToWorktrees` and, per the Migration Plan, may re-export it. That is a two-way import. The slice says the extraction keeps `setup-ide.ts` under the size limit, but it never states the dependency direction. Pick one of two fixes:
-- Move the descriptors and markers into a leaf module that both files import.
-- Have `setup-ide.ts` pass the descriptor into `propagateToWorktrees` as a parameter.
+The architecture requires test coverage that verifies preserved behavior before and after a change. The slice moves `propagateToWorktrees` and says existing tests must pass unmodified. It doesn't say these tests exist for the worktree filter (missing path, "default" worktree), the copy set, and the final count line. It also doesn't say they are checked first. The slice also changes a behavior: a declined overwrite prompt used to propagate and now doesn't. That change is covered by a new test. Add a step 0 to the development approach: confirm or add characterization tests for the current propagation behavior before moving the code.
 
-The second option fits the "program to interfaces" guideline. The doc should state which one it uses.
+### [CONCERN] Scope grows beyond a themed maintenance slice
 
-### [CONCERN] Failure modes for the new delete and read paths are only partially specified
+The architecture asks for slices grouped by theme and warns against open-ended work. This slice includes a new feature: a manifest parser, a CRC implementation, a prune engine, a prompt sweep, and a descriptor change. It also includes a behavior fix for the declined prompt and an extraction refactor. Each part is justified, and the slice is bounded by GitHub #103. Still, the parent charter lists no feature-sized work like this. The slice should say explicitly why #103 belongs in the 900 maintenance initiative and not in a feature initiative. It should also say that the declined-prompt fix and the extraction are in scope only because pruning requires them. The "Review Resolution" section dismisses the thin-architecture finding by pointing to the slice plan, so this rationale is not in the slice doc itself.
 
-The slice does cover some failure handling: malformed manifest lines throw a `UserError`, filesystem errors propagate, and path escapes are skipped with a warning. It leaves these cases open:
-- **Mid-loop abort.** A throw in worktree N (a malformed worktree manifest, an `EACCES` on delete or read) aborts the loop. Later worktrees are neither copied nor pruned, and worktree N keeps a stale manifest. The slice doesn't say whether this is intended or whether the loop continues and reports per worktree.
-- **Re-run recovery.** After a partial failure, the next run uses the new root manifest as `rootBaseline`. A worktree that had no manifest of its own then loses its D2 baseline, so the files dropped in the failed run are never pruned. This undercuts D2's guarantee. State the behavior, or say the root manifest is written only after success.
-- **Symlinks.** The containment check "resolves" paths but doesn't say whether it uses realpath. A symlinked install directory inside a worktree could redirect a deletion outside it. Say whether symlinks are followed or skipped.
-- **Unreadable stale file.** The checksum read of a candidate file can fail (permissions, or the path is a directory). The slice doesn't say whether that is a keep-and-warn or a throw.
+### [CONCERN] Failure modes for new I/O paths are mostly handled, but the cksum-reads and concurrent-writer cases are unaddressed
 
-Because the slice deletes user-visible files, each of these should have an explicit strategy.
+Failure handling is good. Fail-fast behavior, partial-run state, temp-file-plus-rename for the manifest, and realpath containment are all specified. Two paths are still implicit:
+- A TOCTOU race between `lstat`, the checksum read, and the delete if a user or tool edits the file during propagation. Say that this is accepted, or re-check the checksum immediately before the unlink.
+- The temp file left behind if the process dies between write and rename. State whether a stray temp file in `.context-forge/` is ignored or cleaned on the next run, and give it a name that cannot be mistaken for a manifest.
+There are no network or timeout paths, so those are not applicable.
 
-### [CONCERN] Manifest carry-over and snapshot ordering depend on an unstated script-failure behavior
+### [CONCERN] Duplicated guide logic is a standing coupling with no drift detection
 
-`rootBaseline` is read before the guide script runs. If the script fails or is interrupted, the root manifest may be missing or half-updated. The Data Flow doesn't say whether propagation is skipped when the script exits non-zero. If it still runs, a stale or partial `newRoot` could cause a wrong prune decision or a partial manifest copy. Say that propagation, including the manifest copy, runs only after a successful script exit. Also state that the manifest copy is atomic enough (write to a temp file, then rename), or accept that it isn't.
+The slice duplicates the guide's prune rule, the `remove_empty_install_dirs` depth rule, the manifest format, the CRC, and the generated marker in cf. D1 accepts this and notes it in a module header. D2 rejects copying the legacy table for the same drift reason, so the two decisions are not consistent. The parse-time throw catches format changes, but not changes to the depth rule or marker literal. Consider a test that runs the vendored guide's `scripts/setup-ide` and compares its manifest output with cf's `cksum`. That would turn the CRC fixtures into a live contract check against the vendored guide version.
 
-### [PASS] Layering, dependency direction, and integration points are consistent
+### [NOTE] Dependency direction is correct after the leaf-module extraction
 
-- The slice keeps the guide as the owner of root pruning, and the cf-side rule matches the guide's own bar (CRC and size match, depth-3 empty-directory rule).
-- It rejects regenerating per worktree (D1) with concrete reasons.
-- It reuses the 929 descriptor table and avoids a second copy of the legacy table.
-- cf never writes a manifest at the root.
-- Marker literals stay centralized, and the prompt sweep is descriptor-driven rather than keyed on a target name. Both match the project's no-scattered-values rule.
+Imports run one way only: `setup-ide.ts` → `worktreePropagation.ts` → `installManifest.ts` and `ideTargets.ts`. The descriptor-driven `generatedPromptDirs` avoids target-name checks. Re-exporting from `setup-ide.ts` keeps existing importers working. The one cost is that `ideTargets.ts` stops being a pure leaf of constants and becomes the home of the descriptor table.
 
-### [PASS] Interface contracts and error posture are explicit
+### [NOTE] No NFR applies to this path
 
-- The manifest format is documented.
-- The missing manifest (`null`) is distinguished from the empty manifest (`[]`).
-- A guide format change makes the parser throw rather than silently mis-prune.
-- The parser is lenient about whitespace but strict about unreadable lines, which fits the project's parsing guidance.
-- Tests use fixtures from real manifest data.
-- Old guides degrade to copy-only with a single notice.
-- No NFRs are stated in the parent architecture for this path, so none need restating.
+The architecture states no latency or throughput targets, so none need restating. Propagation reads one manifest and stats the stale paths per worktree. The cost is proportional to the number of worktrees and manifest entries, and nothing in the doc suggests a problem.
 
 ### Run Digest
 
-- Response length: 5571 chars
+- Response length: 5296 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -116,10 +108,10 @@ Because the slice deletes user-visible files, each of these should have an expli
 - Effort: backend default
 - Turns: not computed
 - Tokens — prompt / cached / completion / reasoning: not computed / not computed / not computed / not computed
-- Duration: 26.1 s
+- Duration: 22.3 s
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 6
+- Finding-shaped matches — whole response: 7
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 6
-- Finding-shaped matches — surviving validation: 6
+- Finding-shaped matches — in findings section: 7
+- Finding-shaped matches — surviving validation: 7
