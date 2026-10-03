@@ -75,14 +75,18 @@ New module `packages/cli/src/commands/installManifest.ts`:
 - `parseManifestLine(line)`: lenient parsing. It splits on the first two runs of whitespace (so paths containing spaces survive), ignores blank lines and trailing whitespace, and throws on a line without a numeric CRC and size.
 - `cksum(buffer)`: the POSIX CRC.
 
-`setup-ide.ts` keeps `TARGETS`, the markers, and `setupIdeAction`. It adds `GENERATED_MARKER` next to `MANAGED_MARKERS`, so every marker literal still lives in one place. The command action snapshots the root manifest and passes it on. `TargetDescriptor` gains an optional `generatedPromptDirs?: string[]`, set to `['.github/prompts']` on copilot only. That way the sweep is driven by the descriptor rather than by checking a target name.
+`TARGETS`, `TargetDescriptor`, and the marker constants move from `setup-ide.ts` into the existing leaf module `ideTargets.ts`. That module already exists to keep `setup-ide` and `commandInstaller` acyclic. Imports then run one way only: `setup-ide.ts` → `worktreePropagation.ts` → `installManifest.ts` / `ideTargets.ts`. Nothing imports back into `setup-ide.ts`. `GENERATED_MARKER` is added next to `MANAGED_MARKERS`, so every marker literal still lives in one place. `setup-ide.ts` keeps `isManagedInstall`, `setupIdeAction`, and the command registration, and re-exports the moved names for existing importers. `TargetDescriptor` gains an optional `generatedPromptDirs?: string[]`, set to `['.github/prompts']` on copilot only. That way the sweep is driven by the descriptor rather than by checking a target name.
+
+`setupIdeAction` returns `true` when the guide script ran, and `false` when the user declined the overwrite prompt. The command action snapshots the root manifest, and propagates only when the action returns `true`. Today a declined prompt still propagates. With pruning added, that would mean a "no" deletes files in worktrees.
 
 ### Data Flow
 
 ```
 cf setup-ide <target>
   ├─ rootBaseline = readManifest(root, target)            # before the script runs
-  ├─ setupIdeAction → guide script                        # rewrites root files + manifest
+  ├─ ran = setupIdeAction → guide script                  # rewrites root files + manifest
+  │    non-zero exit → UserError, nothing below runs
+  │    user declines overwrite → ran = false, nothing below runs
   └─ propagateToWorktrees(project, target, rootBaseline)
        newRoot = readManifest(root, target)
        if newRoot === null → copy only, print notice once, return
@@ -94,8 +98,10 @@ cf setup-ide <target>
            cksum+size matches any baseline entry for that path → delete, remove empty dirs
            otherwise → keep, warn
          sweep generated prompt files (descriptor-driven)
-         copy root manifest → wt/.context-forge/<target>.manifest
+         copy root manifest → wt/.context-forge/<target>.manifest   # temp file + rename
 ```
+
+The manifest copy is the last step for each worktree. It writes to a temp file in the same directory and then renames it, so an interrupted copy can't leave a truncated manifest behind. A truncated manifest would fail the next run as malformed.
 
 Pruning runs after the copy. A dropped path is absent at the root (the guide deleted it), so the copy can't recreate it. If the guide *kept* an edited file at the root, the copy overwrites the worktree's version with the root's edited bytes, the checksum no longer matches, and the worktree keeps the file too. Root and worktree end up in the same state.
 
@@ -147,9 +153,13 @@ This settles plan item (e). Generated `.github/prompts/*.prompt.md` files predat
 
 ### Patterns and Conventions
 
-- **Path containment.** Manifest paths come from a file a user can edit. A path that is absolute, contains a `..` segment, or resolves outside the worktree is skipped with a warning and never deleted.
+- **Path containment.** Manifest paths come from a file a user can edit. A path that is absolute, contains a `..` segment, or resolves outside the worktree is skipped with a warning and never deleted. "Resolves" means `fs.realpathSync` on the candidate's parent directory, compared against the realpath of the worktree. That way a symlinked install directory can't redirect a deletion outside the worktree.
+- **Only regular files are deleted.** The candidate is checked with `lstat`. A symlink, a directory, or anything else that isn't a regular file is kept with a warning. The guide never writes those, so a checksum gate doesn't apply to them.
 - **Empty directories.** After a deletion, remove now-empty parent directories, but only while the relative directory has at least three segments. This is the guide's `remove_empty_install_dirs` rule: `.claude/skills/analyze` can go, `.claude/skills` never does.
-- **Errors.** A malformed manifest line throws a `UserError` naming the file and line number. A partial baseline is not used silently. Filesystem errors propagate, consistent with 929's D3b.
+- **Errors.** A malformed manifest line throws a `UserError` naming the file and line number. A partial baseline is not used silently. Filesystem errors propagate, consistent with 929's D3b. That includes `EACCES` on a read or delete.
+- **Failure partway through.** An error in worktree N stops the run. Worktrees before N are complete. Worktree N may be partly pruned, but it keeps its old manifest, because the manifest copy comes last. Later worktrees are untouched. Re-running after the fix finishes the job for any worktree that has its own manifest.
+  - One case is not recovered. Suppose worktree N had no manifest of its own and depended on the root's pre-run snapshot (D2). The re-run snapshots the root's *new* manifest, so the files dropped in the failed run are no longer stale candidates. They stay in the worktree.
+  - That gap is accepted. It needs a failure *and* a worktree with no manifest, and that combination only exists during the first run after upgrading. It also fails the safe way: files are kept, never wrongly deleted. Such files land in the same bucket as the legacy-table files in D2.
 - **Output.** These lines go under the existing `→ propagating to worktree:` header:
   - `Removed <rel> (no longer installed by the guide)`
   - `Kept <rel>: no longer installed by the guide, but edited since — remove it by hand if unneeded`
@@ -160,6 +170,7 @@ This settles plan item (e). Generated `.github/prompts/*.prompt.md` files predat
 ### Migration Plan
 
 - **Move** `propagateToWorktrees` from `setup-ide.ts` to `worktreePropagation.ts`. Its only caller is the `setup-ide` command action in the same file. Tests in `setup-ide.test.ts` that cover propagation move to `worktreePropagation.test.ts`.
+- **Move** `TARGETS`, `TargetDescriptor`, `MANAGED_MARKER`, `MANAGED_BEGIN_MARKER`, and `MANAGED_MARKERS` from `setup-ide.ts` to `ideTargets.ts`. `setup-ide.ts` re-exports them, so test imports keep working.
 - **Re-export** `propagateToWorktrees` from `setup-ide.ts`, following the existing re-export pattern for `ideTargets`, unless no external importer remains. Check with a grep at implementation time and drop the re-export if nothing uses it.
 - **Behavior preserved:** the worktree filter, the copy set, the per-worktree header, and the final count line are unchanged. Existing propagation tests must pass unmodified, apart from their import path.
 
@@ -187,12 +198,15 @@ This settles plan item (e). Generated `.github/prompts/*.prompt.md` files predat
 7. For copilot, generated `.github/prompts/*.prompt.md` files are removed from worktrees, and unmarked ones are kept.
 8. Paths that escape the worktree are never touched.
 9. Empty skill or agent subdirectories are removed; install roots are not.
+10. Propagation doesn't run when the guide script fails or the user declines the overwrite prompt.
+11. Symlinks and non-regular files at stale paths are kept with a warning, and a symlinked directory can't redirect a deletion outside the worktree.
 
 ### Technical Requirements
 
 - `cksum()` matches the guide's output on fixtures from real manifest entries (`.context-forge/claude.manifest` in this repo) and on edge cases: an empty buffer and a buffer whose length needs more than one length byte.
 - `parseManifestLine` is tested on the real manifest format, on paths with spaces, on trailing whitespace, and on a malformed line (which must throw).
-- Unit tests for `pruneStaleFiles` cover delete, keep-edited, unlisted, containment, and empty-dir rules, using temp directories.
+- Unit tests for `pruneStaleFiles` cover delete, keep-edited, unlisted, containment (including a symlinked directory), non-regular files, and empty-dir rules, using temp directories.
+- A command-action test confirms that a declined overwrite prompt skips propagation.
 - Propagation tests cover D2 (no worktree manifest), D4 (no root manifest), the empty-manifest case, and the prompt sweep.
 - `setup-ide.ts` and the new modules each stay at or under ~300 lines.
 - `pnpm -r build` and all test suites pass.
@@ -270,3 +284,21 @@ Not covered by cf (D2): worktrees created before the root ever had a manifest ma
 
 - The guide and cf must agree on the CRC byte for byte. Any future guide change to the manifest format (for example, a different hash) is a breaking interface change for cf. Note this in the module's header comment.
 - Real worktrees are often outside the project directory (`../`). The containment check resolves against each worktree's own path, not the root's.
+
+## Review Resolution (20261003)
+
+Slice review: `user/reviews/930-review.slice.prune-stale-guide-files-in-worktrees.md` (CONCERNS, claude-sonnet-5-5, reviewedSha 4451807).
+
+- **F001 (thin parent architecture): no change.** Slice plan entry 30 carries this item. The 900 architecture is a standing maintenance charter, not a list of slices.
+- **F002 (circular import): accepted, using a leaf module.** `TARGETS`, `TargetDescriptor`, and the markers move to `ideTargets.ts`. Imports now run one way only (Component Structure, Migration Plan). Passing the descriptor in as a parameter was rejected: the sweep also needs `GENERATED_MARKER`, so it would only move the problem.
+- **F003 (failure modes): accepted.**
+  - A failure partway through stops the run, and the per-worktree state afterward is spelled out.
+  - The one case a re-run can't recover (D2 snapshot plus a failure) is accepted and explained. It fails toward keeping files.
+  - Containment uses realpath.
+  - Symlinks and non-regular files are kept.
+  - Read and delete errors propagate.
+  - All in Patterns and Conventions, criteria 10–11.
+- **F004 (script-failure ordering): accepted.**
+  - A non-zero exit already throws before propagation runs. The design now states this.
+  - Checking this turned up a real gap: a declined overwrite prompt returns normally and propagation still runs. `setupIdeAction` now returns whether the script ran, and the command propagates only on `true`.
+  - The manifest copy uses a temp file plus rename.
