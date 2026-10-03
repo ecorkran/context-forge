@@ -7,7 +7,7 @@ dependencies: []
 projectState: main is clean at 3b97640; published version is 0.18.2. The agents command target installs machine-level Codex skills to ~/.codex/skills (slice 924 D2), which Codex now marks deprecated in favor of ~/.agents/skills. setup-ide's copilot descriptor propagates only .github/instructions and .github/prompts to worktrees. The 929 design was reviewed (CONCERNS) and all findings are resolved in the design.
 dateCreated: 20261002
 dateUpdated: 20261002
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -291,11 +291,11 @@ The global `cf` is the published npm package and won't show your changes.
         Record actual output in the slice design's verification section if
         anything differs.
 
-- [ ] **Task 13: Walkthrough step 2 (live Codex discovery, PM-assisted)**
+- [x] **Task 13: Walkthrough step 2 (live Codex discovery, PM-assisted)**
       (effort: 1)
-  - [ ] Ask the PM to start `codex`, type `$cf-`, and confirm each cf skill
+  - [x] Ask the PM to start `codex`, type `$cf-`, and confirm each cf skill
         appears exactly once, then run `$cf-status`.
-  - [ ] Success criteria: the PM confirms no duplicates and that `$cf-status`
+  - [x] Success criteria: the PM confirms no duplicates and that `$cf-status`
         works. Do not mark this complete without that confirmation.
 
 - [x] **Task 14: Walkthrough step 4 (copilot worktree)** (effort: 2)
@@ -314,10 +314,10 @@ The global `cf` is the published npm package and won't show your changes.
   - [x] Commit any walkthrough notes:
         `docs: record slice 929 verification results`
 
-- [ ] **Task 15: Close out** (effort: 1)
-  - [ ] Set the slice design and this task file to `status: complete`, and
+- [x] **Task 15: Close out** (effort: 1)
+  - [x] Set the slice design and this task file to `status: complete`, and
         check off 929 in the 900 slice plan (update `dateUpdated`).
-  - [ ] Run `cf check` and confirm it reports no new warnings for 929.
-  - [ ] Commit: `docs: mark slice 929 complete`
-  - [ ] Stop here. Merging to `main` and releasing are the PM's call
+  - [x] Run `cf check` and confirm it reports no new warnings for 929.
+  - [x] Commit: `docs: mark slice 929 complete`
+  - [x] Stop here. Merging to `main` and releasing are the PM's call
         (release is a patch bump per the release-bump preference).
