@@ -74,7 +74,7 @@ describe('commandInstaller', () => {
   describe('resolveInstallDir', () => {
     it('defaults to the machine-level directory per target', () => {
       expect(resolveInstallDir('claude')).toBe(path.join(os.homedir(), '.claude', 'commands'));
-      expect(resolveInstallDir('agents')).toBe(path.join(os.homedir(), '.codex', 'skills'));
+      expect(resolveInstallDir('agents')).toBe(path.join(os.homedir(), '.agents', 'skills'));
     });
 
     it('resolves --local to the project-local directory per target', () => {

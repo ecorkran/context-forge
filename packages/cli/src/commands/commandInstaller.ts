@@ -46,8 +46,10 @@ export const COMMAND_TARGETS: Record<CommandTarget, CommandTargetDescriptor> = {
   agents: {
     sourceDir: 'codex',
     localDir: '.agents/skills',
-    // Codex's machine-level skills directory (design D2 — live-verified before merge).
-    globalDir: () => path.join(os.homedir(), '.codex', 'skills'),
+    // Shared Agent Skills user root. Codex (codex-rs/ext/skills/src/host_roots.rs)
+    // treats $HOME/.agents/skills as the user root and $CODEX_HOME/skills as
+    // deprecated; squadron writes here too (slice 929 D1).
+    globalDir: () => path.join(os.homedir(), '.agents', 'skills'),
     layout: 'skill-dirs',
     invocationHint: (entry) => '$' + entry,
     noun: 'skills',
