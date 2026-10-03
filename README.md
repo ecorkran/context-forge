@@ -111,7 +111,7 @@ Each target writes a different file layout:
 ```
 cf setup-ide claude              # CLAUDE.md, .claude/{rules,agents,skills}/
 cf setup-ide copilot             # AGENTS.md, .github/copilot-instructions.md,
-                                  # .github/{instructions,prompts}/
+                                  # .github/instructions/, .agents/skills/<name>/SKILL.md
 cf setup-ide cursor              # AGENTS.md (always-on), .cursor/rules/*.mdc (scoped)
 cf setup-ide codex|openai|agents # AGENTS.md, .agents/skills/<name>/SKILL.md
 ```
