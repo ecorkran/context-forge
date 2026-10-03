@@ -4,6 +4,7 @@ import {
   GUIDE_MANAGED_NOTICE,
   GUIDE_STRATEGIES,
   describeGuideStrategy,
+  guideExcludeNotices,
   guideMethodDeprecationMessage,
 } from '@context-forge/core';
 import {
@@ -11,6 +12,7 @@ import {
   GuideManager,
   ConfigManager,
   BranchGuardWarnError,
+  GuideExcludeError,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption } from '../options.js';
@@ -52,6 +54,38 @@ async function getGuideContext(projectOpt: string | undefined): Promise<GuideCon
   return { projectPath: project.projectPath, operationPath, worktreeId };
 }
 
+/**
+ * A bad guide.exclude value is a config mistake the user fixes, so it prints
+ * as a user error (message only) rather than an unexpected failure.
+ */
+function asUserError(err: unknown): unknown {
+  return err instanceof GuideExcludeError ? new UserError(err.message, 'INVALID_VALUE') : err;
+}
+
+/** Print guide.exclude warnings for an install or update result to stderr. */
+function printExcludeNotices(result: Parameters<typeof guideExcludeNotices>[0]): void {
+  for (const notice of guideExcludeNotices(result)) {
+    console.error(warn(notice));
+  }
+}
+
+/** Status lines for guide.exclude: applied list, pending change, or ignored key. */
+function showExcludeStatus(info: Awaited<ReturnType<GuideManager['status']>>): void {
+  if (info.excludeApplied.length > 0) {
+    console.log(`  ${label('Excluded:')}   ${valueStyle(info.excludeApplied.join(', '))}`);
+  }
+  if (info.method === 'tarball') {
+    // Both lists are normalized and sorted, so a join compares them.
+    if (info.excludeConfigured.join(',') !== info.excludeApplied.join(',')) {
+      console.log(`  ${warn('guide.exclude changed — run cf guides update to apply')}`);
+    }
+  } else if (info.method && info.excludeConfigured.length > 0) {
+    for (const notice of guideExcludeNotices({ method: info.method, excludeIgnored: true })) {
+      console.log(`  ${warn(notice)}`);
+    }
+  }
+}
+
 /** Show guide status */
 async function showStatus(opts: { json?: boolean; project?: string }): Promise<void> {
   const ctx = await getGuideContext(opts.project);
@@ -74,6 +108,7 @@ async function showStatus(opts: { json?: boolean; project?: string }): Promise<v
     }
     console.log(`  ${label('Version:')}    ${valueStyle(info.version ?? 'unknown')}`);
     console.log(`  ${label('Path:')}       ${dim(info.path)}`);
+    showExcludeStatus(info);
     if (info.updateAvailable) {
       console.log(`  ${label('Update:')}     ${warn(`${info.latestVersion} available`)}`);
     }
@@ -135,6 +170,10 @@ export async function guidesInstallAction(
         dim('(saved to the shared project config; commit it so teammates get the same strategy)')
     );
   }
+  if (result.exclude) {
+    console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
+  }
+  printExcludeNotices(result);
 }
 
 /**
@@ -166,7 +205,7 @@ export function registerGuidesCommand(program: Command): void {
       try {
         await showStatus(opts);
       } catch (err) {
-        handleError(err);
+        handleError(asUserError(err));
       }
     });
 
@@ -184,7 +223,7 @@ export function registerGuidesCommand(program: Command): void {
         const ctx = await getGuideContext(opts.project);
         await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy, source: opts.source });
       } catch (err) {
-        handleError(err);
+        handleError(asUserError(err));
       }
     });
 
@@ -252,7 +291,14 @@ export function registerGuidesCommand(program: Command): void {
           }
         }
 
-        if (result.previousVersion === result.newVersion) {
+        if (result.excludeChanged) {
+          console.log(success('Guide re-extracted with updated excludes.'));
+          console.log(`  ${label('Version:')}  ${valueStyle(result.newVersion ?? 'unknown')}`);
+          console.log(
+            `  ${label('Excluded:')} ${result.exclude ? valueStyle(result.exclude.join(', ')) : dim('none')}`
+          );
+          reportCommitted(result.committed);
+        } else if (result.previousVersion === result.newVersion) {
           if (result.worktreeSynced) {
             // Host pointer was already current, but the worktree checkout was
             // synced — say so, or the message contradicts the file changes (GH #44).
@@ -267,10 +313,14 @@ export function registerGuidesCommand(program: Command): void {
             `  ${label('Version:')}  ${dim(result.previousVersion ?? 'unknown')} → ${valueStyle(result.newVersion ?? 'unknown')}`
           );
           console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+          if (result.exclude) {
+            console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
+          }
           reportCommitted(result.committed);
         }
+        printExcludeNotices(result);
       } catch (err) {
-        handleError(err);
+        handleError(asUserError(err));
       }
     });
 }

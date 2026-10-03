@@ -45,10 +45,11 @@ vi.mock('@context-forge/core/node', async () => {
     })),
     BranchGuardBlockedError: actual.BranchGuardBlockedError,
     BranchGuardWarnError: actual.BranchGuardWarnError,
+    GuideExcludeError: actual.GuideExcludeError,
   };
 });
 
-import { BranchGuardBlockedError, BranchGuardWarnError } from '@context-forge/core/node';
+import { BranchGuardBlockedError, BranchGuardWarnError, GuideExcludeError } from '@context-forge/core/node';
 
 vi.mock('../../src/utils/project.js', () => ({
   resolveProjectWorktree: (...args: unknown[]) => mockResolveProjectWorktree(...args),
@@ -81,6 +82,8 @@ const sampleGuideInfo = {
   latestVersion: 'v0.13.2',
   updateAvailable: false,
   usingBundledPrompt: false,
+  excludeApplied: [] as string[],
+  excludeConfigured: [] as string[],
 };
 
 const notInstalledInfo = {
@@ -92,6 +95,8 @@ const notInstalledInfo = {
   latestVersion: 'v0.13.2',
   updateAvailable: false,
   usingBundledPrompt: true,
+  excludeApplied: [] as string[],
+  excludeConfigured: [] as string[],
 };
 
 function createProgram(): Command {
@@ -539,6 +544,8 @@ describe('cf guides info — checkout state and managed notice', () => {
     latestVersion: 'v0.13.2',
     updateAvailable: false,
     usingBundledPrompt: false,
+    excludeApplied: [] as string[],
+    excludeConfigured: [] as string[],
   };
 
   function output(): string {
@@ -612,5 +619,125 @@ describe('strategy help text (D8)', () => {
 
   it('does not advertise the deprecated alias', () => {
     expect(strategyHelpText()).not.toContain('manual');
+  });
+});
+
+describe('guide.exclude reporting', () => {
+  const tarballPath = '/tmp/test/project-documents/ai-project-guide';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  const stdout = (): string => vi.mocked(console.log).mock.calls.map((c) => String(c[0] ?? '')).join('\n');
+  const stderr = (): string => vi.mocked(console.error).mock.calls.map((c) => String(c[0] ?? '')).join('\n');
+
+  async function run(...args: string[]): Promise<void> {
+    await createProgram().parseAsync(['node', 'cf', 'guides', ...args, '--project', 'proj_001']);
+  }
+
+  it('install prints the applied list and warns about an unmatched pattern', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.19.3', method: 'tarball', path: tarballPath,
+      exclude: ['tool-guide', 'tool-guides'], unmatchedExclude: ['tool-guide'],
+    });
+
+    await run('install');
+
+    expect(stdout()).toContain('Excluded:');
+    expect(stdout()).toContain('tool-guide, tool-guides');
+    expect(stderr()).toContain('guide.exclude entry "tool-guide" matched nothing in v0.19.3');
+  });
+
+  it('update with excludeChanged reports the re-extract instead of "already at latest"', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.19.3', newVersion: 'v0.19.3', method: 'tarball',
+      exclude: ['framework-guides', 'tool-guides'], excludeChanged: true, committed: true,
+    });
+
+    await run('update');
+
+    expect(stdout()).toContain('Guide re-extracted with updated excludes.');
+    expect(stdout()).toContain('framework-guides, tool-guides');
+    expect(stdout()).not.toContain('already at the latest');
+  });
+
+  it('install and update each warn when a submodule install ignores the key', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.19.3', method: 'submodule', path: tarballPath, excludeIgnored: true,
+    });
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.19.3', newVersion: 'v0.19.3', method: 'submodule', excludeIgnored: true,
+    });
+
+    await run('install');
+    await run('update');
+
+    const ignored = stderr().split('\n').filter((l) => l.includes('guide.exclude is set but ignored for submodule installs'));
+    expect(ignored).toHaveLength(2);
+  });
+
+  it('status shows the applied list and the pending-change line', async () => {
+    mockStatus.mockResolvedValue({
+      ...sampleGuideInfo, method: 'tarball', checkout: null,
+      excludeApplied: ['tool-guides'], excludeConfigured: ['framework-guides', 'tool-guides'],
+    });
+
+    await run('info');
+
+    expect(stdout()).toContain('Excluded:');
+    expect(stdout()).toContain('guide.exclude changed — run cf guides update to apply');
+  });
+
+  it('status shows no pending line when config matches the record', async () => {
+    mockStatus.mockResolvedValue({
+      ...sampleGuideInfo, method: 'tarball', checkout: null,
+      excludeApplied: ['tool-guides'], excludeConfigured: ['tool-guides'],
+    });
+
+    await run('info');
+
+    expect(stdout()).not.toContain('guide.exclude changed');
+  });
+
+  it('status says the key is ignored for a submodule install', async () => {
+    mockStatus.mockResolvedValue({ ...sampleGuideInfo, excludeConfigured: ['tool-guides'] });
+
+    await run('info');
+
+    expect(stdout()).toContain('guide.exclude is set but ignored for submodule installs');
+  });
+
+  it('status --json includes both exclude fields', async () => {
+    mockStatus.mockResolvedValue({
+      ...sampleGuideInfo, method: 'tarball', excludeApplied: ['tool-guides'], excludeConfigured: ['tool-guides'],
+    });
+
+    await run('info', '--json');
+
+    const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+    expect(parsed.excludeApplied).toEqual(['tool-guides']);
+    expect(parsed.excludeConfigured).toEqual(['tool-guides']);
+  });
+
+  it('prints a GuideExcludeError as a user error with no stack and exits non-zero', async () => {
+    const message = 'guide.exclude entry "scripts" would remove scripts, which cf requires.';
+    mockInstall.mockRejectedValue(new GuideExcludeError(message));
+
+    await run('install');
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(stderr()).toBe(message);
   });
 });
