@@ -93,9 +93,9 @@ cf setup-ide <target>
   │    user declines overwrite → ran = false, nothing below runs
   └─ propagateToWorktrees(project, target, rootBaseline)
        newRoot = readManifest(root, target)
-       if newRoot === null → copy only, print notice once, return
        for each worktree:
          copy markerFiles + propagateDirs                 # unchanged behavior
+         if newRoot === null → skip prune and manifest copy (sweep still runs)
          baseline = readManifest(wt, target) ∪ rootBaseline
          stale = paths(baseline) − paths(newRoot)
          for each stale path present in the worktree:
@@ -103,6 +103,7 @@ cf setup-ide <target>
            otherwise → keep, warn
          sweep generated prompt files (descriptor-driven)
          copy root manifest → wt/.context-forge/<target>.manifest   # temp file + rename
+       if newRoot === null → print notice once
 ```
 
 The manifest copy is the last step for each worktree. It writes to a temp file in the same directory and then renames it, so an interrupted copy can't leave a truncated manifest behind. A truncated manifest would fail the next run as malformed.
