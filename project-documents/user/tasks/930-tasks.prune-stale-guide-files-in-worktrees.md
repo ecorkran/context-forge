@@ -7,7 +7,7 @@ dependencies: [929]
 projectState: main is clean at 6fa3d73; published version is 0.18.3. propagateToWorktrees in setup-ide.ts (300 lines) only adds and overwrites files in worktrees, so files the guide stops shipping linger there. The guide (vendored 0.19.3) writes .context-forge/<target>.manifest and prunes at the root. The 930 design passed two reviews (CONCERNS), all findings resolved; D2 confirmed by the PM.
 dateCreated: 20261003
 dateUpdated: 20261003
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -61,61 +61,61 @@ The global `cf` is the published npm package and won't show your changes.
 
 ### Part 0 — Branch
 
-- [ ] **Task 0: Create the slice branch** (effort: 1)
-  - [ ] Run `cf config get git.integration_branch`. If it prints a value,
+- [x] **Task 0: Create the slice branch** (effort: 1)
+  - [x] Run `cf config get git.integration_branch`. If it prints a value,
         STOP and ask the Project Manager. The plan assumes it is empty and
         the target is `main`.
-  - [ ] From a clean `main`, run
+  - [x] From a clean `main`, run
         `git checkout -b 930-slice.prune-stale-guide-files-in-worktrees main`.
         If the branch already exists, switch to it instead.
-  - [ ] Success criteria: `git branch --show-current` prints the branch
+  - [x] Success criteria: `git branch --show-current` prints the branch
         name, and the working tree is clean.
 
 ### Part 1 — Characterization (design step 0)
 
-- [ ] **Task 1: Assert the propagation header and count lines** (effort: 1)
-  - [ ] In `setup-ide.test.ts`, in the existing `propagateToWorktrees`
+- [x] **Task 1: Assert the propagation header and count lines** (effort: 1)
+  - [x] In `setup-ide.test.ts`, in the existing `propagateToWorktrees`
         direct tests, add assertions that `console.log` output contains
         `→ propagating to worktree: <name> (<path>)` once per real worktree,
         and `Propagated to N worktree(s).` with the right N and plural form
         (`worktree` for 1, `worktrees` otherwise).
-  - [ ] Do not change any source file in this task.
-  - [ ] Success criteria: the setup-ide test file passes with the new
+  - [x] Do not change any source file in this task.
+  - [x] Success criteria: the setup-ide test file passes with the new
         assertions against today's code.
-  - [ ] Commit: `test: pin worktree propagation header and count output`
+  - [x] Commit: `test: pin worktree propagation header and count output`
 
 ### Part 2 — Install manifest module
 
-- [ ] **Task 2: Implement `cksum`** (effort: 2)
-  - [ ] Create `packages/cli/src/commands/installManifest.ts`. Header
+- [x] **Task 2: Implement `cksum`** (effort: 2)
+  - [x] Create `packages/cli/src/commands/installManifest.ts`. Header
         comment: the manifest format and CRC are an interface with the
         guide; a guide change to either is a breaking change for cf
         (design, Special Considerations).
-  - [ ] Export `cksum(buffer: Buffer): number` implementing POSIX `cksum`
+  - [x] Export `cksum(buffer: Buffer): number` implementing POSIX `cksum`
         exactly as D1 describes: CRC-32, polynomial `0x04C11DB7`, MSB-first,
         initial value 0, then the byte length appended least significant
         byte first using only as many bytes as needed, then complemented.
         Return an unsigned 32-bit value. Build the 256-entry table once at
         module load.
-  - [ ] Success criteria: `pnpm --filter @context-forge/cli build` passes.
+  - [x] Success criteria: `pnpm --filter @context-forge/cli build` passes.
 
-- [ ] **Task 2a: `cksum` tests** (effort: 2)
-  - [ ] Create `packages/cli/tests/commands/installManifest.test.ts`.
-  - [ ] Real-fixture test first: read the repo's
+- [x] **Task 2a: `cksum` tests** (effort: 2)
+  - [x] Create `packages/cli/tests/commands/installManifest.test.ts`.
+  - [x] Real-fixture test first: read the repo's
         `.context-forge/claude.manifest`, and for each line read the listed
         file from the repo root and assert `cksum` equals the recorded CRC
         and the byte length equals the recorded size. Resolve the repo root
         from the test file's location, not from `process.cwd()`. Fail if
         the manifest has zero lines.
-  - [ ] Empty buffer: expect `4294967295` (`printf '' | cksum`).
-  - [ ] A buffer longer than 255 bytes, so the length needs two or more
+  - [x] Empty buffer: expect `4294967295` (`printf '' | cksum`).
+  - [x] A buffer longer than 255 bytes, so the length needs two or more
         bytes. Get the expected CRC by running the system `cksum` once while
         writing the test, and hard-code it with a comment showing the
         command used. The test itself must not shell out.
-  - [ ] Success criteria: the new test file passes.
+  - [x] Success criteria: the new test file passes.
 
-- [ ] **Task 3: Implement manifest parsing and reading** (effort: 2)
-  - [ ] In `installManifest.ts`, export:
+- [x] **Task 3: Implement manifest parsing and reading** (effort: 2)
+  - [x] In `installManifest.ts`, export:
     1. `MANIFEST_DIR = '.context-forge'` and
        `manifestPath(root, target)` → `<root>/.context-forge/<target>.manifest`.
     2. `ManifestEntry` type: `{ crc: number; size: number; path: string }`.
@@ -128,62 +128,62 @@ The global `cf` is the published npm package and won't show your changes.
        missing, `[]` for an empty file, otherwise the parsed entries. A
        malformed line throws a `UserError` naming the manifest path and the
        1-based line number. Open only the exact `<target>.manifest` path.
-  - [ ] Handle "missing" by catching `ENOENT` specifically, with a comment
+  - [x] Handle "missing" by catching `ENOENT` specifically, with a comment
         saying a missing manifest is the old-guide case. Rethrow everything
         else.
-  - [ ] Success criteria: build passes; the file stays well under ~300
+  - [x] Success criteria: build passes; the file stays well under ~300
         lines.
 
-- [ ] **Task 3a: Parsing and reading tests** (effort: 2)
-  - [ ] In `installManifest.test.ts`, test `parseManifestLine` on:
+- [x] **Task 3a: Parsing and reading tests** (effort: 2)
+  - [x] In `installManifest.test.ts`, test `parseManifestLine` on:
         a real line copied from `.context-forge/claude.manifest`; a path
         with spaces; trailing whitespace and `\r`; a blank line (→ `null`);
         a malformed line (non-numeric CRC, missing size) → throws.
-  - [ ] Test `readManifest` with a temp dir: missing file → `null`; empty
+  - [x] Test `readManifest` with a temp dir: missing file → `null`; empty
         file → `[]`; two valid lines → two entries; a malformed second
         line → `UserError` whose message contains the path and `2`; a stray
         `.claude.manifest.tmp` next to a missing manifest → still `null`.
-  - [ ] Also call `readManifest` on the repo root for `claude` and assert
+  - [x] Also call `readManifest` on the repo root for `claude` and assert
         a non-empty result (real-input check per the parsing rules).
-  - [ ] Success criteria: the test file passes.
-  - [ ] Commit: `feat: add install manifest reader and POSIX cksum`
+  - [x] Success criteria: the test file passes.
+  - [x] Commit: `feat: add install manifest reader and POSIX cksum`
 
 ### Part 3 — Extraction (no behavior change)
 
-- [ ] **Task 4: Move target descriptors and markers to `ideTargets.ts`**
+- [x] **Task 4: Move target descriptors and markers to `ideTargets.ts`**
       (effort: 1)
-  - [ ] Move `TargetDescriptor`, `TARGETS`, `MANAGED_MARKER`,
+  - [x] Move `TargetDescriptor`, `TARGETS`, `MANAGED_MARKER`,
         `MANAGED_BEGIN_MARKER`, and `MANAGED_MARKERS` (with their comments)
         from `setup-ide.ts` into `ideTargets.ts`.
-  - [ ] Re-export them from `setup-ide.ts`, following the existing
+  - [x] Re-export them from `setup-ide.ts`, following the existing
         `ideTargets` re-export line (line 22), so current importers and
         tests keep working.
-  - [ ] `ideTargets.ts` must not import from `setup-ide.ts`.
-  - [ ] Success criteria: build passes and all cli tests pass unchanged.
-  - [ ] Commit: `refactor(cli): move IDE target descriptors to ideTargets`
+  - [x] `ideTargets.ts` must not import from `setup-ide.ts`.
+  - [x] Success criteria: build passes and all cli tests pass unchanged.
+  - [x] Commit: `refactor(cli): move IDE target descriptors to ideTargets`
 
-- [ ] **Task 5: Move `propagateToWorktrees` to `worktreePropagation.ts`**
+- [x] **Task 5: Move `propagateToWorktrees` to `worktreePropagation.ts`**
       (effort: 2)
-  - [ ] Create `packages/cli/src/commands/worktreePropagation.ts` and move
+  - [x] Create `packages/cli/src/commands/worktreePropagation.ts` and move
         `propagateToWorktrees` and its doc comment there unchanged. It
         imports nothing from `setup-ide.ts` (it uses `ideTargets.ts` now,
         and `installManifest.ts` from Task 8 on).
-  - [ ] The command action in `setup-ide.ts` imports it from the new
+  - [x] The command action in `setup-ide.ts` imports it from the new
         module.
-  - [ ] Move the propagation tests (`setup-ide.test.ts` lines 771–1025,
+  - [x] Move the propagation tests (`setup-ide.test.ts` lines 771–1025,
         both describe blocks) into
         `packages/cli/tests/commands/worktreePropagation.test.ts`. Copy over
         only the mocks and fixtures those tests need. The copilot block
         drives the command action, so it needs the same store, fs,
         child_process, and readline mocks.
-  - [ ] Change only import paths in the moved tests, not assertions.
-  - [ ] Grep `packages/*/src` and `packages/*/tests` for
+  - [x] Change only import paths in the moved tests, not assertions.
+  - [x] Grep `packages/*/src` and `packages/*/tests` for
         `propagateToWorktrees`. Re-export it from `setup-ide.ts` only if
         something outside `setup-ide.ts` and the new test file still
         imports it from there; otherwise don't.
-  - [ ] Success criteria: build passes; all cli tests pass; `setup-ide.ts`
+  - [x] Success criteria: build passes; all cli tests pass; `setup-ide.ts`
         is under 300 lines (`wc -l`).
-  - [ ] Commit: `refactor(cli): extract worktree propagation module`
+  - [x] Commit: `refactor(cli): extract worktree propagation module`
 
 ### Part 4 — Prune
 

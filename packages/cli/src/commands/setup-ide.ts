@@ -61,12 +61,15 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
   return false;
 }
 
-/** Run IDE setup for a project. Errors propagate to the caller. */
+/**
+ * Run IDE setup for a project. Errors propagate to the caller. Returns true when
+ * the guide script ran, false when the user declined the overwrite prompt.
+ */
 export async function setupIdeAction(
   projectPath: string,
   target: string,
   opts?: { yes?: boolean }
-): Promise<void> {
+): Promise<boolean> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
   if (!normalizedTarget) {
@@ -114,7 +117,7 @@ export async function setupIdeAction(
         const confirmed = await askConfirmation('Continue? (y/N) ');
         if (!confirmed) {
           console.error('Aborted.');
-          return;
+          return false;
         }
       }
 
@@ -146,6 +149,7 @@ export async function setupIdeAction(
   }
 
   console.error(`IDE setup complete for ${normalizedTarget}.`);
+  return true;
 }
 
 export function registerSetupIdeCommand(program: Command): void {
@@ -180,7 +184,10 @@ export function registerSetupIdeCommand(program: Command): void {
           );
         }
 
-        await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
+        // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
+        // Propagation prunes, and a "no" must never delete files.
+        const ran = await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
+        if (!ran) return;
         propagateToWorktrees(project, normalizedTarget);
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it

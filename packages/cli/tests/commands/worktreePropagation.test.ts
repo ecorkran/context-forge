@@ -402,3 +402,55 @@ describe('propagateToWorktrees', () => {
     );
   });
 });
+
+// ─── propagation skipped when the guide script did not run ──────────────────
+
+describe('setup-ide command — propagation skipped when the script did not run', () => {
+  const wtPath = '/tmp/wt1';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProjectWithWorktrees]);
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockDetect.mockResolvedValue({ installed: true });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  function expectNoPropagation(): void {
+    const intoWorktree = (dst: unknown) => String(dst).startsWith(wtPath);
+    expect(mockCopyFileSync.mock.calls.some((c) => intoWorktree(c[1]))).toBe(false);
+    expect(mockCpSync.mock.calls.some((c) => intoWorktree(c[1]))).toBe(false);
+    const logOutput = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logOutput).not.toContain('→ propagating to worktree:');
+  }
+
+  it('user answers n at the overwrite prompt → nothing propagated', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath || p === wtPath);
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+    expectNoPropagation();
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
+  });
+
+  it('guide script exits non-zero → error reported, nothing propagated', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath || p === wtPath);
+    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
+    mockExecFileSync.mockImplementation(() => {
+      throw Object.assign(new Error('script failed'), { status: 1 });
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
+
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(errOutput).toContain('setup-ide exited with code 1');
+    expectNoPropagation();
+  });
+});
