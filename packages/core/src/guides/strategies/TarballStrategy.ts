@@ -7,9 +7,9 @@ import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
 import { fetch as undiciFetch, EnvHttpProxyAgent } from 'undici';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
-import { VERSION_MARKER_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
+import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
 import { gitExec, withNetworkErrorHint, commitPathIfChanged } from '../gitExec.js';
-import { isExcludedGuidePath } from '../../config/guideExclude.js';
+import { isExcludedGuidePath, parseGuideExclude } from '../../config/guideExclude.js';
 
 /**
  * Proxy variables honored by the tarball download. Git reads these on its own
@@ -82,6 +82,17 @@ export function isSkippedTarballEntry(entryPath: string, exclude: readonly strin
 }
 
 /**
+ * The guide.exclude list an installed tarball guide was extracted with,
+ * normalized the same way as config so the two compare directly. A missing
+ * record means nothing was excluded (true of every install that predates it).
+ */
+export function readExcludeRecord(guideDir: string): string[] {
+  const recordPath = join(guideDir, EXCLUDE_RECORD_FILE);
+  if (!existsSync(recordPath)) return [];
+  return parseGuideExclude(readFileSync(recordPath, 'utf-8').split(/\r?\n/).join(','));
+}
+
+/**
  * Suffixes for the sibling directories extractAndSwap uses next to the guide
  * directory (e.g. project-documents/.ai-project-guide.staging). Siblings, so
  * both renames stay on one filesystem.
@@ -150,16 +161,21 @@ export class TarballStrategy implements InstallStrategy {
       throw new Error('Could not determine latest version from remote.');
     }
 
-    if (previousVersion === latestTag) {
+    const excludeDiffers = readExcludeRecord(targetDir).join(',') !== this.sortedExclude().join(',');
+    if (previousVersion === latestTag && !excludeDiffers) {
       return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
     }
+    // Same version but a different exclude list: re-extract the same tag.
+    const excludeChanged = previousVersion === latestTag;
 
     const unmatched = await this.extractAndSwap(source, latestTag, targetDir);
 
     const committed = await commitPathIfChanged(
       projectPath,
       GUIDE_RELATIVE_PATH,
-      `docs: update ai-project-guide ${latestTag}`
+      excludeChanged
+        ? `docs: re-extract ai-project-guide ${latestTag} (guide.exclude changed)`
+        : `docs: update ai-project-guide ${latestTag}`
     );
 
     return {
@@ -169,7 +185,12 @@ export class TarballStrategy implements InstallStrategy {
       method: 'tarball',
       committed,
       ...this.excludeFields(unmatched),
+      ...(excludeChanged ? { excludeChanged: true } : {}),
     };
+  }
+
+  private sortedExclude(): string[] {
+    return [...this.exclude].sort();
   }
 
   /** Result fields for the applied and unmatched excludes, each only when not empty. */
@@ -202,6 +223,9 @@ export class TarballStrategy implements InstallStrategy {
       return false;
     });
     writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
+    if (this.exclude.length > 0) {
+      writeFileSync(join(staging, EXCLUDE_RECORD_FILE), this.sortedExclude().join('\n') + '\n', 'utf-8');
+    }
 
     const hadGuide = existsSync(targetDir);
     if (hadGuide) renameSync(targetDir, previous);

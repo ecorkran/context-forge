@@ -3,10 +3,11 @@ import {
   TarballStrategy,
   parseGitHubOwnerRepo,
   isSkippedTarballEntry,
+  readExcludeRecord,
   describeRateLimit,
   activeProxyEnvVars,
 } from '../../../src/guides/strategies/TarballStrategy.js';
-import { VERSION_MARKER_FILE, GUIDE_RELATIVE_PATH } from '../../../src/guides/types.js';
+import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, GUIDE_RELATIVE_PATH } from '../../../src/guides/types.js';
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
@@ -460,6 +461,104 @@ describe('TarballStrategy', () => {
 
       expect(result).not.toHaveProperty('exclude');
       expect(result).not.toHaveProperty('unmatchedExclude');
+    });
+  });
+
+  describe('exclude record', () => {
+    const markerPath = `${targetDir}/${VERSION_MARKER_FILE}`;
+    const recordPath = `${targetDir}/${EXCLUDE_RECORD_FILE}`;
+
+    /** Installed guide at v0.13.2 with the given record contents (null = no record). */
+    function mockInstalledGuide(record: string | null): void {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+      mockExistsSync.mockImplementation((p) => p === targetDir || (p === recordPath && record !== null));
+      mockReadFileSync.mockImplementation(((p: string) => {
+        if (p === markerPath) return 'v0.13.2\n';
+        if (p === recordPath && record !== null) return record;
+        throw new Error(`ENOENT: ${p}`);
+      }) as never);
+    }
+
+    afterEach(() => {
+      for (const mock of [mockExistsSync, mockReadFileSync, mockWriteFileSync]) {
+        mock.mockReset();
+      }
+    });
+
+    it('readExcludeRecord returns [] when the record is missing', () => {
+      mockInstalledGuide(null);
+      expect(readExcludeRecord(targetDir)).toEqual([]);
+    });
+
+    it('readExcludeRecord normalizes and sorts lines', () => {
+      mockInstalledGuide('tool-guides/\nframework-guides\n');
+      expect(readExcludeRecord(targetDir)).toEqual(['framework-guides', 'tool-guides']);
+    });
+
+    it('install writes the sorted record into staging when excludes are set', async () => {
+      mockInstalledGuide(null);
+
+      await new TarballStrategy(['tool-guides', 'framework-guides']).install(projectPath, source, targetDir);
+
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        `/test/project/project-documents/.ai-project-guide.staging/${EXCLUDE_RECORD_FILE}`,
+        'framework-guides\ntool-guides\n',
+        'utf-8'
+      );
+    });
+
+    it('install writes no record when nothing is excluded', async () => {
+      mockInstalledGuide(null);
+
+      await strategy.install(projectPath, source, targetDir);
+
+      expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+        expect.stringContaining(EXCLUDE_RECORD_FILE),
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it('returns early at the same version when the record matches', async () => {
+      mockInstalledGuide('tool-guides\n');
+
+      const result = await new TarballStrategy(['tool-guides']).update(projectPath, targetDir, source);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockCommitPath).not.toHaveBeenCalled();
+      expect(result).not.toHaveProperty('excludeChanged');
+    });
+
+    it('re-extracts the same version when the record differs', async () => {
+      mockInstalledGuide('tool-guides\n');
+
+      const result = await new TarballStrategy(['framework-guides']).update(projectPath, targetDir, source);
+
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/tarball/v0.13.2'), expect.anything());
+      expect(result.excludeChanged).toBe(true);
+      expect(result.newVersion).toBe('v0.13.2');
+      expect(mockCommitPath).toHaveBeenCalledWith(
+        projectPath,
+        GUIDE_RELATIVE_PATH,
+        'docs: re-extract ai-project-guide v0.13.2 (guide.exclude changed)'
+      );
+    });
+
+    it('returns early with no record and no excludes configured', async () => {
+      mockInstalledGuide(null);
+
+      await strategy.update(projectPath, targetDir, source);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns early when the record differs only in order or a trailing slash', async () => {
+      mockInstalledGuide('tool-guides/\nframework-guides\n');
+
+      await new TarballStrategy(['framework-guides', 'tool-guides']).update(projectPath, targetDir, source);
+
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
