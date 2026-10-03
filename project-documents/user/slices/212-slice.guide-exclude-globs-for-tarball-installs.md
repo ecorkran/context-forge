@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20261003
 dateUpdated: 20261003
-status: not_started
+status: complete
 ---
 
 # Slice Design: guide-exclude-globs-for-tarball-installs
@@ -256,36 +256,55 @@ tool-guides
 
 ### Verification Walkthrough
 
-Run from a scratch project using the local build (`node packages/cli/dist/index.js`, written `cf` below). The global `cf` is the published build and will not have the key.
+Verified 20261003 against the real GitHub tarball (ai-project-guide v0.19.4). Run from scratch projects using the local build. Below, `cf` means:
 
-1. Set up a tarball project:
+```bash
+CONTEXT_FORGE_DATA_DIR=<scratch>/cfdata node <repo>/packages/cli/dist/index.js
+```
+
+The global `cf` is the published build and will not have the key. `CONTEXT_FORGE_DATA_DIR` keeps the scratch projects and user-level config out of your real project store. Each scratch project starts with `git init -q && git commit -q --allow-empty -m init`.
+
+1. **Set up a tarball project.** PASS.
    ```bash
-   mkdir /tmp/cf212 && cd /tmp/cf212 && git init -q
    cf init --strategy tarball
-   ls project-documents/ai-project-guide        # tool-guides/ and framework-guides/ present
+   ls project-documents/ai-project-guide        # framework-guides/ and tool-guides/ present
+   git log --oneline -1                         # docs: install ai-project-guide v0.19.4
    ```
-2. Refused excludes:
+2. **Refused excludes.** PASS. Each exits 1:
    ```bash
-   cf config set guide.exclude scripts            # error names guide.exclude and scripts
-   cf config set guide.exclude project-guides/templates   # error
-   cf config set guide.exclude 'tool-*'           # error: wildcard inside a segment not supported
+   cf config set guide.exclude scripts
+   # Error: Config key "guide.exclude" validation failed: guide.exclude entry "scripts" would remove scripts, which cf requires.
+   cf config set guide.exclude project-guides/templates
+   # ... guide.exclude entry "project-guides/templates" would remove project-guides, which cf requires.
+   cf config set guide.exclude 'tool-*'
+   # ... guide.exclude entry "tool-*" uses a wildcard that is not supported — only a trailing "/" or "/**" is allowed.
    ```
-3. Apply excludes at the same version:
+3. **Apply excludes at the same version.** PASS.
    ```bash
    cf config set guide.exclude "tool-guides/**, framework-guides,"
-   cf guides status          # shows the pending-change line
-   cf guides update          # "Guide re-extracted with updated excludes."
-   ls project-documents/ai-project-guide        # no tool-guides/, no framework-guides/
+   cf guides info      # "guide.exclude changed — run cf guides update to apply"
+   cf guides update
+   # Guide re-extracted with updated excludes.
+   #   Version:  v0.19.4
+   #   Excluded: framework-guides, tool-guides
+   #   Commit:   committed (not pushed)
+   ls project-documents/ai-project-guide        # no framework-guides/, no tool-guides/
    cat project-documents/ai-project-guide/.context-forge-guide-exclude   # framework-guides, tool-guides
-   git log --oneline -1      # docs: re-extract ai-project-guide vX.Y.Z (guide.exclude changed)
+   git log --oneline -1   # docs: re-extract ai-project-guide v0.19.4 (guide.exclude changed)
    ```
-4. No-op update: `cf guides update` prints "already at the latest version", and `git log` shows no new commit.
-5. Un-exclude one path: `cf config set guide.exclude framework-guides`, then `cf guides update`. `tool-guides/` is back.
-6. Typo warning: `cf config set guide.exclude tool-guide`, then `cf guides update`. Expect a warning that `tool-guide` matched nothing.
-7. Failure leaves the guide intact: with the network off (or `guide.source` pointed at an unreachable host), change `guide.exclude` and run `cf guides update`. It fails, and `ls project-documents/ai-project-guide` still shows the previous guide. `ls -a project-documents` shows no `.ai-project-guide.staging` after the next successful update.
-8. Still works: `cf setup-ide claude` and `cf build` both succeed.
-9. Non-tarball: in a second scratch project, `cf init --strategy submodule`, then set `guide.exclude`. `cf guides status` and `cf guides update` both say the key is ignored for submodule installs.
-10. Hand-edit guard: put `exclude = "scripts"` under `[guide]` in `.context-forge.toml` and run `cf guides update`. It fails before downloading, with the protected-path message.
+   The commit removed 50 files (about 10,300 lines).
+4. **No-op update.** PASS. `cf guides update` prints "Guide is already at the latest version." and `git log` shows no new commit.
+5. **Un-exclude one path.** PASS. `cf config set guide.exclude framework-guides`, then `cf guides update`, which re-extracts. `tool-guides/` is back and `framework-guides/` is gone.
+6. **Typo warning.** PASS. `cf config set guide.exclude tool-guide`, then `cf guides update`. It re-extracts and exits 0. stderr shows `guide.exclude entry "tool-guide" matched nothing in v0.19.4`, and nothing is excluded. `cf guides info` then shows `Excluded:   tool-guide`, which is the applied record.
+7. **Failure leaves the guide intact.** PASS, tested two ways:
+   - Unreachable source. Run `cf config set guide.source https://github.invalid/nobody/none.git`, change `guide.exclude`, then `cf guides update`. It exits 1 at `git ls-remote` with `Could not resolve host: github.invalid` plus the network hint. The guide listing is unchanged.
+   - Download failure after tag resolution. This exercises the staging path. Run `HTTPS_PROXY=http://127.0.0.1:9 GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.proxy GIT_CONFIG_VALUE_0="" cf guides update`. git skips the dead proxy, and the tarball download uses it. It exits 1 with `Downloading guide tarball from https://api.github.com/repos/ecorkran/ai-project-guide/tarball/v0.19.4 via proxy (HTTPS_PROXY) failed: fetch failed: connect ECONNREFUSED 127.0.0.1:9`. The guide listing and `.context-forge-guide-exclude` are unchanged, and `ls -a project-documents` shows no staging directory.
+   - Leftover cleanup. Create `project-documents/.ai-project-guide.staging/junk` and `project-documents/.ai-project-guide.previous/` by hand, then run `cf config unset guide.source` and `cf guides update`. It succeeds, and `ls -a project-documents` shows only `ai-project-guide` and `user`.
+   - Caveat: `NO_PROXY=github.com` does not work as a git-only bypass. undici also applies it to `api.github.com`, so the download skips the proxy and succeeds.
+8. **Still works.** PASS. `cf setup-ide claude` and `cf build` both exit 0 with excludes applied.
+9. **Non-tarball.** PASS. In a second scratch project, run `cf init --strategy submodule`, then `cf config set guide.exclude tool-guides`. `cf guides info` shows `guide.exclude is set but ignored for submodule installs`. `cf guides update` prints "already at the latest version" and the same warning on stderr. `tool-guides/` is still present.
+10. **Hand-edit guard.** PASS. Set `exclude = "scripts"` under `[guide]` in `.context-forge.toml`. Then `cf guides update` and `cf guides info` each exit 1 with only `guide.exclude entry "scripts" would remove scripts, which cf requires.` (no stack trace), before any network call.
+11. **Fresh init with the key pre-set.** PASS. In a fresh scratch project, write `.context-forge.toml` with `[guide]` and `exclude = "tool-guides"`, then run `cf init --strategy tarball`. It exits 0, `project-documents/ai-project-guide/tool-guides` does not exist, and the exclude record contains `tool-guides`. With `exclude = "scripts"` pre-set instead, init prints `Guides install failed: guide.exclude entry "scripts" would remove scripts, which cf requires.` and downloads nothing.
 
 ## Implementation Notes
 
