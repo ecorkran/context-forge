@@ -17,6 +17,7 @@ import { ensureGuideReady } from '../utils/guideReady.js';
 import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
 import { propagateToWorktrees } from './worktreePropagation.js';
+import { readManifest } from './installManifest.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
 export {
@@ -186,9 +187,12 @@ export function registerSetupIdeCommand(program: Command): void {
 
         // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
         // Propagation prunes, and a "no" must never delete files.
+        // Snapshot before the script rewrites it: part of each worktree's prune
+        // baseline, so worktrees with no manifest of their own still prune (D2).
+        const rootBaseline = readManifest(project.projectPath, normalizedTarget);
         const ran = await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
         if (!ran) return;
-        propagateToWorktrees(project, normalizedTarget);
+        propagateToWorktrees(project, normalizedTarget, rootBaseline);
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it
         // installs to the global directory (design D5). Targets without command

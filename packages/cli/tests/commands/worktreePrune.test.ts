@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { cksum, type ManifestEntry } from '../../src/commands/installManifest.js';
-import { pruneStaleFiles } from '../../src/commands/worktreePropagation.js';
+import type { ProjectData } from '@context-forge/core';
+import { cksum, manifestPath, type ManifestEntry } from '../../src/commands/installManifest.js';
+import { propagateToWorktrees, pruneStaleFiles } from '../../src/commands/worktreePropagation.js';
 
 // Real temp dirs throughout: this file must not share node:fs mocks with
 // worktreePropagation.test.ts (vi.mock is file-scoped).
@@ -147,5 +148,139 @@ describe('pruneStaleFiles', () => {
 
     expect(exists(wt, '.claude/skills/old')).toBe(false);
     expect(exists(wt, '.claude/skills')).toBe(true);
+  });
+});
+
+// ─── end-to-end propagation ─────────────────────────────────────────────────
+
+const PRE_MANIFEST_NOTE = 'Note: guide predates the install manifest';
+const OLD_AGENT = '.claude/agents/old.md';
+
+function projectWith(root: string, worktreePaths: string[]): ProjectData {
+  return {
+    id: 'proj_e2e',
+    name: 'e2e',
+    template: '',
+    projectPath: root,
+    worktrees: worktreePaths.map((p, i) => ({ id: `wt_${i}`, name: `wt${i}`, indexRange: [100, 199], worktreePath: p })),
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+function writeManifest(root: string, target: string, entries: ManifestEntry[]): void {
+  const filePath = manifestPath(root, target);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, entries.map((e) => `${e.crc} ${e.size} ${e.path}\n`).join(''));
+}
+
+function logLines(): string[] {
+  return vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+}
+
+/** Design criterion 4: the worktree manifest is a byte copy of the root's, with no temp file left. */
+function expectManifestCarried(root: string, wt: string, target: string): void {
+  expect(fs.readFileSync(manifestPath(wt, target))).toEqual(fs.readFileSync(manifestPath(root, target)));
+  expect(fs.existsSync(path.join(wt, '.context-forge', `.${target}.manifest.tmp`))).toBe(false);
+}
+
+describe('propagateToWorktrees — end to end', () => {
+  let root: string;
+  let wt: string;
+  const ruleEntry = entry('.claude/rules/a.md', 'rule a');
+
+  beforeEach(() => {
+    root = mkdir('root');
+    wt = mkdir('wt');
+    writeFile(root, '.claude/rules/a.md', 'rule a');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('D4: no root manifest → copied, nothing deleted, no manifest written, notice printed once', () => {
+    const wt2 = mkdir('wt2');
+    writeFile(wt, OLD_AGENT, 'guide v1');
+    writeFile(wt2, OLD_AGENT, 'guide v1');
+
+    propagateToWorktrees(projectWith(root, [wt, wt2]), 'claude', [entry(OLD_AGENT, 'guide v1')]);
+
+    for (const w of [wt, wt2]) {
+      expect(exists(w, '.claude/rules/a.md')).toBe(true);
+      expect(exists(w, OLD_AGENT)).toBe(true);
+      expect(fs.existsSync(manifestPath(w, 'claude'))).toBe(false);
+    }
+    expect(logLines().filter((l) => l.includes(PRE_MANIFEST_NOTE))).toHaveLength(1);
+  });
+
+  it('worktree manifest lists a dropped path → removed and reported', () => {
+    writeFile(wt, OLD_AGENT, 'guide v1');
+    writeManifest(wt, 'claude', [entry(OLD_AGENT, 'guide v1'), ruleEntry]);
+    writeManifest(root, 'claude', [ruleEntry]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(exists(wt, OLD_AGENT)).toBe(false);
+    expect(logLines()).toContain(`    Removed ${OLD_AGENT} (no longer installed by the guide)`);
+    expectManifestCarried(root, wt, 'claude');
+  });
+
+  it('dropped path edited in the worktree → kept, and the Kept line names it', () => {
+    writeFile(wt, OLD_AGENT, 'guide v1 plus my edit');
+    writeManifest(wt, 'claude', [entry(OLD_AGENT, 'guide v1')]);
+    writeManifest(root, 'claude', [ruleEntry]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(exists(wt, OLD_AGENT)).toBe(true);
+    expect(logLines()).toContain(
+      `    Kept ${OLD_AGENT}: no longer installed by the guide, but edited since — remove it by hand if unneeded`,
+    );
+    expectManifestCarried(root, wt, 'claude');
+  });
+
+  it('a baseline entry with a .. path → nothing outside touched, a warning names it', () => {
+    const outsidePath = path.join(sandbox, 'outside.md');
+    fs.writeFileSync(outsidePath, 'sentinel');
+    writeManifest(wt, 'claude', [entry('../outside.md', 'sentinel')]);
+    writeManifest(root, 'claude', [ruleEntry]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(fs.readFileSync(outsidePath, 'utf-8')).toBe('sentinel');
+    expect(logLines().some((l) => l.includes('Warning') && l.includes('../outside.md'))).toBe(true);
+    expectManifestCarried(root, wt, 'claude');
+  });
+
+  it('D2: no worktree manifest, root snapshot lists the dropped path → removed, manifest seeded', () => {
+    writeFile(wt, OLD_AGENT, 'guide v1');
+    writeManifest(root, 'claude', [ruleEntry]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', [entry(OLD_AGENT, 'guide v1'), ruleEntry]);
+
+    expect(exists(wt, OLD_AGENT)).toBe(false);
+    expectManifestCarried(root, wt, 'claude');
+  });
+
+  it('neither baseline → nothing deleted, manifest seeded', () => {
+    writeFile(wt, OLD_AGENT, 'guide v1');
+    writeManifest(root, 'claude', [ruleEntry]);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(exists(wt, OLD_AGENT)).toBe(true);
+    expectManifestCarried(root, wt, 'claude');
+  });
+
+  it('empty root manifest is not the D4 case: no notice, empty manifest copied', () => {
+    writeManifest(root, 'claude', []);
+
+    propagateToWorktrees(projectWith(root, [wt]), 'claude', null);
+
+    expect(logLines().some((l) => l.includes(PRE_MANIFEST_NOTE))).toBe(false);
+    expect(fs.readFileSync(manifestPath(wt, 'claude'), 'utf-8')).toBe('');
+    expectManifestCarried(root, wt, 'claude');
   });
 });

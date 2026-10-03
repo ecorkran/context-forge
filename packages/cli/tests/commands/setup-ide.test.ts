@@ -20,6 +20,15 @@ const mockExecFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockReaddirSync = vi.fn();
 
+// The install manifest is read through this mocked fs. Report it missing (the
+// pre-manifest guide path, D4), which is the copy-only behavior these tests pin.
+function readFileSyncOrMissingManifest(...args: unknown[]): unknown {
+  if (String(args[0]).endsWith('.manifest')) {
+    throw Object.assign(new Error(`ENOENT: ${String(args[0])}`), { code: 'ENOENT' });
+  }
+  return mockReadFileSync(...args);
+}
+
 // readline mock — controls user input simulation
 const mockQuestion = vi.fn();
 const mockRlClose = vi.fn();
@@ -56,14 +65,14 @@ vi.mock('node:fs', async (importOriginal) => {
       existsSync: (...args: unknown[]) => mockExistsSync(...args),
       copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
       cpSync: (...args: unknown[]) => mockCpSync(...args),
-      readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+      readFileSync: (...args: unknown[]) => readFileSyncOrMissingManifest(...args),
       mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
       readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
     },
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
     copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
     cpSync: (...args: unknown[]) => mockCpSync(...args),
-    readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+    readFileSync: (...args: unknown[]) => readFileSyncOrMissingManifest(...args),
     mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
     readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
   };
