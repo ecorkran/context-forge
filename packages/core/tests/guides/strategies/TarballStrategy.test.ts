@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   TarballStrategy,
   parseGitHubOwnerRepo,
-  isGitWiringEntry,
+  isSkippedTarballEntry,
   describeRateLimit,
   activeProxyEnvVars,
 } from '../../../src/guides/strategies/TarballStrategy.js';
@@ -426,30 +426,77 @@ describe('TarballStrategy', () => {
     });
   });
 
-  describe('isGitWiringEntry()', () => {
+  describe('exclude filtering', () => {
+    const root = 'ecorkran-ai-project-guide-3f14d43';
+
+    afterEach(() => {
+      vi.mocked(extract).mockReset();
+    });
+
+    it('reports patterns that matched no archive entry', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+      const kept: string[] = [];
+      vi.mocked(extract).mockImplementationOnce(((opts: { filter: (p: string) => boolean }) => {
+        for (const entry of [`${root}/`, `${root}/tool-guides/`, `${root}/tool-guides/a.md`, `${root}/scripts/setup-ide`]) {
+          if (opts.filter(entry)) kept.push(entry);
+        }
+        const { PassThrough } = require('stream');
+        return new PassThrough();
+      }) as never);
+
+      const result = await new TarballStrategy(['tool-guide', 'tool-guides']).install(projectPath, source, targetDir);
+
+      expect(kept).toEqual([`${root}/`, `${root}/scripts/setup-ide`]);
+      expect(result.exclude).toEqual(['tool-guide', 'tool-guides']);
+      expect(result.unmatchedExclude).toEqual(['tool-guide']);
+    });
+
+    it('omits the exclude fields when nothing is excluded', async () => {
+      mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
+      mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
+
+      const result = await strategy.install(projectPath, source, targetDir);
+
+      expect(result).not.toHaveProperty('exclude');
+      expect(result).not.toHaveProperty('unmatchedExclude');
+    });
+  });
+
+  describe('isSkippedTarballEntry()', () => {
     // Real entry shapes from the v0.17.5 GitHub tarball: archive root prefix,
     // trailing slash on directories.
     const root = 'ecorkran-ai-project-guide-3f14d43';
 
     it('drops the guide repo .gitmodules and .gitignore', () => {
-      expect(isGitWiringEntry(`${root}/.gitmodules`)).toBe(true);
-      expect(isGitWiringEntry(`${root}/.gitignore`)).toBe(true);
+      expect(isSkippedTarballEntry(`${root}/.gitmodules`, [])).toBeTruthy();
+      expect(isSkippedTarballEntry(`${root}/.gitignore`, [])).toBeTruthy();
     });
 
     it('drops the self-referential project-documents gitlink directory', () => {
-      expect(isGitWiringEntry(`${root}/project-documents/`)).toBe(true);
-      expect(isGitWiringEntry(`${root}/project-documents/ai-project-guide/`)).toBe(true);
+      expect(isSkippedTarballEntry(`${root}/project-documents/`, [])).toBeTruthy();
+      expect(isSkippedTarballEntry(`${root}/project-documents/ai-project-guide/`, [])).toBeTruthy();
     });
 
     it('keeps guide content and intentional dotfiles', () => {
-      expect(isGitWiringEntry(`${root}/project-guides/guide.ai-project.process.md`)).toBe(false);
-      expect(isGitWiringEntry(`${root}/.claude/rules/typescript.md`)).toBe(false);
-      expect(isGitWiringEntry(`${root}/`)).toBe(false);
+      expect(isSkippedTarballEntry(`${root}/project-guides/guide.ai-project.process.md`, [])).toBeNull();
+      expect(isSkippedTarballEntry(`${root}/.claude/rules/typescript.md`, [])).toBeNull();
+      expect(isSkippedTarballEntry(`${root}/`, [])).toBeNull();
     });
 
     it('does not match prefixes of longer names', () => {
-      expect(isGitWiringEntry(`${root}/.gitignore-templates/node`)).toBe(false);
-      expect(isGitWiringEntry(`${root}/project-documents-archive/x.md`)).toBe(false);
+      expect(isSkippedTarballEntry(`${root}/.gitignore-templates/node`, [])).toBeNull();
+      expect(isSkippedTarballEntry(`${root}/project-documents-archive/x.md`, [])).toBeNull();
+    });
+
+    it('returns the matching guide.exclude pattern for files and directory entries', () => {
+      expect(isSkippedTarballEntry(`${root}/tool-guides/`, ['tool-guides'])).toBe('tool-guides');
+      expect(isSkippedTarballEntry(`${root}/tool-guides/x/y.md`, ['tool-guides'])).toBe('tool-guides');
+    });
+
+    it('keeps a sibling sharing a name prefix and the archive root', () => {
+      expect(isSkippedTarballEntry(`${root}/tool-guides-old/x`, ['tool-guides'])).toBeNull();
+      expect(isSkippedTarballEntry(`${root}/`, ['tool-guides'])).toBeNull();
     });
   });
 

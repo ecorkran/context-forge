@@ -9,6 +9,7 @@ import { fetch as undiciFetch, EnvHttpProxyAgent } from 'undici';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
 import { VERSION_MARKER_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
 import { gitExec, withNetworkErrorHint, commitPathIfChanged } from '../gitExec.js';
+import { isExcludedGuidePath } from '../../config/guideExclude.js';
 
 /**
  * Proxy variables honored by the tarball download. Git reads these on its own
@@ -67,16 +68,17 @@ export function parseGitHubOwnerRepo(source: string): { owner: string; repo: str
 const TARBALL_EXCLUDED_ENTRIES = ['.gitmodules', '.gitignore', 'project-documents'] as const;
 
 /**
- * Whether a raw tarball entry path should be skipped. node-tar calls filter
- * before `strip` is applied, so the path still begins with the archive root
- * ({owner}-{repo}-{hash}/); directory entries end with a slash.
+ * The pattern that skips a raw tarball entry — a built-in git-wiring entry
+ * first, then the guide.exclude list — or null to keep it. node-tar calls
+ * filter before `strip` is applied, so the path still begins with the archive
+ * root ({owner}-{repo}-{hash}/); directory entries end with a slash. The
+ * archive root itself is never skipped.
  */
-export function isGitWiringEntry(entryPath: string): boolean {
+export function isSkippedTarballEntry(entryPath: string, exclude: readonly string[]): string | null {
   const parts = entryPath.replace(/^\.\//, '').split('/');
-  const relative = parts.slice(1).join('/');
-  return TARBALL_EXCLUDED_ENTRIES.some(
-    (name) => relative === name || relative === `${name}/` || relative.startsWith(`${name}/`)
-  );
+  const relative = parts.slice(1).join('/').replace(/\/$/, '');
+  if (relative === '') return null;
+  return isExcludedGuidePath(relative, TARBALL_EXCLUDED_ENTRIES) ?? isExcludedGuidePath(relative, exclude);
 }
 
 /**
@@ -92,6 +94,9 @@ function siblingPath(targetDir: string, suffix: string): string {
 }
 
 export class TarballStrategy implements InstallStrategy {
+  /** The parsed guide.exclude list; empty means nothing is excluded. */
+  constructor(private readonly exclude: readonly string[] = []) {}
+
   async detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
     if (!existsSync(markerPath)) return null;
@@ -111,7 +116,7 @@ export class TarballStrategy implements InstallStrategy {
       throw new Error('Could not determine latest version from remote.');
     }
 
-    await this.extractAndSwap(resolvedSource, latestTag, targetDir, []);
+    const unmatched = await this.extractAndSwap(resolvedSource, latestTag, targetDir);
 
     // Same commit the submodule strategy makes, so a tarball install does not
     // leave the guide untracked for the user to notice later.
@@ -121,7 +126,14 @@ export class TarballStrategy implements InstallStrategy {
       `docs: install ai-project-guide ${latestTag}`
     );
 
-    return { success: true, version: latestTag, method: 'tarball', path: targetDir, committed };
+    return {
+      success: true,
+      version: latestTag,
+      method: 'tarball',
+      path: targetDir,
+      committed,
+      ...this.excludeFields(unmatched),
+    };
   }
 
   async update(projectPath: string, targetDir: string, source: string): Promise<UpdateResult> {
@@ -142,7 +154,7 @@ export class TarballStrategy implements InstallStrategy {
       return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
     }
 
-    await this.extractAndSwap(source, latestTag, targetDir, []);
+    const unmatched = await this.extractAndSwap(source, latestTag, targetDir);
 
     const committed = await commitPathIfChanged(
       projectPath,
@@ -150,20 +162,31 @@ export class TarballStrategy implements InstallStrategy {
       `docs: update ai-project-guide ${latestTag}`
     );
 
-    return { success: true, previousVersion, newVersion: latestTag, method: 'tarball', committed };
+    return {
+      success: true,
+      previousVersion,
+      newVersion: latestTag,
+      method: 'tarball',
+      committed,
+      ...this.excludeFields(unmatched),
+    };
+  }
+
+  /** Result fields for the applied and unmatched excludes, each only when not empty. */
+  private excludeFields(unmatched: string[]): Pick<InstallResult, 'exclude' | 'unmatchedExclude'> {
+    return {
+      ...(this.exclude.length > 0 ? { exclude: [...this.exclude] } : {}),
+      ...(unmatched.length > 0 ? { unmatchedExclude: unmatched } : {}),
+    };
   }
 
   /**
    * Build the new guide in a staging directory, then swap it into place. Any
    * failure before the swap (network, rate limit, broken archive) leaves the
-   * existing guide untouched; a failed swap restores it.
+   * existing guide untouched; a failed swap restores it. Returns the
+   * guide.exclude patterns that matched no archive entry.
    */
-  private async extractAndSwap(
-    source: string,
-    tag: string,
-    targetDir: string,
-    _exclude: readonly string[]
-  ): Promise<void> {
+  private async extractAndSwap(source: string, tag: string, targetDir: string): Promise<string[]> {
     const staging = siblingPath(targetDir, STAGING_SUFFIX);
     const previous = siblingPath(targetDir, PREVIOUS_SUFFIX);
 
@@ -171,7 +194,13 @@ export class TarballStrategy implements InstallStrategy {
     rmSync(staging, { recursive: true, force: true });
     rmSync(previous, { recursive: true, force: true });
 
-    await this.downloadAndExtract(source, tag, staging);
+    const matched = new Set<string>();
+    await this.downloadAndExtract(source, tag, staging, (entryPath) => {
+      const pattern = isSkippedTarballEntry(entryPath, this.exclude);
+      if (pattern === null) return true;
+      matched.add(pattern);
+      return false;
+    });
     writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
 
     const hadGuide = existsSync(targetDir);
@@ -183,6 +212,8 @@ export class TarballStrategy implements InstallStrategy {
       throw err;
     }
     rmSync(previous, { recursive: true, force: true });
+
+    return this.exclude.filter((pattern) => !matched.has(pattern));
   }
 
   /**
@@ -221,7 +252,8 @@ export class TarballStrategy implements InstallStrategy {
   private async downloadAndExtract(
     source: string,
     tag: string,
-    extractDir: string
+    extractDir: string,
+    filter: (entryPath: string) => boolean
   ): Promise<void> {
     const { owner, repo } = parseGitHubOwnerRepo(source);
     const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${tag}`;
@@ -270,7 +302,7 @@ export class TarballStrategy implements InstallStrategy {
       await pipeline(
         nodeStream,
         createGunzip(),
-        extract({ cwd: extractDir, strip: 1, filter: (entryPath) => !isGitWiringEntry(entryPath) })
+        extract({ cwd: extractDir, strip: 1, filter })
       );
     } finally {
       await dispatcher.close();
