@@ -3,9 +3,9 @@ import * as path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
 import { UserError } from '../utils/errors.js';
 import { GENERATED_MARKER, normalizeTarget, TARGETS, type TargetDescriptor } from './ideTargets.js';
-import { cksum, manifestPath, readManifest, MANIFEST_DIR, type ManifestEntry } from './installManifest.js';
+import { cksum, manifestPath, manifestTempPath, readManifest, type ManifestEntry } from './installManifest.js';
 
-/** Printed once per run when the root has no manifest after the guide script (D4). */
+/** Printed once per run when the root has no manifest after the guide script (the guide predates the manifest). */
 const PRE_MANIFEST_NOTICE =
   "Note: guide predates the install manifest (v0.19.0); worktree files were copied but not pruned. Run 'cf guides update' to enable pruning.";
 
@@ -104,7 +104,7 @@ const KEPT_MESSAGES: Record<KeptReason, (relPath: string) => string> = {
 
 /**
  * Prunes one worktree against baseline = its own manifest ∪ the root's pre-run
- * snapshot (D2). With neither baseline nothing is deleted.
+ * snapshot, so a worktree with no manifest of its own still prunes. With neither baseline nothing is deleted.
  */
 function pruneWorktree(
   wtPath: string,
@@ -155,7 +155,7 @@ export function sweepGeneratedPrompts(worktreePath: string, dirs: readonly strin
 /** Byte copy of the root manifest via a temp file + rename, so it is never left truncated. */
 function copyManifest(rootPath: string, wtPath: string, target: string): void {
   const dstPath = manifestPath(wtPath, target);
-  const tmpPath = path.join(wtPath, MANIFEST_DIR, `.${target}.manifest.tmp`);
+  const tmpPath = manifestTempPath(wtPath, target);
   fs.mkdirSync(path.dirname(dstPath), { recursive: true });
   fs.copyFileSync(manifestPath(rootPath, target), tmpPath);
   fs.renameSync(tmpPath, dstPath);
@@ -181,6 +181,13 @@ function copyRootOutput(rootPath: string, wtPath: string, descriptor: TargetDesc
 
 /**
  * Propagate IDE-generated files from the project root to all registered worktrees.
+ *
+ * Per worktree, in order: copy the root output; prune files the previous guide
+ * installed but the new one no longer does (only when the root has a manifest
+ * after the guide script ran); sweep superseded generated prompt files; then
+ * carry the root manifest over. `rootBaseline` is the root's manifest snapshotted
+ * before the guide script ran (null if it had none); it joins the worktree's own
+ * manifest as the baseline a file must match, by CRC and size, before deletion.
  *
  * The setup-ide script always writes to the project root (its find_project_root()
  * walks up to the nearest directory containing project-documents/, which is always
@@ -217,7 +224,7 @@ export function propagateToWorktrees(
   }
   const descriptor = TARGETS[resolvedTarget];
 
-  // Read after the guide script ran. null = the guide predates the manifest (D4).
+  // Read after the guide script ran. null = the guide predates the manifest.
   const newRoot = readManifest(rootPath, resolvedTarget);
 
   for (const wt of worktrees) {
@@ -225,7 +232,7 @@ export function propagateToWorktrees(
     console.log(`  → propagating to worktree: ${wt.name ?? wt.id} (${wtPath})`);
     copyRootOutput(rootPath, wtPath, descriptor);
     if (newRoot !== null) pruneWorktree(wtPath, resolvedTarget, rootBaseline, newRoot);
-    // Runs on the D4 path too: generated prompt files are never in any manifest.
+    // Runs even without a root manifest: generated prompt files are never in any manifest.
     for (const rel of sweepGeneratedPrompts(wtPath, descriptor.generatedPromptDirs ?? [])) {
       console.log(`    Removed superseded prompt file: ${rel}`);
     }

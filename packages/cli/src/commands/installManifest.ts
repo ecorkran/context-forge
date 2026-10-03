@@ -61,6 +61,11 @@ export function manifestPath(root: string, target: string): string {
   return path.join(root, MANIFEST_DIR, `${target}.manifest`);
 }
 
+/** Scratch file a manifest is staged in before being renamed into place. */
+export function manifestTempPath(root: string, target: string): string {
+  return path.join(root, MANIFEST_DIR, `.${target}.manifest.tmp`);
+}
+
 const NUMERIC = /^\d+$/;
 
 /**
@@ -92,7 +97,7 @@ export function readManifest(root: string, target: string): ManifestEntry[] | nu
     content = fs.readFileSync(filePath, 'utf-8');
   } catch (err) {
     // A missing manifest is the old-guide case, not an error.
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') return null;
     throw err;
   }
 
@@ -103,7 +108,8 @@ export function readManifest(root: string, target: string): ManifestEntry[] | nu
     try {
       entry = parseManifestLine(lines[i]);
     } catch (err) {
-      throw new UserError(`Malformed install manifest ${filePath}, line ${i + 1}: ${(err as Error).message}`);
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new UserError(`Malformed install manifest ${filePath}, line ${i + 1}: ${reason}`);
     }
     if (entry) entries.push(entry);
   }

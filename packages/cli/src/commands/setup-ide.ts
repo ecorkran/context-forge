@@ -188,7 +188,7 @@ export function registerSetupIdeCommand(program: Command): void {
         // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
         // Propagation prunes, and a "no" must never delete files.
         // Snapshot before the script rewrites it: part of each worktree's prune
-        // baseline, so worktrees with no manifest of their own still prune (D2).
+        // baseline, so worktrees with no manifest of their own still prune.
         const rootBaseline = readManifest(project.projectPath, normalizedTarget);
         const ran = await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
         if (!ran) return;

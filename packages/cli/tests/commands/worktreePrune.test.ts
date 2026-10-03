@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
-import { cksum, manifestPath, type ManifestEntry } from '../../src/commands/installManifest.js';
+import { cksum, manifestPath, manifestTempPath, type ManifestEntry } from '../../src/commands/installManifest.js';
 import { propagateToWorktrees, pruneStaleFiles, sweepGeneratedPrompts } from '../../src/commands/worktreePropagation.js';
 import { GENERATED_MARKER } from '../../src/commands/ideTargets.js';
 
@@ -182,7 +182,7 @@ function logLines(): string[] {
 /** Design criterion 4: the worktree manifest is a byte copy of the root's, with no temp file left. */
 function expectManifestCarried(root: string, wt: string, target: string): void {
   expect(fs.readFileSync(manifestPath(wt, target))).toEqual(fs.readFileSync(manifestPath(root, target)));
-  expect(fs.existsSync(path.join(wt, '.context-forge', `.${target}.manifest.tmp`))).toBe(false);
+  expect(fs.existsSync(manifestTempPath(wt, target))).toBe(false);
 }
 
 describe('propagateToWorktrees — end to end', () => {
