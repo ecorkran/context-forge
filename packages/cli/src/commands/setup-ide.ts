@@ -43,7 +43,7 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
   },
   copilot: {
     markerFiles: ['.github/copilot-instructions.md', 'AGENTS.md'],
-    propagateDirs: ['.github/instructions', '.github/prompts'],
+    propagateDirs: ['.github/instructions', '.github/prompts', '.agents/skills'],
     label: 'GitHub Copilot',
   },
   cursor: {

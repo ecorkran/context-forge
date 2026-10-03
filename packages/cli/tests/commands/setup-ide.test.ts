@@ -919,12 +919,13 @@ describe('propagateToWorktrees', () => {
     expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.claude/skills', `${wtPath}/.claude/skills`, { recursive: true });
   });
 
-  it('copilot copies both marker files and .github/instructions/ + .github/prompts/', () => {
+  it('copilot copies both marker files and .github/instructions/ + .github/prompts/ + .agents/skills/', () => {
     mockExistsSync.mockImplementation((p: string) => {
       if (p === copilotInstructionsPath) return true;
       if (p === agentsMdPath) return true;
       if (p === '/tmp/test/.github/instructions') return true;
       if (p === '/tmp/test/.github/prompts') return true;
+      if (p === '/tmp/test/.agents/skills') return true;
       if (p === wtPath) return true;
       return false;
     });
@@ -935,6 +936,7 @@ describe('propagateToWorktrees', () => {
     expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, `${wtPath}/AGENTS.md`);
     expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.github/instructions', `${wtPath}/.github/instructions`, { recursive: true });
     expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.github/prompts', `${wtPath}/.github/prompts`, { recursive: true });
+    expect(mockCpSync).toHaveBeenCalledWith('/tmp/test/.agents/skills', `${wtPath}/.agents/skills`, { recursive: true });
   });
 
   it('cursor copies AGENTS.md and .cursor/rules/', () => {
