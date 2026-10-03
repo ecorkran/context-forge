@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New `guide.exclude` config key: tarball guide installs can leave out guide content you don't use.** It takes comma-separated guide-relative paths (e.g. `cf config set guide.exclude "tool-guides/**,framework-guides"`). A trailing `/` or `/**` means the same as the bare path; other wildcards are refused. `project-guides` and `scripts` are protected, because cf needs them. Changing the key takes effect on the next `cf guides update`, which re-extracts at the same version and commits as `docs: re-extract ai-project-guide <version> (guide.exclude changed)`. The applied list is recorded in `.context-forge-guide-exclude` inside the guide. `cf guides info` (and MCP `guide_status`) shows the applied list and flags a pending change. A pattern that matches nothing is reported as a warning. Submodule and clone installs ignore the key and say so
+
 ### Fixed
+
+- **A failed tarball guide update no longer leaves the project without a guide.** Install and update now extract into a staging directory and swap it into place only once the download and extract succeed. Before, update deleted the guide first, so a network error, rate limit, or broken archive left nothing behind
 
 - **`cf setup-ide` now removes files the guide no longer installs from registered worktrees.** Worktrees used to keep every rule, agent, or skill the guide dropped, forever. A worktree file is deleted only when its bytes still match what the guide wrote; a file you edited is kept and named in a warning. The guide's install manifest (`.context-forge/<target>.manifest`) is now copied into each worktree so the next run has a baseline. For copilot, stale generated `.github/prompts/*.prompt.md` files are swept from worktrees too. With a guide older than v0.19.0, worktrees are copied but not pruned, and one notice says so (#103)
 - **Answering "no" at the `cf setup-ide` overwrite prompt no longer touches worktrees.** Propagation and command install used to run anyway

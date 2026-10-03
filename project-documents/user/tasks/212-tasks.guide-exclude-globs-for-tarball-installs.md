@@ -7,7 +7,7 @@ dependencies: []
 projectState: main is at a891d4e, ahead of origin and not pushed; published version is 0.18.3; slice 930 is merged but not released. Tarball install today deletes the guide directory and then downloads into it, and update returns early when the version is unchanged. The 212 design passed review (CONCERNS), and every finding is resolved in its Review Resolution section.
 dateCreated: 20261003
 dateUpdated: 20261003
-status: not_started
+status: complete
 ---
 
 ## Context Summary
@@ -72,26 +72,26 @@ The global `cf` is the published npm package and will not have the key.
 
 ### Part 0 — Branch
 
-- [ ] **Task 0: Create the slice branch** (effort: 1)
-  - [ ] Run `cf config get git.integration_branch`. If it prints a value,
+- [x] **Task 0: Create the slice branch** (effort: 1)
+  - [x] Run `cf config get git.integration_branch`. If it prints a value,
         STOP and ask the Project Manager. This plan assumes it is empty,
         so the target is `main`.
-  - [ ] From a clean `main`, run
+  - [x] From a clean `main`, run
         `git checkout -b 212-slice.guide-exclude-globs-for-tarball-installs main`.
         If the branch already exists, switch to it instead.
-  - [ ] Success criteria: `git branch --show-current` prints the branch
+  - [x] Success criteria: `git branch --show-current` prints the branch
         name, and the working tree is clean.
 
 ### Part 1 — Pattern module (design step 1)
 
-- [ ] **Task 1: Implement `config/guideExclude.ts`** (effort: 2)
-  - [ ] Create `packages/core/src/config/guideExclude.ts`. It is a pure
+- [x] **Task 1: Implement `config/guideExclude.ts`** (effort: 2)
+  - [x] Create `packages/core/src/config/guideExclude.ts`. It is a pure
         module and imports nothing from `guides/`. Exports:
     1. `PROTECTED_GUIDE_PATHS = ['project-guides', 'scripts'] as const`.
     2. `class GuideExcludeError extends Error`.
     3. `parseGuideExclude(raw: string): string[]`.
     4. `isExcludedGuidePath(relativePath: string, patterns: readonly string[]): string | null`.
-  - [ ] `parseGuideExclude` follows the "Parsing rules" list under design
+  - [x] `parseGuideExclude` follows the "Parsing rules" list under design
         decision (d):
     1. Split on `,`. For each entry: trim, then drop it if empty (this
        handles doubled and trailing commas).
@@ -107,22 +107,22 @@ The global `cf` is the published npm package and will not have the key.
        ancestor of a protected path).
     5. Deduplicate and sort.
     6. An empty string returns `[]`.
-  - [ ] Every error message starts with `guide.exclude entry "<entry>"`
+  - [x] Every error message starts with `guide.exclude entry "<entry>"`
         and says what is wrong. For a protected path, use the exact form
         from decision (c):
         `guide.exclude entry "project-guides/templates" would remove project-guides, which cf requires.`
-  - [ ] `isExcludedGuidePath` takes a guide-relative path with any
+  - [x] `isExcludedGuidePath` takes a guide-relative path with any
         trailing `/` removed. It returns the first pattern `p` where
         `path === p` or `path.startsWith(p + '/')`, or `null` if none
         match.
-  - [ ] Export all four from `packages/core/src/config/index.ts`, and make
+  - [x] Export all four from `packages/core/src/config/index.ts`, and make
         sure they reach the package's public index the same way
         `CONFIG_KEYS` does.
-  - [ ] Success criteria: `pnpm --filter @context-forge/core build`
+  - [x] Success criteria: `pnpm --filter @context-forge/core build`
         passes.
 
-- [ ] **Task 2: Test `guideExclude.ts`** (effort: 2)
-  - [ ] Create `packages/core/tests/config/guideExclude.test.ts` and
+- [x] **Task 2: Test `guideExclude.ts`** (effort: 2)
+  - [x] Create `packages/core/tests/config/guideExclude.test.ts` and
         cover:
     1. Normalization: `tool-guides`, `tool-guides/`, `tool-guides/**`,
        `./tool-guides`, and `" tool-guides "` all give `['tool-guides']`.
@@ -143,68 +143,68 @@ The global `cf` is the published npm package and will not have the key.
        (`tool-guides/x/y.md` matches `tool-guides`), the directory itself
        (`tool-guides`), no false prefix (`tool-guides-old/x` does not
        match `tool-guides`), and the matched pattern is returned.
-  - [ ] Success criteria: the new test file passes.
-  - [ ] Commit: `feat(core): add guide.exclude pattern parser and matcher`
+  - [x] Success criteria: the new test file passes.
+  - [x] Commit: `feat(core): add guide.exclude pattern parser and matcher`
 
 ### Part 2 — Config key (design step 2)
 
-- [ ] **Task 3: Add `guide.exclude` to `ConfigKeys`** (effort: 1)
-  - [ ] Add the key next to the other `guide.*` keys: `type: 'string'`,
+- [x] **Task 3: Add `guide.exclude` to `ConfigKeys`** (effort: 1)
+  - [x] Add the key next to the other `guide.*` keys: `type: 'string'`,
         `default: ''`, `scope: ConfigScope.Shared`.
-  - [ ] `validate`: return `'must be a string'` for non-strings. Otherwise
+  - [x] `validate`: return `'must be a string'` for non-strings. Otherwise
         call `parseGuideExclude`, return `null` on success, and return the
         `GuideExcludeError` message on failure. Rethrow anything that is
         not a `GuideExcludeError`.
-  - [ ] Write the `description`. It must cover: comma-separated
+  - [x] Write the `description`. It must cover: comma-separated
         guide-relative paths, a trailing `/` or `/**` allowed, no other
         wildcards, `project-guides` and `scripts` protected, tarball
         installs only, and changes applying on `cf guides update`.
-  - [ ] Success criteria: core builds.
+  - [x] Success criteria: core builds.
 
-- [ ] **Task 4: Test the config key** (effort: 1)
-  - [ ] In `packages/core/tests/config/ConfigKeys.test.ts`, add cases:
+- [x] **Task 4: Test the config key** (effort: 1)
+  - [x] In `packages/core/tests/config/ConfigKeys.test.ts`, add cases:
         `''` is valid, `"tool-guides/**,framework-guides"` is valid,
         `scripts` returns a message containing `scripts`, and `tool-*`
         returns a message. Check that the scope is Shared.
-  - [ ] Success criteria: the ConfigKeys tests pass, and the
+  - [x] Success criteria: the ConfigKeys tests pass, and the
         ConfigManager tests still pass.
-  - [ ] Commit: `feat(core): add guide.exclude config key`
+  - [x] Commit: `feat(core): add guide.exclude config key`
 
 ### Part 3 — TarballStrategy (design step 3)
 
-- [ ] **Task 5: Add `EXCLUDE_RECORD_FILE` and the result fields** (effort: 1)
-  - [ ] In `guides/types.ts`, add
+- [x] **Task 5: Add `EXCLUDE_RECORD_FILE` and the result fields** (effort: 1)
+  - [x] In `guides/types.ts`, add
         `EXCLUDE_RECORD_FILE = '.context-forge-guide-exclude'` next to
         `VERSION_MARKER_FILE`. Give it a one-line doc comment saying the
         record is written only when the list is not empty.
-  - [ ] Add the optional fields from the design's API Contracts to
+  - [x] Add the optional fields from the design's API Contracts to
         `InstallResult` (`exclude`, `unmatchedExclude`, `excludeIgnored`)
         and to `UpdateResult` (the same three plus `excludeChanged`). Each
         gets a short doc comment. Leave `GuideInfo` for Task 13.
-  - [ ] Success criteria: core builds with no other changes.
+  - [x] Success criteria: core builds with no other changes.
 
-- [ ] **Task 6: Replace delete-then-download with `extractAndSwap`** (effort: 3)
-  - [ ] In `TarballStrategy`, add a private
+- [x] **Task 6: Replace delete-then-download with `extractAndSwap`** (effort: 3)
+  - [x] In `TarballStrategy`, add a private
         `extractAndSwap(source, tag, targetDir, exclude)` that follows the
         design's "Staging and swap" steps 1–5 exactly. Define staging and
         previous paths as siblings of `targetDir`:
         `join(dirname(targetDir), '.ai-project-guide.staging')` and
         `join(dirname(targetDir), '.ai-project-guide.previous')`. Define
         the two suffixes once, as constants.
-  - [ ] Change `downloadAndExtract` to extract into the directory it is
+  - [x] Change `downloadAndExtract` to extract into the directory it is
         given (staging). Writing the version marker moves into
         `extractAndSwap`, before the swap.
-  - [ ] Point `install` and `update` at `extractAndSwap`. Remove the
+  - [x] Point `install` and `update` at `extractAndSwap`. Remove the
         `rmSync(targetDir)` from `update`.
-  - [ ] In this task, `exclude` is accepted but not yet used for
+  - [x] In this task, `exclude` is accepted but not yet used for
         filtering. The filter still calls `isGitWiringEntry`, and no
         record is written yet.
-  - [ ] Success criteria: core builds, and the existing TarballStrategy
+  - [x] Success criteria: core builds, and the existing TarballStrategy
         tests pass (update their fs mocks or expectations where the write
         target moved from `targetDir` to staging).
 
-- [ ] **Task 7: Test staging and swap** (effort: 2)
-  - [ ] In `TarballStrategy.test.ts`, add `renameSync` (and `rmSync` if
+- [x] **Task 7: Test staging and swap** (effort: 2)
+  - [x] In `TarballStrategy.test.ts`, add `renameSync` (and `rmSync` if
         it is missing) to the `fs` mock, then cover:
     1. A successful update runs these in order: clear leftover staging
        and previous, extract into staging, write the marker into staging,
@@ -216,67 +216,67 @@ The global `cf` is the published npm package and will not have the key.
        previous and the error is rethrown.
     4. A first install (the guide directory does not exist) skips the
        first rename.
-  - [ ] Success criteria: the TarballStrategy tests pass.
-  - [ ] Commit: `fix(core): stage tarball guide extract and swap into place`
+  - [x] Success criteria: the TarballStrategy tests pass.
+  - [x] Commit: `fix(core): stage tarball guide extract and swap into place`
 
-- [ ] **Task 8: Filter extracted entries by `exclude`** (effort: 2)
-  - [ ] Add `constructor(private readonly exclude: readonly string[] = [])`.
+- [x] **Task 8: Filter extracted entries by `exclude`** (effort: 2)
+  - [x] Add `constructor(private readonly exclude: readonly string[] = [])`.
         The empty default is the real meaning of "nothing excluded", not
         a placeholder. `GuideManager` always passes the parsed list.
-  - [ ] Replace `isGitWiringEntry` with exported
+  - [x] Replace `isGitWiringEntry` with exported
         `isSkippedTarballEntry(entryPath, exclude): string | null`. Strip
         the archive root and a leading `./` as today, plus a trailing `/`.
         Check `TARBALL_EXCLUDED_ENTRIES` first, then `exclude`, both
         through `isExcludedGuidePath`. Return the matched pattern or
         `null`. The archive-root entry itself (an empty relative path) is
         never skipped.
-  - [ ] In `extractAndSwap`, the tar filter records every user pattern
+  - [x] In `extractAndSwap`, the tar filter records every user pattern
         that matched in a `Set`. After extract, `unmatchedExclude` is the
         list of patterns not in the set. Set `exclude` and
         `unmatchedExclude` on install and update results, each only when
         it is not empty.
-  - [ ] Success criteria: core builds.
+  - [x] Success criteria: core builds.
 
-- [ ] **Task 9: Test filtering** (effort: 2)
-  - [ ] Rename the `isGitWiringEntry()` describe block to
+- [x] **Task 9: Test filtering** (effort: 2)
+  - [x] Rename the `isGitWiringEntry()` describe block to
         `isSkippedTarballEntry()`. The existing cases for the built-in
         entries keep the same verdicts: truthy where they were `true`,
         `null` where they were `false`.
-  - [ ] Add matcher cases on raw entry paths: `${root}/tool-guides/`
+  - [x] Add matcher cases on raw entry paths: `${root}/tool-guides/`
         (a directory entry) and `${root}/tool-guides/x/y.md` both return
         `'tool-guides'`, `${root}/tool-guides-old/x` returns `null`, and
         `${root}/` returns `null`.
-  - [ ] Add a strategy case: a pattern no entry matches appears in
+  - [x] Add a strategy case: a pattern no entry matches appears in
         `unmatchedExclude`, and a matched one does not. Drive this through
         the mocked `extract` filter.
-  - [ ] Success criteria: the TarballStrategy tests pass.
-  - [ ] Commit: `feat(core): filter tarball guide entries by guide.exclude`
+  - [x] Success criteria: the TarballStrategy tests pass.
+  - [x] Commit: `feat(core): filter tarball guide entries by guide.exclude`
 
-- [ ] **Task 10: Exclude record and same-version re-extract** (effort: 2)
-  - [ ] Export `readExcludeRecord(guideDir: string): string[]` from
+- [x] **Task 10: Exclude record and same-version re-extract** (effort: 2)
+  - [x] Export `readExcludeRecord(guideDir: string): string[]` from
         `TarballStrategy.ts`. A missing file returns `[]`. Otherwise it
         parses the file's lines with `parseGuideExclude` (lines joined with
         `,`), so the record and config compare in the same normalized
         form. Task 13 reuses this helper; do not parse the record anywhere
         else.
-  - [ ] In `extractAndSwap`, write the record into staging next to the
+  - [x] In `extractAndSwap`, write the record into staging next to the
         marker (sorted, one per line, trailing newline), only when
         `exclude` is not empty.
-  - [ ] `update`: compare `readExcludeRecord(targetDir)` with the
+  - [x] `update`: compare `readExcludeRecord(targetDir)` with the
         configured list. Then follow design Update steps 3–5: return early
         only when the version and the list both match. A same-version
         mismatch re-extracts the same tag, commits with
         `docs: re-extract ai-project-guide ${tag} (guide.exclude changed)`,
         and sets `excludeChanged: true`.
-  - [ ] Check the file length. If `TarballStrategy.ts` goes well past
+  - [x] Check the file length. If `TarballStrategy.ts` goes well past
         ~300 lines, move the download helpers (`describeRateLimit`,
         `activeProxyEnvVars`, `parseGitHubOwnerRepo`) to a sibling
         `tarballDownload.ts` in a separate commit. Do not split it
         otherwise.
-  - [ ] Success criteria: core builds.
+  - [x] Success criteria: core builds.
 
-- [ ] **Task 11: Test the record and re-extract** (effort: 2)
-  - [ ] Add cases:
+- [x] **Task 11: Test the record and re-extract** (effort: 2)
+  - [x] Add cases:
     1. `readExcludeRecord`: a missing file returns `[]`, and lines in any
        order or with a trailing `/` come back normalized and sorted.
     2. Install with `exclude` writes the record to staging. Install
@@ -288,48 +288,48 @@ The global `cf` is the published npm package and will not have the key.
        (behaves as before).
     6. A record that differs only in order or a trailing `/`: early
        return.
-  - [ ] Success criteria: the TarballStrategy tests pass.
-  - [ ] Commit: `feat(core): re-extract tarball guide when guide.exclude changes`
+  - [x] Success criteria: the TarballStrategy tests pass.
+  - [x] Commit: `feat(core): re-extract tarball guide when guide.exclude changes`
 
 ### Part 4 — GuideManager (design step 4)
 
-- [ ] **Task 12: Resolve the key and pass it to the strategy** (effort: 2)
-  - [ ] Add a private `resolveExclude(): Promise<string[]>` modeled on
+- [x] **Task 12: Resolve the key and pass it to the strategy** (effort: 2)
+  - [x] Add a private `resolveExclude(): Promise<string[]>` modeled on
         `resolveSource`. Without a `ConfigManager`, return `[]`. Otherwise
         read `guide.exclude`, throw if the value is not a string, and
         return `parseGuideExclude(value)`. Config read errors and
         `GuideExcludeError` propagate.
-  - [ ] In `install` and `update`, resolve the exclude list before any
+  - [x] In `install` and `update`, resolve the exclude list before any
         strategy call, so a bad hand-edited value fails before
         downloading. Pass it to `getStrategy`, which passes it to
         `new TarballStrategy(exclude)`.
-  - [ ] For submodule and clone, when the list is not empty, set
+  - [x] For submodule and clone, when the list is not empty, set
         `excludeIgnored: true` on the result. Do not filter anything.
-  - [ ] Success criteria: core builds.
+  - [x] Success criteria: core builds.
 
-- [ ] **Task 13: Add exclude fields to `status()`** (effort: 2)
-  - [ ] Add `excludeApplied: string[]` and `excludeConfigured: string[]`
+- [x] **Task 13: Add exclude fields to `status()`** (effort: 2)
+  - [x] Add `excludeApplied: string[]` and `excludeConfigured: string[]`
         to `GuideInfo`, as documented in the design's API Contracts.
-  - [ ] `GuideDetector.detect` keeps building everything except these two
+  - [x] `GuideDetector.detect` keeps building everything except these two
         fields. Change its return type to
         `Omit<GuideInfo, 'excludeApplied' | 'excludeConfigured'>`, under a
         named alias in `types.ts`, and fix the resulting type errors.
-  - [ ] `GuideManager.status()` adds `excludeConfigured` (from
+  - [x] `GuideManager.status()` adds `excludeConfigured` (from
         `resolveExclude`) and `excludeApplied`. `excludeApplied` comes
         from the record when the method is `tarball`; otherwise it is
         `[]`. Read the record with `readExcludeRecord` from Task 10. Do not
         parse it here.
-  - [ ] An invalid `guide.exclude` (malformed or protected, e.g. a
+  - [x] An invalid `guide.exclude` (malformed or protected, e.g. a
         hand-edited `.context-forge.toml`) makes `status()` throw the
         `GuideExcludeError`. Do not catch it. This matches how status
         already lets config read errors from `resolveSource` propagate
         (D7), and the message names the key and the entry, so the user
         knows what to fix.
-  - [ ] Success criteria: core builds, and `pnpm -r build` passes. CLI
+  - [x] Success criteria: core builds, and `pnpm -r build` passes. CLI
         and MCP compile with the new required fields.
 
-- [ ] **Task 14: Test GuideManager** (effort: 2)
-  - [ ] In `GuideManager.test.ts`, add:
+- [x] **Task 14: Test GuideManager** (effort: 2)
+  - [x] In `GuideManager.test.ts`, add:
     1. `install` with a tarball strategy constructs it with the parsed
        list. Use the file's existing strategy-mocking approach.
     2. `install` and `update` with `guide.exclude = "scripts"` reject
@@ -341,49 +341,49 @@ The global `cf` is the published npm package and will not have the key.
        `excludeApplied: []` for a submodule install.
     5. `status()` with `guide.exclude = "scripts"` rejects with the
        protected-path message.
-  - [ ] Success criteria: core tests pass.
-  - [ ] Commit: `feat(core): resolve guide.exclude in GuideManager and status`
+  - [x] Success criteria: core tests pass.
+  - [x] Commit: `feat(core): resolve guide.exclude in GuideManager and status`
 
 ### Part 5 — Shared messages, CLI and MCP (design step 5)
 
-- [ ] **Task 15: Add a shared exclude-notice builder** (effort: 1)
-  - [ ] In `guides/types.ts`, next to `guideMethodDeprecationMessage`, add
+- [x] **Task 15: Add a shared exclude-notice builder** (effort: 1)
+  - [x] In `guides/types.ts`, next to `guideMethodDeprecationMessage`, add
         `guideExcludeNotices(result: { method; exclude?; unmatchedExclude?; excludeIgnored?; newVersion?; version? }): string[]`.
         It returns:
     1. One line per unmatched pattern:
        `guide.exclude entry "<p>" matched nothing in <version>`.
     2. When `excludeIgnored` is set:
        `guide.exclude is set but ignored for <method> installs`.
-  - [ ] CLI and MCP both use this function, so the wording lives in one
+  - [x] CLI and MCP both use this function, so the wording lives in one
         place.
-  - [ ] Add unit tests in `packages/core/tests/guides/types.test.ts`.
-  - [ ] Success criteria: core tests pass.
-  - [ ] Commit: `feat(core): add shared guide.exclude notice messages`
+  - [x] Add unit tests in `packages/core/tests/guides/types.test.ts`.
+  - [x] Success criteria: core tests pass.
+  - [x] Commit: `feat(core): add shared guide.exclude notice messages`
 
-- [ ] **Task 16: CLI rendering** (effort: 2)
-  - [ ] `guidesInstallAction`: after the existing lines, print
+- [x] **Task 16: CLI rendering** (effort: 2)
+  - [x] `guidesInstallAction`: after the existing lines, print
         `Excluded:` with the comma-joined `result.exclude` when it is
         present. Print each `guideExcludeNotices` line with `warn` to
         stderr, the same way the deprecation warning is printed.
-  - [ ] The update action: when `excludeChanged` is set, print
+  - [x] The update action: when `excludeChanged` is set, print
         `✓ Guide re-extracted with updated excludes.` and the
         `Version:`/`Excluded:` lines shown in the design's API Contracts,
         instead of the "already at the latest version" line. Print the
         notices the same way as for install.
-  - [ ] `showStatus` (text mode, installed): if `excludeApplied` is not
+  - [x] `showStatus` (text mode, installed): if `excludeApplied` is not
         empty, print an `Excluded:` line. If the method is tarball and the
         sorted `excludeConfigured` differs from `excludeApplied`, print
         `guide.exclude changed — run cf guides update to apply` with
         `warn`. If the method is not tarball and `excludeConfigured` is
         not empty, print the ignored message. `--json` needs no change,
         because the fields come through `GuideInfo`.
-  - [ ] Map `GuideExcludeError` to the CLI's existing user-error output
+  - [x] Map `GuideExcludeError` to the CLI's existing user-error output
         (message only, no stack). Follow how `guides.ts` already reports
         errors from `manager.install`/`update`.
-  - [ ] Success criteria: the CLI builds.
+  - [x] Success criteria: the CLI builds.
 
-- [ ] **Task 17: Test CLI rendering** (effort: 2)
-  - [ ] In `packages/cli/tests/commands/guides.test.ts`, add cases:
+- [x] **Task 17: Test CLI rendering** (effort: 2)
+  - [x] In `packages/cli/tests/commands/guides.test.ts`, add cases:
     1. Install prints `Excluded:` and an unmatched-pattern warning.
     2. Update with `excludeChanged` prints the re-extract line.
     3. Install and update with `excludeIgnored` each print the ignored
@@ -393,60 +393,60 @@ The global `cf` is the published npm package and will not have the key.
     5. Status `--json` includes both new fields.
     6. A `GuideExcludeError` from install prints only the message, with
        no stack trace, and exits non-zero.
-  - [ ] Success criteria: the CLI tests pass.
-  - [ ] Commit: `feat(cli): report guide.exclude in guides install, update, status`
+  - [x] Success criteria: the CLI tests pass.
+  - [x] Commit: `feat(cli): report guide.exclude in guides install, update, status`
 
-- [ ] **Task 18: MCP rendering** (effort: 1)
-  - [ ] In `guideTools.ts`, `guide_install` passes the deprecation notice
+- [x] **Task 18: MCP rendering** (effort: 1)
+  - [x] In `guideTools.ts`, `guide_install` passes the deprecation notice
         plus `guideExcludeNotices(result)` to `withNotices`. `guide_update`
         wraps its result in `withNotices` with
         `guideExcludeNotices(result)`. `guide_status` needs no change
         beyond the new fields.
-  - [ ] Add cases to `packages/mcp-server/tests/guideTools.test.ts`: an
+  - [x] Add cases to `packages/mcp-server/tests/guideTools.test.ts`: an
         unmatched pattern and `excludeIgnored` each produce a notice, and
         `guide_status` JSON includes `excludeApplied` and
         `excludeConfigured`.
-  - [ ] Success criteria: the MCP tests pass.
-  - [ ] Commit: `feat(mcp): surface guide.exclude notices in guide tools`
+  - [x] Success criteria: the MCP tests pass.
+  - [x] Commit: `feat(mcp): surface guide.exclude notices in guide tools`
 
 ### Part 6 — Docs and verification (design step 6)
 
-- [ ] **Task 19: README note** (effort: 1)
-  - [ ] Under "Choosing a guide install strategy" in `README.md`, add a
+- [x] **Task 19: README note** (effort: 1)
+  - [x] Under "Choosing a guide install strategy" in `README.md`, add a
         short `guide.exclude` subsection covering: the key and an example,
         the pattern form, the protected paths, tarball only, changes
         applying on `cf guides update`, and that links into excluded
         content break.
-  - [ ] Success criteria: the README renders cleanly and the example
+  - [x] Success criteria: the README renders cleanly and the example
         matches the real syntax.
-  - [ ] Commit: `docs: document guide.exclude in README`
+  - [x] Commit: `docs: document guide.exclude in README`
 
-- [ ] **Task 20: Full build and test pass** (effort: 1)
-  - [ ] Run `pnpm -r build`, then the test suites for all packages.
-  - [ ] Success criteria: everything passes. Fix any failures before
+- [x] **Task 20: Full build and test pass** (effort: 1)
+  - [x] Run `pnpm -r build`, then the test suites for all packages.
+  - [x] Success criteria: everything passes. Fix any failures before
         moving on.
 
-- [ ] **Task 21: Run the verification walkthrough** (effort: 2)
-  - [ ] Run steps 1–10 of the design's Verification Walkthrough against
+- [x] **Task 21: Run the verification walkthrough** (effort: 2)
+  - [x] Run steps 1–10 of the design's Verification Walkthrough against
         the real GitHub tarball, using
         `node packages/cli/dist/index.js` in place of `cf`. Use a scratch
         directory under the session scratchpad rather than `/tmp`.
-  - [ ] For step 7, point `guide.source` at an unreachable GitHub-style
+  - [x] For step 7, point `guide.source` at an unreachable GitHub-style
         URL, so you do not have to take the network down.
-  - [ ] Add a check for the init integration requirement. In a fresh
+  - [x] Add a check for the init integration requirement. In a fresh
         scratch directory, `git init`, write a `.context-forge.toml`
         containing `[guide]` and `exclude = "tool-guides"`, then run
         `cf init --strategy tarball`. Confirm that
         `project-documents/ai-project-guide/tool-guides` does not exist and
         that the exclude record lists `tool-guides`. Add this as step 11 of
         the design's walkthrough.
-  - [ ] Note each step's actual output in the slice design's
+  - [x] Note each step's actual output in the slice design's
         Verification Walkthrough. Mark a step that cannot be run with the
         reason; do not mark it as passing.
-  - [ ] Success criteria: every step behaves as the design says, or a
+  - [x] Success criteria: every step behaves as the design says, or a
         deviation is fixed (with a test) or reported to the Project
         Manager.
-  - [ ] Commit: `docs: record slice 212 verification results`
+  - [x] Commit: `docs: record slice 212 verification results`
 
 ---
 
