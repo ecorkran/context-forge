@@ -15,7 +15,7 @@ import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { ensureGuideReady } from '../utils/guideReady.js';
 
-import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets.js';
+import { normalizeTarget, invalidTargetMessage, AGENT_SKILLS_DIR, type Target } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
@@ -43,7 +43,7 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
   },
   copilot: {
     markerFiles: ['.github/copilot-instructions.md', 'AGENTS.md'],
-    propagateDirs: ['.github/instructions', '.github/prompts', '.agents/skills'],
+    propagateDirs: ['.github/instructions', '.github/prompts', AGENT_SKILLS_DIR],
     label: 'GitHub Copilot',
   },
   cursor: {
@@ -53,7 +53,7 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
   },
   agents: {
     markerFiles: ['AGENTS.md'],
-    propagateDirs: ['.agents/skills'],
+    propagateDirs: [AGENT_SKILLS_DIR],
     label: 'agents',
   },
 };

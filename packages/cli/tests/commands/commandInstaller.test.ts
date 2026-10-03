@@ -467,12 +467,15 @@ describe('uninstallCommandsAction (stubbed home)', () => {
   it('--local leaves the legacy dir untouched', () => {
     const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-uninstall-local-'));
     vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
-    for (const skill of bundled) writeSkill(legacyDir, skill);
+    try {
+      for (const skill of bundled) writeSkill(legacyDir, skill);
 
-    uninstallCommandsAction('codex', { local: true });
+      uninstallCommandsAction('codex', { local: true });
 
-    for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
-    fs.rmSync(projectDir, { recursive: true, force: true });
+      for (const skill of bundled) expect(fs.existsSync(path.join(legacyDir, skill))).toBe(true);
+    } finally {
+      fs.rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 });
 

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { success, dim } from '../output/styles.js';
-import { normalizeTarget, invalidTargetMessage, type Target } from './ideTargets.js';
+import { normalizeTarget, invalidTargetMessage, AGENT_SKILLS_DIR, type Target } from './ideTargets.js';
 import { UserError } from '../utils/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,7 +50,7 @@ export const COMMAND_TARGETS: Record<CommandTarget, CommandTargetDescriptor> = {
   },
   agents: {
     sourceDir: 'codex',
-    localDir: '.agents/skills',
+    localDir: AGENT_SKILLS_DIR,
     // Shared Agent Skills user root. Codex (codex-rs/ext/skills/src/host_roots.rs)
     // treats $HOME/.agents/skills as the user root and $CODEX_HOME/skills as
     // deprecated; squadron writes here too (slice 929 D1).
@@ -334,7 +334,7 @@ export function registerInstallCommandsCommand(program: Command): void {
       try {
         installCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
-        console.error(`Error: ${(err as Error).message}`);
+        console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
     });
@@ -351,7 +351,7 @@ export function registerUninstallCommandsCommand(program: Command): void {
       try {
         uninstallCommandsAction(opts.ide, { local: opts.local, targetDir: opts.target });
       } catch (err) {
-        console.error(`Error: ${(err as Error).message}`);
+        console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
     });
