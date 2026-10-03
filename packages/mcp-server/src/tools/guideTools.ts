@@ -16,6 +16,7 @@ import {
   GUIDE_METHOD_DEPRECATED_ALIASES,
   GUIDE_STRATEGIES,
   describeGuideStrategy,
+  guideExcludeNotices,
   guideMethodDeprecationMessage,
 } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
@@ -152,12 +153,12 @@ export function registerGuideTools(server: McpServer): void {
         // Deprecation surfaces as a structured notice rather than a log line,
         // since an MCP client has no stderr channel to read (D4). Same shared
         // shape every other tool uses.
-        return withNotices(
-          jsonResult(result),
-          result.deprecatedAlias
+        return withNotices(jsonResult(result), [
+          ...(result.deprecatedAlias
             ? [guideMethodDeprecationMessage(result.deprecatedAlias, result.method)]
-            : []
-        );
+            : []),
+          ...guideExcludeNotices(result),
+        ]);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
@@ -227,7 +228,10 @@ export function registerGuideTools(server: McpServer): void {
           }
         }
 
-        return jsonResult(syncResults ? { ...result, syncResults } : result);
+        return withNotices(
+          jsonResult(syncResults ? { ...result, syncResults } : result),
+          guideExcludeNotices(result)
+        );
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);
