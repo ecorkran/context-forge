@@ -122,7 +122,14 @@ export interface GuideInfo {
   latestVersion: string | null;
   updateAvailable: boolean;
   usingBundledPrompt: boolean;
+  /** Excludes the installed guide was extracted with (from the record); [] when none or non-tarball. */
+  excludeApplied: string[];
+  /** guide.exclude from config, parsed. */
+  excludeConfigured: string[];
 }
+
+/** What GuideDetector can determine on its own; GuideManager adds the exclude fields. */
+export type DetectedGuideInfo = Omit<GuideInfo, 'excludeApplied' | 'excludeConfigured'>;
 
 /**
  * Outcome of GuideManager.ensureCheckout().

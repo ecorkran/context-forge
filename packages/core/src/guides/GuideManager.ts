@@ -2,6 +2,7 @@
 import { join, dirname } from 'path';
 import { mkdirSync, rmSync, rmdirSync, readdirSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
+import { parseGuideExclude } from '../config/guideExclude.js';
 import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult, EnsureCheckoutResult } from './types.js';
 import {
   DEFAULT_SOURCE_GIT,
@@ -15,7 +16,7 @@ import { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
-import { TarballStrategy } from './strategies/TarballStrategy.js';
+import { TarballStrategy, readExcludeRecord } from './strategies/TarballStrategy.js';
 import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } from './branchGuard.js';
 
 /**
@@ -26,6 +27,14 @@ import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } fr
 export interface ResolvedStrategy {
   method: GuideMethod;
   deprecatedAlias?: string;
+}
+
+/**
+ * Only the tarball strategy filters; other methods report that a configured
+ * exclude list was ignored rather than silently dropping it.
+ */
+function excludeIgnoredField(method: GuideMethod, exclude: readonly string[]): { excludeIgnored?: true } {
+  return method !== 'tarball' && exclude.length > 0 ? { excludeIgnored: true } : {};
 }
 
 export class GuideManager {
@@ -43,8 +52,13 @@ export class GuideManager {
 
   /** Get current guide installation status */
   async status(): Promise<GuideInfo> {
+    // An invalid guide.exclude throws here rather than being hidden (D7).
+    const excludeConfigured = await this.resolveExclude();
     const source = await this.resolveSource();
-    return this.detector.detect(this.projectPath, source, this.operationPath);
+    const info = await this.detector.detect(this.projectPath, source, this.operationPath);
+    // info.path is the directory the detector inspected (the worktree's, when set).
+    const excludeApplied = info.method === 'tarball' ? readExcludeRecord(info.path) : [];
+    return { ...info, excludeApplied, excludeConfigured };
   }
 
   /**
@@ -57,6 +71,8 @@ export class GuideManager {
    * the caller can warn (D5).
    */
   async install(strategyOverride?: string, sourceOverride?: string): Promise<InstallResult> {
+    // First, so a bad hand-edited value fails before anything is downloaded.
+    const exclude = await this.resolveExclude();
     const source = sourceOverride || (await this.resolveSource());
     const resolved: ResolvedStrategy = strategyOverride
       ? this.resolveStrategyOverride(strategyOverride)
@@ -72,7 +88,7 @@ export class GuideManager {
       );
     }
 
-    const strategy = this.getStrategy(method);
+    const strategy = this.getStrategy(method, exclude);
     const result = await strategy.install(this.projectPath, source, targetDir);
 
     // Create user artifact directories so the project is ready to use
@@ -82,6 +98,7 @@ export class GuideManager {
 
     return {
       ...result,
+      ...excludeIgnoredField(method, exclude),
       ...(resolved.deprecatedAlias ? { deprecatedAlias: resolved.deprecatedAlias } : {}),
       ...(persistedStrategy ? { persistedStrategy } : {}),
     };
@@ -186,6 +203,7 @@ export class GuideManager {
 
   /** Update an existing guide installation */
   async update(opts?: { confirmed?: boolean }): Promise<UpdateResult> {
+    const exclude = await this.resolveExclude();
     const source = await this.resolveSource();
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
 
@@ -204,8 +222,11 @@ export class GuideManager {
       throw new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry);
     }
 
-    const strategy = this.getStrategy(info.method);
-    const result = await strategy.update(this.projectPath, targetDir, source);
+    const strategy = this.getStrategy(info.method, exclude);
+    const result = {
+      ...(await strategy.update(this.projectPath, targetDir, source)),
+      ...excludeIgnoredField(info.method, exclude),
+    };
 
     // Sync the worktree's submodule checkout if operating from a non-default worktree
     if (this.operationPath && this.operationPath !== this.projectPath && info.method === 'submodule') {
@@ -334,6 +355,20 @@ export class GuideManager {
   }
 
   /**
+   * Resolve and parse guide.exclude from config. Config read errors and
+   * GuideExcludeError propagate (D7), so a hand-edited value that is malformed
+   * or covers a protected path fails the command with a message naming the key.
+   */
+  private async resolveExclude(): Promise<string[]> {
+    if (!this.configManager) return [];
+    const result = await this.configManager.get('guide.exclude');
+    if (typeof result.value !== 'string') {
+      throw new Error(`Config key 'guide.exclude' must be a string, got ${typeof result.value}.`);
+    }
+    return parseGuideExclude(result.value);
+  }
+
+  /**
    * Resolve the install strategy from config.
    *
    * An unset key already yields the ConfigKeys default, so there is no
@@ -372,14 +407,14 @@ export class GuideManager {
   }
 
   /** Map method name to strategy instance */
-  private getStrategy(method: GuideMethod): InstallStrategy {
+  private getStrategy(method: GuideMethod, exclude: readonly string[]): InstallStrategy {
     switch (method) {
       case 'submodule':
         return new SubmoduleStrategy();
       case 'clone':
         return new CloneStrategy();
       case 'tarball':
-        return new TarballStrategy();
+        return new TarballStrategy(exclude);
     }
   }
 }

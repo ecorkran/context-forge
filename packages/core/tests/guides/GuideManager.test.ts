@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GuideManager } from '../../src/guides/GuideManager.js';
 import { DEFAULT_SOURCE_GIT } from '../../src/guides/types.js';
-import type { GuideInfo } from '../../src/guides/types.js';
+import type { DetectedGuideInfo } from '../../src/guides/types.js';
 
 // Mock fs
 vi.mock('fs', () => ({
@@ -52,6 +52,7 @@ vi.mock('../../src/guides/strategies/TarballStrategy.js', () => ({
     install: vi.fn(),
     update: vi.fn(),
   })),
+  readExcludeRecord: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../../src/guides/branchGuard.js', async () => {
@@ -66,7 +67,7 @@ import { mkdirSync, existsSync, rmSync, rmdirSync, readdirSync } from 'fs';
 import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
-import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
+import { TarballStrategy, readExcludeRecord } from '../../src/guides/strategies/TarballStrategy.js';
 import { gitExec, GUIDE_OFFLINE_REMEDIATION } from '../../src/guides/gitExec.js';
 import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
 import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
@@ -79,7 +80,7 @@ import {
 describe('GuideManager', () => {
   const projectPath = '/test/project';
 
-  const notInstalledInfo: GuideInfo = {
+  const notInstalledInfo: DetectedGuideInfo = {
     installed: false,
     method: null,
     version: null,
@@ -90,7 +91,7 @@ describe('GuideManager', () => {
     usingBundledPrompt: true,
   };
 
-  const installedInfo: GuideInfo = {
+  const installedInfo: DetectedGuideInfo = {
     installed: true,
     method: 'submodule',
     version: 'v0.12.0',
@@ -114,6 +115,7 @@ describe('GuideManager', () => {
       get: vi.fn().mockImplementation(async (key: string) => {
         if (key === 'guide.source') return { value: '', source: 'default' };
         if (key === 'guide.git_strategy') return { value: 'submodule', source: 'default' };
+        if (key === 'guide.exclude') return { value: '', source: 'default' };
         throw new Error('unknown key');
       }),
       set: vi.fn().mockResolvedValue(undefined),
@@ -131,7 +133,7 @@ describe('GuideManager', () => {
       const result = await manager.status();
 
       expect(mockDetect).toHaveBeenCalledWith(projectPath, DEFAULT_SOURCE_GIT, undefined);
-      expect(result).toEqual(installedInfo);
+      expect(result).toEqual({ ...installedInfo, excludeApplied: [], excludeConfigured: [] });
     });
 
     it('uses custom source from config', async () => {
@@ -300,7 +302,7 @@ describe('GuideManager', () => {
     });
 
     it('does not call sync() when method is clone (not submodule)', async () => {
-      const cloneInstalledInfo: GuideInfo = {
+      const cloneInstalledInfo: DetectedGuideInfo = {
         ...installedInfo,
         method: 'clone',
       };
@@ -398,7 +400,7 @@ describe('GuideManager', () => {
 
   describe('update - TarballStrategy (tarball) evaluates guard like any other strategy', () => {
     it("info.method === 'tarball', guard returns proceed -> TarballStrategy.update() is called normally", async () => {
-      const tarballInstalledInfo: GuideInfo = { ...installedInfo, method: 'tarball' };
+      const tarballInstalledInfo: DetectedGuideInfo = { ...installedInfo, method: 'tarball' };
       mockDetect.mockResolvedValue(tarballInstalledInfo);
       vi.mocked(evaluateBranchGuard).mockResolvedValue({ outcome: 'proceed' });
       const mockTarballUpdate = vi.fn().mockResolvedValue({
@@ -442,7 +444,7 @@ describe('GuideManager', () => {
     });
 
     it("info.method === 'tarball', guard returns block -> TarballStrategy.update() NOT called, BranchGuardBlockedError thrown", async () => {
-      const tarballInstalledInfo: GuideInfo = { ...installedInfo, method: 'tarball' };
+      const tarballInstalledInfo: DetectedGuideInfo = { ...installedInfo, method: 'tarball' };
       mockDetect.mockResolvedValue(tarballInstalledInfo);
       vi.mocked(evaluateBranchGuard).mockResolvedValue({
         outcome: 'block', trunk: 'dev/erik', current: 'main',
@@ -457,6 +459,104 @@ describe('GuideManager', () => {
 
       await expect(manager.update()).rejects.toBeInstanceOf(BranchGuardBlockedError);
       expect(mockTarballUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('guide.exclude', () => {
+    const protectedMessage = 'guide.exclude entry "scripts" would remove scripts, which cf requires.';
+
+    function configWith(exclude: string, strategy: string): void {
+      mockConfigManager.get.mockImplementation(async (key: string) => {
+        if (key === 'guide.git_strategy') return { value: strategy, source: 'project' };
+        if (key === 'guide.exclude') return { value: exclude, source: 'project' };
+        return { value: '', source: 'default' };
+      });
+    }
+
+    function mockStrategy(ctor: unknown, method: string): { install: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> } {
+      const methods = {
+        install: vi.fn().mockResolvedValue({ success: true, version: 'v0.13.2', method, path: '/test/path' }),
+        update: vi.fn().mockResolvedValue({ success: true, previousVersion: 'v0.13.2', newVersion: 'v0.13.2', method }),
+      };
+      (ctor as ReturnType<typeof vi.fn>).mockImplementation(() => methods);
+      return methods;
+    }
+
+    it('constructs the tarball strategy with the parsed list', async () => {
+      configWith('tool-guides/**, framework-guides,', 'tarball');
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      mockStrategy(TarballStrategy, 'tarball');
+
+      await new GuideManager(projectPath, mockConfigManager as never).install();
+
+      expect(TarballStrategy).toHaveBeenCalledWith(['framework-guides', 'tool-guides']);
+    });
+
+    it('rejects a protected path on install and update before any strategy runs', async () => {
+      configWith('scripts', 'tarball');
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
+      const tarball = mockStrategy(TarballStrategy, 'tarball');
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      await expect(manager.install()).rejects.toThrow(protectedMessage);
+      await expect(manager.update()).rejects.toThrow(protectedMessage);
+
+      expect(mockDetect).not.toHaveBeenCalled();
+      expect(tarball.install).not.toHaveBeenCalled();
+      expect(tarball.update).not.toHaveBeenCalled();
+    });
+
+    it('marks a submodule install and update as excludeIgnored when the key is set', async () => {
+      configWith('tool-guides', 'submodule');
+      mockStrategy(SubmoduleStrategy, 'submodule');
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      expect((await manager.install()).excludeIgnored).toBe(true);
+      mockDetect.mockResolvedValue(installedInfo);
+      expect((await manager.update()).excludeIgnored).toBe(true);
+    });
+
+    it('omits excludeIgnored for a submodule install when the key is unset', async () => {
+      configWith('', 'submodule');
+      mockStrategy(SubmoduleStrategy, 'submodule');
+      const manager = new GuideManager(projectPath, mockConfigManager as never);
+
+      mockDetect.mockResolvedValue(notInstalledInfo);
+      expect(await manager.install()).not.toHaveProperty('excludeIgnored');
+      mockDetect.mockResolvedValue(installedInfo);
+      expect(await manager.update()).not.toHaveProperty('excludeIgnored');
+    });
+
+    it('status reports the configured list and the applied record for a tarball install', async () => {
+      configWith('framework-guides', 'tarball');
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
+      vi.mocked(readExcludeRecord).mockReturnValueOnce(['tool-guides']);
+
+      const info = await new GuideManager(projectPath, mockConfigManager as never).status();
+
+      expect(readExcludeRecord).toHaveBeenCalledWith(installedInfo.path);
+      expect(info.excludeApplied).toEqual(['tool-guides']);
+      expect(info.excludeConfigured).toEqual(['framework-guides']);
+    });
+
+    it('status reports nothing applied for a submodule install', async () => {
+      configWith('tool-guides', 'submodule');
+      mockDetect.mockResolvedValue(installedInfo);
+
+      const info = await new GuideManager(projectPath, mockConfigManager as never).status();
+
+      expect(readExcludeRecord).not.toHaveBeenCalled();
+      expect(info.excludeApplied).toEqual([]);
+      expect(info.excludeConfigured).toEqual(['tool-guides']);
+    });
+
+    it('status rejects a protected path', async () => {
+      configWith('scripts', 'tarball');
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
+
+      await expect(new GuideManager(projectPath, mockConfigManager as never).status())
+        .rejects.toThrow(protectedMessage);
     });
   });
 
@@ -652,7 +752,7 @@ describe('GuideManager', () => {
     });
 
     it('returns empty array when method is not submodule', async () => {
-      const cloneInstalledInfo: GuideInfo = {
+      const cloneInstalledInfo: DetectedGuideInfo = {
         ...installedInfo,
         method: 'clone',
       };
@@ -846,7 +946,7 @@ describe('GuideManager', () => {
   });
 
   describe('ensureCheckout() offline remediation', () => {
-    const uninitialized: GuideInfo = { ...installedInfo, checkout: 'not_initialized' };
+    const uninitialized: DetectedGuideInfo = { ...installedInfo, checkout: 'not_initialized' };
 
     function managerWhoseInitFails(message: string): GuideManager {
       (GuideDetector as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({

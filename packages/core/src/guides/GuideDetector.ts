@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  type GuideInfo,
+  type DetectedGuideInfo,
   type GuideMethod,
   type SubmoduleCheckoutState,
   DEFAULT_SOURCE_GIT,
@@ -62,7 +62,7 @@ export class GuideDetector {
    * @param source - override source URL (defaults to DEFAULT_SOURCE_GIT)
    * @param operationPath - worktree path for filesystem checks (defaults to projectPath)
    */
-  async detect(projectPath: string, source?: string, operationPath?: string): Promise<GuideInfo> {
+  async detect(projectPath: string, source?: string, operationPath?: string): Promise<DetectedGuideInfo> {
     const info = await this.detectLocal(projectPath, source, operationPath);
     const latestVersion = await this.fetchLatestVersion(info.source);
     return {
@@ -83,12 +83,12 @@ export class GuideDetector {
     projectPath: string,
     source?: string,
     operationPath?: string
-  ): Promise<GuideInfo> {
+  ): Promise<DetectedGuideInfo> {
     const resolvedSource = source || DEFAULT_SOURCE_GIT;
     const effectivePath = operationPath || projectPath;
     const guidePath = join(effectivePath, GUIDE_RELATIVE_PATH);
 
-    const baseInfo: GuideInfo = {
+    const baseInfo: DetectedGuideInfo = {
       installed: false,
       method: null,
       checkout: null,
