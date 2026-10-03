@@ -73,3 +73,32 @@ describe('rules.exclude', () => {
     expect(def.validate?.('dart.md, swift*.md')).toContain('swift*.md');
   });
 });
+
+describe('guide.exclude', () => {
+  const def = CONFIG_KEYS['guide.exclude'];
+
+  it('is a shared string key defaulting to empty', () => {
+    expect(def).toBeDefined();
+    expect(def.type).toBe('string');
+    expect(def.default).toBe('');
+    // The guide is committed, so its exclude list has to be shared too.
+    expect(def.scope).toBe('shared');
+  });
+
+  it('accepts empty and a lenient multi-entry list', () => {
+    expect(def.validate?.('')).toBeNull();
+    expect(def.validate?.('tool-guides/**,framework-guides')).toBeNull();
+  });
+
+  it('refuses a protected path, naming it', () => {
+    expect(def.validate?.('scripts')).toContain('scripts');
+  });
+
+  it('refuses an unsupported wildcard', () => {
+    expect(def.validate?.('tool-*')).toBeTruthy();
+  });
+
+  it('rejects a non-string value', () => {
+    expect(def.validate?.(true)).toBe('must be a string');
+  });
+});

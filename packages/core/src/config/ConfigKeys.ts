@@ -1,3 +1,5 @@
+import { GuideExcludeError, parseGuideExclude } from './guideExclude.js';
+
 export const ConfigScope = {
   Shared: 'shared',
   Personal: 'personal',
@@ -36,6 +38,23 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     // maps it to 'tarball' when the value is read.
     enum: ['submodule', 'clone', 'tarball', 'manual'],
     scope: ConfigScope.Shared,
+  },
+  'guide.exclude': {
+    type: 'string',
+    default: '',
+    description:
+      'Comma-separated guide-relative paths that tarball installs skip (e.g. "tool-guides/**,framework-guides"). A trailing "/" or "/**" means the same as the bare path; no other wildcards are supported. project-guides and scripts are protected and cannot be excluded. Applies to tarball installs only (submodule and clone ignore it). A change takes effect on the next `cf guides update`. Empty means install everything.',
+    scope: ConfigScope.Shared,
+    validate: (value) => {
+      if (typeof value !== 'string') return 'must be a string';
+      try {
+        parseGuideExclude(value);
+        return null;
+      } catch (err) {
+        if (err instanceof GuideExcludeError) return err.message;
+        throw err;
+      }
+    },
   },
   'workflow.auto_advance': {
     type: 'boolean',
