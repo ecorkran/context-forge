@@ -163,6 +163,12 @@ export interface InstallResult {
    * teammate's — uses the same strategy. Absent when nothing was written.
    */
   persistedStrategy?: GuideMethod;
+  /** Tarball: the guide.exclude list applied. Absent when empty. */
+  exclude?: string[];
+  /** Tarball: exclude patterns that matched no archive entry. Absent when empty. */
+  unmatchedExclude?: string[];
+  /** Non-tarball install with guide.exclude set; nothing was filtered. */
+  excludeIgnored?: boolean;
 }
 
 /** Result of a guide update */
@@ -179,6 +185,14 @@ export interface UpdateResult {
   worktreeSynced?: boolean;
   /** Whether the update was committed; see InstallResult.committed. */
   committed?: boolean;
+  /** See InstallResult.exclude. */
+  exclude?: string[];
+  /** See InstallResult.unmatchedExclude. */
+  unmatchedExclude?: string[];
+  /** See InstallResult.excludeIgnored. */
+  excludeIgnored?: boolean;
+  /** True when the guide was re-extracted at the same version because guide.exclude changed. */
+  excludeChanged?: boolean;
 }
 
 /** Result of uninstalling a guide */
@@ -223,3 +237,5 @@ export const DEFAULT_SOURCE_GIT = 'https://github.com/ecorkran/ai-project-guide.
 export const DEFAULT_SOURCE_API = 'https://api.github.com/repos/ecorkran/ai-project-guide';
 export const GUIDE_RELATIVE_PATH = 'project-documents/ai-project-guide';
 export const VERSION_MARKER_FILE = '.context-forge-guide-version';
+/** guide.exclude list a tarball install applied, one pattern per line; written only when the list is not empty. */
+export const EXCLUDE_RECORD_FILE = '.context-forge-guide-exclude';
