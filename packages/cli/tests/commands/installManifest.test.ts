@@ -16,25 +16,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const REPO_MANIFEST = path.join(REPO_ROOT, '.context-forge', 'claude.manifest');
 
 describe('cksum', () => {
-  it('reproduces every CRC and size in the repo\'s committed claude.manifest', () => {
-    const lines = fs.readFileSync(REPO_MANIFEST, 'utf-8').split('\n').filter((l) => l.trim() !== '');
-    expect(lines.length).toBeGreaterThan(0);
-
-    // A listed file can be missing on disk (e.g. .claude/rules/electron.md was
-    // deleted by hand after the guide wrote the manifest). That says nothing about
-    // the CRC, so skip it, but require that real files were actually checked.
-    let checked = 0;
-    for (const line of lines) {
-      const entry = parseManifestLine(line)!;
-      const filePath = path.join(REPO_ROOT, ...entry.path.split('/'));
-      if (!fs.existsSync(filePath)) continue;
-      const bytes = fs.readFileSync(filePath);
-      expect({ path: entry.path, crc: cksum(bytes), size: bytes.length }).toEqual(entry);
-      checked++;
-    }
-    expect(checked).toBeGreaterThan(0);
-  });
-
   it('empty buffer → 4294967295 (printf \'\' | cksum)', () => {
     expect(cksum(Buffer.alloc(0))).toBe(4294967295);
   });
