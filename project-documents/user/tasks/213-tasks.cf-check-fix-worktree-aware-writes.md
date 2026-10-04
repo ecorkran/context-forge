@@ -7,7 +7,7 @@ dependencies: [207, 926, 927]
 projectState: main at c94cc74, v0.18.4 released. Slice 213 design reviewed (CONCERNS, all findings resolved in the design). No code written for this slice. `cf check --fix` still writes into every checkout with a fixable finding (927 D5). `fixAction` has no subject index, `FixLogEntry` has no worktree, and there is no multi-path commit helper.
 dateCreated: 20261004
 dateUpdated: 20261004
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -74,28 +74,28 @@ global `cf` (that is the published npm build).
 
 ## Branch Setup
 
-- [ ] **Task 0: Create slice branch**
-  - [ ] Run `cf config get git.integration_branch`; the target is its value, or `main` if empty
-  - [ ] `git checkout -b 213-slice.cf-check-fix-worktree-aware-writes {target}`
-  - [ ] Success: on the new branch, `git status` clean
+- [x] **Task 0: Create slice branch**
+  - [x] Run `cf config get git.integration_branch`; the target is its value, or `main` if empty
+  - [x] `git checkout -b 213-slice.cf-check-fix-worktree-aware-writes {target}`
+  - [x] Success: on the new branch, `git status` clean
 
 ## Part 1 — Types and Subject Index
 
-- [ ] **Task 1: Add the new types** (effort 2)
-  - [ ] In `packages/core/src/introspection/types.ts`, add `subjectIndex: number | null` to `fixAction` as a **required** key (design: API Contracts)
-  - [ ] Add optional `worktree?: FindingWorktree` to `FixLogEntry`
-  - [ ] Add the `DeferReason` const object with the seven values from D6 / API Contracts, plus a `DeferReasonValue` type derived from it
-  - [ ] Add `DeferredFix { finding; reason; owner?; detail? }`. `detail?: string` carries git's error text for `COMMIT_FAILED` (D5a)
-  - [ ] Add `CheckoutCommit { worktree?; checkoutPath; sha; files }`
-  - [ ] Add `deferred: DeferredFix[]` and `commits: CheckoutCommit[]` to `ConsistencyFixResult`
-  - [ ] Export all new names from `packages/core/src/introspection/index.ts` and the core package root, following how existing introspection types are exported
-  - [ ] Every existing place that constructs a `ConsistencyFixResult` (start with `ConsistencyChecker.applyFixes` and `mergeFixResults`) returns `deferred: []` and `commits: []`
-  - [ ] Success: `pnpm --filter @context-forge/core build` fails **only** on `fixAction` literals missing `subjectIndex` (that is Task 2's work). Record the list of failing sites; it is the checklist for Task 2
-  - [ ] Do not commit between Task 1 and Task 2; the first commit is at Task 3 with the build green
+- [x] **Task 1: Add the new types** (effort 2)
+  - [x] In `packages/core/src/introspection/types.ts`, add `subjectIndex: number | null` to `fixAction` as a **required** key (design: API Contracts)
+  - [x] Add optional `worktree?: FindingWorktree` to `FixLogEntry`
+  - [x] Add the `DeferReason` const object with the seven values from D6 / API Contracts, plus a `DeferReasonValue` type derived from it
+  - [x] Add `DeferredFix { finding; reason; owner?; detail? }`. `detail?: string` carries git's error text for `COMMIT_FAILED` (D5a)
+  - [x] Add `CheckoutCommit { worktree?; checkoutPath; sha; files }`
+  - [x] Add `deferred: DeferredFix[]` and `commits: CheckoutCommit[]` to `ConsistencyFixResult`
+  - [x] Export all new names from `packages/core/src/introspection/index.ts` and the core package root, following how existing introspection types are exported
+  - [x] Every existing place that constructs a `ConsistencyFixResult` (start with `ConsistencyChecker.applyFixes` and `mergeFixResults`) returns `deferred: []` and `commits: []`
+  - [x] Success: `pnpm --filter @context-forge/core build` fails **only** on `fixAction` literals missing `subjectIndex` (that is Task 2's work). Record the list of failing sites; it is the checklist for Task 2
+  - [x] Do not commit between Task 1 and Task 2; the first commit is at Task 3 with the build green
 
-- [ ] **Task 2: Set `subjectIndex` in every fixable rule** (effort 3)
-  - [ ] Each rule below sets `subjectIndex` from a numeric value already available in the rule's scope (a parsed index field, not a regex over a label). If a rule has no numeric index in scope, STOP and ask the PM; do not parse it from `location` or `description`
-  - [ ] Subject per rule is the D1 table. Work through them one at a time:
+- [x] **Task 2: Set `subjectIndex` in every fixable rule** (effort 3)
+  - [x] Each rule below sets `subjectIndex` from a numeric value already available in the rule's scope (a parsed index field, not a regex over a label). If a rule has no numeric index in scope, STOP and ask the PM; do not parse it from `location` or `description`
+  - [x] Subject per rule is the D1 table. Work through them one at a time:
     1. `task-vs-plan` (both fix sites): slice index of the plan entry
     2. `plan-vs-frontmatter` (both fix sites): slice index of the plan entry
     3. `frontmatter-vs-computed` (all fix sites): slice index
@@ -105,17 +105,17 @@ global `cf` (that is the published npm build).
     7. `initiative-entry-vs-arch` (all fix sites): architecture / initiative index
     8. `initiative-plan-status-vs-entries` (both fix sites): initiative index
     9. Frontmatter-schema findings (the `sf.fixAction` mapping near the end of `ConsistencyChecker.ts`): the document's own leading filename index, or `null` when the filename has none
-  - [ ] Non-fixable rules (`missing-artifact`, `review-gate`, `duplicate-index`, `stale-worktree-path`, `personal-config-in-shared-file`) are unchanged
-  - [ ] Do not change `applyFixes`' signature or behavior
-  - [ ] Success: core build and typecheck pass; existing core tests pass unchanged
+  - [x] Non-fixable rules (`missing-artifact`, `review-gate`, `duplicate-index`, `stale-worktree-path`, `personal-config-in-shared-file`) are unchanged
+  - [x] Do not change `applyFixes`' signature or behavior
+  - [x] Success: core build and typecheck pass; existing core tests pass unchanged
 
-- [ ] **Task 3: Test subject index coverage** (effort 2)
-  - [ ] Add a test in `packages/core/tests/introspection/` that runs `checkAll` over a fixture producing at least one fixable finding from **each** fixable rule in Task 2, and asserts every finding with `fixable: true` has a `fixAction.subjectIndex` key (`number` or `null`, never `undefined`)
-  - [ ] Reuse fixtures from `ConsistencyChecker.test.ts` / `tests/helpers/testData.ts` where they already produce these findings; add only what is missing
-  - [ ] Add one assertion per rule that `subjectIndex` equals the expected index for that fixture (e.g. a `task-vs-plan` finding for slice 120 has `subjectIndex === 120`)
-  - [ ] Add one frontmatter-schema case with an unindexed filename → `subjectIndex === null`
-  - [ ] Success: new tests pass; full core suite passes
-  - [ ] Commit: `feat(core): add subjectIndex to fix actions and fix result types`
+- [x] **Task 3: Test subject index coverage** (effort 2)
+  - [x] Add a test in `packages/core/tests/introspection/` that runs `checkAll` over a fixture producing at least one fixable finding from **each** fixable rule in Task 2, and asserts every finding with `fixable: true` has a `fixAction.subjectIndex` key (`number` or `null`, never `undefined`)
+  - [x] Reuse fixtures from `ConsistencyChecker.test.ts` / `tests/helpers/testData.ts` where they already produce these findings; add only what is missing
+  - [x] Add one assertion per rule that `subjectIndex` equals the expected index for that fixture (e.g. a `task-vs-plan` finding for slice 120 has `subjectIndex === 120`)
+  - [x] Add one frontmatter-schema case with an unindexed filename → `subjectIndex === null`
+  - [x] Success: new tests pass; full core suite passes
+  - [x] Commit: `feat(core): add subjectIndex to fix actions and fix result types`
 
 ## Part 2 — Owner Resolution
 

@@ -19,5 +19,8 @@ export {
   type AttributedView,
 } from './mergeCheckResults.js';
 
+// resolveFixOwner is pure (no fs, no git) — browser-safe
+export { resolveFixOwner } from './fixOwnership.js';
+
 // Type-only: reviewGate.ts reads files, so its runtime values stay out of the browser-safe barrel
 export type { ExemptReason } from './reviewGate.js';
