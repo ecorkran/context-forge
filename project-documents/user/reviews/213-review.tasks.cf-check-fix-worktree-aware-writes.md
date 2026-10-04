@@ -13,57 +13,52 @@ aiModel: claude-sonnet-5-5
 status: complete
 dateCreated: 20261004
 dateUpdated: 20261004
-reviewedSha: 32783b0945005ad1516b441c07189162dfd10219
+reviewedSha: b6d95ab543133f5fdb56ff8162c490fd276736e6
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
-durationSeconds: 35.2
+durationSeconds: 36.0
 squadronVersion: 0.18.4
 findings:
   - id: F001
     severity: concern
-    category: sequencing
-    summary: "Test-with pattern broken for the core routing tasks (11–13)"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:166-223"
+    category: test-coverage
+    summary: "Restore-failure path (SC 7) has no test"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:231"
   - id: F002
     severity: concern
-    category: sequencing
-    summary: "Task 13 depends on Task 14, which is sequenced after it"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:196-204"
+    category: task-sizing
+    summary: "CLI implementation tasks are not followed by tests, and Task 20 is oversized"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:249-276"
   - id: F003
-    severity: concern
-    category: sequencing
-    summary: "`FIX_GIT_TIMEOUT_MS` location is ambiguous and could invert the module dependency"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:146"
+    severity: note
+    category: specification
+    summary: "`FixPlan` and `ReadinessResult` shapes are never defined"
+    location: "project-documents/user/slices/213-slice.cf-check-fix-worktree-aware-writes.md:115"
   - id: F004
-    severity: concern
-    category: task-scope
-    summary: "Task 13 is dense and leaves several behaviors underspecified"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:187-198"
+    severity: note
+    category: commit-cadence
+    summary: "Commit checkpoints are grouped but distributed"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:172"
   - id: F005
-    severity: concern
-    category: coverage
-    summary: "`workflow.auto_fix` path (SC 11) has no test"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:230,258"
+    severity: note
+    category: sequencing
+    summary: "Task 1 deliberately leaves the build broken until Task 2"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:85"
   - id: F006
     severity: note
-    category: coverage
-    summary: "Grouped CLI text output is only partly asserted"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:235-251"
+    category: scope
+    summary: "`restorePathsToHead` and the Task 25 commit prefix"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:145"
   - id: F007
-    severity: note
-    category: commits
-    summary: "Commit checkpoints are mostly distributed but gapped in the middle"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:162-223"
-  - id: F008
-    severity: note
-    category: nfr
-    summary: "No NFR load-test requirement applies"
-    location: "project-documents/user/slices/213-slice.cf-check-fix-worktree-aware-writes.md:319-344"
-  - id: F009
     severity: pass
     category: coverage
-    summary: "Success criteria coverage and scope discipline"
-    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:61-290"
+    summary: "Success criteria SC 1–6 and 8–12 map to tasks, and sequencing holds"
+    location: "project-documents/user/tasks/213-tasks.cf-check-fix-worktree-aware-writes.md:74-316"
+  - id: F008
+    severity: pass
+    category: nfr
+    summary: "No NFR or load-test obligation in this slice"
+    location: "project-documents/user/slices/213-slice.cf-check-fix-worktree-aware-writes.md:336-344"
 ---
 
 # Review: tasks — slice 213
@@ -73,72 +68,52 @@ findings:
 
 ## Findings
 
-### [CONCERN] Test-with pattern broken for the core routing tasks (11–13)
+### [CONCERN] Restore-failure path (SC 7) has no test
 
-Tasks 11 (`resolveInvokingCheckout`), 12 (`planRoutedFixes`) and 13 (`applyFixPlan`) are the most complex logic in the slice. None has a test task immediately after it. Their only success criterion is "core build passes", and all of their tests are deferred to Task 15. Task 15 is effort 4 and bundles 12 scenarios plus the single-checkout case. No commit lands between Task 10 and Task 15, so four implementation tasks and a very large test task accumulate before the first checkpoint.
+Task 16 implements the second half of SC 7. If `restorePathsToHead` also throws, the log entries stay in place and one `fixErrors` entry names the checkout and the uncommitted files. The slice design calls this "the only path from git to `fixErrors`" and says it is "always reported". No task covers it. Task 17 case 5 asserts only the successful-restore path, with `fixErrors` empty, and Task 8 tests `restorePathsToHead` in isolation. Add a Task 17 case where both commit and restore fail. One way is to reject via the hook and make the restore fail, for example by holding `index.lock`. It should assert that the `fixErrors` entry names the checkout and the files, and that the `fixLog` entries are retained.
 
-Suggested fix:
-- Test 11 and 12 right after they are written (invoking checkout, owner routing, readiness deferrals).
-- Test 13 right after it is written (commit, restore, re-check).
-- Add a commit after each.
+### [CONCERN] CLI implementation tasks are not followed by tests, and Task 20 is oversized
 
-### [CONCERN] Task 13 depends on Task 14, which is sequenced after it
+Tasks 18 (routing, `resolveInvokingCheckout`, auto_fix path, preview and prompt) and 19 (grouped output and the label map) are both implementation tasks with no commit and no test between them. Task 20 then carries the whole CLI test load:
+- a rewrite of the fixture to real git
+- eight new scenarios
+- the contract change of the 927 assertion
 
-Task 13 says "Combine per-view results through `mergeFixResults` (extended in Task 14)". Task 14 comes after it, so Task 13 cannot be completed or verified in order. Move Task 14 before Task 13, or fold it into Task 1/Task 13.
+That breaks the test-with pattern and makes Task 20 the largest task in the file. A failure there is hard to attribute to Task 18 or Task 19. Split Task 20 in two. Test Task 18 right after it (owner commit, unregistered error, preview, auto_fix, single-checkout JSON), with a commit. Then test Task 19's grouped text and label coverage right after Task 19.
 
-### [CONCERN] `FIX_GIT_TIMEOUT_MS` location is ambiguous and could invert the module dependency
+### [NOTE] `FixPlan` and `ReadinessResult` shapes are never defined
 
-Task 9 allows the constant to live "next to the other git constants or in `routedFixes.ts`'s module". `routedFixes.ts` is not created until Task 11. `checkoutReadiness`, which lives in `git/`, would then import from `introspection/`, which is the wrong direction. Name one location, in the `git/` layer, so a junior implementer has no choice to make.
+Tasks 9, 13 and 15 refer to `FixPlan` and `ReadinessResult` "per Data Flow and API Contracts". The design defines only the `FixPlan` sketch `{ perView: [{ view result subset, commit: boolean }], deferred }`. It gives no TypeScript interface for either type. Task 1 does not add them. A junior implementer will have to invent the fields. Add an explicit type-definition item to Task 1 or Task 9, and to Task 13 for `FixPlan`, so Tasks 14, 15 and 18 build against one shape. Task 9 should also note that `opts` is an addition to the design's `checkoutReadiness` signature.
 
-### [CONCERN] Task 13 is dense and leaves several behaviors underspecified
+### [NOTE] Commit checkpoints are grouped but distributed
 
-Task 13 packs the following into one task:
-- readiness re-check
-- per-view apply
-- worktree tagging
-- commit
-- restore on failure
-- `fixErrors` handling
-- merge
+Commits land at Tasks 3, 5, 10, 14, 17, 20, 22 and 23, which satisfies "distributed, not batched at end". Task 10's commit covers Tasks 6–10 (fixture, two helpers, and their tests), which is the largest group. Consider a commit after Task 8, so `commitPathsIfChanged` and `restorePathsToHead` are committed separately from `checkoutReadiness`. This is optional.
 
-Four gaps in it:
-- **Written paths:** it uses `writtenRelPaths` without saying how they are obtained from `applyFixes`' result.
-- **`fixed` count:** it removes log entries on `COMMIT_FAILED` but never says to adjust `fixed`, so the count could disagree with the log.
-- **Restore helper:** it runs `git restore ...` with no named helper, so the call may be inlined instead of living in `gitExec`.
-- **`detail` field:** `DeferredFix.detail` appears in Task 1 but not in the design's API Contracts (design:271). This is a minor design/task mismatch worth reconciling.
+### [NOTE] Task 1 deliberately leaves the build broken until Task 2
 
-Consider splitting it into a task for apply, tagging and commit and another for failure and restore. Each needs a test as per the concern above.
+Task 1's success criterion is that the core build fails only on `fixAction` literals missing `subjectIndex`. It is explicit, and Task 3 gives the first commit after the build is green again. The design intentionally uses the compiler to find every site (Mitigation Strategies). No change is needed, but the implementer must not commit between Tasks 1 and 2.
 
-### [CONCERN] `workflow.auto_fix` path (SC 11) has no test
+### [NOTE] `restorePathsToHead` and the Task 25 commit prefix
 
-Tasks 16 and 19 implement the `auto_fix` branch, but neither Task 18 nor Task 20 tests it. SC 11 says the `auto_fix` path must produce the same routing as the CLI, skip the prompt, and can commit during a plain `cf check`. Add a test case in the CLI and MCP suites. This is the highest-blast-radius path.
+`restorePathsToHead` is not named in the design's component list. It traces to SC 7 and D5a, which specify the restore command, so it is not scope creep. The slice design should mention it for consistency. Separately, Task 25's commit prefix `test:` (line 316) records results into a document and would normally be `docs:` under the repository's commit conventions.
 
-### [NOTE] Grouped CLI text output is only partly asserted
+### [PASS] Success criteria SC 1–6 and 8–12 map to tasks, and sequencing holds
 
-Task 17 builds the grouped output, the all-seven-reasons label map and the `fixErrors` printing. Task 18 asserts only the preview text and JSON shape. Add one assertion on the grouped text ("invoking checkout, uncommitted", "committed <sha>", "Left alone") and a check that every `DeferReason` has a label entry.
+- **Ordering:** types, then subject index, then ownership, then git helpers, then plan and apply, then CLI, then MCP, then docs and verification. There are no circular dependencies. `mergeFixResults` (Task 11) precedes its use in Task 15. `restorePathsToHead` (Task 7) precedes Task 16. The `FIX_GIT_TIMEOUT_MS` constant (Task 9) precedes Task 13.
+- **Test-with pairs:** Tasks 2→3, 4→5, 7→8, 9→10, 12–13→14, 15–16→17 and 21→22 each have a test task directly after.
+- **SC 9:** the single-checkout invariant is checked in Tasks 14, 17, 20 and 22.
+- **Verification and docs:** Task 25 covers walkthrough steps 1–8 and Task 23 covers README and CHANGELOG. MCP step 9 is covered by Task 22.
+- **Tasks 2, 4 and 13:** the effort-3 sizes are reasonable.
+- **Task 2:** a stop-and-ask guard prevents parsing indexes from labels.
+- **Task 6:** real git is used instead of mocks.
 
-### [NOTE] Commit checkpoints are mostly distributed but gapped in the middle
+### [PASS] No NFR or load-test obligation in this slice
 
-Commits land after Tasks 3, 5, 10, 15, 18, 20, 21 and 23, which is reasonable. The gap between Task 10 and Task 15 (four implementation tasks) is the weak point and is addressed by the first concern. Tasks 22 and 23 depend on a clean tree, so no extra commit is needed there.
-
-### [NOTE] No NFR load-test requirement applies
-
-The slice states no performance or scalability NFR, so no `tests/load/` task or CI-gating task is required. The only bound is `FIX_GIT_TIMEOUT_MS`, which is covered functionally.
-
-### [PASS] Success criteria coverage and scope discipline
-
-- **Ownership and routing (SC 1, 2, 8):** covered by Tasks 4, 12 and 15.
-- **Commits and git status (SC 3, 4, 5):** covered by Tasks 7, 13, 15 and 18.
-- **Readiness and failure handling (SC 6, 7):** covered by Tasks 9, 13 and 15.
-- **Single-checkout invariant (SC 9):** asserted in Tasks 15, 18 and 20.
-- **CLI and invoking checkout (SC 10, 12):** covered by Tasks 16, 18, 19 and 20.
-- **Docs and walkthrough:** the design's "Technical Requirements" and Verification Walkthrough steps 1–9 map to Tasks 3, 5, 8, 10, 15, 18, 20, 21 and 23.
-
-No task is scope creep. Task 0, Task 22 and the Task 23 scratch-repo guard all follow project conventions, including never running `--fix` in this repository.
+The slice restates no performance or throughput NFR. The only timing element is the `FIX_GIT_TIMEOUT_MS` bound, which Tasks 9 and 16 implement. No `tests/load/` task or CI gating task is required.
 
 ### Run Digest
 
-- Response length: 5811 chars
+- Response length: 5923 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -150,10 +125,10 @@ No task is scope creep. Task 0, Task 22 and the Task 23 scratch-repo guard all f
 - Effort: backend default
 - Turns: not computed
 - Tokens — prompt / cached / completion / reasoning: not computed / not computed / not computed / not computed
-- Duration: 35.2 s
+- Duration: 36.0 s
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 9
+- Finding-shaped matches — whole response: 8
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 9
-- Finding-shaped matches — surviving validation: 9
+- Finding-shaped matches — in findings section: 8
+- Finding-shaped matches — surviving validation: 8
