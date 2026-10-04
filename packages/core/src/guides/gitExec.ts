@@ -132,8 +132,8 @@ export async function isGitRepo(dir: string): Promise<boolean> {
  *
  * Returns false without committing when `repoPath` is not a git work tree, or
  * when git reports nothing to commit under `relPath` — which covers both an
- * unchanged path and one the project gitignores. The pathspec on `commit`
- * keeps anything else the user has staged out of this commit. Never pushes.
+ * unchanged path and one the project gitignores. Delegates to
+ * commitPathsIfChanged. Never pushes.
  */
 export async function commitPathIfChanged(
   repoPath: string,
@@ -141,11 +141,46 @@ export async function commitPathIfChanged(
   message: string
 ): Promise<boolean> {
   if (!(await isGitRepo(repoPath))) return false;
+  const sha = await commitPathsIfChanged(repoPath, [relPath], message);
+  return sha !== null;
+}
 
-  const { stdout } = await gitExec(['status', '--porcelain', '--', relPath], repoPath);
-  if (!stdout) return false;
+/**
+ * Stage and commit `relPaths`, and only those paths, when any has changes.
+ *
+ * Returns the new commit's sha, or null when git reports nothing to commit
+ * under `relPaths`. Throws on any git failure, including "not a git repo" and
+ * a rejecting hook — hooks run, there is no `--no-verify`. The pathspec on
+ * `commit` keeps anything else the user has staged out of this commit.
+ * `opts` (e.g. `timeoutMs`) applies to every git call. Never pushes.
+ */
+export async function commitPathsIfChanged(
+  repoPath: string,
+  relPaths: string[],
+  message: string,
+  opts?: GitExecOptions
+): Promise<string | null> {
+  if (relPaths.length === 0) return null;
 
-  await gitExec(['add', '-A', '--', relPath], repoPath);
-  await gitExec(['commit', '-m', message, '--', relPath], repoPath);
-  return true;
+  const { stdout } = await gitExec(['status', '--porcelain', '--', ...relPaths], repoPath, opts);
+  if (!stdout) return null;
+
+  await gitExec(['add', '-A', '--', ...relPaths], repoPath, opts);
+  await gitExec(['commit', '-m', message, '--', ...relPaths], repoPath, opts);
+  const { stdout: sha } = await gitExec(['rev-parse', 'HEAD'], repoPath, opts);
+  return sha;
+}
+
+/**
+ * Put `relPaths` back to their HEAD content in both the index and the
+ * working tree. Used to undo writes after a failed commit (slice 213 D5a).
+ * Throws on failure.
+ */
+export async function restorePathsToHead(
+  repoPath: string,
+  relPaths: string[],
+  opts?: GitExecOptions
+): Promise<void> {
+  if (relPaths.length === 0) return;
+  await gitExec(['restore', '--source=HEAD', '--staged', '--worktree', '--', ...relPaths], repoPath, opts);
 }
