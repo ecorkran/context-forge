@@ -218,6 +218,34 @@ cf guides update        # re-extracts at the same version without the excluded p
   shared `.context-forge.toml`, so commit it with the guide.
 - Links from the remaining guide content into an excluded path will break.
 
+## Consistency Checks and `--fix`
+
+`cf check` finds mismatches between related documents: a slice whose tasks are
+all done but whose plan entry is unchecked, a design whose status disagrees with
+its tasks, and so on. `cf check --fix` applies the safe corrections (checkboxes
+and frontmatter status fields). Without `--slice` it shows what it found and
+asks before writing; `--yes` skips the question.
+
+**With worktrees**, each fix is written only in the checkout that owns its
+subject, decided by the worktrees' index ranges. Documents no range claims
+belong to the main project checkout.
+
+- Fixes in the checkout you run from stay uncommitted, as before.
+- Fixes in another registered checkout are committed there, one commit per
+  checkout, containing only the fixed files:
+  `docs: update project documents in response to cf check --fix`. Nothing is pushed.
+- Some fixes are left alone and listed with a reason:
+  - another checkout's stale copy of a document
+  - a checkout that is missing, on a detached HEAD, or mid-merge/rebase
+  - a file with uncommitted edits
+  - a commit rejected by that checkout's hooks (the written files are restored)
+- Running `--fix` from a checkout that isn't a registered worktree is an error.
+  Run `cf worktree init` there, or run from a registered checkout.
+
+`cf config set workflow.auto_fix true` makes every `cf check` a fixing run, with
+no confirmation. With worktrees, that means a plain `cf check` can commit into
+other checkouts.
+
 ## Review Gating
 
 Optionally require a review artifact (with a clearing verdict) before Context Forge recommends advancing past a lifecycle boundary — deterministic, AI-free routing with **zero behavior change unless you turn it on**:
