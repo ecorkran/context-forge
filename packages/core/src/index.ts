@@ -20,6 +20,7 @@ export {
   describeGuideStrategy,
   guideMethodDeprecationMessage,
   guideExcludeNotices,
+  type GuideExcludeNoticeSource,
 } from './guides/types.js';
 
 // Project schema (field metadata, aliases, phase maps)

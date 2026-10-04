@@ -9,7 +9,7 @@ import { fetch as undiciFetch, EnvHttpProxyAgent } from 'undici';
 import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
 import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
 import { gitExec, withNetworkErrorHint, commitPathIfChanged } from '../gitExec.js';
-import { isExcludedGuidePath, parseGuideExclude } from '../../config/guideExclude.js';
+import { matchingGuidePatterns, sameExcludeList } from '../../config/guideExclude.js';
 
 /**
  * Proxy variables honored by the tarball download. Git reads these on its own
@@ -67,29 +67,44 @@ export function parseGitHubOwnerRepo(source: string): { owner: string; repo: str
  */
 const TARBALL_EXCLUDED_ENTRIES = ['.gitmodules', '.gitignore', 'project-documents'] as const;
 
-/**
- * The pattern that skips a raw tarball entry — a built-in git-wiring entry
- * first, then the guide.exclude list — or null to keep it. node-tar calls
- * filter before `strip` is applied, so the path still begins with the archive
- * root ({owner}-{repo}-{hash}/); directory entries end with a slash. The
- * archive root itself is never skipped.
- */
-export function isSkippedTarballEntry(entryPath: string, exclude: readonly string[]): string | null {
-  const parts = entryPath.replace(/^\.\//, '').split('/');
-  const relative = parts.slice(1).join('/').replace(/\/$/, '');
-  if (relative === '') return null;
-  return isExcludedGuidePath(relative, TARBALL_EXCLUDED_ENTRIES) ?? isExcludedGuidePath(relative, exclude);
+/** Whether to drop a raw tarball entry, and which guide.exclude patterns match it. */
+export interface TarballEntryDecision {
+  skip: boolean;
+  matchedExclude: string[];
 }
 
 /**
- * The guide.exclude list an installed tarball guide was extracted with,
- * normalized the same way as config so the two compare directly. A missing
- * record means nothing was excluded (true of every install that predates it).
+ * Decide a raw tarball entry against the built-in git-wiring entries and the
+ * guide.exclude list. node-tar calls filter before `strip` is applied, so the
+ * path still begins with the archive root ({owner}-{repo}-{hash}/); directory
+ * entries end with a slash. The archive root itself is never skipped.
+ * matchedExclude lists user patterns only, even when a built-in entry also
+ * matches, so a user entry such as `.gitignore` is not reported as unmatched.
+ */
+export function decideTarballEntry(entryPath: string, exclude: readonly string[]): TarballEntryDecision {
+  const parts = entryPath.replace(/^\.\//, '').split('/');
+  const relative = parts.slice(1).join('/').replace(/\/$/, '');
+  if (relative === '') return { skip: false, matchedExclude: [] };
+  const matchedExclude = matchingGuidePatterns(relative, exclude);
+  const builtIn = matchingGuidePatterns(relative, TARBALL_EXCLUDED_ENTRIES).length > 0;
+  return { skip: builtIn || matchedExclude.length > 0, matchedExclude };
+}
+
+/**
+ * The guide.exclude list an installed tarball guide was extracted with. cf
+ * writes it already parsed and sorted, so it is read back as plain lines —
+ * not re-validated, so an old record stays readable if the validation rules
+ * tighten later. A missing record means nothing was excluded (true of every
+ * install that predates it).
  */
 export function readExcludeRecord(guideDir: string): string[] {
   const recordPath = join(guideDir, EXCLUDE_RECORD_FILE);
   if (!existsSync(recordPath)) return [];
-  return parseGuideExclude(readFileSync(recordPath, 'utf-8').split(/\r?\n/).join(','));
+  return readFileSync(recordPath, 'utf-8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .sort();
 }
 
 /**
@@ -161,7 +176,7 @@ export class TarballStrategy implements InstallStrategy {
       throw new Error('Could not determine latest version from remote.');
     }
 
-    const excludeDiffers = readExcludeRecord(targetDir).join(',') !== this.sortedExclude().join(',');
+    const excludeDiffers = !sameExcludeList(readExcludeRecord(targetDir), this.sortedExclude());
     if (previousVersion === latestTag && !excludeDiffers) {
       return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
     }
@@ -216,15 +231,20 @@ export class TarballStrategy implements InstallStrategy {
     rmSync(previous, { recursive: true, force: true });
 
     const matched = new Set<string>();
-    await this.downloadAndExtract(source, tag, staging, (entryPath) => {
-      const pattern = isSkippedTarballEntry(entryPath, this.exclude);
-      if (pattern === null) return true;
-      matched.add(pattern);
-      return false;
-    });
-    writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
-    if (this.exclude.length > 0) {
-      writeFileSync(join(staging, EXCLUDE_RECORD_FILE), this.sortedExclude().join('\n') + '\n', 'utf-8');
+    try {
+      await this.downloadAndExtract(source, tag, staging, (entryPath) => {
+        const decision = decideTarballEntry(entryPath, this.exclude);
+        for (const pattern of decision.matchedExclude) matched.add(pattern);
+        return !decision.skip;
+      });
+      writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
+      if (this.exclude.length > 0) {
+        writeFileSync(join(staging, EXCLUDE_RECORD_FILE), this.sortedExclude().join('\n') + '\n', 'utf-8');
+      }
+    } catch (err) {
+      // Don't leave a partial staging dir in the user's repo; the guide itself is untouched.
+      rmSync(staging, { recursive: true, force: true });
+      throw err;
     }
 
     const hadGuide = existsSync(targetDir);
@@ -232,12 +252,30 @@ export class TarballStrategy implements InstallStrategy {
     try {
       renameSync(staging, targetDir);
     } catch (err) {
-      if (hadGuide) renameSync(previous, targetDir);
+      if (hadGuide) this.restorePrevious(previous, targetDir, err);
       throw err;
     }
     rmSync(previous, { recursive: true, force: true });
 
     return this.exclude.filter((pattern) => !matched.has(pattern));
+  }
+
+  /**
+   * Move the previous guide back after a failed swap. If that also fails, the
+   * guide exists only at `previous`: throw an error that says where, keeping
+   * the swap failure as the cause so the root error is not lost.
+   */
+  private restorePrevious(previous: string, targetDir: string, swapError: unknown): void {
+    try {
+      renameSync(previous, targetDir);
+    } catch (restoreError) {
+      const reason = restoreError instanceof Error ? restoreError.message : String(restoreError);
+      throw new Error(
+        `Installing the new guide failed, and restoring the previous guide also failed (${reason}). ` +
+          `The previous guide is at ${previous}; move it back to ${targetDir} by hand.`,
+        { cause: swapError }
+      );
+    }
   }
 
   /**

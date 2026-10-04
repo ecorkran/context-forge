@@ -55,19 +55,23 @@ export function guideMethodDeprecationMessage(alias: string, method: GuideMethod
   return `Strategy '${alias}' is deprecated; use '${method}' instead.`;
 }
 
+/** The result fields guideExcludeNotices reads; InstallResult and UpdateResult both satisfy it. */
+export interface GuideExcludeNoticeSource {
+  method: GuideMethod;
+  unmatchedExclude?: string[];
+  excludeIgnored?: boolean;
+  /** InstallResult reports its version here. */
+  version?: string | null;
+  /** UpdateResult reports its version here. */
+  newVersion?: string | null;
+}
+
 /**
  * Warnings about guide.exclude for an install or update result: one per
  * pattern that matched nothing, and one when a non-tarball install ignored the
  * key. Shared by the CLI (stderr) and MCP (notices) so the wording lives here.
  */
-export function guideExcludeNotices(result: {
-  method: GuideMethod;
-  exclude?: string[];
-  unmatchedExclude?: string[];
-  excludeIgnored?: boolean;
-  newVersion?: string | null;
-  version?: string | null;
-}): string[] {
+export function guideExcludeNotices(result: GuideExcludeNoticeSource): string[] {
   const version = result.newVersion ?? result.version ?? 'the guide';
   const notices = (result.unmatchedExclude ?? []).map(
     (pattern) => `guide.exclude entry "${pattern}" matched nothing in ${version}`

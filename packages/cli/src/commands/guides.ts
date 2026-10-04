@@ -6,6 +6,7 @@ import {
   describeGuideStrategy,
   guideExcludeNotices,
   guideMethodDeprecationMessage,
+  type GuideExcludeNoticeSource,
 } from '@context-forge/core';
 import {
   FileProjectStore,
@@ -13,6 +14,7 @@ import {
   ConfigManager,
   BranchGuardWarnError,
   GuideExcludeError,
+  sameExcludeList,
 } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption } from '../options.js';
@@ -63,7 +65,7 @@ function asUserError(err: unknown): unknown {
 }
 
 /** Print guide.exclude warnings for an install or update result to stderr. */
-function printExcludeNotices(result: Parameters<typeof guideExcludeNotices>[0]): void {
+function printExcludeNotices(result: GuideExcludeNoticeSource): void {
   for (const notice of guideExcludeNotices(result)) {
     console.error(warn(notice));
   }
@@ -75,8 +77,7 @@ function showExcludeStatus(info: Awaited<ReturnType<GuideManager['status']>>): v
     console.log(`  ${label('Excluded:')}   ${valueStyle(info.excludeApplied.join(', '))}`);
   }
   if (info.method === 'tarball') {
-    // Both lists are normalized and sorted, so a join compares them.
-    if (info.excludeConfigured.join(',') !== info.excludeApplied.join(',')) {
+    if (!sameExcludeList(info.excludeConfigured, info.excludeApplied)) {
       console.log(`  ${warn('guide.exclude changed — run cf guides update to apply')}`);
     }
   } else if (info.method && info.excludeConfigured.length > 0) {

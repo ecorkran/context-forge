@@ -37,13 +37,14 @@ function normalizeEntry(entry: string): string {
   return pattern;
 }
 
+/** True when a guide-relative path equals `base` or sits inside it. */
+function isWithin(path: string, base: string): boolean {
+  return path === base || path.startsWith(base + '/');
+}
+
 function protectedConflict(pattern: string): string | null {
   for (const protectedPath of PROTECTED_GUIDE_PATHS) {
-    if (
-      pattern === protectedPath ||
-      pattern.startsWith(protectedPath + '/') ||
-      protectedPath.startsWith(pattern + '/')
-    ) {
+    if (isWithin(pattern, protectedPath) || isWithin(protectedPath, pattern)) {
       return protectedPath;
     }
   }
@@ -87,14 +88,15 @@ export function parseGuideExclude(raw: string): string[] {
 }
 
 /**
- * Return the first pattern that matches a guide-relative path (trailing `/`
- * already removed), or null when none does.
+ * Every pattern that matches a guide-relative path (trailing `/` already
+ * removed). All of them, not the first, so overlapping patterns such as
+ * `tool-guides` and `tool-guides/x` each count as having matched.
  */
-export function isExcludedGuidePath(relativePath: string, patterns: readonly string[]): string | null {
-  for (const pattern of patterns) {
-    if (relativePath === pattern || relativePath.startsWith(pattern + '/')) {
-      return pattern;
-    }
-  }
-  return null;
+export function matchingGuidePatterns(relativePath: string, patterns: readonly string[]): string[] {
+  return patterns.filter((pattern) => isWithin(relativePath, pattern));
+}
+
+/** True when two parsed (sorted, deduplicated) exclude lists are identical. */
+export function sameExcludeList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((pattern, i) => pattern === b[i]);
 }

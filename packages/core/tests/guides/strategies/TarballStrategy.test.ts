@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { PassThrough } from 'stream';
 import {
   TarballStrategy,
   parseGitHubOwnerRepo,
-  isSkippedTarballEntry,
+  decideTarballEntry,
   readExcludeRecord,
   describeRateLimit,
   activeProxyEnvVars,
@@ -28,13 +29,11 @@ vi.mock('../../../src/guides/gitExec.js', () => ({
 }));
 
 // Mock tar and zlib for download/extract
-vi.mock('tar', () => ({
-  extract: vi.fn(() => {
-    // Return a writable stream mock
-    const { PassThrough } = require('stream');
-    return new PassThrough();
-  }),
-}));
+vi.mock('tar', async () => {
+  const { PassThrough: Stream } = await import('stream');
+  // Return a writable stream mock
+  return { extract: vi.fn(() => new Stream()) };
+});
 
 vi.mock('stream/promises', () => ({
   pipeline: vi.fn(async () => {}),
@@ -52,6 +51,7 @@ vi.mock('undici', () => ({
 
 import { existsSync, readFileSync, writeFileSync, rmSync, renameSync } from 'fs';
 import { extract } from 'tar';
+import { pipeline } from 'stream/promises';
 import { EnvHttpProxyAgent } from 'undici';
 import { gitExec, commitPathIfChanged } from '../../../src/guides/gitExec.js';
 
@@ -70,7 +70,9 @@ describe('TarballStrategy', () => {
   const source = 'https://github.com/ecorkran/ai-project-guide.git';
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset (not just clear): tests install their own fs implementations, and
+    // vitest 3 resets each mock back to its factory implementation.
+    vi.resetAllMocks();
     strategy = new TarballStrategy();
   });
 
@@ -349,13 +351,6 @@ describe('TarballStrategy', () => {
     const staging = '/test/project/project-documents/.ai-project-guide.staging';
     const previous = '/test/project/project-documents/.ai-project-guide.previous';
 
-    // clearAllMocks keeps implementations; these tests install their own.
-    afterEach(() => {
-      for (const mock of [mockExistsSync, mockRmSync, mockRenameSync, mockWriteFileSync]) {
-        mock.mockReset();
-      }
-    });
-
     function mockNewerRelease(): void {
       mockReadFileSync.mockReturnValue('v0.12.0\n');
       mockGitExec.mockResolvedValue({ stdout: 'def456\trefs/tags/v0.13.2\n', stderr: '' });
@@ -371,7 +366,6 @@ describe('TarballStrategy', () => {
       mockWriteFileSync.mockImplementation((p) => { calls.push(`write ${p}`); });
       vi.mocked(extract).mockImplementationOnce(((opts: { cwd: string }) => {
         calls.push(`extract ${opts.cwd}`);
-        const { PassThrough } = require('stream');
         return new PassThrough();
       }) as never);
 
@@ -397,6 +391,35 @@ describe('TarballStrategy', () => {
 
       expect(mockRenameSync).not.toHaveBeenCalled();
       expect(mockRmSync).not.toHaveBeenCalledWith(targetDir, expect.anything());
+    });
+
+    it('removes the partial staging dir when extraction fails', async () => {
+      mockNewerRelease();
+      mockExistsSync.mockImplementation((p) => p === targetDir);
+      const brokenArchive = new Error('TAR_BAD_ARCHIVE');
+      vi.mocked(pipeline).mockRejectedValueOnce(brokenArchive);
+
+      await expect(strategy.update(projectPath, targetDir, source)).rejects.toBe(brokenArchive);
+
+      expect(mockRmSync).toHaveBeenLastCalledWith(staging, { recursive: true, force: true });
+      expect(mockRenameSync).not.toHaveBeenCalled();
+    });
+
+    it('names the backup and keeps the swap error when the restore also fails', async () => {
+      mockNewerRelease();
+      mockExistsSync.mockImplementation((p) => p === targetDir);
+      const swapError = new Error('EXDEV: rename failed');
+      mockRenameSync.mockImplementation((from) => {
+        if (from === staging) throw swapError;
+        if (from === previous) throw new Error('EBUSY: restore failed');
+      });
+
+      const err = await strategy.update(projectPath, targetDir, source).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toContain('EBUSY: restore failed');
+      expect((err as Error).message).toContain(`The previous guide is at ${previous}`);
+      expect((err as Error).cause).toBe(swapError);
     });
 
     it('restores the previous guide when the swap rename fails', async () => {
@@ -430,10 +453,6 @@ describe('TarballStrategy', () => {
   describe('exclude filtering', () => {
     const root = 'ecorkran-ai-project-guide-3f14d43';
 
-    afterEach(() => {
-      vi.mocked(extract).mockReset();
-    });
-
     it('reports patterns that matched no archive entry', async () => {
       mockGitExec.mockResolvedValue({ stdout: 'abc123\trefs/tags/v0.13.2\n', stderr: '' });
       mockFetch.mockResolvedValue({ ok: true, body: new ReadableStream(), status: 200 });
@@ -442,7 +461,6 @@ describe('TarballStrategy', () => {
         for (const entry of [`${root}/`, `${root}/tool-guides/`, `${root}/tool-guides/a.md`, `${root}/scripts/setup-ide`]) {
           if (opts.filter(entry)) kept.push(entry);
         }
-        const { PassThrough } = require('stream');
         return new PassThrough();
       }) as never);
 
@@ -480,20 +498,20 @@ describe('TarballStrategy', () => {
       }) as never);
     }
 
-    afterEach(() => {
-      for (const mock of [mockExistsSync, mockReadFileSync, mockWriteFileSync]) {
-        mock.mockReset();
-      }
-    });
-
     it('readExcludeRecord returns [] when the record is missing', () => {
       mockInstalledGuide(null);
       expect(readExcludeRecord(targetDir)).toEqual([]);
     });
 
-    it('readExcludeRecord normalizes and sorts lines', () => {
-      mockInstalledGuide('tool-guides/\nframework-guides\n');
+    it('readExcludeRecord trims, drops blank lines, and sorts', () => {
+      mockInstalledGuide('tool-guides \r\n\nframework-guides\n');
       expect(readExcludeRecord(targetDir)).toEqual(['framework-guides', 'tool-guides']);
+    });
+
+    it('readExcludeRecord does not re-validate entries against config rules', () => {
+      // A record written before a path became protected stays readable.
+      mockInstalledGuide('scripts\n');
+      expect(readExcludeRecord(targetDir)).toEqual(['scripts']);
     });
 
     it('install writes the sorted record into staging when excludes are set', async () => {
@@ -553,8 +571,8 @@ describe('TarballStrategy', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('returns early when the record differs only in order or a trailing slash', async () => {
-      mockInstalledGuide('tool-guides/\nframework-guides\n');
+    it('returns early when the record differs only in order', async () => {
+      mockInstalledGuide('tool-guides\nframework-guides\n');
 
       await new TarballStrategy(['framework-guides', 'tool-guides']).update(projectPath, targetDir, source);
 
@@ -562,40 +580,57 @@ describe('TarballStrategy', () => {
     });
   });
 
-  describe('isSkippedTarballEntry()', () => {
+  describe('decideTarballEntry()', () => {
     // Real entry shapes from the v0.17.5 GitHub tarball: archive root prefix,
     // trailing slash on directories.
     const root = 'ecorkran-ai-project-guide-3f14d43';
+    const keep = { skip: false, matchedExclude: [] };
+    const builtInSkip = { skip: true, matchedExclude: [] };
 
     it('drops the guide repo .gitmodules and .gitignore', () => {
-      expect(isSkippedTarballEntry(`${root}/.gitmodules`, [])).toBeTruthy();
-      expect(isSkippedTarballEntry(`${root}/.gitignore`, [])).toBeTruthy();
+      expect(decideTarballEntry(`${root}/.gitmodules`, [])).toEqual(builtInSkip);
+      expect(decideTarballEntry(`${root}/.gitignore`, [])).toEqual(builtInSkip);
     });
 
     it('drops the self-referential project-documents gitlink directory', () => {
-      expect(isSkippedTarballEntry(`${root}/project-documents/`, [])).toBeTruthy();
-      expect(isSkippedTarballEntry(`${root}/project-documents/ai-project-guide/`, [])).toBeTruthy();
+      expect(decideTarballEntry(`${root}/project-documents/`, [])).toEqual(builtInSkip);
+      expect(decideTarballEntry(`${root}/project-documents/ai-project-guide/`, [])).toEqual(builtInSkip);
     });
 
     it('keeps guide content and intentional dotfiles', () => {
-      expect(isSkippedTarballEntry(`${root}/project-guides/guide.ai-project.process.md`, [])).toBeNull();
-      expect(isSkippedTarballEntry(`${root}/.claude/rules/typescript.md`, [])).toBeNull();
-      expect(isSkippedTarballEntry(`${root}/`, [])).toBeNull();
+      expect(decideTarballEntry(`${root}/project-guides/guide.ai-project.process.md`, [])).toEqual(keep);
+      expect(decideTarballEntry(`${root}/.claude/rules/typescript.md`, [])).toEqual(keep);
+      expect(decideTarballEntry(`${root}/`, [])).toEqual(keep);
     });
 
     it('does not match prefixes of longer names', () => {
-      expect(isSkippedTarballEntry(`${root}/.gitignore-templates/node`, [])).toBeNull();
-      expect(isSkippedTarballEntry(`${root}/project-documents-archive/x.md`, [])).toBeNull();
+      expect(decideTarballEntry(`${root}/.gitignore-templates/node`, [])).toEqual(keep);
+      expect(decideTarballEntry(`${root}/project-documents-archive/x.md`, [])).toEqual(keep);
     });
 
-    it('returns the matching guide.exclude pattern for files and directory entries', () => {
-      expect(isSkippedTarballEntry(`${root}/tool-guides/`, ['tool-guides'])).toBe('tool-guides');
-      expect(isSkippedTarballEntry(`${root}/tool-guides/x/y.md`, ['tool-guides'])).toBe('tool-guides');
+    it('reports the matching guide.exclude pattern for files and directory entries', () => {
+      const matched = { skip: true, matchedExclude: ['tool-guides'] };
+      expect(decideTarballEntry(`${root}/tool-guides/`, ['tool-guides'])).toEqual(matched);
+      expect(decideTarballEntry(`${root}/tool-guides/x/y.md`, ['tool-guides'])).toEqual(matched);
+    });
+
+    it('reports every overlapping pattern that matches', () => {
+      expect(decideTarballEntry(`${root}/tool-guides/x/y.md`, ['tool-guides', 'tool-guides/x'])).toEqual({
+        skip: true,
+        matchedExclude: ['tool-guides', 'tool-guides/x'],
+      });
+    });
+
+    it('reports a user pattern that repeats a built-in entry as matched', () => {
+      expect(decideTarballEntry(`${root}/.gitignore`, ['.gitignore'])).toEqual({
+        skip: true,
+        matchedExclude: ['.gitignore'],
+      });
     });
 
     it('keeps a sibling sharing a name prefix and the archive root', () => {
-      expect(isSkippedTarballEntry(`${root}/tool-guides-old/x`, ['tool-guides'])).toBeNull();
-      expect(isSkippedTarballEntry(`${root}/`, ['tool-guides'])).toBeNull();
+      expect(decideTarballEntry(`${root}/tool-guides-old/x`, ['tool-guides'])).toEqual(keep);
+      expect(decideTarballEntry(`${root}/`, ['tool-guides'])).toEqual(keep);
     });
   });
 

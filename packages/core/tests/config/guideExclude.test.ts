@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   GuideExcludeError,
-  isExcludedGuidePath,
+  matchingGuidePatterns,
   parseGuideExclude,
+  sameExcludeList,
 } from '../../src/config/guideExclude.js';
 
 function rejection(raw: string): GuideExcludeError {
@@ -78,26 +79,49 @@ describe('parseGuideExclude()', () => {
   });
 });
 
-describe('isExcludedGuidePath()', () => {
+describe('matchingGuidePatterns()', () => {
   const patterns = ['CHANGELOG.md', 'tool-guides'];
 
   it('matches an exact file', () => {
-    expect(isExcludedGuidePath('CHANGELOG.md', patterns)).toBe('CHANGELOG.md');
+    expect(matchingGuidePatterns('CHANGELOG.md', patterns)).toEqual(['CHANGELOG.md']);
   });
 
   it('matches a path under a directory pattern', () => {
-    expect(isExcludedGuidePath('tool-guides/x/y.md', patterns)).toBe('tool-guides');
+    expect(matchingGuidePatterns('tool-guides/x/y.md', patterns)).toEqual(['tool-guides']);
   });
 
   it('matches the directory itself', () => {
-    expect(isExcludedGuidePath('tool-guides', patterns)).toBe('tool-guides');
+    expect(matchingGuidePatterns('tool-guides', patterns)).toEqual(['tool-guides']);
+  });
+
+  it('returns every overlapping pattern', () => {
+    expect(matchingGuidePatterns('tool-guides/x/y.md', ['tool-guides', 'tool-guides/x'])).toEqual([
+      'tool-guides',
+      'tool-guides/x',
+    ]);
   });
 
   it('does not match a sibling sharing a name prefix', () => {
-    expect(isExcludedGuidePath('tool-guides-old/x', patterns)).toBeNull();
+    expect(matchingGuidePatterns('tool-guides-old/x', patterns)).toEqual([]);
   });
 
-  it('returns null with no patterns', () => {
-    expect(isExcludedGuidePath('tool-guides', [])).toBeNull();
+  it('returns [] with no patterns', () => {
+    expect(matchingGuidePatterns('tool-guides', [])).toEqual([]);
+  });
+});
+
+describe('sameExcludeList()', () => {
+  it('is true for identical lists, including two empty ones', () => {
+    expect(sameExcludeList(['a', 'b'], ['a', 'b'])).toBe(true);
+    expect(sameExcludeList([], [])).toBe(true);
+  });
+
+  it('is false when an entry or the length differs', () => {
+    expect(sameExcludeList(['a', 'b'], ['a', 'c'])).toBe(false);
+    expect(sameExcludeList(['a'], ['a', 'b'])).toBe(false);
+  });
+
+  it('does not treat a comma join as equal lists', () => {
+    expect(sameExcludeList(['a,b'], ['a', 'b'])).toBe(false);
   });
 });

@@ -45,6 +45,7 @@ vi.mock('@context-forge/core/node', async () => {
     })),
     BranchGuardBlockedError: actual.BranchGuardBlockedError,
     BranchGuardWarnError: actual.BranchGuardWarnError,
+    sameExcludeList: actual.sameExcludeList,
     GuideExcludeError: actual.GuideExcludeError,
   };
 });

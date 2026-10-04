@@ -26,6 +26,7 @@ export {
   describeGuideStrategy,
   guideMethodDeprecationMessage,
   guideExcludeNotices,
+  type GuideExcludeNoticeSource,
 } from './types.js';
 // gitExec itself stays internal; only the shared remediation text is public (#78).
 export { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';

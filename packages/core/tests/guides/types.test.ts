@@ -112,6 +112,6 @@ describe('guideExcludeNotices', () => {
   });
 
   it('returns nothing when there is nothing to report', () => {
-    expect(guideExcludeNotices({ method: 'tarball', exclude: ['tool-guides'], version: 'v0.19.3' })).toEqual([]);
+    expect(guideExcludeNotices({ method: 'tarball', version: 'v0.19.3' })).toEqual([]);
   });
 });
