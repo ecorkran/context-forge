@@ -52,3 +52,14 @@ export { WorktreeService } from './services/WorktreeService.js';
 
 // Context embedding — inlines referenced artifact files for non-SDK models
 export { embedReferencedFiles } from './services/ContextEmbedder.js';
+
+// Worktree-aware fix routing (slice 213) — runs git against other checkouts
+export {
+  planRoutedFixes,
+  applyFixPlan,
+  resolveInvokingCheckout,
+  FIX_COMMIT_MESSAGE,
+  type AttributedCheckResult,
+  type FixPlan,
+  type FixPlanEntry,
+} from './introspection/routedFixes.js';

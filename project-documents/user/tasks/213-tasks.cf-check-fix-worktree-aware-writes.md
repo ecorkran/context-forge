@@ -119,67 +119,67 @@ global `cf` (that is the published npm build).
 
 ## Part 2 — Owner Resolution
 
-- [ ] **Task 4: Implement `resolveFixOwner`** (effort 2)
-  - [ ] Create `packages/core/src/introspection/fixOwnership.ts` exporting `resolveFixOwner(project, subjectIndex, views)` per D2 and API Contracts
-  - [ ] Pure function: no fs, no git. Implement the four D2 rules in order, using `isInIndexRange` from `utils/worktree-overlay.ts`
-  - [ ] "Primary view" = the view whose root equals `project.projectPath`. Compare the same way `buildAttributedViews` builds view roots; read that code before writing the comparison
-  - [ ] `rangeOverride` is ignored (D2)
-  - [ ] The "owner lacks the target file" rule is **not** here; it lives in `planRoutedFixes` (Task 13)
-  - [ ] Export from the introspection index
-  - [ ] Success: core build passes
+- [x] **Task 4: Implement `resolveFixOwner`** (effort 2)
+  - [x] Create `packages/core/src/introspection/fixOwnership.ts` exporting `resolveFixOwner(project, subjectIndex, views)` per D2 and API Contracts
+  - [x] Pure function: no fs, no git. Implement the four D2 rules in order, using `isInIndexRange` from `utils/worktree-overlay.ts`
+  - [x] "Primary view" = the view whose root equals `project.projectPath`. Compare the same way `buildAttributedViews` builds view roots; read that code before writing the comparison
+  - [x] `rangeOverride` is ignored (D2)
+  - [x] The "owner lacks the target file" rule is **not** here; it lives in `planRoutedFixes` (Task 13)
+  - [x] Export from the introspection index
+  - [x] Success: core build passes
 
-- [ ] **Task 5: Test `resolveFixOwner`** (effort 1)
-  - [ ] Add `packages/core/tests/introspection/fixOwnership.test.ts` with the six cases from Technical Requirements: single checkout; one claimant; unclaimed → primary; `null` index → primary; overlapping ranges → `null`; no primary view → `null`
-  - [ ] Add one case confirming `rangeOverride` on a worktree does not make it the owner of an out-of-range index
-  - [ ] Success: tests pass
-  - [ ] Commit: `feat(core): add resolveFixOwner for worktree fix ownership`
+- [x] **Task 5: Test `resolveFixOwner`** (effort 1)
+  - [x] Add `packages/core/tests/introspection/fixOwnership.test.ts` with the six cases from Technical Requirements: single checkout; one claimant; unclaimed → primary; `null` index → primary; overlapping ranges → `null`; no primary view → `null`
+  - [x] Add one case confirming `rangeOverride` on a worktree does not make it the owner of an out-of-range index
+  - [x] Success: tests pass
+  - [x] Commit: `feat(core): add resolveFixOwner for worktree fix ownership`
 
 ## Part 3 — Git Helpers
 
-- [ ] **Task 6: Add a temporary git worktree test fixture** (effort 2)
-  - [ ] Add a helper under `packages/core/tests/helpers/` (e.g. `gitWorktreeFixture.ts`) that creates, inside `realpathSync(mkdtempSync(...))`:
+- [x] **Task 6: Add a temporary git worktree test fixture** (effort 2)
+  - [x] Add a helper under `packages/core/tests/helpers/` (e.g. `gitWorktreeFixture.ts`) that creates, inside `realpathSync(mkdtempSync(...))`:
     - a primary repo with an initial commit and a configured local `user.name` / `user.email`
     - N linked worktrees via `git worktree add -b <name>`
     - a `cleanup()` that removes the temp root
-  - [ ] Helpers for: writing and committing a file in a checkout; reading `git status --porcelain`; reading `git log -1 --format=%s`; starting an unresolved conflicting merge; detaching HEAD; installing a rejecting `pre-commit` hook in a checkout
-  - [ ] Use real `git` via `execFileSync`. Do not mock `child_process` (existing `gitExec.test.ts` mocks it; these tests must not share that file)
-  - [ ] Follow the temp-dir pattern in `packages/cli/tests/commands/check-worktree-fix.test.ts` (realpath of mkdtemp)
-  - [ ] Success: a trivial smoke test creating two worktrees and cleaning up passes
+  - [x] Helpers for: writing and committing a file in a checkout; reading `git status --porcelain`; reading `git log -1 --format=%s`; starting an unresolved conflicting merge; detaching HEAD; installing a rejecting `pre-commit` hook in a checkout
+  - [x] Use real `git` via `execFileSync`. Do not mock `child_process` (existing `gitExec.test.ts` mocks it; these tests must not share that file)
+  - [x] Follow the temp-dir pattern in `packages/cli/tests/commands/check-worktree-fix.test.ts` (realpath of mkdtemp)
+  - [x] Success: a trivial smoke test creating two worktrees and cleaning up passes
 
-- [ ] **Task 7: Implement `commitPathsIfChanged`** (effort 2)
-  - [ ] In `packages/core/src/guides/gitExec.ts`, add `commitPathsIfChanged(repoPath, relPaths, message, opts?)` per D5a: returns the new sha, or `null` when nothing under `relPaths` changed; throws on any git failure, including not-a-repo
-  - [ ] Stage only `relPaths` and commit with `git commit -m <message> -- <paths>` so other staged changes stay staged and out of the commit (D4). No `--no-verify`
-  - [ ] Pass `opts` (incl. `timeoutMs`) through to every `gitExec` call
-  - [ ] Rewrite `commitPathIfChanged` as: its existing `isGitRepo` check returning `false`, then delegate to `commitPathsIfChanged` with a one-element array and return `sha !== null`. Its boolean contract and existing callers (`TarballStrategy`) are unchanged
-  - [ ] In the same file, add `restorePathsToHead(repoPath, relPaths, opts?)`: runs `git restore --source=HEAD --staged --worktree -- <paths>`, passes `opts` through, throws on failure. This is the only place that restore command lives (used by Task 16)
-  - [ ] Export both from wherever `commitPathIfChanged` is exported
-  - [ ] Success: core build passes; existing `gitExec.test.ts` and guide-update tests pass unchanged
+- [x] **Task 7: Implement `commitPathsIfChanged`** (effort 2)
+  - [x] In `packages/core/src/guides/gitExec.ts`, add `commitPathsIfChanged(repoPath, relPaths, message, opts?)` per D5a: returns the new sha, or `null` when nothing under `relPaths` changed; throws on any git failure, including not-a-repo
+  - [x] Stage only `relPaths` and commit with `git commit -m <message> -- <paths>` so other staged changes stay staged and out of the commit (D4). No `--no-verify`
+  - [x] Pass `opts` (incl. `timeoutMs`) through to every `gitExec` call
+  - [x] Rewrite `commitPathIfChanged` as: its existing `isGitRepo` check returning `false`, then delegate to `commitPathsIfChanged` with a one-element array and return `sha !== null`. Its boolean contract and existing callers (`TarballStrategy`) are unchanged
+  - [x] In the same file, add `restorePathsToHead(repoPath, relPaths, opts?)`: runs `git restore --source=HEAD --staged --worktree -- <paths>`, passes `opts` through, throws on failure. This is the only place that restore command lives (used by Task 16)
+  - [x] Export both from wherever `commitPathIfChanged` is exported
+  - [x] Success: core build passes; existing `gitExec.test.ts` and guide-update tests pass unchanged
 
-- [ ] **Task 8: Test `commitPathsIfChanged` and `restorePathsToHead`** (effort 2)
-  - [ ] New file `packages/core/tests/guides/commitPaths.test.ts`, using the Task 6 fixture (real git)
-  - [ ] `commitPathsIfChanged` cases: two changed paths → one commit containing exactly those paths, sha returned; no changes → `null`, no commit; an unrelated file staged beforehand stays staged and is not in the commit; not a repo → throws; rejecting `pre-commit` hook → throws
-  - [ ] `restorePathsToHead` cases: a modified and staged path is back to HEAD content and unstaged afterwards; an unrelated modified file is untouched
-  - [ ] Success: tests pass; full core suite passes
-  - [ ] Commit: `feat(core): add commitPathsIfChanged and restorePathsToHead`
+- [x] **Task 8: Test `commitPathsIfChanged` and `restorePathsToHead`** (effort 2)
+  - [x] New file `packages/core/tests/guides/commitPaths.test.ts`, using the Task 6 fixture (real git)
+  - [x] `commitPathsIfChanged` cases: two changed paths → one commit containing exactly those paths, sha returned; no changes → `null`, no commit; an unrelated file staged beforehand stays staged and is not in the commit; not a repo → throws; rejecting `pre-commit` hook → throws
+  - [x] `restorePathsToHead` cases: a modified and staged path is back to HEAD content and unstaged afterwards; an unrelated modified file is untouched
+  - [x] Success: tests pass; full core suite passes
+  - [x] Commit: `feat(core): add commitPathsIfChanged and restorePathsToHead`
 
-- [ ] **Task 9: Implement `checkoutReadiness` and `FIX_GIT_TIMEOUT_MS`** (effort 2)
-  - [ ] Define and export `FIX_GIT_TIMEOUT_MS = 60_000` in `packages/core/src/git/checkoutReadiness.ts` (the `git/` layer, so `introspection/` imports from `git/`, never the reverse). All later git calls against a non-invoking checkout reference this constant
-  - [ ] Create `packages/core/src/git/checkoutReadiness.ts` exporting `checkoutReadiness(checkoutPath, relPaths, opts?)` returning `ReadinessResult { blocked: DeferReasonValue | null; dirtyPaths: string[] }`. `blocked` is one of `NOT_A_CHECKOUT`, `DETACHED_HEAD`, `CHECKOUT_BUSY`, or `null` when the checkout is usable; `dirtyPaths` is the subset of `relPaths` that are modified (always `[]` when `blocked` is set). Export the type. `opts` (a `GitExecOptions`, for `timeoutMs`) is an addition to the design's signature
-  - [ ] Detection exactly per the D5 table:
+- [x] **Task 9: Implement `checkoutReadiness` and `FIX_GIT_TIMEOUT_MS`** (effort 2)
+  - [x] Define and export `FIX_GIT_TIMEOUT_MS = 60_000` in `packages/core/src/git/checkoutReadiness.ts` (the `git/` layer, so `introspection/` imports from `git/`, never the reverse). All later git calls against a non-invoking checkout reference this constant
+  - [x] Create `packages/core/src/git/checkoutReadiness.ts` exporting `checkoutReadiness(checkoutPath, relPaths, opts?)` returning `ReadinessResult { blocked: DeferReasonValue | null; dirtyPaths: string[] }`. `blocked` is one of `NOT_A_CHECKOUT`, `DETACHED_HEAD`, `CHECKOUT_BUSY`, or `null` when the checkout is usable; `dirtyPaths` is the subset of `relPaths` that are modified (always `[]` when `blocked` is set). Export the type. `opts` (a `GitExecOptions`, for `timeoutMs`) is an addition to the design's signature
+  - [x] Detection exactly per the D5 table:
     1. path missing, or realpath of `git rev-parse --show-toplevel` ≠ realpath of `checkoutPath` → `NOT_A_CHECKOUT`
     2. `git symbolic-ref -q HEAD` fails → `DETACHED_HEAD`
     3. any of `MERGE_HEAD`, `rebase-merge`, `rebase-apply`, `CHERRY_PICK_HEAD` exists at `git rev-parse --git-path <name>` → `CHECKOUT_BUSY`
     4. `git status --porcelain -- <path>` non-empty → that path is `FILE_DIRTY`
-  - [ ] Reasons use the `DeferReason` constants, not string literals
-  - [ ] Every `gitExec` call passes `opts.timeoutMs`
-  - [ ] Export from `packages/core/src/git/index.ts`
-  - [ ] Success: core build passes
+  - [x] Reasons use the `DeferReason` constants, not string literals
+  - [x] Every `gitExec` call passes `opts.timeoutMs`
+  - [x] Export from `packages/core/src/git/index.ts`
+  - [x] Success: core build passes
 
-- [ ] **Task 10: Test `checkoutReadiness`** (effort 2)
-  - [ ] New file `packages/core/tests/git/checkoutReadiness.test.ts`, Task 6 fixture
-  - [ ] Cases: clean worktree → ready, no dirty paths; missing directory → `NOT_A_CHECKOUT`; a subdirectory of a checkout passed as `checkoutPath` → `NOT_A_CHECKOUT`; detached HEAD → `DETACHED_HEAD`; unresolved merge → `CHECKOUT_BUSY`; one of two target paths modified → only that path reported dirty
-  - [ ] Success: tests pass
-  - [ ] Commit: `feat(core): add checkoutReadiness git helper`
+- [x] **Task 10: Test `checkoutReadiness`** (effort 2)
+  - [x] New file `packages/core/tests/git/checkoutReadiness.test.ts`, Task 6 fixture
+  - [x] Cases: clean worktree → ready, no dirty paths; missing directory → `NOT_A_CHECKOUT`; a subdirectory of a checkout passed as `checkoutPath` → `NOT_A_CHECKOUT`; detached HEAD → `DETACHED_HEAD`; unresolved merge → `CHECKOUT_BUSY`; one of two target paths modified → only that path reported dirty
+  - [x] Success: tests pass
+  - [x] Commit: `feat(core): add checkoutReadiness git helper`
 
 ## Part 4 — Routed Planning and Application
 

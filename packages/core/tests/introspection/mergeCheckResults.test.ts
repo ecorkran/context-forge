@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { mergeCheckResults, mergeFixResults } from '../../src/introspection/mergeCheckResults.js';
+import { DeferReason } from '../../src/introspection/types.js';
 import type {
   ConsistencyCheckResult,
   ConsistencyFinding,
   ConsistencyFixResult,
+  CheckoutCommit,
+  DeferredFix,
   FixLogEntry,
 } from '../../src/introspection/types.js';
 
@@ -54,8 +57,10 @@ function makeFixResult(
   fixed: number,
   fixLog: FixLogEntry[],
   fixErrors: string[] = [],
+  deferred: DeferredFix[] = [],
+  commits: CheckoutCommit[] = [],
 ): ConsistencyFixResult {
-  return { ...makeResult(projectPath, findings), fixed, fixLog, fixErrors };
+  return { ...makeResult(projectPath, findings), fixed, fixLog, fixErrors, deferred, commits };
 }
 
 describe('mergeCheckResults', () => {
@@ -255,5 +260,25 @@ describe('mergeFixResults', () => {
     expect(merged.fixLog).toEqual([log]);
     expect(merged.fixErrors).toEqual(['some error']);
     expect(merged.projectPath).toBe('/repo/invoking');
+    expect(merged.deferred).toEqual([]);
+    expect(merged.commits).toEqual([]);
+  });
+
+  it('concatenates deferred and commits from every result in order (slice 213)', () => {
+    const finding = makeFinding();
+    const deferredA: DeferredFix = { finding, reason: DeferReason.NOT_OWNER, owner: { id: 'b', name: 'b' } };
+    const deferredB: DeferredFix = { finding, reason: DeferReason.FILE_DIRTY };
+    const commitB: CheckoutCommit = { checkoutPath: '/repo/wt-2', sha: 'abc123', files: ['docs/foo.md'] };
+    const results = [
+      makeFixResult('/repo/main', [finding], 0, [], [], [deferredA]),
+      makeFixResult('/repo/wt-2', [finding], 1, [makeFixLogEntry()], [], [deferredB], [commitB]),
+    ];
+
+    const merged = mergeFixResults(results);
+
+    expect(merged.deferred).toEqual([deferredA, deferredB]);
+    expect(merged.commits).toEqual([commitB]);
+    expect(merged.fixed).toBe(1);
+    expect(merged.fixLog).toHaveLength(1);
   });
 });
