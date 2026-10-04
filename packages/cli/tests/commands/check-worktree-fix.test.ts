@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { DeferReason } from '@context-forge/core';
 import { FIX_COMMIT_MESSAGE } from '@context-forge/core/node';
 import { registerCheckCommand } from '../../src/commands/check.js';
+import { DEFER_REASON_LABELS } from '../../src/output/fixReport.js';
 import {
   createGitWorktreeFixture,
   git,
@@ -254,5 +255,52 @@ describe('cf check --fix — worktree-aware routing (slice 213)', () => {
     expect(result.deferred).toEqual([]);
     expect(result.commits).toEqual([]);
     expect(result.fixLog.some((e) => 'worktree' in e)).toBe(false);
+  });
+
+  describe('grouped text output (Task 20)', () => {
+    /** Slice 210 is in alpha's (primary's) range: complete it there, uncommitted. */
+    function addPrimaryOwnedFix(): void {
+      const plan = readFileSync(join(primary, PLAN_REL), 'utf-8');
+      writeRel(primary, PLAN_REL, plan + `2. [ ] **(210) Primary Feature** — owned by alpha.\n`);
+      writeRel(
+        primary,
+        'project-documents/user/tasks/210-tasks.primary-feature.md',
+        readFileSync(join(primary, TASKS_REL), 'utf-8').replace(`slice: ${SLICE_NAME}`, 'slice: primary-feature'),
+      );
+    }
+
+    it('groups the invoking write, the committed write, and the deferral by checkout', async () => {
+      addPrimaryOwnedFix();
+      await run('--fix', '--yes');
+
+      const out = logs.join('\n');
+      const sha7 = git(wtb, 'rev-parse', '--short=7', 'HEAD');
+      const invokingAt = out.search(/\[alpha\].*invoking checkout, uncommitted/);
+      const committedAt = out.search(new RegExp(`\\[beta\\].*committed ${sha7} in ${wtb}`));
+      const leftAt = out.indexOf('Left alone 1 fix(es)');
+      expect(out).toContain('Fixed 2 finding(s)');
+      expect(invokingAt).toBeGreaterThan(-1);
+      expect(committedAt).toBeGreaterThan(-1);
+      expect(leftAt).toBeGreaterThan(Math.max(invokingAt, committedAt));
+      expect(out.slice(leftAt)).toMatch(/\[alpha\].*stale copy; owned by beta/);
+    });
+
+    it('every DeferReason value has a display label', () => {
+      for (const reason of Object.values(DeferReason)) {
+        expect(typeof DEFER_REASON_LABELS[reason]).toBe('function');
+      }
+      expect(Object.keys(DEFER_REASON_LABELS).sort()).toEqual(Object.values(DeferReason).sort());
+    });
+
+    it('single-checkout text output has no group headers or [worktree] prefixes', async () => {
+      project.worktrees = undefined;
+      await run('--fix', '--yes');
+
+      const out = logs.join('\n');
+      expect(out).toContain('Fixed 1 of');
+      expect(out).not.toContain('invoking checkout');
+      expect(out).not.toContain('Left alone');
+      expect(out).not.toMatch(/\[(alpha|beta)\]/);
+    });
   });
 });
