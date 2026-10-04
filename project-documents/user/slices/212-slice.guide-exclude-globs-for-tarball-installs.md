@@ -332,3 +332,13 @@ Responses to `212-review.slice.guide-exclude-globs-for-tarball-installs.md` (CON
 - **F003 (init interaction, setup-time target):** addressed. See Integration Points: init skips existing guides, and download size is unchanged.
 - **F004 (config → guides dependency):** addressed. The parser moved to `config/guideExclude.ts`, so the dependency runs guides → config only.
 - **F005 (missing record):** no change. A missing record is accurate for old installs, and a hand-deleted one corrects itself on the next update.
+
+Responses to `212-review.code.guide-exclude-globs-for-tarball-installs.md` (CONCERNS):
+
+- **F001 (staging left on failure):** fixed. A failure during download, extraction, or the marker/record writes now removes the staging directory before rethrowing. Covered by a test.
+- **F002 (restore failure hides the swap error):** fixed. If the restore also fails, the thrown error names where the previous guide is, and keeps the swap error as `cause`. Covered by a test.
+- **F003 (false "matched nothing" warnings):** fixed. `isExcludedGuidePath` became `matchingGuidePatterns`, which returns every match. `isSkippedTarballEntry` became `decideTarballEntry`, which records every matching user pattern, including one that repeats a built-in entry.
+- **F004 (record re-validated through the config parser):** fixed. `readExcludeRecord` reads plain trimmed lines and no longer validates, so an old record stays readable if the protected-path rules tighten.
+- **F005 (duplicated list comparison):** fixed. `sameExcludeList` and an internal `isWithin` in `guideExclude.ts` are now the single definitions.
+- **F006 (loose notice parameter type):** fixed. `GuideExcludeNoticeSource` is a named, exported interface, and the CLI uses it.
+- **F007 (test hygiene):** fixed. A top-level `vi.resetAllMocks()` replaces the per-block `mockReset` calls, and `stream` is imported, not `require`d.
