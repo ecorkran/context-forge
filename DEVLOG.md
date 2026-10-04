@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-04
+
+### Release 0.18.4
+
+- **Contents:** Slice 212 — `guide.exclude` config key for tarball guide installs; failed tarball guide update no longer leaves the project without a guide; `cf setup-ide` prunes stale files from registered worktrees (#103) and no longer touches worktrees after a "no" at the overwrite prompt.
+
+Tags: @context-forge/core@0.18.4, @context-forge/cli@0.18.4, @context-forge/mcp@0.18.4, @context-forge/context-forge@0.18.4
+
 ## 2026-10-03
 
 ### Release 0.18.3

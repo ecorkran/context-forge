@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.4] - 20261004
+
 ### Added
 
 - **New `guide.exclude` config key: tarball guide installs can leave out guide content you don't use.** It takes comma-separated guide-relative paths (e.g. `cf config set guide.exclude "tool-guides/**,framework-guides"`). A trailing `/` or `/**` means the same as the bare path; other wildcards are refused. `project-guides` and `scripts` are protected, because cf needs them. Changing the key takes effect on the next `cf guides update`, which re-extracts at the same version and commits as `docs: re-extract ai-project-guide <version> (guide.exclude changed)`. The applied list is recorded in `.context-forge-guide-exclude` inside the guide. `cf guides info` (and MCP `guide_status`) shows the applied list and flags a pending change. A pattern that matches nothing is reported as a warning. Submodule and clone installs ignore the key and say so
