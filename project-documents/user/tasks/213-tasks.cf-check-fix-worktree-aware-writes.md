@@ -261,39 +261,39 @@ global `cf` (that is the published npm build).
 
 ## Part 5 — CLI
 
-- [ ] **Task 18: Route CLI `cf check --fix` through plan and apply** (effort 3)
-  - [ ] In `packages/cli/src/commands/check.ts`, replace both fix paths (single-slice `fix` per view, all-slices `applyFixes` per view) with: dry run via `runAttributed` → `planRoutedFixes` → preview/prompt → `applyFixPlan`
-  - [ ] With 2+ views in fix mode, call `resolveInvokingCheckout(views)` first; on error print the message and exit non-zero with nothing written (SC 12). Read-only `cf check` and single-checkout projects skip this
-  - [ ] The `workflow.auto_fix` path uses the same plan and apply, skipping preview and prompt (SC 11)
-  - [ ] The all-slices preview prints the routed plan (fixes per checkout, deferrals) before anything is written; `--yes` skips the prompt (SC 10). A plain list is fine here; Task 20 adds the final grouped format
-  - [ ] JSON output includes `fixLog[].worktree`, `deferred[]`, `commits[]`
-  - [ ] Single-checkout text and JSON output stay identical to 0.18.4 except for the added empty `deferred` / `commits` JSON fields
-  - [ ] Success: CLI build passes
+- [x] **Task 18: Route CLI `cf check --fix` through plan and apply** (effort 3)
+  - [x] In `packages/cli/src/commands/check.ts`, replace both fix paths (single-slice `fix` per view, all-slices `applyFixes` per view) with: dry run via `runAttributed` → `planRoutedFixes` → preview/prompt → `applyFixPlan`
+  - [x] With 2+ views in fix mode, call `resolveInvokingCheckout(views)` first; on error print the message and exit non-zero with nothing written (SC 12). Read-only `cf check` and single-checkout projects skip this
+  - [x] The `workflow.auto_fix` path uses the same plan and apply, skipping preview and prompt (SC 11)
+  - [x] The all-slices preview prints the routed plan (fixes per checkout, deferrals) before anything is written; `--yes` skips the prompt (SC 10). A plain list is fine here; Task 20 adds the final grouped format
+  - [x] JSON output includes `fixLog[].worktree`, `deferred[]`, `commits[]`
+  - [x] Single-checkout text and JSON output stay identical to 0.18.4 except for the added empty `deferred` / `commits` JSON fields
+  - [x] Success: CLI build passes
 
-- [ ] **Task 19: Rewrite `check-worktree-fix.test.ts` to the 213 routing contract** (effort 3)
-  - [ ] The fixture in `packages/cli/tests/commands/check-worktree-fix.test.ts` must become real git checkouts (primary + `git worktree add`), since commits now happen. Reuse the core Task 6 helper if importable from the CLI tests; otherwise copy only the minimum needed
-  - [ ] Replace the 927 assertion (both checkouts rewritten, `fixed === 2`) with: written once in the owner's checkout, the other copy listed in `deferred` as `NOT_OWNER`, `fixed === 1`
-  - [ ] Add: a non-invoking owner write produces one commit with the defined message and a clean `git status` there (SC 3, 4)
-  - [ ] Add: running from an unregistered directory with `--fix` exits with the D5b error and writes nothing (SC 12)
-  - [ ] Add: the all-slices preview lists the routed plan before the prompt
-  - [ ] Add: with `workflow.auto_fix = true`, a plain `cf check` (no `--fix`, no `--yes`) routes the same way, does not prompt, and commits the owner write in the non-invoking checkout (SC 11)
-  - [ ] Add: single-checkout `--fix --json` has `deferred: []`, `commits: []`, no `worktree` on log entries
-  - [ ] Success: CLI test suite passes
-  - [ ] Commit: `feat(cli): route cf check --fix through worktree-aware plan and apply`
+- [x] **Task 19: Rewrite `check-worktree-fix.test.ts` to the 213 routing contract** (effort 3)
+  - [x] The fixture in `packages/cli/tests/commands/check-worktree-fix.test.ts` must become real git checkouts (primary + `git worktree add`), since commits now happen. Reuse the core Task 6 helper if importable from the CLI tests; otherwise copy only the minimum needed
+  - [x] Replace the 927 assertion (both checkouts rewritten, `fixed === 2`) with: written once in the owner's checkout, the other copy listed in `deferred` as `NOT_OWNER`, `fixed === 1`
+  - [x] Add: a non-invoking owner write produces one commit with the defined message and a clean `git status` there (SC 3, 4)
+  - [x] Add: running from an unregistered directory with `--fix` exits with the D5b error and writes nothing (SC 12)
+  - [x] Add: the all-slices preview lists the routed plan before the prompt
+  - [x] Add: with `workflow.auto_fix = true`, a plain `cf check` (no `--fix`, no `--yes`) routes the same way, does not prompt, and commits the owner write in the non-invoking checkout (SC 11)
+  - [x] Add: single-checkout `--fix --json` has `deferred: []`, `commits: []`, no `worktree` on log entries
+  - [x] Success: CLI test suite passes
+  - [x] Commit: `feat(cli): route cf check --fix through worktree-aware plan and apply`
 
-- [ ] **Task 20: CLI grouped text output and deferral labels** (effort 2)
-  - [ ] Add one display map keyed by `DeferReason` values (D6), e.g. `NOT_OWNER` → "stale copy; owned by {owner}", `FILE_DIRTY` → "file has uncommitted edits". All seven reasons have an entry; no reason string is written anywhere else in the CLI. Export the map so Task 21 can test it
-  - [ ] Multi-checkout output (the result and the all-slices preview) groups fixes and deferrals by checkout as in the design's "CLI text output" sample: invoking group marked "(invoking checkout, uncommitted)", committed groups show the short sha and checkout path, then a "Left alone" section
-  - [ ] `fixErrors` from a failed restore are printed with checkout and file names
-  - [ ] Grouping and `[worktree]` prefixes appear only with 2+ worktrees
-  - [ ] Success: CLI build passes; Task 19 tests still pass
+- [x] **Task 20: CLI grouped text output and deferral labels** (effort 2)
+  - [x] Add one display map keyed by `DeferReason` values (D6), e.g. `NOT_OWNER` → "stale copy; owned by {owner}", `FILE_DIRTY` → "file has uncommitted edits". All seven reasons have an entry; no reason string is written anywhere else in the CLI. Export the map so Task 21 can test it
+  - [x] Multi-checkout output (the result and the all-slices preview) groups fixes and deferrals by checkout as in the design's "CLI text output" sample: invoking group marked "(invoking checkout, uncommitted)", committed groups show the short sha and checkout path, then a "Left alone" section
+  - [x] `fixErrors` from a failed restore are printed with checkout and file names
+  - [x] Grouping and `[worktree]` prefixes appear only with 2+ worktrees
+  - [x] Success: CLI build passes; Task 19 tests still pass
 
-- [ ] **Task 21: Test CLI grouped output** (effort 1)
-  - [ ] In `check-worktree-fix.test.ts`: a run with one invoking write, one committed write and one deferral prints "invoking checkout, uncommitted", "committed <short sha>", and "Left alone" in their groups
-  - [ ] Every `DeferReason` value has an entry in the Task 20 label map
-  - [ ] Single-checkout text output has no group headers or `[worktree]` prefixes
-  - [ ] Success: CLI test suite passes
-  - [ ] Commit: `feat(cli): group cf check --fix output by checkout`
+- [x] **Task 21: Test CLI grouped output** (effort 1)
+  - [x] In `check-worktree-fix.test.ts`: a run with one invoking write, one committed write and one deferral prints "invoking checkout, uncommitted", "committed <short sha>", and "Left alone" in their groups
+  - [x] Every `DeferReason` value has an entry in the Task 20 label map
+  - [x] Single-checkout text output has no group headers or `[worktree]` prefixes
+  - [x] Success: CLI test suite passes
+  - [x] Commit: `feat(cli): group cf check --fix output by checkout`
 
 ## Part 6 — MCP
 

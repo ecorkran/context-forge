@@ -13,39 +13,44 @@ const mockCollect = vi.fn();
 const mockGetStatus = vi.fn();
 const mockGetNext = vi.fn();
 const mockCheck = vi.fn();
-const mockFix = vi.fn();
 const mockCheckAll = vi.fn();
-const mockFixAll = vi.fn();
+const mockApplyFixes = vi.fn();
 const mockWtGetWorktree = vi.fn();
 const mockWtGetWorktreeByName = vi.fn();
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getById: mockGetById,
-    getAll: vi.fn().mockResolvedValue([]),
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: mockConfigGet,
-  })),
-  FutureWorkCollector: vi.fn().mockImplementation(() => ({
-    collect: mockCollect,
-  })),
-  WorkflowNavigator: vi.fn().mockImplementation(() => ({
-    getStatus: mockGetStatus,
-    getNext: mockGetNext,
-  })),
-  ArtifactIntrospector: vi.fn(),
-  ConsistencyChecker: vi.fn().mockImplementation(() => ({
-    check: mockCheck,
-    fix: mockFix,
-    checkAll: mockCheckAll,
-    fixAll: mockFixAll,
-  })),
-  WorktreeService: vi.fn().mockImplementation(() => ({
-    getWorktree: mockWtGetWorktree,
-    getWorktreeByName: mockWtGetWorktreeByName,
-  })),
-}));
+vi.mock('@context-forge/core/node', async () => {
+  const actual = await vi.importActual<typeof import('@context-forge/core/node')>('@context-forge/core/node');
+  return {
+    // Real routing (slice 213): for a single checkout it only orchestrates the mocked checker.
+    planRoutedFixes: actual.planRoutedFixes,
+    applyFixPlan: actual.applyFixPlan,
+    resolveInvokingCheckout: actual.resolveInvokingCheckout,
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getById: mockGetById,
+      getAll: vi.fn().mockResolvedValue([]),
+    })),
+    ConfigManager: vi.fn().mockImplementation(() => ({
+      get: mockConfigGet,
+    })),
+    FutureWorkCollector: vi.fn().mockImplementation(() => ({
+      collect: mockCollect,
+    })),
+    WorkflowNavigator: vi.fn().mockImplementation(() => ({
+      getStatus: mockGetStatus,
+      getNext: mockGetNext,
+    })),
+    ArtifactIntrospector: vi.fn(),
+    ConsistencyChecker: vi.fn().mockImplementation(() => ({
+      check: mockCheck,
+      checkAll: mockCheckAll,
+      applyFixes: mockApplyFixes,
+    })),
+    WorktreeService: vi.fn().mockImplementation(() => ({
+      getWorktree: mockWtGetWorktree,
+      getWorktreeByName: mockWtGetWorktreeByName,
+    })),
+  };
+});
 
 vi.mock('@context-forge/core', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -498,7 +503,8 @@ describe('workflow_check', () => {
 
   it('returns fix result when fix=true (all-slices)', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
-    mockFixAll.mockResolvedValue(MOCK_FIX_RESULT);
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT);
+    mockApplyFixes.mockResolvedValue(MOCK_FIX_RESULT);
 
     const result = await client.callTool({
       name: 'workflow_check',
@@ -511,13 +517,17 @@ describe('workflow_check', () => {
     expect(parsed.fixLog).toHaveLength(1);
     expect(parsed.fixLog[0].before).toBe('[ ]');
     expect(parsed.fixLog[0].after).toBe('[x]');
-    expect(mockFixAll).toHaveBeenCalled();
+    expect(mockCheckAll).toHaveBeenCalled();
+    expect(mockApplyFixes).toHaveBeenCalled();
+    // Single checkout: the 213 fields are present and empty.
+    expect(parsed).toMatchObject({ deferred: [], commits: [] });
   });
 
   it('uses auto_fix config when fix not specified', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockConfigGet.mockResolvedValue({ value: true, source: 'user' });
-    mockFixAll.mockResolvedValue(MOCK_FIX_RESULT);
+    mockCheckAll.mockResolvedValue(MOCK_CHECK_RESULT);
+    mockApplyFixes.mockResolvedValue(MOCK_FIX_RESULT);
 
     const result = await client.callTool({
       name: 'workflow_check',
@@ -839,62 +849,5 @@ describe('workflow_check with worktree parity', () => {
     // comes from the producing view rather than from the location string.
     const fromB = parsed.findings.find((f) => f.location === 'slice plan entry 250');
     expect(fromB?.worktree?.name).toBe(MOCK_WORKTREE_B.name);
-  });
-
-  it('with fix: true across 2 worktrees, returns fixed/fixLog/fixErrors merged from both views (#100 fix path)', async () => {
-    mockGetById.mockResolvedValue(MOCK_PROJECT_TWO_WORKTREES);
-    mockConfigGet.mockResolvedValue({ value: false, source: 'default' });
-    // Before this slice, mergeCheckResults dropped fix fields entirely — this
-    // pins that workflow_check now uses mergeFixResults in fix mode, so fixed/
-    // fixLog/fixErrors survive the merge with entries from both views.
-    mockFixAll
-      .mockResolvedValueOnce({
-        ...MOCK_CHECK_RESULT_A,
-        fixed: 1,
-        fixLog: [
-          {
-            rule: 'task-vs-plan',
-            action: 'update-checkbox',
-            filePath: '/home/user/projects/test-project-feature/plan.md',
-            before: '[ ]',
-            after: '[x]',
-          },
-        ],
-        fixErrors: [],
-      })
-      .mockResolvedValueOnce({
-        ...MOCK_CHECK_RESULT_B,
-        fixed: 1,
-        fixLog: [
-          {
-            rule: 'missing-artifact',
-            action: 'update-checkbox',
-            filePath: '/home/user/projects/test-project-bugfix/plan.md',
-            before: '[ ]',
-            after: '[x]',
-          },
-        ],
-        fixErrors: ['fix failed for some other finding'],
-      });
-
-    const result = await client.callTool({
-      name: 'workflow_check',
-      arguments: { projectId: MOCK_PROJECT.id, fix: true },
-    });
-
-    expect(result.isError).toBeFalsy();
-    expect(mockFixAll).toHaveBeenCalledTimes(2);
-    const parsed = parseResult(result) as {
-      fixed: number;
-      fixLog: Array<{ filePath: string }>;
-      fixErrors: string[];
-    };
-    expect(parsed.fixed).toBe(2);
-    expect(parsed.fixLog).toHaveLength(2);
-    expect(parsed.fixLog.map((e) => e.filePath)).toEqual([
-      '/home/user/projects/test-project-feature/plan.md',
-      '/home/user/projects/test-project-bugfix/plan.md',
-    ]);
-    expect(parsed.fixErrors).toEqual(['fix failed for some other finding']);
   });
 });

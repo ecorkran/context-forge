@@ -9,14 +9,17 @@ import {
   ConfigManager,
   getStoragePath,
   createVersionedBackup,
+  planRoutedFixes,
+  applyFixPlan,
+  resolveInvokingCheckout,
 } from '@context-forge/core/node';
 import {
   resolveProject,
   mergeCheckResults,
-  mergeFixResults,
   buildAttributedViews,
   runAttributed,
 } from '@context-forge/core';
+import type { ProjectData } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -198,9 +201,11 @@ export function registerWorkflowTools(server: McpServer): void {
         'missing artifact cross-references, plan checkbox vs. frontmatter status, ' +
         'duplicate slice indices, missing plan status field, plan status vs. entries, architecture status vs. plans. ' +
         'Defaults to all-slices mode; provide sliceIndex to narrow to one slice. ' +
-        'With fix=true, applies non-destructive corrections to fixable findings. ' +
+        'With fix=true, applies non-destructive corrections to fixable findings. With worktrees, ' +
+        'each fix is written only in the checkout that owns it; writes into other checkouts are ' +
+        'committed there, and fixes left unwritten are listed in deferred with a reason. ' +
         'Response shape: { projectPath, findings[], totalFindings, errors, warnings, infos, summary, ' +
-        'fixed?, fixLog?, fixErrors? }.',
+        'fixed?, fixLog?, fixErrors?, deferred?, commits? }.',
       inputSchema: {
         projectId: z
           .string()
@@ -254,36 +259,42 @@ export function registerWorkflowTools(server: McpServer): void {
         // Shared with cf check so the count-not-presence rule cannot drift
         // between the two consumers of the same merge.
         const projectViews = buildAttributedViews(project);
-        // Top-level projectPath means the invoking checkout. workflow_check
-        // takes no worktree argument and `project` here is the raw stored
-        // record, so the project root is that checkout. Passing it explicitly
-        // stops the merge inheriting the first registered worktree's overlaid
-        // path from results[0].
-        const invokingPath = project.projectPath;
+        // Top-level projectPath means the invoking checkout. For a read-only
+        // check or a single checkout that is the project root. In fix mode
+        // with worktrees it is the checkout the server runs in (slice 213
+        // D5b), so an agent in worktree B gets B's fixes as an uncommitted diff.
+        let invokingPath = project.projectPath;
+        if (fixMode && projectViews.length > 1) {
+          try {
+            invokingPath = (await resolveInvokingCheckout(projectViews)).view.projectPath;
+          } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return errorResult(`Error: ${msg}`);
+          }
+        }
 
+        const scopeViews =
+          args.sliceIndex !== undefined
+            ? projectViews.map((pv) => ({ ...pv, view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` } }))
+            : projectViews;
+        const runCheck = (v: ProjectData) =>
+          args.sliceIndex !== undefined ? checker.check(v) : checker.checkAll(v);
+
+        const checkResults = await runAttributed(scopeViews, runCheck);
         let result;
-        if (args.sliceIndex !== undefined) {
-          // Single-slice mode
-          const sliceViews = projectViews.map((pv) => ({
-            ...pv,
-            view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` },
-          }));
-          if (fixMode) {
-            const fixResults = await runAttributed(sliceViews, (v) => checker.fix(v));
-            result = mergeFixResults(fixResults, invokingPath);
-          } else {
-            const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
-            result = mergeCheckResults(checkResults, invokingPath);
+        if (fixMode) {
+          // Same plan-then-apply as cf check --fix; MCP never prompts.
+          if (!invokingPath) {
+            return errorResult('Error: No projectPath configured for this project.');
           }
+          const plan = await planRoutedFixes(
+            project,
+            scopeViews.map((view, i) => ({ view, result: checkResults[i] })),
+            invokingPath,
+          );
+          result = await applyFixPlan(checker, plan);
         } else {
-          // All-slices mode (no confirmation prompt in MCP)
-          if (fixMode) {
-            const fixResults = await runAttributed(projectViews, (v) => checker.fixAll(v));
-            result = mergeFixResults(fixResults, invokingPath);
-          } else {
-            const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
-            result = mergeCheckResults(checkResults, invokingPath);
-          }
+          result = mergeCheckResults(checkResults, invokingPath);
         }
 
         return jsonResult(result);
