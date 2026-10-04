@@ -7,7 +7,7 @@ dependencies: [207, 926, 927]
 projectState: main at c94cc74, v0.18.4 released. Slice 213 design reviewed (CONCERNS, all findings resolved in the design). No code written for this slice. `cf check --fix` still writes into every checkout with a fixable finding (927 D5). `fixAction` has no subject index, `FixLogEntry` has no worktree, and there is no multi-path commit helper.
 dateCreated: 20261004
 dateUpdated: 20261004
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -297,40 +297,40 @@ global `cf` (that is the published npm build).
 
 ## Part 6 — MCP
 
-- [ ] **Task 22: Route MCP `workflow_check` through plan and apply** (effort 2)
-  - [ ] In `packages/mcp-server/src/tools/workflowTools.ts`, replace `fix` / `fixAll` per view with: `checkAll` (or `check` for single-slice) per view via `runAttributed` → `planRoutedFixes` → `applyFixPlan`. No prompt
-  - [ ] The invoking checkout comes from `resolveInvokingCheckout(views)` using the server's working directory, no longer `project.projectPath` (D5b). Only in fix mode with 2+ views; on error return a tool error, nothing written
-  - [ ] The `workflow.auto_fix` branch uses the same path
-  - [ ] Tool input schema unchanged; response gains `deferred`, `commits`, and `fixLog[].worktree`
-  - [ ] Remove the now-unused `fixAll` call; do not delete `ConsistencyChecker.fixAll` itself unless nothing else references it (grep first)
-  - [ ] Success: MCP build passes
+- [x] **Task 22: Route MCP `workflow_check` through plan and apply** (effort 2)
+  - [x] In `packages/mcp-server/src/tools/workflowTools.ts`, replace `fix` / `fixAll` per view with: `checkAll` (or `check` for single-slice) per view via `runAttributed` → `planRoutedFixes` → `applyFixPlan`. No prompt
+  - [x] The invoking checkout comes from `resolveInvokingCheckout(views)` using the server's working directory, no longer `project.projectPath` (D5b). Only in fix mode with 2+ views; on error return a tool error, nothing written
+  - [x] The `workflow.auto_fix` branch uses the same path
+  - [x] Tool input schema unchanged; response gains `deferred`, `commits`, and `fixLog[].worktree`
+  - [x] Remove the now-unused `fixAll` call; do not delete `ConsistencyChecker.fixAll` itself unless nothing else references it (grep first)
+  - [x] Success: MCP build passes
 
-- [ ] **Task 23: Test MCP routing** (effort 2)
-  - [ ] Update `packages/mcp-server/tests/workflowTools.test.ts`: `workflow_check { fix: true }` against a two-checkout git fixture yields the same routed result as the CLI owner-commit case (design walkthrough step 9)
-  - [ ] Add: server cwd in an unregistered directory with `fix: true` → tool error, no writes
-  - [ ] Add: with `workflow.auto_fix = true` and no `fix` argument, the same routed result and commit (SC 11)
-  - [ ] Existing single-checkout tests pass with only the additive empty arrays
-  - [ ] Success: MCP test suite passes
-  - [ ] Commit: `feat(mcp): route workflow_check fixes through worktree-aware plan and apply`
+- [x] **Task 23: Test MCP routing** (effort 2)
+  - [x] Update `packages/mcp-server/tests/workflowTools.test.ts`: `workflow_check { fix: true }` against a two-checkout git fixture yields the same routed result as the CLI owner-commit case (design walkthrough step 9)
+  - [x] Add: server cwd in an unregistered directory with `fix: true` → tool error, no writes
+  - [x] Add: with `workflow.auto_fix = true` and no `fix` argument, the same routed result and commit (SC 11)
+  - [x] Existing single-checkout tests pass with only the additive empty arrays
+  - [x] Success: MCP test suite passes
+  - [x] Commit: `feat(mcp): route workflow_check fixes through worktree-aware plan and apply`
 
 ## Part 7 — Docs and Verification
 
-- [ ] **Task 24: README and CHANGELOG** (effort 1)
-  - [ ] README `cf check --fix` section: fixes are written only in the owning checkout; writes into other checkouts are committed there with the fixed message, never pushed; stale copies and unsafe checkouts are left alone and listed; unregistered worktree in fix mode is an error
-  - [ ] README note under `workflow.auto_fix`: with worktrees, a plain `cf check` can commit into other checkouts (Special Considerations)
-  - [ ] CHANGELOG `[Unreleased]` → Changed: the routing behavior and the smaller `fixed`/`fixLog` with 2+ worktrees (D7 observable changes); Added: `deferred`, `commits`, `fixLog[].worktree` in JSON / MCP output
-  - [ ] Success: docs describe behavior matching the code
-  - [ ] Commit: `docs: describe worktree-aware cf check --fix in README and CHANGELOG`
+- [x] **Task 24: README and CHANGELOG** (effort 1)
+  - [x] README `cf check --fix` section: fixes are written only in the owning checkout; writes into other checkouts are committed there with the fixed message, never pushed; stale copies and unsafe checkouts are left alone and listed; unregistered worktree in fix mode is an error
+  - [x] README note under `workflow.auto_fix`: with worktrees, a plain `cf check` can commit into other checkouts (Special Considerations)
+  - [x] CHANGELOG `[Unreleased]` → Changed: the routing behavior and the smaller `fixed`/`fixLog` with 2+ worktrees (D7 observable changes); Added: `deferred`, `commits`, `fixLog[].worktree` in JSON / MCP output
+  - [x] Success: docs describe behavior matching the code
+  - [x] Commit: `docs: describe worktree-aware cf check --fix in README and CHANGELOG`
 
-- [ ] **Task 25: Full build and test pass** (effort 1)
-  - [ ] `pnpm -r build`, typecheck, lint, and `pnpm -r test` all clean
-  - [ ] Fix any failure at its cause; do not skip or weaken tests
-  - [ ] Success: all commands exit 0
+- [x] **Task 25: Full build and test pass** (effort 1)
+  - [x] `pnpm -r build`, typecheck, lint, and `pnpm -r test` all clean
+  - [x] Fix any failure at its cause; do not skip or weaken tests
+  - [x] Success: all commands exit 0
 
-- [ ] **Task 26: Verification walkthrough against the local build** (effort 2)
-  - [ ] Follow the design's "Verification Walkthrough" steps 1–8 in a `mktemp -d` scratch repo using `node <repo>/packages/cli/dist/index.js`. Never in this repository
-  - [ ] Record the outcome of each step (pass, or the actual output on failure) in the slice design's walkthrough section or a short note in this task
-  - [ ] Any failure: get the actual error text, fix at the cause, re-run Task 25, then repeat the failing step
-  - [ ] Delete the scratch directory when done
-  - [ ] Success: steps 1–8 behave as the design states
-  - [ ] Commit recorded results on the slice branch: `docs: record 213 verification walkthrough results` (code fixes found here get their own `fix:` commit)
+- [x] **Task 26: Verification walkthrough against the local build** (effort 2)
+  - [x] Follow the design's "Verification Walkthrough" steps 1–8 in a `mktemp -d` scratch repo using `node <repo>/packages/cli/dist/index.js`. Never in this repository
+  - [x] Record the outcome of each step (pass, or the actual output on failure) in the slice design's walkthrough section or a short note in this task
+  - [x] Any failure: get the actual error text, fix at the cause, re-run Task 25, then repeat the failing step
+  - [x] Delete the scratch directory when done
+  - [x] Success: steps 1–8 behave as the design states
+  - [x] Commit recorded results on the slice branch: `docs: record 213 verification walkthrough results` (code fixes found here get their own `fix:` commit)

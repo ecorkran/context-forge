@@ -7,7 +7,7 @@ dependencies: [207-slice.worktree-resolved-project-view, 926-slice.worktree-scop
 interfaces: []
 dateCreated: 20261004
 dateUpdated: 20261004
-status: not_started
+status: complete
 ---
 
 # Slice Design: cf check --fix Worktree-Aware Writes
