@@ -1,22 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renameSync } from 'node:fs';
+import { readFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'child_process';
 import { ConsistencyChecker } from '../../src/introspection/ConsistencyChecker.js';
 import { ArtifactIntrospector } from '../../src/introspection/ArtifactIntrospector.js';
 import { buildAttributedViews, runAttributed } from '../../src/introspection/mergeCheckResults.js';
 import {
+  applyFixPlan,
+  FIX_COMMIT_MESSAGE,
   planRoutedFixes,
   resolveInvokingCheckout,
   type AttributedCheckResult,
 } from '../../src/introspection/routedFixes.js';
+import { restorePathsToHead } from '../../src/guides/gitExec.js';
 import { DeferReason, type ConsistencyFinding } from '../../src/introspection/types.js';
 import type { ProjectData } from '../../src/types/project.js';
 import type { WorktreeContext } from '../../src/types/worktree.js';
 import {
+  commitCount,
   createGitWorktreeFixture,
   detachHead,
   git,
+  installRejectingPreCommitHook,
+  lastSubject,
+  porcelain,
   startConflictingMerge,
   writeAndCommit,
   writeRel,
@@ -28,6 +35,12 @@ import {
 vi.mock('child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('child_process')>();
   return { ...actual, execFile: vi.fn(actual.execFile) };
+});
+
+// Passthrough, so case 7 alone can make the restore fail after a real commit failure.
+vi.mock('../../src/guides/gitExec.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/guides/gitExec.js')>();
+  return { ...actual, restorePathsToHead: vi.fn(actual.restorePathsToHead) };
 });
 
 const NAME = 'routed';
@@ -276,3 +289,162 @@ describe('planRoutedFixes (slice 213)', () => {
     expect(aboutSubject(plan.entries[0].result.findings, 950)).toHaveLength(3);
   });
 });
+
+describe('applyFixPlan (slice 213)', () => {
+  beforeEach(() => {
+    setup = createRoutedSetup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  async function planFromPrimary(project = setup.project) {
+    return planRoutedFixes(project, await dryRun(project, setup.checker), setup.fx.primary);
+  }
+
+  const betaFiles = [PLAN, designPath(950, 'beta'), tasksPath(950, 'beta')].sort();
+
+  it('1. owner fix in the non-invoking worktree is written and committed there', async () => {
+    completeBeta(setup.wtb, true);
+    const result = await applyFixPlan(setup.checker, await planFromPrimary());
+
+    expect(lastSubject(setup.wtb)).toBe(FIX_COMMIT_MESSAGE);
+    expect(porcelain(setup.wtb)).toBe('');
+    expect(result.commits).toHaveLength(1);
+    expect(result.commits[0].files.sort()).toEqual(betaFiles);
+    expect(result.commits[0].sha).toBe(git(setup.wtb, 'rev-parse', 'HEAD'));
+    expect(result.commits[0].worktree?.id).toBe('b');
+    expect(result.fixed).toBe(3);
+    expect(result.fixLog.every((e) => e.worktree?.id === 'b')).toBe(true);
+    expect(result.deferred).toEqual([]);
+    expect(result.projectPath).toBe(setup.fx.primary);
+  });
+
+  it('2. an unrelated staged file stays staged and out of the fix commit', async () => {
+    completeBeta(setup.wtb, true);
+    writeRel(setup.wtb, 'README.md', 'staged by user\n');
+    git(setup.wtb, 'add', 'README.md');
+    await applyFixPlan(setup.checker, await planFromPrimary());
+
+    const committed = git(setup.wtb, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort();
+    expect(committed).toEqual(betaFiles);
+    expect(porcelain(setup.wtb)).toBe('M  README.md');
+  });
+
+  it('3. invoking checkout writes stay uncommitted', async () => {
+    writeRel(setup.fx.primary, tasksPath(120, 'alpha'), tasksContent('alpha', true));
+    const before = commitCount(setup.fx.primary);
+    const result = await applyFixPlan(setup.checker, await planFromPrimary());
+
+    expect(result.fixed).toBe(3);
+    expect(result.commits).toEqual([]);
+    expect(commitCount(setup.fx.primary)).toBe(before);
+    expect(porcelain(setup.fx.primary)).toContain(designPath(120, 'alpha'));
+  });
+
+  it('4. target dirtied between plan and apply → FILE_DIRTY, not written', async () => {
+    completeBeta(setup.wtb, true);
+    const plan = await planFromPrimary();
+    const userEdit = designContent('beta') + '\nuser edit\n';
+    writeRel(setup.wtb, designPath(950, 'beta'), userEdit);
+
+    const result = await applyFixPlan(setup.checker, plan);
+
+    expect(result.deferred.map((d) => [d.finding.rule, d.reason])).toEqual([
+      ['frontmatter-vs-computed', DeferReason.FILE_DIRTY],
+    ]);
+    expect(readFileSync(join(setup.wtb, designPath(950, 'beta')), 'utf-8')).toBe(userEdit);
+    expect(result.commits[0].files.sort()).toEqual([PLAN, tasksPath(950, 'beta')].sort());
+  });
+
+  it('5. rejecting pre-commit hook → paths back at HEAD, COMMIT_FAILED with detail', async () => {
+    completeBeta(setup.wtb, true);
+    installRejectingPreCommitHook(setup.fx, setup.wtb);
+    const before = commitCount(setup.wtb);
+
+    const result = await applyFixPlan(setup.checker, await planFromPrimary());
+
+    expect(porcelain(setup.wtb)).toBe('');
+    expect(commitCount(setup.wtb)).toBe(before);
+    expect(result.deferred).toHaveLength(3);
+    for (const d of result.deferred) {
+      expect(d.reason).toBe(DeferReason.COMMIT_FAILED);
+      expect(d.detail).toMatch(/rejected by test hook/);
+    }
+    expect(result.fixed).toBe(result.fixLog.length);
+    expect(result.fixed).toBe(0);
+    expect(result.fixErrors).toEqual([]);
+    expect(result.commits).toEqual([]);
+  });
+
+  it('6. owner-lacks-file fix written in each reporting view produces identical bytes', async () => {
+    setup.fx.cleanup();
+    const fx = createGitWorktreeFixture(['b', 'c'], seedDocs);
+    const project: ProjectData = {
+      ...createProjectFor(fx),
+      worktrees: [
+        worktreeCtx('main', fx.primary, [100, 199]),
+        worktreeCtx('b', fx.worktrees.b, [950, 959]),
+        worktreeCtx('c', fx.worktrees.c, [500, 599]),
+      ],
+    };
+    setup = { ...setup, fx, project, wtb: fx.worktrees.b };
+    // Slice 955 (b's range) lands on main and in c, never in b.
+    writeAndCommit(fx.primary, PLAN, planContent([[120, 'alpha'], [950, 'beta'], [955, 'gamma']]));
+    writeAndCommit(fx.primary, designPath(955, 'gamma'), designContent('gamma'));
+    writeAndCommit(fx.primary, tasksPath(955, 'gamma'), tasksContent('gamma', true));
+    git(fx.worktrees.c, 'merge', '-q', '--ff-only', 'main');
+
+    const result = await applyFixPlan(setup.checker, await planFromPrimary(project));
+
+    for (const rel of [designPath(955, 'gamma'), tasksPath(955, 'gamma')]) {
+      const primaryBytes = readFileSync(join(fx.primary, rel), 'utf-8');
+      expect(primaryBytes).toContain('status: complete');
+      expect(readFileSync(join(fx.worktrees.c, rel), 'utf-8')).toBe(primaryBytes);
+    }
+    expect(result.commits.map((c) => c.worktree?.id)).toEqual(['c']);
+    expect(lastSubject(fx.worktrees.c)).toBe(FIX_COMMIT_MESSAGE);
+  });
+
+  it('7. commit fails and restore fails → log entries stay, one fixErrors entry', async () => {
+    completeBeta(setup.wtb, true);
+    installRejectingPreCommitHook(setup.fx, setup.wtb);
+    vi.mocked(restorePathsToHead).mockRejectedValueOnce(new Error('restore failed: index.lock held'));
+
+    const result = await applyFixPlan(setup.checker, await planFromPrimary());
+
+    // The restore really was attempted for b's written paths, and is what failed.
+    expect(vi.mocked(restorePathsToHead)).toHaveBeenCalledTimes(1);
+    const [restoreRoot, restorePaths] = vi.mocked(restorePathsToHead).mock.calls[0];
+    expect(restoreRoot).toBe(setup.wtb);
+    expect([...restorePaths].sort()).toEqual(betaFiles);
+    expect(result.fixLog).toHaveLength(3);
+    expect(result.fixed).toBe(3);
+    expect(result.fixErrors).toHaveLength(1);
+    expect(result.fixErrors[0]).toContain(setup.wtb);
+    for (const rel of betaFiles) expect(result.fixErrors[0]).toContain(rel);
+    expect(result.deferred).toEqual([]);
+    expect(porcelain(setup.wtb)).not.toBe('');
+  });
+
+  it('single checkout: no deferrals, no commits, no worktree on log entries, no git process', async () => {
+    const single: ProjectData = { ...setup.project, worktrees: undefined };
+    completeBeta(setup.fx.primary, false);
+    const results = await dryRun(single, setup.checker);
+    const plan = await planRoutedFixes(single, results, setup.fx.primary);
+    vi.mocked(execFile).mockClear();
+
+    const result = await applyFixPlan(setup.checker, plan);
+
+    expect(vi.mocked(execFile)).not.toHaveBeenCalled();
+    expect(result.fixed).toBe(3);
+    expect(result.deferred).toEqual([]);
+    expect(result.commits).toEqual([]);
+    expect(result.fixLog.some((e) => 'worktree' in e)).toBe(false);
+    expect(result.findings).toEqual(results[0].result.findings);
+  });
+});
+
+function createProjectFor(fx: GitWorktreeFixture): ProjectData {
+  return { ...setup.project, projectPath: fx.primary };
+}
