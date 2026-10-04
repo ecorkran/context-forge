@@ -62,6 +62,8 @@ This partially supersedes 927 D5: fix *results* still merge through `mergeFixRes
 
 All are complete.
 
+**Architectural anchor.** The slice plan places 213 in the 200 band, but its decisions trace to the 160 architecture (the consistency checker and its fix pipeline) and the 180 architecture (worktree ranges and per-checkout views). Cross-checkout writes follow 200-arch's "never destructive — if unsure, ask or skip": every write into another checkout is preceded by readiness guards that skip on any doubt. The only state change is an additive, revertable, never-pushed commit, and a failed commit restores what it touched. Whether 213 should move to another band is a PM call. This design does not rehome it.
+
 ### Interfaces Required
 
 - `ProjectData.worktrees[]`: `id`, `name`, `indexRange`, `worktreePath` (`types/worktree.ts`).
@@ -115,8 +117,10 @@ planRoutedFixes(project, viewResults, invokingPath)
 CLI: print the plan (grouped by checkout), prompt y/N unless --yes  |  MCP: no prompt
     ↓
 applyFixPlan(checker, plan, dateStamp)
+    ├─ re-run checkoutReadiness per non-invoking checkout; newly failing fixes → deferred
     ├─ checker.applyFixes(subset, dateStamp) per view     same dateStamp across all views
     ├─ non-invoking views with writes: commitPathsIfChanged(checkout, writtenRelPaths, COMMIT_MESSAGE)
+    │     on failure: git restore written paths → deferred COMMIT_FAILED
     └─ mergeFixResults(...) → ConsistencyFixResult { fixLog (with worktree), deferred, commits, fixErrors }
 ```
 
@@ -173,6 +177,45 @@ The invoking checkout is not auto-committed. That is unchanged behavior, and the
 
 PM confirmed this option (20261004). There is no config switch to turn the commits off.
 
+### D5 — Readiness guards before touching another checkout
+
+`checkoutReadiness` checks each non-invoking checkout that would receive writes:
+
+| Condition | Detection | Result |
+|---|---|---|
+| Path missing, or not the top level of a git checkout | path absent, or realpath of `git rev-parse --show-toplevel` ≠ realpath of the view root | defer all fixes there: `NOT_A_CHECKOUT` |
+| Detached HEAD | `git symbolic-ref -q HEAD` fails | defer all fixes there: `DETACHED_HEAD` |
+| Merge, rebase, or cherry-pick in progress | `git rev-parse --git-path` for `MERGE_HEAD`, `rebase-merge`, `rebase-apply`, `CHERRY_PICK_HEAD` exists | defer all fixes there: `CHECKOUT_BUSY` |
+| Target path already modified | `git status --porcelain -- <path>` non-empty | defer that fix: `FILE_DIRTY` |
+
+- **Why a dirty target is skipped:** someone is editing that file, and writing into it would mix their edit and ours into one commit. Deferral leaves their work untouched, and the finding stays for the next run.
+- **Missing checkouts:** a registered worktree whose directory was removed or pruned without `cf worktree rm` is covered by `NOT_A_CHECKOUT`. The existing stale-worktree rule already reports it as a finding.
+
+**Readiness runs twice.** It runs in `planRoutedFixes`, so the CLI preview is accurate. `applyFixPlan` runs it again for each non-invoking checkout immediately before writing, because the CLI prompt can wait indefinitely and the target checkout can change meanwhile. A fix that fails the second check is deferred with the same reasons as at plan time.
+
+### D5a — Commit behavior in another checkout
+
+- **Hooks run.** The commit is a plain `git commit` with no `--no-verify`. The target checkout's hooks are that repository's policy, for example Squadron's frontmatter gate. Bypassing them would land commits the repo's own rules would reject. If a hook rewrites a staged file, the commit records the hook's version.
+- **Bounded.** Every git call made against a non-invoking checkout (readiness, add, commit, restore) passes `timeoutMs: FIX_GIT_TIMEOUT_MS`. This is a single core constant, set to 60 000 ms, and it covers a hanging hook or a stuck lock.
+- **Failure leaves the checkout as found.** If the commit fails (hook rejection, timeout, or `index.lock` held), `applyFixPlan` restores the written paths with `git restore --source=HEAD --staged --worktree -- <paths>`. This is safe because readiness proved those paths clean immediately before the write. The fixes are reported as deferred with `COMMIT_FAILED` and git's error text.
+- **If the restore also fails**, the error goes into `fixErrors` naming the checkout and the files left written but uncommitted. That is the only path that can leave an unexpected change behind, and it is always reported.
+
+`commitPathsIfChanged(repoPath, relPaths, message, opts?)` returns `Promise<string | null>`: the new commit's sha, or `null` when nothing under `relPaths` changed. It throws on any git failure, including "not a git repo". `applyFixPlan` never calls it without a passing readiness check, so a non-repo is already a `NOT_A_CHECKOUT` deferral. The existing `commitPathIfChanged` keeps its `boolean` contract, including its non-repo `false`, for `cf guide update`. It wraps the new function behind its own `isGitRepo` check.
+
+### D5b — The invoking checkout
+
+The CLI and MCP compute the invoking checkout the same way, with one core helper, `resolveInvokingCheckout(views)`:
+
+- Take the realpath of `git rev-parse --show-toplevel` from the process working directory.
+- Compare it with the realpath of each view's root. The match is exact after `realpath`, which normalizes symlinks and trailing slashes.
+- **No match, in fix mode, with two or more checkouts:** fail with an explicit error. The message says this checkout is not a registered worktree and to run `cf worktree init` or run from a registered checkout. This matches the project rule that an unregistered worktree is a STOP condition. It also stops the failure mode where every view, including the user's own, looks non-invoking and gets auto-committed. Read-only `cf check` and single-checkout projects never do this matching.
+
+This changes MCP. `workflow_check` previously treated `project.projectPath` as the invoking checkout. It now uses the server's working directory, so an agent in worktree B that calls `workflow_check { fix: true }` gets B's fixes as a visible, uncommitted diff, the same as the CLI.
+
+### D6 — Deferral reasons are an enum
+
+`DeferReason` is defined once in core: `NOT_OWNER`, `OWNER_UNRESOLVED`, `NOT_A_CHECKOUT`, `FILE_DIRTY`, `CHECKOUT_BUSY`, `DETACHED_HEAD`, `COMMIT_FAILED`. CLI text, MCP JSON, and tests all reference the constants. Display strings live in one CLI map keyed by the enum.
+
 ### D7 — Relationship to slice 927
 
 927's "#100 — Fix Path" (its D5) fixed a dedup regression: collapsing identical findings meant only the first-seen checkout got fixed, and the rest vanished from output. 213 keeps 927's goal and most of its mechanism:
@@ -199,24 +242,6 @@ External consumers: Squadron was checked (20261004).
 - Its only cf invocations are `list`, `get`, `config get`, `--version`, and `validate frontmatter`. Nothing parses check or fix output.
 - The `/cf:check` slash command shows output raw, and the vendored guide's mentions of `workflow_check` are prose. Neither depends on the output shape.
 
-### D5 — Readiness guards before touching another checkout
-
-Before planning a write into a non-invoking checkout, `checkoutReadiness` checks:
-
-| Condition | Detection | Result |
-|---|---|---|
-| Detached HEAD | `git symbolic-ref -q HEAD` fails | defer all fixes there: `DETACHED_HEAD` |
-| Merge, rebase, or cherry-pick in progress | `git rev-parse --git-path` for `MERGE_HEAD`, `rebase-merge`, `rebase-apply`, `CHERRY_PICK_HEAD` exists | defer all fixes there: `CHECKOUT_BUSY` |
-| Target path already modified | `git status --porcelain -- <path>` non-empty | defer that fix: `FILE_DIRTY` |
-
-A dirty target means someone is editing that file. Writing into it would mix their edit and ours into one commit. Deferral leaves their work untouched, and the finding remains for the next run.
-
-A failed commit after a successful write (for example, `index.lock` held by a concurrent git process in that checkout) is not swallowed. It goes into `fixErrors` naming the checkout and the files that are now written but uncommitted.
-
-### D6 — Deferral reasons are an enum
-
-`DeferReason` is defined once in core: `NOT_OWNER`, `OWNER_UNRESOLVED`, `FILE_DIRTY`, `CHECKOUT_BUSY`, `DETACHED_HEAD`. CLI text, MCP JSON, and tests all reference the constants. Display strings live in one CLI map keyed by the enum.
-
 ### Technology Choices
 
 There are no new dependencies. Git access goes through the existing `gitExec` (non-interactive `execFile`). `commitPathIfChanged` gains a multi-path sibling, `commitPathsIfChanged(repoPath, relPaths, message)`, and the single-path form delegates to it, so there is one implementation.
@@ -239,7 +264,8 @@ fixAction?: { type; filePath; detail; subjectIndex: number | null };   // subjec
 interface FixLogEntry { /* existing */ worktree?: FindingWorktree }
 
 const DeferReason = { NOT_OWNER: 'not-owner', OWNER_UNRESOLVED: 'owner-unresolved',
-  FILE_DIRTY: 'file-dirty', CHECKOUT_BUSY: 'checkout-busy', DETACHED_HEAD: 'detached-head' } as const;
+  NOT_A_CHECKOUT: 'not-a-checkout', FILE_DIRTY: 'file-dirty', CHECKOUT_BUSY: 'checkout-busy',
+  DETACHED_HEAD: 'detached-head', COMMIT_FAILED: 'commit-failed' } as const;
 
 interface DeferredFix { finding: ConsistencyFinding; reason: DeferReasonValue; owner?: FindingWorktree }
 interface CheckoutCommit { worktree?: FindingWorktree; checkoutPath: string; sha: string; files: string[] }
@@ -255,6 +281,9 @@ For single-checkout projects, `deferred` and `commits` are always empty arrays a
 resolveFixOwner(project: ProjectData, subjectIndex: number | null, views: AttributedView[]): AttributedView | null
 planRoutedFixes(project: ProjectData, viewResults: AttributedCheckResult[], invokingPath: string): Promise<FixPlan>
 applyFixPlan(checker: ConsistencyChecker, plan: FixPlan, dateStamp?: string): Promise<ConsistencyFixResult>
+resolveInvokingCheckout(views: AttributedView[]): Promise<AttributedView>     // throws when unregistered (D5b)
+checkoutReadiness(checkoutPath: string, relPaths: string[]): Promise<ReadinessResult>
+commitPathsIfChanged(repoPath: string, relPaths: string[], message: string, opts?: GitExecOptions): Promise<string | null>
 ```
 
 **CLI text output (multi-checkout):**
@@ -273,7 +302,7 @@ Left alone 2 fix(es)
 
 A `[worktree]` prefix and the grouping appear only with two or more worktrees, as today.
 
-**MCP `workflow_check`:** the schema is unchanged. The response gains `deferred` and `commits`, and `fixLog` entries gain `worktree`. The invoking checkout remains `project.projectPath`.
+**MCP `workflow_check`:** the schema is unchanged. The response gains `deferred` and `commits`, and `fixLog` entries gain `worktree`. The invoking checkout comes from the server's working directory (D5b), no longer from `project.projectPath`.
 
 ## Integration Points
 
@@ -296,20 +325,21 @@ A `[worktree]` prefix and the grouping appear only with two or more worktrees, a
 3. Writes into non-invoking checkouts are committed, one commit per checkout, containing only the written paths, with the defined message. Other staged changes in that checkout stay staged and uncommitted.
 4. After `cf check --fix` from checkout A, `git status` in any other registered checkout B shows no modifications attributable to the run.
 5. Writes into the invoking checkout stay uncommitted.
-6. A non-invoking checkout with a detached HEAD or an in-progress merge, rebase, or cherry-pick receives no writes. A target file with uncommitted edits receives no write. Each case is reported with its reason.
-7. A failed commit after a write is reported in `fixErrors`, naming the checkout and the uncommitted files.
+6. A non-invoking checkout that is missing, not a checkout, on a detached HEAD, or in an in-progress merge, rebase, or cherry-pick receives no writes. A target file with uncommitted edits receives no write. Readiness is re-checked immediately before writing, so a change during the CLI prompt is caught. Each case is reported with its reason.
+7. A failed or timed-out commit, including a hook rejection, restores the written paths to HEAD and reports the fixes as `COMMIT_FAILED`. Only a failed restore reaches `fixErrors`, naming the checkout and the files left uncommitted. Hooks in the target checkout run, and are not bypassed.
 8. When the owner's checkout lacks the target file, the fix applies in the views that reported it.
 9. Single-checkout projects: output and on-disk effects are identical to today. `deferred` and `commits` are empty, and no git commands run as part of fixing.
 10. CLI all-slices: the confirmation preview shows the routed plan (fixes per checkout, deferrals) before anything is written. `--yes` skips the prompt.
-11. MCP `workflow_check` with `fix: true`, and `workflow.auto_fix`, produce the same routing as the CLI.
+11. MCP `workflow_check` with `fix: true`, and `workflow.auto_fix`, produce the same routing as the CLI. The `auto_fix` path skips the preview and prompt by design, so it can commit into other checkouts during a plain `cf check`.
+12. In fix mode with two or more checkouts, running from a checkout that matches no registered view fails with an explicit error, and nothing is written. Read-only checks are unaffected.
 
 ### Technical Requirements
 
 - Every fixable rule sets `subjectIndex`, and a test asserts that no fixable finding lacks the field.
 - `resolveFixOwner` has unit tests for: single checkout; one claimant; unclaimed → primary; `null` index → primary; overlap → `null`; no primary view → `null`.
-- `planRoutedFixes` and `applyFixPlan` have tests using real temporary git repos with `git worktree add`. These cover: owner commit, stale-copy deferral, dirty-file deferral, busy checkout (an in-progress merge), detached HEAD, a staged unrelated file left out of the commit, and the owner-lacks-file case.
+- `planRoutedFixes` and `applyFixPlan` have tests using real temporary git repos with `git worktree add`. These cover: owner commit, stale-copy deferral, dirty-file deferral, busy checkout (an in-progress merge), detached HEAD, a missing worktree path, a staged unrelated file left out of the commit, the owner-lacks-file case, a state change between plan and apply (re-check), a rejecting pre-commit hook (restore and `COMMIT_FAILED`), and an unregistered invoking checkout (error).
 - The existing `check-worktree-fix.test.ts` (two checkouts, same finding, both rewritten) is updated to the new contract: written once, in the owner's checkout.
-- `commitPathIfChanged` delegates to `commitPathsIfChanged`, and existing guide-update tests still pass.
+- `commitPathIfChanged` keeps its boolean contract and wraps `commitPathsIfChanged`. Existing guide-update tests still pass.
 - Build, typecheck, lint, and all package test suites are clean.
 - README: the `cf check --fix` section describes worktree routing and commits. CHANGELOG `[Unreleased]` gets a Changed entry.
 
@@ -391,3 +421,16 @@ Effort: 3/5.
 
 - `workflow.auto_fix=true` makes every `cf check` a fixing run, so with this slice it can commit into other checkouts on a plain `cf check`. That is consistent with the setting's meaning ("apply corrections automatically"), but the README note should say so explicitly.
 - Under the "owner lacks file" rule, fixes still apply in more than one checkout. They produce identical bytes (shared `dateStamp`), so those copies merge cleanly.
+
+## Review Resolution
+
+Review: `user/reviews/213-review.slice.cf-check-fix-worktree-aware-writes.md` (verdict CONCERNS, 20261004). Each finding was resolved in this design:
+
+- **F001 (scope outside the 200 architecture):** added the architectural anchor under Dependencies, tracing to the 160 and 180 architectures and reconciling with "never destructive". Moving the slice to another band is left to the PM.
+- **F002 (readiness not re-checked after the prompt):** readiness now runs again in `applyFixPlan` immediately before writing (D5, Data Flow, SC 6, tests).
+- **F003 (hooks, timeouts):** D5a. Hooks run, and every git call is bounded by `FIX_GIT_TIMEOUT_MS`. A commit failure restores the written paths and defers with `COMMIT_FAILED`.
+- **F004 (helper contract):** D5a specifies the `commitPathsIfChanged` return value and that it throws on any git failure. A non-repo is a `NOT_A_CHECKOUT` readiness deferral. The single-path wrapper keeps its boolean contract.
+- **F005 (invoking checkout undefined):** D5b defines `resolveInvokingCheckout`, which compares realpaths of the git top level, and errors in fix mode when nothing matches. MCP now uses its working directory instead of `project.projectPath` (SC 12).
+- **F006 (missing worktree path):** added the `NOT_A_CHECKOUT` reason (D5, D6).
+- **F007 (`auto_fix` blast radius):** SC 11 now says the `auto_fix` path skips the preview by design.
+- **F008 (decision order):** D7 moved after D6.
