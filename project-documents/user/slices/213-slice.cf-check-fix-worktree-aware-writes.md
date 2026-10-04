@@ -171,6 +171,32 @@ The commit message is defined once, as a constant: `docs: update project documen
 
 The invoking checkout is not auto-committed. That is unchanged behavior, and the user sees the diff in front of them.
 
+PM confirmed this option (20261004). There is no config switch to turn the commits off.
+
+### D7 — Relationship to slice 927
+
+927's "#100 — Fix Path" (its D5) fixed a dedup regression: collapsing identical findings meant only the first-seen checkout got fixed, and the rest vanished from output. 213 keeps 927's goal and most of its mechanism:
+
+| 927 guarantee | After 213 |
+|---|---|
+| Fixes applied per view, before the merge | Kept; only owner views receive writes |
+| Fix results merge through `mergeFixResults` | Kept; extended with `deferred` and `commits` |
+| CLI applies the pre-merge dry run without re-checking | Kept |
+| CLI and MCP share one fix path | Kept and tightened (MCP drops `fixAll`) |
+| No fix silently vanishes | Kept; every unwritten fix is in `deferred` with a reason |
+| Every checkout with the finding is written | **Reversed**: only the owner is written |
+
+Observable changes (two or more worktrees only):
+
+- `fixed` and `fixLog` cover only owner writes, so they are smaller than in 0.18.x for the same tree. This is a behavior change to released output, not purely additive.
+- `check-worktree-fix.test.ts` encodes the 927 contract (both checkouts rewritten, `fixed === 2`). It is rewritten to the 213 contract.
+- **Status rollups on shared parent documents wait for the merge.**
+  - Example: worktree B (range 950–959) finishes slice 950. B's view flags the 900 plan's own `status` field. The 900 plan is unclaimed, so its owner is the primary checkout, and B's fix is deferred as `NOT_OWNER`. B's own checkbox for entry 950 is still fixed, because B owns 950.
+  - The rollup lands when B's work merges into the primary checkout's branch and `cf check --fix` runs there. Under 927 it was written on B's branch immediately.
+  - This is intended: a parent document is not done until the work has merged.
+
+External consumers: Squadron was checked (20261004), and no code parses `workflow_check` or `cf check --fix` output.
+
 ### D5 — Readiness guards before touching another checkout
 
 Before planning a write into a non-invoking checkout, `checkoutReadiness` checks:
