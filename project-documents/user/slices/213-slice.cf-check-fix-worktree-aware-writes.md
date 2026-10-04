@@ -357,44 +357,69 @@ A `[worktree]` prefix and the grouping appear only with two or more worktrees, a
 
 ### Verification Walkthrough
 
-These steps use the local build (`node packages/cli/dist/index.js`, aliased below as `cfl`) in a throwaway repo, never this repository.
+Run 20261004 against the local build, in a `mktemp -d` scratch repo, never this repository. All steps passed. Commands below are the ones actually run.
+
+**Setup.** `CONTEXT_FORGE_DATA_DIR` points the project store at the scratch directory so the run never touches your real project list. `cf init --lite` registers the project without downloading the guide (`cf check` doesn't need it).
 
 ```bash
-alias cfl="node $PWD/packages/cli/dist/index.js"
-SCRATCH=$(mktemp -d) && cd "$SCRATCH"
-git init -q main-co && cd main-co
-cfl init                                     # project + guide; creates project-documents/
-# add a slice plan with entries for 120 and 950, and slice designs 120 and 950
-git add -A && git commit -qm "seed"
+REPO=<path to context-forge>
+cfl() { node $REPO/packages/cli/dist/index.js "$@"; }
+SCRATCH=$(cd "$(mktemp -d)" && pwd -P)
+export CONTEXT_FORGE_DATA_DIR=$SCRATCH/data
+cd $SCRATCH && git init -q -b main main-co && cd main-co
+git config user.name walkthrough; git config user.email wt@example.com
+git config commit.gpgsign false; git config core.hooksPath "$PWD/.git/hooks"
+cfl init --lite --name wt213
+# project-documents/user/architecture/900-slices.maint.md: status in_progress,
+#   entries "1. [ ] **(120) Alpha**" and "2. [ ] **(950) Beta**"
+# slices/120-slice.alpha.md, slices/950-slice.beta.md: status not_started
+# tasks/120-tasks.alpha.md, tasks/950-tasks.beta.md: status not_started, two "- [ ]" items
+# (every document carries full frontmatter with project: wt213, so there are no schema findings)
+git add -A && git commit -qm seed
 git worktree add -q ../wt-b -b wt-b
-cfl worktree init --name b --range 950-959 --path ../wt-b
+cfl worktree init --name b --range 950-959 --path $SCRATCH/wt-b
 ```
 
-1. **Owner fix lands in the owner's checkout and is committed there.** In `../wt-b`, check off all tasks for slice 950 and commit. From `main-co`, run `cfl check --fix --yes`.
-   - Expect: the `[b]` group shows the 950 plan-checkbox fix, `committed <sha> in …/wt-b`.
+The first `worktree init` prints `Existing workflow fields were migrated to a 'default' worktree context (range 100-799)`. That `default` worktree is `main-co`. Do not register `main-co` again under another name: a second registration at the same path is harmless but redundant.
+
+1. **Owner fix lands in the owner's checkout and is committed there.** Check off both items in `wt-b`'s `950-tasks.beta.md` and commit. From `main-co`: `cfl check --fix --yes`.
+   - Output: `Fixed 3 finding(s)`, then `[b]  committed <sha> in …/wt-b`, listing the 900-plan checkbox and the 950 design and task status fixes.
    - `git -C ../wt-b status --porcelain` is empty.
    - `git -C ../wt-b log -1 --oneline` shows `docs: update project documents in response to cf check --fix`.
-2. **Stale copy is left alone.** In `main-co`, check the plan entry for 950 without touching `main-co`'s copy of the 950 task file, which leaves `main-co`'s view inconsistent for a subject `b` owns. Run `cfl check --fix --yes`.
-   - Expect: neither `main-co`'s plan entry nor its task file is rewritten.
-   - The output lists the fix under "Left alone" as a stale copy owned by `b`.
-3. **Invoking checkout stays uncommitted.** Make slice 120's design status inconsistent in `main-co`, then run `cfl check --fix --yes` from `main-co`.
-   - Expect: the fix is written.
-   - `git status` in `main-co` shows the modified file.
-   - No new commit appears in `main-co`.
-4. **Dirty target is deferred.** Edit slice 950's design in `../wt-b` without committing, and make a fixable inconsistency on it. Run the fix from `main-co`.
-   - Expect: the fix is deferred with "file has uncommitted edits".
-   - The user's edit in `wt-b` is untouched.
-5. **Busy checkout is deferred.** Start a conflicting `git merge` in `../wt-b` and leave it unresolved. Run the fix from `main-co`.
-   - Expect: every `wt-b` fix is deferred as checkout busy.
-   - No writes happen in `wt-b`.
-6. **Staged work stays out of the commit.** In `../wt-b`, stage an unrelated file. Repeat step 1's setup and run.
-   - Expect: the fix commit contains only the fixed document.
-   - The unrelated file is still staged.
-7. **JSON shape.** Run `cfl check --fix --yes --json`.
-   - Expect: `fixLog[].worktree`, `deferred[]` with `reason` values from the enum, and `commits[]` with `sha` and `files`.
-8. **Single checkout unchanged.** Run `cfl worktree rm b`, recreate an inconsistency, and run `cfl check --fix --yes --json`.
-   - Expect: `deferred: []`, `commits: []`, and output identical in form to 0.18.4.
-9. **MCP parity.** Covered by `workflowTools.test.ts`. `workflow_check { fix: true }` against the two-checkout fixture yields the same routed result as step 1.
+   - `main-co` is clean.
+2. **Stale copy is left alone.** In `main-co`, check entry 950 in the plan and commit. Run `cfl check --fix --yes`.
+   - Output: `Fixed 0 finding(s)`, then `Left alone 2 fix(es)`, with both `[default]  stale copy; owned by b — …` (the plan checkbox and the 950 design).
+   - `main-co`'s plan entry and 950 files are unchanged.
+3. **Invoking checkout stays uncommitted.** Set `120-slice.alpha.md` to `status: complete` (tasks incomplete) and commit. Run `cfl check --fix --yes`.
+   - Output: a `[default]  (invoking checkout, uncommitted)` group.
+   - `git status` shows the modified plan and 120 design.
+   - The commit count is unchanged.
+4. **Dirty target is deferred.** In `wt-b`, set `950-slice.beta.md` to `status: in_progress` and append a line, without committing. Run from `main-co`.
+   - Output: `[b]  file has uncommitted edits — user/slices/950-slice.beta.md`, once per fix on that file.
+   - The file's bytes are unchanged and `wt-b` gets no new commit.
+5. **Busy checkout is deferred.** Make the 950 design fixable in `wt-b` (committed), then leave a conflicting `git merge main` unresolved in `wt-b`. Run from `main-co`.
+   - Output: every `[b]` fix shows `merge, rebase, or cherry-pick in progress`.
+   - HEAD in `wt-b` is unchanged and no fix is written. The merge's own staged files are still there.
+6. **Staged work stays out of the commit.** `git merge --abort` in `wt-b`, then `git add` an unrelated `notes.txt` there. Run `cfl check --fix --yes`.
+   - `git -C ../wt-b show --name-only HEAD` lists only `project-documents/user/slices/950-slice.beta.md`.
+   - `notes.txt` is still `A ` (staged).
+7. **JSON shape.** `cfl check --fix --yes --json`.
+   - Top-level keys end `…, fixed, fixLog, fixErrors, deferred, commits`.
+   - `fixLog[].worktree.name` is `default` / `b`.
+   - `deferred[].reason` is `not-owner`, with `owner.name: "b"`.
+   - `commits[]` has `sha`, `files: ["project-documents/user/slices/950-slice.beta.md"]`, and `worktree.name: "b"`.
+8. **Single checkout unchanged.** `cfl worktree rm b --yes`. Without `--yes`, a non-interactive shell cancels the removal. Make the 120 task file inconsistent and commit, then run the published 0.18.4 `cf` and `cfl` on the same state, resetting with `git checkout -- .` between runs.
+   - `cf check --fix --yes` text output: byte-identical.
+   - `--json`: `deferred: []`, `commits: []`, and no `worktree` on log entries.
+   - The only other difference is the additive `fixAction.subjectIndex` on findings (D1).
+9. **MCP parity.** Covered by `packages/mcp-server/tests/workflowCheckRouting.test.ts`: `workflow_check { fix: true }` gives the same routed result as step 1. The same file covers an unregistered server cwd (tool error, nothing written) and `workflow.auto_fix` with no `fix` argument.
+
+**Caveats found during the run:**
+- Some findings appear in more than one step's output. They come from existing rules that disagree within one pass, not from routing.
+  - The 120 design with status `complete` and incomplete tasks gets two contradictory fixes in one run (status → `in_progress`, checkbox → checked), and the next run flips them back.
+  - Two rules can target the same field, so the second write logs `complete → complete`.
+  - Both behaviors predate this slice.
+- With `workflow.auto_fix` set, a plain `cf check` no longer asks for confirmation, in single-checkout projects too. Before this slice it prompted unless `--yes`. This follows SC 11 as written.
 
 ## Risk Assessment
 
