@@ -62,7 +62,7 @@ This partially supersedes 927 D5: fix *results* still merge through `mergeFixRes
 
 All are complete.
 
-**Architectural anchor.** The slice plan places 213 in the 200 band, but its decisions trace to the 160 architecture (the consistency checker and its fix pipeline) and the 180 architecture (worktree ranges and per-checkout views). Cross-checkout writes follow 200-arch's "never destructive — if unsure, ask or skip": every write into another checkout is preceded by readiness guards that skip on any doubt. The only state change is an additive, revertable, never-pushed commit, and a failed commit restores what it touched. Whether 213 should move to another band is a PM call. This design does not rehome it.
+**Architectural anchor.** The slice plan places 213 in the 200 band, but its decisions trace to the 160 architecture (the consistency checker and its fix pipeline) and the 180 architecture (worktree ranges and per-checkout views). Cross-checkout writes follow 200-arch's "never destructive — if unsure, ask or skip": every write into another checkout is preceded by readiness guards that skip on any doubt. The only state change is an additive, revertable, never-pushed commit, and a failed commit restores what it touched. PM decided 20261004 that 213 stays in the 200 band.
 
 ### Interfaces Required
 
@@ -426,7 +426,7 @@ Effort: 3/5.
 
 Review: `user/reviews/213-review.slice.cf-check-fix-worktree-aware-writes.md` (verdict CONCERNS, 20261004). Each finding was resolved in this design:
 
-- **F001 (scope outside the 200 architecture):** added the architectural anchor under Dependencies, tracing to the 160 and 180 architectures and reconciling with "never destructive". Moving the slice to another band is left to the PM.
+- **F001 (scope outside the 200 architecture):** added the architectural anchor under Dependencies, tracing to the 160 and 180 architectures and reconciling with "never destructive". PM decided 20261004 that 213 stays in the 200 band.
 - **F002 (readiness not re-checked after the prompt):** readiness now runs again in `applyFixPlan` immediately before writing (D5, Data Flow, SC 6, tests).
 - **F003 (hooks, timeouts):** D5a. Hooks run, and every git call is bounded by `FIX_GIT_TIMEOUT_MS`. A commit failure restores the written paths and defers with `COMMIT_FAILED`.
 - **F004 (helper contract):** D5a specifies the `commitPathsIfChanged` return value and that it throws on any git failure. A non-repo is a `NOT_A_CHECKOUT` readiness deferral. The single-path wrapper keeps its boolean contract.
