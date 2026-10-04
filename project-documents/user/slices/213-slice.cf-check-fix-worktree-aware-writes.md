@@ -267,7 +267,7 @@ const DeferReason = { NOT_OWNER: 'not-owner', OWNER_UNRESOLVED: 'owner-unresolve
   NOT_A_CHECKOUT: 'not-a-checkout', FILE_DIRTY: 'file-dirty', CHECKOUT_BUSY: 'checkout-busy',
   DETACHED_HEAD: 'detached-head', COMMIT_FAILED: 'commit-failed' } as const;
 
-interface DeferredFix { finding: ConsistencyFinding; reason: DeferReasonValue; owner?: FindingWorktree }
+interface DeferredFix { finding: ConsistencyFinding; reason: DeferReasonValue; owner?: FindingWorktree; detail?: string }  // detail: git error text (COMMIT_FAILED)
 interface CheckoutCommit { worktree?: FindingWorktree; checkoutPath: string; sha: string; files: string[] }
 
 interface ConsistencyFixResult { /* existing */ deferred: DeferredFix[]; commits: CheckoutCommit[] }
