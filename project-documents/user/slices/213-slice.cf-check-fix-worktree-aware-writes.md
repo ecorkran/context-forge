@@ -88,7 +88,8 @@ packages/core/src/git/
 └── checkoutReadiness.ts NEW  checkoutReadiness()        on a branch? merge/rebase in progress? path clean?
 
 packages/core/src/guides/gitExec.ts
-└── commitPathsIfChanged()    NEW multi-path form; commitPathIfChanged delegates to it
+├── commitPathsIfChanged()    NEW multi-path form; commitPathIfChanged delegates to it
+└── restorePathsToHead()      NEW git restore of written paths after a failed commit (D5a)
 
 packages/cli/src/commands/check.ts          dry run → planRoutedFixes → preview/prompt → applyFixPlan
 packages/mcp-server/src/tools/workflowTools.ts  checkAll per view → planRoutedFixes → applyFixPlan
@@ -279,11 +280,17 @@ For single-checkout projects, `deferred` and `commits` are always empty arrays a
 
 ```typescript
 resolveFixOwner(project: ProjectData, subjectIndex: number | null, views: AttributedView[]): AttributedView | null
+interface AttributedCheckResult { view: AttributedView; result: ConsistencyCheckResult }   // new; runAttributed returns results in view order
+interface FixPlanEntry { view: AttributedView; result: ConsistencyCheckResult; commit: boolean }  // result holds kept findings only
+interface FixPlan { entries: FixPlanEntry[]; deferred: DeferredFix[] }
+interface ReadinessResult { blocked: DeferReasonValue | null; dirtyPaths: string[] }
+
 planRoutedFixes(project: ProjectData, viewResults: AttributedCheckResult[], invokingPath: string): Promise<FixPlan>
 applyFixPlan(checker: ConsistencyChecker, plan: FixPlan, dateStamp?: string): Promise<ConsistencyFixResult>
 resolveInvokingCheckout(views: AttributedView[]): Promise<AttributedView>     // throws when unregistered (D5b)
-checkoutReadiness(checkoutPath: string, relPaths: string[]): Promise<ReadinessResult>
+checkoutReadiness(checkoutPath: string, relPaths: string[], opts?: GitExecOptions): Promise<ReadinessResult>
 commitPathsIfChanged(repoPath: string, relPaths: string[], message: string, opts?: GitExecOptions): Promise<string | null>
+restorePathsToHead(repoPath: string, relPaths: string[], opts?: GitExecOptions): Promise<void>   // throws on failure
 ```
 
 **CLI text output (multi-checkout):**
