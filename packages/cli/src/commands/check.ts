@@ -7,18 +7,21 @@ import {
   ConfigManager,
   detectDocuments,
   updateFrontmatterField,
+  planRoutedFixes,
+  applyFixPlan,
+  resolveInvokingCheckout,
 } from '@context-forge/core/node';
 import {
   formatDateProject,
   mergeCheckResults,
-  mergeFixResults,
   buildAttributedViews,
   runAttributed,
 } from '@context-forge/core';
 import type {
+  AttributedView,
   ConsistencyCheckResult,
   ConsistencyFixResult,
-  ConsistencyFinding,
+  ProjectData,
 } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
@@ -26,68 +29,9 @@ import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
-import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
-
-const SEVERITY_ICON: Record<string, string> = {
-  error: '✗',
-  warning: '⚠',
-  info: 'ℹ',
-};
-
-function isFixResult(result: ConsistencyCheckResult): result is ConsistencyFixResult {
-  return 'fixLog' in result;
-}
-
-function formatFinding(
-  finding: ConsistencyFinding,
-  fixResult?: ConsistencyFixResult,
-  showWorktree = false,
-): string {
-  const icon = SEVERITY_ICON[finding.severity] ?? '?';
-  const colorFn = finding.severity === 'error' ? errorStyle : finding.severity === 'warning' ? warnStyle : dim;
-  const lines: string[] = [];
-  const prefix = showWorktree && finding.worktree ? `[${finding.worktree.name}] ` : '';
-  lines.push(colorFn(`  ${icon} ${prefix}${finding.description}`));
-
-  if (fixResult && finding.fixable) {
-    // Match on rule AND file: several findings can share a rule (e.g. multiple
-    // frontmatter-schema fixes in one run), and location may be relative while
-    // the fix log records the absolute path.
-    const logEntry = fixResult.fixLog.find(
-      (e) =>
-        e.rule === finding.rule &&
-        (e.filePath === finding.location ||
-          e.filePath.endsWith(finding.location) ||
-          finding.location.endsWith(e.filePath)),
-    );
-    if (logEntry) {
-      lines.push(dim(`    → Fixed: ${logEntry.before} → ${logEntry.after} in ${logEntry.filePath}`));
-    }
-  } else {
-    lines.push(dim(`    → ${finding.suggestedFix}`));
-  }
-
-  return lines.join('\n');
-}
-
-/** Extract slice index prefix from a finding description like "[175] ..." */
-function extractFindingSliceIndex(description: string): string | null {
-  const match = /^\[(\d+)\]\s/.exec(description);
-  return match ? match[1] : null;
-}
-
-/** Group findings by slice index prefix, with non-prefixed in a "Project-level" group */
-function groupFindings(findings: ConsistencyFinding[]): Map<string, ConsistencyFinding[]> {
-  const groups = new Map<string, ConsistencyFinding[]>();
-  for (const finding of findings) {
-    const idx = extractFindingSliceIndex(finding.description);
-    const key = idx ?? 'project';
-    const group = groups.get(key) ?? [];
-    group.push(finding);
-    groups.set(key, group);
-  }
-  return groups;
-}
+import { label, dim } from '../output/styles.js';
+import { printFixPlan, plannedFixCount } from '../output/fixReport.js';
+import { printCheckOutput } from '../output/checkReport.js';
 
 interface CheckOpts {
   json?: boolean;
@@ -189,6 +133,7 @@ export function registerCheckCommand(program: Command): void {
 
         // Determine fix mode: explicit flag > config key > false
         let fixMode = opts.fix ?? false;
+        const explicitFix = fixMode;
         if (!fixMode) {
           try {
             const autoFixResult = await config.get('workflow.auto_fix');
@@ -224,53 +169,31 @@ export function registerCheckCommand(program: Command): void {
         // must be told which one that is.
         const invokingPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
+        // --slice narrows to one slice: set fileSlice on every view and use check()
+        const scopeViews =
+          singleSlice !== null
+            ? projectViews.map((pv) => ({ ...pv, view: { ...pv.view, fileSlice: `${singleSlice}-slice` } }))
+            : projectViews;
+        const runCheck = (v: ProjectData) => (singleSlice !== null ? checker.check(v) : checker.checkAll(v));
+
         let result: ConsistencyCheckResult;
-
-        if (singleSlice !== null) {
-          // Narrow to single slice — set fileSlice temporarily and use check()
-          const sliceViews = projectViews.map((pv) => ({
-            ...pv,
-            view: { ...pv.view, fileSlice: `${singleSlice}-slice` },
-          }));
-          if (fixMode) {
-            // Fixes apply per view, before the merge — once #100's dedup
-            // collapses cross-worktree duplicates, fixing the merged result
-            // would only write the first checkout's file (D5).
-            const fixResults = await runAttributed(sliceViews, (v) => checker.fix(v));
-            result = mergeFixResults(fixResults, invokingPath);
-          } else {
-            const checkResults = await runAttributed(sliceViews, (v) => checker.check(v));
-            result = mergeCheckResults(checkResults, invokingPath);
-          }
-        } else if (fixMode) {
-          // All-slices fix mode — prompt for confirmation unless --yes. The dry
-          // run stays merged for display and the confirmation count, but fixes
-          // apply per view (D5): each per-view dry-run result carries its own
-          // checkout's fixAction file paths, so applying against the merged
-          // result would only write the first-seen checkout.
-          const dryRunResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
-          const dryRun = mergeCheckResults(dryRunResults, invokingPath);
-          const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
-
-          if (fixableCount === 0) {
-            printCheckOutput(dryRun, project.name, false, showWorktree);
-            console.log(dim('No fixable findings — nothing to apply.'));
-            return;
-          } else if (!opts.yes) {
-            printCheckOutput(dryRun, project.name, false, showWorktree);
-            const confirmed = await askConfirmation(
-              `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `,
-            );
-            if (!confirmed) {
-              console.log('Aborted.');
-              return;
-            }
-          }
-
-          const fixResults = await Promise.all(dryRunResults.map((r) => checker.applyFixes(r)));
-          result = mergeFixResults(fixResults, invokingPath);
+        if (fixMode) {
+          const fixResult = await runRoutedFix({
+            project,
+            checker,
+            views: scopeViews,
+            runCheck,
+            invokingPath,
+            // Only an explicit all-slices --fix previews and prompts; the
+            // workflow.auto_fix path skips both by design (slice 213 SC 11).
+            confirm: singleSlice === null && explicitFix && !opts.yes,
+            allSlices: singleSlice === null,
+            showWorktree,
+          });
+          if (!fixResult) return;
+          result = fixResult;
         } else {
-          const checkResults = await runAttributed(projectViews, (v) => checker.checkAll(v));
+          const checkResults = await runAttributed(scopeViews, runCheck);
           result = mergeCheckResults(checkResults, invokingPath);
         }
 
@@ -286,46 +209,74 @@ export function registerCheckCommand(program: Command): void {
     });
 }
 
-function printCheckOutput(
-  result: ConsistencyCheckResult,
-  projectName: string,
-  fixMode: boolean,
-  showWorktree = false,
-): void {
-  const modeLabel = fixMode ? ' (fix mode)' : '';
-  console.log(label(`Consistency Check: ${projectName}${modeLabel}`));
-  console.log('');
+interface RoutedFixArgs {
+  project: ProjectData;
+  checker: ConsistencyChecker;
+  views: AttributedView[];
+  runCheck: (view: ProjectData) => Promise<ConsistencyCheckResult>;
+  invokingPath: string | undefined;
+  /** Preview and prompt before writing. */
+  confirm: boolean;
+  allSlices: boolean;
+  showWorktree: boolean;
+}
 
-  if (result.totalFindings === 0) {
-    console.log('  No inconsistencies found');
-    return;
-  }
+/**
+ * Fix mode (slice 213): dry run per view, route each fix to the checkout that
+ * owns its subject, optionally preview and confirm, then apply. Returns null
+ * when nothing is applied (no fixable findings, or the user declined).
+ */
+async function runRoutedFix(args: RoutedFixArgs): Promise<ConsistencyFixResult | null> {
+  const { project, checker, views, runCheck, showWorktree } = args;
+  const multi = views.length > 1;
 
-  const fixRes = isFixResult(result) ? result : undefined;
-  const groups = groupFindings(result.findings);
-
-  for (const [key, findings] of groups) {
-    const groupLabel = key === 'project' ? 'Project-level' : `Slice ${key}`;
-    console.log(label(`  ${groupLabel}`));
-
-    for (const finding of findings) {
-      console.log(formatFinding(finding, fixRes, showWorktree));
+  let invokingPath = args.invokingPath;
+  if (multi) {
+    // Routing needs to know which checkout is "here"; an unregistered one is
+    // a hard stop before anything is written (D5b, SC 12).
+    try {
+      invokingPath = (await resolveInvokingCheckout(views)).view.projectPath;
+    } catch (err) {
+      throw new UserError(err instanceof Error ? err.message : String(err));
     }
-    console.log('');
+  }
+  if (!invokingPath) {
+    throw new UserError('No projectPath configured. Set one with: cf set projectPath /path/to/project');
   }
 
-  if (fixRes) {
-    const fixSummary =
-      fixRes.fixed > result.totalFindings
-        ? `Fixed ${result.totalFindings} finding(s) (${fixRes.fixed} file update(s) across checkouts)`
-        : `Fixed ${fixRes.fixed} of ${result.totalFindings} findings`;
-    console.log(label(fixSummary));
-    if (fixRes.fixErrors.length > 0) {
-      for (const err of fixRes.fixErrors) {
-        console.log(errorStyle(`  Fix error: ${err}`));
+  const dryRunResults = await runAttributed(views, runCheck);
+  const plan = await planRoutedFixes(
+    project,
+    views.map((view, i) => ({ view, result: dryRunResults[i] })),
+    invokingPath,
+  );
+
+  if (args.allSlices) {
+    const dryRun = mergeCheckResults(dryRunResults, invokingPath);
+    const fixableCount = dryRun.findings.filter((f) => f.fixable).length;
+    if (fixableCount === 0) {
+      printCheckOutput(dryRun, project.name, false, showWorktree);
+      console.log(dim('No fixable findings — nothing to apply.'));
+      return null;
+    }
+    if (args.confirm) {
+      printCheckOutput(dryRun, project.name, false, showWorktree);
+      if (multi) {
+        printFixPlan(plan);
+        if (plannedFixCount(plan) === 0) {
+          console.log(dim('Every fix is left alone — nothing to apply.'));
+          return null;
+        }
+      }
+      const prompt = multi
+        ? `\nApply ${plannedFixCount(plan)} fix(es) as planned? [y/N] `
+        : `\nFound ${fixableCount} fixable finding${fixableCount !== 1 ? 's' : ''}. Apply fixes? [y/N] `;
+      if (!(await askConfirmation(prompt))) {
+        console.log('Aborted.');
+        return null;
       }
     }
-  } else {
-    console.log(dim(result.summary));
   }
+
+  return applyFixPlan(checker, plan);
 }

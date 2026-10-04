@@ -25,25 +25,32 @@ const mockConfigGet = vi.fn();
 const mockDetectDocuments = vi.fn();
 const mockUpdateFrontmatterField = vi.fn();
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getAll: mockGetAll,
-    getById: mockGetById,
-  })),
-  ArtifactIntrospector: vi.fn(),
-  ConsistencyChecker: vi.fn().mockImplementation(() => ({
-    check: mockCheck,
-    fix: mockFix,
-    checkAll: mockCheckAll,
-    fixAll: mockFixAll,
-    applyFixes: mockApplyFixes,
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: mockConfigGet,
-  })),
-  detectDocuments: (...args: unknown[]) => mockDetectDocuments(...args),
-  updateFrontmatterField: (...args: unknown[]) => mockUpdateFrontmatterField(...args),
-}));
+vi.mock('@context-forge/core/node', async () => {
+  const actual = await vi.importActual<typeof import('@context-forge/core/node')>('@context-forge/core/node');
+  return {
+    // Real routing (slice 213): for a single checkout it only orchestrates the mocked checker.
+    planRoutedFixes: actual.planRoutedFixes,
+    applyFixPlan: actual.applyFixPlan,
+    resolveInvokingCheckout: actual.resolveInvokingCheckout,
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getAll: mockGetAll,
+      getById: mockGetById,
+    })),
+    ArtifactIntrospector: vi.fn(),
+    ConsistencyChecker: vi.fn().mockImplementation(() => ({
+      check: mockCheck,
+      fix: mockFix,
+      checkAll: mockCheckAll,
+      fixAll: mockFixAll,
+      applyFixes: mockApplyFixes,
+    })),
+    ConfigManager: vi.fn().mockImplementation(() => ({
+      get: mockConfigGet,
+    })),
+    detectDocuments: (...args: unknown[]) => mockDetectDocuments(...args),
+    updateFrontmatterField: (...args: unknown[]) => mockUpdateFrontmatterField(...args),
+  };
+});
 
 const sampleProject = {
   id: 'proj_001',

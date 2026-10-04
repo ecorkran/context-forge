@@ -183,71 +183,71 @@ global `cf` (that is the published npm build).
 
 ## Part 4 — Routed Planning and Application
 
-- [ ] **Task 11: Extend `mergeFixResults`** (effort 1)
-  - [ ] In `packages/core/src/introspection/mergeCheckResults.ts`, `mergeFixResults` concatenates `deferred` and `commits` from every input alongside its existing fields
-  - [ ] Preserve existing merge behavior for `fixed`, `fixLog`, `fixErrors`
-  - [ ] Update `packages/core/tests/introspection/mergeCheckResults.test.ts`: add a case merging two results that each carry `deferred` and `commits`; existing cases still pass with empty arrays
-  - [ ] Success: core build and tests pass
+- [x] **Task 11: Extend `mergeFixResults`** (effort 1)
+  - [x] In `packages/core/src/introspection/mergeCheckResults.ts`, `mergeFixResults` concatenates `deferred` and `commits` from every input alongside its existing fields
+  - [x] Preserve existing merge behavior for `fixed`, `fixLog`, `fixErrors`
+  - [x] Update `packages/core/tests/introspection/mergeCheckResults.test.ts`: add a case merging two results that each carry `deferred` and `commits`; existing cases still pass with empty arrays
+  - [x] Success: core build and tests pass
 
-- [ ] **Task 12: Implement `resolveInvokingCheckout`** (effort 1)
-  - [ ] Create `packages/core/src/introspection/routedFixes.ts` and add `resolveInvokingCheckout(views, cwd?)` per D5b. `cwd` defaults to `process.cwd()`; the parameter exists so tests and MCP can pass it explicitly
-  - [ ] Realpath of `git rev-parse --show-toplevel` from `cwd`, compared exactly with the realpath of each view root
-  - [ ] No match → throw an `Error` whose message says the checkout is not a registered worktree and to run `cf worktree init` or run from a registered checkout. Also throw if `cwd` is not inside a git checkout
-  - [ ] Callers only invoke this in fix mode with 2+ views (Tasks 18, 22); the function itself does not check view count
-  - [ ] Success: core build passes
+- [x] **Task 12: Implement `resolveInvokingCheckout`** (effort 1)
+  - [x] Create `packages/core/src/introspection/routedFixes.ts` and add `resolveInvokingCheckout(views, cwd?)` per D5b. `cwd` defaults to `process.cwd()`; the parameter exists so tests and MCP can pass it explicitly
+  - [x] Realpath of `git rev-parse --show-toplevel` from `cwd`, compared exactly with the realpath of each view root
+  - [x] No match → throw an `Error` whose message says the checkout is not a registered worktree and to run `cf worktree init` or run from a registered checkout. Also throw if `cwd` is not inside a git checkout
+  - [x] Callers only invoke this in fix mode with 2+ views (Tasks 18, 22); the function itself does not check view count
+  - [x] Success: core build passes
 
-- [ ] **Task 13: Implement `planRoutedFixes`** (effort 3)
-  - [ ] In `routedFixes.ts`, export these types (they are the shapes Tasks 14–23 build against):
+- [x] **Task 13: Implement `planRoutedFixes`** (effort 3)
+  - [x] In `routedFixes.ts`, export these types (they are the shapes Tasks 14–23 build against):
     - `AttributedCheckResult { view: AttributedView; result: ConsistencyCheckResult }`. This is new: `runAttributed` returns plain results in view order, so callers zip `views` with its output
     - `FixPlanEntry { view: AttributedView; result: ConsistencyCheckResult; commit: boolean }`. `result.findings` holds only the kept fixable findings, so it can go straight to `checker.applyFixes`
     - `FixPlan { entries: FixPlanEntry[]; deferred: DeferredFix[] }`
-  - [ ] Export `planRoutedFixes(project, viewResults: AttributedCheckResult[], invokingPath)` per Data Flow and API Contracts
-  - [ ] Single checkout (one view): return the plan with every fixable finding kept in that view, `deferred: []`, and make **no** git calls (SC 9)
-  - [ ] Otherwise, for each fixable finding in each view:
+  - [x] Export `planRoutedFixes(project, viewResults: AttributedCheckResult[], invokingPath)` per Data Flow and API Contracts
+  - [x] Single checkout (one view): return the plan with every fixable finding kept in that view, `deferred: []`, and make **no** git calls (SC 9)
+  - [x] Otherwise, for each fixable finding in each view:
     1. `resolveFixOwner(project, finding.fixAction.subjectIndex, views)`
     2. `null` → defer `OWNER_UNRESOLVED`
     3. owner is this view → keep
     4. owner is another view **and** the owner's checkout has a file at the fix's path relative to its root → defer `NOT_OWNER` with `owner` set (D3)
     5. owner is another view and the owner's checkout lacks the file → keep in this view (D2, "owner lacks the target file")
-  - [ ] For each non-invoking view with kept fixes, call `checkoutReadiness` with the kept fixes' relative paths and `timeoutMs: FIX_GIT_TIMEOUT_MS`. A checkout-wide block defers all its fixes with that reason; dirty paths defer just those fixes as `FILE_DIRTY`
-  - [ ] `commit` is `true` only for non-invoking views
-  - [ ] Deferred entries carry the finding's `worktree` attribution so CLI output can group them
-  - [ ] Success: core build passes
+  - [x] For each non-invoking view with kept fixes, call `checkoutReadiness` with the kept fixes' relative paths and `timeoutMs: FIX_GIT_TIMEOUT_MS`. A checkout-wide block defers all its fixes with that reason; dirty paths defer just those fixes as `FILE_DIRTY`
+  - [x] `commit` is `true` only for non-invoking views
+  - [x] Deferred entries carry the finding's `worktree` attribution so CLI output can group them
+  - [x] Success: core build passes
 
-- [ ] **Task 14: Test `resolveInvokingCheckout` and `planRoutedFixes`** (effort 3)
-  - [ ] New file `packages/core/tests/introspection/routedFixes.test.ts`. Build a shared setup on the Task 6 fixture: real `project-documents/` content (a slice plan with entries in two ranges, matching slice designs and task files), a `ProjectData` with two worktrees and ranges, and views built through `buildAttributedViews`. Task 17 reuses this setup
-  - [ ] `resolveInvokingCheckout`: primary root → primary view; worktree subdirectory → that worktree's view; unregistered directory → throws with the D5b message
-  - [ ] `planRoutedFixes` cases (plan only, nothing written):
+- [x] **Task 14: Test `resolveInvokingCheckout` and `planRoutedFixes`** (effort 3)
+  - [x] New file `packages/core/tests/introspection/routedFixes.test.ts`. Build a shared setup on the Task 6 fixture: real `project-documents/` content (a slice plan with entries in two ranges, matching slice designs and task files), a `ProjectData` with two worktrees and ranges, and views built through `buildAttributedViews`. Task 17 reuses this setup
+  - [x] `resolveInvokingCheckout`: primary root → primary view; worktree subdirectory → that worktree's view; unregistered directory → throws with the D5b message
+  - [x] `planRoutedFixes` cases (plan only, nothing written):
     1. fix owned by the non-invoking worktree → kept in its view, `commit: true`
     2. same subject flagged in the non-owner view → `NOT_OWNER` with `owner` set
     3. overlapping ranges → `OWNER_UNRESOLVED`
     4. owner lacks the file → kept in the view that reported it
     5. dirty target → `FILE_DIRTY`; unresolved merge → all `CHECKOUT_BUSY`; detached HEAD → `DETACHED_HEAD`; missing worktree path → `NOT_A_CHECKOUT`
-  - [ ] Single checkout: everything kept, `deferred` is `[]`, no git process ran (spy on `gitExec` or `child_process.execFile` for this case only)
-  - [ ] Success: tests pass
-  - [ ] Commit: `feat(core): add invoking-checkout resolution and routed fix planning`
+  - [x] Single checkout: everything kept, `deferred` is `[]`, no git process ran (spy on `gitExec` or `child_process.execFile` for this case only)
+  - [x] Success: tests pass
+  - [x] Commit: `feat(core): add invoking-checkout resolution and routed fix planning`
 
-- [ ] **Task 15: Implement `applyFixPlan` — write and commit** (effort 3)
-  - [ ] In `routedFixes.ts`, export `applyFixPlan(checker, plan, dateStamp?)` per Data Flow and D5a
-  - [ ] Compute one `dateStamp` (same format `applyFixes` uses today) if not passed, and use it for every view
-  - [ ] For each non-invoking plan entry: re-run `checkoutReadiness` before writing. Newly failing fixes move to `deferred` with the same reasons as Task 13
-  - [ ] Call `checker.applyFixes` per view with that view's remaining findings. With 2+ views, tag every resulting `fixLog` entry with the view's `worktree`
-  - [ ] Written paths for a view = the unique `fixLog[].filePath` values from that view's `applyFixes` result, made relative to the view's checkout root
-  - [ ] For each non-invoking view with written paths: `commitPathsIfChanged(checkout, writtenRelPaths, FIX_COMMIT_MESSAGE, { timeoutMs: FIX_GIT_TIMEOUT_MS })`. Define `FIX_COMMIT_MESSAGE` once, in `routedFixes.ts`, with the exact text in D4. Record a `CheckoutCommit` when a sha is returned
-  - [ ] Invoking view writes are never committed
-  - [ ] Combine per-view results through `mergeFixResults` (Task 11)
-  - [ ] Single checkout: no readiness, no commit, no git calls
-  - [ ] Success: core build passes
+- [x] **Task 15: Implement `applyFixPlan` — write and commit** (effort 3)
+  - [x] In `routedFixes.ts`, export `applyFixPlan(checker, plan, dateStamp?)` per Data Flow and D5a
+  - [x] Compute one `dateStamp` (same format `applyFixes` uses today) if not passed, and use it for every view
+  - [x] For each non-invoking plan entry: re-run `checkoutReadiness` before writing. Newly failing fixes move to `deferred` with the same reasons as Task 13
+  - [x] Call `checker.applyFixes` per view with that view's remaining findings. With 2+ views, tag every resulting `fixLog` entry with the view's `worktree`
+  - [x] Written paths for a view = the unique `fixLog[].filePath` values from that view's `applyFixes` result, made relative to the view's checkout root
+  - [x] For each non-invoking view with written paths: `commitPathsIfChanged(checkout, writtenRelPaths, FIX_COMMIT_MESSAGE, { timeoutMs: FIX_GIT_TIMEOUT_MS })`. Define `FIX_COMMIT_MESSAGE` once, in `routedFixes.ts`, with the exact text in D4. Record a `CheckoutCommit` when a sha is returned
+  - [x] Invoking view writes are never committed
+  - [x] Combine per-view results through `mergeFixResults` (Task 11)
+  - [x] Single checkout: no readiness, no commit, no git calls
+  - [x] Success: core build passes
 
-- [ ] **Task 16: Implement `applyFixPlan` — commit failure handling** (effort 2)
-  - [ ] Wrap the Task 15 commit call. On a throw (hook rejection, timeout, `index.lock`), call `restorePathsToHead(checkout, writtenRelPaths, { timeoutMs: FIX_GIT_TIMEOUT_MS })` (Task 7)
-  - [ ] After a successful restore: remove that view's log entries for the restored paths, subtract the same number from that view's `fixed` so `fixed` and `fixLog` agree, and defer each of those findings as `COMMIT_FAILED` with git's error text in `detail`
-  - [ ] If the restore also throws: leave the log entries in place, and add one `fixErrors` entry naming the checkout and the files left written but uncommitted (the only path from git to `fixErrors`)
-  - [ ] Log the caught error per the project's exception rules before converting it to a deferral or `fixErrors` entry
-  - [ ] Success: core build passes
+- [x] **Task 16: Implement `applyFixPlan` — commit failure handling** (effort 2)
+  - [x] Wrap the Task 15 commit call. On a throw (hook rejection, timeout, `index.lock`), call `restorePathsToHead(checkout, writtenRelPaths, { timeoutMs: FIX_GIT_TIMEOUT_MS })` (Task 7)
+  - [x] After a successful restore: remove that view's log entries for the restored paths, subtract the same number from that view's `fixed` so `fixed` and `fixLog` agree, and defer each of those findings as `COMMIT_FAILED` with git's error text in `detail`
+  - [x] If the restore also throws: leave the log entries in place, and add one `fixErrors` entry naming the checkout and the files left written but uncommitted (the only path from git to `fixErrors`)
+  - [x] Log the caught error per the project's exception rules before converting it to a deferral or `fixErrors` entry
+  - [x] Success: core build passes
 
-- [ ] **Task 17: Test `applyFixPlan`** (effort 3)
-  - [ ] In `routedFixes.test.ts`, using the Task 14 setup:
+- [x] **Task 17: Test `applyFixPlan`** (effort 3)
+  - [x] In `routedFixes.test.ts`, using the Task 14 setup:
     1. owner commit: fix owned by the non-invoking worktree is written and committed there with `FIX_COMMIT_MESSAGE`; that checkout's `git status --porcelain` is empty; `commits[0].files` lists exactly the written paths
     2. staged unrelated file in the target checkout is still staged and absent from the fix commit
     3. invoking checkout writes stay uncommitted (file modified, no new commit)
@@ -255,9 +255,9 @@ global `cf` (that is the published npm build).
     5. rejecting `pre-commit` hook → paths back at HEAD, `COMMIT_FAILED` with `detail`, `fixed` equals `fixLog.length`, `fixErrors` empty
     6. owner-lacks-file fix written in each reporting view produces identical bytes (shared `dateStamp`)
     7. commit fails **and** restore fails → the `fixLog` entries stay, and exactly one `fixErrors` entry names the checkout and the files left uncommitted. Use a mechanism that really makes the restore fail and assert that it failed for that reason. Mocking `restorePathsToHead` to throw (`vi.mock` of the gitExec module, this case only) is acceptable
-  - [ ] Single checkout: `deferred` and `commits` are `[]`, no log entry has `worktree`, no git process ran
-  - [ ] Success: tests pass; full core suite passes
-  - [ ] Commit: `feat(core): add routed fix application with scoped commits`
+  - [x] Single checkout: `deferred` and `commits` are `[]`, no log entry has `worktree`, no git process ran
+  - [x] Success: tests pass; full core suite passes
+  - [x] Commit: `feat(core): add routed fix application with scoped commits`
 
 ## Part 5 — CLI
 

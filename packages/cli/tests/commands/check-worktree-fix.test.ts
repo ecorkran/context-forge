@@ -1,35 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DeferReason } from '@context-forge/core';
+import { FIX_COMMIT_MESSAGE } from '@context-forge/core/node';
 import { registerCheckCommand } from '../../src/commands/check.js';
+import {
+  createGitWorktreeFixture,
+  git,
+  lastSubject,
+  porcelain,
+  writeRel,
+  type GitWorktreeFixture,
+} from '../../../core/tests/helpers/gitWorktreeFixture.js';
 
 /**
- * Integration coverage for Task 15 (slice 927, Part 3): `cf check --fix` must
- * apply fixes PER WORKTREE VIEW, before the merge, so that a logical finding
- * duplicated across two checkouts (now collapsed to one displayed finding by
- * the root-normalized dedup key, #100) still gets its underlying file fixed
- * in BOTH checkouts — not just the first one seen.
+ * `cf check --fix` with two real git checkouts (slice 213). Replaces the 927
+ * contract (every checkout with the finding is rewritten): a fix is written
+ * once, in the checkout that owns its subject, and committed there when that
+ * is not the invoking checkout. The non-owner copy is reported as deferred.
  *
- * check.test.ts and check-worktree-attribution.test.ts both mock
- * ConsistencyChecker entirely, so neither can see a bug in the real
- * file-write plumbing (updateCheckbox actually touching disk). This suite
- * uses the REAL ConsistencyChecker and ArtifactIntrospector over REAL temp
- * directories, following validate-worktree-scope.test.ts's (#88) precedent:
- * only FileProjectStore is mocked.
- *
- * Why this pins the fix (pre-Task-13/14 behavior): the old code ran
- * checker.check()/checkAll() per view, merged+deduped the results, and THEN
- * called checker.applyFixes() once on the already-merged result. Because the
- * merged result's fixAction.filePath for a deduped finding is only ever the
- * first-seen checkout's path, applyFixes(merged) would write ONE checkout's
- * file and silently leave the other checkout's stale checkbox untouched. The
- * assertions below read BOTH checkout files back off disk and require BOTH
- * to have flipped, and require TWO fixLog entries (one per checkout) even
- * though only ONE finding is displayed — a test that only checked "is there
- * at least one fix" or "does the displayed finding look right" would pass
- * under the old, broken behavior.
+ * Uses the REAL ConsistencyChecker over real git worktrees; only the project
+ * store, the cwd, and the y/N prompt are stubbed.
  */
 
 const mockGetAll = vi.fn();
@@ -42,8 +34,7 @@ vi.mock('@context-forge/core/node', async () => {
   return {
     ...actual,
     // A plain class, not vi.fn().mockImplementation — restoreAllMocks() in
-    // afterEach would strip the implementation and later tests would get a
-    // bare mock whose store has no getAll (see validate-worktree-scope.test.ts).
+    // afterEach would strip the implementation (see validate-worktree-scope.test.ts).
     FileProjectStore: class {
       getAll = mockGetAll;
       getById = mockGetById;
@@ -51,253 +42,217 @@ vi.mock('@context-forge/core/node', async () => {
   };
 });
 
+const events: string[] = [];
+const mockAskConfirmation = vi.fn<(prompt: string) => Promise<boolean>>();
+vi.mock('../../src/utils/confirm.js', () => ({
+  askConfirmation: (prompt: string) => {
+    events.push('prompt');
+    return mockAskConfirmation(prompt);
+  },
+}));
+
 const SLICE_INDEX = 250;
 const SLICE_NAME = 'wt-fix-test';
+const PLAN_REL = `project-documents/user/architecture/${SLICE_INDEX}-slices.${SLICE_NAME}.md`;
+const TASKS_REL = `project-documents/user/tasks/${SLICE_INDEX}-tasks.${SLICE_NAME}.md`;
 const PLAN_STEM = `${SLICE_INDEX}-slices.${SLICE_NAME}`;
-const TASK_FILE_NAME = `${SLICE_INDEX}-tasks.${SLICE_NAME}.md`;
-const PLAN_FILE_NAME = `${PLAN_STEM}.md`;
+const PROJECT_NAME = 'wt-fix-project';
 
 /**
- * Writes a task file whose every checkbox is checked, so parseTaskFile
- * reports inferredStatus === 'complete' (completedTasks === totalTasks > 0).
- * Checkbox syntax must match taskFileParser's CHECKBOX_RE:
- * /^(?:\s*)-\s+\[([ xX])\]\s+(.+)$/ — no frontmatter is required for parsing.
- *
- * Frontmatter carries every field the 'tasks' schema requires (docType,
- * slice, project, status, dateCreated, dateUpdated) with status already
- * "complete" — matching the computed inferredStatus — so this fixture
- * produces no frontmatter-schema (rule 12) or task-file-status (rule 5)
- * findings and isolates rule 1 (task-vs-plan) as the only fixable finding.
+ * Tasks complete (status already complete, so only rule 1 fires) and the plan
+ * entry unchecked: exactly one fixable finding, task-vs-plan for slice 250.
+ * Seeded before the worktree is added, so both checkouts hold the same state.
  */
-function writeCompleteTaskFile(checkoutRoot: string): void {
-  const dir = join(checkoutRoot, 'project-documents/user/tasks');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, TASK_FILE_NAME),
-    [
-      '---',
-      'docType: tasks',
-      `slice: ${SLICE_NAME}`,
-      `project: ${SLICE_NAME}`,
-      'status: complete',
-      'dateCreated: 20260101',
-      'dateUpdated: 20260101',
-      '---',
-      '',
-      '- [x] Task one',
-      '- [x] Task two',
-      '',
-    ].join('\n'),
+function seed(primary: string): void {
+  const dates = 'dateCreated: 20260101\ndateUpdated: 20260101';
+  writeRel(
+    primary,
+    TASKS_REL,
+    `---\ndocType: tasks\nslice: ${SLICE_NAME}\nproject: ${SLICE_NAME}\nstatus: complete\n${dates}\n---\n\n- [x] Task one\n- [x] Task two\n`,
+  );
+  writeRel(
+    primary,
+    PLAN_REL,
+    `---\ndocType: slice-plan\nproject: ${SLICE_NAME}\nstatus: in_progress\n${dates}\n---\n\n# Plan\n\n` +
+      `1. [ ] **(${SLICE_INDEX}) Worktree Fix Feature** — exercises routed fixing.\n`,
   );
 }
 
-/**
- * Writes a slice plan whose entry for SLICE_INDEX is UNCHECKED — the exact
- * shape that fires rule 1 (task-vs-plan): tasksComplete && !sliceChecked.
- * Entry line format must match slicePlanParser's PLAN_INDEXED_RE:
- * `N. [ ] **(IDX) Name** — description`. lineIndex is the 0-based raw line
- * number in the file (frontmatter counts), which is how updateCheckbox finds
- * the line to flip. Returns the 0-based line index of the entry, computed
- * the same way the parser computes it, so the test can assert on it
- * independently of ConsistencyChecker's own bookkeeping.
- *
- * Frontmatter carries every field the 'slice-plan' schema requires (docType,
- * project, status, dateCreated, dateUpdated) so this fixture produces no
- * frontmatter-schema (rule 12) finding that would insert a line and shift
- * entryLineIndex out from under the checkbox-fix assertions.
- */
-function writeUncheckedSlicePlan(checkoutRoot: string): { filePath: string; entryLineIndex: number } {
-  const dir = join(checkoutRoot, 'project-documents/user/architecture');
-  mkdirSync(dir, { recursive: true });
-  const filePath = join(dir, PLAN_FILE_NAME);
-  const lines = [
-    '---',
-    'docType: slice-plan',
-    `project: ${SLICE_NAME}`,
-    'status: in_progress',
-    'dateCreated: 20260101',
-    'dateUpdated: 20260101',
-    '---',
-    '',
-    '# Slice Plan: Worktree Fix Test',
-    '',
-    '## Feature Slices',
-    '',
-    `1. [ ] **(${SLICE_INDEX}) Worktree Fix Feature** — exercises per-view fixing.`,
-    '',
-  ];
-  const entryLineIndex = lines.findIndex((l) => l.includes(`(${SLICE_INDEX})`));
-  writeFileSync(filePath, lines.join('\n'));
-  return { filePath, entryLineIndex };
-}
-
-/** Reads the slice plan entry line back off disk and reports its checkbox state. */
-function readEntryCheckboxState(filePath: string, entryLineIndex: number): '[ ]' | '[x]' {
-  const content = readFileSync(filePath, 'utf-8');
-  const line = content.split('\n')[entryLineIndex];
-  if (line.includes('[x]') || line.includes('[X]')) return '[x]';
-  if (line.includes('[ ]')) return '[ ]';
-  throw new Error(`fixture error: line ${entryLineIndex} has no checkbox: "${line}"`);
-}
-
-interface FixLogEntry {
-  filePath: string;
-  rule: string;
-  before: string;
-  after: string;
+function entryState(checkout: string): '[ ]' | '[x]' {
+  const line = readFileSync(join(checkout, PLAN_REL), 'utf-8').split('\n').find((l) => l.includes(`(${SLICE_INDEX})`));
+  if (line?.includes('[x]')) return '[x]';
+  if (line?.includes('[ ]')) return '[ ]';
+  throw new Error(`fixture error: no checkbox on the ${SLICE_INDEX} entry`);
 }
 
 interface CheckJsonResult {
   findings: Array<{ description: string; rule: string }>;
-  totalFindings: number;
-  fixLog?: FixLogEntry[];
-  fixed?: number;
+  fixed: number;
+  fixLog: Array<{ filePath: string; rule: string; worktree?: { id: string; name: string } }>;
+  deferred: Array<{ reason: string; owner?: { name: string }; finding: { rule: string; worktree?: { name: string } } }>;
+  commits: Array<{ sha: string; checkoutPath: string; files: string[]; worktree?: { name: string } }>;
 }
 
-describe('cf check --fix — per-worktree-view fixing (slice 927, Task 15)', () => {
-  let tmpRoot: string;
-  let checkoutA: string;
-  let checkoutB: string;
-  let planA: { filePath: string; entryLineIndex: number };
-  let planB: { filePath: string; entryLineIndex: number };
+describe('cf check --fix — worktree-aware routing (slice 213)', () => {
+  let fx: GitWorktreeFixture;
+  let primary: string;
+  let wtb: string;
   let project: Record<string, unknown>;
-  let jsonOutput: string;
-  let capturedErrors: string[];
+  let stdout: string;
+  let logs: string[];
+  let errors: string[];
 
   beforeEach(() => {
-    capturedErrors = [];
-    jsonOutput = '';
+    fx = createGitWorktreeFixture(['b'], seed);
+    primary = fx.primary;
+    wtb = fx.worktrees.b;
+    stdout = '';
+    logs = [];
+    errors = [];
+    events.length = 0;
+    mockAskConfirmation.mockReset();
 
-    // realpath: on macOS process.cwd()-adjacent paths report /private/var while
-    // mkdtemp returns /var; ConfigManager/checker path comparisons are string
-    // comparisons, so normalize the same way validate-worktree-scope.test.ts does.
-    tmpRoot = realpathSync(mkdtempSync(join(tmpdir(), 'cf-wt-fix-')));
-    checkoutA = join(tmpRoot, 'checkout-a');
-    checkoutB = join(tmpRoot, 'checkout-b');
-    mkdirSync(checkoutA, { recursive: true });
-    mkdirSync(checkoutB, { recursive: true });
-
-    // Same fixable state (tasks complete, plan entry unchecked) in BOTH
-    // checkouts — the exact shape #100's dedup key collapses to one finding.
-    writeCompleteTaskFile(checkoutA);
-    writeCompleteTaskFile(checkoutB);
-    planA = writeUncheckedSlicePlan(checkoutA);
-    planB = writeUncheckedSlicePlan(checkoutB);
-
+    // b owns slice 250; primary owns the rest of the 200 band.
     project = {
       id: 'proj_wt_fix',
-      name: 'wt-fix-project',
+      name: PROJECT_NAME,
       template: 'default',
-      projectPath: checkoutA,
+      projectPath: primary,
       fileSlicePlan: PLAN_STEM,
       worktrees: [
-        {
-          id: 'wt_a',
-          name: 'alpha',
-          indexRange: [200, 299],
-          worktreePath: checkoutA,
-          slicePlan: PLAN_STEM,
-        },
-        {
-          id: 'wt_b',
-          name: 'beta',
-          indexRange: [200, 299],
-          worktreePath: checkoutB,
-          slicePlan: PLAN_STEM,
-          rangeOverride: true,
-        },
+        { id: 'wt_a', name: 'alpha', indexRange: [200, 249], worktreePath: primary, slicePlan: PLAN_STEM },
+        { id: 'wt_b', name: 'beta', indexRange: [250, 259], worktreePath: wtb, slicePlan: PLAN_STEM },
       ],
     };
-
     mockGetAll.mockResolvedValue([project]);
     mockGetById.mockResolvedValue(project);
 
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process, 'cwd').mockReturnValue(primary);
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      const line = args.map(String).join(' ');
+      logs.push(line);
+      events.push(line);
+    });
     vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      capturedErrors.push(args.map(String).join(' '));
+      errors.push(args.map(String).join(' '));
     });
     vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
-      jsonOutput += String(chunk);
+      stdout += String(chunk);
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: unknown) => {
+      errors.push(String(chunk));
       return true;
     });
     vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-      throw new Error(
-        `cf exited ${code}: ${capturedErrors.join(' | ') || '(no stderr captured)'}`,
-      );
+      throw new Error(`cf exited ${code}: ${errors.join(' | ') || '(no stderr captured)'}`);
     }) as never);
     process.exitCode = undefined;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    rmSync(tmpRoot, { recursive: true, force: true });
+    fx.cleanup();
   });
 
-  function createProgram(): Command {
+  async function run(...args: string[]): Promise<void> {
     const program = new Command();
     program.exitOverride();
     registerCheckCommand(program);
-    return program;
+    await program.parseAsync(['node', 'cf', 'check', '--project', PROJECT_NAME, ...args]);
   }
 
-  function parseJsonOutput(): CheckJsonResult {
-    if (!jsonOutput) {
-      throw new Error(`no JSON on stdout; stderr was: ${capturedErrors.join(' | ') || '(empty)'}`);
-    }
-    return JSON.parse(jsonOutput);
+  function json(): CheckJsonResult {
+    if (!stdout) throw new Error(`no JSON on stdout; stderr was: ${errors.join(' | ') || '(empty)'}`);
+    return JSON.parse(stdout);
   }
 
-  it('single-slice --fix flips the checkbox on disk in both checkouts and logs two fixes', async () => {
-    const program = createProgram();
-    await program.parseAsync([
-      'node', 'cf', 'check',
-      '--slice', String(SLICE_INDEX),
-      '--project', 'wt-fix-project',
-      '--fix', '--json',
-    ]);
+  /** The 213 contract: written once in b (the owner) and committed there; primary's copy deferred. */
+  function expectRoutedToOwner(result: CheckJsonResult): void {
+    expect(entryState(wtb)).toBe('[x]');
+    expect(entryState(primary)).toBe('[ ]');
+    expect(result.fixed).toBe(1);
+    expect(result.fixLog).toHaveLength(1);
+    expect(result.fixLog[0].worktree?.name).toBe('beta');
+    expect(result.deferred).toHaveLength(1);
+    expect(result.deferred[0].reason).toBe(DeferReason.NOT_OWNER);
+    expect(result.deferred[0].owner?.name).toBe('beta');
+    expect(result.deferred[0].finding.worktree?.name).toBe('alpha');
+    // SC 3, 4: one scoped commit in b with the defined message; b's tree is clean.
+    expect(result.commits).toHaveLength(1);
+    expect(result.commits[0].files).toEqual([PLAN_REL]);
+    expect(result.commits[0].sha).toBe(git(wtb, 'rev-parse', 'HEAD'));
+    expect(lastSubject(wtb)).toBe(FIX_COMMIT_MESSAGE);
+    expect(porcelain(wtb)).toBe('');
+  }
 
-    const result = parseJsonOutput();
-
-    // Both checkouts' files must actually be rewritten on disk. Under the
-    // pre-Task-13 behavior (fix applied to the merged/deduped result), only
-    // the first-seen checkout's file would flip — this pair of assertions
-    // fails outright if either checkout is skipped.
-    expect(readEntryCheckboxState(planA.filePath, planA.entryLineIndex)).toBe('[x]');
-    expect(readEntryCheckboxState(planB.filePath, planB.entryLineIndex)).toBe('[x]');
-
-    // Two fixLog entries — one per checkout — even though the merge collapses
-    // the underlying finding to a single displayed entry (asserted below).
-    expect(result.fixLog).toBeDefined();
-    expect(result.fixLog).toHaveLength(2);
-    const fixedPaths = (result.fixLog ?? []).map((e) => e.filePath).sort();
-    expect(fixedPaths).toEqual([planA.filePath, planB.filePath].sort());
-    expect(result.fixed).toBe(2);
+  it('single-slice --fix writes only the owner\'s copy and commits it there', async () => {
+    await run('--slice', String(SLICE_INDEX), '--fix', '--json');
+    expectRoutedToOwner(json());
   });
 
-  it('all-slices --fix --yes flips both checkouts on disk while showing one deduped finding', async () => {
-    const program = createProgram();
-    await program.parseAsync([
-      'node', 'cf', 'check',
-      '--project', 'wt-fix-project',
-      '--fix', '--yes', '--json',
-    ]);
+  it('all-slices --fix --yes routes the same way and shows one deduped finding', async () => {
+    await run('--fix', '--yes', '--json');
+    const result = json();
+    expectRoutedToOwner(result);
+    expect(result.findings.filter((f) => f.rule === 'task-vs-plan')).toHaveLength(1);
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+  });
 
-    const result = parseJsonOutput();
+  it('from an unregistered checkout, --fix fails with the D5b error and writes nothing', async () => {
+    const stray = join(fx.root, 'wt-stray');
+    git(primary, 'worktree', 'add', '-q', '-b', 'stray', stray);
+    vi.mocked(process.cwd).mockReturnValue(stray);
 
-    expect(readEntryCheckboxState(planA.filePath, planA.entryLineIndex)).toBe('[x]');
-    expect(readEntryCheckboxState(planB.filePath, planB.entryLineIndex)).toBe('[x]');
+    await expect(run('--fix', '--yes', '--json')).rejects.toThrow(/cf exited 1/);
+    expect(errors.join('\n')).toMatch(/not a registered worktree/);
+    expect(stdout).toBe('');
+    expect(entryState(wtb)).toBe('[ ]');
+    expect(entryState(primary)).toBe('[ ]');
+    expect(porcelain(wtb)).toBe('');
+  });
 
-    expect(result.fixLog).toBeDefined();
-    expect(result.fixLog).toHaveLength(2);
-    const fixedPaths = (result.fixLog ?? []).map((e) => e.filePath).sort();
-    expect(fixedPaths).toEqual([planA.filePath, planB.filePath].sort());
-    expect(result.fixed).toBe(2);
+  it('read-only cf check from an unregistered checkout is unaffected', async () => {
+    const stray = join(fx.root, 'wt-stray');
+    git(primary, 'worktree', 'add', '-q', '-b', 'stray', stray);
+    vi.mocked(process.cwd).mockReturnValue(stray);
 
-    // The dedup key (root-normalized, #100) collapses the same logical
-    // task-vs-plan finding from both checkouts into ONE displayed finding —
-    // this is what makes "only the first checkout gets fixed" a silent bug
-    // rather than an obviously-wrong doubled count.
-    const taskVsPlanFindings = result.findings.filter((f) => f.rule === 'task-vs-plan');
-    expect(taskVsPlanFindings).toHaveLength(1);
+    await run('--json');
+    expect(json().findings.some((f) => f.rule === 'task-vs-plan')).toBe(true);
+  });
+
+  it('all-slices --fix previews the routed plan before prompting; declining writes nothing', async () => {
+    mockAskConfirmation.mockResolvedValue(false);
+    await run('--fix');
+
+    const planAt = events.findIndex((e) => e.includes('Fix plan'));
+    const promptAt = events.indexOf('prompt');
+    expect(planAt).toBeGreaterThan(-1);
+    expect(promptAt).toBeGreaterThan(planAt);
+    const preview = events.slice(planAt, promptAt).join('\n');
+    expect(preview).toContain('[beta]');
+    expect(preview).toContain(`will commit in ${wtb}`);
+    expect(preview).toContain('Left alone 1 fix(es)');
+    expect(preview).toContain('stale copy; owned by beta');
+    expect(entryState(wtb)).toBe('[ ]');
+    expect(porcelain(wtb)).toBe('');
+  });
+
+  it('workflow.auto_fix: a plain cf check routes and commits without prompting (SC 11)', async () => {
+    writeFileSync(join(primary, '.context-forge.toml'), '[workflow]\nauto_fix = true\n');
+    await run('--json');
+    expectRoutedToOwner(json());
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+  });
+
+  it('single checkout --fix --json: deferred and commits are empty, no worktree on log entries', async () => {
+    project.worktrees = undefined;
+    await run('--fix', '--yes', '--json');
+    const result = json();
+    expect(entryState(primary)).toBe('[x]');
+    expect(result.fixed).toBe(1);
+    expect(result.deferred).toEqual([]);
+    expect(result.commits).toEqual([]);
+    expect(result.fixLog.some((e) => 'worktree' in e)).toBe(false);
   });
 });
