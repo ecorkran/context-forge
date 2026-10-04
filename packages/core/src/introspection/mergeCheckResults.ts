@@ -176,7 +176,7 @@ export function mergeCheckResults(
  * root-normalized rules. `fixed` is summed and `fixLog`/`fixErrors` are
  * concatenated in result order, with no dedup — each entry is a real write to
  * a distinct file in its own checkout, so collapsing them would hide that a
- * fix was applied there.
+ * fix was applied there. `deferred` and `commits` concatenate the same way.
  */
 export function mergeFixResults(
   results: ConsistencyFixResult[],
@@ -186,5 +186,7 @@ export function mergeFixResults(
   const fixed = results.reduce((sum, r) => sum + r.fixed, 0);
   const fixLog = results.flatMap((r) => r.fixLog);
   const fixErrors = results.flatMap((r) => r.fixErrors);
-  return { ...merged, fixed, fixLog, fixErrors };
+  const deferred = results.flatMap((r) => r.deferred);
+  const commits = results.flatMap((r) => r.commits);
+  return { ...merged, fixed, fixLog, fixErrors, deferred, commits };
 }

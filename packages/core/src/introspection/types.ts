@@ -259,6 +259,13 @@ export interface ConsistencyFinding {
     type: 'update-checkbox' | 'update-frontmatter';
     filePath: string;
     detail: Record<string, unknown>;
+    /**
+     * Index of the document or plan entry this fix is about — the fix's
+     * subject, which decides which checkout owns it (slice 213 D1). Set from
+     * a parsed index field by the rule, never parsed from a label. `null` when
+     * the subject has no index (e.g. an unindexed filename).
+     */
+    subjectIndex: number | null;
   };
   /** The worktree whose view produced this finding. Attached before the merge. */
   worktree?: FindingWorktree;
@@ -283,6 +290,40 @@ export interface FixLogEntry {
   field?: string;
   before: string;
   after: string;
+  /** The checkout the fix was written in. Present only with 2+ worktrees. */
+  worktree?: FindingWorktree;
+}
+
+/** Why a fixable finding was not written (slice 213 D6). */
+export const DeferReason = {
+  NOT_OWNER: 'not-owner',
+  OWNER_UNRESOLVED: 'owner-unresolved',
+  NOT_A_CHECKOUT: 'not-a-checkout',
+  FILE_DIRTY: 'file-dirty',
+  CHECKOUT_BUSY: 'checkout-busy',
+  DETACHED_HEAD: 'detached-head',
+  COMMIT_FAILED: 'commit-failed',
+} as const;
+
+export type DeferReasonValue = (typeof DeferReason)[keyof typeof DeferReason];
+
+/** A fixable finding that was left unwritten, with the reason. */
+export interface DeferredFix {
+  finding: ConsistencyFinding;
+  reason: DeferReasonValue;
+  /** The checkout that owns the fix's subject (NOT_OWNER). */
+  owner?: FindingWorktree;
+  /** Git's error text (COMMIT_FAILED). */
+  detail?: string;
+}
+
+/** A commit made into a non-invoking checkout by a fix run. */
+export interface CheckoutCommit {
+  worktree?: FindingWorktree;
+  checkoutPath: string;
+  sha: string;
+  /** Committed paths, relative to `checkoutPath`. */
+  files: string[];
 }
 
 /** Result of running consistency checks with fix mode enabled */
@@ -290,6 +331,10 @@ export interface ConsistencyFixResult extends ConsistencyCheckResult {
   fixed: number;
   fixLog: FixLogEntry[];
   fixErrors: string[];
+  /** Fixes not written, with reasons. Always empty for single-checkout projects. */
+  deferred: DeferredFix[];
+  /** Commits made into non-invoking checkouts. Always empty for single-checkout projects. */
+  commits: CheckoutCommit[];
 }
 
 // --- WorkflowNavigator types ---

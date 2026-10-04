@@ -248,7 +248,7 @@ export class ConsistencyChecker {
       }
     }
 
-    return { ...checkResult, fixed, fixLog, fixErrors };
+    return { ...checkResult, fixed, fixLog, fixErrors, deferred: [], commits: [] };
   }
 
   // --- Per-slice check logic ---
@@ -280,18 +280,18 @@ export class ConsistencyChecker {
       ...this.ruleTaskVsPlan(taskResult, planEntry, slicePlanPath, slicePlanResult, sliceIndex),
     );
     findings.push(
-      ...this.ruleFrontmatterVsComputed(sliceFrontmatter, taskResult, sliceDesignRel, projectPath),
+      ...this.ruleFrontmatterVsComputed(sliceFrontmatter, taskResult, sliceDesignRel, projectPath, sliceIndex),
     );
     findings.push(
       ...this.ruleMissingArtifacts(docs, planEntry, sliceIndex),
     );
     findings.push(
-      ...this.rulePlanVsFrontmatter(planEntry, sliceFrontmatter, slicePlanPath, sliceDesignRel, projectPath),
+      ...this.rulePlanVsFrontmatter(planEntry, sliceFrontmatter, slicePlanPath, sliceDesignRel, projectPath, sliceIndex),
     );
 
     const taskFileFrontmatter = await this.safeParseTaskFileFrontmatter(docs?.taskFile, projectPath);
     findings.push(
-      ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter),
+      ...this.ruleTaskFileStatus(taskResult, taskFileFrontmatter, sliceIndex),
     );
 
     findings.push(
@@ -330,6 +330,7 @@ export class ConsistencyChecker {
           type: 'update-checkbox',
           filePath: slicePlanPath,
           detail: { lineIndex: planEntry.lineIndex, checked: true, entryIndex: sliceIndex },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -346,6 +347,7 @@ export class ConsistencyChecker {
           type: 'update-checkbox',
           filePath: slicePlanPath,
           detail: { lineIndex: planEntry.lineIndex, checked: false, entryIndex: sliceIndex },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -374,6 +376,7 @@ export class ConsistencyChecker {
     taskResult: TaskFileResult | null,
     sliceDesignRelPath: string | null,
     projectPath: string,
+    sliceIndex: number,
   ): ConsistencyFinding[] {
     const findings: ConsistencyFinding[] = [];
 
@@ -399,6 +402,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -415,6 +419,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -434,6 +439,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -488,6 +494,7 @@ export class ConsistencyChecker {
     slicePlanPath: string | null,
     sliceDesignRelPath: string | null,
     projectPath: string,
+    sliceIndex: number,
   ): ConsistencyFinding[] {
     const findings: ConsistencyFinding[] = [];
 
@@ -512,6 +519,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: sliceDesignFullPath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -528,6 +536,7 @@ export class ConsistencyChecker {
           type: 'update-checkbox',
           filePath: slicePlanPath,
           detail: { lineIndex: planEntry.lineIndex, checked: true },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -539,6 +548,7 @@ export class ConsistencyChecker {
   private ruleTaskFileStatus(
     taskResult: TaskFileResult | null,
     taskFrontmatter: FrontmatterResult | null,
+    sliceIndex: number,
   ): ConsistencyFinding[] {
     const findings: ConsistencyFinding[] = [];
 
@@ -561,6 +571,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: taskFilePath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -577,6 +588,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: taskFilePath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: sliceIndex,
         },
       });
     }
@@ -788,6 +800,7 @@ export class ConsistencyChecker {
     if (!planFrontmatter.found) return findings;
 
     const allComplete = slicePlanResult.completedSlices === slicePlanResult.totalSlices;
+    const planIndex = ConsistencyChecker.extractFileIndex(slicePlanPath);
 
     // Missing status is now handled by Rule 12 (frontmatter-schema)
     if (!planFrontmatter.data.status) return findings;
@@ -807,6 +820,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: slicePlanPath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: planIndex,
         },
       });
     }
@@ -823,6 +837,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: slicePlanPath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: planIndex,
         },
       });
     }
@@ -907,6 +922,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: archPath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: archIndex,
         },
       });
     }
@@ -923,6 +939,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: archPath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: archIndex,
         },
       });
     }
@@ -981,6 +998,7 @@ export class ConsistencyChecker {
             type: 'update-checkbox',
             filePath: initiativePlanPath,
             detail: { lineIndex: entry.lineIndex, checked: true, entryIndex: entry.index },
+            subjectIndex: entry.index,
           },
         });
       }
@@ -997,6 +1015,7 @@ export class ConsistencyChecker {
             type: 'update-frontmatter',
             filePath: archPath,
             detail: { key: 'status', value: STATUS.Complete },
+            subjectIndex: entry.index,
           },
         });
       }
@@ -1046,6 +1065,7 @@ export class ConsistencyChecker {
 
     // Lenient read: on-disk documents may carry any historical spelling
     const planStatus = normalizeStatus(planFrontmatter.data.status);
+    const initiativeIndex = ConsistencyChecker.extractFileIndex(initiativePlanPath);
     const allComplete =
       initiativePlanResult.totalSlices > 0 &&
       initiativePlanResult.completedSlices === initiativePlanResult.totalSlices;
@@ -1062,6 +1082,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: initiativePlanPath,
           detail: { key: 'status', value: STATUS.InProgress },
+          subjectIndex: initiativeIndex,
         },
       });
     }
@@ -1078,6 +1099,7 @@ export class ConsistencyChecker {
           type: 'update-frontmatter',
           filePath: initiativePlanPath,
           detail: { key: 'status', value: STATUS.Complete },
+          subjectIndex: initiativeIndex,
         },
       });
     }
@@ -1219,6 +1241,7 @@ export class ConsistencyChecker {
             type: sf.fixAction.type as 'update-frontmatter',
             filePath: docPath,
             detail: { key: sf.fixAction.field, value: sf.fixAction.value },
+            subjectIndex: ConsistencyChecker.extractFileIndex(docPath),
           };
         }
 
