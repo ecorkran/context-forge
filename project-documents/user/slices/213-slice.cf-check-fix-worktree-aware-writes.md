@@ -195,7 +195,9 @@ Observable changes (two or more worktrees only):
   - The rollup lands when B's work merges into the primary checkout's branch and `cf check --fix` runs there. Under 927 it was written on B's branch immediately.
   - This is intended: a parent document is not done until the work has merged.
 
-External consumers: Squadron was checked (20261004), and no code parses `workflow_check` or `cf check --fix` output.
+External consumers: Squadron was checked (20261004).
+- Its only cf invocations are `list`, `get`, `config get`, `--version`, and `validate frontmatter`. Nothing parses check or fix output.
+- The `/cf:check` slash command shows output raw, and the vendored guide's mentions of `workflow_check` are prose. Neither depends on the output shape.
 
 ### D5 — Readiness guards before touching another checkout
 
@@ -362,6 +364,7 @@ cfl worktree init --name b --range 950-959 --path ../wt-b
 ### Technical Risks
 
 - **Committing on another person's or agent's branch.** This is the slice's deliberate trade. Even scoped to fixed paths and guarded, it is a commit nobody in that checkout asked for. A concurrent git process there can also make the commit fail midway.
+- **Automation running in the target checkout.** Squadron's pipeline commit logic (squadron slice 196, in progress) scopes its commits to planned paths and checks git state before committing. A `--fix` run from another checkout can commit into a worktree where a pipeline is running, and the pipeline then sees a commit it didn't make. Nothing in Squadron calls `cf check` today, so this needs a person or agent running `--fix` at the same time. This slice accepts that. Squadron should treat a foreign `docs:` commit touching only project documents as benign.
 - **Subject index coverage.** A rule that forgets `subjectIndex` would route by `null` to the primary checkout, which could silently move a worktree-owned fix to the wrong checkout.
 
 ### Mitigation Strategies
