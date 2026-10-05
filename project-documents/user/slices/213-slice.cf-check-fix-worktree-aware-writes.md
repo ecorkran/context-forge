@@ -215,7 +215,7 @@ This changes MCP. `workflow_check` previously treated `project.projectPath` as t
 
 ### D6 — Deferral reasons are an enum
 
-`DeferReason` is defined once in core: `NOT_OWNER`, `OWNER_UNRESOLVED`, `NOT_A_CHECKOUT`, `FILE_DIRTY`, `CHECKOUT_BUSY`, `DETACHED_HEAD`, `COMMIT_FAILED`. CLI text, MCP JSON, and tests all reference the constants. Display strings live in one CLI map keyed by the enum.
+`DeferReason` is defined once in core: `NOT_OWNER`, `OWNER_UNRESOLVED`, `NOT_A_CHECKOUT`, `FILE_DIRTY`, `CHECKOUT_BUSY`, `DETACHED_HEAD`, `COMMIT_FAILED`, `READINESS_FAILED`. A git error or timeout while probing a checkout's readiness defers that checkout's fixes as `READINESS_FAILED` (with git's error text) instead of aborting the run, so commits already made elsewhere are still reported. CLI text, MCP JSON, and tests all reference the constants. Display strings live in one CLI map keyed by the enum.
 
 ### D7 — Relationship to slice 927
 
@@ -266,9 +266,9 @@ interface FixLogEntry { /* existing */ worktree?: FindingWorktree }
 
 const DeferReason = { NOT_OWNER: 'not-owner', OWNER_UNRESOLVED: 'owner-unresolved',
   NOT_A_CHECKOUT: 'not-a-checkout', FILE_DIRTY: 'file-dirty', CHECKOUT_BUSY: 'checkout-busy',
-  DETACHED_HEAD: 'detached-head', COMMIT_FAILED: 'commit-failed' } as const;
+  DETACHED_HEAD: 'detached-head', COMMIT_FAILED: 'commit-failed', READINESS_FAILED: 'readiness-failed' } as const;
 
-interface DeferredFix { finding: ConsistencyFinding; reason: DeferReasonValue; owner?: FindingWorktree; detail?: string }  // detail: git error text (COMMIT_FAILED)
+interface DeferredFix { finding: ConsistencyFinding; reason: DeferReasonValue; owner?: FindingWorktree; detail?: string }  // detail: git error text (COMMIT_FAILED, READINESS_FAILED)
 interface CheckoutCommit { worktree?: FindingWorktree; checkoutPath: string; sha: string; files: string[] }
 
 interface ConsistencyFixResult { /* existing */ deferred: DeferredFix[]; commits: CheckoutCommit[] }
