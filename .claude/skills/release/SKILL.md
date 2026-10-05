@@ -31,11 +31,11 @@ The four publishable packages release in lockstep at one version: `packages/core
 
 Read `## [Unreleased]` in CHANGELOG.md. If it is empty, draft entries from `git log vPREV..HEAD --oneline` (user-facing `feat`/`fix` commits, with issue numbers) and add them before continuing.
 
-- Anything under `### Added` → minor bump.
-- Otherwise → patch bump.
-- Major bump only after the user confirms it explicitly.
+- **Patch is the default.** It covers fixes, refinements, and new flags, options, parameters, config keys and checks. An `### Added` section or a non-empty changelog does not by itself mean minor.
+- **Minor** only for a new user-facing feature or a significant new AI capability. Propose it in one line with the reason, and wait for the PM to confirm before changing any files.
+- **Major** only when the PM explicitly asks for it.
 
-State the chosen version in one line and proceed (no confirmation for patch/minor).
+For a patch, state the chosen version in one line and proceed.
 
 ## 5. Bump and document
 
