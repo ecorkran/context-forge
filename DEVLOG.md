@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-05
+
+### Release 0.19.0
+
+- **Contents:** Slice 213 — `cf check --fix` and MCP `workflow_check` are worktree-aware: each fix is written once in the checkout that owns it, fixes in other checkouts are committed there (never pushed), and unsafe or stale targets are deferred with a reason (`deferred[]`, `commits[]`, `fixLog[].worktree` in JSON). A failed git readiness check now defers that checkout instead of aborting the run. Removed unrouted `ConsistencyChecker.fix()` / `fixAll()` from `@context-forge/core`.
+
+Tags: @context-forge/core@0.19.0, @context-forge/cli@0.19.0, @context-forge/mcp@0.19.0, @context-forge/context-forge@0.19.0
+
 ## 2026-10-04
 
 ### Release 0.18.4

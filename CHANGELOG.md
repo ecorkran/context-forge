@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 20261005
+
 ### Changed
 
 - **`cf check --fix` with worktrees now writes each fix once, in the checkout that owns it.** Ownership follows the worktrees' index ranges; unclaimed documents belong to the main project checkout. Fixes in the checkout you run from stay uncommitted. Fixes in another checkout are committed there, scoped to the fixed files, with `docs: update project documents in response to cf check --fix`, and never pushed. Stale copies, unsafe checkouts (missing, detached HEAD, mid-merge/rebase, or a git check that fails or times out), files with uncommitted edits, and commits rejected by hooks are left alone and listed with a reason. Before, `--fix` rewrote every checkout that had the finding and left the edits uncommitted. With two or more worktrees, `fixed` and `fixLog` now count only the writes made, so they can be smaller than in 0.18.x for the same tree. MCP `workflow_check` (`fix: true`) routes the same way and now treats the server's working directory as the invoking checkout
