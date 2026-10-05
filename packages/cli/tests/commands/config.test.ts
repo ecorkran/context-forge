@@ -136,6 +136,54 @@ describe('cf config get', () => {
   });
 });
 
+describe('cf config get --value', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit ${code}`);
+    }) as never);
+  });
+
+  it('prints only the bare value, unstyled', async () => {
+    mockGet.mockResolvedValue({ key: 'guide.source', value: 'https://example.com', source: 'project', description: 'x' });
+    await createProgram().parseAsync(['node', 'cf', 'config', 'get', 'guide.source', '--value']);
+    expect(vi.mocked(console.log).mock.calls).toEqual([['https://example.com']]);
+  });
+
+  it('prints an empty line for a known key with no value', async () => {
+    mockGet.mockResolvedValue({ key: 'git.integration_branch', value: '', source: 'default', description: '' });
+    await createProgram().parseAsync(['node', 'cf', 'config', 'get', 'git.integration_branch', '--value']);
+    expect(vi.mocked(console.log).mock.calls).toEqual([['']]);
+  });
+
+  it('exits 2 for an unknown key without reading config', async () => {
+    await expect(
+      createProgram().parseAsync(['node', 'cf', 'config', 'get', 'no.such.key', '--value']),
+    ).rejects.toThrow('exit 2');
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(vi.mocked(console.log)).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 for other errors (config read failure)', async () => {
+    mockGet.mockRejectedValue(new Error('TOML parse error'));
+    await expect(
+      createProgram().parseAsync(['node', 'cf', 'config', 'get', 'guide.source', '--value']),
+    ).rejects.toThrow('exit 1');
+  });
+
+  it('exits 1 without a key', async () => {
+    await expect(createProgram().parseAsync(['node', 'cf', 'config', 'get', '--value'])).rejects.toThrow('exit 1');
+  });
+
+  it('is listed in --help', () => {
+    const program = createProgram();
+    const getCmd = program.commands.find((c) => c.name() === 'config')!.commands.find((c) => c.name() === 'get')!;
+    expect(getCmd.helpInformation()).toContain('--value');
+  });
+});
+
 describe('cf config set', () => {
   beforeEach(() => {
     vi.clearAllMocks();

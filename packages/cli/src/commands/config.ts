@@ -58,6 +58,12 @@ async function resolveScopeAndPath(opts: {
   return { scope: 'project', projectPath };
 }
 
+/**
+ * Exit code for `cf config get --value` on an unknown key, so a script can tell
+ * "this cf has no such key" (2) apart from any other failure (1).
+ */
+const UNKNOWN_KEY_EXIT_CODE = 2;
+
 export function registerConfigCommand(program: Command): void {
   const cmd = program
     .command('config')
@@ -66,8 +72,20 @@ export function registerConfigCommand(program: Command): void {
   const getCmd = cmd.command('get [key]').description('Get a configuration key, or show all keys if none specified');
   withJsonOption(getCmd);
   getCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
-  getCmd.action(async (key: string | undefined, opts: { json?: boolean; project?: string | true }) => {
+  getCmd.option(
+    '--value',
+    'Print only the bare value (empty line if unset), for scripts. Exit 2 for an unknown key, 1 for other errors',
+  );
+  getCmd.action(async (key: string | undefined, opts: { json?: boolean; project?: string | true; value?: boolean }) => {
+      // Outside the try: its catch would turn this exit into the generic exit 1.
+      if (opts.value && key && !CONFIG_KEYS[key]) {
+        handleError(new UserError(`Unknown config key: "${key}"`), UNKNOWN_KEY_EXIT_CODE);
+      }
       try {
+        if (opts.value) {
+          if (!key) throw new UserError('--value needs a key: cf config get <key> --value');
+          if (opts.json) throw new UserError('--value and --json cannot be combined');
+        }
         const projectArg = opts.project === true ? undefined : opts.project;
         const projectPath = await resolveConfigProjectPath(projectArg);
         const cm = new ConfigManager(projectPath);
@@ -89,6 +107,11 @@ export function registerConfigCommand(program: Command): void {
         }
 
         const result = await cm.get(key);
+
+        if (opts.value) {
+          console.log(String(result.value ?? ''));
+          return;
+        }
 
         if (opts.json) {
           printJson(result);
