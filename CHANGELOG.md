@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`cf setup-ide <target> --dry-run`** previews the files the guide's setup-ide would add, change, or remove, and writes nothing: no overwrite prompt, no `.bak` backups, no worktree propagation, no global command install. Needs a guide newer than v0.19.4; with an older guide cf refuses and points at `cf guides update` instead of running a real install
+- **`cf setup-ide <target> --dry-run`** previews the files the guide's setup-ide would add, change, or remove, and writes nothing: no overwrite prompt, no `.bak` backups, no worktree propagation, no global command install. Needs guide v0.20.0+; with an older guide cf refuses and points at `cf guides update` instead of running a real install
+- **`cf setup-ide <target> --write-lint`** passes through to the guide's setup-ide, which writes the missing lint configs it reports for the project's languages (`ruff.toml`, `eslint.config.mjs`, `analysis_options.yaml`, `.editorconfig`, `Directory.Build.props`). Combine with `--dry-run` to preview them. Needs guide v0.20.0+; refused on older guides the same way
 
 ## [0.19.0] - 20261005
 

@@ -102,6 +102,7 @@ cf setup-ide copilot       # Install rules/skills for VS Code Copilot
 cf setup-ide cursor        # Install scoped rules for Cursor, always-on rules in AGENTS.md
 cf setup-ide codex         # Write AGENTS.md + skills for OpenAI Codex (aliases: openai, agents)
 cf setup-ide claude --dry-run  # Preview what setup-ide would add/change/remove; writes nothing
+cf setup-ide claude --write-lint  # Also write missing lint configs (eslint.config.mjs, ruff.toml, ...)
 cf install-commands              # Install /cf:* slash commands for Claude Code (machine-level)
 cf install-commands --ide codex  # Install $cf-* agent skills for Codex (machine-level)
 cf install-commands --local      # Project-local install (either target)

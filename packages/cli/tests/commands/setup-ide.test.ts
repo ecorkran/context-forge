@@ -358,6 +358,44 @@ describe('cf setup-ide', () => {
     expect(errOutput).toContain('cf guides update');
   });
 
+  it('--write-lint passes through; combined with --dry-run both flags reach the script', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+    mockReadFileSync.mockImplementation((p: string) =>
+      p === scriptPath ? '--dry-run) DRY_RUN=1 ;; --write-lint) WRITE_LINT=1 ;;' : UNMANAGED_CONTENT,
+    );
+
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--write-lint', '--project', 'proj_001']);
+    expect(mockExecFileSync).toHaveBeenLastCalledWith('bash', [scriptPath, 'claude', '--write-lint'], expect.anything());
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
+
+    mockInstallCommandsForTarget.mockClear();
+    await createProgram().parseAsync([
+      'node', 'cf', 'setup-ide', '--write-lint', 'claude', '--dry-run', '--project', 'proj_001',
+    ]);
+    expect(mockExecFileSync).toHaveBeenLastCalledWith(
+      'bash',
+      [scriptPath, 'claude', '--dry-run', '--write-lint'],
+      expect.anything(),
+    );
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
+  });
+
+  it('--write-lint refuses a guide whose script supports --dry-run but not --write-lint', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? '--dry-run) DRY_RUN=1 ;;' : UNMANAGED_CONTENT));
+
+    await createProgram().parseAsync([
+      'node', 'cf', 'setup-ide', 'claude', '--dry-run', '--write-lint', '--project', 'proj_001',
+    ]);
+
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('does not support --write-lint');
+    expect(errOutput).not.toContain('--dry-run,');
+  });
+
   it('handles non-zero script exit code', async () => {
     mockDetect.mockResolvedValue({ installed: true });
     mockExistsSync.mockImplementation((p: string) => {

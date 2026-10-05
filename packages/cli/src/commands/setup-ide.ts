@@ -62,19 +62,26 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
   return false;
 }
 
-/** The guide setup-ide script's preview flag; also how cf detects that a guide supports it. */
+/**
+ * Flags cf passes through to the guide's setup-ide script. Each literal is also
+ * how cf detects support: guides up to v0.19.4 read only $1 and ignore extra
+ * arguments, so a flag the script never mentions would be silently dropped.
+ */
 const DRY_RUN_FLAG = '--dry-run';
+const WRITE_LINT_FLAG = '--write-lint';
 
 /**
  * Run IDE setup for a project. Errors propagate to the caller. Returns true when
  * the guide script ran, false when the user declined the overwrite prompt.
  * With `dryRun`, the guide script previews its changes and writes nothing, so
  * the overwrite prompt and cf's own marker-file backups are skipped too.
+ * With `writeLint`, the guide script also writes the missing lint configs it
+ * reports. Both are refused when the installed guide's script does not handle them.
  */
 export async function setupIdeAction(
   projectPath: string,
   target: string,
-  opts?: { yes?: boolean; dryRun?: boolean }
+  opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean }
 ): Promise<boolean> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
@@ -110,11 +117,19 @@ export async function setupIdeAction(
     );
   }
 
-  // Guides up to v0.19.4 read only $1 and ignore extra arguments, so passing
-  // --dry-run to one of them would run a real install with cf's backups skipped.
-  // Refuse unless the script itself handles the flag.
-  if (opts?.dryRun && !fs.readFileSync(scriptPath, 'utf-8').includes(DRY_RUN_FLAG)) {
-    throw new UserError(`This guide version does not support ${DRY_RUN_FLAG}. Run 'cf guides update' and retry.`);
+  // Refuse a flag the script does not handle: an older guide would ignore it,
+  // and an ignored --dry-run runs a real install with cf's backups skipped.
+  const passFlags = [opts?.dryRun && DRY_RUN_FLAG, opts?.writeLint && WRITE_LINT_FLAG].filter(
+    (f): f is string => typeof f === 'string',
+  );
+  if (passFlags.length > 0) {
+    const script = fs.readFileSync(scriptPath, 'utf-8');
+    const unsupported = passFlags.filter((f) => !script.includes(f));
+    if (unsupported.length > 0) {
+      throw new UserError(
+        `This guide version does not support ${unsupported.join(', ')}. Run 'cf guides update' and retry.`,
+      );
+    }
   }
 
   // Safety check — descriptor-driven, identical shape for every target
@@ -149,7 +164,7 @@ export async function setupIdeAction(
   // else: managed install or dry run — proceed silently
 
   // Run the setup-ide script
-  const scriptArgs = opts?.dryRun ? [scriptPath, normalizedTarget, DRY_RUN_FLAG] : [scriptPath, normalizedTarget];
+  const scriptArgs = [scriptPath, normalizedTarget, ...passFlags];
   try {
     execFileSync('bash', scriptArgs, {
       cwd: projectPath,
@@ -178,7 +193,11 @@ export function registerSetupIdeCommand(program: Command): void {
   withProjectOption(ideCmd);
   withYesOption(ideCmd);
   ideCmd.option('--dry-run', 'Preview the files setup-ide would add, change, or remove; write nothing');
-  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean }) => {
+  ideCmd.option(
+    '--write-lint',
+    'Also write missing lint configs the guide reports (ruff.toml, eslint.config.mjs, ...); with --dry-run, preview them',
+  );
+  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean; writeLint?: boolean }) => {
       try {
         // Validate and normalize target early (before project resolution for fast
         // failure). Both downstream calls use the normalized value — an alias like
@@ -211,6 +230,7 @@ export function registerSetupIdeCommand(program: Command): void {
         const ran = await setupIdeAction(project.projectPath, normalizedTarget, {
           yes: opts.yes,
           dryRun: opts.dryRun,
+          writeLint: opts.writeLint,
         });
         // A dry run writes nothing, so worktrees and global commands stay untouched.
         if (!ran || opts.dryRun) return;
