@@ -72,8 +72,15 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
+// `setup-ide --capabilities` answers like a guide older than v0.20.1 (exit 1),
+// so these tests keep exercising cf's own copy-and-prune propagation.
 vi.mock('node:child_process', () => ({
-  execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
+  execFileSync: (...args: unknown[]) => {
+    if ((args[1] as string[]).includes('--capabilities')) {
+      throw Object.assign(new Error('Unsupported target'), { status: 1 });
+    }
+    return mockExecFileSync(...args);
+  },
 }));
 
 // Command/skill delivery is exercised in commandInstaller.test.ts; here it must

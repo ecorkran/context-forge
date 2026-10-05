@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ProjectData } from '@context-forge/core';
+import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import { UserError } from '../utils/errors.js';
 import { GENERATED_MARKER, normalizeTarget, TARGETS, type TargetDescriptor } from './ideTargets.js';
 import { cksum, manifestPath, manifestTempPath, readManifest, type ManifestEntry } from './installManifest.js';
@@ -180,7 +180,26 @@ function copyRootOutput(rootPath: string, wtPath: string, descriptor: TargetDesc
 }
 
 /**
+ * Registered worktrees that receive setup-ide output: those whose path exists
+ * and is not the project root. WorktreeService migrates a project's pre-worktree
+ * workflow fields into a "default" worktree context whose worktreePath IS the
+ * project root (see WorktreeService.ts). Installing the root onto itself is a
+ * no-op at best; fs.cpSync throws ERR_FS_CP_EINVAL when src and dest are the
+ * same path, so it must be filtered out rather than merely being harmless.
+ */
+export function propagationTargets(project: ProjectData): WorktreeContext[] {
+  const resolvedRootPath = path.resolve(project.projectPath!);
+  return (project.worktrees ?? []).filter(
+    (wt) => wt.worktreePath && fs.existsSync(wt.worktreePath) && path.resolve(wt.worktreePath) !== resolvedRootPath,
+  );
+}
+
+/**
  * Propagate IDE-generated files from the project root to all registered worktrees.
+ *
+ * Fallback for guides older than v0.20.1. A guide that reports the `root`
+ * capability installs each worktree itself (`runSetupIdeInWorktrees`); this
+ * copy-and-prune path is kept only until the minimum supported guide has it.
  *
  * Per worktree, in order: copy the root output; prune files the previous guide
  * installed but the new one no longer does (only when the root has a manifest
@@ -206,16 +225,7 @@ export function propagateToWorktrees(
   rootBaseline: readonly ManifestEntry[] | null,
 ): void {
   const rootPath = project.projectPath!;
-  const resolvedRootPath = path.resolve(rootPath);
-
-  // WorktreeService migrates a project's pre-worktree workflow fields into a
-  // "default" worktree context whose worktreePath IS the project root (see
-  // WorktreeService.ts). Propagating the root onto itself is a no-op at best;
-  // fs.cpSync throws ERR_FS_CP_EINVAL when src and dest are the same path, so
-  // this must be filtered out rather than merely being harmless.
-  const worktrees = (project.worktrees ?? []).filter(
-    (wt) => wt.worktreePath && fs.existsSync(wt.worktreePath) && path.resolve(wt.worktreePath) !== resolvedRootPath,
-  );
+  const worktrees = propagationTargets(project);
   if (worktrees.length === 0) return;
 
   const resolvedTarget = normalizeTarget(target);

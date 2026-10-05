@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import {
   registerSetupIdeCommand,
@@ -78,8 +78,18 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
+// `setup-ide --capabilities` probes go to their own mock so script-run
+// assertions stay about real runs. Default: an older guide, which rejects the
+// probe as an unknown target and exits 1.
+const mockCapabilities = vi.fn((): string => {
+  throw Object.assign(new Error('Unsupported target'), { status: 1 });
+});
+
 vi.mock('node:child_process', () => ({
-  execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
+  execFileSync: (...args: unknown[]) => {
+    const scriptArgs = args[1] as string[];
+    return scriptArgs.includes('--capabilities') ? mockCapabilities() : mockExecFileSync(...args);
+  },
 }));
 
 // Command/skill delivery is exercised in commandInstaller.test.ts; here it must
@@ -411,6 +421,115 @@ describe('cf setup-ide', () => {
 
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('setup-ide exited with code 1');
+  });
+});
+
+describe('cf setup-ide with a guide that reports capabilities (v0.20.1+)', () => {
+  const ALL_CAPS = 'dry-run write-lint root\n';
+  const twoWorktreeProject = {
+    ...sampleProject,
+    worktrees: [
+      { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
+      { id: 'wt_002', name: 'bugfix', worktreePath: '/tmp/wt2' },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExecFileSync.mockReset();
+    mockDetect.mockResolvedValue({ installed: true });
+    mockGetById.mockResolvedValue(twoWorktreeProject);
+    mockExistsSync.mockImplementation((p: string) =>
+      [scriptPath, claudeMdPath, '/tmp/wt1', '/tmp/wt2'].includes(p),
+    );
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  afterEach(() => {
+    mockCapabilities.mockReset();
+    mockCapabilities.mockImplementation(() => {
+      throw Object.assign(new Error('Unsupported target'), { status: 1 });
+    });
+  });
+
+  function scriptRuns(): string[][] {
+    return mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
+  }
+
+  it('skips .bak, runs the root, then each worktree with --root from the main checkout script', async () => {
+    mockCapabilities.mockReturnValue(ALL_CAPS);
+
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
+
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+    expect(scriptRuns()).toEqual([
+      [scriptPath, 'claude'],
+      [scriptPath, 'claude', '--root', '/tmp/wt1'],
+      [scriptPath, 'claude', '--root', '/tmp/wt2'],
+    ]);
+    expect(mockExecFileSync.mock.calls[1][2]).toEqual(expect.objectContaining({ cwd: '/tmp/wt1' }));
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
+  });
+
+  it('a dry run reaches every worktree with the same flags and installs no commands', async () => {
+    mockCapabilities.mockReturnValue(ALL_CAPS);
+
+    await createProgram().parseAsync([
+      'node', 'cf', 'setup-ide', 'claude', '--dry-run', '--write-lint', '--project', 'proj_001',
+    ]);
+
+    expect(scriptRuns()).toEqual([
+      [scriptPath, 'claude', '--dry-run', '--write-lint'],
+      [scriptPath, 'claude', '--root', '/tmp/wt1', '--dry-run', '--write-lint'],
+      [scriptPath, 'claude', '--root', '/tmp/wt2', '--dry-run', '--write-lint'],
+    ]);
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
+  });
+
+  it('a failing worktree does not stop the others; the run then fails naming it', async () => {
+    mockCapabilities.mockReturnValue(ALL_CAPS);
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]) => {
+      if (args.includes('/tmp/wt1')) throw Object.assign(new Error('failed'), { status: 3 });
+      return undefined;
+    });
+
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
+
+    expect(scriptRuns().some((a) => a.includes('/tmp/wt2'))).toBe(true);
+    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('exited with code 3 in worktree feature');
+    expect(errOutput).toContain('setup-ide failed in worktree(s): feature.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('capabilities without root fall back to copy-and-prune propagation', async () => {
+    mockCapabilities.mockReturnValue('dry-run write-lint\n');
+
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
+
+    expect(scriptRuns()).toEqual([[scriptPath, 'claude']]);
+    // copyRootOutput copies the root's CLAUDE.md into each worktree. The guide
+    // reports capabilities, so it made its own backup: no .bak copy alongside.
+    expect(mockCopyFileSync.mock.calls).toEqual([
+      [claudeMdPath, '/tmp/wt1/CLAUDE.md'],
+      [claudeMdPath, '/tmp/wt2/CLAUDE.md'],
+    ]);
+  });
+
+  it('reported capabilities win over the script text: an unreported flag is refused', async () => {
+    mockCapabilities.mockReturnValue('dry-run\n');
+    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? '--write-lint' : UNMANAGED_CONTENT));
+
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--write-lint', '--project', 'proj_001']);
+
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('does not support --write-lint');
   });
 });
 

@@ -17,6 +17,14 @@ import { ensureGuideReady } from '../utils/guideReady.js';
 import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
 import { propagateToWorktrees } from './worktreePropagation.js';
+import {
+  GuideCapability,
+  capabilityFlag,
+  guideSupports,
+  readCapabilities,
+  runSetupIdeInWorktrees,
+  type GuideCapabilityValue,
+} from './guideScript.js';
 import { readManifest } from './installManifest.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
@@ -62,17 +70,18 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
   return false;
 }
 
-/**
- * Flags cf passes through to the guide's setup-ide script. Each literal is also
- * how cf detects support: guides up to v0.19.4 read only $1 and ignore extra
- * arguments, so a flag the script never mentions would be silently dropped.
- */
-const DRY_RUN_FLAG = '--dry-run';
-const WRITE_LINT_FLAG = '--write-lint';
+/** What a completed root setup-ide run needs to hand to the worktree step. */
+export interface SetupIdeRun {
+  scriptPath: string;
+  /** `setup-ide --capabilities` words, or null for a guide older than v0.20.1. */
+  capabilities: ReadonlySet<string> | null;
+  /** Pass-through flags given to the root run; worktree runs get the same ones. */
+  flags: string[];
+}
 
 /**
- * Run IDE setup for a project. Errors propagate to the caller. Returns true when
- * the guide script ran, false when the user declined the overwrite prompt.
+ * Run IDE setup for a project. Errors propagate to the caller. Returns the run
+ * details when the guide script ran, null when the user declined the overwrite prompt.
  * With `dryRun`, the guide script previews its changes and writes nothing, so
  * the overwrite prompt and cf's own marker-file backups are skipped too.
  * With `writeLint`, the guide script also writes the missing lint configs it
@@ -82,7 +91,7 @@ export async function setupIdeAction(
   projectPath: string,
   target: string,
   opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean }
-): Promise<boolean> {
+): Promise<SetupIdeRun | null> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
   if (!normalizedTarget) {
@@ -119,18 +128,17 @@ export async function setupIdeAction(
 
   // Refuse a flag the script does not handle: an older guide would ignore it,
   // and an ignored --dry-run runs a real install with cf's backups skipped.
-  const passFlags = [opts?.dryRun && DRY_RUN_FLAG, opts?.writeLint && WRITE_LINT_FLAG].filter(
-    (f): f is string => typeof f === 'string',
-  );
-  if (passFlags.length > 0) {
-    const script = fs.readFileSync(scriptPath, 'utf-8');
-    const unsupported = passFlags.filter((f) => !script.includes(f));
-    if (unsupported.length > 0) {
-      throw new UserError(
-        `This guide version does not support ${unsupported.join(', ')}. Run 'cf guides update' and retry.`,
-      );
-    }
+  const capabilities = readCapabilities(scriptPath, projectPath);
+  const requested: GuideCapabilityValue[] = [];
+  if (opts?.dryRun) requested.push(GuideCapability.DryRun);
+  if (opts?.writeLint) requested.push(GuideCapability.WriteLint);
+  const unsupported = requested.filter((c) => !guideSupports(scriptPath, capabilities, c));
+  if (unsupported.length > 0) {
+    throw new UserError(
+      `This guide version does not support ${unsupported.map(capabilityFlag).join(', ')}. Run 'cf guides update' and retry.`,
+    );
   }
+  const passFlags = requested.map(capabilityFlag);
 
   // Safety check — descriptor-driven, identical shape for every target
   const descriptor = TARGETS[normalizedTarget];
@@ -145,11 +153,13 @@ export async function setupIdeAction(
         const confirmed = await askConfirmation('Continue? (y/N) ');
         if (!confirmed) {
           console.error('Aborted.');
-          return false;
+          return null;
         }
       }
 
-      for (const filePath of existingPaths) {
+      // A guide that reports capabilities (v0.20.1+) backs these files up
+      // itself, to <name>.pre-context-forge; a second .bak would be noise.
+      for (const filePath of capabilities ? [] : existingPaths) {
         const bakPath = `${filePath}.bak`;
         if (!fs.existsSync(bakPath)) {
           fs.copyFileSync(filePath, bakPath);
@@ -182,7 +192,7 @@ export async function setupIdeAction(
       ? `Dry run complete for ${normalizedTarget}. Nothing was written.`
       : `IDE setup complete for ${normalizedTarget}.`,
   );
-  return true;
+  return { scriptPath, capabilities, flags: passFlags };
 }
 
 export function registerSetupIdeCommand(program: Command): void {
@@ -227,20 +237,34 @@ export function registerSetupIdeCommand(program: Command): void {
         // Snapshot before the script rewrites it: part of each worktree's prune
         // baseline, so worktrees with no manifest of their own still prune.
         const rootBaseline = readManifest(project.projectPath, normalizedTarget);
-        const ran = await setupIdeAction(project.projectPath, normalizedTarget, {
+        const run = await setupIdeAction(project.projectPath, normalizedTarget, {
           yes: opts.yes,
           dryRun: opts.dryRun,
           writeLint: opts.writeLint,
         });
-        // A dry run writes nothing, so worktrees and global commands stay untouched.
-        if (!ran || opts.dryRun) return;
-        propagateToWorktrees(project, normalizedTarget, rootBaseline);
+        if (!run) return;
+
+        // Worktrees: a guide with --root installs each one itself (dry runs
+        // included). An older guide gets cf's copy-and-prune, which cannot
+        // preview, so a dry run leaves worktrees out.
+        let failedWorktrees: string[] = [];
+        if (guideSupports(run.scriptPath, run.capabilities, GuideCapability.Root)) {
+          failedWorktrees = runSetupIdeInWorktrees(project, run.scriptPath, normalizedTarget, run.flags);
+        } else if (!opts.dryRun) {
+          propagateToWorktrees(project, normalizedTarget, rootBaseline);
+        }
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it
         // installs to the global directory (design D5). Targets without command
-        // delivery (copilot, cursor) skip this step silently.
-        if (normalizedTarget === 'claude' || normalizedTarget === 'agents') {
+        // delivery (copilot, cursor) skip this step silently. A dry run writes nothing.
+        if (!opts.dryRun && (normalizedTarget === 'claude' || normalizedTarget === 'agents')) {
           installCommandsForTarget(normalizedTarget);
+        }
+
+        if (failedWorktrees.length > 0) {
+          throw new UserError(
+            `setup-ide failed in worktree(s): ${failedWorktrees.join(', ')}. Check the output above for details.`,
+          );
         }
       } catch (err) {
         handleError(err);
