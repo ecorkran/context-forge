@@ -7,9 +7,10 @@ import {
   ConfigManager,
   detectDocuments,
   updateFrontmatterField,
-  planRoutedFixes,
   applyFixPlan,
-  resolveInvokingCheckout,
+  scopeCheck,
+  resolveFixInvokingPath,
+  planFixRun,
 } from '@context-forge/core/node';
 import {
   formatDateProject,
@@ -17,12 +18,8 @@ import {
   buildAttributedViews,
   runAttributed,
 } from '@context-forge/core';
-import type {
-  AttributedView,
-  ConsistencyCheckResult,
-  ConsistencyFixResult,
-  ProjectData,
-} from '@context-forge/core';
+import type { ConsistencyCheckResult, ConsistencyFixResult, ProjectData } from '@context-forge/core';
+import type { CheckScope } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
@@ -169,20 +166,15 @@ export function registerCheckCommand(program: Command): void {
         // must be told which one that is.
         const invokingPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
 
-        // --slice narrows to one slice: set fileSlice on every view and use check()
-        const scopeViews =
-          singleSlice !== null
-            ? projectViews.map((pv) => ({ ...pv, view: { ...pv.view, fileSlice: `${singleSlice}-slice` } }))
-            : projectViews;
-        const runCheck = (v: ProjectData) => (singleSlice !== null ? checker.check(v) : checker.checkAll(v));
+        // --slice narrows to one slice; otherwise every view runs checkAll()
+        const scope = scopeCheck(checker, projectViews, singleSlice);
 
         let result: ConsistencyCheckResult;
         if (fixMode) {
           const fixResult = await runRoutedFix({
             project,
             checker,
-            views: scopeViews,
-            runCheck,
+            scope,
             invokingPath,
             // Only an explicit all-slices --fix previews and prompts; the
             // workflow.auto_fix path skips both by design (slice 213 SC 11).
@@ -193,7 +185,7 @@ export function registerCheckCommand(program: Command): void {
           if (!fixResult) return;
           result = fixResult;
         } else {
-          const checkResults = await runAttributed(scopeViews, runCheck);
+          const checkResults = await runAttributed(scope.views, scope.runCheck);
           result = mergeCheckResults(checkResults, invokingPath);
         }
 
@@ -212,8 +204,7 @@ export function registerCheckCommand(program: Command): void {
 interface RoutedFixArgs {
   project: ProjectData;
   checker: ConsistencyChecker;
-  views: AttributedView[];
-  runCheck: (view: ProjectData) => Promise<ConsistencyCheckResult>;
+  scope: CheckScope;
   invokingPath: string | undefined;
   /** Preview and prompt before writing. */
   confirm: boolean;
@@ -227,29 +218,19 @@ interface RoutedFixArgs {
  * when nothing is applied (no fixable findings, or the user declined).
  */
 async function runRoutedFix(args: RoutedFixArgs): Promise<ConsistencyFixResult | null> {
-  const { project, checker, views, runCheck, showWorktree } = args;
-  const multi = views.length > 1;
+  const { project, checker, scope, showWorktree } = args;
+  const multi = scope.views.length > 1;
 
-  let invokingPath = args.invokingPath;
-  if (multi) {
-    // Routing needs to know which checkout is "here"; an unregistered one is
-    // a hard stop before anything is written (D5b, SC 12).
-    try {
-      invokingPath = (await resolveInvokingCheckout(views)).view.projectPath;
-    } catch (err) {
-      throw new UserError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  if (!invokingPath) {
-    throw new UserError('No projectPath configured. Set one with: cf set projectPath /path/to/project');
+  // Routing needs to know which checkout is "here"; an unregistered one, or
+  // no projectPath at all, is a hard stop before anything is written (D5b, SC 12).
+  let invokingPath: string;
+  try {
+    invokingPath = await resolveFixInvokingPath(scope.views, args.invokingPath);
+  } catch (err) {
+    throw new UserError(err instanceof Error ? err.message : String(err));
   }
 
-  const dryRunResults = await runAttributed(views, runCheck);
-  const plan = await planRoutedFixes(
-    project,
-    views.map((view, i) => ({ view, result: dryRunResults[i] })),
-    invokingPath,
-  );
+  const { dryRunResults, plan } = await planFixRun(project, scope, invokingPath);
 
   if (args.allSlices) {
     const dryRun = mergeCheckResults(dryRunResults, invokingPath);

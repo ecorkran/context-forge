@@ -9,9 +9,10 @@ import {
   ConfigManager,
   getStoragePath,
   createVersionedBackup,
-  planRoutedFixes,
   applyFixPlan,
-  resolveInvokingCheckout,
+  scopeCheck,
+  resolveFixInvokingPath,
+  planFixRun,
 } from '@context-forge/core/node';
 import {
   resolveProject,
@@ -19,7 +20,6 @@ import {
   buildAttributedViews,
   runAttributed,
 } from '@context-forge/core';
-import type { ProjectData } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
@@ -263,38 +263,22 @@ export function registerWorkflowTools(server: McpServer): void {
         // check or a single checkout that is the project root. In fix mode
         // with worktrees it is the checkout the server runs in (slice 213
         // D5b), so an agent in worktree B gets B's fixes as an uncommitted diff.
-        let invokingPath = project.projectPath;
-        if (fixMode && projectViews.length > 1) {
+        const scope = scopeCheck(checker, projectViews, args.sliceIndex ?? null);
+        let result;
+        if (fixMode) {
+          // Same plan-then-apply as cf check --fix; MCP never prompts.
+          let invokingPath: string;
           try {
-            invokingPath = (await resolveInvokingCheckout(projectViews)).view.projectPath;
+            invokingPath = await resolveFixInvokingPath(scope.views, project.projectPath);
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
             return errorResult(`Error: ${msg}`);
           }
-        }
-
-        const scopeViews =
-          args.sliceIndex !== undefined
-            ? projectViews.map((pv) => ({ ...pv, view: { ...pv.view, fileSlice: `${args.sliceIndex}-slice` } }))
-            : projectViews;
-        const runCheck = (v: ProjectData) =>
-          args.sliceIndex !== undefined ? checker.check(v) : checker.checkAll(v);
-
-        const checkResults = await runAttributed(scopeViews, runCheck);
-        let result;
-        if (fixMode) {
-          // Same plan-then-apply as cf check --fix; MCP never prompts.
-          if (!invokingPath) {
-            return errorResult('Error: No projectPath configured for this project.');
-          }
-          const plan = await planRoutedFixes(
-            project,
-            scopeViews.map((view, i) => ({ view, result: checkResults[i] })),
-            invokingPath,
-          );
+          const { plan } = await planFixRun(project, scope, invokingPath);
           result = await applyFixPlan(checker, plan);
         } else {
-          result = mergeCheckResults(checkResults, invokingPath);
+          const checkResults = await runAttributed(scope.views, scope.runCheck);
+          result = mergeCheckResults(checkResults, project.projectPath);
         }
 
         return jsonResult(result);

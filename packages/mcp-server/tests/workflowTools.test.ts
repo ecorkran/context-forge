@@ -25,6 +25,9 @@ vi.mock('@context-forge/core/node', async () => {
     planRoutedFixes: actual.planRoutedFixes,
     applyFixPlan: actual.applyFixPlan,
     resolveInvokingCheckout: actual.resolveInvokingCheckout,
+    scopeCheck: actual.scopeCheck,
+    resolveFixInvokingPath: actual.resolveFixInvokingPath,
+    planFixRun: actual.planFixRun,
     FileProjectStore: vi.fn().mockImplementation(() => ({
       getById: mockGetById,
       getAll: vi.fn().mockResolvedValue([]),

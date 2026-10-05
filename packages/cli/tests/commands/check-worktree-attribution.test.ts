@@ -22,7 +22,8 @@ vi.mock('node:readline', () => ({
   createInterface: vi.fn(() => ({ question: vi.fn(), close: vi.fn(), on: vi.fn() })),
 }));
 
-vi.mock('@context-forge/core/node', () => ({
+vi.mock('@context-forge/core/node', async () => ({
+  scopeCheck: (await vi.importActual<typeof import('@context-forge/core/node')>('@context-forge/core/node')).scopeCheck,
   FileProjectStore: class {
     getAll = mockGetAll;
     getById = mockGetById;

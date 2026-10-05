@@ -63,3 +63,9 @@ export {
   type FixPlan,
   type FixPlanEntry,
 } from './introspection/routedFixes.js';
+export {
+  scopeCheck,
+  resolveFixInvokingPath,
+  planFixRun,
+  type CheckScope,
+} from './introspection/checkRun.js';
