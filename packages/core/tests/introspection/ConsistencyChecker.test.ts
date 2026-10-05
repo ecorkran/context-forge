@@ -377,7 +377,7 @@ describe('ConsistencyChecker', () => {
       expect(finding!.fixable).toBe(true);
       expect(finding!.fixAction?.detail).toEqual({ key: 'status', value: 'in_progress' });
 
-      const fixResult = await checker.fix(makeProject());
+      const fixResult = await checker.applyFixes(await checker.check(makeProject()));
       const fixLogEntry = fixResult.fixLog.find((e) => e.rule === 'frontmatter-vs-computed');
       expect(fixLogEntry).toBeDefined();
     });
@@ -613,7 +613,7 @@ describe('ConsistencyChecker', () => {
     it('applies checkbox fix and populates fixLog', async () => {
       // Default mock: tasks complete, plan unchecked → fixable warning
       const checker = new ConsistencyChecker(makeMockIntrospector());
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       expect(result.fixed).toBeGreaterThan(0);
       expect(result.fixLog.length).toBeGreaterThan(0);
@@ -646,7 +646,7 @@ describe('ConsistencyChecker', () => {
         }),
       });
       const checker = new ConsistencyChecker(mock);
-      await checker.fix(makeProject());
+      await checker.applyFixes(await checker.check(makeProject()));
 
       const statusWrites = vi
         .mocked(updateFrontmatterField)
@@ -670,7 +670,7 @@ describe('ConsistencyChecker', () => {
 
     it('applies frontmatter fix and populates fixLog', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector());
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       const fmFix = result.fixLog.find((e) => e.action === 'update-frontmatter');
       expect(fmFix).toBeDefined();
@@ -703,7 +703,7 @@ describe('ConsistencyChecker', () => {
         }),
       });
       const checker = new ConsistencyChecker(mock);
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       // Only info-level non-fixable findings (missing-artifact)
       const infoFindings = result.findings.filter((f) => !f.fixable);
@@ -719,7 +719,7 @@ describe('ConsistencyChecker', () => {
       vi.mocked(updateCheckbox).mockRejectedValueOnce(new Error('Permission denied'));
 
       const checker = new ConsistencyChecker(makeMockIntrospector());
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       // Should have at least one fix error
       expect(result.fixErrors.length).toBeGreaterThan(0);
@@ -731,14 +731,14 @@ describe('ConsistencyChecker', () => {
 
     it('fixed count matches applied fixes', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector());
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       expect(result.fixed).toBe(result.fixLog.length);
     });
 
     it('fixLog entries have rule populated from finding', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector());
-      const result = await checker.fix(makeProject());
+      const result = await checker.applyFixes(await checker.check(makeProject()));
 
       for (const entry of result.fixLog) {
         expect(entry.rule).not.toBe('');
@@ -1375,7 +1375,7 @@ describe('ConsistencyChecker', () => {
 
     // (Rule 11: missing-arch-status — removed, subsumed by Rule 12 frontmatter-schema)
 
-  describe('fixAll()', () => {
+  describe('applyFixes() over checkAll()', () => {
     it('applies fixes across multiple slices and returns log', async () => {
       const checker = new ConsistencyChecker(makeMockIntrospector({
         parseSlicePlan: vi.fn().mockResolvedValue({
@@ -1393,7 +1393,7 @@ describe('ConsistencyChecker', () => {
         }),
       }));
 
-      const result = await checker.fixAll(makeProject());
+      const result = await checker.applyFixes(await checker.checkAll(makeProject()));
 
       expect(result.fixed).toBeGreaterThan(0);
       expect(result.fixLog.length).toBe(result.fixed);
@@ -1409,7 +1409,7 @@ describe('ConsistencyChecker', () => {
         parseSlicePlan: vi.fn().mockRejectedValue(new Error('not found')),
       });
       const checker = new ConsistencyChecker(mock);
-      const result = await checker.fixAll(makeProject());
+      const result = await checker.applyFixes(await checker.checkAll(makeProject()));
 
       expect(result.fixed).toBe(0);
       expect(result.fixLog).toHaveLength(0);

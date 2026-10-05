@@ -197,23 +197,10 @@ export class ConsistencyChecker {
   }
 
   /**
-   * Run check(), then apply non-destructive corrections to fixable findings.
+   * Apply non-destructive corrections to a check result's fixable findings.
+   * Writes in place with no worktree routing: callers with worktrees go
+   * through planRoutedFixes + applyFixPlan (slice 213), which call this per view.
    */
-  async fix(project: ProjectData): Promise<ConsistencyFixResult> {
-    const checkResult = await this.check(project);
-    return this.applyFixes(checkResult);
-  }
-
-  /**
-   * Run checkAll(), then apply non-destructive corrections to fixable findings.
-   * Single pass only — no re-checking after fixes.
-   */
-  async fixAll(project: ProjectData): Promise<ConsistencyFixResult> {
-    const checkResult = await this.checkAll(project);
-    return this.applyFixes(checkResult);
-  }
-
-  /** Apply fixes to a check result — shared by fix() and fixAll(). */
   async applyFixes(
     checkResult: ConsistencyCheckResult,
     dateStamp: string = formatDateProject()

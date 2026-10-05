@@ -17,9 +17,7 @@ vi.mock('node:readline', () => ({
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockCheck = vi.fn();
-const mockFix = vi.fn();
 const mockCheckAll = vi.fn();
-const mockFixAll = vi.fn();
 const mockApplyFixes = vi.fn();
 const mockConfigGet = vi.fn();
 const mockDetectDocuments = vi.fn();
@@ -42,9 +40,7 @@ vi.mock('@context-forge/core/node', async () => {
     ArtifactIntrospector: vi.fn(),
     ConsistencyChecker: vi.fn().mockImplementation(() => ({
       check: mockCheck,
-      fix: mockFix,
       checkAll: mockCheckAll,
-      fixAll: mockFixAll,
       applyFixes: mockApplyFixes,
     })),
     ConfigManager: vi.fn().mockImplementation(() => ({
@@ -311,9 +307,9 @@ describe('cf check', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'check', '--project', 'proj_001', '--fix']);
 
-    // Should have called checkAll for dry run but NOT fixAll
+    // Should have called checkAll for dry run but written nothing
     expect(mockCheckAll).toHaveBeenCalled();
-    expect(mockFixAll).not.toHaveBeenCalled();
+    expect(mockApplyFixes).not.toHaveBeenCalled();
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Aborted');

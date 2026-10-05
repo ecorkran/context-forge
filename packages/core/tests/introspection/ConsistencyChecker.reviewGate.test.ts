@@ -163,7 +163,7 @@ describe('ConsistencyChecker — review-gate rule (slice 242)', () => {
     const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
     const checker = new ConsistencyChecker(introspector, config);
 
-    const fixResult = await checker.fix(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' }));
+    const fixResult = await checker.applyFixes(await checker.check(makeProject({ fileSlice: '400-slice.gate-code-fail', fileTasks: '400-tasks.gate-code-fail' })));
 
     const codeFinding = fixResult.findings.find((f) => f.rule === 'review-gate' && f.suggestedFix.includes('code'));
     expect(codeFinding).toBeDefined();

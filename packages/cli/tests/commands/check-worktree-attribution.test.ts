@@ -31,9 +31,7 @@ vi.mock('@context-forge/core/node', async () => ({
   ArtifactIntrospector: vi.fn(),
   ConsistencyChecker: class {
     check = mockCheck;
-    fix = vi.fn();
     checkAll = mockCheckAll;
-    fixAll = vi.fn();
     applyFixes = vi.fn();
   },
   ConfigManager: class {
