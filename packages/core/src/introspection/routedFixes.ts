@@ -102,6 +102,9 @@ function onlyFixable(result: ConsistencyCheckResult, findings: ConsistencyFindin
 /**
  * Probe a non-invoking checkout and split its fixes into writable and
  * deferred (slice 213 D5). Used at plan time and again right before writing.
+ * A git error or timeout during the probe defers this checkout's fixes as
+ * READINESS_FAILED rather than aborting the run, so commits already made in
+ * other checkouts are still reported (D5a).
  */
 export async function gateByReadiness(
   view: AttributedView,
@@ -109,7 +112,14 @@ export async function gateByReadiness(
 ): Promise<{ kept: ConsistencyFinding[]; deferred: DeferredFix[] }> {
   if (findings.length === 0) return { kept: [], deferred: [] };
   const relPaths = [...new Set(findings.map((f) => fixRelPath(view, f)))];
-  const readiness = await checkoutReadiness(viewRoot(view), relPaths, { timeoutMs: FIX_GIT_TIMEOUT_MS });
+  let readiness;
+  try {
+    readiness = await checkoutReadiness(viewRoot(view), relPaths, { timeoutMs: FIX_GIT_TIMEOUT_MS });
+  } catch (err) {
+    console.error(`cf check --fix: readiness check failed in ${viewRoot(view)}:`, err);
+    const detail = err instanceof Error ? err.message : String(err);
+    return { kept: [], deferred: findings.map((finding) => ({ finding, reason: DeferReason.READINESS_FAILED, detail })) };
+  }
   if (readiness.blocked) {
     const reason = readiness.blocked;
     return { kept: [], deferred: findings.map((finding) => ({ finding, reason })) };

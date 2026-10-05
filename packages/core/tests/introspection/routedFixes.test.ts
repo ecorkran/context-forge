@@ -13,6 +13,7 @@ import {
   type AttributedCheckResult,
 } from '../../src/introspection/routedFixes.js';
 import { restorePathsToHead } from '../../src/guides/gitExec.js';
+import { checkoutReadiness } from '../../src/git/checkoutReadiness.js';
 import { DeferReason, type ConsistencyFinding } from '../../src/introspection/types.js';
 import type { ProjectData } from '../../src/types/project.js';
 import type { WorktreeContext } from '../../src/types/worktree.js';
@@ -41,6 +42,12 @@ vi.mock('child_process', async (importOriginal) => {
 vi.mock('../../src/guides/gitExec.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/guides/gitExec.js')>();
   return { ...actual, restorePathsToHead: vi.fn(actual.restorePathsToHead) };
+});
+
+// Passthrough, so case 8 alone can make a readiness probe throw.
+vi.mock('../../src/git/checkoutReadiness.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/git/checkoutReadiness.js')>();
+  return { ...actual, checkoutReadiness: vi.fn(actual.checkoutReadiness) };
 });
 
 const NAME = 'routed';
@@ -425,6 +432,42 @@ describe('applyFixPlan (slice 213)', () => {
     for (const rel of betaFiles) expect(result.fixErrors[0]).toContain(rel);
     expect(result.deferred).toEqual([]);
     expect(porcelain(setup.wtb)).not.toBe('');
+  });
+
+  it('8. readiness throws in a later checkout → earlier commit still reported, READINESS_FAILED', async () => {
+    setup.fx.cleanup();
+    const fx = createGitWorktreeFixture(['b', 'c'], seedDocs);
+    const project: ProjectData = {
+      ...createProjectFor(fx),
+      worktrees: [
+        worktreeCtx('main', fx.primary, [100, 199]),
+        worktreeCtx('b', fx.worktrees.b, [950, 959]),
+        worktreeCtx('c', fx.worktrees.c, [500, 599]),
+      ],
+    };
+    setup = { ...setup, fx, project, wtb: fx.worktrees.b };
+    writeAndCommit(fx.primary, tasksPath(120, 'alpha'), tasksContent('alpha', true));
+    completeBeta(fx.worktrees.b, true);
+    // Invoked from c: main's and b's fixes are both committed, main's first.
+    const plan = await planRoutedFixes(project, await dryRun(project, setup.checker), fx.worktrees.c);
+    const { checkoutReadiness: realReadiness } =
+      await vi.importActual<typeof import('../../src/git/checkoutReadiness.js')>('../../src/git/checkoutReadiness.js');
+    vi.mocked(checkoutReadiness)
+      .mockImplementationOnce(realReadiness)
+      .mockRejectedValueOnce(new Error('git timed out after 60000ms'));
+
+    const result = await applyFixPlan(setup.checker, plan);
+
+    expect(result.commits.map((c) => c.worktree?.id)).toEqual(['main']);
+    expect(lastSubject(fx.primary)).toBe(FIX_COMMIT_MESSAGE);
+    expect(result.fixed).toBe(3);
+    expect(result.deferred).toHaveLength(3);
+    for (const d of result.deferred) {
+      expect(d.reason).toBe(DeferReason.READINESS_FAILED);
+      expect(d.detail).toMatch(/timed out/);
+      expect(d.finding.worktree?.id).toBe('b');
+    }
+    expect(porcelain(fx.worktrees.b)).toBe('');
   });
 
   it('single checkout: no deferrals, no commits, no worktree on log entries, no git process', async () => {

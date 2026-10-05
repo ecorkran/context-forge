@@ -19,6 +19,7 @@ export const DEFER_REASON_LABELS: Record<DeferReasonValue, (d: DeferredFix) => s
   [DeferReason.CHECKOUT_BUSY]: () => 'merge, rebase, or cherry-pick in progress',
   [DeferReason.DETACHED_HEAD]: () => 'checkout is on a detached HEAD',
   [DeferReason.COMMIT_FAILED]: (d) => `commit failed${d.detail ? `: ${d.detail}` : ''}`,
+  [DeferReason.READINESS_FAILED]: (d) => `git readiness check failed${d.detail ? `: ${d.detail}` : ''}`,
 };
 
 const INVOKING_NOTE = '(invoking checkout, uncommitted)';

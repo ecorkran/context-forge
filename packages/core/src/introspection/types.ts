@@ -303,6 +303,7 @@ export const DeferReason = {
   CHECKOUT_BUSY: 'checkout-busy',
   DETACHED_HEAD: 'detached-head',
   COMMIT_FAILED: 'commit-failed',
+  READINESS_FAILED: 'readiness-failed',
 } as const;
 
 export type DeferReasonValue = (typeof DeferReason)[keyof typeof DeferReason];
@@ -313,7 +314,7 @@ export interface DeferredFix {
   reason: DeferReasonValue;
   /** The checkout that owns the fix's subject (NOT_OWNER). */
   owner?: FindingWorktree;
-  /** Git's error text (COMMIT_FAILED). */
+  /** Git's error text (COMMIT_FAILED, READINESS_FAILED). */
   detail?: string;
 }
 
