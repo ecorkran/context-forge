@@ -65,11 +65,13 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
 /**
  * Run IDE setup for a project. Errors propagate to the caller. Returns true when
  * the guide script ran, false when the user declined the overwrite prompt.
+ * With `dryRun`, the guide script previews its changes and writes nothing, so
+ * the overwrite prompt and cf's own marker-file backups are skipped too.
  */
 export async function setupIdeAction(
   projectPath: string,
   target: string,
-  opts?: { yes?: boolean }
+  opts?: { yes?: boolean; dryRun?: boolean }
 ): Promise<boolean> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
@@ -109,7 +111,7 @@ export async function setupIdeAction(
   const descriptor = TARGETS[normalizedTarget];
   const markerPaths = descriptor.markerFiles.map((rel) => path.join(projectPath, ...rel.split('/')));
 
-  if (!isManagedInstall(projectPath, descriptor.markerFiles)) {
+  if (!opts?.dryRun && !isManagedInstall(projectPath, descriptor.markerFiles)) {
     const existingPaths = markerPaths.filter((p) => fs.existsSync(p));
 
     if (existingPaths.length > 0) {
@@ -134,11 +136,12 @@ export async function setupIdeAction(
     }
     // else: none of the marker files exist — fresh install, proceed silently
   }
-  // else: managed install — proceed silently
+  // else: managed install or dry run — proceed silently
 
   // Run the setup-ide script
+  const scriptArgs = opts?.dryRun ? [scriptPath, normalizedTarget, '--dry-run'] : [scriptPath, normalizedTarget];
   try {
-    execFileSync('bash', [scriptPath, normalizedTarget], {
+    execFileSync('bash', scriptArgs, {
       cwd: projectPath,
       stdio: 'inherit',
     });
@@ -149,7 +152,11 @@ export async function setupIdeAction(
     );
   }
 
-  console.error(`IDE setup complete for ${normalizedTarget}.`);
+  console.error(
+    opts?.dryRun
+      ? `Dry run complete for ${normalizedTarget}. Nothing was written.`
+      : `IDE setup complete for ${normalizedTarget}.`,
+  );
   return true;
 }
 
@@ -160,7 +167,8 @@ export function registerSetupIdeCommand(program: Command): void {
     .argument('<target>', 'IDE target: claude, copilot, cursor, agents (aliases: openai, codex)');
   withProjectOption(ideCmd);
   withYesOption(ideCmd);
-  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean }) => {
+  ideCmd.option('--dry-run', 'Preview the files setup-ide would add, change, or remove; write nothing');
+  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean }) => {
       try {
         // Validate and normalize target early (before project resolution for fast
         // failure). Both downstream calls use the normalized value — an alias like
@@ -190,8 +198,12 @@ export function registerSetupIdeCommand(program: Command): void {
         // Snapshot before the script rewrites it: part of each worktree's prune
         // baseline, so worktrees with no manifest of their own still prune.
         const rootBaseline = readManifest(project.projectPath, normalizedTarget);
-        const ran = await setupIdeAction(project.projectPath, normalizedTarget, { yes: opts.yes });
-        if (!ran) return;
+        const ran = await setupIdeAction(project.projectPath, normalizedTarget, {
+          yes: opts.yes,
+          dryRun: opts.dryRun,
+        });
+        // A dry run writes nothing, so worktrees and global commands stay untouched.
+        if (!ran || opts.dryRun) return;
         propagateToWorktrees(project, normalizedTarget, rootBaseline);
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it

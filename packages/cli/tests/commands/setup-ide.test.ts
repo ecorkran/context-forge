@@ -318,6 +318,29 @@ describe('cf setup-ide', () => {
     expect(logOutput).toContain('Backed up CLAUDE.md');
   });
 
+  it('--dry-run passes the flag through and writes nothing: no prompt, backup, propagation, or command install', async () => {
+    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath || p === '/tmp/wt1');
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', '--dry-run', 'claude', '--project', 'proj_001']);
+
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockCpSync).not.toHaveBeenCalled();
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
+    expect(mockExecFileSync).toHaveBeenCalledTimes(1);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'bash',
+      [scriptPath, 'claude', '--dry-run'],
+      expect.objectContaining({ cwd: '/tmp/test', stdio: 'inherit' }),
+    );
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('Dry run complete for claude');
+  });
+
   it('handles non-zero script exit code', async () => {
     mockDetect.mockResolvedValue({ installed: true });
     mockExistsSync.mockImplementation((p: string) => {

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf setup-ide <target> --dry-run`** previews the files the guide's setup-ide would add, change, or remove, and writes nothing: no overwrite prompt, no `.bak` backups, no worktree propagation, no global command install. Needs a guide release whose setup-ide supports `--dry-run`
+
 ## [0.19.0] - 20261005
 
 ### Changed
