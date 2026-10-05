@@ -62,6 +62,9 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
   return false;
 }
 
+/** The guide setup-ide script's preview flag; also how cf detects that a guide supports it. */
+const DRY_RUN_FLAG = '--dry-run';
+
 /**
  * Run IDE setup for a project. Errors propagate to the caller. Returns true when
  * the guide script ran, false when the user declined the overwrite prompt.
@@ -107,6 +110,13 @@ export async function setupIdeAction(
     );
   }
 
+  // Guides up to v0.19.4 read only $1 and ignore extra arguments, so passing
+  // --dry-run to one of them would run a real install with cf's backups skipped.
+  // Refuse unless the script itself handles the flag.
+  if (opts?.dryRun && !fs.readFileSync(scriptPath, 'utf-8').includes(DRY_RUN_FLAG)) {
+    throw new UserError(`This guide version does not support ${DRY_RUN_FLAG}. Run 'cf guides update' and retry.`);
+  }
+
   // Safety check — descriptor-driven, identical shape for every target
   const descriptor = TARGETS[normalizedTarget];
   const markerPaths = descriptor.markerFiles.map((rel) => path.join(projectPath, ...rel.split('/')));
@@ -139,7 +149,7 @@ export async function setupIdeAction(
   // else: managed install or dry run — proceed silently
 
   // Run the setup-ide script
-  const scriptArgs = opts?.dryRun ? [scriptPath, normalizedTarget, '--dry-run'] : [scriptPath, normalizedTarget];
+  const scriptArgs = opts?.dryRun ? [scriptPath, normalizedTarget, DRY_RUN_FLAG] : [scriptPath, normalizedTarget];
   try {
     execFileSync('bash', scriptArgs, {
       cwd: projectPath,

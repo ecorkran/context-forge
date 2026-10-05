@@ -322,7 +322,9 @@ describe('cf setup-ide', () => {
     mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
     mockDetect.mockResolvedValue({ installed: true });
     mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath || p === '/tmp/wt1');
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    mockReadFileSync.mockImplementation((p: string) =>
+      p === scriptPath ? 'case "$arg" in --dry-run) DRY_RUN=1 ;; esac' : UNMANAGED_CONTENT,
+    );
 
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'setup-ide', '--dry-run', 'claude', '--project', 'proj_001']);
@@ -339,6 +341,21 @@ describe('cf setup-ide', () => {
     );
     const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(errOutput).toContain('Dry run complete for claude');
+  });
+
+  it('--dry-run refuses an older guide whose script ignores the flag, and runs nothing', async () => {
+    mockDetect.mockResolvedValue({ installed: true });
+    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath);
+    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? 'TARGET="$1"' : UNMANAGED_CONTENT));
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--dry-run', '--project', 'proj_001']);
+
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(errOutput).toContain('does not support --dry-run');
+    expect(errOutput).toContain('cf guides update');
   });
 
   it('handles non-zero script exit code', async () => {
