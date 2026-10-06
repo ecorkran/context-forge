@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 20261006
+
 ### Added
 
 - **`cf config get <key> --value`** prints only the bare value (an empty line when unset), for scripts. Exits 2 for an unknown key and 1 for any other error. The guide's setup-ide uses it to read `rules.exclude`
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The repo now has working lint**: `pnpm lint` runs ESLint (typescript-eslint, type-checked) across all packages, and a CI workflow runs build, typecheck, lint and test. Fixed the 54 errors it found, mostly missing `cause` on rethrown errors and needless `async` (#109)
 - **`cf setup-ide` with guide v0.20.1+ runs the guide in each registered worktree** (`setup-ide --root <worktree>`, using the main checkout's guide files) instead of copying the main checkout's output and pruning it. Each worktree gets the guide's own install, cleanup, edited-file protection, and lint checks, and `--dry-run` now previews worktrees too. A failing worktree no longer stops the others; the command reports which ones failed. Older guides keep the previous copy-and-prune behavior
 - **cf no longer writes `.bak` copies of CLAUDE.md / AGENTS.md / copilot-instructions.md with guide v0.20.1+**, which backs them up itself to `<name>.pre-context-forge`. The overwrite prompt stays. Flag support is read from `setup-ide --capabilities` instead of searching the script
 

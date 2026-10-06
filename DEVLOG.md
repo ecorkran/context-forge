@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-06
+
+### Release 0.19.1
+
+- **Contents:** `cf config get --value`, `cf setup-ide --dry-run` / `--write-lint`, per-worktree guide install with `--root`, no `.bak` for capable guides; working ESLint + CI (#109).
+
+Tags: @context-forge/core@0.19.1, @context-forge/cli@0.19.1, @context-forge/mcp@0.19.1, @context-forge/context-forge@0.19.1
+
 ## 2026-10-05
 
 ### Release 0.19.0
