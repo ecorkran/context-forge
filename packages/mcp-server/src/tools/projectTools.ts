@@ -304,7 +304,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
           }
         }
 
-        await store.update(resolvedId, updates as UpdateProjectData);
+        await store.update(resolvedId, updates);
 
         // Read back updated project
         const updated = await store.getById(resolvedId);
@@ -330,7 +330,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
+    () => {
       return jsonResult(getSchema());
     },
   );

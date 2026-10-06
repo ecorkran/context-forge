@@ -196,7 +196,8 @@ export class GuideManager {
       throw new Error(
         message.includes(GUIDE_OFFLINE_REMEDIATION)
           ? message
-          : `${message}\n  ${GUIDE_OFFLINE_REMEDIATION}`
+          : `${message}\n  ${GUIDE_OFFLINE_REMEDIATION}`,
+        { cause: err }
       );
     }
   }

@@ -84,8 +84,11 @@ export function registerWorkflowTools(server: McpServer): void {
         const result = await collector.collect(project.projectPath, args.status ?? 'all');
 
         if (!args.includeMarkdown) {
-          const { markdown: _md, ...rest } = result;
-          return jsonResult(rest);
+          // Omit the markdown field from the JSON-only response
+          const withoutMarkdown = Object.fromEntries(
+            Object.entries(result).filter(([key]) => key !== 'markdown'),
+          );
+          return jsonResult(withoutMarkdown);
         }
 
         return jsonResult(result);

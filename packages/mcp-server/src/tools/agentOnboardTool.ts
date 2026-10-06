@@ -79,7 +79,7 @@ export function registerAgentOnboardTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ projectName }) => {
+    ({ projectName }) => {
       let text = ONBOARD_GUIDE;
       if (projectName) {
         text += `\n**Project name provided:** ${projectName}\n`;

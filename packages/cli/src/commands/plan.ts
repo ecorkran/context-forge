@@ -40,7 +40,7 @@ export async function planListAction(opts: { json?: boolean; all?: boolean; proj
     scanPaths = resolveAllOperationPaths(rawProject);
     // No index filtering in --all mode
   } else {
-    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
     scanPaths = [operationPath];
     indexRange = getWorktreeIndexRange(rawProject, worktreeId);
   }

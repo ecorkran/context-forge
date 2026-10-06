@@ -6,12 +6,12 @@ import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
-  { ignores: ["**/dist/**", "**/build/**", "**/coverage/**"] },
+  { ignores: ["**/dist/**", "**/build/**", "**/coverage/**", "project-documents/**", "packages/electron/**", "lib/**", "**/tests/**", "**/vitest.config.ts"] },
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
-      parserOptions: { projectService: true },
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
       // Exception handling (general.md): no swallowed errors.

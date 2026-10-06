@@ -33,7 +33,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
     );
   }
 
-  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
   const introspector = new ArtifactIntrospector();
 
   let planPath: string;
@@ -88,12 +88,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
   const entries = await Promise.all(
     filteredEntries.map(async (entry) => {
       let designFile: string | null = null;
-      let derivedStatus: DisplayStatus =
-        entry.status === STATUS.Deprecated
-          ? STATUS.Deprecated
-          : entry.isChecked
-            ? STATUS.Complete
-            : STATUS.NotStarted;
+      let derivedStatus: DisplayStatus;
       try {
         const docs = await introspector.detectDocuments(operationPath, entry.index);
         designFile = docs.sliceDesign;

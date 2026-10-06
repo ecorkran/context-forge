@@ -23,7 +23,12 @@ export class SystemPromptParser {
   /**
    * Parse the entire prompt file and extract all sections
    */
-  async parsePromptFile(): Promise<ParsedPromptFile> {
+  parsePromptFile(): Promise<ParsedPromptFile> {
+    // Executor throws surface as rejections, preserving the async contract
+    return new Promise((resolve) => resolve(this.parsePromptFileSync()));
+  }
+
+  private parsePromptFileSync(): ParsedPromptFile {
     // Check if file exists
     if (!fs.existsSync(this.filePath)) {
       throw new Error(`System prompt file not found at ${this.filePath}`);
@@ -236,7 +241,7 @@ export class SystemPromptParser {
       }
 
       return cached.prompts;
-    } catch (error: unknown) {
+    } catch {
       // File might not exist, cache is invalid
       this.promptsCache.delete(this.filePath);
       return null;

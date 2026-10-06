@@ -69,7 +69,7 @@ export class StatementManager {
   /**
    * Load statements from markdown file
    */
-  async loadStatements(): Promise<void> {
+  loadStatements(): Promise<void> {
     try {
       // Check if file exists
       if (!fs.existsSync(this.filePath)) {
@@ -80,7 +80,7 @@ export class StatementManager {
           this.statements[key] = { ...statement };
         }
         this.isLoaded = true;
-        return;
+        return Promise.resolve();
       }
 
       // Read file content
@@ -113,6 +113,7 @@ export class StatementManager {
       }
 
       this.isLoaded = true;
+      return Promise.resolve();
     } catch (error: unknown) {
       console.error('Error loading statements:', error);
       // Fall back to defaults on any error (deep copy)
@@ -121,13 +122,14 @@ export class StatementManager {
         this.statements[key] = { ...statement };
       }
       this.isLoaded = true;
+      return Promise.resolve();
     }
   }
 
   /**
    * Save statements back to markdown file
    */
-  async saveStatements(): Promise<void> {
+  saveStatements(): Promise<void> {
     try {
       // Ensure directory exists
       const dir = path.dirname(this.filePath);
@@ -161,10 +163,11 @@ lastUpdated: "${new Date().toISOString().split('T')[0]}"
       fs.writeFileSync(tempPath, content, 'utf-8');
       fs.renameSync(tempPath, this.filePath);
 
+      return Promise.resolve();
     } catch (error: unknown) {
       console.error('Error saving statements:', error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to save statements: ${message}`);
+      return Promise.reject(new Error(`Failed to save statements: ${message}`, { cause: error }));
     }
   }
 

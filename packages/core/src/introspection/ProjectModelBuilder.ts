@@ -11,8 +11,6 @@ import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type {
   TaskItem,
   ProjectModel,
-  FoundationEntry,
-  ArchEntry,
   Initiative,
   SliceModelEntry,
   TaskModelEntry,
@@ -324,7 +322,7 @@ export async function buildModel(
   model.foundation = foundationDocs.map((d) => ({
     ...toDocSummary(d),
     type: d.docType,
-  })) as FoundationEntry[];
+  }));
 
   // --- Project architecture band (050-099) ---
   const archTypes = new Set(['arch', 'hld']);
@@ -334,8 +332,8 @@ export async function buildModel(
 
   model.projectArchitecture = projArchDocs.map((d) => ({
     ...toDocSummary(d),
-    type: (d.name.includes('hld') || d.docType === 'hld' ? 'hld' : 'arch') as 'hld' | 'arch',
-  })) as ArchEntry[];
+    type: (d.name.includes('hld') || d.docType === 'hld' ? 'hld' : 'arch'),
+  }));
 
   // --- Initiative bands (100+, including 900+ maintenance initiatives) ---
   // Identify base indices from arch or slices docs
@@ -417,7 +415,7 @@ export async function buildModel(
     const sliceIndices = new Set<number>(bandSlices.map((s) => s.index));
 
     for (const sliceDoc of bandSlices) {
-      const entry: SliceModelEntry = toDocSummary(sliceDoc) as SliceModelEntry;
+      const entry: SliceModelEntry = toDocSummary(sliceDoc);
 
       // Attach tasks
       const tasks = tasksByIndex.get(sliceDoc.index);

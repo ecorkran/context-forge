@@ -47,7 +47,7 @@ export async function taskListAction(opts: { json?: boolean; all?: boolean; proj
     // An explicit index request targets one specific plan directly, never
     // touching project state — no worktree/--all aggregation.
     const archIndex = parseArchIndex(opts.archIndex);
-    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
     const resolvedPath = await resolveSlicePlanPathByIndex(operationPath, archIndex);
     if (!resolvedPath) {
       throw new UserError(
@@ -59,7 +59,7 @@ export async function taskListAction(opts: { json?: boolean; all?: boolean; proj
     const paths = resolveAllOperationPaths(rawProject);
     await listTaskFiles(project, paths, undefined, opts.json);
   } else {
-    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+    const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
     const indexRange = getWorktreeIndexRange(rawProject, worktreeId);
     await listTaskFiles(project, [operationPath], indexRange, opts.json);
   }
@@ -81,7 +81,7 @@ export async function taskItemsAction(opts: { json?: boolean; project?: string }
     );
   }
 
-  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath!;
+  const operationPath = resolveOperationPath(project, worktreeId) ?? project.projectPath;
   await listTaskItems(project, operationPath, opts.json);
 }
 

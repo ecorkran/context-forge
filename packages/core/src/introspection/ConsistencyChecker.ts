@@ -450,7 +450,7 @@ export class ConsistencyChecker {
       findings.push({
         rule: 'missing-artifact',
         severity: 'info',
-        location: docs!.taskFile![0],
+        location: docs.taskFile![0],
         description: `Task file exists for slice ${sliceIndex} but no matching slice plan entry found`,
         suggestedFix: 'Add an entry for this slice to the slice plan',
         fixable: false,

@@ -21,7 +21,7 @@ type TomlObject = Record<string, unknown>;
 async function readToml(filePath: string): Promise<TomlObject> {
   try {
     const content = await readFile(filePath, 'utf-8');
-    return parse(content) as TomlObject;
+    return parse(content);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       return {};

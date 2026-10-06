@@ -123,15 +123,15 @@ export class TarballStrategy implements InstallStrategy {
   /** The parsed guide.exclude list; empty means nothing is excluded. */
   constructor(private readonly exclude: readonly string[] = []) {}
 
-  async detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
+  detect(_projectPath: string, targetDir: string): Promise<DetectionResult | null> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
-    if (!existsSync(markerPath)) return null;
+    if (!existsSync(markerPath)) return Promise.resolve(null);
 
     try {
       const version = readFileSync(markerPath, 'utf-8').trim() || null;
-      return { method: 'tarball', version, source: null };
+      return Promise.resolve({ method: 'tarball', version, source: null });
     } catch {
-      return null;
+      return Promise.resolve(null);
     }
   }
 
@@ -266,12 +266,16 @@ export class TarballStrategy implements InstallStrategy {
    * the swap failure as the cause so the root error is not lost.
    */
   private restorePrevious(previous: string, targetDir: string, swapError: unknown): void {
+    let restoreFailure: { reason: string } | null = null;
     try {
       renameSync(previous, targetDir);
     } catch (restoreError) {
-      const reason = restoreError instanceof Error ? restoreError.message : String(restoreError);
+      restoreFailure = { reason: restoreError instanceof Error ? restoreError.message : String(restoreError) };
+    }
+    // Thrown outside the catch: the cause is the swap failure, not the restore failure.
+    if (restoreFailure) {
       throw new Error(
-        `Installing the new guide failed, and restoring the previous guide also failed (${reason}). ` +
+        `Installing the new guide failed, and restoring the previous guide also failed (${restoreFailure.reason}). ` +
           `The previous guide is at ${previous}; move it back to ${targetDir} by hand.`,
         { cause: swapError }
       );
@@ -342,7 +346,7 @@ export class TarballStrategy implements InstallStrategy {
         // reason on err.cause.message — surface that, not the generic wrapper text.
         const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
         const message = err instanceof Error ? err.message : String(err);
-        throw new Error(withNetworkErrorHint(`${failurePrefix}: ${cause ? `${message}: ${cause}` : message}`));
+        throw new Error(withNetworkErrorHint(`${failurePrefix}: ${cause ? `${message}: ${cause}` : message}`), { cause: err });
       }
 
       if (!response.ok) {

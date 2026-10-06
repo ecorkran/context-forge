@@ -18,7 +18,7 @@ export interface BackupFsDeps {
 const defaultDeps: BackupFsDeps = {
   existsSync,
   copyFile,
-  readdir: readdir as (path: string) => Promise<string[]>,
+  readdir: readdir,
   unlink,
   readFile: readFile as (path: string, encoding: string) => Promise<string>,
 };
@@ -98,8 +98,8 @@ export async function checkWriteGuard(
 
   try {
     const existing = await fs.readFile(filePath, 'utf-8');
-    const existingParsed = JSON.parse(existing);
-    const incomingParsed = JSON.parse(incomingData);
+    const existingParsed: unknown = JSON.parse(existing);
+    const incomingParsed: unknown = JSON.parse(incomingData);
 
     if (Array.isArray(existingParsed) && Array.isArray(incomingParsed)) {
       if (existingParsed.length > 2 && incomingParsed.length <= 1) {

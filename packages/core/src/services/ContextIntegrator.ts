@@ -87,7 +87,7 @@ export class ContextIntegrator {
     }
 
     // Map project data to enhanced context data
-    const enhancedData = await this.mapProjectToEnhancedContext(project, worktreeId);
+    const enhancedData = this.mapProjectToEnhancedContext(project, worktreeId);
 
     // Generate using template engine
     return await this.templateEngine.generateContext(enhancedData);
@@ -113,10 +113,10 @@ export class ContextIntegrator {
    * @param project Project data from storage
    * @returns Enhanced context data ready for template engine
    */
-  private async mapProjectToEnhancedContext(project: ProjectData, worktreeId?: string): Promise<EnhancedContextData> {
+  private mapProjectToEnhancedContext(project: ProjectData, worktreeId?: string): EnhancedContextData {
     // Detect available tools and MCP servers
-    const availableTools = await this.detectAvailableTools();
-    const mcpServers = await this.detectMCPServers();
+    const availableTools = this.detectAvailableTools();
+    const mcpServers = this.detectMCPServers();
 
     const enhanced: EnhancedContextData = {
       projectName: project.name || 'Unknown Project',
@@ -269,7 +269,7 @@ Please check the console for detailed error information.`;
    * Detect available tools for the project
    * Currently returns placeholder data - can be enhanced for actual detection
    */
-  private async detectAvailableTools(): Promise<string[]> {
+  private detectAvailableTools(): string[] {
     // Placeholder implementation - can be enhanced to actually detect tools
     return ['npm', 'git', 'vscode'];
   }
@@ -278,7 +278,7 @@ Please check the console for detailed error information.`;
    * Detect available MCP servers for the project
    * Currently returns placeholder data - can be enhanced for actual detection
    */
-  private async detectMCPServers(): Promise<string[]> {
+  private detectMCPServers(): string[] {
     // Placeholder implementation - can be enhanced to detect actual MCP servers
     return ['context7'];
   }

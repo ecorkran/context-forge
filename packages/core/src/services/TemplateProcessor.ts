@@ -40,7 +40,7 @@ export class TemplateProcessor {
       });
 
       // Then handle single brace format with more flexible patterns: {variableName}, {slice | feature}, etc.
-      processed = processed.replace(/\{([^}]+)\}/g, (_match, expression) => {
+      processed = processed.replace(/\{([^}]+)\}/g, (_match: string, expression: string) => {
         // Handle pipe expressions like {slice | feature}
         if (expression.includes(' | ')) {
           const parts = expression.split(' | ').map((part: string) => part.trim());
@@ -188,7 +188,7 @@ export class TemplateProcessor {
   private evalConditional(varName: string, ifTrue: string, ifFalse: string, data: TemplateVariableMap): string {
     try {
       const value = data[varName];
-      return Boolean(value) ? ifTrue : ifFalse;
+      return value ? ifTrue : ifFalse;
     } catch (error: unknown) {
       console.warn(`Error evaluating conditional for '${varName}':`, error);
       return ifFalse;

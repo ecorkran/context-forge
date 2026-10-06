@@ -28,10 +28,10 @@ export async function getPhaseShorthands(projectPath: string): Promise<Map<strin
 
   let match;
   while ((match = pattern.exec(content)) !== null) {
-    const name = match[1]!.trim();
-    const number = match[2]!;
+    const name = match[1].trim();
+    const number = match[2];
     // Only use the integer part for shorthand (P1, P2, etc.)
-    const intPart = number.split('.')[0]!;
+    const intPart = number.split('.')[0];
     const shorthand = `P${intPart}`;
     // First match for each integer wins (e.g. P2 = Architecture, not P2.1)
     if (!map.has(shorthand)) {

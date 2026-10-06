@@ -40,7 +40,7 @@ async function resolveAndRead(
   stem: string,
   projectPath: string,
 ): Promise<EmbedResult> {
-  const relPath = resolveArtifactPath(field as string, stem);
+  const relPath = resolveArtifactPath(field, stem);
   if (!relPath) {
     return { relPath: stem, content: '', missing: true };
   }

@@ -60,7 +60,7 @@ export function registerAgentQuickstartTool(server: McpServer, version: string):
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => ({
+    () => ({
       content: [{ type: 'text' as const, text: JSON.stringify(buildQuickstartSchema(version), null, 2) }],
     }),
   );

@@ -9,7 +9,7 @@ export function registerVersionTool(server: McpServer, name: string, version: st
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => ({
+    () => ({
       content: [{ type: 'text' as const, text: JSON.stringify({ name, version }) }],
     }),
   );

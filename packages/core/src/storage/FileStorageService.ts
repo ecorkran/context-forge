@@ -130,8 +130,11 @@ export class FileStorageService implements IStorageService {
     }
   }
 
-  async exists(filename: string): Promise<boolean> {
-    validateFilename(filename);
-    return existsSync(join(this.storagePath, filename));
+  exists(filename: string): Promise<boolean> {
+    // Executor throws (invalid filename) surface as rejections, preserving the async contract
+    return new Promise((resolve) => {
+      validateFilename(filename);
+      resolve(existsSync(join(this.storagePath, filename)));
+    });
   }
 }

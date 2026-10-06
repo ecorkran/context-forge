@@ -127,7 +127,7 @@ export class SectionBuilder {
   /**
    * Build the project information object section
    */
-  async buildProjectInfoSection(data: EnhancedContextData): Promise<string> {
+  buildProjectInfoSection(data: EnhancedContextData): Promise<string> {
     try {
       const lines: string[] = [];
 
@@ -165,10 +165,10 @@ export class SectionBuilder {
         lines.push(`Spec: ${data.fileSpec}`);
       }
 
-      return `### Project Context\n${lines.join('\n')}`;
+      return Promise.resolve(`### Project Context\n${lines.join('\n')}`);
     } catch (error: unknown) {
       console.error('Error building project info section:', error);
-      return `### Project Context\nProject: ${data.projectName || 'unknown'}`;
+      return Promise.resolve(`### Project Context\nProject: ${data.projectName || 'unknown'}`);
     }
   }
 

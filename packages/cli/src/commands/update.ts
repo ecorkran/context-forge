@@ -41,7 +41,7 @@ export async function fetchLatestVersion(packageName: string): Promise<string | 
     if (!response.ok) return null;
     const data: unknown = await response.json();
     if (typeof data === 'object' && data !== null && 'version' in data) {
-      const ver = (data as { version: unknown }).version;
+      const ver = (data).version;
       if (typeof ver === 'string') return ver;
     }
     return null;
