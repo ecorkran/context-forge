@@ -1,0 +1,290 @@
+---
+docType: slice-design
+slice: tarball-guide-update-preview-exclude-fixes-version-pinning
+project: context-forge
+parent: user/architecture/900-slices.maintenance-and-refactoring.md
+dependencies: []
+interfaces: []
+dateCreated: 20261006
+dateUpdated: 20261006
+status: not_started
+---
+
+# Slice Design: Tarball Guide Update: Preview, Exclude Fixes, Version Pinning
+
+## Overview
+
+Three changes to the tarball install/update path, bundled because they all touch `TarballStrategy`, `GuideManager.update()`, and the `cf guides` / MCP guide-tool surfaces.
+
+- **#110: Preview before swap.** `cf guides update` replaces the guide without saying what changes. The new tree is already built in a staging directory before the rename, so cf can diff staging against the current guide, print added/removed/changed counts, and ask before swapping.
+- **#111: Two `guide.exclude` defects.**
+  - (a) The whole `project-guides` tree is protected, so a Python project cannot drop `project-guides/lint/csharp`. The error also misstates the problem: it says the entry "would remove project-guides".
+  - (b) The re-extract commit made when `guide.exclude` changes leaves out the `.context-forge.toml` edit that caused it.
+- **#93: Version pinning and a local tarball source.** `--version <tag>` on install and update, and `--source` accepting a local `.tgz`/`.tar.gz` file.
+
+Everything is tarball-only. Submodule and clone keep today's behavior. A new flag passed to them is an explicit error, never silently ignored.
+
+This is maintenance on the guide install path built in slices 212 and 925, so it belongs in the 900 initiative.
+
+## Value
+
+- Users see the size of a guide update before it lands in their repo, instead of finding out from the git diff afterwards.
+- Single-language projects can trim the lint configs they never use, and the trim survives updates.
+- The re-extract commit is self-contained: the config change and the guide change it caused land together.
+- A guide build can be tested in a real project before it is tagged (local tarball), and a project can install a known version on purpose (`--version`).
+
+## Technical Scope
+
+**Included**
+- A preview diff and confirm step on tarball `update` (CLI prompt, `--yes`, MCP auto-confirm with counts in the result).
+- A narrowed `guide.exclude` protection rule, plus an accurate error message.
+- Staging `.context-forge.toml` into the guide commit when its only change is `guide.exclude`.
+- `--version <tag>` on `cf guides install` and `cf guides update`, and a matching `version` parameter on MCP `guide_install` and `guide_update`.
+- A local tarball path accepted by `--source` (install and update) and by the MCP `source` parameter. `update` gains `--source`, which it lacks today.
+- Splitting `TarballStrategy.ts` (377 lines today) so it stays near the size limit after these additions.
+- README `cf guides` section, `guide.exclude` key description, CHANGELOG.
+
+**Excluded**
+- Preview on `install`. A fresh install has nothing to compare against.
+- Persisting a pinned version in config. `--version` applies to one call only (D4).
+- Making lint directories follow `rules.exclude`, as #111 suggests. That couples cf to the guide's rules layout. If wanted, it belongs in the guide's `setup-ide-lint.sh`, which already knows both.
+- `--version` for submodule or clone.
+- Listing individual changed paths in the preview. Counts only, as #110 asks.
+
+## Dependencies
+
+### Prerequisites
+- Slice 212 (`guide.exclude`, exclude record, same-version re-extract): complete.
+- Slice 925 (tarball strategy surfacing, staging swap): complete.
+- Slice 916 (branch guard on update): complete.
+
+### Interfaces Required
+- `parseGuideExclude` / `matchingGuidePatterns` (`packages/core/src/config/guideExclude.ts`).
+- `commitPathsIfChanged` (`packages/core/src/guides/gitExec.ts`). It already accepts several paths.
+- `evaluateBranchGuard` and `BranchGuardWarnError` (`packages/core/src/guides/branchGuard.ts`). Unchanged.
+- `getProjectConfigPath` (`packages/core/src/config/configPaths.ts`) and the TOML reader `ConfigManager` already uses.
+
+## Architecture
+
+### Component Structure
+
+```
+packages/core/src/guides/
+  strategies/TarballStrategy.ts   install/update orchestration: stage → preview → confirm → swap → commit
+  tarballSource.ts       (new)    resolve a source into {kind: remote|local, tag} and open its archive stream
+  guideTreeDiff.ts       (new)    diff two directory trees → {added, removed, changed} counts
+  GuideManager.ts                 validates tarball-only options; passes version/source/confirm through
+  types.ts                        TarballUpdateOptions, GuidePreview, UpdateResult additions
+packages/core/src/config/guideExclude.ts   narrowed protection rule
+packages/cli/src/commands/guides.ts        --version, --source on update, preview prompt
+packages/mcp-server/src/tools/guideTools.ts version/source params, preview in result
+```
+
+`downloadAndExtract` turns into an archive-stream opener in `tarballSource.ts`, feeding the same gunzip and `tar.extract({ strip: 1, filter })` pipeline. Remote opens the GitHub tarball response body. Local opens `createReadStream(path)`. `decideTarballEntry` is unchanged. It already assumes one top-level archive directory, which both forms have.
+
+### Data Flow
+
+**Update (tarball):**
+
+1. `GuideManager.update(opts)` resolves exclude and source, detects the install, and runs the branch guard. That order is unchanged.
+2. If `opts.version` or a local source is given and the method is not tarball, throw: `--version and local --source apply to tarball installs only (this guide is installed as <method>)`.
+3. `TarballStrategy.update` calls `resolveTarballSource(source, version)`:
+   - Remote with no version: `fetchLatestTag()` (today's behavior).
+   - Remote with a version: the same `ls-remote` tag list, and the tag must be in it. Otherwise throw, naming the tag and the newest available.
+   - Local: the tag is `opts.version ?? LOCAL_VERSION_MARKER` (`'local'`).
+4. Short-circuit (remote only): the marker equals the tag and the exclude record equals the configured list, so return "already up to date" without downloading. A local source always stages, because the same `'local'` marker can name different archives.
+5. Stage into `.ai-project-guide.staging` (existing).
+6. `diffGuideTrees(targetDir, staging)` returns `{ added, removed, changed }`. cf's own bookkeeping files (version marker, exclude record) are ignored.
+7. All three counts are zero: remove staging and return `{ unchanged: true }`. No swap, no commit.
+8. If `opts.confirm` is present, call `await opts.confirm(preview)`. On `false`, remove staging and return `{ cancelled: true, preview }`. The existing guide is untouched.
+9. Swap (existing rename + restore), then commit (step 10). Return the result with `preview`.
+10. Commit paths: always the guide dir. Add `.context-forge.toml` when the applied exclude list changed and the config file's diff against HEAD is exclude-only (D3).
+
+**Install (tarball):** the same source resolution (`--version`, local path). No preview step. Commit as today.
+
+### State Management
+
+- **Version marker** (`.context-forge-guide-version`): the tag, the `--version` value, or `local`. Read back by `detect()` and status as before. `local` compares unequal to any remote tag, so status reports an update available and a plain `cf guides update` moves to the latest remote release. That is the right default after testing a local build.
+- **Exclude record**: unchanged.
+- **No new config keys.** A pin is not persisted (D4).
+
+## Technical Decisions
+
+### Technology Choices
+
+No new dependencies. The tree diff compares file size first, then bytes (`Buffer.equals`). The guide is a few MB, so hashing is unnecessary. The local archive goes through the same `tar` + `zlib` pipeline as the remote one.
+
+### Patterns and Conventions
+
+**D1: Protection rule (#111a).** `PROTECTED_GUIDE_PATHS` stays a whole-subtree rule for `scripts` and `project-guides`. One explicit carve-out is added: `EXCLUDABLE_GUIDE_SUBTREES = ['project-guides/lint']`. An entry is allowed when it sits **strictly inside** a carve-out (`project-guides/lint/csharp` is allowed, `project-guides/lint` is refused).
+- Why not exclude `lint` itself: `setup-ide-lint.sh` treats a missing lint directory as an error.
+- Why not exclude per-language dirs freely: the script only reads `lint/<lang>` for languages it detects in the project. Excluding the lint config for a language the project actually uses is a user mistake the guide script will report. That's acceptable.
+- Rules and agents already have their own mechanisms (`rules.exclude`), so they get no carve-out.
+- Why an allowlist and not "protect only what cf reads": cf reads one file (`prompt.ai-project.system.md`), but the phase guides, templates and rules are read by people, agents and `setup-ide`. A short allowlist of known-safe subtrees can't drift as the guide adds files. A list of protected files would have to track the guide's file names.
+- The error names the actual conflict:
+  - `guide.exclude entry "project-guides/rules" is inside project-guides, which cf requires. Only subpaths of project-guides/lint can be excluded.`
+  - `guide.exclude entry "project-guides/lint" would remove the whole lint directory. Exclude individual languages instead, e.g. "project-guides/lint/<language>".`
+
+  The placeholder is literal text, not an example value.
+
+**D2: Confirm via callback, not throw-and-retry.** The branch guard throws and the caller re-calls with `confirmed: true`. That's cheap because it runs before any download. Re-calling after a preview would download the archive twice. `update` instead takes `confirm?: (preview: GuidePreview) => Promise<boolean>`:
+- The CLI passes a prompt, unless `--yes` was given.
+- MCP passes nothing, so the update proceeds and the preview is in the result.
+- A non-interactive CLI run without `--yes` behaves as the branch guard does today: `askConfirmation` reads stdin.
+
+**D3: Committing the config change (#111b).** When the applied exclude list changes (same-version re-extract, or a version update that also changes excludes), and `.context-forge.toml` is modified, parse its HEAD version and its working version. If they differ only in `guide.exclude`, add the file to the commit paths. Otherwise leave it out and report: `.context-forge.toml has other uncommitted changes; it was left out of the guide commit`. No partial-file staging. `commitPathsIfChanged` already scopes the commit to its pathspecs, so nothing else the user staged is swept in.
+
+**D4: Pins are per call.** `--version` changes what this install or update fetches. It is not written to config. A later plain `update` resolves latest. Reproducible team installs can come later as a `guide.version` key if needed. Nobody has asked for it, and it would need its own rules for interacting with `update`.
+
+**D5: Local source detection.** `--source` is local when it names an existing file. Relative paths resolve against the CLI's working directory, and against the project root for MCP (the server's cwd is not meaningful to the caller). An existing path whose name doesn't end in `.tgz` or `.tar.gz` is refused: `--source <path> is a local file but not a .tgz/.tar.gz archive`. A non-existent path that looks like a path (starts with `.`, `/` or `~`, or contains a backslash) gets a "file not found" error, not the current "cannot parse GitHub owner/repo" error. An archive whose entries are not under a single top-level directory is refused, since `strip: 1` would scatter it.
+
+**D6: Two prompts, in order.** In the rare case where the branch guard warns (off-trunk update), the user is asked twice:
+1. The branch question, before any download.
+2. The preview, after staging.
+
+These are different questions at different points. Merging them would force the branch guard to download first, or to change its contract. `--yes` answers both. One `update` never asks the same question twice.
+
+**Errors:** All new failures throw with messages that name the flag or key involved. A non-tarball method with `--version` or a local source is an error, not a notice, because ignoring an explicit flag would silently install something other than what was asked.
+
+## Implementation Details
+
+### API Contracts
+
+**CLI**
+
+```
+cf guides install [--strategy <method>] [--source <url|path.tgz>] [--version <tag>]
+cf guides update  [--source <url|path.tgz>] [--version <tag>] [-y|--yes]
+```
+
+Update output when there are changes:
+
+```
+Guide update: v0.20.2 → v0.21.0
+  12 added, 3 removed, 41 changed
+Continue? (y/N)
+```
+
+Zero changes print `Guide is already up to date (v0.21.0).` and nothing is committed.
+
+**MCP**
+- `guide_install`: add `version?: string`. `source` documentation adds the local path form.
+- `guide_update`: add `version?: string` and `source?: string`. The result gains `preview: { added, removed, changed }` (counts) whenever a staging diff ran, and `unchanged: true` when the counts are all zero.
+
+**Core types (`types.ts`)**
+
+```ts
+export interface GuidePreview { added: number; removed: number; changed: number }
+export interface TarballUpdateOptions {
+  version?: string;
+  confirm?: (preview: GuidePreview) => Promise<boolean>;
+}
+// UpdateResult additions
+preview?: GuidePreview;
+unchanged?: true;
+cancelled?: true;
+configCommitted?: boolean;  // D3: whether .context-forge.toml went into the guide commit
+```
+
+`InstallStrategy.update` and `install` gain an optional trailing `options` parameter. Submodule and clone never receive one, because `GuideManager` rejects tarball-only options first.
+
+## Integration Points
+
+### Provides to Other Slices
+- `diffGuideTrees` is general enough for a future worktree-propagation preview. No current consumer.
+- The local tarball source gives ai-project-guide a pre-release test path: `pnpm pack`-style or `git archive --prefix=ai-project-guide/` output can be installed directly.
+
+### Consumes from Other Slices
+- The branch guard (916) and the staging swap (925) are consumed unchanged.
+- The `guide.exclude` parser (212) changes only in its protection rule. Existing valid values stay valid. Previously refused values under `project-guides/lint/<x>` become valid.
+
+## Success Criteria
+
+### Functional Requirements
+- A tarball `cf guides update` with changes prints added/removed/changed counts and asks before swapping. Answering no leaves the guide and git untouched, with no staging directory left behind.
+- `--yes` skips both the branch-guard question and the preview question.
+- MCP `guide_update` proceeds without asking and returns `preview` counts.
+- An update with zero differences does not swap or commit, and says the guide is up to date.
+- `cf config set guide.exclude "project-guides/lint/csharp"` succeeds.
+- `project-guides/lint` and `project-guides/rules` are refused, with the D1 messages.
+- After `cf config set guide.exclude …` and `cf guides update`, the re-extract commit contains both the guide change and `.context-forge.toml`, and `git status` is clean. With other uncommitted edits in `.context-forge.toml`, the file is left out and the notice is printed.
+- `--version v0.20.1` installs or updates to exactly that tag. A tag that doesn't exist fails, naming it and the newest tag.
+- `--source ./ai-project-guide.tgz` installs from the file and records `local`, or the `--version` value when given. A later plain update moves to the latest remote release.
+- `--version` or a local `--source` on a submodule or clone install fails with the tarball-only error message.
+
+### Technical Requirements
+- `TarballStrategy.ts`, `tarballSource.ts` and `guideTreeDiff.ts` are each near or under 300 lines.
+- Unit tests:
+  - `diffGuideTrees` (added/removed/changed, bookkeeping files ignored).
+  - The protection rule (allowed and refused cases, message text).
+  - Source resolution (remote latest, remote pinned hit and miss, local file, local non-archive, missing path).
+  - The D3 exclude-only config check (exclude-only diff, mixed diff, unmodified file).
+- Strategy tests with a local fixture archive, for the decline path (guide unchanged, staging removed) and the unchanged path. The local source makes these testable without network.
+- `pnpm -r build`, typecheck, lint and tests all pass.
+- Docs: README `cf guides` section (flags, preview, local source), the `guide.exclude` description in `ConfigKeys.ts` (lint carve-out), CHANGELOG.
+
+### Integration Requirements
+- Existing `guide.exclude` values, exclude records and version markers keep working with no migration.
+- `cf guides info` reports a `local` version unchanged (displayed as-is), and reports an update as available.
+
+### Verification Walkthrough
+
+Run from a scratch project with a tarball guide installed, using the local build (`node packages/cli/dist/index.js`, aliased below as `cf`).
+
+1. **Exclude carve-out (#111a)**
+   ```
+   cf config set guide.exclude "project-guides/lint/csharp,project-guides/lint/dart"   # succeeds
+   cf config set guide.exclude "project-guides/lint"     # fails: whole lint directory message
+   cf config set guide.exclude "project-guides/rules"    # fails: inside project-guides message
+   ```
+2. **Re-extract commit includes config (#111b)**
+   ```
+   cf config set guide.exclude "project-guides/lint/csharp"
+   cf guides update --yes
+   git show --stat HEAD     # lists project-documents/ai-project-guide/... and .context-forge.toml
+   git status               # clean
+   ls project-documents/ai-project-guide/project-guides/lint   # no csharp
+   ```
+3. **Preview and decline (#110)**
+   ```
+   cf guides install --version v0.20.1      # in a fresh project, or uninstall first
+   cf guides update                          # shows "v0.20.1 → <latest>", counts, prompt; answer n
+   cat project-documents/ai-project-guide/.context-forge-guide-version   # still v0.20.1
+   ls -a project-documents/                  # no .ai-project-guide.staging
+   cf guides update                          # answer y → swapped and committed
+   cf guides update                          # "already up to date", no prompt, no commit
+   ```
+4. **Local tarball (#93)**
+   ```
+   (cd ../ai-project-guide && git archive --format=tar.gz --prefix=ai-project-guide/ -o /tmp/apg.tgz HEAD)
+   cf guides update --source /tmp/apg.tgz --yes
+   cf guides info                            # Version: local, update available
+   cf guides update --source /tmp/apg.tgz --version v0.21.0-rc1 --yes   # marker records v0.21.0-rc1
+   cf guides update --version v9.9.9         # fails: tag not found, names newest
+   ```
+5. **MCP**: call `guide_update` with no arguments on a project behind latest. The result includes `preview` counts and the update is applied.
+6. **Non-tarball**: in a submodule-installed project, `cf guides update --version v0.20.1` fails with the tarball-only message.
+
+## Risk Assessment
+
+### Technical Risks
+- Narrowing protection could let an exclude remove something a tool needs. D1 limits the carve-out to `project-guides/lint/<x>`, whose only reader skips languages the project doesn't use.
+- Each confirm prompt leaves staging on disk while it waits. A killed process leaves `.ai-project-guide.staging` behind. Today's leftover cleanup at the start of the next stage already covers this.
+
+### Mitigation Strategies
+- Exact allowed/refused test cases for D1.
+- Decline and kill-mid-prompt behavior covered by the strategy tests with a local fixture archive.
+
+## Implementation Notes
+
+### Development Approach
+1. Extract `tarballSource.ts` (stream opener, tag resolution) from `TarballStrategy.ts` with no behavior change. Existing tests stay green.
+2. Local source and `--version` in core, then the CLI/MCP wiring. The local fixture archive this produces is reused by the later tests.
+3. `guideTreeDiff.ts` and the preview/confirm/unchanged flow in `TarballStrategy.update`, then the CLI prompt and the MCP result.
+4. The protection carve-out and messages in `guideExclude.ts`.
+5. The D3 config-commit check.
+6. Docs and CHANGELOG.
+
+### Special Considerations
+- The `ls-remote` tag list already exists in `fetchLatestTag`. Pinned resolution reuses that list rather than adding a second remote call.
+- The D3 parse uses `git show HEAD:.context-forge.toml`. A file that is new and not in HEAD counts as exclude-only only when `guide.exclude` is its sole key.
