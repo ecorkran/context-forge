@@ -3,4 +3,4 @@ review_enabled = true
 review_threshold = "concerns"
 
 [rules]
-exclude = "electron.md,dart.md,flutter.md"
+exclude = "electron.md,dart.md,flutter.md,csharp.md,python.md,react.md"
