@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf guides update` previews the change before replacing the guide** (tarball installs): it prints `N added, N removed, N changed` for the new version and asks to continue. `--yes` skips the question; a closed stdin declines. An update with no differences says so and changes nothing. The `guide_update` MCP tool returns the same counts as `preview` (#110)
+- **`--version <tag>` on `cf guides install` and `cf guides update`** (and `version` on the MCP tools) installs a specific release instead of the newest; a missing tag fails and names the newest one (#93)
+- **`--source <path.tgz>` installs from a local guide archive**, for offline or air-gapped use. It is recorded as version `local`, `cf guides info` reports an update as available, and a later plain update moves to the latest release. Using `--version` or a local `--source` on a submodule or clone install is an error (#93)
+
+### Fixed
+
+- **`guide.exclude` can now skip a single language's lint config**, e.g. `project-guides/lint/csharp`; it was refused along with all of `project-guides`. `project-guides/lint` itself and the rest of `project-guides` and `scripts` stay protected, and the error says which rule applied (#111)
+- **A `guide.exclude` change now lands in the same commit as the re-extract it caused**: `.context-forge.toml` is included when `guide.exclude` is its only uncommitted change, so the tree is left clean. With other edits in it, the file is left out and cf says so (#111)
+- **A guide installed from a local archive no longer shows as up to date forever**: its `local` version now counts as older than any release
+
 ## [0.19.1] - 20261006
 
 ### Added

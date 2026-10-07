@@ -199,6 +199,41 @@ deprecation notice.
 > This directory is managed by cf and overwritten on `cf guides update`. Put
 > project-specific customizations under `project-documents/user/`.
 
+#### Previewing, pinning and local archives (tarball installs)
+
+`cf guides update` downloads the new guide into a staging directory and shows
+what would change before it touches anything:
+
+```
+Guide update: v0.20.2 → v0.21.0
+  12 added, 3 removed, 41 changed
+Continue? (y/N)
+```
+
+Answering anything but `y` leaves the guide and git untouched. `--yes` skips the
+question (and the branch-guard question too). With no terminal to ask on, such as
+a closed stdin, the answer is no, so unattended runs need `--yes`. When nothing
+differs, it prints `Guide is already up to date` and changes nothing. The
+`guide_update` MCP tool has no prompt: it applies the update and returns the same
+counts as `preview` (`unchanged: true` when nothing differed); the swap is one
+commit you can revert.
+
+Two flags work on both `cf guides install` and `cf guides update`:
+
+- `--version <tag>` installs that release instead of the newest. It applies to
+  that call only and is not remembered; a tag the remote does not have fails and
+  names the newest one.
+- `--source <url|path.tgz>` takes a GitHub URL or a local `.tgz`/`.tar.gz`
+  archive (relative paths resolve against the directory you run `cf` in; the
+  MCP tools resolve against the project root). The archive needs a single
+  top-level directory, like a GitHub tarball. A local install is recorded as
+  version `local`, so `cf guides info` shows `local` and reports an update as
+  available; a later plain `cf guides update` moves to the newest release.
+  `--version` cannot be combined with a local archive.
+
+Both are tarball-only: on a submodule or clone install they fail with an error
+instead of being ignored.
+
 #### Leaving guide content out (`guide.exclude`)
 
 Most projects use only a few of the guide's `tool-guides/` and
@@ -213,11 +248,15 @@ cf guides update        # re-extracts at the same version without the excluded p
   directory and everything under it. A trailing `/` or `/**` means the same as
   the bare path; no other wildcards are supported.
 - `project-guides` and `scripts` are protected: cf needs them, so an entry that
-  equals, contains, or sits inside either one is refused.
+  equals, contains, or sits inside either one is refused. The one exception is a
+  single language's lint config, `project-guides/lint/<language>` (for example
+  `project-guides/lint/csharp`); `project-guides/lint` itself is refused.
 - Tarball installs only. Submodule and clone installs ignore the key and say so.
 - A change applies on the next `cf guides update` (or a fresh install); `cf guides
   info` shows the applied list and flags a pending change. The key lives in the
-  shared `.context-forge.toml`, so commit it with the guide.
+  shared `.context-forge.toml`; the update commit includes that file when
+  `guide.exclude` is its only uncommitted change. If you have other edits in it,
+  the file is left out of the commit and cf says so.
 - Links from the remaining guide content into an excluded path will break.
 
 ## Consistency Checks and `--fix`

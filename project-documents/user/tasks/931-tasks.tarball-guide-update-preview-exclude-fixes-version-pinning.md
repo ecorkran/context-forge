@@ -349,32 +349,32 @@ status: in_progress
 
 ### Part 5 — guide.exclude fixes (#111)
 
-- [ ] **Task 12: Narrow the protection rule (D1)** (effort: 3)
-  - [ ] In `guideExclude.ts` add `EXCLUDABLE_GUIDE_SUBTREES =
+- [x] **Task 12: Narrow the protection rule (D1)** (effort: 3)
+  - [x] In `guideExclude.ts` add `EXCLUDABLE_GUIDE_SUBTREES =
         ['project-guides/lint']`. An entry inside a protected path is allowed
         only when it sits **strictly inside** a carve-out
         (`project-guides/lint/csharp` allowed; `project-guides/lint` refused).
         `scripts` and everything else under `project-guides` stay refused.
-  - [ ] Replace the single error with the two D1 messages: the "inside
+  - [x] Replace the single error with the two D1 messages: the "inside
         project-guides, which cf requires. Only subpaths of
         project-guides/lint can be excluded" form, and the "would remove the
         whole lint directory" form. The `<language>` placeholder is literal
         text in the message.
-  - [ ] Derive the allowed-subpath text in the message from the constant;
+  - [x] Derive the allowed-subpath text in the message from the constant;
         do not restate the path.
-  - [ ] Update the `guide.exclude` description in `ConfigKeys.ts` to mention
+  - [x] Update the `guide.exclude` description in `ConfigKeys.ts` to mention
         the lint carve-out.
-  - [ ] Success: builds; existing valid values still parse.
+  - [x] Success: builds; existing valid values still parse.
 
-- [ ] **Task 12T: Protection rule tests** (effort: 2)
-  - [ ] In `guideExclude.test.ts`: allowed — `project-guides/lint/csharp`,
+- [x] **Task 12T: Protection rule tests** (effort: 2)
+  - [x] In `guideExclude.test.ts`: allowed — `project-guides/lint/csharp`,
         `project-guides/lint/csharp/**`-style nested entry, a list mixing
         two lint languages. Refused with the exact message — 
         `project-guides/lint`, `project-guides/lint/` (trailing slash),
         `project-guides/rules`, `project-guides`, `scripts`, `scripts/x.sh`.
-  - [ ] Update any existing test that asserted the old "would remove
+  - [x] Update any existing test that asserted the old "would remove
         project-guides" text.
-  - [ ] Success: all pass, including `ConfigKeys.test.ts`.
+  - [x] Success: all pass, including `ConfigKeys.test.ts`.
 
 - [ ] **Task 13: Exclude-only config check and commit paths (D3)** (effort: 4)
   - [ ] Add a helper (new file `core/src/guides/configExcludeCommit.ts`) that
