@@ -61,3 +61,6 @@ export {
   resolveWorktreeForPath,
   type WorktreeMatch,
 } from './utils/worktree-overlay.js';
+
+// Default worktree identification (the isDefault marker, never the name)
+export { isDefaultWorktree, findDefaultWorktree } from './utils/defaultWorktree.js';
