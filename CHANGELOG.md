@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Removing a worktree gives its index range back to the `default` worktree** when the two ranges border each other, undoing the narrowing that adding it caused. When it can't (the default is pinned with a range override, the ranges don't touch, or the combined range would overlap another worktree), `cf worktree rm` says so and shows how to widen the range by hand. MCP `worktree_rm` returns `restoredRange` or `rangeNotRestored` (#76)
+
 ## [0.19.2] - 20261007
 
 ### Added

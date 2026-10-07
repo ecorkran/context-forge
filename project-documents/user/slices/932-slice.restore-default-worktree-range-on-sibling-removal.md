@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20261007
 dateUpdated: 20261007
-status: not_started
+status: in_progress
 ---
 
 # Slice Design: Restore Default Worktree Range on Sibling Removal
@@ -66,17 +66,31 @@ MCP (`worktreeTools.test.ts`): `restoredRange` and `rangeNotRestored` present in
 
 ## Verification Walkthrough
 
-Run with the local build (`cf` = `node packages/cli/dist/index.js`) in an isolated store (`export CONTEXT_FORGE_DATA_DIR=$(mktemp -d)`). `cf worktree init` needs a real git worktree path.
+Verified on 20261007 with the local build (`cf` = `node packages/cli/dist/index.js`), in an isolated store. `cf worktree init --path` needs an absolute path to a real git worktree; a relative path is rejected as "not a registered git worktree".
 
 ```
+export CONTEXT_FORGE_DATA_DIR=$(mktemp -d)
 git init -q proj && cd proj && git commit -q --allow-empty -m init
 cf init --lite --name scratch && cf set phase 4     # workflow fields, so the first init migrates a default
 git worktree add -q -b feature ../feature
-cf worktree init --name feature --range 500-799 --path ../feature
-cf worktree list                                    # default [100-499], feature [500-799]
-cf worktree rm feature --yes                        # note: range went back to default, now 100-799
-cf worktree list                                    # default [100-799]
+cf worktree init --name feature --range 500-799 --path "$(cd ../feature && pwd)"
+cf worktree list
+cf worktree rm feature --yes
+cf worktree list
 ```
+
+Expected: the init prints `Note: Existing workflow fields were migrated to a 'default' worktree context (range 100-799).` and the first list shows `default [100-499]` and `feature [500-799]`. The `rm` prints `Note: Its range went back to the 'default' worktree, now 100-799.` and the second list shows `default [100-799]`.
+
+Skip case (non-adjacent), continuing in the same project:
+
+```
+git worktree add -q -b mid ../mid && git worktree add -q -b far ../far
+cf worktree init --name mid --range 300-399 --path "$(cd ../mid && pwd)"
+cf worktree init --name far --range 500-599 --path "$(cd ../far && pwd)"
+cf worktree rm far --yes
+```
+
+Expected: after the two inits the default is `[100-299]` (the chop keeps the lower block). The `rm` prints `Note: The 'default' worktree keeps its range 100-299: the removed range does not border it, so they can't merge into one range.` followed by `To widen it by hand: cf worktree update default --range <start>-<end>`.
 
 A project that is already narrowed with no siblings (e.g. this repo's `[100, 499]`) is not touched until a sibling is removed; `cf worktree update default --range 100-799` fixes it by hand.
 
