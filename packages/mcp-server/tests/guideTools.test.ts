@@ -549,6 +549,68 @@ describe('guide_install / guide_update --version and --source parameters', () =>
   });
 });
 
+describe('guide_update preview reporting', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockGetById.mockResolvedValue(sampleProject);
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  function parse(result: Awaited<ReturnType<Client['callTool']>>): Record<string, unknown> {
+    return JSON.parse((result.content as { type: string; text: string }[])[0].text) as Record<string, unknown>;
+  }
+
+  it('returns the preview counts and passes the strategy no confirm callback', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.20.2', newVersion: 'v0.21.0', method: 'tarball',
+      preview: { added: 12, removed: 3, changed: 41 },
+    });
+
+    const result = await client.callTool({ name: 'guide_update', arguments: { projectId: 'test-project' } });
+
+    expect(parse(result).preview).toEqual({ added: 12, removed: 3, changed: 41 });
+    expect(mockUpdate.mock.calls[0][0]).not.toHaveProperty('confirm');
+  });
+
+  it('returns unchanged: true when nothing differs', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.21.0', newVersion: 'v0.21.0', method: 'tarball',
+      unchanged: true, preview: { added: 0, removed: 0, changed: 0 },
+    });
+
+    const result = await client.callTool({ name: 'guide_update', arguments: { projectId: 'test-project' } });
+
+    expect(parse(result)).toMatchObject({ unchanged: true, preview: { added: 0, removed: 0, changed: 0 } });
+  });
+
+  it('confirm: true answers only the branch guard and leaves the preview flow untouched', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({
+        success: true, previousVersion: 'v0.20.2', newVersion: 'v0.21.0', method: 'tarball',
+        preview: { added: 1, removed: 0, changed: 0 },
+      });
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project', confirm: true },
+    });
+
+    expect(parse(result).preview).toEqual({ added: 1, removed: 0, changed: 0 });
+    expect(mockUpdate.mock.calls[1][0]).toMatchObject({ confirmed: true });
+    expect(mockUpdate.mock.calls[1][0]).not.toHaveProperty('confirm');
+  });
+});
+
 describe('guide_update worktree sync', () => {
   let client: Client;
   let cleanup: () => Promise<void>;

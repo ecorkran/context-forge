@@ -1,14 +1,16 @@
 // Tarball-based (manual) guide installation strategy
-import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, renameSync } from 'fs';
-import { basename, dirname, join } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { createGunzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
-import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult, TarballUpdateOptions } from '../types.js';
+import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult, TarballUpdateOptions, GuidePreview, GuideVersionChange } from '../types.js';
 import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
 import { commitPathIfChanged } from '../gitExec.js';
 import { resolveTarballSource, openArchive } from '../tarballSource.js';
 import type { ResolvedTarballSource } from '../tarballSource.js';
+import { diffGuideTrees } from '../guideTreeDiff.js';
+import { clearLeftovers, removeStaging, stagingPathFor, swapIntoPlace } from './tarballSwap.js';
 import { matchingGuidePatterns, sameExcludeList } from '../../config/guideExclude.js';
 
 // Moved to tarballSource; re-exported so existing importers keep working.
@@ -62,16 +64,18 @@ export function readExcludeRecord(guideDir: string): string[] {
     .sort();
 }
 
-/**
- * Suffixes for the sibling directories extractAndSwap uses next to the guide
- * directory (e.g. project-documents/.ai-project-guide.staging). Siblings, so
- * both renames stay on one filesystem.
- */
-const STAGING_SUFFIX = '.staging';
-const PREVIOUS_SUFFIX = '.previous';
+/** The version marker of a guide directory, or null when there is none. */
+function readVersionMarker(guideDir: string): string | null {
+  const markerPath = join(guideDir, VERSION_MARKER_FILE);
+  return existsSync(markerPath) ? readFileSync(markerPath, 'utf-8').trim() || null : null;
+}
 
-function siblingPath(targetDir: string, suffix: string): string {
-  return join(dirname(targetDir), `.${basename(targetDir)}${suffix}`);
+/** Whether the installed and staged guides carry the same version marker and exclude record. */
+function bookkeepingMatches(installedDir: string, stagedDir: string): boolean {
+  return (
+    readVersionMarker(installedDir) === readVersionMarker(stagedDir) &&
+    sameExcludeList(readExcludeRecord(installedDir), readExcludeRecord(stagedDir))
+  );
 }
 
 export class TarballStrategy implements InstallStrategy {
@@ -148,7 +152,16 @@ export class TarballStrategy implements InstallStrategy {
     // Same version but a different exclude list: re-extract the same tag.
     const excludeChanged = previousVersion === tag && excludeDiffers;
 
-    const unmatched = await this.extractAndSwap(resolved, targetDir);
+    const unmatched = await this.stage(resolved, targetDir);
+    const { outcome, preview } = await this.reviewStaged(targetDir, options.confirm, { from: previousVersion, to: tag });
+    // Nothing is swapped or committed for either of these; the guide is untouched.
+    if (outcome === 'unchanged') {
+      return { success: true, previousVersion, newVersion: previousVersion, method: 'tarball', unchanged: true, preview };
+    }
+    if (outcome === 'cancelled') {
+      return { success: false, previousVersion, newVersion: previousVersion, method: 'tarball', cancelled: true, preview };
+    }
+    swapIntoPlace(targetDir);
 
     const committed = await commitPathIfChanged(
       projectPath,
@@ -164,6 +177,7 @@ export class TarballStrategy implements InstallStrategy {
       newVersion: tag,
       method: 'tarball',
       committed,
+      preview,
       ...this.excludeFields(unmatched),
       ...(excludeChanged ? { excludeChanged: true } : {}),
     };
@@ -181,19 +195,22 @@ export class TarballStrategy implements InstallStrategy {
     };
   }
 
-  /**
-   * Build the new guide in a staging directory, then swap it into place. Any
-   * failure before the swap (network, rate limit, broken archive) leaves the
-   * existing guide untouched; a failed swap restores it. Returns the
-   * guide.exclude patterns that matched no archive entry.
-   */
+  /** Stage the new guide, then swap it into place (install: nothing to preview). */
   private async extractAndSwap(resolved: ResolvedTarballSource, targetDir: string): Promise<string[]> {
-    const staging = siblingPath(targetDir, STAGING_SUFFIX);
-    const previous = siblingPath(targetDir, PREVIOUS_SUFFIX);
+    const unmatched = await this.stage(resolved, targetDir);
+    swapIntoPlace(targetDir);
+    return unmatched;
+  }
 
-    // Leftovers from an earlier crash
-    rmSync(staging, { recursive: true, force: true });
-    rmSync(previous, { recursive: true, force: true });
+  /**
+   * Build the new guide in a staging directory. Any failure (network, rate
+   * limit, broken archive) removes the staging directory and leaves the
+   * existing guide untouched. Returns the guide.exclude patterns that
+   * matched no archive entry.
+   */
+  private async stage(resolved: ResolvedTarballSource, targetDir: string): Promise<string[]> {
+    const staging = stagingPathFor(targetDir);
+    clearLeftovers(targetDir);
 
     const matched = new Set<string>();
     try {
@@ -208,42 +225,39 @@ export class TarballStrategy implements InstallStrategy {
       }
     } catch (err) {
       // Don't leave a partial staging dir in the user's repo; the guide itself is untouched.
-      rmSync(staging, { recursive: true, force: true });
+      removeStaging(targetDir);
       throw err;
     }
-
-    const hadGuide = existsSync(targetDir);
-    if (hadGuide) renameSync(targetDir, previous);
-    try {
-      renameSync(staging, targetDir);
-    } catch (err) {
-      if (hadGuide) this.restorePrevious(previous, targetDir, err);
-      throw err;
-    }
-    rmSync(previous, { recursive: true, force: true });
 
     return this.exclude.filter((pattern) => !matched.has(pattern));
   }
 
   /**
-   * Move the previous guide back after a failed swap. If that also fails, the
-   * guide exists only at `previous`: throw an error that says where, keeping
-   * the swap failure as the cause so the root error is not lost.
+   * Diff the staged guide against the installed one and decide whether to
+   * swap. The staging directory is removed on every path except `proceed`,
+   * including when the diff or the confirm callback throws.
    */
-  private restorePrevious(previous: string, targetDir: string, swapError: unknown): void {
-    let restoreFailure: { reason: string } | null = null;
+  private async reviewStaged(
+    targetDir: string,
+    confirm: TarballUpdateOptions['confirm'],
+    versions: GuideVersionChange
+  ): Promise<{ outcome: 'unchanged' | 'cancelled' | 'proceed'; preview: GuidePreview }> {
+    let proceed = false;
     try {
-      renameSync(previous, targetDir);
-    } catch (restoreError) {
-      restoreFailure = { reason: restoreError instanceof Error ? restoreError.message : String(restoreError) };
-    }
-    // Thrown outside the catch: the cause is the swap failure, not the restore failure.
-    if (restoreFailure) {
-      throw new Error(
-        `Installing the new guide failed, and restoring the previous guide also failed (${restoreFailure.reason}). ` +
-          `The previous guide is at ${previous}; move it back to ${targetDir} by hand.`,
-        { cause: swapError }
-      );
+      const preview = await diffGuideTrees(targetDir, stagingPathFor(targetDir));
+      if (preview.added + preview.removed + preview.changed === 0) {
+        // Identical files. Only a true no-op when cf's own bookkeeping matches
+        // too; otherwise swap (no prompt: nothing visible changes) so the
+        // marker and exclude record do not go stale.
+        if (bookkeepingMatches(targetDir, stagingPathFor(targetDir))) return { outcome: 'unchanged', preview };
+        proceed = true;
+        return { outcome: 'proceed', preview };
+      }
+      if (confirm && !(await confirm(preview, versions))) return { outcome: 'cancelled', preview };
+      proceed = true;
+      return { outcome: 'proceed', preview };
+    } finally {
+      if (!proceed) removeStaging(targetDir);
     }
   }
 

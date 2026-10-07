@@ -502,7 +502,12 @@ describe('cf guides --source and --version', () => {
       'node', 'cf', 'guides', 'update', '--source', './g.tgz', '--version', 'v0.2.0', '--project', 'proj_001',
     ]);
 
-    expect(mockUpdate).toHaveBeenCalledWith({ source: './g.tgz', version: 'v0.2.0', sourceRoot: process.cwd() });
+    expect(mockUpdate).toHaveBeenCalledWith({
+      source: './g.tgz',
+      version: 'v0.2.0',
+      sourceRoot: process.cwd(),
+      confirm: expect.any(Function),
+    });
   });
 
   it('update keeps --source and --version on the branch-guard retry', async () => {
@@ -530,6 +535,135 @@ describe('cf guides --source and --version', () => {
     expect(process.exit).toHaveBeenCalledWith(1);
     const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('tarball installs only');
+  });
+});
+
+describe('cf guides update — preview prompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  type Confirm = (
+    preview: { added: number; removed: number; changed: number },
+    versions: { from: string | null; to: string }
+  ) => Promise<boolean>;
+
+  const tarballUpdated = {
+    success: true, previousVersion: 'v0.20.2', newVersion: 'v0.21.0', method: 'tarball',
+    preview: { added: 12, removed: 3, changed: 41 },
+  };
+
+  /** An update that asks the CLI's confirm callback, as TarballStrategy does, and reports the outcome. */
+  function updateThatAsks(): void {
+    mockUpdate.mockImplementation(async (opts: { confirm?: Confirm }) => {
+      const go = opts.confirm
+        ? await opts.confirm({ added: 12, removed: 3, changed: 41 }, { from: 'v0.20.2', to: 'v0.21.0' })
+        : true;
+      return go
+        ? tarballUpdated
+        : { success: false, previousVersion: 'v0.20.2', newVersion: 'v0.20.2', method: 'tarball', cancelled: true };
+    });
+  }
+
+  const logged = (): string => vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+
+  it('shows the version change and counts, then asks', async () => {
+    updateThatAsks();
+    mockAskConfirmation.mockResolvedValue(true);
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(logged()).toContain('Guide update: v0.20.2 → v0.21.0');
+    expect(logged()).toContain('12 added, 3 removed, 41 changed');
+    expect(mockAskConfirmation).toHaveBeenCalledWith('Continue? (y/N) ');
+    expect(logged()).toContain('updated successfully');
+  });
+
+  it('--yes passes no confirm callback and asks nothing', async () => {
+    updateThatAsks();
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001', '--yes']);
+
+    expect(mockUpdate.mock.calls[0][0].confirm).toBeUndefined();
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+    expect(logged()).toContain('updated successfully');
+  });
+
+  it('prints the cancelled line when the user declines (also what EOF at the prompt yields)', async () => {
+    updateThatAsks();
+    mockAskConfirmation.mockResolvedValue(false);
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(logged()).toContain('Update cancelled; guide unchanged.');
+    expect(logged()).not.toContain('updated successfully');
+    expect(process.exit).not.toHaveBeenCalled();
+  });
+
+  it('prints the up-to-date line for an unchanged result', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.21.0', newVersion: 'v0.21.0', method: 'tarball', unchanged: true,
+      preview: { added: 0, removed: 0, changed: 0 },
+    });
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(logged()).toContain('Guide is already up to date (v0.21.0).');
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+  });
+
+  it('asks the branch-guard question and then the preview question', async () => {
+    mockAskConfirmation.mockResolvedValue(true);
+    let call = 0;
+    mockUpdate.mockImplementation(async (opts: { confirm?: Confirm }) => {
+      if (call++ === 0) throw new BranchGuardWarnError('main', 'feature-x', 'descends');
+      await opts.confirm?.({ added: 1, removed: 0, changed: 0 }, { from: 'v0.20.2', to: 'v0.21.0' });
+      return tarballUpdated;
+    });
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
+
+    expect(mockAskConfirmation).toHaveBeenCalledTimes(2);
+    // The guard question came first, before any preview was printed.
+    expect(vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n')).toContain('feature-x');
+    expect(logged()).toContain('Guide update: v0.20.2 → v0.21.0');
+  });
+
+  it('--yes answers the branch guard and asks no preview question', async () => {
+    let call = 0;
+    mockUpdate.mockImplementation(async () => {
+      if (call++ === 0) throw new BranchGuardWarnError('main', 'feature-x', 'descends');
+      return tarballUpdated;
+    });
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001', '--yes']);
+
+    expect(mockAskConfirmation).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a same-version update that changed files as an update, not "already at latest"', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'local', newVersion: 'local', method: 'tarball',
+      preview: { added: 1, removed: 0, changed: 2 },
+    });
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001', '--yes']);
+
+    expect(logged()).toContain('updated successfully');
+    expect(logged()).toContain('1 added, 0 removed, 2 changed');
+    expect(logged()).not.toContain('already at the latest');
   });
 });
 

@@ -7,6 +7,8 @@ import {
   guideExcludeNotices,
   guideMethodDeprecationMessage,
   type GuideExcludeNoticeSource,
+  type GuidePreview,
+  type GuideVersionChange,
 } from '@context-forge/core';
 import {
   FileProjectStore,
@@ -196,6 +198,21 @@ function reportCommitted(committed: boolean | undefined): void {
   );
 }
 
+function describePreview(preview: GuidePreview): string {
+  return `${preview.added} added, ${preview.removed} removed, ${preview.changed} changed`;
+}
+
+/**
+ * Show what the update would change, then ask. EOF or a closed stdin answers
+ * no (askConfirmation), so an unattended run declines rather than proceeds;
+ * --yes is the way to run unattended.
+ */
+async function confirmPreview(preview: GuidePreview, versions: GuideVersionChange): Promise<boolean> {
+  console.log(`Guide update: ${versions.from ?? 'unknown'} → ${versions.to}`);
+  console.log(`  ${describePreview(preview)}`);
+  return askConfirmation('Continue? (y/N) ');
+}
+
 const SOURCE_OPTION_HELP =
   'Source repository URL, or a local .tgz/.tar.gz archive (tarball installs only; recorded as version "local")';
 const VERSION_OPTION_HELP = 'Install this release tag instead of the newest (tarball installs only)';
@@ -286,7 +303,13 @@ export function registerGuidesCommand(program: Command): void {
         const cm = new ConfigManager(ctx.projectPath);
         const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
         // A relative local --source is relative to where the user typed it.
-        const sourceOptions = { source: opts.source, version: opts.version, sourceRoot: process.cwd() };
+        // --yes also answers the preview question (D6), so no callback then.
+        const sourceOptions = {
+          source: opts.source,
+          version: opts.version,
+          sourceRoot: process.cwd(),
+          ...(opts.yes ? {} : { confirm: confirmPreview }),
+        };
 
         let result;
         try {
@@ -309,14 +332,18 @@ export function registerGuidesCommand(program: Command): void {
           }
         }
 
-        if (result.excludeChanged) {
+        if (result.unchanged) {
+          console.log(success(`Guide is already up to date (${result.newVersion ?? 'unknown'}).`));
+        } else if (result.cancelled) {
+          console.log('Update cancelled; guide unchanged.');
+        } else if (result.excludeChanged) {
           console.log(success('Guide re-extracted with updated excludes.'));
           console.log(`  ${label('Version:')}  ${valueStyle(result.newVersion ?? 'unknown')}`);
           console.log(
             `  ${label('Excluded:')} ${result.exclude ? valueStyle(result.exclude.join(', ')) : dim('none')}`
           );
           reportCommitted(result.committed);
-        } else if (result.previousVersion === result.newVersion) {
+        } else if (result.previousVersion === result.newVersion && !result.preview) {
           if (result.worktreeSynced) {
             // Host pointer was already current, but the worktree checkout was
             // synced — say so, or the message contradicts the file changes (GH #44).
@@ -331,6 +358,9 @@ export function registerGuidesCommand(program: Command): void {
             `  ${label('Version:')}  ${dim(result.previousVersion ?? 'unknown')} → ${valueStyle(result.newVersion ?? 'unknown')}`
           );
           console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+          if (result.preview) {
+            console.log(`  ${label('Changes:')}  ${describePreview(result.preview)}`);
+          }
           if (result.exclude) {
             console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
           }

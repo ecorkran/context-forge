@@ -254,7 +254,13 @@ export interface TarballUpdateOptions {
    */
   sourceRoot?: string;
   /** Called with the preview before the swap (update only); resolve false to cancel. */
-  confirm?: (preview: GuidePreview) => Promise<boolean>;
+  confirm?: (preview: GuidePreview, versions: GuideVersionChange) => Promise<boolean>;
+}
+
+/** The installed version and the one an update would install, for the preview header. */
+export interface GuideVersionChange {
+  from: string | null;
+  to: string;
 }
 
 /** Result of uninstalling a guide */

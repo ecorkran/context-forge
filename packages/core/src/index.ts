@@ -9,7 +9,7 @@ export type { IProjectStore, IStorageService, StorageReadResult } from './storag
 export * from './introspection/index.js';
 
 // Guide types (browser-safe — no fs dependencies)
-export type { GuideInfo, GuideMethod, InstallResult, UninstallResult, UpdateResult, SyncResult, SubmoduleCheckoutState, EnsureCheckoutResult } from './guides/types.js';
+export type { GuideInfo, GuideMethod, InstallResult, UninstallResult, UpdateResult, SyncResult, SubmoduleCheckoutState, EnsureCheckoutResult, GuidePreview, GuideVersionChange } from './guides/types.js';
 export {
   CHECKOUT_STATE_LABELS,
   GUIDE_MANAGED_NOTICE,

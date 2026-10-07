@@ -25,6 +25,11 @@ vi.mock('../../../src/guides/gitExec.js', () => ({
       : message,
 }));
 
+// The real diff walks the filesystem; these tests mock fs, so it reports a change by default.
+vi.mock('../../../src/guides/guideTreeDiff.js', () => ({
+  diffGuideTrees: vi.fn(async () => ({ added: 1, removed: 0, changed: 0 })),
+}));
+
 // Mock tar and zlib for download/extract
 vi.mock('tar', async () => {
   const { PassThrough: Stream } = await import('stream');

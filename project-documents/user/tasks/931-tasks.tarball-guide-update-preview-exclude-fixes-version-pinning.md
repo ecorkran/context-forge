@@ -205,60 +205,60 @@ status: in_progress
 
 ### Part 3 — GuideManager validation and CLI/MCP wiring for source and version
 
-- [ ] **Task 5: GuideManager passes options through and validates** (effort: 3)
-  - [ ] `GuideManager.install(strategyOverride, sourceOverride, options?)`
+- [x] **Task 5: GuideManager passes options through and validates** (effort: 3)
+  - [x] `GuideManager.install(strategyOverride, sourceOverride, options?)`
         and `update(opts?)` accept `version` and `source`. `update` gains the
         `source` override (today it only calls `resolveSource()`).
-  - [ ] After detection (update) or strategy resolution (install): if a
+  - [x] After detection (update) or strategy resolution (install): if a
         version is given, or the source is local, and the method is not
         `tarball`, throw `--version and local --source apply to tarball
         installs only (this guide is installed as <method>)`. Update order
         from design step 1 is unchanged: exclude, source, detect, branch
         guard, then this check. For install the check runs before anything
         is downloaded.
-  - [ ] Tarball-only options are never passed to Submodule/Clone strategies.
-  - [ ] Pass `projectPath` as the local-path resolution root for MCP callers;
+  - [x] Tarball-only options are never passed to Submodule/Clone strategies.
+  - [x] Pass `projectPath` as the local-path resolution root for MCP callers;
         the CLI passes `process.cwd()` through an explicit option so the two
         do not share a hidden default.
-  - [ ] Success: builds; no change for callers that pass no new options.
+  - [x] Success: builds; no change for callers that pass no new options.
 
-- [ ] **Task 5T: GuideManager tests** (effort: 2)
-  - [ ] In `GuideManager.test.ts`: version on a submodule install throws the
+- [x] **Task 5T: GuideManager tests** (effort: 2)
+  - [x] In `GuideManager.test.ts`: version on a submodule install throws the
         tarball-only message; local source on a clone install throws; version
         on a tarball install reaches the strategy; `update` with `source`
         override reaches the strategy; no new options leaves existing calls
         unchanged.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 6: CLI flags `--version` and `--source`** (effort: 2)
-  - [ ] `cf guides install`: add `--version <tag>`; update the `--source`
+- [x] **Task 6: CLI flags `--version` and `--source`** (effort: 2)
+  - [x] `cf guides install`: add `--version <tag>`; update the `--source`
         help text to `<url|path.tgz>`.
-  - [ ] `cf guides update`: add `--source <url|path.tgz>` and `--version
+  - [x] `cf guides update`: add `--source <url|path.tgz>` and `--version
         <tag>`.
-  - [ ] Pass `process.cwd()` as the local-path root. Print the resulting
+  - [x] Pass `process.cwd()` as the local-path root. Print the resulting
         version in the existing success line.
-  - [ ] Success: `node packages/cli/dist/index.js guides update --help` lists
+  - [x] Success: `node packages/cli/dist/index.js guides update --help` lists
         both flags.
 
-- [ ] **Task 6T: CLI tests** (effort: 2)
-  - [ ] In `cli/tests/commands/guides.test.ts` (follow its existing mock
+- [x] **Task 6T: CLI tests** (effort: 2)
+  - [x] In `cli/tests/commands/guides.test.ts` (follow its existing mock
         style): flags are forwarded to `GuideManager`; a thrown
         tarball-only error is printed as a failure with non-zero exit.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 7: MCP parameters `version` and `source`** (effort: 2)
-  - [ ] `guide_install`: add `version?: string`; document the local path form
+- [x] **Task 7: MCP parameters `version` and `source`** (effort: 2)
+  - [x] `guide_install`: add `version?: string`; document the local path form
         in the `source` description.
-  - [ ] `guide_update`: add `version?: string` and `source?: string`.
-  - [ ] Local relative paths resolve against the project root (D5).
-  - [ ] Success: tool schemas list the new parameters.
+  - [x] `guide_update`: add `version?: string` and `source?: string`.
+  - [x] Local relative paths resolve against the project root (D5).
+  - [x] Success: tool schemas list the new parameters.
 
-- [ ] **Task 7T: MCP tests** (effort: 2)
-  - [ ] In `mcp-server/tests/guideTools.test.ts`: parameters reach
+- [x] **Task 7T: MCP tests** (effort: 2)
+  - [x] In `mcp-server/tests/guideTools.test.ts`: parameters reach
         `GuideManager`; the tarball-only error comes back as a tool error.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 7C: Commit** — `feat: add --version and local --source to guide install/update`
+- [x] **Task 7C: Commit** — `feat: add --version and local --source to guide install/update`
 
 ### Part 4 — Tree diff, preview, confirm
 

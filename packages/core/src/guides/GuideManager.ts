@@ -269,7 +269,8 @@ export class GuideManager {
     assertTarballOnlyOptions(info.method, opts, opts.source, sourceRoot);
 
     const strategy = this.getStrategy(info.method, exclude);
-    const strategyArgs = info.method === 'tarball' ? [{ version: opts.version, sourceRoot }] : [];
+    const strategyArgs =
+      info.method === 'tarball' ? [{ version: opts.version, sourceRoot, confirm: opts.confirm }] : [];
     const result = {
       ...(await strategy.update(this.projectPath, targetDir, source, ...strategyArgs)),
       ...excludeIgnoredField(info.method, exclude),

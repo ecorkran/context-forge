@@ -674,6 +674,19 @@ describe('GuideManager', () => {
       });
     });
 
+    it('forwards the preview confirm callback to a tarball update only', async () => {
+      const confirm = vi.fn(async () => true);
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
+      await new GuideManager(projectPath, mockConfigManager as never).update({ confirm });
+      expect(strategyUpdate).toHaveBeenLastCalledWith(
+        projectPath, guideDir, DEFAULT_SOURCE_GIT, expect.objectContaining({ confirm })
+      );
+
+      mockDetect.mockResolvedValue({ ...installedInfo, method: 'clone' });
+      await new GuideManager(projectPath, mockConfigManager as never).update({ confirm });
+      expect(strategyUpdate).toHaveBeenLastCalledWith(projectPath, guideDir, DEFAULT_SOURCE_GIT);
+    });
+
     it('leaves calls without the new options unchanged for non-tarball strategies', async () => {
       mockDetect.mockResolvedValue(installedInfo);
       const manager = new GuideManager(projectPath, mockConfigManager as never);

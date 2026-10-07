@@ -6,6 +6,8 @@ export {
   type GuideMethod,
   type InstallResult,
   type UpdateResult,
+  type GuidePreview,
+  type GuideVersionChange,
   type DetectionResult,
   type InstallStrategy,
   type SubmoduleCheckoutState,

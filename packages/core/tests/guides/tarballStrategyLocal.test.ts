@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { TarballStrategy } from '../../src/guides/strategies/TarballStrategy.js';
 import { GuideDetector } from '../../src/guides/GuideDetector.js';
-import { GUIDE_RELATIVE_PATH, LOCAL_VERSION_MARKER, VERSION_MARKER_FILE } from '../../src/guides/types.js';
+import { EXCLUDE_RECORD_FILE, GUIDE_RELATIVE_PATH, LOCAL_VERSION_MARKER, VERSION_MARKER_FILE } from '../../src/guides/types.js';
 import { gitExec, commitPathIfChanged } from '../../src/guides/gitExec.js';
 import { buildGuideArchive, makeTempDir, readText, truncateArchive } from './helpers/guideArchiveFixture.js';
 
@@ -168,6 +168,108 @@ describe('TarballStrategy with real archives', () => {
       await expect(strategy.install(project, corrupt, targetDir)).rejects.toThrow('Reading guide archive');
       expect(existsSync(targetDir)).toBe(false);
       expect(existsSync(stagingDir())).toBe(false);
+    });
+  });
+
+  describe('preview, confirm and unchanged flow', () => {
+    const stagingDir = (): string => join(project, 'project-documents', '.ai-project-guide.staging');
+    const guideFile = (): string => join(targetDir, 'project-guides/rules/r.md');
+
+    // One file changed, one added, one removed relative to the default fixture.
+    const changedFiles = {
+      'project-guides/lint/csharp/a.txt': 'csharp lint\n',
+      'project-guides/lint/python/b.txt': 'python lint\n',
+      'project-guides/rules/r.md': '# changed\n',
+      'new.md': 'new\n',
+    };
+
+    async function installBaselineAndBuildChanged(): Promise<string> {
+      await strategy.install(project, await buildGuideArchive({ dir: project, fileName: 'base.tgz' }), targetDir);
+      mockCommit.mockClear();
+      return buildGuideArchive({ dir: project, fileName: 'changed.tgz', files: changedFiles });
+    }
+
+    it('hands the counts to confirm, then swaps and commits on true', async () => {
+      const changed = await installBaselineAndBuildChanged();
+      const confirm = vi.fn(async () => true);
+
+      const result = await strategy.update(project, targetDir, changed, { confirm });
+
+      expect(confirm).toHaveBeenCalledWith(
+        { added: 1, removed: 1, changed: 1 },
+        { from: LOCAL_VERSION_MARKER, to: LOCAL_VERSION_MARKER }
+      );
+      expect(result.preview).toEqual({ added: 1, removed: 1, changed: 1 });
+      expect(readText(guideFile())).toBe('# changed\n');
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      expect(existsSync(stagingDir())).toBe(false);
+    });
+
+    it('cancels on false: guide unchanged, no staging, no commit', async () => {
+      const changed = await installBaselineAndBuildChanged();
+
+      const result = await strategy.update(project, targetDir, changed, { confirm: async () => false });
+
+      expect(result).toMatchObject({ cancelled: true, preview: { added: 1, removed: 1, changed: 1 } });
+      expect(readText(guideFile())).toBe('# rule\n');
+      expect(existsSync(join(targetDir, 'scripts/s.sh'))).toBe(true);
+      expect(existsSync(stagingDir())).toBe(false);
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    it('reports unchanged for an identical archive: no swap, no commit, no prompt', async () => {
+      const baseline = await buildGuideArchive({ dir: project, fileName: 'base.tgz' });
+      await strategy.install(project, baseline, targetDir);
+      mockCommit.mockClear();
+      const confirm = vi.fn(async () => true);
+
+      const result = await strategy.update(project, targetDir, baseline, { confirm });
+
+      expect(result).toMatchObject({ unchanged: true, preview: { added: 0, removed: 0, changed: 0 } });
+      expect(confirm).not.toHaveBeenCalled();
+      expect(mockCommit).not.toHaveBeenCalled();
+      expect(existsSync(stagingDir())).toBe(false);
+    });
+
+    it('swaps and commits without a prompt when only the bookkeeping differs', async () => {
+      const baseline = await buildGuideArchive({ dir: project, fileName: 'base.tgz' });
+      await strategy.install(project, baseline, targetDir);
+      mockCommit.mockClear();
+      const confirm = vi.fn(async () => true);
+      // guide.exclude changed to a pattern that matches no file: identical files, new exclude record.
+      const withExclude = new TarballStrategy(['does-not-exist']);
+
+      const result = await withExclude.update(project, targetDir, baseline, { confirm });
+
+      expect(result.unchanged).toBeUndefined();
+      expect(result.preview).toEqual({ added: 0, removed: 0, changed: 0 });
+      expect(confirm).not.toHaveBeenCalled();
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      expect(readText(join(targetDir, EXCLUDE_RECORD_FILE))).toBe('does-not-exist\n');
+    });
+
+    it('proceeds with the preview in the result when no confirm is provided', async () => {
+      const changed = await installBaselineAndBuildChanged();
+
+      const result = await strategy.update(project, targetDir, changed);
+
+      expect(result.preview).toEqual({ added: 1, removed: 1, changed: 1 });
+      expect(readText(guideFile())).toBe('# changed\n');
+    });
+
+    it('removes staging and propagates when confirm throws', async () => {
+      const changed = await installBaselineAndBuildChanged();
+
+      await expect(
+        strategy.update(project, targetDir, changed, {
+          confirm: async () => {
+            throw new Error('prompt exploded');
+          },
+        })
+      ).rejects.toThrow('prompt exploded');
+
+      expect(existsSync(stagingDir())).toBe(false);
+      expect(readText(guideFile())).toBe('# rule\n');
     });
   });
 
