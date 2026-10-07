@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf worktree list` tags the default worktree `(default)`**, and every worktree in `--json` and the MCP tools carries `isDefault`. `cf worktree rm` and the MCP `worktree_rm` result name the default worktree (`defaultWorktree { id, name }`) (#112)
+
 ### Fixed
+
+- **The default worktree is found by a stored `isDefault` marker, not by its name.** Before, a worktree you named `Default` had its range narrowed and widened, and renaming the real default turned both off. Renaming now changes nothing, and `cf worktree init --name default` makes an ordinary worktree. Existing projects get the marker on first read, with no write until the next normal save; if the old data is ambiguous (several candidates, or a probable renamed default) nothing is marked and a stderr warning says how to fix `projects.json` by hand. Two worktrees marked default is an error where ranges change (#112)
 
 - **Removing a worktree gives its index range back to the `default` worktree** when the two ranges border each other, undoing the narrowing that adding it caused. When it can't (the default is pinned with a range override, the ranges don't touch, or the combined range would overlap another worktree), `cf worktree rm` says so and shows how to widen the range by hand. MCP `worktree_rm` returns `restoredRange` or `rangeNotRestored` (#76)
 

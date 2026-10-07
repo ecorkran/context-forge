@@ -7,7 +7,7 @@ dependencies: [932]
 projectState: main at 0.19.2 (slices 931, 932 shipped). The default worktree is found by name (`isDefaultWorktree` in WorktreeService.ts), so a user-editable label drives range chop and restore. Design reviewed (CONCERNS, resolved in the design after two re-review rounds).
 dateCreated: 20261007
 dateUpdated: 20261007
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -131,28 +131,28 @@ status: in_progress
 
 - [x] **Task 6C: Commit** — `feat: tag default worktree in CLI and MCP output`
 
-- [ ] **Task 7: Integration check (attribution and propagation)** (effort: 1)
-  - [ ] Design Integration Requirement: `cf check` worktree attribution and `propagationTargets` behave the same. In `cli/tests/commands/check-worktree-attribution.test.ts` (fixture near line 71) and `cli/tests/commands/worktreePropagation.test.ts` (fixtures near lines 361 and 374), add `isDefault: true` to the root-path worktree fixtures. Leave every assertion unchanged.
-  - [ ] Add one `propagationTargets` case: a project with a root-path worktree marked `isDefault: true` and a sibling marked `false`, expecting only the sibling (same as today).
-  - [ ] Update the doc comment above `propagationTargets` in `cli/src/commands/worktreePropagation.ts` (around line 183) from `"default" worktree context` to `the default worktree`. Comment only; no code change.
-  - [ ] Success: these two test files pass with unchanged assertions.
+- [x] **Task 7: Integration check (attribution and propagation)** (effort: 1)
+  - [x] Design Integration Requirement: `cf check` worktree attribution and `propagationTargets` behave the same. In `cli/tests/commands/check-worktree-attribution.test.ts` (fixture near line 71) and `cli/tests/commands/worktreePropagation.test.ts` (fixtures near lines 361 and 374), add `isDefault: true` to the root-path worktree fixtures. Leave every assertion unchanged.
+  - [x] Add one `propagationTargets` case: a project with a root-path worktree marked `isDefault: true` and a sibling marked `false`, expecting only the sibling (same as today).
+  - [x] Update the doc comment above `propagationTargets` in `cli/src/commands/worktreePropagation.ts` (around line 183) from `"default" worktree context` to `the default worktree`. Comment only; no code change.
+  - [x] Success: these two test files pass with unchanged assertions.
 
-- [ ] **Task 7C: Commit** — `test: confirm attribution and propagation ignore isDefault`
+- [x] **Task 7C: Commit** — `test: confirm attribution and propagation ignore isDefault`
 
-- [ ] **Task 8: Name-comparison sweep** (effort: 1)
-  - [ ] Run once: `grep -rnEi "[\"'\`]default[\"'\`]|DEFAULT_WORKTREE_NAME|name\.toLowerCase\(\)" packages/*/src`. This matches single, double and backtick quotes, so it catches the `"default"` in comments and descriptions as well as `'default'`.
-  - [ ] List every hit and classify it. Allowed: `defaultWorktree.ts` (the constant and the migration's legacy match), the forward-migration label assignment in `WorktreeService.addWorktree`, the init note text in `worktree.ts`, and unrelated hits (config `source`, `ResolutionSource`, template defaults). Any other hit that compares a worktree name to `default` is a defect: fix it. Pass comments that merely describe the label: the one in `packages/core/src/introspection/mergeCheckResults.ts` (~lines 21–25, "exactly one worktree named \"default\"") is a comment, not a comparison; reword it to "the default worktree" while you are there.
-  - [ ] Also run `grep -rn "isDefaultWorktree\|DEFAULT_WORKTREE_NAME" packages/*/src` and confirm every import comes from `utils/defaultWorktree.ts`.
-  - [ ] Run `grep -rn "services" packages/core/src/storage` and confirm no import from `services/`.
-  - [ ] Check other tests that seed a worktree named `default` and expect chop or restore: `grep -rnE "name: ['\"]default['\"]" packages/*/tests`. Most hits (overlay, status, guides, future, project) do not depend on the default's range behavior; fix only those that do.
-  - [ ] Success: the classified hit list is clean; fixes (if any) build and pass.
+- [x] **Task 8: Name-comparison sweep** (effort: 1)
+  - [x] Run once: `grep -rnEi "[\"'\`]default[\"'\`]|DEFAULT_WORKTREE_NAME|name\.toLowerCase\(\)" packages/*/src`. This matches single, double and backtick quotes, so it catches the `"default"` in comments and descriptions as well as `'default'`.
+  - [x] List every hit and classify it. Allowed: `defaultWorktree.ts` (the constant and the migration's legacy match), the forward-migration label assignment in `WorktreeService.addWorktree`, the init note text in `worktree.ts`, and unrelated hits (config `source`, `ResolutionSource`, template defaults). Any other hit that compares a worktree name to `default` is a defect: fix it. Pass comments that merely describe the label: the one in `packages/core/src/introspection/mergeCheckResults.ts` (~lines 21–25, "exactly one worktree named \"default\"") is a comment, not a comparison; reword it to "the default worktree" while you are there.
+  - [x] Also run `grep -rn "isDefaultWorktree\|DEFAULT_WORKTREE_NAME" packages/*/src` and confirm every import comes from `utils/defaultWorktree.ts`.
+  - [x] Run `grep -rn "services" packages/core/src/storage` and confirm no import from `services/`.
+  - [x] Check other tests that seed a worktree named `default` and expect chop or restore: `grep -rnE "name: ['\"]default['\"]" packages/*/tests`. Most hits (overlay, status, guides, future, project) do not depend on the default's range behavior; fix only those that do.
+  - [x] Success: the classified hit list is clean; fixes (if any) build and pass.
 
-- [ ] **Task 9: Docs and validation** (effort: 2)
-  - [ ] CHANGELOG entry under Unreleased (#112): `isDefault` marker, read-time migration, `(default)` tag, `defaultWorktree` on the remove result.
-  - [ ] Build, typecheck, lint and full tests once each; all pass.
-  - [ ] Run the design's Verification Walkthrough steps 1–7 against the local build in a scratch project, backing up and restoring `projects.json`. Also, in the step 1 setup, make `projects.json` read-only (`chmod a-w`) and run `cfl worktree list --json` and `cfl check`: both must succeed and show migrated data; restore write permission afterwards. While it is read-only, also call the MCP `worktree_list` tool and confirm it returns migrated `isDefault` values. Step 5 uses the MCP tool `worktree_update`; `worktree_list` / `worktree_get` output there is the real-data check of `isDefault`. Update the walkthrough in the design with actual output.
-  - [ ] **Commit**: `chore: finalize slice 934`
-  - [ ] Stop. Code review and merge are Phase 7.
+- [x] **Task 9: Docs and validation** (effort: 2)
+  - [x] CHANGELOG entry under Unreleased (#112): `isDefault` marker, read-time migration, `(default)` tag, `defaultWorktree` on the remove result.
+  - [x] Build, typecheck, lint and full tests once each; all pass.
+  - [x] Run the design's Verification Walkthrough steps 1–7 against the local build in a scratch project, backing up and restoring `projects.json`. Also, in the step 1 setup, make `projects.json` read-only (`chmod a-w`) and run `cfl worktree list --json` and `cfl check`: both must succeed and show migrated data; restore write permission afterwards. While it is read-only, also call the MCP `worktree_list` tool and confirm it returns migrated `isDefault` values. Step 5 uses the MCP tool `worktree_update`; `worktree_list` / `worktree_get` output there is the real-data check of `isDefault`. Update the walkthrough in the design with actual output.
+  - [x] **Commit**: `chore: finalize slice 934`
+  - [x] Stop. Code review and merge are Phase 7.
 
 ## Tasks Review Resolution
 

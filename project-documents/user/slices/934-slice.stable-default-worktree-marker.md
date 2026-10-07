@@ -7,7 +7,7 @@ dependencies: [932]
 interfaces: []
 dateCreated: 20261007
 dateUpdated: 20261007
-status: not_started
+status: complete
 ---
 
 # Slice Design: Stable Default Worktree Marker
@@ -261,19 +261,26 @@ No planned slice consumes these yet, so the frontmatter `interfaces` (slices tha
 
 ### Verification Walkthrough
 
-Run against the local build (`node packages/cli/dist/index.js`, aliased `cfl` below). The global `cf` is the published npm package. Use a scratch project so no real project's worktrees are changed.
+Run against the local build (`node packages/cli/dist/index.js`, aliased `cfl` below). The global `cf` is the published npm package. Everything runs against a throwaway data directory, so no real `projects.json` is touched and no backup is needed. Verified 20261007 on the slice branch.
 
-1. **Legacy migration.** Back up `~/.config/context-forge/projects.json`. In a scratch project's entry, set `worktrees` by hand to a `default` worktree (range `100-799`, `worktreePath` = project path, no `isDefault`) and one sibling. Run `cfl worktree list --json`. Expected: the default shows `"isDefault": true` and the sibling `"isDefault": false`, while `projects.json` is unchanged (no `isDefault` fields, same modification time). The rename in step 2 is the first write, and afterwards `projects.json` contains both fields.
-2. **Rename keeps the marker.** `cfl worktree update default --name main-line`. Then `cfl worktree init --name extra --range 300-399`. Expected: `main-line` is narrowed to `100-299`, and `cfl worktree list` shows `main-line (default)`.
-3. **Restore uses the marker and real name.** `cfl worktree rm extra`. Expected: `Note: Its range went back to the default worktree 'main-line', now 100-799.`
-4. **A label named `default` is inert.** `cfl worktree init --name Default --range 900-949`. Then `cfl worktree init --name probe --range 920-930`. Expected: `Default` keeps `900-949`, and the overlap is only reported as advisory. Before this slice, `Default` would have been chopped to `900-919`. `list --json` shows `Default` with `"isDefault": false`.
-5. **Not user-settable.** Through MCP `worktree_update` with `{ "worktree": "Default", "isDefault": true }`, expect the field to be ignored (still `false` in `worktree_get`).
-6. **Renamed-before-upgrade warning.** Restore the backup and repeat step 1's setup, but name the root-path worktree `main-line`. Run `cfl worktree list`. Expected: one stderr warning saying `main-line` may be a renamed default, with the recovery step and the `projects.json` path. Neither row is tagged. Run it again: the warning repeats, because nothing has written yet. Set `"isDefault": true` on `main-line` by hand. `list` then tags it and prints no warning.
-7. **Duplicate marker fails only where it matters.** Hand-edit `projects.json` so two worktrees have `isDefault: true`. Expected:
-   - `cfl worktree list` shows both rows tagged `(default)`.
-   - `cfl worktree init --name x --range 950-959` fails with an error naming both worktrees by name and id, and nothing is written.
+**Setup.**
+```bash
+S=$(mktemp -d); mkdir -p $S/data $S/repo; cd $S/repo
+git init -q && git commit -q --allow-empty -m init
+export CONTEXT_FORGE_DATA_DIR=$S/data          # the store reads projects.json from here
+cfl() { node <repo>/packages/cli/dist/index.js "$@" --project project_scratch; }
+```
+Write `$S/data/projects.json` by hand as one project, `id: "project_scratch"`, `projectPath: "$S/repo"`, with two worktrees and no `isDefault` fields: `{id: wt_d, name: "default", indexRange: [100,799], worktreePath: "$S/repo"}` and `{id: wt_s, name: "sibling", indexRange: [900,949]}`. Keep a copy as `orig.json`. Commands that create a worktree need `--path $S/repo` (the repo root is the only registered git worktree). MCP calls (step 5, read-only check) use the built server `packages/mcp-server/dist/index.js` over stdio with the same `CONTEXT_FORGE_DATA_DIR`, driven by a few lines of `@modelcontextprotocol/sdk` client code (`StdioClientTransport` + `callTool`).
 
-   Restore the backup afterwards.
+1. **Legacy migration.** `cfl worktree list --json`. Expected and observed: `default` has `"isDefault": true`, `sibling` has `"isDefault": false`, and `cmp projects.json orig.json` reports no difference (a read never writes). The first write, in step 2, saves both fields.
+
+   *Read-only variation* (restore `orig.json`, then `chmod a-w projects.json`): `cfl worktree list --json` prints the same migrated values and exits 0. `cfl check` prints `No inconsistencies found`. MCP `worktree_list` returns `isError: false` with `isDefault: true` on `default` and `false` on `sibling`. The file is still identical to `orig.json`. Then `chmod u+w`.
+2. **Rename keeps the marker.** `cfl worktree update default --name main-line`, then `cfl worktree init --name extra --range 300-399 --path $S/repo`. Observed: `cfl worktree list` shows `main-line (default)  [100-299]`, `sibling  [900-949]`, `extra  [300-399]`.
+3. **Restore uses the marker and real name.** `cfl worktree rm extra --yes`. Observed: `Note: Its range went back to the default worktree 'main-line', now 100-399.` *Correction:* the earlier draft expected `100-799`. The chop in step 2 keeps only the lower block (`100-299`) and drops `400-799`, so restore can only give back the removed `300-399`.
+4. **A label named `default` is inert.** First `cfl worktree update sibling --range 800-849` (so `sibling` does not overlap). Then `cfl worktree init --name Default --range 900-949 --path $S/repo` and `cfl worktree init --name probe --range 920-930 --path $S/repo`. Observed: `Warning: Range 920-930 overlaps with worktree 'Default' (900-949) at 920-930.` (advisory only); `list --json` shows `Default` at `[900,949]` with `"isDefault": false`. Before this slice `Default` would have been chopped to `900-919`.
+5. **Not user-settable.** MCP `worktree_update` with `{"projectId": "project_scratch", "worktree": "Default", "isDefault": true}`. Observed: `isError: false`, the returned worktree has `"isDefault": false`, and `worktree_get` for `Default` also shows `"isDefault": false`.
+6. **Renamed-before-upgrade warning.** Restore `orig.json` with `"name":"default"` changed to `"name":"main-line"`. `cfl worktree list`. Observed: one warning on stderr (nothing on stdout): `Project 'scratch' has no worktree named 'default', but 'main-line' (wt_d) is at the project path and may be a renamed default. None was marked. Range narrowing and restore are off for this project. To turn them on, set "isDefault": true on the intended worktree in <data dir>/projects.json.` Neither row is tagged. Running it again prints the warning again, because nothing has written. After adding `"isDefault": true` to `main-line` by hand, `list` shows `main-line (default)` and prints no warning.
+7. **Duplicate marker fails only where it matters.** Set `"isDefault": true` on both worktrees by hand. Observed: `cfl worktree list` tags both rows `(default)`. `cfl worktree init --name x --range 950-959 --path $S/repo` exits 1 with `Error: Project 'scratch' has more than one default worktree: 'main-line' (wt_d), 'sibling' (wt_s). Set "isDefault": true on only one of them in projects.json.` and `projects.json` still has 2 worktrees.
 
 ## Implementation Notes
 
