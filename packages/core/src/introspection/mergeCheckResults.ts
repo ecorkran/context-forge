@@ -18,12 +18,12 @@ export interface AttributedView {
  * worktree that produced it so its findings can be attributed before the merge.
  *
  * Attribution is attached only when there is more than one checkout to tell
- * apart. Note that a migrated project has exactly one worktree named "default"
- * whose path equals `projectPath` — it does not have an absent `worktrees`
- * array — so this keys on the count. Keying on the array's presence would add
- * a worktree field to single-checkout output that must stay byte-identical,
- * and keying on the "default" name would use a user-visible label as logical
- * structure.
+ * apart. Note that a migrated project has exactly one worktree, the default
+ * worktree, whose path equals `projectPath` — it does not have an absent
+ * `worktrees` array — so this keys on the count. Keying on the array's presence
+ * would add a worktree field to single-checkout output that must stay
+ * byte-identical, and keying on a worktree's name would use a user-visible
+ * label as logical structure.
  *
  * Shared by `cf check` and MCP's `workflow_check`: both consume the same merge,
  * so this invariant must not be able to drift between them.
