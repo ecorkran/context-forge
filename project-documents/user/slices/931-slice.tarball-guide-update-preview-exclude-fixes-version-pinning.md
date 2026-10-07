@@ -6,8 +6,8 @@ parent: user/architecture/900-slices.maintenance-and-refactoring.md
 dependencies: [212, 916, 925]
 interfaces: []
 dateCreated: 20261006
-dateUpdated: 20261006
-status: not_started
+dateUpdated: 20261007
+status: complete
 ---
 
 # Slice Design: Tarball Guide Update: Preview, Exclude Fixes, Version Pinning
@@ -243,41 +243,76 @@ configCommitted?: boolean;  // D3: whether .context-forge.toml went into the gui
 
 ### Verification Walkthrough
 
-Run from a scratch project with a tarball guide installed, using the local build (`node packages/cli/dist/index.js`, aliased below as `cf`).
+Verified on 20261007 against the local build with network access. Everything below ran for real; outputs are trimmed to the lines that matter.
+
+**Setup** (isolated, so no real project list is touched). `cf` is an alias for `node packages/cli/dist/index.js`; run `pnpm -r build` first.
+
+```
+export CONTEXT_FORGE_DATA_DIR=$(mktemp -d)       # private project store
+mkdir proj && cd proj && git init -q && git commit -q --allow-empty -m init
+cf init --lite --name scratch                     # registers the project, installs nothing
+cf guides install --version v0.20.1               # tarball is the default strategy
+git add -A && git commit -q -m setup
+```
+Expected: `Guide installed successfully.` with `Version:  v0.20.1`, `Method:   tarball`, and a commit `docs: install ai-project-guide v0.20.1`.
 
 1. **Exclude carve-out (#111a)**
    ```
    cf config set guide.exclude "project-guides/lint/csharp,project-guides/lint/dart"   # succeeds
-   cf config set guide.exclude "project-guides/lint"     # fails: whole lint directory message
-   cf config set guide.exclude "project-guides/rules"    # fails: inside project-guides message
+   cf config set guide.exclude "project-guides/lint"
+   cf config set guide.exclude "project-guides/rules"
    ```
-2. **Re-extract commit includes config (#111b)**
+   Expected: the first prints `Set guide.exclude = ...`. The second fails with `guide.exclude entry "project-guides/lint" would remove the whole lint directory. Exclude individual languages instead, e.g. "project-guides/lint/<language>".` The third fails with `guide.exclude entry "project-guides/rules" is inside project-guides, which cf requires. Only subpaths of project-guides/lint can be excluded.`
+2. **Re-extract commit includes config (#111b)** (commit the config first so the tree is clean)
    ```
    cf config set guide.exclude "project-guides/lint/csharp"
    cf guides update --yes
-   git show --stat HEAD     # lists project-documents/ai-project-guide/... and .context-forge.toml
-   git status               # clean
-   ls project-documents/ai-project-guide/project-guides/lint   # no csharp
+   git show --stat --format=%s HEAD
+   git status --short
+   ls project-documents/ai-project-guide/project-guides/lint
    ```
-3. **Preview and decline (#110)**
+   Expected: `Guide re-extracted with updated excludes.`; the commit is `docs: re-extract ai-project-guide v0.20.3 (guide.exclude changed)` and lists `.context-forge.toml`, the exclude record, and the deleted `lint/csharp/...` files; `git status` prints nothing; `ls` shows `dart python typescript` and no `csharp`.
+   Left-out case: after a further `cf config set guide.exclude ...` plus `printf '\n[other]\nkey = 1\n' >> .context-forge.toml`, `cf guides update --yes` prints `.context-forge.toml has other uncommitted changes; it was left out of the guide commit`, the commit lists only guide files, and `git status --short` still shows ` M .context-forge.toml`.
+3. **Preview and decline (#110)** (reinstall or start from v0.20.1)
    ```
-   cf guides install --version v0.20.1      # in a fresh project, or uninstall first
-   cf guides update                          # shows "v0.20.1 → <latest>", counts, prompt; answer n
-   cat project-documents/ai-project-guide/.context-forge-guide-version   # still v0.20.1
-   ls -a project-documents/                  # no .ai-project-guide.staging
-   cf guides update                          # answer y → swapped and committed
-   cf guides update                          # "already up to date", no prompt, no commit
+   echo n | cf guides update
+   cat project-documents/ai-project-guide/.context-forge-guide-version
+   ls -a project-documents/ | grep staging
+   cf guides update < /dev/null
+   echo y | cf guides update
+   cf guides update
    ```
-4. **Local tarball (#93)**
+   Expected for `n`: `Guide update: v0.20.1 → v0.20.3`, `  1 added, 0 removed, 3 changed`, `Continue? (y/N) Update cancelled; guide unchanged.`; the marker still reads `v0.20.1`, no staging directory, HEAD unchanged. The `< /dev/null` run declines the same way. `y` prints `Guide updated successfully.` with `Version:  v0.20.1 → v0.20.3`, a `Changes:` line, and commit `docs: update ai-project-guide v0.20.3`. The last run prints `Guide is already at the latest version.` with no prompt and no commit.
+   Caveat: that last message comes from the remote short-circuit (installed tag equals latest, no download). The `Guide is already up to date (<version>).` message appears when a download ran and found no differences, which only happens for a local archive or a re-extract.
+4. **Local tarball (#93)** (no sibling checkout needed: any single-root `.tgz` works)
    ```
-   (cd ../ai-project-guide && git archive --format=tar.gz --prefix=ai-project-guide/ -o /tmp/apg.tgz HEAD)
+   curl -sL https://api.github.com/repos/ecorkran/ai-project-guide/tarball/v0.20.3 -o /tmp/apg.tgz
    cf guides update --source /tmp/apg.tgz --yes
-   cf guides info                            # Version: local, update available
-   cf guides update --source /tmp/apg.tgz --version v0.21.0-rc1 --yes   # fails: --version cannot be combined with a local --source
-   cf guides update --version v9.9.9         # fails: tag not found, names newest
+   cf guides info
+   cf guides update --source /tmp/apg.tgz --version v0.20.1 --yes
+   cf guides update --version v9.9.9
+   cf guides update --source ./nope.tgz
+   cf guides update --source README.md
+   cf guides update
    ```
-5. **MCP**: call `guide_update` with no arguments on a project behind latest. The result includes `preview` counts and the update is applied.
-6. **Non-tarball**: in a submodule-installed project, `cf guides update --version v0.20.1` fails with the tarball-only message.
+   Expected: `Version:  v0.20.3 → local`; `cf guides info` shows `Version:    local` and `Update:     v0.20.3 available`. Then, in order: `--version cannot be combined with a local --source; a local archive is always recorded as "local"`; `--version v9.9.9 not found on the remote; newest available is v0.20.3`; `--source ./nope.tgz: file not found (looked for <absolute path>)`; `--source README.md is a local file but not a .tgz/.tar.gz archive`. The final plain update prints `Version:  local → v0.20.3`.
+   Caveat: when the archive's files equal the installed ones (as here), the update shows `Changes:  0 added, 0 removed, 0 changed` but still swaps and commits, because the version marker changed. With identical files *and* identical marker and exclude record it is a true no-op (`unchanged`).
+5. **MCP**: with the project behind latest (`cf guides update --version v0.20.1 --yes` first), call `guide_update` with `{"projectId":"scratch"}` through the stdio server. Verified with a small client script using the SDK's `StdioClientTransport`. Result: `previousVersion v0.20.1`, `newVersion v0.20.3`, `committed true`, `preview {added:1, removed:0, changed:3}`, and the update is applied.
+6. **Non-tarball**: in a project installed with `cf guides install --strategy submodule`:
+   ```
+   cf guides update --version v0.20.1
+   cf guides update --source /tmp/apg.tgz
+   ```
+   Expected, for both: `Error: --version and local --source apply to tarball installs only (this guide is installed as submodule)`.
+
+**Defect found by this walkthrough:** the root program's own `--version` swallowed `cf guides install|update --version <tag>` and printed cf's version. Fixed with `enablePositionalOptions()` on the root command; `tests/integration/guidesVersionFlag.integration.test.ts` spawns the built CLI to guard it.
+
+### As-Built Deviations
+
+- **Zero-diff rule (D6), PM-approved 20261007.** Zero file changes is a no-op (`unchanged`) only when the staged version marker and exclude record also equal the installed ones. Otherwise the update swaps and commits with no prompt, because nothing visible changes. Without this, a content-identical update (a `local` install followed by a plain update, or a `guide.exclude` entry that matches no file) left the marker or record stale, so status reported an update forever and every run re-downloaded.
+- **`confirm` takes a second argument** `{ from, to }` (`GuideVersionChange`), because the CLI's `Guide update: <from> → <to>` header needs both versions and `GuidePreview` carries only counts. `GuidePreview` and the MCP result shape are unchanged.
+- **`local` counts as older than any release** in `isNewerVersion`, so a local install reports an update as available.
+- **Left-out config notice** travels as `UpdateResult.configNotice` and is emitted by `guideExcludeNotices`, so CLI stderr and MCP notices share it.
 
 ## Risk Assessment
 

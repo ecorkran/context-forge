@@ -7,7 +7,7 @@ dependencies: [212, 916, 925]
 projectState: main is clean at 1fb0fb5; published version is 0.19.1. TarballStrategy.ts is 377 lines and owns tag lookup, download, extract, staging swap and commit. The 931 design passed review (concerns addressed). cf guides update has no preview, no --version, and no --source; guide.exclude refuses the whole project-guides tree and the re-extract commit omits .context-forge.toml.
 dateCreated: 20261006
 dateUpdated: 20261007
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -323,8 +323,8 @@ status: in_progress
         question (D6). The two prompts remain separate, in that order.
   - [x] Print `Guide is already up to date (<version>).` for `unchanged`, and
         a plain "Update cancelled; guide unchanged." for `cancelled`.
-  - [ ] Success: manual run against the Task 2 fixture archive shows the
-        prompt; answering `n` leaves the guide and git unchanged. (deferred to Task 15 walkthrough)
+  - [x] Success: manual run against the Task 2 fixture archive shows the
+        prompt; answering `n` leaves the guide and git unchanged.
 
 - [x] **Task 10T: CLI preview tests** (effort: 2)
   - [x] In `guides.test.ts`: prompt shown with counts; `--yes` skips it;
@@ -376,70 +376,70 @@ status: in_progress
         project-guides" text.
   - [x] Success: all pass, including `ConfigKeys.test.ts`.
 
-- [ ] **Task 13: Exclude-only config check and commit paths (D3)** (effort: 4)
-  - [ ] Add a helper (new file `core/src/guides/configExcludeCommit.ts`) that
+- [x] **Task 13: Exclude-only config check and commit paths (D3)** (effort: 4)
+  - [x] Add a helper (new file `core/src/guides/configExcludeCommit.ts`) that
         decides whether `.context-forge.toml` is "exclude-only modified":
         read the working file and `git show HEAD:.context-forge.toml`, parse
         both with the TOML reader `ConfigManager` uses, and compare
         everything except `guide.exclude`. Locate the file with
         `getProjectConfigPath`.
-  - [ ] Outcomes: unmodified → not added; exclude-only diff → add; any other
+  - [x] Outcomes: unmodified → not added; exclude-only diff → add; any other
         difference → not added and report the notice `.context-forge.toml has
         other uncommitted changes; it was left out of the guide commit`.
-  - [ ] File not in HEAD (no commits, or new file): counts as exclude-only
+  - [x] File not in HEAD (no commits, or new file): counts as exclude-only
         only when `guide.exclude` is its sole key. Any other `git show`
         failure throws (design Failure modes).
-  - [ ] In `TarballStrategy.update`, when the applied exclude list changed
+  - [x] In `TarballStrategy.update`, when the applied exclude list changed
         (same-version re-extract, or version update that also changes
         excludes), pass `[GUIDE_RELATIVE_PATH, configPath]` to
         `commitPathsIfChanged` when the helper says add. Set
         `configCommitted` in the result and surface the notice string.
-  - [ ] CLI and MCP print/return the notice when present.
-  - [ ] Success: builds; the commit message wording is unchanged.
+  - [x] CLI and MCP print/return the notice when present.
+  - [x] Success: builds; the commit message wording is unchanged.
 
-- [ ] **Task 13T: D3 tests** (effort: 3)
-  - [ ] Create `core/tests/guides/configExcludeCommit.test.ts` using a real
+- [x] **Task 13T: D3 tests** (effort: 3)
+  - [x] Create `core/tests/guides/configExcludeCommit.test.ts` using a real
         temp git repo (`git init`, set a local user): exclude-only diff → add;
         mixed diff → leave out with notice; unmodified → not added; new file
         with only `guide.exclude` → add; new file with other keys → leave out.
-  - [ ] Add a strategy test in `tarballStrategyLocal.test.ts` with a real temp
+  - [x] Add a strategy test in `tarballStrategyLocal.test.ts` with a real temp
         git repo: after changing `guide.exclude` and updating, `git show --stat
         HEAD` lists both the guide dir and `.context-forge.toml`, and `git
         status --porcelain` is empty. With an extra unrelated edit in the
         config, the file is left out and a file the user pre-staged is not
         swept into the commit.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 13C: Commit** — `fix(core): narrow guide.exclude protection and commit config with re-extract`
+- [x] **Task 13C: Commit** — `fix(core): narrow guide.exclude protection and commit config with re-extract`
 
 ### Part 6 — Docs, verification, release notes
 
-- [ ] **Task 14: Documentation** (effort: 2)
-  - [ ] README `cf guides` section: `--version`, `--source` (URL or local
+- [x] **Task 14: Documentation** (effort: 2)
+  - [x] README `cf guides` section: `--version`, `--source` (URL or local
         `.tgz`) on install and update, `--yes`, the preview output, the
         `local` version marker behavior, and that these apply to tarball
         installs only.
-  - [ ] README `guide.exclude` description: the `project-guides/lint/<language>`
+  - [x] README `guide.exclude` description: the `project-guides/lint/<language>`
         carve-out and the config-file commit behavior.
-  - [ ] CHANGELOG entry under the unreleased heading, listing #110, #111,
+  - [x] CHANGELOG entry under the unreleased heading, listing #110, #111,
         #93. Do not bump versions (release is a separate step; the PM picks
         the bump).
-  - [ ] Success: each flag in `guides --help` output is documented in README.
+  - [x] Success: each flag in `guides --help` output is documented in README.
 
-- [ ] **Task 14C: Commit** — `docs: document guide update preview, lint excludes, and version pinning`
+- [x] **Task 14C: Commit** — `docs: document guide update preview, lint excludes, and version pinning`
 
-- [ ] **Task 15: Full validation and walkthrough** (effort: 3)
-  - [ ] Run `pnpm -r build`, then typecheck, lint, and the full test suite
+- [x] **Task 15: Full validation and walkthrough** (effort: 3)
+  - [x] Run `pnpm -r build`, then typecheck, lint, and the full test suite
         once each. Fix any failure. Do not weaken or delete existing tests.
-  - [ ] Check file sizes: `TarballStrategy.ts`, `tarballSource.ts`,
+  - [x] Check file sizes: `TarballStrategy.ts`, `tarballSource.ts`,
         `guideTreeDiff.ts` each near or under ~300 lines.
-  - [ ] Walk the design's **Verification Walkthrough** steps 1–6 in a scratch
+  - [x] Walk the design's **Verification Walkthrough** steps 1–6 in a scratch
         project with the local build. Steps needing the network (pinned
         remote versions, step 3) are run if network is available; otherwise
         run the local-archive steps and report the rest as not run to the PM.
-  - [ ] Success: all commands green; walkthrough results reported, including
+  - [x] Success: all commands green; walkthrough results reported, including
         anything skipped.
 
-- [ ] **Task 15C: Final commit on the slice branch** — `chore: finalize slice 931`
-  - [ ] Confirm `git status` is clean and the work is committed on the slice
+- [x] **Task 15C: Final commit on the slice branch** — `chore: finalize slice 931`
+  - [x] Confirm `git status` is clean and the work is committed on the slice
         branch. Stop here; integration happens in Phase 7 after code review.
