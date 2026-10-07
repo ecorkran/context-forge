@@ -6,8 +6,9 @@ parent: project-documents/user/architecture/900-slices.maintenance-and-refactori
 dependencies: []
 interfaces: []
 dateCreated: 20260801
-dateUpdated: 20260801
+dateUpdated: 20261007
 status: complete
+review: none
 ---
 
 # Slice Design: User Storage Path — macOS XDG Consistency
