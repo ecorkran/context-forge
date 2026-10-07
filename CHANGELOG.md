@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.2] - 20261007
+
 ### Added
 
 - **`cf guides update` previews the change before replacing the guide** (tarball installs): it prints `N added, N removed, N changed` for the new version and asks to continue. `--yes` skips the question; a closed stdin declines. An update with no differences says so and changes nothing. The `guide_update` MCP tool returns the same counts as `preview` (#110)

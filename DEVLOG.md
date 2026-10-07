@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-07
+
+### Release 0.19.2
+
+- **Contents:** Slice 931 — `cf guides update` previews added/removed/changed files before swapping and asks to continue (#110); `guide.exclude` can skip a single `project-guides/lint/<language>` and its change is committed with the re-extract (#111); `--version <tag>` and local `--source <path.tgz>` on `cf guides install|update` and the MCP tools (#93).
+
+Tags: @context-forge/core@0.19.2, @context-forge/cli@0.19.2, @context-forge/mcp@0.19.2, @context-forge/context-forge@0.19.2
+
 ## 2026-10-06
 
 ### Release 0.19.1
