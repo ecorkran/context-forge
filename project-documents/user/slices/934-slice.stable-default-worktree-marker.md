@@ -16,9 +16,9 @@ status: not_started
 
 Fixes GitHub #112 (slice 932 code review finding F002). `isDefaultWorktree()` in `packages/core/src/services/WorktreeService.ts` finds the default worktree by name: `wt.name.toLowerCase() === 'default'`. Two code paths rely on it. `chopDefaultRange()` narrows the default when a sibling claims part of its band, and `restoreDefaultRange()` (slice 932) widens it again when a sibling is removed. Because the name is user-editable, a worktree a user creates or renames as `Default` gets its range narrowed and widened, and renaming the real default turns both paths off. The project rule is that user-accessible labels never act as logical structure.
 
-This slice records which worktree is the default in a stored boolean, `isDefault`, and matches on that instead of the name. Forward migration sets it when it creates the default. Data stored before this change gets the field once, when the store loads. After that, names are labels only.
+This slice records which worktree is the default in a stored boolean, `isDefault`, and matches on that instead of the name. Forward migration sets it when it creates the default. Data stored before this change gets the field in memory on every read, and the result is saved by the next ordinary store write. After that, names are labels only.
 
-**Scope fit.** The 900 architecture lists "Pattern consolidation and code quality improvements" in its scope. Using a label as logical structure is a pattern the project rules name as an anti-pattern, and this slice removes the last such use in worktree code. It is the same kind of item as 926–932. The schema field, the migration and the result field are the smallest set that removes the anti-pattern without breaking existing data. The only item beyond the fix is the `(default)` tag in `cf worktree list`. It stays because recovering from the migration warnings and the duplicate-marker error depends on seeing which worktree is marked (see Migration rule). The architecture's scope list has no explicit "defects in shipped code" entry, even though 926–934 all fall under it. Whether to add one is a decision for the Project Manager and is not changed here. Patch release.
+**Scope fit.** The 900 architecture lists "Pattern consolidation and code quality improvements" in its scope. Using a label as logical structure is a pattern the project rules name as an anti-pattern, and this slice removes the last such use in worktree code. It is the same kind of item as 926–932. The schema field, the migration and the result field are the smallest set that removes the anti-pattern without breaking existing data. The only item beyond the fix is the `(default)` tag in `cf worktree list`. It stays because recovering from the migration warnings and the duplicate-marker error depends on seeing which worktree is marked (see Migration rule). The architecture's scope list has no explicit "defects in shipped code" entry, even though 926–934 all fall under it. The Project Manager approved this slice as 900-plan maintenance work (20261007) without changing the architecture's scope list. Patch release.
 
 ## Value
 
@@ -30,7 +30,7 @@ This slice records which worktree is the default in a stored boolean, `isDefault
 
 **Included**
 - `isDefault?: boolean` on `WorktreeContext`. Forward migration writes `true`. `addWorktree` writes `false` on every worktree it creates.
-- A one-time load migration in `FileProjectStore` that fills in `isDefault` on stored worktrees that don't have the field.
+- A read-time migration in `FileProjectStore` that fills in `isDefault` in memory on worktrees that don't have the field. It never writes on its own; the next ordinary store write saves it.
 - `isDefaultWorktree()` reads the flag. The name constant stays only as the label forward migration gives the default and as the legacy match used by the load migration.
 - More than one marked worktree is a hard error, but only on the paths that change ranges.
 - `isDefault` cannot be set through create or update inputs (types and runtime).
@@ -50,7 +50,7 @@ This slice records which worktree is the default in a stored boolean, `isDefault
 - Slice 932 (merged): `restoreDefaultRange()`, `RemoveWorktreeResult`, and the shared `isDefaultWorktree` / `EMPTY_RANGE` helpers this slice changes.
 
 ### Interfaces Required
-- `IProjectStore` / `FileProjectStore` (`packages/core/src/storage/`): the load path (`ensureInitialized`) where the migration runs.
+- `IProjectStore` / `FileProjectStore` (`packages/core/src/storage/`): the read path (`getAll()`) where the migration runs, and the existing writes that save it.
 - `WorktreeService` add, update and remove methods, and `chopDefaultRange()` / `restoreDefaultRange()`.
 
 ## Architecture
@@ -62,7 +62,7 @@ This slice records which worktree is the default in a stored boolean, `isDefault
 | `types/worktree.ts` | `WorktreeContext.isDefault?: boolean`. `UpdateWorktreeInput` omits `isDefault`. `RemoveWorktreeResult.defaultWorktree?`. |
 | `utils/defaultWorktree.ts` (new) | Holds the default-worktree knowledge in one place: `DEFAULT_WORKTREE_NAME`, `isDefaultWorktree(wt)`, `findDefaultWorktree(worktrees)` (throws on more than one), and `markLegacyDefaultWorktree(project)` (the migration, a pure function). It imports only from `types/`. It lives in `utils/`, next to `worktree-overlay.ts`, so both `storage/` and `services/` can import it without the store depending on the services layer. This also moves code out of the 482-line `WorktreeService.ts`. |
 | `services/WorktreeService.ts` | Sets the flag at creation. Chop and restore use `findDefaultWorktree`. Update keeps `isDefault` the same way it keeps `id`. |
-| `storage/FileProjectStore.ts` | `ensureInitialized()` runs the migration over all projects, writes once if anything changed, and prints the migration's warnings. |
+| `storage/FileProjectStore.ts` | `getAll()` runs the migration over every project it parses and prints the migration's warnings (once per process). It does not write. `create`, `update` and `delete` already read through `getAll()`, so their normal write saves the migrated data. |
 | `cli/commands/worktree.ts` | `rm` notes and hint use `defaultWorktree.name`. `list` tags the default row. |
 | `mcp-server/tools/worktreeTools.ts` | Description text only. The flag already comes through on the returned worktree objects. |
 
@@ -70,10 +70,11 @@ Dependency direction: `storage → utils → types` and `services → utils, sto
 
 ### Data Flow
 
-1. **Load.** The first store access in a process awaits `ensureInitialized()`. That runs the legacy-location step (unchanged), then reads `projects.json` through the same read-and-parse helper `getAll()` uses, and runs `markLegacyDefaultWorktree` on each project. If any project changed, it writes the file once and prints the warnings to stderr. Every consumer then reads migrated data, including callers that read `project.worktrees` directly from the store (`cf worktree list --json`, `buildAttributedViews`).
-2. **Create.** Forward migration builds the default with `isDefault: true`. The new worktree, and any worktree appended later, gets `isDefault: false`.
-3. **Chop / restore.** `findDefaultWorktree(worktrees)` returns the single worktree with `isDefault === true`, or none. It throws if more than one is marked. The range logic after that is unchanged.
-4. **Remove.** When the restore runs, the result carries the default's `{ id, name }`. The CLI prints that name.
+1. **Read.** `getAll()` parses `projects.json` as today, then runs `markLegacyDefaultWorktree` on each project and returns the result. It prints any warnings not already printed in this process to stderr. Every consumer reads migrated data, including callers that read `project.worktrees` directly from the store (`cf worktree list --json`, `buildAttributedViews`). Nothing is written.
+2. **Save.** `create`, `update` and `delete` read through `getAll()` and write the whole array, so the first ordinary write after upgrade saves the migrated fields for every project. Until then, each process recomputes the same result. A crash before that write loses nothing; the next read recomputes it.
+3. **Create.** Forward migration builds the default with `isDefault: true`. The new worktree, and any worktree appended later, gets `isDefault: false`.
+4. **Chop / restore.** `findDefaultWorktree(worktrees)` returns the single worktree with `isDefault === true`, or none. It throws if more than one is marked. The range logic after that is unchanged.
+5. **Remove.** When the restore runs, the result carries the default's `{ id, name }`. The CLI prints that name.
 
 ### State Management
 
@@ -85,9 +86,9 @@ Each worktree now stores one more field. The three values mean:
 | `false` | Not the default. Written by `addWorktree` and by the load migration. |
 | absent | Written before 934 (or by an older `cf` binary). Only the load migration interprets it, and it always replaces it with `true` or `false`. |
 
-An absent field is how the code knows a migration is pending, so no project-level stamp is needed. The migration resolves every absent value in a single pass, so it never runs twice on the same data. A later rename to `default` never triggers it again.
+An absent field is how the code knows a migration is pending, so no project-level stamp is needed. The migration resolves every absent value in a single pass and is deterministic, so recomputing it on each read before the first save gives the same answer every time. Once a write has saved it, no value is absent and the migration has nothing to do. A rename is itself a write, so it saves the migrated values in the same write as the new name; a later rename to `default` never triggers the migration again.
 
-`ensureInitialized()` stores its in-flight promise and every caller awaits it. A concurrent second call in the same process therefore cannot read data that hasn't been migrated yet. If the promise rejects, it is cleared so the next access retries. The current `initialized = true` flag is set before any await, which lets a concurrent call skip ahead. Replacing the flag with the promise closes that gap.
+Because the migration happens inside `getAll()`, no read in any process can see unmigrated data, so `ensureInitialized()` needs no change.
 
 ## Technical Decisions
 
@@ -104,7 +105,7 @@ The function runs on each project with at least one worktree whose `isDefault` i
 2. Otherwise, the candidates are the worktrees with an absent value whose name is `default` (case-insensitive), the shape forward migration has always written:
    - one candidate: it gets `true`;
    - more than one: keep only the candidates whose `worktreePath` equals `project.projectPath` (forward migration always sets that). If exactly one is left, it gets `true`.
-3. Every absent value still left becomes `false`. That includes the candidates in a case that is still ambiguous. After this step no worktree in the project has an absent value, so the project's migration is finished. One write saves it, and later loads find nothing to do.
+3. Every absent value still left becomes `false`. That includes the candidates in a case that is still ambiguous. After this step no worktree in the project has an absent value, so the project's migration is finished. The next ordinary write saves it, and reads after that find nothing to do.
 
 When the outcome leaves the project with no default, chop and restore do nothing for it, so no worktree's range is changed based on a guess. The migration warns in the two cases where that outcome is probably not what the user wants:
 
@@ -114,7 +115,7 @@ When the outcome leaves the project with no default, chop and restore do nothing
 | No candidate, but a worktree's `worktreePath` equals `project.projectPath`. This is likely a default that was renamed before upgrading. | Names the project and that worktree by name and id. Says it may be a renamed default. |
 | No candidate, and no worktree at the project path | None. This is a normal project without a default, because forward migration only creates one when the project had workflow fields at its first `worktree init`. |
 
-Both warnings end with the same recovery step: `Range narrowing and restore are off for this project. To turn them on, set "isDefault": true on the intended worktree in <full projects.json path>.` The `list` tag and the `--json` field then confirm the edit took effect. The warnings print only on the load that performs the migration. That is once, except for the concurrent case in Special Considerations.
+Both warnings end with the same recovery step: `Range narrowing and restore are off for this project. To turn them on, set "isDefault": true on the intended worktree in <full projects.json path>.` The `list` tag and the `--json` field then confirm the edit took effect. A warning prints at most once per process, and only while the migration is unsaved. A process that only reads (for example, with a read-only config directory) prints it on every run until something writes or the user makes the hand edit.
 
 **Name matching is limited to this bootstrap step.** The migration is the one place left that reads the name `default`, and it does so for a single reason: data from before 934 has no other record of which worktree is the default. The name was the only identifier the old code used, so matching it reproduces the old behavior exactly once and then stops. After migration no code reads the name. The path check only narrows the name match and never marks a worktree on its own.
 
@@ -127,9 +128,11 @@ Both warnings end with the same recovery step: `Range narrowing and restore are 
 Until then, a command would cost more than the cases it would serve.
 
 ### Where the migration runs: the store, not the service
-In `WorktreeService`, the migration would only be persisted by mutations, and raw store readers would see unmigrated data. The CLI `list` and the attribution views both read `project.worktrees` directly. `FileProjectStore.ensureInitialized()` already does one-time migration work, so the new step runs there, once per process. The domain rule lives in `utils/defaultWorktree.ts`. The store calls it and owns only the read, the write and the printing of warnings.
+In `WorktreeService`, the migration would only be persisted by mutations, and raw store readers would see unmigrated data. The CLI `list` and the attribution views both read `project.worktrees` directly. `FileProjectStore.getAll()` is the one read that every store reader and writer goes through, so the new step runs there. The domain rule lives in `utils/defaultWorktree.ts`. The store calls it and owns only applying the result and printing warnings.
 
-**Store responsibilities.** This adds one duty to the store: it applies a pure domain migration to data it has just read, and saves the result. It follows the existing legacy-location step in the same method. The store does no worktree reasoning of its own. The decision is made in `markLegacyDefaultWorktree`, which returns `{ changed, warnings }`, and the store only persists the result and emits the warnings.
+**Store responsibilities.** This adds one duty to the store: it applies a pure domain migration to data it has just read. It does not save the result itself; saving rides on the store's existing writes. The store does no worktree reasoning of its own. The decision is made in `markLegacyDefaultWorktree`, which returns `{ changed, warnings }`, and the store only applies the result and emits the warnings.
+
+**Why not write on read.** An earlier revision saved the migration on the first read and failed the command if that write failed. That broke read-only commands (`cf worktree list`, `cf check`, MCP `worktree_list`) in a read-only config directory right after an upgrade. Migrating in memory keeps those working, and every consumer still sees the same migrated data. The "act on an unsaved default" risk does not apply: any command that changes a range writes, and that write saves the migrated values along with the change.
 
 **Warning output channel.** Core has no logger abstraction. The store writes each warning with `console.warn`, which goes to stderr. Stdout is never used, for these reasons:
 - The MCP server runs over the stdio transport, where stdout carries the JSON-RPC stream. Any stdout write there would corrupt the protocol.
@@ -199,7 +202,7 @@ CLI `cf worktree list` shows a dim `(default)` after the default's name. The nam
 |---|---|---|
 | CLI `--json`, MCP responses | New optional fields: `isDefault` on worktree objects, `defaultWorktree` on the remove result. | Additive. No existing field is renamed, removed or retyped. A consumer that ignores unknown keys is unaffected. |
 | MCP tool descriptions | Text only. | No input-schema change. |
-| `cf worktree list` table | The `(default)` tag, and stderr warnings on the migrating load. | The table is human-readable output and is not a supported parse target. Scripts and agents should use `--json`, which carries the same information as a field. |
+| `cf worktree list` table | The `(default)` tag, and stderr warnings while the migration is unsaved. | The table is human-readable output and is not a supported parse target. Scripts and agents should use `--json`, which carries the same information as a field. |
 | `cf worktree rm` notes | They name the default's current name instead of the literal `'default'`. | Text only. |
 
 ### Database / Storage Schema
@@ -223,12 +226,12 @@ No planned slice consumes these yet, so the frontmatter `interfaces` (slices tha
 - A worktree created or renamed as `Default` (any case) after migration is never narrowed by `chopDefaultRange` or widened by `restoreDefaultRange`.
 - Renaming the real default keeps both chop and restore working on it.
 - `cf worktree init --name default` on a project that already has worktrees creates a worktree with `isDefault: false`.
-- First load after upgrade: a stored worktree named `default` with no `isDefault` field gets `true`, and all the project's other worktrees get `false`. The file is written once, and later loads don't write.
+- First read after upgrade: a stored worktree named `default` with no `isDefault` field reads as `true`, and all the project's other worktrees read as `false`. A read alone never writes `projects.json`. The next ordinary write saves those values for every project.
 - After the marked default is removed, renaming another worktree to `default` does not make it the default, including across a process restart.
-- Ambiguous legacy data, where the path check can't narrow several unmarked `default`-named candidates to one, marks every candidate `false`. That load writes the file once and warns once, naming every candidate by name and id along with the recovery step.
+- Ambiguous legacy data, where the path check can't narrow several unmarked `default`-named candidates to one, marks every candidate `false`. It warns once per process until saved, naming every candidate by name and id along with the recovery step.
 - When no candidate exists but a worktree is at the project path, all worktrees get `false`, and a warning says that worktree may be a renamed default.
 - When no candidate exists and no worktree is at the project path, all worktrees get `false` and nothing is printed.
-- If the migration write fails, the command fails with an error naming `projects.json` and the cause. Nothing proceeds on data that wasn't saved.
+- With a read-only `projects.json`, read-only commands (`cf worktree list`, `cf check`, MCP `worktree_list`) work after upgrade and see migrated data. Commands that write fail as they do today.
 - With two worktrees marked `isDefault: true`, add (without override), range-changing update, and remove fail with an error naming both by name and id. `cf worktree list` (table and `--json`), `worktree_list`, `worktree_get`, `cf check`, and updates that don't change a range still work.
 - `isDefault` cannot be changed through `updateWorktree`, `cf worktree update`, or `worktree_update`.
 - `cf worktree rm` prints the default's current name in its notes and manual-fix hint.
@@ -246,9 +249,9 @@ No planned slice consumes these yet, so the frontmatter `interfaces` (slices tha
   - still ambiguous (all `false`, warns with ids);
   - idempotence (a second run returns `changed: false` and no warnings).
 - `FileProjectStore` tests:
-  - A legacy `projects.json` fixture migrates on first access and is not rewritten on the second.
-  - Concurrent first calls in one process both see migrated data.
-  - A failed write rejects the load, and the next access retries.
+  - A legacy `projects.json` fixture reads as migrated and is not written by `getAll()`.
+  - An `update()` on one project saves the migrated fields for every project.
+  - A process that calls `getAll()` repeatedly prints each warning once.
   - Migration warnings go to stderr, and nothing is written to stdout.
 - Existing tests that seed a default by name and expect chop or restore are updated to seed `isDefault: true`. Add a test that a name-only `default` (with `isDefault: false`) is not chopped.
 - `pnpm -r build` and the full test suite pass.
@@ -260,12 +263,12 @@ No planned slice consumes these yet, so the frontmatter `interfaces` (slices tha
 
 Run against the local build (`node packages/cli/dist/index.js`, aliased `cfl` below). The global `cf` is the published npm package. Use a scratch project so no real project's worktrees are changed.
 
-1. **Legacy migration.** Back up `~/.config/context-forge/projects.json`. In a scratch project's entry, set `worktrees` by hand to a `default` worktree (range `100-799`, `worktreePath` = project path, no `isDefault`) and one sibling. Run `cfl worktree list --json`. Expected: the default shows `"isDefault": true`, the sibling `"isDefault": false`, and `projects.json` now contains both fields. Run it again and confirm the file's modification time doesn't change.
+1. **Legacy migration.** Back up `~/.config/context-forge/projects.json`. In a scratch project's entry, set `worktrees` by hand to a `default` worktree (range `100-799`, `worktreePath` = project path, no `isDefault`) and one sibling. Run `cfl worktree list --json`. Expected: the default shows `"isDefault": true` and the sibling `"isDefault": false`, while `projects.json` is unchanged (no `isDefault` fields, same modification time). The rename in step 2 is the first write, and afterwards `projects.json` contains both fields.
 2. **Rename keeps the marker.** `cfl worktree update default --name main-line`. Then `cfl worktree init --name extra --range 300-399`. Expected: `main-line` is narrowed to `100-299`, and `cfl worktree list` shows `main-line (default)`.
 3. **Restore uses the marker and real name.** `cfl worktree rm extra`. Expected: `Note: Its range went back to the default worktree 'main-line', now 100-799.`
 4. **A label named `default` is inert.** `cfl worktree init --name Default --range 900-949`. Then `cfl worktree init --name probe --range 920-930`. Expected: `Default` keeps `900-949`, and the overlap is only reported as advisory. Before this slice, `Default` would have been chopped to `900-919`. `list --json` shows `Default` with `"isDefault": false`.
 5. **Not user-settable.** Through MCP `worktree_update` with `{ "worktree": "Default", "isDefault": true }`, expect the field to be ignored (still `false` in `worktree_get`).
-6. **Renamed-before-upgrade warning.** Restore the backup and repeat step 1's setup, but name the root-path worktree `main-line`. Run `cfl worktree list`. Expected: one stderr warning saying `main-line` may be a renamed default, with the recovery step and the `projects.json` path. Neither row is tagged. Run it again and expect no warning. Set `"isDefault": true` on `main-line` by hand. `list` then tags it.
+6. **Renamed-before-upgrade warning.** Restore the backup and repeat step 1's setup, but name the root-path worktree `main-line`. Run `cfl worktree list`. Expected: one stderr warning saying `main-line` may be a renamed default, with the recovery step and the `projects.json` path. Neither row is tagged. Run it again: the warning repeats, because nothing has written yet. Set `"isDefault": true` on `main-line` by hand. `list` then tags it and prints no warning.
 7. **Duplicate marker fails only where it matters.** Hand-edit `projects.json` so two worktrees have `isDefault: true`. Expected:
    - `cfl worktree list` shows both rows tagged `(default)`.
    - `cfl worktree init --name x --range 950-959` fails with an error naming both worktrees by name and id, and nothing is written.
@@ -279,25 +282,23 @@ Run against the local build (`node packages/cli/dist/index.js`, aliased `cfl` be
 2. `utils/defaultWorktree.ts`: move the name constant and `isDefaultWorktree` here, add `findDefaultWorktree` and `markLegacyDefaultWorktree`, and write their unit tests first.
 3. `WorktreeService`: set the flag at creation, add the duplicate check through `findDefaultWorktree`, pin `isDefault` in update, add `defaultWorktree` to the remove result.
 4. `FileProjectStore`:
-   - pull the read-and-parse code out of `getAll()` into a private helper;
-   - store the init promise;
-   - run the migration, write once and print warnings;
-   - add the fixture, concurrency and write-failure tests.
+   - run the migration on the parsed array in `getAll()`;
+   - print warnings to stderr, once per process (a module-level set of printed warnings);
+   - add the fixture, save-on-write and warn-once tests.
 5. CLI `rm`/`list` text, and MCP descriptions.
 6. Sweep the tests that seed a name-only default and expect chop or restore (mainly `WorktreeService.test.ts`, `worktreeTools.test.ts`, `cli/tests/commands/worktree.test.ts`). Tests that build the default through `addWorktree` need no change.
 
 ### Special Considerations
-- **Write on first read.** The migration rewrites `projects.json` the first time a process touches the store. That goes through `FileStorageService`, so the existing atomic write, backup and write guard apply. The write guard never trips, because the number of projects stays the same.
-- **Write failure.** If that write fails (read-only config directory, permissions, disk full), `ensureInitialized()` rejects with `Failed to save the default-worktree migration to <projects.json path>: <cause>`, and the command fails. Continuing with migrated data only in memory was rejected. Consumers would act on a default that isn't on disk, and any later write in the same process would hit the same failure. Because the init promise is cleared on rejection, the next access retries.
-- **Corrupt or unparseable file.** The migration reads through the same helper as `getAll()`, so the existing behavior applies unchanged: `FileStorageService` recovers from the backup, a non-array payload means there is nothing to migrate (and `getAll()` returns `[]`), and a parse error throws as it does today. This slice adds no new handling.
-- **Concurrent migrators.** `FileProjectStore` has no cross-process locking. Every `update()` today reads, modifies and writes with a lost-update window. The migration has the same window and no wider: read, a synchronous pure transform, then the write, with no other await in between. If the CLI and the MCP server migrate the same legacy file at the same time, both compute the same result, because the migration is deterministic. The second write is therefore identical unless a third process changed the file in that window, which is the existing hazard. Both processes may print the same warning once. Locking stays out of scope.
-- **Cost.** The migration is one in-memory pass over the projects. It writes at most once per legacy file, and later loads only check the fields. No measurable startup cost is expected, and the 900 architecture sets no latency targets for these paths.
+- **No write on read.** The migration never writes on its own. The migrated values reach disk with the next `create`, `update` or `delete`, through `FileStorageService`, so the existing atomic write, backup and write guard apply. If that write fails, the command fails exactly as it does today, and the next read recomputes the same migration.
+- **Corrupt or unparseable file.** The migration runs on what `getAll()` has already parsed, so the existing behavior applies unchanged: `FileStorageService` recovers from the backup, a non-array payload means there is nothing to migrate (and `getAll()` returns `[]`), and a parse error throws as it does today. This slice adds no new handling.
+- **Concurrent processes.** `FileProjectStore` has no cross-process locking, and every `update()` today has a lost-update window. The migration adds no write and no window. Two processes reading the same legacy file compute the same result, because the migration is deterministic, and each may print the same warning once. Locking stays out of scope.
+- **Cost.** The migration is one in-memory pass over the projects on each `getAll()`. Once saved, it only checks the fields. No measurable startup cost is expected, and the 900 architecture sets no latency targets for these paths.
 - **Existing stdout writes in storage (out of scope).** Some code already in the storage layer uses `console.log`:
   - the legacy-location migration message (`FileProjectStore.ts`);
   - `Versioned backup created` (`backupService.ts`);
   - the config-path migration message (`storagePaths.ts`).
 
-  Under the MCP stdio transport these would write to the protocol stream if they ever ran in the server process. This slice adds none and does not call them. This defect predates 934. It is reported to the Project Manager as a separate item, and this slice does not fix it.
+  Under the MCP stdio transport these would write to the protocol stream if they ever ran in the server process. This slice adds none and does not call them. This defect predates 934. It is tracked as GitHub #113, and this slice does not fix it.
 - **Mixed `cf` versions.** The published global `cf` may be older than a local build. Data an older build writes stays valid: unknown fields are kept on update, and new unmarked worktrees are resolved at the next load. No downgrade path is needed.
 
 ## Design Review Resolution
@@ -323,3 +324,13 @@ Re-review round 1 (CONCERNS), same review file:
 | Migration heuristic relies on name matching | The name match is limited to the single bootstrap step, with the reason it is needed. The migration only adds a field and never guesses in the risky cases. A follow-up trigger for a marker-move command is recorded (Migration rule). |
 | Contract changes not in `interfaces` | The field stays a list of slices per the template. A compatibility table now covers JSON, MCP and CLI surfaces, and states that the `list` table is not a supported parse target (API Contracts). |
 | Notes (NFRs, traceability) | No action. The skipped F006 is now listed above. |
+
+Re-review round 2 (CONCERNS), same review file:
+
+| Finding | Resolution |
+|---|---|
+| F005 slice size vs. low-risk framing | Project Manager approved the slice as 900-plan maintenance work (20261007). The `(default)` tag and `defaultWorktree` result field stay in this slice (Overview). |
+| F006 write-on-read breaks read-only commands | Replaced write-on-read with a read-time, in-memory migration in `getAll()`. The next ordinary write saves it. Read-only commands keep working, the write-failure path and init-promise change are gone, and the round-1 F002 resolution above is superseded (Data Flow; Why not write on read; Special Considerations). |
+| F007 resolution tables in the design | No action. Project convention (see slice 932). |
+| F008 storage stdout writes untracked | Filed as GitHub #113 (Special Considerations). |
+| F001–F004 (pass) | No action. |
