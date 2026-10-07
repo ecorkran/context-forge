@@ -11,53 +11,54 @@ aiModel: claude-sonnet-5-5
 status: complete
 dateCreated: 20261007
 dateUpdated: 20261007
-reviewedSha: 8ca9d131a286318fc84c5da90926bd5ecd414952
+reviewedSha: 0924c7e2f39fd8f8607b2f042aaf5b1e2da3451f
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
-durationSeconds: 33.1
+durationSeconds: 17.7
 runId: run-20261007-p4-efda7554
 squadronVersion: 0.21.0
 findings:
   - id: F001
-    severity: concern
-    category: architecture-boundaries
-    summary: "Store layer depends on a services-layer module"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Component Structure"
+    severity: pass
+    category: scope-alignment
+    summary: "Fixes a project-rule violation that fits the stated scope"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Overview"
   - id: F002
-    severity: concern
-    category: error-handling
-    summary: "Migration write failures and concurrent migrators are not specified"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
+    severity: pass
+    category: layering
+    summary: "Dependency direction is correct and enforceable"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Component Structure"
   - id: F003
-    severity: concern
-    category: under-specification
-    summary: "Ambiguous and no-candidate legacy outcomes are inconsistent and can silently strand a project with no default"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Migration rule (`markLegacyDefaultWorktree`)"
+    severity: pass
+    category: error-handling
+    summary: "Failure modes for the new I/O path are enumerated"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
   - id: F004
     severity: concern
-    category: failure-modes
-    summary: "Hard error on duplicate markers blocks the remediation path"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#More than one marked worktree is rejected"
+    category: architectural-boundaries
+    summary: "Write-on-read migration changes the store's responsibilities"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Where the migration runs: the store, not the service"
   - id: F005
     severity: concern
-    category: scope
-    summary: "Scope sits at the edge of the maintenance architecture"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Overview"
+    category: design-consistency
+    summary: "Migration heuristic relies on name matching, which the slice itself calls an anti-pattern"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Migration rule (`markLegacyDefaultWorktree`)"
   - id: F006
-    severity: pass
-    category: architecture-alignment
-    summary: "Principles alignment: tests, constants, and explicit failure"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Success Criteria"
+    severity: concern
+    category: integration-points
+    summary: "Public contract changes are not carried in the `interfaces` field"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:7"
   - id: F007
     severity: note
     category: nfr
-    summary: "NFRs"
-    location: "project-documents/user/architecture/900-arch.maintenance-and-refactoring.md"
+    summary: "No NFRs apply, and the slice says so"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
   - id: F008
     severity: note
-    category: documentation
-    summary: "Frontmatter `interfaces` is empty despite contract changes"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:7"
+    category: process
+    summary: "Design review resolution table is traceable"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Design Review Resolution"
 ---
 
 # Review: slice — slice 934
@@ -67,60 +68,41 @@ findings:
 
 ## Findings
 
-### [CONCERN] Store layer depends on a services-layer module
+### [PASS] Fixes a project-rule violation that fits the stated scope
 
-`FileProjectStore.ensureInitialized()` calls `markLegacyDefaultWorktree`, which lives in `services/defaultWorktree.ts`. The table at lines 59-66 and the "Where the migration runs" decision both say so. Services already depend on `IProjectStore`, so a store import from `services/` points the dependency the wrong way and risks a cycle. The slice should put the pure domain helpers somewhere both layers may import (for example next to `types/`, or a neutral `domain/` module). Alternatively, the store could take the migration as an injected function. The "Program to interfaces" guidance favors the injected option.
+The slice replaces name-based matching of the default worktree with a stored flag. This follows the project rule against user-accessible labels as logical structure. It fits the "Pattern consolidation and code quality improvements" scope item. The slice has acceptance criteria and a walkthrough, so it meets the "not open-ended" principle. It also records that the architecture has no explicit "defect fix" scope entry and leaves that question to the Project Manager, which is the right call.
 
-### [CONCERN] Migration write failures and concurrent migrators are not specified
+### [PASS] Dependency direction is correct and enforceable
 
-This slice adds a write on first read to a path that was read-only before. The doc covers atomic write, backup and the write guard, but it does not say what happens in these cases:
-- The write fails (read-only config dir, permissions, disk full). Should the load fail, or continue with in-memory migrated data? If it continues, the migration reruns on every load, so any warning repeats.
-- The CLI and an MCP server process both load a legacy file at the same moment. Both migrate and both write. This is probably harmless because the migration is idempotent, but the doc should say that, and say whether the second writer can overwrite a concurrent mutation made between its read and its write.
-- `projects.json` is corrupt or unparseable on this new path.
+The shared logic lives in a new `utils/defaultWorktree.ts` that imports only from `types/`. This keeps `storage → utils → types` and `services → utils`, with no `storage → services` import. The slice also considers and rejects injecting the migration into the store, with reasons. It adds a testable technical requirement that `storage/` never imports from `services/`.
 
-Each of these should get an explicit handling strategy. They should not be left implicit.
+### [PASS] Failure modes for the new I/O path are enumerated
 
-### [CONCERN] Ambiguous and no-candidate legacy outcomes are inconsistent and can silently strand a project with no default
+The load-time migration is the one new I/O path. The slice covers write failure (the command fails and the init promise clears so the next access retries), corrupt or unparseable files, concurrent in-process calls (stored init promise), and cross-process races (deterministic, idempotent result, no locking, explicitly out of scope). Ambiguous and no-candidate migration outcomes each have a defined result and warning. Each of these has a test requirement. The duplicate-marker error is limited to the range-changing paths, and the diagnostic paths keep working.
 
-- The rule says "nothing is marked" when ambiguous, then says "Every other absent value becomes `false`." It does not say whether the ambiguous candidates become `false` or stay absent.
-  - If they become `false`, the project permanently has no default, and only a hand edit fixes it.
-  - If they stay absent, the migration reruns on every load, re-warns, and rewrites nothing, so "the file is written once" and "warns once" in the Success Criteria can't both hold.
-- The no-candidate case (a user renamed their default before upgrading) is silent. The warning is only for ambiguous cases. That user quietly loses chop and restore, and nothing tells them why.
-- The doc should pick one behavior. It should also warn in the no-candidate case when the project has more than one worktree, and say how a user recovers. Because "no command to move the default marker" is excluded, the only recovery is editing `projects.json` by hand.
+### [CONCERN] Write-on-read migration changes the store's responsibilities
 
-### [CONCERN] Hard error on duplicate markers blocks the remediation path
+`FileProjectStore.ensureInitialized()` now reads, applies a domain migration, writes, and prints warnings to stderr. The store already does legacy-location migration, so this has precedent. Printing to stderr from a storage layer is a new kind of side effect, though. It also reaches MCP server processes, where stderr use may not be appropriate. The slice does not say how warnings behave under the MCP server (stdio transport) or whether a logger abstraction exists. State the output channel for non-CLI consumers, or route warnings through whatever existing logging mechanism the store uses.
 
-`findDefaultWorktree` throws, which stops add, update and remove for that project. The error message points to a hand edit of `projects.json`. Failing explicitly fits the project rules, but the doc should confirm that read-only paths (`list`, `get`, `cf check` attribution) still work. A user needs them to see which worktrees are marked. It should also say whether the message names ids as well as names, so the user can find the right entries when the names are ambiguous.
+### [CONCERN] Migration heuristic relies on name matching, which the slice itself calls an anti-pattern
 
-### [CONCERN] Scope sits at the edge of the maintenance architecture
+The one-time migration identifies the legacy default by name (`default`, case-insensitive) and then by `worktreePath == projectPath`. This is a defensible bootstrap, and the slice confines it to one function. It is still a best-effort guess at user intent, and the migration is irreversible once written, because all absent values become explicit `false`. The slice covers the ambiguous cases with warnings and a hand-edit recovery. It also excludes any command to move the marker, so recovery for misclassified data depends on hand-editing JSON. This is acceptable for a low-risk initiative. Consider recording a trigger for the follow-up recovery command, for example how many warnings users hit.
 
-Architecture 900 scopes the initiative to pattern consolidation, constants, dead-code removal, test gaps, dependency updates and developer-experience improvements. It also says to "slice by theme, not by urgency" and to avoid one-slice-per-fix. This slice is a single-issue defect fix that adds:
-- a persisted schema field;
-- a store-load data migration;
-- a new public field on CLI JSON and MCP responses;
-- a new `RemoveWorktreeResult` property;
-- CLI output changes.
+### [CONCERN] Public contract changes are not carried in the `interfaces` field
 
-The "Scope fit" paragraph argues by precedent from slices 926-932 and does not tie the work to an architecture-listed theme. The "Visible default" value and the `list` tagging go slightly past the fix. I recommend one of these:
-- Record that the architecture's scope list needs a "defect fixes in shipped code" entry.
-- Fold this slice into a themed worktree-hardening group.
-- Trim the visibility extras.
+`interfaces: []` is justified in the document, since no planned slice consumes the new contracts. But the slice changes externally visible contracts: `isDefault` on every `--json` and MCP worktree response, `RemoveWorktreeResult.defaultWorktree`, and the CLI `list` output. MCP tool descriptions change as well. Downstream agents and scripts that parse `list` table output could be affected by the added `(default)` tag. The slice calls these additive but gives no compatibility statement for table-output consumers. Add a line on whether table output is a supported parse target.
 
-### [PASS] Principles alignment: tests, constants, and explicit failure
+### [NOTE] No NFRs apply, and the slice says so
 
-This satisfies "no behavior changes without tests". It lists unit tests for each branch of the migration, a store fixture test for the migrate-once behavior, a regression test that a name-only `default` is not chopped, and a full build and test pass. It centralizes the default-name knowledge in one module and fails explicitly on ambiguity. It avoids silent guessing, since nothing is marked when the data is ambiguous. The decision to use a flag and not a reserved ID is well reasoned.
+The 900 architecture sets no latency or throughput targets. The slice notes this and adds a cost estimate: one in-memory pass, at most one write per legacy file. No restatement is required.
 
-### [NOTE] NFRs
+### [NOTE] Design review resolution table is traceable
 
-The parent architecture states no latency or throughput targets for these paths, so nothing needs restating. The migration does add one extra file write on first load. Since the doc says migration runs once per process, a sentence noting that no measurable startup cost is expected would be enough.
-
-### [NOTE] Frontmatter `interfaces` is empty despite contract changes
-
-`interfaces: []` is stated, yet the slice changes the `WorktreeContext` and `RemoveWorktreeResult` contracts and `FileProjectStore` load behavior. The body's "Provides to Other Slices" lists these. Consider listing them in the frontmatter too, so they can be traced.
+Each prior finding maps to a section of the document that addresses it. The finding IDs skip F006, which may be intentional.
 
 ### Run Digest
 
-- Response length: 6833 chars
+- Response length: 5276 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -132,7 +114,7 @@ The parent architecture states no latency or throughput targets for these paths,
 - Effort: backend default
 - Turns: not computed
 - Tokens — prompt / cached / completion / reasoning: not computed / not computed / not computed / not computed
-- Duration: 33.1 s
+- Duration: 17.7 s
 - `## Summary` located: yes
 - `## Findings` located: yes
 - Finding-shaped matches — whole response: 8
