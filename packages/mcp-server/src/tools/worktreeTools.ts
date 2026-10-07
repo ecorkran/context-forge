@@ -131,7 +131,7 @@ export function registerWorktreeTools(server: McpServer): void {
       title: 'Initialize Worktree',
       description:
         'Create a new worktree context for a project. The first worktree triggers forward migration, ' +
-        'moving existing workflow fields into a "default" worktree (range 100-799). Returns the created worktree, ' +
+        'moving existing workflow fields into the default worktree (`isDefault: true`, range 100-799). Returns the created worktree, ' +
         'whether migration occurred, and any index range overlaps.',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
@@ -264,9 +264,10 @@ export function registerWorktreeTools(server: McpServer): void {
       description:
         'Remove a worktree context from a project. If this is the last worktree, triggers reverse migration ' +
         'restoring workflow fields to the project. Returns the removed worktree and whether migration occurred. ' +
-        "When other worktrees remain, restoredRange is the 'default' worktree's new range after the removed range " +
-        'was handed back to it; rangeNotRestored { reason, defaultRange } says why it was not ' +
-        '(range-override, not-adjacent, would-overlap).',
+        'When other worktrees remain, restoredRange is the default worktree\'s (`isDefault: true`) new range after ' +
+        'the removed range was handed back to it; rangeNotRestored { reason, defaultRange } says why it was not ' +
+        '(range-override, not-adjacent, would-overlap). defaultWorktree { id, name } identifies that worktree ' +
+        'whenever either is present.',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         worktree: z.string().describe('Worktree ID or name to remove.'),

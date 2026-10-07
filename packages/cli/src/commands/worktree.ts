@@ -10,7 +10,7 @@ import {
   resolveFileByIndex,
 } from '@context-forge/core/node';
 import type { WorktreeInfo, WorktreePathStatus } from '@context-forge/core';
-import { RangeRestoreSkipReason } from '@context-forge/core';
+import { RangeRestoreSkipReason, isDefaultWorktree } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId } from '../utils/project.js';
 import { withProjectOption, withYesOption, withJsonOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -237,12 +237,13 @@ export function registerWorktreeCommand(program: Command): void {
 
           const archStr = wt.archDoc ?? dim('—');
           const planStr = wt.slicePlan ?? dim('—');
+          const nameStr = isDefaultWorktree(wt) ? `${wt.name} ${dim('(default)')}` : wt.name;
 
           if (isActive) {
-            rows.push([success(wt.name), success(rangeStr), success(pathStr), success(archStr), success(planStr)]);
+            rows.push([success(nameStr), success(rangeStr), success(pathStr), success(archStr), success(planStr)]);
             prefixes.push(success('* '));
           } else {
-            rows.push([wt.name, rangeStr, pathStr, archStr, planStr]);
+            rows.push([nameStr, rangeStr, pathStr, archStr, planStr]);
             prefixes.push('  ');
           }
         }
@@ -435,7 +436,7 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         const svc = new WorktreeService(store);
-        const { migrated, restoredRange, rangeNotRestored } = await svc.removeWorktree(projectId, targetId);
+        const { migrated, restoredRange, rangeNotRestored, defaultWorktree } = await svc.removeWorktree(projectId, targetId);
 
         if (migrated) {
           console.log(
@@ -444,14 +445,22 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         console.log(success(`Worktree context '${target.name}' removed from project '${project.name}'.`));
-        if (restoredRange) {
-          console.log(dim(`Note: Its range went back to the 'default' worktree, now ${restoredRange[0]}-${restoredRange[1]}.`));
-        } else if (rangeNotRestored) {
-          const [start, end] = rangeNotRestored.defaultRange;
-          console.log(warn(
-            `Note: The 'default' worktree keeps its range ${start}-${end}: ${RANGE_NOT_RESTORED_TEXT[rangeNotRestored.reason]}.\n` +
-              `  To widen it by hand: cf worktree update default --range <start>-<end>`,
-          ));
+        if (restoredRange || rangeNotRestored) {
+          // The service sets defaultWorktree whenever it reports either outcome.
+          if (!defaultWorktree) {
+            throw new Error('removeWorktree reported a range outcome without the default worktree');
+          }
+          if (restoredRange) {
+            console.log(dim(
+              `Note: Its range went back to the default worktree '${defaultWorktree.name}', now ${restoredRange[0]}-${restoredRange[1]}.`,
+            ));
+          } else if (rangeNotRestored) {
+            const [start, end] = rangeNotRestored.defaultRange;
+            console.log(warn(
+              `Note: The default worktree '${defaultWorktree.name}' keeps its range ${start}-${end}: ${RANGE_NOT_RESTORED_TEXT[rangeNotRestored.reason]}.\n` +
+                `  To widen it by hand: cf worktree update ${defaultWorktree.name} --range <start>-<end>`,
+            ));
+          }
         }
 
         // Hint about git worktree removal when the worktree has a filesystem path

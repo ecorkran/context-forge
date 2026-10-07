@@ -78,28 +78,28 @@ status: in_progress
 
 - [x] **Task 3C: Commit** — `feat(core): migrate legacy default worktree marker on read`
 
-- [ ] **Task 4: WorktreeService uses the marker** (effort: 3)
-  - [ ] Remove the local `DEFAULT_WORKTREE_NAME` and `isDefaultWorktree` from `WorktreeService.ts`; import from `utils/defaultWorktree.ts`.
-  - [ ] Forward migration in `addWorktree` creates the default with `isDefault: true`; every other worktree `addWorktree` creates gets `isDefault: false`.
-  - [ ] `chopDefaultRange` locates the default with `findDefaultWorktree(worktrees, projectName, excludeId)`, replacing `find(isDefaultWorktree(wt) && wt.id !== excludeId)`; the exclusion is what stops an update of the default's own range from chopping it against itself. `restoreDefaultRange` uses `findDefaultWorktree(remaining, projectName)` in place of `findIndex(isDefaultWorktree)` and keeps its separate `isDefaultWorktree(removed)` self-case check (line ~326). Range rules are unchanged.
-  - [ ] The `rangeOverride: true` path skips chop, so `findDefaultWorktree` is not called and a duplicate-marker project does not throw there. This is intended; do not add a call.
-  - [ ] `updateWorktree` sets `isDefault: original.isDefault` after the spread, as it does for `id`.
-  - [ ] `removeWorktree` adds `defaultWorktree: { id, name }` to the result whenever it returns `restoredRange` or `rangeNotRestored`.
-  - [ ] Success: `pnpm -r build` passes (existing tests that seed a default by name are fixed in Task 4T).
+- [x] **Task 4: WorktreeService uses the marker** (effort: 3)
+  - [x] Remove the local `DEFAULT_WORKTREE_NAME` and `isDefaultWorktree` from `WorktreeService.ts`; import from `utils/defaultWorktree.ts`.
+  - [x] Forward migration in `addWorktree` creates the default with `isDefault: true`; every other worktree `addWorktree` creates gets `isDefault: false`.
+  - [x] `chopDefaultRange` locates the default with `findDefaultWorktree(worktrees, projectName, excludeId)`, replacing `find(isDefaultWorktree(wt) && wt.id !== excludeId)`; the exclusion is what stops an update of the default's own range from chopping it against itself. `restoreDefaultRange` uses `findDefaultWorktree(remaining, projectName)` in place of `findIndex(isDefaultWorktree)` and keeps its separate `isDefaultWorktree(removed)` self-case check (line ~326). Range rules are unchanged.
+  - [x] The `rangeOverride: true` path skips chop, so `findDefaultWorktree` is not called and a duplicate-marker project does not throw there. This is intended; do not add a call.
+  - [x] `updateWorktree` sets `isDefault: original.isDefault` after the spread, as it does for `id`.
+  - [x] `removeWorktree` adds `defaultWorktree: { id, name }` to the result whenever it returns `restoredRange` or `rangeNotRestored`.
+  - [x] Success: `pnpm -r build` passes (existing tests that seed a default by name are fixed in Task 4T).
 
-- [ ] **Task 4T: Service tests** (effort: 3)
-  - [ ] Update existing `WorktreeService.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`. Tests that build the default through `addWorktree` need no change. The seeds to update are the `setupDefault` helper in the `chopDefaultRange` block (around line 588), the `wt('wt_default', …)` calls in the restore block (add an optional `isDefault` through the existing `extra` argument), and the other `name: 'default'` fixtures near lines 820 and 923 if they expect chop or restore.
-  - [ ] Replace the name-keyed lookups with marker lookups: the `defaultRange()` helper (around line 677) finds its worktree with `w.name.toLowerCase() === 'default'`; change it to `w.isDefault === true`. Do the same for the `wt.name === 'default'` lookups in the chop tests so a rename test cannot silently find nothing.
-  - [ ] Delete the test "matches the default by name case-insensitively, as the chop does" (around line 785). It asserts the behavior this slice removes. The next "Add" item is its replacement: the same layout with `isDefault: false` must give no `restoredRange` and no `rangeNotRestored`.
-  - [ ] Add: a worktree named `Default` with `isDefault: false` is not chopped and not widened.
-  - [ ] Add: renaming the real default (via `updateWorktree`) keeps chop and restore working on it.
-  - [ ] Add: `addWorktree` after init with `name: 'default'` creates `isDefault: false`.
-  - [ ] Add: `updateWorktree` cannot change `isDefault`, including a stray runtime `isDefault` key in the input.
-  - [ ] Add: remove result carries `defaultWorktree` with the current name whenever `restoredRange` or `rangeNotRestored` is present, and omits it otherwise.
-  - [ ] Add: two worktrees marked `isDefault: true` make add (without override), range-changing update, and remove (others remaining) throw an error naming both by name and id; a non-range update still succeeds.
-  - [ ] Success: all pass.
+- [x] **Task 4T: Service tests** (effort: 3)
+  - [x] Update existing `WorktreeService.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`. Tests that build the default through `addWorktree` need no change. The seeds to update are the `setupDefault` helper in the `chopDefaultRange` block (around line 588), the `wt('wt_default', …)` calls in the restore block (add an optional `isDefault` through the existing `extra` argument), and the other `name: 'default'` fixtures near lines 820 and 923 if they expect chop or restore.
+  - [x] Replace the name-keyed lookups with marker lookups: the `defaultRange()` helper (around line 677) finds its worktree with `w.name.toLowerCase() === 'default'`; change it to `w.isDefault === true`. Do the same for the `wt.name === 'default'` lookups in the chop tests so a rename test cannot silently find nothing.
+  - [x] Delete the test "matches the default by name case-insensitively, as the chop does" (around line 785). It asserts the behavior this slice removes. The next "Add" item is its replacement: the same layout with `isDefault: false` must give no `restoredRange` and no `rangeNotRestored`.
+  - [x] Add: a worktree named `Default` with `isDefault: false` is not chopped and not widened.
+  - [x] Add: renaming the real default (via `updateWorktree`) keeps chop and restore working on it.
+  - [x] Add: `addWorktree` after init with `name: 'default'` creates `isDefault: false`.
+  - [x] Add: `updateWorktree` cannot change `isDefault`, including a stray runtime `isDefault` key in the input.
+  - [x] Add: remove result carries `defaultWorktree` with the current name whenever `restoredRange` or `rangeNotRestored` is present, and omits it otherwise.
+  - [x] Add: two worktrees marked `isDefault: true` make add (without override), range-changing update, and remove (others remaining) throw an error naming both by name and id; a non-range update still succeeds.
+  - [x] Success: all pass.
 
-- [ ] **Task 4C: Commit** — `fix(core): identify the default worktree by isDefault, not name`
+- [x] **Task 4C: Commit** — `fix(core): identify the default worktree by isDefault, not name`
 
 - [ ] **Task 5: CLI text and `list` tag** (effort: 2)
   - [ ] `cf worktree rm` (`cli/src/commands/worktree.ts`, around lines 448–452): replace the literal `'default'` in the restored note, the unchanged-range note and the `cf worktree update … --range` hint with `defaultWorktree.name` from the result. Output must match the design's API Contracts example.
