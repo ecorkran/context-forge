@@ -4,10 +4,11 @@ import { basename, dirname, join } from 'path';
 import { createGunzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
-import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult } from '../types.js';
+import type { InstallStrategy, InstallResult, UpdateResult, DetectionResult, TarballUpdateOptions } from '../types.js';
 import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, DEFAULT_SOURCE_GIT, GUIDE_RELATIVE_PATH } from '../types.js';
 import { commitPathIfChanged } from '../gitExec.js';
-import { listRemoteTags, openRemoteArchive } from '../tarballSource.js';
+import { resolveTarballSource, openArchive } from '../tarballSource.js';
+import type { ResolvedTarballSource } from '../tarballSource.js';
 import { matchingGuidePatterns, sameExcludeList } from '../../config/guideExclude.js';
 
 // Moved to tarballSource; re-exported so existing importers keep working.
@@ -89,26 +90,32 @@ export class TarballStrategy implements InstallStrategy {
     }
   }
 
-  async install(projectPath: string, source: string, targetDir: string): Promise<InstallResult> {
-    const resolvedSource = source || DEFAULT_SOURCE_GIT;
-    const latestTag = await this.fetchLatestTag(resolvedSource);
-    if (!latestTag) {
-      throw new Error('Could not determine latest version from remote.');
-    }
+  async install(
+    projectPath: string,
+    source: string,
+    targetDir: string,
+    options: TarballUpdateOptions = {}
+  ): Promise<InstallResult> {
+    const resolved = await resolveTarballSource(
+      source || DEFAULT_SOURCE_GIT,
+      options.version,
+      options.sourceRoot ?? projectPath
+    );
+    const tag = resolved.tag;
 
-    const unmatched = await this.extractAndSwap(resolvedSource, latestTag, targetDir);
+    const unmatched = await this.extractAndSwap(resolved, targetDir);
 
     // Same commit the submodule strategy makes, so a tarball install does not
     // leave the guide untracked for the user to notice later.
     const committed = await commitPathIfChanged(
       projectPath,
       GUIDE_RELATIVE_PATH,
-      `docs: install ai-project-guide ${latestTag}`
+      `docs: install ai-project-guide ${tag}`
     );
 
     return {
       success: true,
-      version: latestTag,
+      version: tag,
       method: 'tarball',
       path: targetDir,
       committed,
@@ -116,7 +123,12 @@ export class TarballStrategy implements InstallStrategy {
     };
   }
 
-  async update(projectPath: string, targetDir: string, source: string): Promise<UpdateResult> {
+  async update(
+    projectPath: string,
+    targetDir: string,
+    source: string,
+    options: TarballUpdateOptions = {}
+  ): Promise<UpdateResult> {
     const markerPath = join(targetDir, VERSION_MARKER_FILE);
     let previousVersion: string | null = null;
     try {
@@ -125,32 +137,31 @@ export class TarballStrategy implements InstallStrategy {
       // No previous version
     }
 
-    const latestTag = await this.fetchLatestTag(source);
-    if (!latestTag) {
-      throw new Error('Could not determine latest version from remote.');
-    }
+    const resolved = await resolveTarballSource(source, options.version, options.sourceRoot ?? projectPath);
+    const tag = resolved.tag;
 
     const excludeDiffers = !sameExcludeList(readExcludeRecord(targetDir), this.sortedExclude());
-    if (previousVersion === latestTag && !excludeDiffers) {
-      return { success: true, previousVersion, newVersion: latestTag, method: 'tarball' };
+    // A local archive always stages: the same 'local' marker can name different archives.
+    if (resolved.kind === 'remote' && previousVersion === tag && !excludeDiffers) {
+      return { success: true, previousVersion, newVersion: tag, method: 'tarball' };
     }
     // Same version but a different exclude list: re-extract the same tag.
-    const excludeChanged = previousVersion === latestTag;
+    const excludeChanged = previousVersion === tag && excludeDiffers;
 
-    const unmatched = await this.extractAndSwap(source, latestTag, targetDir);
+    const unmatched = await this.extractAndSwap(resolved, targetDir);
 
     const committed = await commitPathIfChanged(
       projectPath,
       GUIDE_RELATIVE_PATH,
       excludeChanged
-        ? `docs: re-extract ai-project-guide ${latestTag} (guide.exclude changed)`
-        : `docs: update ai-project-guide ${latestTag}`
+        ? `docs: re-extract ai-project-guide ${tag} (guide.exclude changed)`
+        : `docs: update ai-project-guide ${tag}`
     );
 
     return {
       success: true,
       previousVersion,
-      newVersion: latestTag,
+      newVersion: tag,
       method: 'tarball',
       committed,
       ...this.excludeFields(unmatched),
@@ -176,7 +187,7 @@ export class TarballStrategy implements InstallStrategy {
    * existing guide untouched; a failed swap restores it. Returns the
    * guide.exclude patterns that matched no archive entry.
    */
-  private async extractAndSwap(source: string, tag: string, targetDir: string): Promise<string[]> {
+  private async extractAndSwap(resolved: ResolvedTarballSource, targetDir: string): Promise<string[]> {
     const staging = siblingPath(targetDir, STAGING_SUFFIX);
     const previous = siblingPath(targetDir, PREVIOUS_SUFFIX);
 
@@ -186,12 +197,12 @@ export class TarballStrategy implements InstallStrategy {
 
     const matched = new Set<string>();
     try {
-      await this.downloadAndExtract(source, tag, staging, (entryPath) => {
+      await this.openAndExtract(resolved, staging, (entryPath) => {
         const decision = decideTarballEntry(entryPath, this.exclude);
         for (const pattern of decision.matchedExclude) matched.add(pattern);
         return !decision.skip;
       });
-      writeFileSync(join(staging, VERSION_MARKER_FILE), tag, 'utf-8');
+      writeFileSync(join(staging, VERSION_MARKER_FILE), resolved.tag, 'utf-8');
       if (this.exclude.length > 0) {
         writeFileSync(join(staging, EXCLUDE_RECORD_FILE), this.sortedExclude().join('\n') + '\n', 'utf-8');
       }
@@ -236,30 +247,43 @@ export class TarballStrategy implements InstallStrategy {
     }
   }
 
-  /** Newest remote tag, or null for a genuinely tag-less remote. */
-  private async fetchLatestTag(source: string): Promise<string | null> {
-    const tags = await listRemoteTags(source);
-    return tags[0] ?? null;
-  }
-
-  /** Download the tag's tarball and extract it into extractDir. */
-  private async downloadAndExtract(
-    source: string,
-    tag: string,
+  /**
+   * Open the resolved archive (remote tag or local file) and extract it into
+   * extractDir. A gunzip, tar or read error names the archive. An archive with
+   * more than one top-level directory is refused: the extract strips exactly
+   * one level, so a second root would land its files loose in the guide.
+   */
+  private async openAndExtract(
+    resolved: ResolvedTarballSource,
     extractDir: string,
     filter: (entryPath: string) => boolean
   ): Promise<void> {
-    const archive = await openRemoteArchive(source, tag);
+    const archive = await openArchive(resolved);
+    const roots = new Set<string>();
+    const rootGuardedFilter = (entryPath: string): boolean => {
+      const root = entryPath.replace(/^\.\//, '').split('/')[0];
+      if (root !== '') roots.add(root);
+      return roots.size <= 1 && filter(entryPath);
+    };
+
     try {
       mkdirSync(extractDir, { recursive: true });
 
       // GitHub tarballs have a top-level directory like {owner}-{repo}-{hash}/
       // We strip 1 level and extract directly into extractDir
-      await pipeline(
-        archive.stream,
-        createGunzip(),
-        extract({ cwd: extractDir, strip: 1, filter })
-      );
+      try {
+        await pipeline(
+          archive.stream,
+          createGunzip(),
+          extract({ cwd: extractDir, strip: 1, filter: rootGuardedFilter })
+        );
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new Error(`Reading guide archive ${archive.label} failed: ${reason}`, { cause: err });
+      }
+      if (roots.size > 1) {
+        throw new Error(`Archive must contain a single top-level directory (${archive.label})`);
+      }
     } finally {
       await archive.close();
     }

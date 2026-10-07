@@ -7,6 +7,7 @@ import {
   type SubmoduleCheckoutState,
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
+  LOCAL_VERSION_MARKER,
   VERSION_MARKER_FILE,
 } from './types.js';
 import { gitExec } from './gitExec.js';
@@ -46,6 +47,8 @@ function parseHighestTag(lsRemoteOutput: string): string | null {
  */
 export function isNewerVersion(current: string | null, latest: string | null): boolean {
   if (!current || !latest) return false;
+  // A local archive is not a release; any remote tag supersedes it.
+  if (current === LOCAL_VERSION_MARKER) return true;
   const ca = current.replace(/^v/, '').split('.').map(Number);
   const la = latest.replace(/^v/, '').split('.').map(Number);
   for (let i = 0; i < 3; i++) {

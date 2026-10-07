@@ -368,7 +368,11 @@ describe('TarballStrategy', () => {
       const brokenArchive = new Error('TAR_BAD_ARCHIVE');
       vi.mocked(pipeline).mockRejectedValueOnce(brokenArchive);
 
-      await expect(strategy.update(projectPath, targetDir, source)).rejects.toBe(brokenArchive);
+      // Wrapped to name the archive (Task 4B); the original error stays as the cause.
+      const failure = await strategy.update(projectPath, targetDir, source).catch((err: unknown) => err);
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain('Reading guide archive');
+      expect((failure as Error).cause).toBe(brokenArchive);
 
       expect(mockRmSync).toHaveBeenLastCalledWith(staging, { recursive: true, force: true });
       expect(mockRenameSync).not.toHaveBeenCalled();

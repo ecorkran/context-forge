@@ -227,6 +227,34 @@ export interface UpdateResult {
   excludeIgnored?: boolean;
   /** True when the guide was re-extracted at the same version because guide.exclude changed. */
   excludeChanged?: boolean;
+  /** Tarball: file counts of the staged guide against the installed one, whenever a diff ran. */
+  preview?: GuidePreview;
+  /** Tarball: the staged guide is identical to the installed one; nothing was swapped or committed. */
+  unchanged?: true;
+  /** Tarball: the confirm callback declined; the installed guide is untouched. */
+  cancelled?: true;
+  /** Tarball: whether .context-forge.toml went into the guide commit (guide.exclude changed). */
+  configCommitted?: boolean;
+}
+
+/** How a staged guide differs from the installed one, in files. */
+export interface GuidePreview {
+  added: number;
+  removed: number;
+  changed: number;
+}
+
+/** Tarball-only options for install and update; GuideManager never passes them to other strategies. */
+export interface TarballUpdateOptions {
+  /** Remote tag to install instead of the newest. Rejected with a local source. */
+  version?: string;
+  /**
+   * Directory a relative local --source resolves against. Defaults to the
+   * project root; the CLI passes its working directory.
+   */
+  sourceRoot?: string;
+  /** Called with the preview before the swap (update only); resolve false to cancel. */
+  confirm?: (preview: GuidePreview) => Promise<boolean>;
 }
 
 /** Result of uninstalling a guide */
@@ -252,8 +280,8 @@ export interface DetectionResult {
 
 /** Strategy interface for guide installation methods */
 export interface InstallStrategy {
-  install(projectPath: string, source: string, targetDir: string): Promise<InstallResult>;
-  update(projectPath: string, targetDir: string, source: string): Promise<UpdateResult>;
+  install(projectPath: string, source: string, targetDir: string, options?: TarballUpdateOptions): Promise<InstallResult>;
+  update(projectPath: string, targetDir: string, source: string, options?: TarballUpdateOptions): Promise<UpdateResult>;
   detect(projectPath: string, targetDir: string): Promise<DetectionResult | null>;
 }
 
@@ -271,5 +299,7 @@ export const DEFAULT_SOURCE_GIT = 'https://github.com/ecorkran/ai-project-guide.
 export const DEFAULT_SOURCE_API = 'https://api.github.com/repos/ecorkran/ai-project-guide';
 export const GUIDE_RELATIVE_PATH = 'project-documents/ai-project-guide';
 export const VERSION_MARKER_FILE = '.context-forge-guide-version';
+/** Version recorded for a guide installed from a local archive rather than a remote tag. */
+export const LOCAL_VERSION_MARKER = 'local';
 /** guide.exclude list a tarball install applied, one pattern per line; written only when the list is not empty. */
 export const EXCLUDE_RECORD_FILE = '.context-forge-guide-exclude';
