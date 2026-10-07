@@ -41,7 +41,7 @@ status: not_started
   - [ ] Create `packages/core/src/utils/defaultWorktree.ts` importing only from `types/`.
   - [ ] Move `DEFAULT_WORKTREE_NAME` here (exported; it is the label forward migration gives the default and the legacy match).
   - [ ] Add `isDefaultWorktree(wt)`: returns `wt.isDefault === true`. It must not read the name.
-  - [ ] Add `findDefaultWorktree(worktrees)`: returns the one worktree with `isDefault === true`, or `undefined`. Throws if more than one, using the design's message (project name, then `'<name>' (<id>)` for each, then the hand-edit instruction). Take the project name as a parameter so the message can include it.
+  - [ ] Add `findDefaultWorktree(worktrees, projectName, excludeId?)`: returns the one worktree with `isDefault === true` whose id is not `excludeId`, or `undefined`. Throws if more than one remains, using the design's message (project name, then `'<name>' (<id>)` for each, then the hand-edit instruction). The `excludeId` filter is applied before the duplicate check, so excluding one of two marked worktrees hides the duplicate; that is accepted, because the excluded worktree is the one being updated and the next call without an exclusion still surfaces it.
   - [ ] Add `markLegacyDefaultWorktree(project)`: pure function, returns `{ changed, warnings }` and the migrated project without mutating the input. Implement the design's Migration rule steps 1–3 and the warning table exactly. Warnings end with the shared recovery sentence; take the `projects.json` path as a parameter.
   - [ ] Export the new module from the core package index only if sibling utils are exported there; otherwise import by path.
   - [ ] Success: `pnpm -r build` passes. `WorktreeService.ts` still has its own copies at this point (removed in Task 4).
@@ -49,7 +49,8 @@ status: not_started
 - [ ] **Task 2T: Utility tests** (effort: 3)
   - [ ] Create `packages/core/tests/utils/defaultWorktree.test.ts`.
   - [ ] `isDefaultWorktree`: true only for `isDefault: true`; false for `false`, absent, and a worktree merely named `default`.
-  - [ ] `findDefaultWorktree`: none, one, and two marked (error contains both names and ids).
+  - [ ] `findDefaultWorktree`: none, one, and two marked (error contains both names and ids); with `excludeId` set to the one marked worktree it returns `undefined`, and with `excludeId` set to one of two marked it returns the other without throwing.
+  - [ ] Both migration warnings (renamed-default and ambiguous) end with the shared recovery sentence, and the injected `projects.json` path appears in it verbatim.
   - [ ] `markLegacyDefaultWorktree`, one test per case in the design's Technical Requirements list: single legacy default; case variant `Default`; already-marked project (absent becomes `false`); no candidate and no worktree at project path (silent); no candidate with a worktree at project path (warns, names it, says renamed default); ambiguous candidates narrowed by path; still ambiguous (all `false`, warning lists every candidate by name and id); idempotence (second run `changed: false`, no warnings).
   - [ ] Assert the input project object is not mutated, and that existing `isDefault` values are never changed.
   - [ ] Success: all pass.
@@ -80,7 +81,8 @@ status: not_started
 - [ ] **Task 4: WorktreeService uses the marker** (effort: 3)
   - [ ] Remove the local `DEFAULT_WORKTREE_NAME` and `isDefaultWorktree` from `WorktreeService.ts`; import from `utils/defaultWorktree.ts`.
   - [ ] Forward migration in `addWorktree` creates the default with `isDefault: true`; every other worktree `addWorktree` creates gets `isDefault: false`.
-  - [ ] `chopDefaultRange` and `restoreDefaultRange` locate the default through `findDefaultWorktree` instead of `findIndex(isDefaultWorktree)`. Range rules are unchanged.
+  - [ ] `chopDefaultRange` locates the default with `findDefaultWorktree(worktrees, projectName, excludeId)`, replacing `find(isDefaultWorktree(wt) && wt.id !== excludeId)`; the exclusion is what stops an update of the default's own range from chopping it against itself. `restoreDefaultRange` uses `findDefaultWorktree(remaining, projectName)` in place of `findIndex(isDefaultWorktree)` and keeps its separate `isDefaultWorktree(removed)` self-case check (line ~326). Range rules are unchanged.
+  - [ ] The `rangeOverride: true` path skips chop, so `findDefaultWorktree` is not called and a duplicate-marker project does not throw there. This is intended; do not add a call.
   - [ ] `updateWorktree` sets `isDefault: original.isDefault` after the spread, as it does for `id`.
   - [ ] `removeWorktree` adds `defaultWorktree: { id, name }` to the result whenever it returns `restoredRange` or `rangeNotRestored`.
   - [ ] Success: `pnpm -r build` passes (existing tests that seed a default by name are fixed in Task 4T).
@@ -139,7 +141,7 @@ status: not_started
 
 - [ ] **Task 8: Name-comparison sweep** (effort: 1)
   - [ ] Run once: `grep -rnEi "[\"'\`]default[\"'\`]|DEFAULT_WORKTREE_NAME|name\.toLowerCase\(\)" packages/*/src`. This matches single, double and backtick quotes, so it catches the `"default"` in comments and descriptions as well as `'default'`.
-  - [ ] List every hit and classify it. Allowed: `defaultWorktree.ts` (the constant and the migration's legacy match), the forward-migration label assignment in `WorktreeService.addWorktree`, the init note text in `worktree.ts`, and unrelated hits (config `source`, `ResolutionSource`, template defaults). Any other hit that compares a worktree name to `default` is a defect: fix it.
+  - [ ] List every hit and classify it. Allowed: `defaultWorktree.ts` (the constant and the migration's legacy match), the forward-migration label assignment in `WorktreeService.addWorktree`, the init note text in `worktree.ts`, and unrelated hits (config `source`, `ResolutionSource`, template defaults). Any other hit that compares a worktree name to `default` is a defect: fix it. Pass comments that merely describe the label: the one in `packages/core/src/introspection/mergeCheckResults.ts` (~lines 21–25, "exactly one worktree named \"default\"") is a comment, not a comparison; reword it to "the default worktree" while you are there.
   - [ ] Also run `grep -rn "isDefaultWorktree\|DEFAULT_WORKTREE_NAME" packages/*/src` and confirm every import comes from `utils/defaultWorktree.ts`.
   - [ ] Run `grep -rn "services" packages/core/src/storage` and confirm no import from `services/`.
   - [ ] Check other tests that seed a worktree named `default` and expect chop or restore: `grep -rnE "name: ['\"]default['\"]" packages/*/tests`. Most hits (overlay, status, guides, future, project) do not depend on the default's range behavior; fix only those that do.
@@ -148,6 +150,21 @@ status: not_started
 - [ ] **Task 9: Docs and validation** (effort: 2)
   - [ ] CHANGELOG entry under Unreleased (#112): `isDefault` marker, read-time migration, `(default)` tag, `defaultWorktree` on the remove result.
   - [ ] Build, typecheck, lint and full tests once each; all pass.
-  - [ ] Run the design's Verification Walkthrough steps 1–7 against the local build in a scratch project, backing up and restoring `projects.json`. Also, in the step 1 setup, make `projects.json` read-only (`chmod a-w`) and run `cfl worktree list --json` and `cfl check`: both must succeed and show migrated data; restore write permission afterwards. Step 5 uses the MCP tool `worktree_update`; `worktree_list` / `worktree_get` output there is the real-data check of `isDefault`. Update the walkthrough in the design with actual output.
+  - [ ] Run the design's Verification Walkthrough steps 1–7 against the local build in a scratch project, backing up and restoring `projects.json`. Also, in the step 1 setup, make `projects.json` read-only (`chmod a-w`) and run `cfl worktree list --json` and `cfl check`: both must succeed and show migrated data; restore write permission afterwards. While it is read-only, also call the MCP `worktree_list` tool and confirm it returns migrated `isDefault` values. Step 5 uses the MCP tool `worktree_update`; `worktree_list` / `worktree_get` output there is the real-data check of `isDefault`. Update the walkthrough in the design with actual output.
   - [ ] **Commit**: `chore: finalize slice 934`
   - [ ] Stop. Code review and merge are Phase 7.
+
+## Tasks Review Resolution
+
+Source: `project-documents/user/reviews/934-review.tasks.stable-default-worktree-marker.md` (CONCERNS; verdict left as written).
+
+| Finding | Resolution |
+|---|---|
+| F001 (concern) | Fixed. `findDefaultWorktree` takes `excludeId?`; Task 4 keeps the chop self-exclusion and the restore self-case check, and states that `rangeOverride` skips the call. |
+| F002 (concern) | Fixed by hand check: Task 9 now calls MCP `worktree_list` on the read-only file. No new automated test (the mechanism is shared and covered by Task 3T). |
+| F003 | No action. The Task 7 case is a regression guard only; noted. |
+| F004 | No action. The `worktree_get` and `cf check` paths under duplicate markers do not call `findDefaultWorktree`. |
+| F005 | Fixed. Task 2T asserts the recovery sentence and the path. |
+| F006, F007 | No action. The repeated check is a cheap final sweep; Task 9 stays one task. |
+| F008 | Fixed. Task 8 rewords the `mergeCheckResults.ts` comment. |
+| F009 | Pass. |
