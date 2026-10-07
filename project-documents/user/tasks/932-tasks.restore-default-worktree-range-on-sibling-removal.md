@@ -7,7 +7,7 @@ dependencies: []
 projectState: main at 0.19.2 (slice 931 shipped). removeWorktree() never restores a range chopDefaultRange() took from the default worktree unless no worktrees remain. Design reviewed (CONCERNS, resolved in the design). Tasks reviewed (PASS).
 dateCreated: 20261007
 dateUpdated: 20261007
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -51,4 +51,4 @@ status: in_progress
   - [x] Build, typecheck, lint and full tests once each.
   - [x] Run the design's Verification Walkthrough; update it with actual output.
   - [x] **Commit**: `chore: finalize slice 932`
-  - [ ] Stop. Code review and merge are Phase 7.
+  - [x] Stop. Code review and merge are Phase 7.

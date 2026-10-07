@@ -7,7 +7,7 @@ dependencies: []
 interfaces: []
 dateCreated: 20261007
 dateUpdated: 20261007
-status: in_progress
+status: complete
 ---
 
 # Slice Design: Restore Default Worktree Range on Sibling Removal
