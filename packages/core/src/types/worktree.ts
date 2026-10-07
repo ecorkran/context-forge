@@ -101,3 +101,19 @@ export const RangeRestoreSkipReason = {
 } as const;
 
 export type RangeRestoreSkipReason = (typeof RangeRestoreSkipReason)[keyof typeof RangeRestoreSkipReason];
+
+/**
+ * Result of WorktreeService.removeWorktree. When other worktrees remain, at
+ * most one of `restoredRange` and `rangeNotRestored` is set, and neither when
+ * no 'default' worktree remains or the default itself was removed. Neither is
+ * set when `migrated` is true (the last worktree was removed).
+ */
+export interface RemoveWorktreeResult {
+  removed: WorktreeContext;
+  /** True when the last worktree was removed and workflow fields went back to the project. */
+  migrated: boolean;
+  /** The default worktree's new range, after the removed range was handed back to it. */
+  restoredRange?: [number, number];
+  /** Why the default worktree kept its range, and what that range is. */
+  rangeNotRestored?: { reason: RangeRestoreSkipReason; defaultRange: [number, number] };
+}

@@ -106,3 +106,14 @@ Resolves `user/reviews/932-review.slice.restore-default-worktree-range-on-siblin
 | F004 scope fit | Added the scope-fit paragraph. |
 | F005 define once | Named the shared helpers and the reasons constant. |
 | F006 opportunistic healing | No change; stated as intended. |
+
+## Code Review Resolution
+
+Resolves `user/reviews/932-review.code.restore-default-worktree-range-on-sibling-removal.md` (verdict CONCERNS, left as written).
+
+| Finding | Resolution |
+| --- | --- |
+| F001 orphaned doc comment | Fixed: the comment is back on `hasWorkflowFields`. |
+| F002 default identified by name | Open, PM decision. The default worktree has always been matched by name (`chopDefaultRange` did it before this slice); this slice reuses that match rather than adding a second rule. A stable marker (e.g. an `isDefault` flag set at forward migration, plus a migration for existing projects) is a schema change, which this design rules out. Proposed as a follow-up. |
+| F003 anonymous result type | Fixed: `removeWorktree` returns the exported `RemoveWorktreeResult`, whose doc states the invariant (at most one of `restoredRange` / `rangeNotRestored`, neither on migration). The flat contract from API Contracts is kept; the `IndexRange` alias is not added, since `[number, number]` is used throughout the existing worktree types. |
+| F004 test literals, `!` | Fixed: CLI and MCP tests use `RangeRestoreSkipReason`; the service test helper throws a named error instead of using `!`. |

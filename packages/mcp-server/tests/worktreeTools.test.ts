@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ProjectData, WorktreeContext } from '@context-forge/core';
+import { RangeRestoreSkipReason } from '@context-forge/core';
 import { registerWorktreeTools } from '../src/tools/worktreeTools.js';
 
 // --- Mocks ---
@@ -588,10 +589,10 @@ describe('worktree_rm', () => {
     mockRemoveWorktree.mockResolvedValueOnce({
       removed: MOCK_WORKTREE,
       migrated: false,
-      rangeNotRestored: { reason: 'would-overlap', defaultRange: [100, 499] },
+      rangeNotRestored: { reason: RangeRestoreSkipReason.WouldOverlap, defaultRange: [100, 499] },
     });
     const skipped = parseResult(await client.callTool(args)) as { rangeNotRestored?: unknown };
-    expect(skipped.rangeNotRestored).toEqual({ reason: 'would-overlap', defaultRange: [100, 499] });
+    expect(skipped.rangeNotRestored).toEqual({ reason: RangeRestoreSkipReason.WouldOverlap, defaultRange: [100, 499] });
   });
 
   it('returns migrated: true when last worktree removed', async () => {

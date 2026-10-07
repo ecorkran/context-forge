@@ -676,7 +676,9 @@ describe('WorktreeService', () => {
 
     async function defaultRange(): Promise<[number, number]> {
       const worktrees = await service.listWorktrees('proj_1');
-      return worktrees.find((w) => w.name.toLowerCase() === 'default')!.indexRange;
+      const defaultWt = worktrees.find((w) => w.name.toLowerCase() === 'default');
+      if (!defaultWt) throw new Error(`no default worktree among: ${worktrees.map((w) => w.name).join(', ')}`);
+      return defaultWt.indexRange;
     }
 
     it('round trip: adding then removing a sibling returns the default to its pre-chop range', async () => {

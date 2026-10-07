@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { RangeRestoreSkipReason } from '@context-forge/core';
 import { Command } from 'commander';
 import { registerWorktreeCommand } from '../../src/commands/worktree.js';
 
@@ -430,7 +431,7 @@ describe('cf worktree rm', () => {
     mockRemoveWorktree.mockResolvedValue({
       removed: sampleWorktree,
       migrated: false,
-      rangeNotRestored: { reason: 'not-adjacent', defaultRange: [100, 299] },
+      rangeNotRestored: { reason: RangeRestoreSkipReason.NotAdjacent, defaultRange: [100, 299] },
     });
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'worktree', 'rm', 'Feature A', '--yes']);

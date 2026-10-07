@@ -10,6 +10,7 @@ import type {
 } from '../types/worktree.js';
 import type { WorktreeInfo } from '../types/git.js';
 import { RangeRestoreSkipReason } from '../types/worktree.js';
+import type { RemoveWorktreeResult } from '../types/worktree.js';
 import { WORKTREE_SCOPED_FIELDS } from '../project-defaults.js';
 
 /** Generate a unique worktree ID. */
@@ -17,7 +18,6 @@ function generateWorktreeId(): string {
   return `wt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
-/** Check if a project has any non-empty workflow fields worth migrating. */
 /** Name of the worktree that forward migration creates and that chopping narrows. */
 const DEFAULT_WORKTREE_NAME = 'default';
 
@@ -43,6 +43,7 @@ function rangesOverlap(a: [number, number], b: [number, number]): boolean {
   return a[0] <= b[1] && b[0] <= a[1];
 }
 
+/** Check if a project has any non-empty workflow fields worth migrating. */
 function hasWorkflowFields(project: ProjectData): boolean {
   return [...WORKTREE_SCOPED_FIELDS].some((field) => {
     const value = project[field as keyof ProjectData];
@@ -276,12 +277,7 @@ export class WorktreeService {
   async removeWorktree(
     projectId: string,
     worktreeId: string,
-  ): Promise<{
-    removed: WorktreeContext;
-    migrated: boolean;
-    restoredRange?: [number, number];
-    rangeNotRestored?: { reason: RangeRestoreSkipReason; defaultRange: [number, number] };
-  }> {
+  ): Promise<RemoveWorktreeResult> {
     const project = await this.getProjectOrThrow(projectId);
     const worktrees = project.worktrees ?? [];
     const target = worktrees.find((wt) => wt.id === worktreeId);
