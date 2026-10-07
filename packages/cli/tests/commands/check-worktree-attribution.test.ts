@@ -68,7 +68,7 @@ const MIGRATED_DEFAULT_PROJECT = {
   name: 'migrated-project',
   projectPath: '/repo/main',
   worktrees: [
-    { id: 'wt_default', name: 'default', indexRange: [100, 999], worktreePath: '/repo/main' },
+    { id: 'wt_default', name: 'default', isDefault: true, indexRange: [100, 999], worktreePath: '/repo/main' },
   ],
 };
 

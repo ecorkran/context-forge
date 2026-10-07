@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import { registerSetupIdeCommand } from '../../src/commands/setup-ide.js';
-import { propagateToWorktrees } from '../../src/commands/worktreePropagation.js';
+import { propagateToWorktrees, propagationTargets } from '../../src/commands/worktreePropagation.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
@@ -358,7 +358,7 @@ describe('propagateToWorktrees', () => {
     // this worktree must be filtered out rather than merely being harmless.
     const projectWithRootWorktree = {
       ...sampleProject,
-      worktrees: [{ id: 'wt_default', name: 'default', worktreePath: sampleProject.projectPath }],
+      worktrees: [{ id: 'wt_default', name: 'default', isDefault: true, worktreePath: sampleProject.projectPath }],
     };
     mockExistsSync.mockReturnValue(true);
 
@@ -371,7 +371,7 @@ describe('propagateToWorktrees', () => {
     const projectWithBoth = {
       ...sampleProject,
       worktrees: [
-        { id: 'wt_default', name: 'default', worktreePath: sampleProject.projectPath },
+        { id: 'wt_default', name: 'default', isDefault: true, worktreePath: sampleProject.projectPath },
         { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
       ],
     };
@@ -388,6 +388,20 @@ describe('propagateToWorktrees', () => {
       `  → propagating to worktree: feature (${wtPath})`,
     ]);
     expect(logLines).toContain('  Propagated to 1 worktree.');
+  });
+
+  it('propagationTargets ignores isDefault: only the root path excludes a worktree', () => {
+    // Regression guard (slice 934): the marker must not change which worktrees receive output.
+    const project = {
+      ...sampleProject,
+      worktrees: [
+        { id: 'wt_default', name: 'main-line', isDefault: true, worktreePath: sampleProject.projectPath },
+        { id: 'wt_001', name: 'feature', isDefault: false, worktreePath: '/tmp/wt1' },
+      ],
+    };
+    mockExistsSync.mockReturnValue(true);
+
+    expect(propagationTargets(project).map((wt) => wt.id)).toEqual(['wt_001']);
   });
 
   it('prints one header per worktree and the plural count line', () => {

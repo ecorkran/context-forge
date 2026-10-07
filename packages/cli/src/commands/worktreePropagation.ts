@@ -182,7 +182,7 @@ function copyRootOutput(rootPath: string, wtPath: string, descriptor: TargetDesc
 /**
  * Registered worktrees that receive setup-ide output: those whose path exists
  * and is not the project root. WorktreeService migrates a project's pre-worktree
- * workflow fields into a "default" worktree context whose worktreePath IS the
+ * workflow fields into the default worktree, whose worktreePath IS the
  * project root (see WorktreeService.ts). Installing the root onto itself is a
  * no-op at best; fs.cpSync throws ERR_FS_CP_EINVAL when src and dest are the
  * same path, so it must be filtered out rather than merely being harmless.

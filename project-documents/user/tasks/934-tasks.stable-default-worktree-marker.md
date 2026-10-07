@@ -101,35 +101,35 @@ status: in_progress
 
 - [x] **Task 4C: Commit** — `fix(core): identify the default worktree by isDefault, not name`
 
-- [ ] **Task 5: CLI text and `list` tag** (effort: 2)
-  - [ ] `cf worktree rm` (`cli/src/commands/worktree.ts`, around lines 448–452): replace the literal `'default'` in the restored note, the unchanged-range note and the `cf worktree update … --range` hint with `defaultWorktree.name` from the result. Output must match the design's API Contracts example.
-  - [ ] `cf worktree list`: print a dim `(default)` after the name of each worktree with `isDefault === true` (both rows if two are marked). Leave the name column otherwise unchanged.
-  - [ ] Leave the init migration note at line 145 ("migrated to a 'default' worktree context") as is; it names the label forward migration creates.
-  - [ ] Success: `pnpm -r build` passes (the three existing `rm` tests in `worktree.test.ts` now fail until Task 5T).
+- [x] **Task 5: CLI text and `list` tag** (effort: 2)
+  - [x] `cf worktree rm` (`cli/src/commands/worktree.ts`, around lines 448–452): replace the literal `'default'` in the restored note, the unchanged-range note and the `cf worktree update … --range` hint with `defaultWorktree.name` from the result. Output must match the design's API Contracts example.
+  - [x] `cf worktree list`: print a dim `(default)` after the name of each worktree with `isDefault === true` (both rows if two are marked). Leave the name column otherwise unchanged.
+  - [x] Leave the init migration note at line 145 ("migrated to a 'default' worktree context") as is; it names the label forward migration creates.
+  - [x] Success: `pnpm -r build` passes (the three existing `rm` tests in `worktree.test.ts` now fail until Task 5T).
 
-- [ ] **Task 5T: CLI tests** (effort: 2)
-  - [ ] The CLI tests mock `WorktreeService`, so there are no default seeds to change. The real breakage is the three `cf worktree rm` tests around lines 421–450, which assert the literal `'default'` text. Fix each:
-    - Restored-range test: add `defaultWorktree: { id, name }` to the mocked result and assert the note contains that name (use a renamed name such as `main-line`, not `default`, so the test proves the name comes from the result).
-    - Not-restored test: add `defaultWorktree` to the mocked `rangeNotRestored` result; assert the note and the `cf worktree update <name> --range` hint use that name.
-    - "Prints no range note" test: it asserts `not.toContain("'default' worktree")`. Change it to assert the output contains none of the range-note phrases ("went back to the default worktree", "keeps its range").
-  - [ ] Add: `list` tags the default row `(default)`, tags both rows when two are marked, and tags none when none is marked (mocked worktrees carry `isDefault`).
-  - [ ] The "`init --name default` creates `isDefault: false`" case is a service behavior covered in Task 4T; the CLI only passes the name through, so no CLI test.
-  - [ ] Success: all pass.
+- [x] **Task 5T: CLI tests** (effort: 2)
+  - [x] The CLI tests mock `WorktreeService`, so there are no default seeds to change. The real breakage is the three `cf worktree rm` tests around lines 421–450, which assert the literal `'default'` text. Fix each:
+    - [x] Restored-range test: add `defaultWorktree: { id, name }` to the mocked result and assert the note contains that name (use a renamed name such as `main-line`, not `default`, so the test proves the name comes from the result).
+    - [x] Not-restored test: add `defaultWorktree` to the mocked `rangeNotRestored` result; assert the note and the `cf worktree update <name> --range` hint use that name.
+    - [x] "Prints no range note" test: it asserts `not.toContain("'default' worktree")`. Change it to assert the output contains none of the range-note phrases ("went back to the default worktree", "keeps its range").
+  - [x] Add: `list` tags the default row `(default)`, tags both rows when two are marked, and tags none when none is marked (mocked worktrees carry `isDefault`).
+  - [x] The "`init --name default` creates `isDefault: false`" case is a service behavior covered in Task 4T; the CLI only passes the name through, so no CLI test.
+  - [x] Success: all pass.
 
-- [ ] **Task 6: MCP descriptions** (effort: 1)
-  - [ ] In `mcp-server/src/tools/worktreeTools.ts`, change two descriptions to say "the default worktree (`isDefault: true`)" instead of the name:
-    - `worktree_init` (line ~133, currently `a "default" worktree`);
-    - `worktree_rm` (line ~267, currently `the 'default' worktree's new range`). The design text calls this tool `worktree_remove`; the registered name is `worktree_rm`, so edit that one. Do not rename the tool.
-  - [ ] Do not change any input schema. Confirm the `worktree_update` zod schema (lines ~195–210) has no `isDefault` field.
+- [x] **Task 6: MCP descriptions** (effort: 1)
+  - [x] In `mcp-server/src/tools/worktreeTools.ts`, change two descriptions to say "the default worktree (`isDefault: true`)" instead of the name:
+    - [x] `worktree_init` (line ~133, currently `a "default" worktree`);
+    - [x] `worktree_rm` (line ~267, currently `the 'default' worktree's new range`). The design text calls this tool `worktree_remove`; the registered name is `worktree_rm`, so edit that one. Do not rename the tool.
+  - [x] Do not change any input schema. Confirm the `worktree_update` zod schema (lines ~195–210) has no `isDefault` field.
 
-- [ ] **Task 6T: MCP tests** (effort: 2)
-  - [ ] `worktreeTools.test.ts` mocks `WorktreeService` entirely, so it has no default seeds and no chop/restore. Only add what the mocked layer can prove.
-  - [ ] Add to the `worktree_update` block: call the tool through the in-memory client with an extra `isDefault: true` argument alongside a valid field (e.g. `name`). Assert the result is not an error and that the `updates` object passed to `mockUpdateWorktree` (third argument) has no `isDefault` key. This exercises the real risk: the handler copies every argument key, and only the zod schema stops `isDefault` from reaching the service. The expected outcome is fixed: the SDK (1.26.0) validates against a non-strict `z.object`, which strips unknown keys. If the test shows otherwise (an error result, or the key present), do not change the assertion to match; stop and report it to the Project Manager, because the design's "ignored" behavior would be wrong.
-  - [ ] Check the existing `worktree_rm` test at line ~580 ("returns restoredRange and rangeNotRestored as the service reports them"): add `defaultWorktree` to its mocked result and assert it is returned unchanged.
-  - [ ] Do not add a `worktree_list` `isDefault` test: with the service mocked it only echoes the fixture and proves nothing. Real `isDefault` output is covered by the Task 8 walkthrough.
-  - [ ] Success: all pass.
+- [x] **Task 6T: MCP tests** (effort: 2)
+  - [x] `worktreeTools.test.ts` mocks `WorktreeService` entirely, so it has no default seeds and no chop/restore. Only add what the mocked layer can prove.
+  - [x] Add to the `worktree_update` block: call the tool through the in-memory client with an extra `isDefault: true` argument alongside a valid field (e.g. `name`). Assert the result is not an error and that the `updates` object passed to `mockUpdateWorktree` (third argument) has no `isDefault` key. This exercises the real risk: the handler copies every argument key, and only the zod schema stops `isDefault` from reaching the service. The expected outcome is fixed: the SDK (1.26.0) validates against a non-strict `z.object`, which strips unknown keys. If the test shows otherwise (an error result, or the key present), do not change the assertion to match; stop and report it to the Project Manager, because the design's "ignored" behavior would be wrong.
+  - [x] Check the existing `worktree_rm` test at line ~580 ("returns restoredRange and rangeNotRestored as the service reports them"): add `defaultWorktree` to its mocked result and assert it is returned unchanged.
+  - [x] Do not add a `worktree_list` `isDefault` test: with the service mocked it only echoes the fixture and proves nothing. Real `isDefault` output is covered by the Task 8 walkthrough.
+  - [x] Success: all pass.
 
-- [ ] **Task 6C: Commit** — `feat: tag default worktree in CLI and MCP output`
+- [x] **Task 6C: Commit** — `feat: tag default worktree in CLI and MCP output`
 
 - [ ] **Task 7: Integration check (attribution and propagation)** (effort: 1)
   - [ ] Design Integration Requirement: `cf check` worktree attribution and `propagationTargets` behave the same. In `cli/tests/commands/check-worktree-attribution.test.ts` (fixture near line 71) and `cli/tests/commands/worktreePropagation.test.ts` (fixtures near lines 361 and 374), add `isDefault: true` to the root-path worktree fixtures. Leave every assertion unchanged.
