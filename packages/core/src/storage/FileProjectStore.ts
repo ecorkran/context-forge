@@ -9,8 +9,27 @@ import type {
 import type { IProjectStore } from './interfaces.js';
 import { FileStorageService } from './FileStorageService.js';
 import { getStoragePath, getLegacyElectronPath } from './storagePaths.js';
+import { markLegacyDefaultWorktree } from '../utils/defaultWorktree.js';
 
 const PROJECTS_FILE = 'projects.json';
+
+/** Migration warnings already printed by this process; each prints once. */
+const printedMigrationWarnings = new Set<string>();
+
+/**
+ * Apply the pure default-worktree migration to one parsed project and print its
+ * warnings to stderr. stdout is never used: under the MCP stdio transport it
+ * carries the protocol stream.
+ */
+function migrateDefaultWorktreeMarker(project: ProjectData, projectsJsonPath: string): ProjectData {
+  const result = markLegacyDefaultWorktree(project, projectsJsonPath);
+  for (const warning of result.warnings) {
+    if (printedMigrationWarnings.has(warning)) continue;
+    printedMigrationWarnings.add(warning);
+    console.warn(warning);
+  }
+  return result.project;
+}
 
 function generateProjectId(): string {
   return `project_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -51,7 +70,9 @@ export class FileProjectStore implements IProjectStore {
         return [];
       }
 
-      return parsed as ProjectData[];
+      // In-memory only: the next create/update/delete saves the migrated values.
+      const projectsJsonPath = join(this.storagePath, PROJECTS_FILE);
+      return (parsed as ProjectData[]).map((p) => migrateDefaultWorktreeMarker(p, projectsJsonPath));
     } catch (err) {
       // File not found — empty store
       if (

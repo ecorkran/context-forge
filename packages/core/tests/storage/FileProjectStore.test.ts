@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdtemp, rm, writeFile, readFile, chmod } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { FileProjectStore } from '../../src/storage/FileProjectStore.js';
+import { WorktreeService } from '../../src/services/WorktreeService.js';
 
 describe('FileProjectStore', () => {
   let tempDir: string;
@@ -78,12 +79,13 @@ describe('FileProjectStore', () => {
     });
   });
 
-  // NOTE: getAll() returns stored records verbatim — no read-time field
-  // migration. migrateProjectFields() was intentionally removed (commit
-  // 8da8cc8): legacy-field renaming is no longer papered over at read time;
-  // cf get / cf get --json both consume a schema-filtered view via
-  // buildProjectGetView() (see PROJECT_FIELDS). These tests assert the
-  // verbatim pass-through contract, not migration.
+  // NOTE: getAll() returns project fields verbatim. migrateProjectFields() was
+  // intentionally removed (commit 8da8cc8): legacy-field renaming is no longer
+  // papered over at read time; cf get / cf get --json both consume a
+  // schema-filtered view via buildProjectGetView() (see PROJECT_FIELDS). The one
+  // read-time migration is worktree `isDefault` (slice 934), tested in
+  // 'default worktree marker migration' below. None of these fixtures has
+  // `worktrees`, so that migration does not touch them.
   describe('read returns stored fields verbatim', () => {
     it('should pass through new-schema fields unchanged (idempotent)', async () => {
       const newSchemaProject = [
@@ -320,6 +322,124 @@ describe('FileProjectStore', () => {
 
       expect(all).toHaveLength(1);
       expect(all[0].name).toBe('existing-project');
+    });
+  });
+
+  describe('default worktree marker migration', () => {
+    const PROJECT_PATH = '/work/proj';
+
+    /** Realistic pre-934 shape: a `default` worktree at the project path, no isDefault, plus a sibling. */
+    function legacyProject(id: string, defaultName = 'default') {
+      return {
+        id,
+        name: `name-${id}`,
+        template: 'default',
+        projectPath: PROJECT_PATH,
+        customData: {},
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        worktrees: [
+          { id: `${id}_d`, name: defaultName, indexRange: [100, 799], worktreePath: PROJECT_PATH },
+          { id: `${id}_s`, name: 'sibling', indexRange: [800, 899], worktreePath: '/work/sibling' },
+        ],
+      };
+    }
+
+    const projectsFile = () => join(tempDir, 'projects.json');
+    const seed = (projects: unknown[]) => writeFile(projectsFile(), JSON.stringify(projects, null, 2));
+
+    // The printed-warnings set is module state, so each test loads a fresh module.
+    async function loadStore() {
+      const { FileProjectStore: Store } = await import('../../src/storage/FileProjectStore.js');
+      return new Store();
+    }
+
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      vi.resetModules();
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('returns migrated isDefault values and does not write the file', async () => {
+      await seed([legacyProject('p1')]);
+      const before = await readFile(projectsFile(), 'utf-8');
+
+      const all = await (await loadStore()).getAll();
+
+      expect(all[0].worktrees?.map((w) => w.isDefault)).toEqual([true, false]);
+      expect(await readFile(projectsFile(), 'utf-8')).toBe(before);
+    });
+
+    it('saves the migrated fields for every project on the next update()', async () => {
+      await seed([legacyProject('p1'), legacyProject('p2')]);
+      const store = await loadStore();
+
+      await store.update('p1', { fileSlice: 'touched' });
+
+      const onDisk = JSON.parse(await readFile(projectsFile(), 'utf-8')) as ReturnType<typeof legacyProject>[];
+      for (const project of onDisk) {
+        expect(project.worktrees.map((w) => (w as { isDefault?: boolean }).isDefault)).toEqual([true, false]);
+      }
+    });
+
+    it('prints each warning once per process, however often it reads', async () => {
+      await seed([legacyProject('p1', 'main-line')]);
+      const store = await loadStore();
+
+      await store.getAll();
+      await store.getAll();
+      await (await loadStore()).getAll(); // same module instance: cached import
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(String(warnSpy.mock.calls[0][0])).toContain('renamed default');
+    });
+
+    it('warns on stderr only: console.warn is used, stdout is not', async () => {
+      await seed([legacyProject('p1', 'main-line')]);
+      const logSpy = vi.mocked(console.log);
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      await (await loadStore()).getAll();
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(stdoutSpy).not.toHaveBeenCalled();
+    });
+
+    it('reads migrated data from a read-only projects.json without error', async () => {
+      await seed([legacyProject('p1')]);
+      await chmod(projectsFile(), 0o444);
+      try {
+        const all = await (await loadStore()).getAll();
+        expect(all[0].worktrees?.map((w) => w.isDefault)).toEqual([true, false]);
+      } finally {
+        await chmod(projectsFile(), 0o644);
+      }
+    });
+
+    it('lists migrated worktrees through a real WorktreeService on a read-only file', async () => {
+      await seed([legacyProject('p1')]);
+      await chmod(projectsFile(), 0o444);
+      try {
+        const service = new WorktreeService(await loadStore());
+        const worktrees = await service.listWorktrees('p1');
+        expect(worktrees.map((w) => w.isDefault)).toEqual([true, false]);
+      } finally {
+        await chmod(projectsFile(), 0o644);
+      }
+    });
+
+    it('does not mark a worktree later renamed to default, even in a fresh store', async () => {
+      await seed([legacyProject('p1')]);
+      const service = new WorktreeService(await loadStore());
+
+      await service.removeWorktree('p1', 'p1_d');
+      await service.updateWorktree('p1', 'p1_s', { name: 'default' });
+
+      const all = await (await loadStore()).getAll();
+      expect(all[0].worktrees).toHaveLength(1);
+      expect(all[0].worktrees?.[0].name).toBe('default');
+      expect(all[0].worktrees?.[0].isDefault).toBe(false);
     });
   });
 });

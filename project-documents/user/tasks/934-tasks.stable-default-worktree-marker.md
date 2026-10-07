@@ -7,7 +7,7 @@ dependencies: [932]
 projectState: main at 0.19.2 (slices 931, 932 shipped). The default worktree is found by name (`isDefaultWorktree` in WorktreeService.ts), so a user-editable label drives range chop and restore. Design reviewed (CONCERNS, resolved in the design after two re-review rounds).
 dateCreated: 20261007
 dateUpdated: 20261007
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -25,37 +25,37 @@ status: not_started
 
 ## Tasks
 
-- [ ] **Task 0: Slice branch** (effort: 1)
-  - [ ] Confirm `cf config get git.integration_branch` is empty (target is `main`).
-  - [ ] Branch `934-slice.stable-default-worktree-marker` does not exist yet; create it with `git checkout -b 934-slice.stable-default-worktree-marker main`.
-  - [ ] Success: `git branch --show-current` prints the slice branch.
+- [x] **Task 0: Slice branch** (effort: 1)
+  - [x] Confirm `cf config get git.integration_branch` is empty (target is `main`).
+  - [x] Branch `934-slice.stable-default-worktree-marker` does not exist yet; create it with `git checkout -b 934-slice.stable-default-worktree-marker main`.
+  - [x] Success: `git branch --show-current` prints the slice branch.
 
-- [ ] **Task 1: Types** (effort: 1)
-  - [ ] In `types/worktree.ts`, add `isDefault?: boolean` to `WorktreeContext` with the design's doc comment.
-  - [ ] Change `UpdateWorktreeInput` to omit `isDefault` as well as `id`. Leave `CreateWorktreeInput` without the field.
-  - [ ] Add `defaultWorktree?: { id: string; name: string }` to `RemoveWorktreeResult`, with the design's doc comment.
-  - [ ] Update the stale comment near line 108 that mentions "no 'default' worktree" to say "no default worktree".
-  - [ ] Success: `pnpm -r build` passes; no behavior change.
+- [x] **Task 1: Types** (effort: 1)
+  - [x] In `types/worktree.ts`, add `isDefault?: boolean` to `WorktreeContext` with the design's doc comment.
+  - [x] Change `UpdateWorktreeInput` to omit `isDefault` as well as `id`. Leave `CreateWorktreeInput` without the field.
+  - [x] Add `defaultWorktree?: { id: string; name: string }` to `RemoveWorktreeResult`, with the design's doc comment.
+  - [x] Update the stale comment near line 108 that mentions "no 'default' worktree" to say "no default worktree".
+  - [x] Success: `pnpm -r build` passes; no behavior change.
 
-- [ ] **Task 2: Default-worktree utility** (effort: 3)
-  - [ ] Create `packages/core/src/utils/defaultWorktree.ts` importing only from `types/`.
-  - [ ] Move `DEFAULT_WORKTREE_NAME` here (exported; it is the label forward migration gives the default and the legacy match).
-  - [ ] Add `isDefaultWorktree(wt)`: returns `wt.isDefault === true`. It must not read the name.
-  - [ ] Add `findDefaultWorktree(worktrees, projectName, excludeId?)`: returns the one worktree with `isDefault === true` whose id is not `excludeId`, or `undefined`. Throws if more than one remains, using the design's message (project name, then `'<name>' (<id>)` for each, then the hand-edit instruction). The `excludeId` filter is applied before the duplicate check, so excluding one of two marked worktrees hides the duplicate; that is accepted, because the excluded worktree is the one being updated and the next call without an exclusion still surfaces it.
-  - [ ] Add `markLegacyDefaultWorktree(project)`: pure function, returns `{ changed, warnings }` and the migrated project without mutating the input. Implement the design's Migration rule steps 1–3 and the warning table exactly. Warnings end with the shared recovery sentence; take the `projects.json` path as a parameter.
-  - [ ] Export the new module from the core package index only if sibling utils are exported there; otherwise import by path.
-  - [ ] Success: `pnpm -r build` passes. `WorktreeService.ts` still has its own copies at this point (removed in Task 4).
+- [x] **Task 2: Default-worktree utility** (effort: 3)
+  - [x] Create `packages/core/src/utils/defaultWorktree.ts` importing only from `types/`.
+  - [x] Move `DEFAULT_WORKTREE_NAME` here (exported; it is the label forward migration gives the default and the legacy match).
+  - [x] Add `isDefaultWorktree(wt)`: returns `wt.isDefault === true`. It must not read the name.
+  - [x] Add `findDefaultWorktree(worktrees, projectName, excludeId?)`: returns the one worktree with `isDefault === true` whose id is not `excludeId`, or `undefined`. Throws if more than one remains, using the design's message (project name, then `'<name>' (<id>)` for each, then the hand-edit instruction). The `excludeId` filter is applied before the duplicate check, so excluding one of two marked worktrees hides the duplicate; that is accepted, because the excluded worktree is the one being updated and the next call without an exclusion still surfaces it.
+  - [x] Add `markLegacyDefaultWorktree(project)`: pure function, returns `{ changed, warnings }` and the migrated project without mutating the input. Implement the design's Migration rule steps 1–3 and the warning table exactly. Warnings end with the shared recovery sentence; take the `projects.json` path as a parameter.
+  - [x] Export the new module from the core package index only if sibling utils are exported there; otherwise import by path.
+  - [x] Success: `pnpm -r build` passes. `WorktreeService.ts` still has its own copies at this point (removed in Task 4).
 
-- [ ] **Task 2T: Utility tests** (effort: 3)
-  - [ ] Create `packages/core/tests/utils/defaultWorktree.test.ts`.
-  - [ ] `isDefaultWorktree`: true only for `isDefault: true`; false for `false`, absent, and a worktree merely named `default`.
-  - [ ] `findDefaultWorktree`: none, one, and two marked (error contains both names and ids); with `excludeId` set to the one marked worktree it returns `undefined`, and with `excludeId` set to one of two marked it returns the other without throwing.
-  - [ ] Both migration warnings (renamed-default and ambiguous) end with the shared recovery sentence, and the injected `projects.json` path appears in it verbatim.
-  - [ ] `markLegacyDefaultWorktree`, one test per case in the design's Technical Requirements list: single legacy default; case variant `Default`; already-marked project (absent becomes `false`); no candidate and no worktree at project path (silent); no candidate with a worktree at project path (warns, names it, says renamed default); ambiguous candidates narrowed by path; still ambiguous (all `false`, warning lists every candidate by name and id); idempotence (second run `changed: false`, no warnings).
-  - [ ] Assert the input project object is not mutated, and that existing `isDefault` values are never changed.
-  - [ ] Success: all pass.
+- [x] **Task 2T: Utility tests** (effort: 3)
+  - [x] Create `packages/core/tests/utils/defaultWorktree.test.ts`.
+  - [x] `isDefaultWorktree`: true only for `isDefault: true`; false for `false`, absent, and a worktree merely named `default`.
+  - [x] `findDefaultWorktree`: none, one, and two marked (error contains both names and ids); with `excludeId` set to the one marked worktree it returns `undefined`, and with `excludeId` set to one of two marked it returns the other without throwing.
+  - [x] Both migration warnings (renamed-default and ambiguous) end with the shared recovery sentence, and the injected `projects.json` path appears in it verbatim.
+  - [x] `markLegacyDefaultWorktree`, one test per case in the design's Technical Requirements list: single legacy default; case variant `Default`; already-marked project (absent becomes `false`); no candidate and no worktree at project path (silent); no candidate with a worktree at project path (warns, names it, says renamed default); ambiguous candidates narrowed by path; still ambiguous (all `false`, warning lists every candidate by name and id); idempotence (second run `changed: false`, no warnings).
+  - [x] Assert the input project object is not mutated, and that existing `isDefault` values are never changed.
+  - [x] Success: all pass.
 
-- [ ] **Task 2C: Commit** — `feat(core): add default worktree marker utility`
+- [x] **Task 2C: Commit** — `feat(core): add default worktree marker utility`
 
 - [ ] **Task 3: Store read-time migration** (effort: 3)
   - [ ] In `FileProjectStore.getAll()`, after parsing, run `markLegacyDefaultWorktree` on each project and return the migrated projects. Pass the real `projects.json` path for the warnings. Do not write.
