@@ -154,7 +154,7 @@ status: not_started
         relative local path resolved against the given root.
   - [ ] Success: all pass; each error message asserted by its flag/key text.
 
-- [ ] **Task 4: Wire source and version into TarballStrategy** (effort: 4)
+- [ ] **Task 4: Types and source/version wiring in TarballStrategy** (effort: 3)
   - [ ] Add `TarballUpdateOptions { version?; confirm? }` and extend
         `InstallStrategy.install/update` with an optional trailing `options`
         parameter in `types.ts` (design: Core types). Add `GuidePreview`,
@@ -163,28 +163,41 @@ status: not_started
   - [ ] `TarballStrategy.install` and `.update` call `resolveTarballSource`
         and use its tag for the marker, commit message and result.
   - [ ] `extractAndSwap` takes the resolved source (not a URL + tag) and
-        opens the stream via `tarballSource`. Wrap the pipeline so a gunzip,
-        tar or read error throws naming the archive (file path for local,
-        URL for remote), after staging is removed.
+        opens the stream via `tarballSource`.
   - [ ] Short-circuit "already up to date" only for remote sources (design
         Data Flow step 4). A local source always stages.
-  - [ ] Multi-top-level guard (D5): the extract filter records the first path
-        segment of every entry; a second distinct segment aborts extraction,
-        removes staging and throws `Archive must contain a single top-level
-        directory`.
   - [ ] Success: build passes; existing `TarballStrategy.test.ts` still
         passes (update its mocks only where the call shape changed).
 
-- [ ] **Task 4T: Strategy tests with a real local archive** (effort: 3)
+- [ ] **Task 4T: Strategy tests with a real local archive** (effort: 2)
   - [ ] Create `core/tests/guides/tarballStrategyLocal.test.ts` (real fs, temp
         project dir with a `project-documents/` folder; mock only `gitExec`/
         `commitPathsIfChanged`).
   - [ ] Cases: local install records marker `local` and extracts the files;
-        local update over an existing guide swaps it; corrupt (truncated)
-        archive throws naming the file, staging removed, existing guide
-        untouched; multi-top-level archive throws, staging removed, guide
-        untouched; local update with the same marker still stages (not
-        short-circuited).
+        local update over an existing guide swaps it; local update with the
+        same marker still stages (not short-circuited).
+  - [ ] Local-marker status (design Integration Requirements): after a local
+        install, `TarballStrategy.detect()` returns version `local`;
+        `GuideManager` status/info for that install reports an update
+        available when the latest remote tag is mocked; a following plain
+        update (no `source`, remote mocked via `gitExec` and a stubbed stream
+        opener) records the latest remote tag, not `local`.
+  - [ ] Success: all pass.
+
+- [ ] **Task 4B: Archive error handling and multi-root guard** (effort: 3)
+  - [ ] Wrap the extract pipeline so a gunzip, tar or read error throws
+        naming the archive (file path for local, URL for remote), after
+        staging is removed.
+  - [ ] Multi-top-level guard (D5): the extract filter records the first path
+        segment of every entry; a second distinct segment aborts extraction,
+        removes staging and throws `Archive must contain a single top-level
+        directory`.
+  - [ ] Success: build passes; existing tests still pass.
+
+- [ ] **Task 4BT: Archive failure tests** (effort: 2)
+  - [ ] In `tarballStrategyLocal.test.ts`: corrupt (truncated) archive throws
+        naming the file, staging removed, existing guide untouched;
+        multi-top-level archive throws, staging removed, guide untouched.
   - [ ] Success: all pass; `ls` of the temp project shows no
         `.ai-project-guide.staging` after any failure case.
 
@@ -324,9 +337,13 @@ status: not_started
   - [ ] `guide_update` passes no `confirm`; the result includes `preview`
         counts when a diff ran and `unchanged: true` when all zero. `confirmed`
         still answers only the branch guard.
-  - [ ] Add MCP test in `guideTools.test.ts` asserting those fields, and that
-        `confirmed: true` has no effect on the preview.
-  - [ ] Success: tests pass.
+  - [ ] Success: builds; result shape matches the design's API Contracts.
+
+- [ ] **Task 11T: MCP preview tests** (effort: 1)
+  - [ ] In `guideTools.test.ts`: assert `preview` counts and `unchanged: true`
+        appear in the result, and that `confirmed: true` has no effect on the
+        preview.
+  - [ ] Success: all pass.
 
 - [ ] **Task 11C: Commit** — `feat: preview guide changes before tarball update swap`
 
