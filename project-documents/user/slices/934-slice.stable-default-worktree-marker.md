@@ -116,8 +116,27 @@ When the outcome leaves the project with no default, chop and restore do nothing
 
 Both warnings end with the same recovery step: `Range narrowing and restore are off for this project. To turn them on, set "isDefault": true on the intended worktree in <full projects.json path>.` The `list` tag and the `--json` field then confirm the edit took effect. The warnings print only on the load that performs the migration. That is once, except for the concurrent case in Special Considerations.
 
+**Name matching is limited to this bootstrap step.** The migration is the one place left that reads the name `default`, and it does so for a single reason: data from before 934 has no other record of which worktree is the default. The name was the only identifier the old code used, so matching it reproduces the old behavior exactly once and then stops. After migration no code reads the name. The path check only narrows the name match and never marks a worktree on its own.
+
+**Mistakes stay recoverable.** The migration only adds `isDefault`. It never changes or removes an existing value, so a wrong `false` loses no data, and a hand edit of one field reverts it. The cases where a guess would most likely be wrong (ambiguous candidates, or a probable rename) do not guess. They mark nothing and warn instead.
+
+**Follow-up trigger.** Recovery is a hand edit, and this slice adds no command for it (see Excluded). Open a maintenance item for a command that moves the default marker, such as a `cf worktree update --set-default` option, when either of these happens:
+- the first report of a project that needed the hand edit, from either warning or from a duplicate-marker error;
+- any later slice needs to set the default by program.
+
+Until then, a command would cost more than the cases it would serve.
+
 ### Where the migration runs: the store, not the service
 In `WorktreeService`, the migration would only be persisted by mutations, and raw store readers would see unmigrated data. The CLI `list` and the attribution views both read `project.worktrees` directly. `FileProjectStore.ensureInitialized()` already does one-time migration work, so the new step runs there, once per process. The domain rule lives in `utils/defaultWorktree.ts`. The store calls it and owns only the read, the write and the printing of warnings.
+
+**Store responsibilities.** This adds one duty to the store: it applies a pure domain migration to data it has just read, and saves the result. It follows the existing legacy-location step in the same method. The store does no worktree reasoning of its own. The decision is made in `markLegacyDefaultWorktree`, which returns `{ changed, warnings }`, and the store only persists the result and emits the warnings.
+
+**Warning output channel.** Core has no logger abstraction. The store writes each warning with `console.warn`, which goes to stderr. Stdout is never used, for these reasons:
+- The MCP server runs over the stdio transport, where stdout carries the JSON-RPC stream. Any stdout write there would corrupt the protocol.
+- Stderr is the channel the MCP server already uses for its own diagnostics (`packages/mcp-server/src/index.ts` logs via `console.error`). MCP hosts capture or discard stderr without affecting the session.
+- In the CLI, stderr keeps `--json` output on stdout parseable.
+
+An agent using only MCP does not see the warning text. It can still see the outcome, since `worktree_list` shows no worktree with `isDefault: true`. A test asserts that the migration writes nothing to stdout.
 
 Injecting the migration into `FileProjectStore` was considered and rejected. The store is built with `new FileProjectStore()` at many CLI and MCP sites, and an optional injected function would either need a default (the same import, made indirect) or could be silently left out at one of those sites. A direct import from a neutral `utils/` module keeps the dependency direction correct without that risk.
 
@@ -174,6 +193,15 @@ Note: The default worktree 'main-line' keeps its range 100-199: <reason>.
 
 CLI `cf worktree list` shows a dim `(default)` after the default's name. The name column otherwise stays the same.
 
+**Compatibility.**
+
+| Surface | Change | Compatibility |
+|---|---|---|
+| CLI `--json`, MCP responses | New optional fields: `isDefault` on worktree objects, `defaultWorktree` on the remove result. | Additive. No existing field is renamed, removed or retyped. A consumer that ignores unknown keys is unaffected. |
+| MCP tool descriptions | Text only. | No input-schema change. |
+| `cf worktree list` table | The `(default)` tag, and stderr warnings on the migrating load. | The table is human-readable output and is not a supported parse target. Scripts and agents should use `--json`, which carries the same information as a field. |
+| `cf worktree rm` notes | They name the default's current name instead of the literal `'default'`. | Text only. |
+
 ### Database / Storage Schema
 `projects.json`: an optional `isDefault` boolean on each element of `worktrees`. Older `cf` builds keep it through updates, because `updateWorktree` spreads the original. Worktrees an older build creates arrive without the field and are resolved by the next load migration under the rule above.
 
@@ -184,7 +212,7 @@ CLI `cf worktree list` shows a dim `(default)` after the default's name. The nam
 - `isDefault` on the worktree objects returned by MCP and CLI JSON, for agents that need to know the default.
 - `RemoveWorktreeResult.defaultWorktree`, and the migrate-on-first-load behavior of `FileProjectStore`.
 
-No planned slice consumes these yet, so the frontmatter `interfaces` (slices that depend on this one) stays empty. The contract changes are listed here instead.
+No planned slice consumes these yet, so the frontmatter `interfaces` (slices that depend on this one) stays empty. The template defines that field as a list of slices, so contract names don't belong there. The contract changes are listed here, and their compatibility is stated under API Contracts.
 
 ### Consumes from Other Slices
 - Slice 932's restore logic and result shape, which are extended here without changing their behavior.
@@ -221,6 +249,7 @@ No planned slice consumes these yet, so the frontmatter `interfaces` (slices tha
   - A legacy `projects.json` fixture migrates on first access and is not rewritten on the second.
   - Concurrent first calls in one process both see migrated data.
   - A failed write rejects the load, and the next access retries.
+  - Migration warnings go to stderr, and nothing is written to stdout.
 - Existing tests that seed a default by name and expect chop or restore are updated to seed `isDefault: true`. Add a test that a name-only `default` (with `isDefault: false`) is not chopped.
 - `pnpm -r build` and the full test suite pass.
 
@@ -263,6 +292,12 @@ Run against the local build (`node packages/cli/dist/index.js`, aliased `cfl` be
 - **Corrupt or unparseable file.** The migration reads through the same helper as `getAll()`, so the existing behavior applies unchanged: `FileStorageService` recovers from the backup, a non-array payload means there is nothing to migrate (and `getAll()` returns `[]`), and a parse error throws as it does today. This slice adds no new handling.
 - **Concurrent migrators.** `FileProjectStore` has no cross-process locking. Every `update()` today reads, modifies and writes with a lost-update window. The migration has the same window and no wider: read, a synchronous pure transform, then the write, with no other await in between. If the CLI and the MCP server migrate the same legacy file at the same time, both compute the same result, because the migration is deterministic. The second write is therefore identical unless a third process changed the file in that window, which is the existing hazard. Both processes may print the same warning once. Locking stays out of scope.
 - **Cost.** The migration is one in-memory pass over the projects. It writes at most once per legacy file, and later loads only check the fields. No measurable startup cost is expected, and the 900 architecture sets no latency targets for these paths.
+- **Existing stdout writes in storage (out of scope).** Some code already in the storage layer uses `console.log`:
+  - the legacy-location migration message (`FileProjectStore.ts`);
+  - `Versioned backup created` (`backupService.ts`);
+  - the config-path migration message (`storagePaths.ts`).
+
+  Under the MCP stdio transport these would write to the protocol stream if they ever ran in the server process. This slice adds none and does not call them. This defect predates 934. It is reported to the Project Manager as a separate item, and this slice does not fix it.
 - **Mixed `cf` versions.** The published global `cf` may be older than a local build. Data an older build writes stays valid: unknown fields are kept on update, and new unmarked worktrees are resolved at the next load. No downgrade path is needed.
 
 ## Design Review Resolution
@@ -277,4 +312,14 @@ Review `user/reviews/934-review.slice.stable-default-worktree-marker.md` (CONCER
 | F004 duplicate-marker error blocks remediation | The error is limited to chop and restore paths and names ids. Read and diagnostic paths keep working (More than one marked worktree…). |
 | F005 scope | Tied to the architecture's "Pattern consolidation" scope item, and the `list` tag is justified. Whether the scope list needs an explicit defect-fix entry is left to the Project Manager (Overview). |
 | F007 NFRs | A cost note was added (Special Considerations). |
+| F006 (pass) | No action. |
 | F008 `interfaces` | The field lists dependent slices, and none exist. The contract changes are listed under Provides to Other Slices. |
+
+Re-review round 1 (CONCERNS), same review file:
+
+| Finding | Resolution |
+|---|---|
+| Write-on-read changes store responsibilities | The store's added duty is stated, and the decision logic stays in the pure function. Warnings go to stderr via `console.warn`, never stdout, which is safe under MCP stdio and matches the MCP server's own logging. A test enforces it. The existing stdout writes in storage are flagged as a separate item (Where the migration runs; Special Considerations). |
+| Migration heuristic relies on name matching | The name match is limited to the single bootstrap step, with the reason it is needed. The migration only adds a field and never guesses in the risky cases. A follow-up trigger for a marker-move command is recorded (Migration rule). |
+| Contract changes not in `interfaces` | The field stays a list of slices per the template. A compatibility table now covers JSON, MCP and CLI surfaces, and states that the `list` table is not a supported parse target (API Contracts). |
+| Notes (NFRs, traceability) | No action. The skipped F006 is now listed above. |
