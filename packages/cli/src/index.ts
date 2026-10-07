@@ -33,6 +33,9 @@ const program = new Command();
 program
   .name('cf')
   .version(version, '-v, --version', 'Output the version number')
+  // The root --version must not swallow a subcommand's own --version <tag>
+  // (cf guides install|update): root options are honored only before the subcommand.
+  .enablePositionalOptions()
   .description('Context Forge CLI — terminal access to context assembly, project management, and workflow navigation')
   .configureHelp({
     styleTitle: (str) => chalk.bold(str),
