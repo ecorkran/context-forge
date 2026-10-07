@@ -101,11 +101,11 @@ export class TarballStrategy implements InstallStrategy {
     targetDir: string,
     options: TarballUpdateOptions = {}
   ): Promise<InstallResult> {
-    const resolved = await resolveTarballSource(
-      source || DEFAULT_SOURCE_GIT,
-      options.version,
-      options.sourceRoot ?? projectPath
-    );
+    const resolved = await resolveTarballSource({
+      source: source || DEFAULT_SOURCE_GIT,
+      version: options.version,
+      projectRoot: options.sourceRoot ?? projectPath,
+    });
     const tag = resolved.tag;
 
     const unmatched = await this.extractAndSwap(resolved, targetDir);
@@ -142,7 +142,11 @@ export class TarballStrategy implements InstallStrategy {
       // No previous version
     }
 
-    const resolved = await resolveTarballSource(source, options.version, options.sourceRoot ?? projectPath);
+    const resolved = await resolveTarballSource({
+      source,
+      version: options.version,
+      projectRoot: options.sourceRoot ?? projectPath,
+    });
     const tag = resolved.tag;
 
     const excludeDiffers = !sameExcludeList(readExcludeRecord(targetDir), this.sortedExclude());

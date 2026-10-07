@@ -314,6 +314,22 @@ Expected: `Guide installed successfully.` with `Version:  v0.20.1`, `Method:   t
 - **`local` counts as older than any release** in `isNewerVersion`, so a local install reports an update as available.
 - **Left-out config notice** travels as `UpdateResult.configNotice` and is emitted by `guideExcludeNotices`, so CLI stderr and MCP notices share it.
 
+### Code Review Resolution
+
+Resolves `user/reviews/931-review.code.tarball-guide-update-preview-exclude-fixes-version-pinning.md` (verdict CONCERNS, left as written). Fixes landed after the slice commit `b02c395`.
+
+| Finding | Resolution |
+| --- | --- |
+| F001 `as` assertions | Fixed. TOML `parse()` already returns a record, so both casts are gone and `asTable` is a type guard. `as never` on `Readable.fromWeb` was unnecessary (undici's body type already matches), so it is removed with no replacement. |
+| F002 positional params | Fixed for the two new functions: `resolveTarballSource` and `assertTarballOnlyOptions` take an object. `InstallStrategy.install/update` keep the trailing positional `options`, matching how every strategy method is already called. |
+| F003 validation order | Fixed. In `update` the tarball-only check now runs right after detection and before the branch guard (the design's "then this check" order is superseded). Detection still runs first because the install method is only known from it. |
+| F004 bare filename | Fixed. A source ending in `.tgz` or `.tar.gz` counts as a path, so `--source guide.tgz` reports "file not found". |
+| F005 long CLI action | Fixed. The action delegates to `updateWithGuardPrompt` and `reportUpdateResult`; the prompt text is one `CONTINUE_PROMPT` constant. |
+| F006 duplicate semver logic | Fixed. `versionTags.ts` holds the one comparator, used by `listRemoteTags` and `isNewerVersion`; the detector's separate `parseHighestTag` is gone (it uses `listRemoteTags`). |
+| F007 MCP local paths | Intended, no change. D5 allows archive paths outside the project root for the MCP tools and the CLI alike; the result is still only a guide install that is committed and revertable. |
+| F008 positional options | No change. `--version` is the root program's only option, and the integration test covers it. Side effect: `cf guides info -v` after the subcommand is now an unknown option rather than printing the version. |
+| F009 pinned no-op message | Fixed. With `--version` given and nothing to do, the CLI prints `Guide is already at <tag>.` instead of "latest". |
+
 ## Risk Assessment
 
 ### Technical Risks

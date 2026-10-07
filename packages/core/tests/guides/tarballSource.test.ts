@@ -115,14 +115,14 @@ describe('resolveTarballSource()', () => {
   it('resolves the newest remote tag when no version is given', async () => {
     mockGitExec.mockResolvedValue({ stdout: tagLines, stderr: '' });
 
-    expect(await resolveTarballSource(remote, undefined, root))
+    expect(await resolveTarballSource({ source: remote, version: undefined, projectRoot: root }))
       .toEqual({ kind: 'remote', source: remote, tag: 'v0.3.0' });
   });
 
   it('resolves a pinned remote version that exists', async () => {
     mockGitExec.mockResolvedValue({ stdout: tagLines, stderr: '' });
 
-    expect(await resolveTarballSource(remote, 'v0.2.0', root))
+    expect(await resolveTarballSource({ source: remote, version: 'v0.2.0', projectRoot: root }))
       .toEqual({ kind: 'remote', source: remote, tag: 'v0.2.0' });
     expect(mockGitExec).toHaveBeenCalledTimes(1);
   });
@@ -130,14 +130,14 @@ describe('resolveTarballSource()', () => {
   it('names the requested tag and the newest available when the pin is missing', async () => {
     mockGitExec.mockResolvedValue({ stdout: tagLines, stderr: '' });
 
-    await expect(resolveTarballSource(remote, 'v9.9.9', root))
+    await expect(resolveTarballSource({ source: remote, version: 'v9.9.9', projectRoot: root }))
       .rejects.toThrow('--version v9.9.9 not found on the remote; newest available is v0.3.0');
   });
 
   it('fails when the remote has no tags', async () => {
     mockGitExec.mockResolvedValue({ stdout: '', stderr: '' });
 
-    await expect(resolveTarballSource(remote, undefined, root))
+    await expect(resolveTarballSource({ source: remote, version: undefined, projectRoot: root }))
       .rejects.toThrow('Could not determine latest version from remote.');
   });
 
@@ -145,7 +145,7 @@ describe('resolveTarballSource()', () => {
     const file = join(root, name);
     writeFileSync(file, 'x');
 
-    expect(await resolveTarballSource(file, undefined, root))
+    expect(await resolveTarballSource({ source: file, version: undefined, projectRoot: root }))
       .toEqual({ kind: 'local', path: file, tag: LOCAL_VERSION_MARKER });
     expect(mockGitExec).not.toHaveBeenCalled();
   });
@@ -154,21 +154,21 @@ describe('resolveTarballSource()', () => {
     mkdirSync(join(root, 'sub'));
     writeFileSync(join(root, 'sub', 'g.tgz'), 'x');
 
-    expect(await resolveTarballSource('sub/g.tgz', undefined, root))
+    expect(await resolveTarballSource({ source: 'sub/g.tgz', version: undefined, projectRoot: root }))
       .toEqual({ kind: 'local', path: join(root, 'sub', 'g.tgz'), tag: LOCAL_VERSION_MARKER });
   });
 
   it('refuses an existing file that is not an archive', async () => {
     writeFileSync(join(root, 'notes.txt'), 'x');
 
-    await expect(resolveTarballSource('notes.txt', undefined, root))
+    await expect(resolveTarballSource({ source: 'notes.txt', version: undefined, projectRoot: root }))
       .rejects.toThrow('--source notes.txt is a local file but not a .tgz/.tar.gz archive');
   });
 
-  it.each(['./missing.tgz', '/no/such/guide.tgz', '~/guide.tgz', 'dir\\guide.tgz'])(
+  it.each(['./missing.tgz', '/no/such/guide.tgz', '~/guide.tgz', 'dir\\guide.tgz', 'guide.tgz', 'guide.tar.gz'])(
     'reports file not found for the path-like source %s',
     async (source) => {
-      await expect(resolveTarballSource(source, undefined, root))
+      await expect(resolveTarballSource({ source, version: undefined, projectRoot: root }))
         .rejects.toThrow(`--source ${source}: file not found`);
       expect(mockGitExec).not.toHaveBeenCalled();
     }
@@ -178,7 +178,7 @@ describe('resolveTarballSource()', () => {
     const file = join(root, 'guide.tgz');
     writeFileSync(file, 'x');
 
-    await expect(resolveTarballSource(file, 'v0.2.0', root))
+    await expect(resolveTarballSource({ source: file, version: 'v0.2.0', projectRoot: root }))
       .rejects.toThrow('--version cannot be combined with a local --source');
   });
 });

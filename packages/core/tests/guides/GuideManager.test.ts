@@ -650,6 +650,8 @@ describe('GuideManager', () => {
 
       await expect(manager.update({ version: 'v0.2.0' })).rejects.toThrow(tarballOnly('submodule'));
       expect(strategyUpdate).not.toHaveBeenCalled();
+      // Rejected before the branch guard could ask anyone to confirm.
+      expect(evaluateBranchGuard).not.toHaveBeenCalled();
     });
 
     it('rejects a local --source on an update of a clone install', async () => {

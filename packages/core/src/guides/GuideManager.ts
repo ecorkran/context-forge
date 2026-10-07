@@ -43,14 +43,19 @@ function excludeIgnoredField(method: GuideMethod, exclude: readonly string[]): {
  * Callers pass `source` only when it came from an explicit override: a local
  * git directory configured as guide.source stays valid for submodule/clone.
  */
-function assertTarballOnlyOptions(
-  method: GuideMethod,
-  options: TarballUpdateOptions,
-  sourceOverride: string | undefined,
-  sourceRoot: string
-): void {
+function assertTarballOnlyOptions({
+  method,
+  version,
+  sourceOverride,
+  sourceRoot,
+}: {
+  method: GuideMethod;
+  version: string | undefined;
+  sourceOverride: string | undefined;
+  sourceRoot: string;
+}): void {
   const localArchive = sourceOverride !== undefined && localSourceFile(sourceOverride, sourceRoot) !== null;
-  if (method !== 'tarball' && (options.version !== undefined || localArchive)) {
+  if (method !== 'tarball' && (version !== undefined || localArchive)) {
     throw new Error(
       `--version and local --source apply to tarball installs only (this guide is installed as ${method})`
     );
@@ -114,7 +119,7 @@ export class GuideManager {
     const sourceRoot = options.sourceRoot ?? this.projectPath;
 
     // Before the detector's network call, so nothing is fetched for a rejected option.
-    assertTarballOnlyOptions(method, options, sourceOverride, sourceRoot);
+    assertTarballOnlyOptions({ method, version: options.version, sourceOverride, sourceRoot });
 
     // Check if already installed
     const info = await this.detector.detect(this.projectPath, source);
@@ -257,6 +262,15 @@ export class GuideManager {
       );
     }
 
+    // Before the branch guard, so nobody is asked to confirm an update that will be rejected.
+    const sourceRoot = opts.sourceRoot ?? this.projectPath;
+    assertTarballOnlyOptions({
+      method: info.method,
+      version: opts.version,
+      sourceOverride: opts.source,
+      sourceRoot,
+    });
+
     const verdict = await evaluateBranchGuard(this.projectPath, this.configManager);
     if (verdict.outcome === 'block') {
       throw new BranchGuardBlockedError(verdict.trunk, verdict.current);
@@ -264,9 +278,6 @@ export class GuideManager {
     if (verdict.outcome === 'warn' && opts.confirmed !== true) {
       throw new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry);
     }
-
-    const sourceRoot = opts.sourceRoot ?? this.projectPath;
-    assertTarballOnlyOptions(info.method, opts, opts.source, sourceRoot);
 
     const strategy = this.getStrategy(info.method, exclude);
     const strategyArgs =

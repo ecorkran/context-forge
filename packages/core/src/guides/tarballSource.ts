@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { fetch as undiciFetch, EnvHttpProxyAgent } from 'undici';
 import { gitExec, withNetworkErrorHint } from './gitExec.js';
 import { LOCAL_VERSION_MARKER } from './types.js';
+import { compareSemverTagsNewestFirst } from './versionTags.js';
 
 /**
  * Proxy variables honored by the tarball download. Git reads these on its own
@@ -72,14 +73,7 @@ export async function listRemoteTags(source: string): Promise<string[]> {
     if (match) tags.push(match[1]);
   }
 
-  return tags.sort((a, b) => {
-    const pa = a.replace(/^v/, '').split('.').map(Number);
-    const pb = b.replace(/^v/, '').split('.').map(Number);
-    for (let i = 0; i < 3; i++) {
-      if (pa[i] !== pb[i]) return pb[i] - pa[i];
-    }
-    return 0;
-  });
+  return tags.sort(compareSemverTagsNewestFirst);
 }
 
 /** Archive extensions accepted for a local --source. */
@@ -90,9 +84,17 @@ export type ResolvedTarballSource =
   | { kind: 'remote'; source: string; tag: string }
   | { kind: 'local'; path: string; tag: typeof LOCAL_VERSION_MARKER };
 
-/** A source that looks like a filesystem path rather than a GitHub URL. */
+/**
+ * A source that looks like a filesystem path rather than a GitHub URL: it
+ * starts like a path, uses backslashes, or names an archive file (so a typo in
+ * a bare `guide.tgz` reports "file not found" instead of a git error).
+ */
 function looksLikePath(source: string): boolean {
-  return /^[./~]/.test(source) || source.includes('\\');
+  return (
+    /^[./~]/.test(source) ||
+    source.includes('\\') ||
+    LOCAL_ARCHIVE_EXTENSIONS.some((extension) => source.endsWith(extension))
+  );
 }
 
 /**
@@ -111,11 +113,15 @@ export function localSourceFile(source: string, projectRoot: string): string | n
  * relative path resolves against `projectRoot` (callers pass the CLI's cwd or
  * the project root). Paths outside the project root are allowed.
  */
-export async function resolveTarballSource(
-  source: string,
-  version: string | undefined,
-  projectRoot: string
-): Promise<ResolvedTarballSource> {
+export async function resolveTarballSource({
+  source,
+  version,
+  projectRoot,
+}: {
+  source: string;
+  version: string | undefined;
+  projectRoot: string;
+}): Promise<ResolvedTarballSource> {
   const localPath = localSourceFile(source, projectRoot);
   if (localPath !== null) {
     if (!LOCAL_ARCHIVE_EXTENSIONS.some((ext) => localPath.endsWith(ext))) {
@@ -206,7 +212,7 @@ export async function openRemoteArchive(source: string, tag: string): Promise<Ar
     }
 
     return {
-      stream: Readable.fromWeb(response.body as never),
+      stream: Readable.fromWeb(response.body),
       label: url,
       close: () => dispatcher.close(),
     };

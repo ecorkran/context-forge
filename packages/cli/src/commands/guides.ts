@@ -9,6 +9,7 @@ import {
   type GuideExcludeNoticeSource,
   type GuidePreview,
   type GuideVersionChange,
+  type UpdateResult,
 } from '@context-forge/core';
 import {
   FileProjectStore,
@@ -210,7 +211,73 @@ function describePreview(preview: GuidePreview): string {
 async function confirmPreview(preview: GuidePreview, versions: GuideVersionChange): Promise<boolean> {
   console.log(`Guide update: ${versions.from ?? 'unknown'} → ${versions.to}`);
   console.log(`  ${describePreview(preview)}`);
-  return askConfirmation('Continue? (y/N) ');
+  return askConfirmation(CONTINUE_PROMPT);
+}
+
+/** The one spelling of the confirmation question, shared by the branch guard and the preview. */
+const CONTINUE_PROMPT = 'Continue? (y/N) ';
+
+type UpdateOptions = NonNullable<Parameters<GuideManager['update']>[0]>;
+
+/**
+ * Run the update, answering the branch guard's warning with a prompt (or
+ * --yes). Returns null when the user declines the guard. Nothing has been
+ * downloaded at that point: the guard runs first.
+ */
+async function updateWithGuardPrompt(
+  manager: GuideManager,
+  options: UpdateOptions,
+  assumeYes: boolean
+): Promise<UpdateResult | null> {
+  try {
+    return await manager.update(options);
+  } catch (err) {
+    if (!(err instanceof BranchGuardWarnError)) throw err;
+    if (!assumeYes) {
+      console.error(warn(err.message));
+      if (!(await askConfirmation(CONTINUE_PROMPT))) return null;
+    }
+    return manager.update({ ...options, confirmed: true });
+  }
+}
+
+/** Print the outcome of an update. `requestedVersion` is the --version the user passed, if any. */
+function reportUpdateResult(result: UpdateResult, requestedVersion: string | undefined): void {
+  const version = result.newVersion ?? 'unknown';
+  if (result.unchanged) {
+    console.log(success(`Guide is already up to date (${version}).`));
+  } else if (result.cancelled) {
+    console.log('Update cancelled; guide unchanged.');
+  } else if (result.excludeChanged) {
+    console.log(success('Guide re-extracted with updated excludes.'));
+    console.log(`  ${label('Version:')}  ${valueStyle(version)}`);
+    console.log(`  ${label('Excluded:')} ${result.exclude ? valueStyle(result.exclude.join(', ')) : dim('none')}`);
+    reportCommitted(result.committed);
+  } else if (result.previousVersion === result.newVersion && !result.preview) {
+    if (result.worktreeSynced) {
+      // Host pointer was already current, but the worktree checkout was
+      // synced — say so, or the message contradicts the file changes (GH #44).
+      console.log(success('Guide already at latest (worktree synced).'));
+    } else if (requestedVersion) {
+      // A pinned tag is not necessarily the latest one.
+      console.log(success(`Guide is already at ${version}.`));
+    } else {
+      console.log(success('Guide is already at the latest version.'));
+    }
+    console.log(`  ${label('Version:')}  ${valueStyle(version)}`);
+  } else {
+    console.log(success('Guide updated successfully.'));
+    console.log(`  ${label('Version:')}  ${dim(result.previousVersion ?? 'unknown')} → ${valueStyle(version)}`);
+    console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+    if (result.preview) {
+      console.log(`  ${label('Changes:')}  ${describePreview(result.preview)}`);
+    }
+    if (result.exclude) {
+      console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
+    }
+    reportCommitted(result.committed);
+  }
+  printExcludeNotices(result);
 }
 
 const SOURCE_OPTION_HELP =
@@ -311,62 +378,12 @@ export function registerGuidesCommand(program: Command): void {
           ...(opts.yes ? {} : { confirm: confirmPreview }),
         };
 
-        let result;
-        try {
-          result = await manager.update(sourceOptions);
-        } catch (err) {
-          if (err instanceof BranchGuardWarnError) {
-            if (opts.yes) {
-              result = await manager.update({ ...sourceOptions, confirmed: true });
-            } else {
-              console.error(warn(err.message));
-              const confirmed = await askConfirmation('Continue? (y/N) ');
-              if (!confirmed) {
-                console.log('Update cancelled.');
-                return;
-              }
-              result = await manager.update({ ...sourceOptions, confirmed: true });
-            }
-          } else {
-            throw err;
-          }
+        const result = await updateWithGuardPrompt(manager, sourceOptions, opts.yes === true);
+        if (!result) {
+          console.log('Update cancelled.');
+          return;
         }
-
-        if (result.unchanged) {
-          console.log(success(`Guide is already up to date (${result.newVersion ?? 'unknown'}).`));
-        } else if (result.cancelled) {
-          console.log('Update cancelled; guide unchanged.');
-        } else if (result.excludeChanged) {
-          console.log(success('Guide re-extracted with updated excludes.'));
-          console.log(`  ${label('Version:')}  ${valueStyle(result.newVersion ?? 'unknown')}`);
-          console.log(
-            `  ${label('Excluded:')} ${result.exclude ? valueStyle(result.exclude.join(', ')) : dim('none')}`
-          );
-          reportCommitted(result.committed);
-        } else if (result.previousVersion === result.newVersion && !result.preview) {
-          if (result.worktreeSynced) {
-            // Host pointer was already current, but the worktree checkout was
-            // synced — say so, or the message contradicts the file changes (GH #44).
-            console.log(success('Guide already at latest (worktree synced).'));
-          } else {
-            console.log(success('Guide is already at the latest version.'));
-          }
-          console.log(`  ${label('Version:')}  ${valueStyle(result.newVersion ?? 'unknown')}`);
-        } else {
-          console.log(success('Guide updated successfully.'));
-          console.log(
-            `  ${label('Version:')}  ${dim(result.previousVersion ?? 'unknown')} → ${valueStyle(result.newVersion ?? 'unknown')}`
-          );
-          console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
-          if (result.preview) {
-            console.log(`  ${label('Changes:')}  ${describePreview(result.preview)}`);
-          }
-          if (result.exclude) {
-            console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
-          }
-          reportCommitted(result.committed);
-        }
-        printExcludeNotices(result);
+        reportUpdateResult(result, opts.version);
       } catch (err) {
         handleError(asUserError(err));
       }

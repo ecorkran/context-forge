@@ -11,36 +11,8 @@ import {
   VERSION_MARKER_FILE,
 } from './types.js';
 import { gitExec } from './gitExec.js';
-
-/**
- * Parse the highest semver tag from `git ls-remote --tags` output.
- * Returns null if no valid tags found.
- */
-function parseHighestTag(lsRemoteOutput: string): string | null {
-  const tagPattern = /refs\/tags\/(v?\d+\.\d+\.\d+)$/;
-  const tags: string[] = [];
-
-  for (const line of lsRemoteOutput.split('\n')) {
-    const match = tagPattern.exec(line.trim());
-    if (match) {
-      tags.push(match[1]);
-    }
-  }
-
-  if (tags.length === 0) return null;
-
-  // Sort by semver descending
-  tags.sort((a, b) => {
-    const pa = a.replace(/^v/, '').split('.').map(Number);
-    const pb = b.replace(/^v/, '').split('.').map(Number);
-    for (let i = 0; i < 3; i++) {
-      if (pa[i] !== pb[i]) return pb[i] - pa[i];
-    }
-    return 0;
-  });
-
-  return tags[0];
-}
+import { listRemoteTags } from './tarballSource.js';
+import { compareSemverTagsNewestFirst } from './versionTags.js';
 
 /**
  * Compare two semver version strings. Returns true if latest > current.
@@ -49,13 +21,7 @@ export function isNewerVersion(current: string | null, latest: string | null): b
   if (!current || !latest) return false;
   // A local archive is not a release; any remote tag supersedes it.
   if (current === LOCAL_VERSION_MARKER) return true;
-  const ca = current.replace(/^v/, '').split('.').map(Number);
-  const la = latest.replace(/^v/, '').split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (la[i] > ca[i]) return true;
-    if (la[i] < ca[i]) return false;
-  }
-  return false;
+  return compareSemverTagsNewestFirst(latest, current) < 0;
 }
 
 export class GuideDetector {
@@ -212,11 +178,7 @@ export class GuideDetector {
   /** Fetch latest version from remote. Returns null on any failure. */
   private async fetchLatestVersion(source: string): Promise<string | null> {
     try {
-      const { stdout } = await gitExec(
-        ['ls-remote', '--tags', '--sort=-v:refname', source],
-        process.cwd()
-      );
-      return parseHighestTag(stdout);
+      return (await listRemoteTags(source))[0] ?? null;
     } catch {
       return null;
     }

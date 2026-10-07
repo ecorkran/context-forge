@@ -20,8 +20,12 @@ export type ConfigCommitDecision =
 const EXCLUDE_TABLE = 'guide';
 const EXCLUDE_KEY = 'exclude';
 
+function isTable(value: unknown): value is TomlTable {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function asTable(value: unknown): TomlTable {
-  return typeof value === 'object' && value !== null ? (value as TomlTable) : {};
+  return isTable(value) ? value : {};
 }
 
 function excludeValue(config: TomlTable): unknown {
@@ -57,7 +61,7 @@ export async function decideConfigCommit(projectPath: string): Promise<ConfigCom
   const { stdout: status } = await gitExec(['status', '--porcelain', '--', relativePath], projectPath);
   if (status === '') return { add: false };
 
-  const working = parse(await readFile(configPath, 'utf-8')) as TomlTable;
+  const working: TomlTable = parse(await readFile(configPath, 'utf-8'));
   // '??' is untracked and a leading 'A' is staged-as-new: HEAD has no copy to compare against.
   const notInHead = /^(\?\?|A)/.test(status);
   if (notInHead) {
@@ -66,7 +70,7 @@ export async function decideConfigCommit(projectPath: string): Promise<ConfigCom
   }
 
   const { stdout: headText } = await gitExec(['show', `HEAD:./${relativePath}`], projectPath);
-  const head = parse(headText) as TomlTable;
+  const head: TomlTable = parse(headText);
   const excludeChanged = !isDeepStrictEqual(excludeValue(working), excludeValue(head));
   const restUnchanged = isDeepStrictEqual(withoutExclude(working), withoutExclude(head));
   return excludeChanged && restUnchanged

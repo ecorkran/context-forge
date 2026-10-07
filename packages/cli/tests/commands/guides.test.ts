@@ -524,6 +524,16 @@ describe('cf guides --source and --version', () => {
     });
   });
 
+  it('says "already at <tag>" instead of "latest" when a pinned version is already installed', async () => {
+    mockUpdate.mockResolvedValue({ success: true, previousVersion: 'v0.20.1', newVersion: 'v0.20.1', method: 'tarball' });
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'update', '--version', 'v0.20.1', '--project', 'proj_001', '--yes']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Guide is already at v0.20.1.');
+    expect(output).not.toContain('latest');
+  });
+
   it.each([
     ['install', mockInstall],
     ['update', mockUpdate],
