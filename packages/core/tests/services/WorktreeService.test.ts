@@ -587,6 +587,7 @@ describe('WorktreeService', () => {
         id: 'wt_default',
         name: 'default',
         indexRange: range,
+        isDefault: true,
         worktreePath: '/projects/my-app',
         ...artifacts,
       }] })];
@@ -596,7 +597,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 799]);
       await service.addWorktree('proj_1', { name: 'Pipeline', indexRange: [300, 399] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 299]);
     });
 
@@ -604,7 +605,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 799]);
       await service.addWorktree('proj_1', { name: 'Core', indexRange: [100, 199] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([200, 799]);
     });
 
@@ -612,7 +613,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 799]);
       await service.addWorktree('proj_1', { name: 'Middle', indexRange: [400, 599] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 399]);
     });
 
@@ -620,7 +621,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 799]);
       const result = await service.addWorktree('proj_1', { name: 'Everything', indexRange: [100, 799] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([0, 0]);
       expect(result.chopWarning).toContain('no remaining index range');
     });
@@ -629,7 +630,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 299]);
       await service.addWorktree('proj_1', { name: 'Far', indexRange: [500, 599] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 299]);
     });
 
@@ -637,7 +638,7 @@ describe('WorktreeService', () => {
       await setupDefault([100, 299]);
       await service.addWorktree('proj_1', { name: 'Second', indexRange: [200, 299] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 199]);
     });
 
@@ -648,7 +649,7 @@ describe('WorktreeService', () => {
       // Now update its range to overlap default
       await service.updateWorktree('proj_1', worktree.id, { indexRange: [300, 399] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 299]);
     });
 
@@ -663,6 +664,83 @@ describe('WorktreeService', () => {
       // Alpha's range should be unchanged — only default gets chopped
       expect(alpha.indexRange).toEqual([100, 299]);
     });
+
+    it('a worktree named Default with isDefault: false is not chopped', async () => {
+      store.projects = [createEmptyProject({ worktrees: [
+        { id: 'wt_label', name: 'Default', indexRange: [100, 799], isDefault: false },
+      ] })];
+      await service.addWorktree('proj_1', { name: 'Pipeline', indexRange: [300, 399] });
+      const worktrees = await service.listWorktrees('proj_1');
+      expect(worktrees.find((wt) => wt.id === 'wt_label')!.indexRange).toEqual([100, 799]);
+    });
+
+    it('renaming the real default keeps chop working on it', async () => {
+      await setupDefault([100, 799]);
+      await service.updateWorktree('proj_1', 'wt_default', { name: 'main-line' });
+      await service.addWorktree('proj_1', { name: 'Pipeline', indexRange: [300, 399] });
+      const worktrees = await service.listWorktrees('proj_1');
+      expect(worktrees.find((wt) => wt.id === 'wt_default')!.indexRange).toEqual([100, 299]);
+    });
+
+    it('updating the default\'s own range does not chop it against itself', async () => {
+      await setupDefault([100, 799]);
+      const updated = await service.updateWorktree('proj_1', 'wt_default', { indexRange: [100, 499] });
+      expect(updated.indexRange).toEqual([100, 499]);
+      expect(updated.chopWarning).toBeUndefined();
+    });
+
+    it('addWorktree after init with name "default" creates isDefault: false', async () => {
+      await setupDefault([100, 799]);
+      const { worktree } = await service.addWorktree('proj_1', { name: 'default', indexRange: [900, 999] });
+      expect(worktree.isDefault).toBe(false);
+    });
+
+    it('addWorktree gives every new worktree an explicit isDefault: false', async () => {
+      const { worktree } = await service.addWorktree('proj_1', { name: 'Plain', indexRange: [100, 199] });
+      expect(worktree.isDefault).toBe(false);
+    });
+
+    it('updateWorktree cannot change isDefault, even with a stray runtime key', async () => {
+      await setupDefault([100, 799]);
+      const { worktree } = await service.addWorktree('proj_1', { name: 'Other', indexRange: [900, 999] });
+      // Runtime-only key the type forbids: simulates an untyped caller.
+      const stray = { isDefault: true, name: 'Renamed' } as unknown as Parameters<typeof service.updateWorktree>[2];
+
+      const updated = await service.updateWorktree('proj_1', worktree.id, stray);
+      expect(updated.isDefault).toBe(false);
+      expect(updated.name).toBe('Renamed');
+
+      const demoted = { isDefault: false } as unknown as Parameters<typeof service.updateWorktree>[2];
+      const def = await service.updateWorktree('proj_1', 'wt_default', demoted);
+      expect(def.isDefault).toBe(true);
+    });
+
+    describe('two worktrees marked isDefault', () => {
+      beforeEach(() => {
+        store.projects = [createEmptyProject({ worktrees: [
+          { id: 'wt_one', name: 'one', indexRange: [100, 199], isDefault: true },
+          { id: 'wt_two', name: 'two', indexRange: [200, 299], isDefault: true },
+          { id: 'wt_other', name: 'other', indexRange: [300, 399], isDefault: false },
+        ] })];
+      });
+
+      it('add (without override) throws naming both by name and id', async () => {
+        await expect(service.addWorktree('proj_1', { name: 'x', indexRange: [900, 999] })).rejects.toThrow(
+          /'one' \(wt_one\), 'two' \(wt_two\)/,
+        );
+      });
+
+      it('a range-changing update throws', async () => {
+        await expect(
+          service.updateWorktree('proj_1', 'wt_other', { indexRange: [400, 499] }),
+        ).rejects.toThrow(/more than one default worktree/);
+      });
+
+      it('a non-range update still succeeds', async () => {
+        const updated = await service.updateWorktree('proj_1', 'wt_other', { name: 'renamed' });
+        expect(updated.name).toBe('renamed');
+      });
+    });
   });
 
   describe('restore default range on sibling removal (#76)', () => {
@@ -676,13 +754,13 @@ describe('WorktreeService', () => {
 
     async function defaultRange(): Promise<[number, number]> {
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((w) => w.name.toLowerCase() === 'default');
+      const defaultWt = worktrees.find((w) => w.isDefault === true);
       if (!defaultWt) throw new Error(`no default worktree among: ${worktrees.map((w) => w.name).join(', ')}`);
       return defaultWt.indexRange;
     }
 
     it('round trip: adding then removing a sibling returns the default to its pre-chop range', async () => {
-      setupWorktrees([wt('wt_default', 'default', [100, 799])]);
+      setupWorktrees([wt('wt_default', 'default', [100, 799], { isDefault: true })]);
       const { worktree } = await service.addWorktree('proj_1', { name: 'feature', indexRange: [500, 799] });
       expect(await defaultRange()).toEqual([100, 499]);
 
@@ -694,7 +772,7 @@ describe('WorktreeService', () => {
     });
 
     it('restores a range adjacent above the default', async () => {
-      setupWorktrees([wt('wt_default', 'default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+      setupWorktrees([wt('wt_default', 'default', [100, 499], { isDefault: true }), wt('wt_feature', 'feature', [500, 799])]);
 
       const result = await service.removeWorktree('proj_1', 'wt_feature');
 
@@ -703,7 +781,7 @@ describe('WorktreeService', () => {
     });
 
     it('restores a range adjacent below the default', async () => {
-      setupWorktrees([wt('wt_default', 'default', [200, 799]), wt('wt_core', 'core', [100, 199])]);
+      setupWorktrees([wt('wt_default', 'default', [200, 799], { isDefault: true }), wt('wt_core', 'core', [100, 199])]);
 
       const result = await service.removeWorktree('proj_1', 'wt_core');
 
@@ -712,7 +790,7 @@ describe('WorktreeService', () => {
     });
 
     it('gives an emptied default the removed range', async () => {
-      setupWorktrees([wt('wt_default', 'default', [0, 0]), wt('wt_all', 'all', [100, 799])]);
+      setupWorktrees([wt('wt_default', 'default', [0, 0], { isDefault: true }), wt('wt_all', 'all', [100, 799])]);
 
       const result = await service.removeWorktree('proj_1', 'wt_all');
 
@@ -722,7 +800,7 @@ describe('WorktreeService', () => {
 
     it('leaves a default pinned with rangeOverride alone and says why', async () => {
       setupWorktrees([
-        wt('wt_default', 'default', [100, 499], { rangeOverride: true }),
+        wt('wt_default', 'default', [100, 499], { rangeOverride: true, isDefault: true }),
         wt('wt_feature', 'feature', [500, 799]),
       ]);
 
@@ -735,7 +813,7 @@ describe('WorktreeService', () => {
 
     it('leaves a non-adjacent range alone and says why', async () => {
       setupWorktrees([
-        wt('wt_default', 'default', [100, 299]),
+        wt('wt_default', 'default', [100, 299], { isDefault: true }),
         wt('wt_mid', 'mid', [300, 399]),
         wt('wt_far', 'far', [500, 599]),
       ]);
@@ -750,7 +828,7 @@ describe('WorktreeService', () => {
     it('does not restore when the union would overlap another remaining worktree, and says why', async () => {
       // 'other' overlaps the removed band (allowed by an override when it was added).
       setupWorktrees([
-        wt('wt_default', 'default', [100, 499]),
+        wt('wt_default', 'default', [100, 499], { isDefault: true }),
         wt('wt_feature', 'feature', [500, 799]),
         wt('wt_other', 'other', [700, 899], { rangeOverride: true }),
       ]);
@@ -763,7 +841,7 @@ describe('WorktreeService', () => {
     });
 
     it('reports nothing when the default itself is removed', async () => {
-      setupWorktrees([wt('wt_default', 'default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+      setupWorktrees([wt('wt_default', 'default', [100, 499], { isDefault: true }), wt('wt_feature', 'feature', [500, 799])]);
 
       const result = await service.removeWorktree('proj_1', 'wt_default');
 
@@ -782,16 +860,65 @@ describe('WorktreeService', () => {
       expect(result.rangeNotRestored).toBeUndefined();
     });
 
-    it('matches the default by name case-insensitively, as the chop does', async () => {
-      setupWorktrees([wt('wt_default', 'Default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+    it('does not treat a worktree merely named Default as the default', async () => {
+      setupWorktrees([
+        wt('wt_label', 'Default', [100, 499], { isDefault: false }),
+        wt('wt_feature', 'feature', [500, 799]),
+      ]);
 
       const result = await service.removeWorktree('proj_1', 'wt_feature');
 
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toBeUndefined();
+      expect(result.defaultWorktree).toBeUndefined();
+    });
+
+    it('renaming the real default keeps restore working on it', async () => {
+      setupWorktrees([wt('wt_default', 'default', [100, 799], { isDefault: true })]);
+      const { worktree } = await service.addWorktree('proj_1', { name: 'feature', indexRange: [500, 799] });
+      await service.updateWorktree('proj_1', 'wt_default', { name: 'main-line' });
+
+      const result = await service.removeWorktree('proj_1', worktree.id);
+
       expect(result.restoredRange).toEqual([100, 799]);
+      expect(result.defaultWorktree).toEqual({ id: 'wt_default', name: 'main-line' });
+    });
+
+    it('carries defaultWorktree with the current name on restored and not-restored results, and omits it otherwise', async () => {
+      setupWorktrees([
+        wt('wt_default', 'main-line', [100, 499], { isDefault: true }),
+        wt('wt_feature', 'feature', [500, 799]),
+      ]);
+      const restored = await service.removeWorktree('proj_1', 'wt_feature');
+      expect(restored.defaultWorktree).toEqual({ id: 'wt_default', name: 'main-line' });
+
+      setupWorktrees([
+        wt('wt_default', 'main-line', [100, 499], { isDefault: true, rangeOverride: true }),
+        wt('wt_feature', 'feature', [500, 799]),
+      ]);
+      const skipped = await service.removeWorktree('proj_1', 'wt_feature');
+      expect(skipped.rangeNotRestored).toBeDefined();
+      expect(skipped.defaultWorktree).toEqual({ id: 'wt_default', name: 'main-line' });
+
+      setupWorktrees([wt('wt_a', 'a', [100, 199]), wt('wt_b', 'b', [200, 299])]);
+      const neither = await service.removeWorktree('proj_1', 'wt_b');
+      expect(neither.defaultWorktree).toBeUndefined();
+    });
+
+    it('remove (others remaining) throws naming both when two worktrees are marked default', async () => {
+      setupWorktrees([
+        wt('wt_one', 'one', [100, 199], { isDefault: true }),
+        wt('wt_two', 'two', [200, 299], { isDefault: true }),
+        wt('wt_three', 'three', [300, 399]),
+      ]);
+
+      await expect(service.removeWorktree('proj_1', 'wt_three')).rejects.toThrow(
+        /'one' \(wt_one\), 'two' \(wt_two\)/,
+      );
     });
 
     it('keeps reverse migration unchanged when the last worktree goes', async () => {
-      setupWorktrees([wt('wt_default', 'default', [100, 499])]);
+      setupWorktrees([wt('wt_default', 'default', [100, 499], { isDefault: true })]);
 
       const result = await service.removeWorktree('proj_1', 'wt_default');
 
@@ -801,7 +928,7 @@ describe('WorktreeService', () => {
     });
 
     it('writes the removal and the restored range in one store update, without mutating stored objects', async () => {
-      const storedDefault = wt('wt_default', 'default', [100, 499]);
+      const storedDefault = wt('wt_default', 'default', [100, 499], { isDefault: true });
       setupWorktrees([storedDefault, wt('wt_feature', 'feature', [500, 799])]);
       const updateSpy = vi.spyOn(store, 'update');
 
@@ -819,6 +946,7 @@ describe('WorktreeService', () => {
         id: 'wt_default',
         name: 'default',
         indexRange: range,
+        isDefault: true,
         worktreePath: '/projects/my-app',
       }] })];
     }
@@ -832,7 +960,7 @@ describe('WorktreeService', () => {
       });
       expect(result.worktree.rangeOverride).toBe(true);
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       // Default range should be unchanged — chop was skipped
       expect(defaultWt.indexRange).toEqual([100, 799]);
     });
@@ -859,7 +987,7 @@ describe('WorktreeService', () => {
       expect(result.migrated).toBe(true);
       expect(result.worktree.rangeOverride).toBe(true);
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       // Default range NOT chopped — override skips chop
       expect(defaultWt.indexRange).toEqual([100, 799]);
     });
@@ -877,7 +1005,7 @@ describe('WorktreeService', () => {
       });
       expect(updated.rangeOverride).toBe(true);
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 799]);
     });
 
@@ -895,7 +1023,7 @@ describe('WorktreeService', () => {
       });
       expect(updated.rangeOverride).toBeUndefined();
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       // Chop should have run now
       expect(defaultWt.indexRange).toEqual([100, 299]);
     });
@@ -922,6 +1050,7 @@ describe('WorktreeService', () => {
         id: 'wt_default',
         name: 'default',
         indexRange: range,
+        isDefault: true,
         worktreePath: '/projects/my-app',
         ...artifacts,
       }] })];
@@ -942,7 +1071,7 @@ describe('WorktreeService', () => {
       // Index 180 IS in [100, 299] → no collision
       await service.addWorktree('proj_1', { name: 'Pipeline', indexRange: [300, 399] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([100, 299]);
     });
 
@@ -960,7 +1089,7 @@ describe('WorktreeService', () => {
       // No artifacts set → chop always succeeds
       await service.addWorktree('proj_1', { name: 'Core', indexRange: [100, 199] });
       const worktrees = await service.listWorktrees('proj_1');
-      const defaultWt = worktrees.find((wt) => wt.name === 'default')!;
+      const defaultWt = worktrees.find((wt) => wt.isDefault === true)!;
       expect(defaultWt.indexRange).toEqual([200, 799]);
     });
   });

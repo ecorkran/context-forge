@@ -57,26 +57,26 @@ status: in_progress
 
 - [x] **Task 2C: Commit** — `feat(core): add default worktree marker utility`
 
-- [ ] **Task 3: Store read-time migration** (effort: 3)
-  - [ ] In `FileProjectStore.getAll()`, after parsing, run `markLegacyDefaultWorktree` on each project and return the migrated projects. Pass the real `projects.json` path for the warnings. Do not write.
-  - [ ] Print each warning with `console.warn` (stderr), at most once per process, using a module-level set of printed warning strings that is not exported. Add no production reset function; tests reset it by re-importing the module (see Task 3T). Never write to stdout.
-  - [ ] Confirm `create`, `update` and `delete` still read through `getAll()` so their write saves migrated data; change nothing else in the write path.
-  - [ ] Confirm `packages/core/src/storage/` has no import from `services/`.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 3: Store read-time migration** (effort: 3)
+  - [x] In `FileProjectStore.getAll()`, after parsing, run `markLegacyDefaultWorktree` on each project and return the migrated projects. Pass the real `projects.json` path for the warnings. Do not write.
+  - [x] Print each warning with `console.warn` (stderr), at most once per process, using a module-level set of printed warning strings that is not exported. Add no production reset function; tests reset it by re-importing the module (see Task 3T). Never write to stdout.
+  - [x] Confirm `create`, `update` and `delete` still read through `getAll()` so their write saves migrated data; change nothing else in the write path.
+  - [x] Confirm `packages/core/src/storage/` has no import from `services/`.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 3T: Store tests** (effort: 3)
-  - [ ] In `FileProjectStore.test.ts`, use a throwaway temp directory fixture (never the real config dir). The legacy fixture must be a realistic `projects.json` shape: a `default` worktree at the project path with no `isDefault`, plus a sibling.
-  - [ ] `getAll()` returns `isDefault: true` on the default and `false` on the sibling, and the file on disk is byte-identical afterwards (read does not write).
-  - [ ] `update()` on one project saves the migrated fields for every project in the file.
-  - [ ] Repeated `getAll()` calls print each warning once (spy on `console.warn`). The printed-warnings set is module state with no export, so the warn-once and stderr tests must call `vi.resetModules()` in `beforeEach` and load `FileProjectStore` with a dynamic `await import(...)` inside each test, so every test starts with an empty set. The other tests in the file may keep the static import.
-  - [ ] Warnings go to stderr: `console.warn` called, `console.log` and `process.stdout.write` not called by the migration.
-  - [ ] A read-only `projects.json` (chmod) still reads migrated data without error.
-  - [ ] Command-path coverage for the read-only criterion: in the same temp-dir fixture, build a real `FileProjectStore` and a real `WorktreeService` over the read-only file and call `listWorktrees`; it returns the migrated `isDefault` values and does not throw. The CLI and MCP tests mock core, so this service-level test is the automated proof for the paths `cf worktree list` and `worktree_list` share. The CLI check is repeated by hand in the Task 9 walkthrough.
-  - [ ] After saving, removing the default and renaming another worktree to `default` does not mark it, including after constructing a fresh store instance.
-  - [ ] Update the "read returns stored fields verbatim" block in `FileProjectStore.test.ts` (around lines 81–87): its NOTE comment says `getAll()` does no read-time migration. Reword it to say the verbatim contract holds for project fields, and that worktree `isDefault` is the one read-time migration (tested in this task). Check that no fixture in that block contains `worktrees`; if one does, keep its assertions valid under the migration.
-  - [ ] Success: all pass.
+- [x] **Task 3T: Store tests** (effort: 3)
+  - [x] In `FileProjectStore.test.ts`, use a throwaway temp directory fixture (never the real config dir). The legacy fixture must be a realistic `projects.json` shape: a `default` worktree at the project path with no `isDefault`, plus a sibling.
+  - [x] `getAll()` returns `isDefault: true` on the default and `false` on the sibling, and the file on disk is byte-identical afterwards (read does not write).
+  - [x] `update()` on one project saves the migrated fields for every project in the file.
+  - [x] Repeated `getAll()` calls print each warning once (spy on `console.warn`). The printed-warnings set is module state with no export, so the warn-once and stderr tests must call `vi.resetModules()` in `beforeEach` and load `FileProjectStore` with a dynamic `await import(...)` inside each test, so every test starts with an empty set. The other tests in the file may keep the static import.
+  - [x] Warnings go to stderr: `console.warn` called, `console.log` and `process.stdout.write` not called by the migration.
+  - [x] A read-only `projects.json` (chmod) still reads migrated data without error.
+  - [x] Command-path coverage for the read-only criterion: in the same temp-dir fixture, build a real `FileProjectStore` and a real `WorktreeService` over the read-only file and call `listWorktrees`; it returns the migrated `isDefault` values and does not throw. The CLI and MCP tests mock core, so this service-level test is the automated proof for the paths `cf worktree list` and `worktree_list` share. The CLI check is repeated by hand in the Task 9 walkthrough.
+  - [x] After saving, removing the default and renaming another worktree to `default` does not mark it, including after constructing a fresh store instance.
+  - [x] Update the "read returns stored fields verbatim" block in `FileProjectStore.test.ts` (around lines 81–87): its NOTE comment says `getAll()` does no read-time migration. Reword it to say the verbatim contract holds for project fields, and that worktree `isDefault` is the one read-time migration (tested in this task). Check that no fixture in that block contains `worktrees`; if one does, keep its assertions valid under the migration.
+  - [x] Success: all pass.
 
-- [ ] **Task 3C: Commit** — `feat(core): migrate legacy default worktree marker on read`
+- [x] **Task 3C: Commit** — `feat(core): migrate legacy default worktree marker on read`
 
 - [ ] **Task 4: WorktreeService uses the marker** (effort: 3)
   - [ ] Remove the local `DEFAULT_WORKTREE_NAME` and `isDefaultWorktree` from `WorktreeService.ts`; import from `utils/defaultWorktree.ts`.

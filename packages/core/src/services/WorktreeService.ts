@@ -12,21 +12,19 @@ import type { WorktreeInfo } from '../types/git.js';
 import { RangeRestoreSkipReason } from '../types/worktree.js';
 import type { RemoveWorktreeResult } from '../types/worktree.js';
 import { WORKTREE_SCOPED_FIELDS } from '../project-defaults.js';
+import {
+  DEFAULT_WORKTREE_NAME,
+  isDefaultWorktree,
+  findDefaultWorktree,
+} from '../utils/defaultWorktree.js';
 
 /** Generate a unique worktree ID. */
 function generateWorktreeId(): string {
   return `wt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
-/** Name of the worktree that forward migration creates and that chopping narrows. */
-const DEFAULT_WORKTREE_NAME = 'default';
-
 /** Range a fully chopped default worktree holds: it owns no indices. */
 const EMPTY_RANGE: [number, number] = [0, 0];
-
-function isDefaultWorktree(wt: WorktreeContext): boolean {
-  return wt.name.toLowerCase() === DEFAULT_WORKTREE_NAME;
-}
 
 function isEmptyRange(range: [number, number]): boolean {
   return range[0] === EMPTY_RANGE[0] && range[1] === EMPTY_RANGE[1];
@@ -35,8 +33,15 @@ function isEmptyRange(range: [number, number]): boolean {
 /** What removing a worktree did to the default worktree's range. */
 type RangeRestoreOutcome =
   | { kind: 'not-applicable' }
-  | { kind: 'restored'; range: [number, number] }
-  | { kind: 'skipped'; reason: RangeRestoreSkipReason; defaultRange: [number, number] };
+  | { kind: 'restored'; range: [number, number]; defaultWorktree: DefaultWorktreeRef }
+  | {
+      kind: 'skipped';
+      reason: RangeRestoreSkipReason;
+      defaultRange: [number, number];
+      defaultWorktree: DefaultWorktreeRef;
+    };
+
+type DefaultWorktreeRef = NonNullable<RemoveWorktreeResult['defaultWorktree']>;
 
 /** Two inclusive ranges overlap when a[0] <= b[1] && b[0] <= a[1]. */
 function rangesOverlap(a: [number, number], b: [number, number]): boolean {
@@ -172,6 +177,7 @@ export class WorktreeService {
       archDoc: input.archDoc,
       slicePlan: input.slicePlan,
       rangeOverride: input.override ? true : undefined,
+      isDefault: false,
     };
 
     const isFirstWorktree = !project.worktrees || project.worktrees.length === 0;
@@ -185,13 +191,14 @@ export class WorktreeService {
         name: DEFAULT_WORKTREE_NAME,
         indexRange: [100, 799],
         worktreePath: project.projectPath,
+        isDefault: true,
         ...mapProjectToWorktree(project),
       };
 
       const worktrees = [defaultWorktree, newWorktree];
       const chopResult = input.override
         ? { chopped: false }
-        : this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
+        : this.chopDefaultRange(worktrees, project.name, input.indexRange, newWorktree.id);
       const clearedFields = {
         developmentPhase: '',
         fileSlice: '',
@@ -210,7 +217,7 @@ export class WorktreeService {
       const worktrees = [...(project.worktrees ?? []), newWorktree];
       const chopResult = input.override
         ? { chopped: false }
-        : this.chopDefaultRange(worktrees, input.indexRange, newWorktree.id);
+        : this.chopDefaultRange(worktrees, project.name, input.indexRange, newWorktree.id);
       await this.store.update(projectId, { worktrees });
       chopWarning = chopResult.warning;
     }
@@ -241,7 +248,13 @@ export class WorktreeService {
     }
 
     const original = worktrees[index];
-    const updated: WorktreeContext = { ...original, ...updates, id: worktreeId };
+    // id and isDefault are pinned: a stray runtime key in `updates` cannot change them.
+    const updated: WorktreeContext = {
+      ...original,
+      ...updates,
+      id: worktreeId,
+      isDefault: original.isDefault,
+    };
     worktrees[index] = updated;
 
     let chopWarning: string | undefined;
@@ -249,7 +262,7 @@ export class WorktreeService {
       if (updates.rangeOverride === true) {
         // Explicit override — skip chop
       } else {
-        const chopResult = this.chopDefaultRange(worktrees, updates.indexRange, worktreeId);
+        const chopResult = this.chopDefaultRange(worktrees, project.name, updates.indexRange, worktreeId);
         chopWarning = chopResult.warning;
         // Clear rangeOverride if previously set and not explicitly re-enabled
         if (original.rangeOverride === true) {
@@ -299,14 +312,19 @@ export class WorktreeService {
     }
 
     // One write: the removal and any range change land together or not at all.
-    const outcome = this.restoreDefaultRange(remaining, target);
+    const outcome = this.restoreDefaultRange(remaining, target, project.name);
     await this.store.update(projectId, { worktrees: remaining });
     return {
       removed: target,
       migrated: false,
-      ...(outcome.kind === 'restored' ? { restoredRange: outcome.range } : {}),
+      ...(outcome.kind === 'restored'
+        ? { restoredRange: outcome.range, defaultWorktree: outcome.defaultWorktree }
+        : {}),
       ...(outcome.kind === 'skipped'
-        ? { rangeNotRestored: { reason: outcome.reason, defaultRange: outcome.defaultRange } }
+        ? {
+            rangeNotRestored: { reason: outcome.reason, defaultRange: outcome.defaultRange },
+            defaultWorktree: outcome.defaultWorktree,
+          }
         : {}),
     };
   }
@@ -321,15 +339,22 @@ export class WorktreeService {
    * separate bands cannot be one [min, max], so they are never merged.
    * Replaces the default in `remaining` (never mutating the stored object).
    */
-  private restoreDefaultRange(remaining: WorktreeContext[], removed: WorktreeContext): RangeRestoreOutcome {
-    const index = remaining.findIndex(isDefaultWorktree);
-    if (index === -1 || isDefaultWorktree(removed)) return { kind: 'not-applicable' };
+  private restoreDefaultRange(
+    remaining: WorktreeContext[],
+    removed: WorktreeContext,
+    projectName: string,
+  ): RangeRestoreOutcome {
+    if (isDefaultWorktree(removed)) return { kind: 'not-applicable' };
+    const defaultWt = findDefaultWorktree(remaining, projectName);
+    if (!defaultWt) return { kind: 'not-applicable' };
+    const index = remaining.indexOf(defaultWt);
 
-    const defaultWt = remaining[index];
+    const defaultWorktree: DefaultWorktreeRef = { id: defaultWt.id, name: defaultWt.name };
     const skip = (reason: RangeRestoreSkipReason): RangeRestoreOutcome => ({
       kind: 'skipped',
       reason,
       defaultRange: defaultWt.indexRange,
+      defaultWorktree,
     });
     if (defaultWt.rangeOverride === true) return skip(RangeRestoreSkipReason.RangeOverride);
 
@@ -346,7 +371,7 @@ export class WorktreeService {
     if (collides) return skip(RangeRestoreSkipReason.WouldOverlap);
 
     remaining[index] = { ...defaultWt, indexRange: restored };
-    return { kind: 'restored', range: restored };
+    return { kind: 'restored', range: restored, defaultWorktree };
   }
 
   /**
@@ -355,12 +380,11 @@ export class WorktreeService {
    */
   private chopDefaultRange(
     worktrees: WorktreeContext[],
+    projectName: string,
     newRange: [number, number],
     excludeId?: string,
   ): { chopped: boolean; warning?: string } {
-    const defaultWt = worktrees.find(
-      (wt) => isDefaultWorktree(wt) && wt.id !== excludeId,
-    );
+    const defaultWt = findDefaultWorktree(worktrees, projectName, excludeId);
     if (!defaultWt) return { chopped: false };
 
     const [dStart, dEnd] = defaultWt.indexRange;
