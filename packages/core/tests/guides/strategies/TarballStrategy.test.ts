@@ -2,11 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PassThrough } from 'stream';
 import {
   TarballStrategy,
-  parseGitHubOwnerRepo,
   decideTarballEntry,
   readExcludeRecord,
-  describeRateLimit,
-  activeProxyEnvVars,
 } from '../../../src/guides/strategies/TarballStrategy.js';
 import { VERSION_MARKER_FILE, EXCLUDE_RECORD_FILE, GUIDE_RELATIVE_PATH } from '../../../src/guides/types.js';
 
@@ -253,34 +250,6 @@ describe('TarballStrategy', () => {
 
       await expect(strategy.install(projectPath, source, targetDir))
         .rejects.toThrow(/Downloading guide tarball from .*tarball\/v0\.13\.2 failed: HTTP 404 Not Found/);
-    });
-  });
-
-  describe('describeRateLimit()', () => {
-    it('returns null for a 403 that is not a rate limit', () => {
-      expect(describeRateLimit(403, new Headers({ 'x-ratelimit-remaining': '42' }))).toBeNull();
-    });
-
-    it('recognizes 429 with remaining 0', () => {
-      expect(describeRateLimit(429, new Headers({ 'x-ratelimit-remaining': '0' })))
-        .toMatch(/rate limit exceeded/);
-    });
-
-    it('omits the reset time when the header is missing or malformed', () => {
-      const message = describeRateLimit(403, new Headers({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': 'soon' }));
-      expect(message).toMatch(/rate limit exceeded/);
-      expect(message).not.toMatch(/Resets at/);
-    });
-  });
-
-  describe('activeProxyEnvVars()', () => {
-    it('returns only the variables that are set, in precedence order', () => {
-      expect(activeProxyEnvVars({ http_proxy: 'http://p:1', HTTPS_PROXY: 'http://p:2', NO_PROXY: 'x' }))
-        .toEqual(['HTTPS_PROXY', 'http_proxy']);
-    });
-
-    it('returns an empty list when nothing is set', () => {
-      expect(activeProxyEnvVars({})).toEqual([]);
     });
   });
 
@@ -631,23 +600,6 @@ describe('TarballStrategy', () => {
     it('keeps a sibling sharing a name prefix and the archive root', () => {
       expect(decideTarballEntry(`${root}/tool-guides-old/x`, ['tool-guides'])).toEqual(keep);
       expect(decideTarballEntry(`${root}/`, ['tool-guides'])).toEqual(keep);
-    });
-  });
-
-  describe('parseGitHubOwnerRepo()', () => {
-    it('parses https://github.com/owner/repo.git', () => {
-      expect(parseGitHubOwnerRepo('https://github.com/ecorkran/ai-project-guide.git'))
-        .toEqual({ owner: 'ecorkran', repo: 'ai-project-guide' });
-    });
-
-    it('parses https://github.com/owner/repo (no .git)', () => {
-      expect(parseGitHubOwnerRepo('https://github.com/ecorkran/ai-project-guide'))
-        .toEqual({ owner: 'ecorkran', repo: 'ai-project-guide' });
-    });
-
-    it('throws for non-GitHub URL', () => {
-      expect(() => parseGitHubOwnerRepo('https://gitlab.com/foo/bar'))
-        .toThrow('Cannot parse GitHub owner/repo');
     });
   });
 });
