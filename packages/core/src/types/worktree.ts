@@ -86,3 +86,18 @@ export interface IndexRangeOverlap {
   /** End of the overlapping region */
   overlapEnd: number;
 }
+
+/**
+ * Why removing a worktree did not hand its range back to the default worktree
+ * (slice 932). Reported so a still-narrowed default is never silent.
+ */
+export const RangeRestoreSkipReason = {
+  /** The default worktree is pinned with rangeOverride. */
+  RangeOverride: 'range-override',
+  /** The removed range does not touch the default's, so no single range holds both. */
+  NotAdjacent: 'not-adjacent',
+  /** The combined range would overlap another remaining worktree. */
+  WouldOverlap: 'would-overlap',
+} as const;
+
+export type RangeRestoreSkipReason = (typeof RangeRestoreSkipReason)[keyof typeof RangeRestoreSkipReason];

@@ -17,6 +17,21 @@ function generateWorktreeId(): string {
 }
 
 /** Check if a project has any non-empty workflow fields worth migrating. */
+/** Name of the worktree that forward migration creates and that chopping narrows. */
+const DEFAULT_WORKTREE_NAME = 'default';
+
+/** Range a fully chopped default worktree holds: it owns no indices. */
+const EMPTY_RANGE: [number, number] = [0, 0];
+
+function isDefaultWorktree(wt: WorktreeContext): boolean {
+  return wt.name.toLowerCase() === DEFAULT_WORKTREE_NAME;
+}
+
+/** Two inclusive ranges overlap when a[0] <= b[1] && b[0] <= a[1]. */
+function rangesOverlap(a: [number, number], b: [number, number]): boolean {
+  return a[0] <= b[1] && b[0] <= a[1];
+}
+
 function hasWorkflowFields(project: ProjectData): boolean {
   return [...WORKTREE_SCOPED_FIELDS].some((field) => {
     const value = project[field as keyof ProjectData];
@@ -155,7 +170,7 @@ export class WorktreeService {
       // Forward migration: move existing workflow fields into a "default" worktree
       const defaultWorktree: WorktreeContext = {
         id: generateWorktreeId(),
-        name: 'default',
+        name: DEFAULT_WORKTREE_NAME,
         indexRange: [100, 799],
         worktreePath: project.projectPath,
         ...mapProjectToWorktree(project),
@@ -282,7 +297,7 @@ export class WorktreeService {
     excludeId?: string,
   ): { chopped: boolean; warning?: string } {
     const defaultWt = worktrees.find(
-      (wt) => wt.name.toLowerCase() === 'default' && wt.id !== excludeId,
+      (wt) => isDefaultWorktree(wt) && wt.id !== excludeId,
     );
     if (!defaultWt) return { chopped: false };
 
@@ -318,7 +333,7 @@ export class WorktreeService {
           );
         }
       }
-      defaultWt.indexRange = [0, 0];
+      defaultWt.indexRange = [...EMPTY_RANGE];
       return {
         chopped: true,
         warning:
@@ -357,8 +372,7 @@ export class WorktreeService {
     for (const wt of worktrees) {
       if (excludeId && wt.id === excludeId) continue;
 
-      // Ranges overlap when a[0] <= b[1] && b[0] <= a[1]
-      if (range[0] <= wt.indexRange[1] && wt.indexRange[0] <= range[1]) {
+      if (rangesOverlap(range, wt.indexRange)) {
         overlaps.push({
           existingWorktreeId: wt.id,
           existingWorktreeName: wt.name,
