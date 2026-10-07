@@ -4,73 +4,74 @@ layer: project
 reviewType: tasks
 slice: tarball-guide-update-preview-exclude-fixes-version-pinning
 project: context-forge
-verdict: CONCERNS
-verdictSource: derived
+verdict: PASS
+verdictSource: stated
 sourceDocument: project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md
 aiModel: deepseek/deepseek-v4.1-flash
 status: complete
 dateCreated: 20261006
 dateUpdated: 20261006
-reviewedSha: 8a284ec6ceb793ac5767fb05446f081867241bf1
+reviewedSha: 6e572739188665ff8ef3da5200d3856ac3463a1f
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 1
 turns: 2
-promptTokens: 22186
-cachedTokens: 4864
-completionTokens: 4503
-reasoningTokens: 3288
-durationSeconds: 17.3
+promptTokens: 22418
+cachedTokens: 12288
+completionTokens: 5469
+reasoningTokens: 4333
+durationSeconds: 16.4
 runId: run-20261007-p5-234fc799
 squadronVersion: 0.19.0
 findings:
   - id: F001
-    severity: concern
-    category: test-coverage
-    summary: "Local-marker status and \"later update → latest remote\" behavior has no automated test"
+    severity: pass
+    category: traceability
+    summary: "Success criteria fully traced to tasks"
     location: "project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md"
   - id: F002
-    severity: note
-    category: process-consistency
-    summary: "Task 11 folds its test into the implementation task, breaking the test-with pattern"
+    severity: pass
+    category: sequencing
+    summary: "Sequencing and dependency ordering is sound"
     location: "project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md"
   - id: F003
     severity: note
-    category: task-scoping
-    summary: "Task 4 bundles several distinct concerns at effort 4"
+    category: test-coverage
+    summary: "CLI-level `cf guides info` for the `local` marker is only manually verified"
     location: "project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md"
   - id: F004
-    severity: pass
-    category: traceability
-    summary: "All functional success criteria trace to tasks"
+    severity: note
+    category: task-sizing
+    summary: "Task 13 is the largest single task (effort 4) but remains completable"
     location: "project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md"
 ---
 
 # Review: tasks — slice 931
 
-**Verdict:** CONCERNS
+**Verdict:** PASS
 **Model:** deepseek/deepseek-v4.1-flash
 
 ## Findings
 
-### [CONCERN] Local-marker status and "later update → latest remote" behavior has no automated test
+### [PASS] Success criteria fully traced to tasks
 
-The slice design lists two Integration Requirements as success criteria: "`cf guides info` reports a `local` version unchanged (displayed as-is), and reports an update as available" and "A later plain update moves to the latest remote release." The breakdown defines `LOCAL_VERSION_MARKER` (Task 3) and implements "short-circuit remote sources only" (Task 4), but no task adds a unit/strategy test asserting that (a) the `local` marker compares unequal to a remote tag so status reports an update available, and (b) a plain (non-`--source`) update after a local install proceeds to the latest release rather than short-circuiting. The only coverage is the manual Verification Walkthrough in Task 15 step 4, and Task 15 explicitly permits reporting network-dependent steps as "not run." Both behaviors are offline-unit-testable at the `resolveTarballSource` / marker-comparison level, so a small test task should be added (e.g., extend Task 4T or 9T).
+Every Functional Requirement maps to tasks: preview/confirm/unchanged flow → Tasks 9/9T/10/10T; `--yes` answering both prompts → Task 10/10T; MCP preview counts → Tasks 11/11T; `guide.exclude` carve-out and D1 messages → Tasks 12/12T; D3 config-commit behavior → Tasks 13/13T; `--version` install/update and pinned-miss error → Tasks 3/3T/4/4T/5/6/7; local `--source` with `local` marker and later remote update → Tasks 3/4/4T; tarball-only error on submodule/clone → Tasks 5/5T. Technical Requirements map to Tasks 1/1T (extraction), 8/8T (tree diff), 4BT + 10T (failure modes), 13T (D3), 15 (build/typecheck/lint/tests + line-count check), 12 + 14 (ConfigKeys/README/CHANGELOG). Integration Requirements map to 12T and 4T. No success criterion lacks a corresponding task.
 
-### [NOTE] Task 11 folds its test into the implementation task, breaking the test-with pattern
+### [PASS] Sequencing and dependency ordering is sound
 
-Every other implementation task in this breakdown is immediately followed by a dedicated `Task XT` test task (1T, 3T, 4T, 5T, 6T, 7T, 8T, 9T, 10T, 12T, 13T). Task 11 (MCP preview in result, effort 1) instead bundles "Add MCP test in `guideTools.test.ts`" into the task body with no separate `11T`. This is defensible for a one-point task, but it is an inconsistency worth noting; if the reviewer wants strict uniformity, either promote the MCP assertions into Task 7T's surface or add a `Task 11T`.
+The extract-first refactor (Part 1) precedes all behavior changes; the shared fixture helper (Task 2) precedes every test that consumes it (4T, 4BT, 9T, 13T); `types.ts` additions (Task 4) precede `guideTreeDiff`'s use of `GuidePreview` (Task 8) and the preview flow (Task 9). `resolveTarballSource` (Task 3) precedes the strategy wiring (Task 4), the GuideManager validation (Task 5), and the CLI/MCP flag wiring (Tasks 6–7). No circular dependencies are present, and each task's Success line names the command that verifies it.
 
-### [NOTE] Task 4 bundles several distinct concerns at effort 4
+### [NOTE] CLI-level `cf guides info` for the `local` marker is only manually verified
 
-Task 4 combines four separable changes: (1) new core types (`TarballUpdateOptions`, `GuidePreview`, `UpdateResult` fields), (2) rewiring `install`/`update`/`extractAndSwap` to the resolved source, (3) the error-wrapping of the pipeline, and (4) the multi-top-level extraction guard (D5). Each is independently testable and has its own failure mode in the design's Failure modes table. It is declared at effort 4, so it is within bounds, but splitting the D5 multi-top-level guard into its own task (with its own test in `tarballStrategyLocal.test.ts`) would tighten the success criteria per task and make the failure-mode coverage more explicit.
+The slice's Integration Requirements state "`cf guides info` reports a `local` version unchanged (displayed as-is), and reports an update as available." Task 4T covers this at the `GuideManager`/`TarballStrategy.detect()` layer and the slice's Verification Walkthrough step 4 exercises it via CLI, but no automated CLI test asserts the `local` display string. Task 6T only checks flag forwarding and error exit. This is acceptable (`info` display is existing code and `detect()` already returns the marker), but the CLI-visible behavior rests on the manual walkthrough. Consider adding an `info` assertion to `cli/tests/commands/guides.test.ts` if the display path is not exercised elsewhere.
 
-### [PASS] All functional success criteria trace to tasks
+### [NOTE] Task 13 is the largest single task (effort 4) but remains completable
 
-Cross-referencing the slice-design Functional Requirements: preview/confirm/decline (Tasks 9, 9T, 10, 10T), `--yes` skipping both prompts (Task 10, 10T), MCP no-ask with preview (Task 11), zero-diff unchanged (Task 9, 10), `guide.exclude` carve-out success/refusal with exact D1 messages (Task 12, 12T), re-extract commit incl. `.context-forge.toml` plus the mixed-diff notice (Task 13, 13T), `--version` pin and tag-not-found naming newest (Tasks 3, 3T, 5, 6, 7), local `--source` recording `local` and rejecting `--version` combination (Tasks 3, 4, 5), and the tarball-only error for submodule/clone (Task 5, 5T). No orphaned success criterion and no task that lacks a design anchor.
+Task 13 bundles a new helper module, the HEAD-vs-working TOML comparison, integration into `TarballStrategy.update`, result-field surfacing, and CLI/MCP notice plumbing, with Task 13T covering four git-repo scenarios. This is on the upper edge of junior-completable but is not oversized enough to require splitting — the sub-bullets are concrete and the four outcomes are explicitly enumerated. No action required; flagged only because it is the only task combining two subsystems (config parsing + strategy commit paths) in one step.
 
 ### Run Digest
 
-- Response length: 4344 chars
+- Response length: 4092 chars
 - Response is newline-free: no
 - Tool calls made: 1
 - Tool calls failed: 0
@@ -78,42 +79,14 @@ Cross-referencing the slice-design Functional Requirements: preview/confirm/decl
 - Output budget: 384000 tokens
 - System prompt: custom
 - Settings sources: n/a (non-SDK)
-- Reasoning characters: 13210
+- Reasoning characters: 16971
 - Effort: backend default
 - Turns: 2
-- Tokens — prompt / cached / completion / reasoning: 22186 / 4864 / 4503 / 3288
-- Duration: 17.3 s
+- Tokens — prompt / cached / completion / reasoning: 22418 / 12288 / 5469 / 4333
+- Duration: 16.4 s
 - `## Summary` located: yes
 - `## Findings` located: yes
 - Finding-shaped matches — whole response: 4
 - Finding-shaped matches — inside fences: 0
 - Finding-shaped matches — in findings section: 4
 - Finding-shaped matches — surviving validation: 4
-
-### Raw Response
-
-## Summary
-
-The task breakdown is broadly complete and well-structured. Every major success criterion in the slice design (preview/confirm, `--yes`, MCP preview, unchanged path, `guide.exclude` carve-out, D3 config commit, `--version`, local `--source`, tarball-only error) traces to at least one task, and test tasks (`Task XT`) follow their implementations with commit checkpoints (`X C`) distributed across all six parts. Sequencing respects dependencies (extraction → source resolution → strategy wiring → diff → preview flow → exclude fixes → config commit → docs). One integration success criterion is only covered by a network-gated manual walkthrough, which is worth flagging.
-
-## Findings
-
-### [CONCERN] Local-marker status and "later update → latest remote" behavior has no automated test
-category: test-coverage
-location: project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md
-The slice design lists two Integration Requirements as success criteria: "`cf guides info` reports a `local` version unchanged (displayed as-is), and reports an update as available" and "A later plain update moves to the latest remote release." The breakdown defines `LOCAL_VERSION_MARKER` (Task 3) and implements "short-circuit remote sources only" (Task 4), but no task adds a unit/strategy test asserting that (a) the `local` marker compares unequal to a remote tag so status reports an update available, and (b) a plain (non-`--source`) update after a local install proceeds to the latest release rather than short-circuiting. The only coverage is the manual Verification Walkthrough in Task 15 step 4, and Task 15 explicitly permits reporting network-dependent steps as "not run." Both behaviors are offline-unit-testable at the `resolveTarballSource` / marker-comparison level, so a small test task should be added (e.g., extend Task 4T or 9T).
-
-### [NOTE] Task 11 folds its test into the implementation task, breaking the test-with pattern
-category: process-consistency
-location: project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md
-Every other implementation task in this breakdown is immediately followed by a dedicated `Task XT` test task (1T, 3T, 4T, 5T, 6T, 7T, 8T, 9T, 10T, 12T, 13T). Task 11 (MCP preview in result, effort 1) instead bundles "Add MCP test in `guideTools.test.ts`" into the task body with no separate `11T`. This is defensible for a one-point task, but it is an inconsistency worth noting; if the reviewer wants strict uniformity, either promote the MCP assertions into Task 7T's surface or add a `Task 11T`.
-
-### [NOTE] Task 4 bundles several distinct concerns at effort 4
-category: task-scoping
-location: project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md
-Task 4 combines four separable changes: (1) new core types (`TarballUpdateOptions`, `GuidePreview`, `UpdateResult` fields), (2) rewiring `install`/`update`/`extractAndSwap` to the resolved source, (3) the error-wrapping of the pipeline, and (4) the multi-top-level extraction guard (D5). Each is independently testable and has its own failure mode in the design's Failure modes table. It is declared at effort 4, so it is within bounds, but splitting the D5 multi-top-level guard into its own task (with its own test in `tarballStrategyLocal.test.ts`) would tighten the success criteria per task and make the failure-mode coverage more explicit.
-
-### [PASS] All functional success criteria trace to tasks
-category: traceability
-location: project-documents/user/tasks/931-tasks.tarball-guide-update-preview-exclude-fixes-version-pinning.md
-Cross-referencing the slice-design Functional Requirements: preview/confirm/decline (Tasks 9, 9T, 10, 10T), `--yes` skipping both prompts (Task 10, 10T), MCP no-ask with preview (Task 11), zero-diff unchanged (Task 9, 10), `guide.exclude` carve-out success/refusal with exact D1 messages (Task 12, 12T), re-extract commit incl. `.context-forge.toml` plus the mixed-diff notice (Task 13, 13T), `--version` pin and tag-not-found naming newest (Tasks 3, 3T, 5, 6, 7), local `--source` recording `local` and rejecting `--version` combination (Tasks 3, 4, 5), and the tarball-only error for submodule/clone (Task 5, 5T). No orphaned success criterion and no task that lacks a design anchor.
