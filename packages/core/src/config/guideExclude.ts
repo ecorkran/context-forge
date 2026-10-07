@@ -12,8 +12,15 @@
  * reverse).
  */
 
-/** Guide paths cf needs to run. No exclude may equal, contain, or sit inside one. */
+/** Guide paths cf needs to run. No exclude may equal or contain one, or sit inside one except as carved out below. */
 export const PROTECTED_GUIDE_PATHS = ['project-guides', 'scripts'] as const;
+
+/**
+ * Protected subtrees whose children, but not the subtree itself, may be
+ * excluded. Lint config is read per language, and only for languages the
+ * project uses; the directory itself must exist.
+ */
+export const EXCLUDABLE_GUIDE_SUBTREES = ['project-guides/lint'] as const;
 
 const CONFIG_KEY = 'guide.exclude';
 const UNSUPPORTED_WILDCARD = /[*?[\]]/;
@@ -42,11 +49,29 @@ function isWithin(path: string, base: string): boolean {
   return path === base || path.startsWith(base + '/');
 }
 
-function protectedConflict(pattern: string): string | null {
+/** Why a pattern may not be excluded, or null when it is allowed. */
+function protectedProblem(pattern: string): string | null {
   for (const protectedPath of PROTECTED_GUIDE_PATHS) {
-    if (isWithin(pattern, protectedPath) || isWithin(protectedPath, pattern)) {
-      return protectedPath;
+    if (isWithin(protectedPath, pattern)) {
+      return `would remove ${protectedPath}, which cf requires.`;
     }
+    if (!isWithin(pattern, protectedPath)) continue;
+
+    const carveOut = EXCLUDABLE_GUIDE_SUBTREES.find((subtree) => isWithin(pattern, subtree));
+    if (carveOut === undefined) {
+      return (
+        `is inside ${protectedPath}, which cf requires. ` +
+        `Only subpaths of ${EXCLUDABLE_GUIDE_SUBTREES.join(', ')} can be excluded.`
+      );
+    }
+    if (pattern === carveOut) {
+      const directory = carveOut.split('/').at(-1);
+      return (
+        `would remove the whole ${directory} directory. ` +
+        `Exclude individual languages instead, e.g. "${carveOut}/<language>".`
+      );
+    }
+    return null;
   }
   return null;
 }
@@ -64,9 +89,9 @@ function validatePattern(entry: string, pattern: string): void {
   if (pattern === '') {
     fail(entry, 'is empty after normalizing and would remove the whole guide.');
   }
-  const conflict = protectedConflict(pattern);
-  if (conflict) {
-    fail(entry, `would remove ${conflict}, which cf requires.`);
+  const problem = protectedProblem(pattern);
+  if (problem) {
+    fail(entry, problem);
   }
 }
 

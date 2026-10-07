@@ -791,6 +791,23 @@ describe('guide.exclude notices', () => {
     expect(result.notices).toEqual(['guide.exclude is set but ignored for submodule installs']);
   });
 
+  it('guide_update returns the notice when the config file was left out of the guide commit', async () => {
+    const notice = '.context-forge.toml has other uncommitted changes; it was left out of the guide commit';
+    mockUpdate.mockResolvedValue({
+      success: true,
+      previousVersion: 'v0.19.3',
+      newVersion: 'v0.19.3',
+      method: 'tarball',
+      excludeChanged: true,
+      configCommitted: false,
+      configNotice: notice,
+    });
+
+    const result = await client.callTool({ name: 'guide_update', arguments: { projectId: 'test-project' } });
+
+    expect(result.notices).toEqual([notice]);
+  });
+
   it('guide_update returns no notices when there is nothing to report', async () => {
     mockUpdate.mockResolvedValue({
       success: true,

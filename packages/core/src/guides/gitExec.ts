@@ -137,11 +137,11 @@ export async function isGitRepo(dir: string): Promise<boolean> {
  */
 export async function commitPathIfChanged(
   repoPath: string,
-  relPath: string,
+  relPath: string | readonly string[],
   message: string
 ): Promise<boolean> {
   if (!(await isGitRepo(repoPath))) return false;
-  const sha = await commitPathsIfChanged(repoPath, [relPath], message);
+  const sha = await commitPathsIfChanged(repoPath, typeof relPath === 'string' ? [relPath] : [...relPath], message);
   return sha !== null;
 }
 

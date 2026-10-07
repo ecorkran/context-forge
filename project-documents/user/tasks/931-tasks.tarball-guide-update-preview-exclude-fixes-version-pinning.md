@@ -262,90 +262,90 @@ status: in_progress
 
 ### Part 4 — Tree diff, preview, confirm
 
-- [ ] **Task 8: guideTreeDiff.ts** (effort: 3)
-  - [ ] Create `core/src/guides/guideTreeDiff.ts` exporting
+- [x] **Task 8: guideTreeDiff.ts** (effort: 3)
+  - [x] Create `core/src/guides/guideTreeDiff.ts` exporting
         `diffGuideTrees(currentDir, stagingDir): Promise<GuidePreview>`.
-  - [ ] Walk both trees by relative path. `added` = only in staging,
+  - [x] Walk both trees by relative path. `added` = only in staging,
         `removed` = only in current, `changed` = in both and different
         (size compared first, then bytes via `Buffer.equals`).
-  - [ ] Ignore cf's own bookkeeping files (`VERSION_MARKER_FILE`,
+  - [x] Ignore cf's own bookkeeping files (`VERSION_MARKER_FILE`,
         `EXCLUDE_RECORD_FILE`) — reference the constants, do not restate
         names.
-  - [ ] Symlinks are compared by link target, not followed. An unreadable
+  - [x] Symlinks are compared by link target, not followed. An unreadable
         file throws naming the path. A missing `currentDir` (first install
         path) is not an error: everything counts as added.
-  - [ ] Success: file under ~150 lines, no dependencies added.
+  - [x] Success: file under ~150 lines, no dependencies added.
 
-- [ ] **Task 8T: Tree diff tests** (effort: 2)
-  - [ ] Create `core/tests/guides/guideTreeDiff.test.ts` with real temp
+- [x] **Task 8T: Tree diff tests** (effort: 2)
+  - [x] Create `core/tests/guides/guideTreeDiff.test.ts` with real temp
         trees: identical → all zero; one added; one removed; one changed
         with same size; one changed with different size; bookkeeping files
         differ only → zero; symlink retargeted counts as changed; unreadable
         file throws naming the path (skip on Windows if mode bits are
         unsupported).
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 9: Preview, confirm, unchanged flow in TarballStrategy.update** (effort: 4)
-  - [ ] After staging, call `diffGuideTrees(targetDir, staging)` (design
+- [x] **Task 9: Preview, confirm, unchanged flow in TarballStrategy.update** (effort: 4)
+  - [x] After staging, call `diffGuideTrees(targetDir, staging)` (design
         steps 5–9). All zero → remove staging, return `{ success: true,
         unchanged: true, preview }` with no swap and no commit.
-  - [ ] If `options.confirm` is present, `await` it. `false` → remove staging
+  - [x] If `options.confirm` is present, `await` it. `false` → remove staging
         and return `{ cancelled: true, preview }`; the guide is untouched.
-  - [ ] No `confirm` (MCP) → proceed; the result carries `preview`.
-  - [ ] Staging is removed on every exit path, including a throw from
+  - [x] No `confirm` (MCP) → proceed; the result carries `preview`.
+  - [x] Staging is removed on every exit path, including a throw from
         `confirm`.
-  - [ ] Keep `TarballStrategy.ts` near 300 lines: if it grows past that,
+  - [x] Keep `TarballStrategy.ts` near 300 lines: if it grows past that,
         move staging helpers (`siblingPath`, `restorePrevious`) into a
         sibling module `tarballSwap.ts`.
-  - [ ] Success: builds; existing tests pass.
+  - [x] Success: builds; existing tests pass.
 
-- [ ] **Task 9T: Preview flow tests** (effort: 3)
-  - [ ] In `tarballStrategyLocal.test.ts`: changes found → `confirm`
+- [x] **Task 9T: Preview flow tests** (effort: 3)
+  - [x] In `tarballStrategyLocal.test.ts`: changes found → `confirm`
         receives the counts; confirm `true` → swapped and committed, result
         has `preview`; confirm `false` → `cancelled`, guide bytes unchanged,
         no staging directory, `commitPathsIfChanged` not called; identical
         archive → `unchanged`, no swap, no commit; no `confirm` provided →
         proceeds with `preview` in result; `confirm` that throws → staging
         removed and error propagates.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 10: GuideManager confirm pass-through and CLI prompt** (effort: 3)
-  - [ ] `GuideManager.update` accepts `confirm` and forwards it to the
+- [x] **Task 10: GuideManager confirm pass-through and CLI prompt** (effort: 3)
+  - [x] `GuideManager.update` accepts `confirm` and forwards it to the
         strategy (tarball only; `GuideManager` never sends it to others).
-  - [ ] CLI update: build `confirm` from the existing `askConfirmation`
+  - [x] CLI update: build `confirm` from the existing `askConfirmation`
         helper (the one the branch guard uses), skipped when `--yes`. Print
         the header and counts exactly as in the design's API Contracts, then
         `Continue? (y/N)`.
-  - [ ] EOF or closed stdin at the prompt counts as decline (D6, Failure
+  - [x] EOF or closed stdin at the prompt counts as decline (D6, Failure
         modes). Verify what `askConfirmation` does on EOF; if it can resolve
         true or hang, fix it in that helper.
-  - [ ] `--yes` answers both the branch-guard question and the preview
+  - [x] `--yes` answers both the branch-guard question and the preview
         question (D6). The two prompts remain separate, in that order.
-  - [ ] Print `Guide is already up to date (<version>).` for `unchanged`, and
+  - [x] Print `Guide is already up to date (<version>).` for `unchanged`, and
         a plain "Update cancelled; guide unchanged." for `cancelled`.
   - [ ] Success: manual run against the Task 2 fixture archive shows the
-        prompt; answering `n` leaves the guide and git unchanged.
+        prompt; answering `n` leaves the guide and git unchanged. (deferred to Task 15 walkthrough)
 
-- [ ] **Task 10T: CLI preview tests** (effort: 2)
-  - [ ] In `guides.test.ts`: prompt shown with counts; `--yes` skips it;
+- [x] **Task 10T: CLI preview tests** (effort: 2)
+  - [x] In `guides.test.ts`: prompt shown with counts; `--yes` skips it;
         decline prints the cancelled line; `unchanged` prints the up-to-date
         line; EOF on stdin declines. Branch-guard-warn plus preview asks two
         questions in order, and `--yes` asks none.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 11: MCP preview in result** (effort: 1)
-  - [ ] `guide_update` passes no `confirm`; the result includes `preview`
+- [x] **Task 11: MCP preview in result** (effort: 1)
+  - [x] `guide_update` passes no `confirm`; the result includes `preview`
         counts when a diff ran and `unchanged: true` when all zero. `confirmed`
         still answers only the branch guard.
-  - [ ] Success: builds; result shape matches the design's API Contracts.
+  - [x] Success: builds; result shape matches the design's API Contracts.
 
-- [ ] **Task 11T: MCP preview tests** (effort: 1)
-  - [ ] In `guideTools.test.ts`: assert `preview` counts and `unchanged: true`
+- [x] **Task 11T: MCP preview tests** (effort: 1)
+  - [x] In `guideTools.test.ts`: assert `preview` counts and `unchanged: true`
         appear in the result, and that `confirmed: true` has no effect on the
         preview.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 11C: Commit** — `feat: preview guide changes before tarball update swap`
+- [x] **Task 11C: Commit** — `feat: preview guide changes before tarball update swap`
 
 ### Part 5 — guide.exclude fixes (#111)
 

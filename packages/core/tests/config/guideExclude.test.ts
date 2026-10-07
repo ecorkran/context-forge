@@ -55,20 +55,50 @@ describe('parseGuideExclude()', () => {
     },
   );
 
-  it.each([
-    ['scripts', 'scripts'],
-    ['scripts/setup-ide', 'scripts'],
-    ['project-guides', 'project-guides'],
-    ['project-guides/templates', 'project-guides'],
-    ['project-guides/**', 'project-guides'],
-  ])('refuses protected path %j', (raw, protectedPath) => {
-    expect(rejection(raw).message).toContain(`would remove ${protectedPath}, which cf requires.`);
-  });
+  describe('protected paths (D1)', () => {
+    const insideProjectGuides = (entry: string): string =>
+      `guide.exclude entry "${entry}" is inside project-guides, which cf requires. ` +
+      'Only subpaths of project-guides/lint can be excluded.';
+    const insideScripts = (entry: string): string =>
+      `guide.exclude entry "${entry}" is inside scripts, which cf requires. ` +
+      'Only subpaths of project-guides/lint can be excluded.';
+    const wouldRemove = (entry: string, protectedPath: string): string =>
+      `guide.exclude entry "${entry}" would remove ${protectedPath}, which cf requires.`;
+    const wholeLint = (entry: string): string =>
+      `guide.exclude entry "${entry}" would remove the whole lint directory. ` +
+      'Exclude individual languages instead, e.g. "project-guides/lint/<language>".';
 
-  it('uses the exact protected-path message', () => {
-    expect(rejection('project-guides/templates').message).toBe(
-      'guide.exclude entry "project-guides/templates" would remove project-guides, which cf requires.',
-    );
+    it.each([
+      ['project-guides/lint/csharp', ['project-guides/lint/csharp']],
+      ['project-guides/lint/csharp/', ['project-guides/lint/csharp']],
+      ['project-guides/lint/csharp/**', ['project-guides/lint/csharp']],
+      ['project-guides/lint/csharp/rules.json', ['project-guides/lint/csharp/rules.json']],
+      ['project-guides/lint/python, project-guides/lint/csharp', ['project-guides/lint/csharp', 'project-guides/lint/python']],
+    ])('allows %j', (raw, expected) => {
+      expect(parseGuideExclude(raw)).toEqual(expected);
+    });
+
+    it.each([
+      ['project-guides/lint', wholeLint('project-guides/lint')],
+      ['project-guides/lint/', wholeLint('project-guides/lint/')],
+      ['project-guides/lint/**', wholeLint('project-guides/lint/**')],
+      ['project-guides/rules', insideProjectGuides('project-guides/rules')],
+      ['project-guides/templates', insideProjectGuides('project-guides/templates')],
+      ['project-guides/lint-other', insideProjectGuides('project-guides/lint-other')],
+      ['project-guides', wouldRemove('project-guides', 'project-guides')],
+      ['project-guides/**', wouldRemove('project-guides/**', 'project-guides')],
+      ['scripts', wouldRemove('scripts', 'scripts')],
+      ['scripts/x.sh', insideScripts('scripts/x.sh')],
+      ['scripts/setup-ide', insideScripts('scripts/setup-ide')],
+    ])('refuses %j with the exact message', (raw, message) => {
+      expect(rejection(raw).message).toBe(message);
+    });
+
+    it('refuses a list when any entry is refused, naming that entry', () => {
+      expect(rejection('project-guides/lint/csharp, project-guides/rules').message).toBe(
+        insideProjectGuides('project-guides/rules'),
+      );
+    });
   });
 
   it('does not treat a shared name prefix as protected', () => {

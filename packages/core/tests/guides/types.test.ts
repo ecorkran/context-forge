@@ -111,6 +111,12 @@ describe('guideExcludeNotices', () => {
     ]);
   });
 
+  it('passes on the notice that the config file was left out of the commit', () => {
+    expect(guideExcludeNotices({ method: 'tarball', newVersion: 'v0.19.3', configNotice: 'config left out' })).toEqual([
+      'config left out',
+    ]);
+  });
+
   it('returns nothing when there is nothing to report', () => {
     expect(guideExcludeNotices({ method: 'tarball', version: 'v0.19.3' })).toEqual([]);
   });

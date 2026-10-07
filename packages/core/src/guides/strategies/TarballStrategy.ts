@@ -10,6 +10,7 @@ import { commitPathIfChanged } from '../gitExec.js';
 import { resolveTarballSource, openArchive } from '../tarballSource.js';
 import type { ResolvedTarballSource } from '../tarballSource.js';
 import { diffGuideTrees } from '../guideTreeDiff.js';
+import { decideConfigCommit } from '../configExcludeCommit.js';
 import { clearLeftovers, removeStaging, stagingPathFor, swapIntoPlace } from './tarballSwap.js';
 import { matchingGuidePatterns, sameExcludeList } from '../../config/guideExclude.js';
 
@@ -163,9 +164,12 @@ export class TarballStrategy implements InstallStrategy {
     }
     swapIntoPlace(targetDir);
 
+    // A changed guide.exclude lives in .context-forge.toml; commit it with the
+    // re-extract it caused, when that file holds no other uncommitted edits.
+    const configDecision = excludeDiffers ? await decideConfigCommit(projectPath) : { add: false as const };
     const committed = await commitPathIfChanged(
       projectPath,
-      GUIDE_RELATIVE_PATH,
+      configDecision.add ? [GUIDE_RELATIVE_PATH, configDecision.relativePath] : GUIDE_RELATIVE_PATH,
       excludeChanged
         ? `docs: re-extract ai-project-guide ${tag} (guide.exclude changed)`
         : `docs: update ai-project-guide ${tag}`
@@ -178,6 +182,8 @@ export class TarballStrategy implements InstallStrategy {
       method: 'tarball',
       committed,
       preview,
+      ...(excludeDiffers ? { configCommitted: configDecision.add && committed } : {}),
+      ...(!configDecision.add && configDecision.notice ? { configNotice: configDecision.notice } : {}),
       ...this.excludeFields(unmatched),
       ...(excludeChanged ? { excludeChanged: true } : {}),
     };

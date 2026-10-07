@@ -886,6 +886,18 @@ describe('guide.exclude reporting', () => {
     expect(stdout()).not.toContain('already at the latest');
   });
 
+  it('update warns when the config file was left out of the guide commit', async () => {
+    mockUpdate.mockResolvedValue({
+      success: true, previousVersion: 'v0.19.3', newVersion: 'v0.19.3', method: 'tarball',
+      exclude: ['tool-guides'], excludeChanged: true, committed: true, configCommitted: false,
+      configNotice: '.context-forge.toml has other uncommitted changes; it was left out of the guide commit',
+    });
+
+    await run('update', '--yes');
+
+    expect(stderr()).toContain('.context-forge.toml has other uncommitted changes');
+  });
+
   it('install and update each warn when a submodule install ignores the key', async () => {
     mockInstall.mockResolvedValue({
       success: true, version: 'v0.19.3', method: 'submodule', path: tarballPath, excludeIgnored: true,

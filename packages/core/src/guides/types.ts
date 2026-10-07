@@ -64,12 +64,14 @@ export interface GuideExcludeNoticeSource {
   version?: string | null;
   /** UpdateResult reports its version here. */
   newVersion?: string | null;
+  /** UpdateResult: why the config file was left out of the guide commit. */
+  configNotice?: string;
 }
 
 /**
  * Warnings about guide.exclude for an install or update result: one per
- * pattern that matched nothing, and one when a non-tarball install ignored the
- * key. Shared by the CLI (stderr) and MCP (notices) so the wording lives here.
+ * pattern that matched nothing, one when a non-tarball install ignored the
+ * key, and one when the config file was left out of the guide commit. Shared by the CLI (stderr) and MCP (notices) so the wording lives here.
  */
 export function guideExcludeNotices(result: GuideExcludeNoticeSource): string[] {
   const version = result.newVersion ?? result.version ?? 'the guide';
@@ -78,6 +80,9 @@ export function guideExcludeNotices(result: GuideExcludeNoticeSource): string[] 
   );
   if (result.excludeIgnored) {
     notices.push(`guide.exclude is set but ignored for ${result.method} installs`);
+  }
+  if (result.configNotice) {
+    notices.push(result.configNotice);
   }
   return notices;
 }
@@ -235,6 +240,8 @@ export interface UpdateResult {
   cancelled?: true;
   /** Tarball: whether .context-forge.toml went into the guide commit (guide.exclude changed). */
   configCommitted?: boolean;
+  /** Tarball: why .context-forge.toml was left out of that commit, when it was. */
+  configNotice?: string;
 }
 
 /** How a staged guide differs from the installed one, in files. */
