@@ -417,6 +417,37 @@ describe('cf worktree rm', () => {
     expect(console.log).toHaveBeenCalledWith('Cancelled.');
   });
 
+  it('says where the range went when it was handed back to the default worktree', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    mockRemoveWorktree.mockResolvedValue({ removed: sampleWorktree, migrated: false, restoredRange: [100, 799] });
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'rm', 'Feature A', '--yes']);
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("'default' worktree, now 100-799"));
+  });
+
+  it('says why the default kept its range, with the manual fix', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    mockRemoveWorktree.mockResolvedValue({
+      removed: sampleWorktree,
+      migrated: false,
+      rangeNotRestored: { reason: 'not-adjacent', defaultRange: [100, 299] },
+    });
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'rm', 'Feature A', '--yes']);
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain("'default' worktree keeps its range 100-299");
+    expect(output).toContain('does not border it');
+    expect(output).toContain('cf worktree update default --range');
+  });
+
+  it('prints no range note when neither outcome is reported', async () => {
+    vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
+    const program = createProgram();
+    await program.parseAsync(['node', 'cf', 'worktree', 'rm', 'Feature A', '--yes']);
+    const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).not.toContain("'default' worktree");
+  });
+
   it('prints reverse migration notice when migrated is true', async () => {
     vi.mocked(findWorktreeByNameOrId).mockResolvedValue(sampleWorktree);
     mockRemoveWorktree.mockResolvedValue({ removed: sampleWorktree, migrated: true });

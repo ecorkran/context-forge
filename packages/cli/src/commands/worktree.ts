@@ -10,6 +10,7 @@ import {
   resolveFileByIndex,
 } from '@context-forge/core/node';
 import type { WorktreeInfo, WorktreePathStatus } from '@context-forge/core';
+import { RangeRestoreSkipReason } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId } from '../utils/project.js';
 import { withProjectOption, withYesOption, withJsonOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -17,6 +18,13 @@ import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { success, dim, warn } from '../output/styles.js';
+
+/** Why `cf worktree rm` left the default worktree's range as it was, per skip reason. */
+const RANGE_NOT_RESTORED_TEXT: Record<RangeRestoreSkipReason, string> = {
+  [RangeRestoreSkipReason.RangeOverride]: 'it is pinned with a range override',
+  [RangeRestoreSkipReason.NotAdjacent]: "the removed range does not border it, so they can't merge into one range",
+  [RangeRestoreSkipReason.WouldOverlap]: 'the combined range would overlap another worktree',
+};
 
 /** Shorten an absolute path by replacing the home directory with ~. */
 function shortenPath(p: string): string {
@@ -427,7 +435,7 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         const svc = new WorktreeService(store);
-        const { migrated } = await svc.removeWorktree(projectId, targetId);
+        const { migrated, restoredRange, rangeNotRestored } = await svc.removeWorktree(projectId, targetId);
 
         if (migrated) {
           console.log(
@@ -436,6 +444,15 @@ export function registerWorktreeCommand(program: Command): void {
         }
 
         console.log(success(`Worktree context '${target.name}' removed from project '${project.name}'.`));
+        if (restoredRange) {
+          console.log(dim(`Note: Its range went back to the 'default' worktree, now ${restoredRange[0]}-${restoredRange[1]}.`));
+        } else if (rangeNotRestored) {
+          const [start, end] = rangeNotRestored.defaultRange;
+          console.log(warn(
+            `Note: The 'default' worktree keeps its range ${start}-${end}: ${RANGE_NOT_RESTORED_TEXT[rangeNotRestored.reason]}.\n` +
+              `  To widen it by hand: cf worktree update default --range <start>-<end>`,
+          ));
+        }
 
         // Hint about git worktree removal when the worktree has a filesystem path
         if (target.worktreePath) {

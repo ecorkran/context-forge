@@ -9,6 +9,7 @@ import type {
   WorktreePathStatus,
 } from '../types/worktree.js';
 import type { WorktreeInfo } from '../types/git.js';
+import { RangeRestoreSkipReason } from '../types/worktree.js';
 import { WORKTREE_SCOPED_FIELDS } from '../project-defaults.js';
 
 /** Generate a unique worktree ID. */
@@ -26,6 +27,16 @@ const EMPTY_RANGE: [number, number] = [0, 0];
 function isDefaultWorktree(wt: WorktreeContext): boolean {
   return wt.name.toLowerCase() === DEFAULT_WORKTREE_NAME;
 }
+
+function isEmptyRange(range: [number, number]): boolean {
+  return range[0] === EMPTY_RANGE[0] && range[1] === EMPTY_RANGE[1];
+}
+
+/** What removing a worktree did to the default worktree's range. */
+type RangeRestoreOutcome =
+  | { kind: 'not-applicable' }
+  | { kind: 'restored'; range: [number, number] }
+  | { kind: 'skipped'; reason: RangeRestoreSkipReason; defaultRange: [number, number] };
 
 /** Two inclusive ranges overlap when a[0] <= b[1] && b[0] <= a[1]. */
 function rangesOverlap(a: [number, number], b: [number, number]): boolean {
@@ -257,12 +268,20 @@ export class WorktreeService {
 
   /**
    * Remove a worktree context from a project.
-   * Returns the removed worktree and whether reverse migration occurred.
+   * Returns the removed worktree and whether reverse migration occurred. When
+   * other worktrees remain, also reports what happened to the default
+   * worktree's range: `restoredRange` when the removed range was handed back,
+   * or `rangeNotRestored` with the reason when it was not.
    */
   async removeWorktree(
     projectId: string,
     worktreeId: string,
-  ): Promise<{ removed: WorktreeContext; migrated: boolean }> {
+  ): Promise<{
+    removed: WorktreeContext;
+    migrated: boolean;
+    restoredRange?: [number, number];
+    rangeNotRestored?: { reason: RangeRestoreSkipReason; defaultRange: [number, number] };
+  }> {
     const project = await this.getProjectOrThrow(projectId);
     const worktrees = project.worktrees ?? [];
     const target = worktrees.find((wt) => wt.id === worktreeId);
@@ -283,8 +302,55 @@ export class WorktreeService {
       return { removed: target, migrated: true };
     }
 
+    // One write: the removal and any range change land together or not at all.
+    const outcome = this.restoreDefaultRange(remaining, target);
     await this.store.update(projectId, { worktrees: remaining });
-    return { removed: target, migrated: false };
+    return {
+      removed: target,
+      migrated: false,
+      ...(outcome.kind === 'restored' ? { restoredRange: outcome.range } : {}),
+      ...(outcome.kind === 'skipped'
+        ? { rangeNotRestored: { reason: outcome.reason, defaultRange: outcome.defaultRange } }
+        : {}),
+    };
+  }
+
+  /**
+   * Hand a removed worktree's range back to the default worktree, undoing the
+   * narrowing chopDefaultRange did when that worktree claimed it (#76). The
+   * chop keeps no record of the old range, so this works from adjacency: the
+   * default grows to the union only when the two ranges touch (or the default
+   * was emptied to the sentinel), the default is not pinned with
+   * rangeOverride, and the union overlaps no other remaining worktree. Two
+   * separate bands cannot be one [min, max], so they are never merged.
+   * Replaces the default in `remaining` (never mutating the stored object).
+   */
+  private restoreDefaultRange(remaining: WorktreeContext[], removed: WorktreeContext): RangeRestoreOutcome {
+    const index = remaining.findIndex(isDefaultWorktree);
+    if (index === -1 || isDefaultWorktree(removed)) return { kind: 'not-applicable' };
+
+    const defaultWt = remaining[index];
+    const skip = (reason: RangeRestoreSkipReason): RangeRestoreOutcome => ({
+      kind: 'skipped',
+      reason,
+      defaultRange: defaultWt.indexRange,
+    });
+    if (defaultWt.rangeOverride === true) return skip(RangeRestoreSkipReason.RangeOverride);
+
+    const [dStart, dEnd] = defaultWt.indexRange;
+    const [rStart, rEnd] = removed.indexRange;
+    const emptied = isEmptyRange(defaultWt.indexRange);
+    const adjacent = rStart === dEnd + 1 || rEnd === dStart - 1;
+    if (!emptied && !adjacent) return skip(RangeRestoreSkipReason.NotAdjacent);
+
+    const restored: [number, number] = emptied
+      ? [rStart, rEnd]
+      : [Math.min(dStart, rStart), Math.max(dEnd, rEnd)];
+    const collides = remaining.some((wt, i) => i !== index && rangesOverlap(restored, wt.indexRange));
+    if (collides) return skip(RangeRestoreSkipReason.WouldOverlap);
+
+    remaining[index] = { ...defaultWt, indexRange: restored };
+    return { kind: 'restored', range: restored };
   }
 
   /**

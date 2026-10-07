@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ProjectData, CreateProjectData, UpdateProjectData } from '../../src/types/project.js';
 import type { IProjectStore } from '../../src/storage/interfaces.js';
+import type { WorktreeContext } from '../../src/types/worktree.js';
+import { RangeRestoreSkipReason } from '../../src/types/worktree.js';
 import { WorktreeService } from '../../src/services/WorktreeService.js';
 import { createTestProjectData } from '../helpers/testData.js';
 
@@ -660,6 +662,152 @@ describe('WorktreeService', () => {
       const alpha = worktrees.find((wt) => wt.name === 'Alpha')!;
       // Alpha's range should be unchanged — only default gets chopped
       expect(alpha.indexRange).toEqual([100, 299]);
+    });
+  });
+
+  describe('restore default range on sibling removal (#76)', () => {
+    function setupWorktrees(worktrees: WorktreeContext[]): void {
+      store.projects = [createEmptyProject({ worktrees })];
+    }
+
+    function wt(id: string, name: string, indexRange: [number, number], extra?: Partial<WorktreeContext>): WorktreeContext {
+      return { id, name, indexRange, ...extra };
+    }
+
+    async function defaultRange(): Promise<[number, number]> {
+      const worktrees = await service.listWorktrees('proj_1');
+      return worktrees.find((w) => w.name.toLowerCase() === 'default')!.indexRange;
+    }
+
+    it('round trip: adding then removing a sibling returns the default to its pre-chop range', async () => {
+      setupWorktrees([wt('wt_default', 'default', [100, 799])]);
+      const { worktree } = await service.addWorktree('proj_1', { name: 'feature', indexRange: [500, 799] });
+      expect(await defaultRange()).toEqual([100, 499]);
+
+      const result = await service.removeWorktree('proj_1', worktree.id);
+
+      expect(result.restoredRange).toEqual([100, 799]);
+      expect(result.rangeNotRestored).toBeUndefined();
+      expect(await defaultRange()).toEqual([100, 799]);
+    });
+
+    it('restores a range adjacent above the default', async () => {
+      setupWorktrees([wt('wt_default', 'default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_feature');
+
+      expect(result.restoredRange).toEqual([100, 799]);
+      expect(await defaultRange()).toEqual([100, 799]);
+    });
+
+    it('restores a range adjacent below the default', async () => {
+      setupWorktrees([wt('wt_default', 'default', [200, 799]), wt('wt_core', 'core', [100, 199])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_core');
+
+      expect(result.restoredRange).toEqual([100, 799]);
+      expect(await defaultRange()).toEqual([100, 799]);
+    });
+
+    it('gives an emptied default the removed range', async () => {
+      setupWorktrees([wt('wt_default', 'default', [0, 0]), wt('wt_all', 'all', [100, 799])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_all');
+
+      expect(result.restoredRange).toEqual([100, 799]);
+      expect(await defaultRange()).toEqual([100, 799]);
+    });
+
+    it('leaves a default pinned with rangeOverride alone and says why', async () => {
+      setupWorktrees([
+        wt('wt_default', 'default', [100, 499], { rangeOverride: true }),
+        wt('wt_feature', 'feature', [500, 799]),
+      ]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_feature');
+
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toEqual({ reason: RangeRestoreSkipReason.RangeOverride, defaultRange: [100, 499] });
+      expect(await defaultRange()).toEqual([100, 499]);
+    });
+
+    it('leaves a non-adjacent range alone and says why', async () => {
+      setupWorktrees([
+        wt('wt_default', 'default', [100, 299]),
+        wt('wt_mid', 'mid', [300, 399]),
+        wt('wt_far', 'far', [500, 599]),
+      ]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_far');
+
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toEqual({ reason: RangeRestoreSkipReason.NotAdjacent, defaultRange: [100, 299] });
+      expect(await defaultRange()).toEqual([100, 299]);
+    });
+
+    it('does not restore when the union would overlap another remaining worktree, and says why', async () => {
+      // 'other' overlaps the removed band (allowed by an override when it was added).
+      setupWorktrees([
+        wt('wt_default', 'default', [100, 499]),
+        wt('wt_feature', 'feature', [500, 799]),
+        wt('wt_other', 'other', [700, 899], { rangeOverride: true }),
+      ]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_feature');
+
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toEqual({ reason: RangeRestoreSkipReason.WouldOverlap, defaultRange: [100, 499] });
+      expect(await defaultRange()).toEqual([100, 499]);
+    });
+
+    it('reports nothing when the default itself is removed', async () => {
+      setupWorktrees([wt('wt_default', 'default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_default');
+
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toBeUndefined();
+      const remaining = await service.listWorktrees('proj_1');
+      expect(remaining.map((w) => [w.name, w.indexRange])).toEqual([['feature', [500, 799]]]);
+    });
+
+    it('reports nothing when no default worktree remains', async () => {
+      setupWorktrees([wt('wt_a', 'a', [100, 199]), wt('wt_b', 'b', [200, 299])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_b');
+
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toBeUndefined();
+    });
+
+    it('matches the default by name case-insensitively, as the chop does', async () => {
+      setupWorktrees([wt('wt_default', 'Default', [100, 499]), wt('wt_feature', 'feature', [500, 799])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_feature');
+
+      expect(result.restoredRange).toEqual([100, 799]);
+    });
+
+    it('keeps reverse migration unchanged when the last worktree goes', async () => {
+      setupWorktrees([wt('wt_default', 'default', [100, 499])]);
+
+      const result = await service.removeWorktree('proj_1', 'wt_default');
+
+      expect(result.migrated).toBe(true);
+      expect(result.restoredRange).toBeUndefined();
+      expect(result.rangeNotRestored).toBeUndefined();
+    });
+
+    it('writes the removal and the restored range in one store update, without mutating stored objects', async () => {
+      const storedDefault = wt('wt_default', 'default', [100, 499]);
+      setupWorktrees([storedDefault, wt('wt_feature', 'feature', [500, 799])]);
+      const updateSpy = vi.spyOn(store, 'update');
+
+      await service.removeWorktree('proj_1', 'wt_feature');
+
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+      expect(storedDefault.indexRange).toEqual([100, 499]);
+      expect(await defaultRange()).toEqual([100, 799]);
     });
   });
 

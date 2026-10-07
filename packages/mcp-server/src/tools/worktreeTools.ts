@@ -263,7 +263,10 @@ export function registerWorktreeTools(server: McpServer): void {
       title: 'Remove Worktree',
       description:
         'Remove a worktree context from a project. If this is the last worktree, triggers reverse migration ' +
-        'restoring workflow fields to the project. Returns the removed worktree and whether migration occurred.',
+        'restoring workflow fields to the project. Returns the removed worktree and whether migration occurred. ' +
+        "When other worktrees remain, restoredRange is the 'default' worktree's new range after the removed range " +
+        'was handed back to it; rangeNotRestored { reason, defaultRange } says why it was not ' +
+        '(range-override, not-adjacent, would-overlap).',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Omit to resolve from CWD.'),
         worktree: z.string().describe('Worktree ID or name to remove.'),

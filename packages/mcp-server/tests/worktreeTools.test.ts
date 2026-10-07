@@ -576,6 +576,24 @@ describe('worktree_rm', () => {
     expect(parsed.migrated).toBe(false);
   });
 
+  it('returns restoredRange and rangeNotRestored as the service reports them', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    const args = { name: 'worktree_rm', arguments: { projectId: MOCK_PROJECT.id, worktree: MOCK_WORKTREE.id } };
+
+    mockRemoveWorktree.mockResolvedValueOnce({ removed: MOCK_WORKTREE, migrated: false, restoredRange: [100, 799] });
+    const restored = parseResult(await client.callTool(args)) as { restoredRange?: [number, number] };
+    expect(restored.restoredRange).toEqual([100, 799]);
+
+    mockRemoveWorktree.mockResolvedValueOnce({
+      removed: MOCK_WORKTREE,
+      migrated: false,
+      rangeNotRestored: { reason: 'would-overlap', defaultRange: [100, 499] },
+    });
+    const skipped = parseResult(await client.callTool(args)) as { rangeNotRestored?: unknown };
+    expect(skipped.rangeNotRestored).toEqual({ reason: 'would-overlap', defaultRange: [100, 499] });
+  });
+
   it('returns migrated: true when last worktree removed', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockGetWorktree.mockResolvedValue(MOCK_WORKTREE);
