@@ -11,58 +11,54 @@ aiModel: deepseek/deepseek-v4.1-flash
 status: complete
 dateCreated: 20261007
 dateUpdated: 20261007
-reviewedSha: aee38a58fdc78575222f5694910ace61166f2276
+reviewedSha: 851c48707300960b5d88ca25bf88c5bf569fa949
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 52
+toolCallsMade: 39
 turns: 20
-promptTokens: 1329415
-cachedTokens: 1104512
-completionTokens: 120183
-reasoningTokens: 114514
-durationSeconds: 505.8
+promptTokens: 831429
+cachedTokens: 676736
+completionTokens: 65658
+reasoningTokens: 60775
+durationSeconds: 209.6
 runId: run-20261007-p5-ca66f7b8
 squadronVersion: 0.21.0
 findings:
   - id: F001
     severity: concern
-    category: correctness
-    summary: "MCP task names a tool that does not exist (`worktree_remove`)"
-    location: "packages/mcp-server/src/tools/worktreeTools.ts:261"
+    category: testability
+    summary: "Warn-once module state has no specified reset path, but Task 3T requires resetting it"
+    location: "packages/core/src/storage/FileProjectStore.ts#getAll"
   - id: F002
     severity: concern
-    category: testing
-    summary: "Task 5T misdescribes the CLI test updates; the real breakage is unaddressed"
-    location: "packages/cli/tests/commands/worktree.test.ts:420-450"
+    category: performance
+    summary: "Slice restates a cost NFR, but no load/perf task or CI gate is added (and none exists)"
+    location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
   - id: F003
-    severity: concern
-    category: testing
-    summary: "Task 6T describes MCP test cases that do not exist, and its `isDefault` assertion cannot exercise the stated risk"
-    location: "packages/mcp-server/tests/worktreeTools.test.ts:1-40"
+    severity: note
+    category: requirements-coverage
+    summary: "Read-only `projects.json` criterion is covered only at the store level, not through the commands it names"
+    location: "packages/core/tests/storage/FileProjectStore.test.ts:81"
   - id: F004
-    severity: concern
-    category: coverage
-    summary: "Integration Requirements criterion has no corresponding task"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Success Criteria"
+    severity: note
+    category: test-maintenance
+    summary: "Name-keyed test helper and a now-obsolete name-matching test survive the sweep"
+    location: "packages/core/tests/services/WorktreeService.test.ts#defaultRange"
   - id: F005
     severity: note
-    category: tooling
-    summary: "Task 7's sweep command is quote-specific and cannot prove the criterion"
-    location: "packages/cli/src/commands/worktreePropagation.ts:185"
+    category: task-clarity
+    summary: "Task 6T leaves the asserted outcome of the MCP `isDefault`-injection test runtime-dependent"
+    location: "packages/mcp-server/tests/worktreeTools.test.ts:580"
   - id: F006
-    severity: note
-    category: documentation
-    summary: "Existing \"read returns stored fields verbatim\" block and its NOTE comment become false"
-    location: "packages/core/tests/storage/FileProjectStore.test.ts:81-87"
+    severity: pass
+    category: requirements-coverage
+    summary: "Every functional success criterion and Technical Requirement maps to a task"
+    location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
   - id: F007
-    severity: note
-    category: nfr
-    summary: "NFR / load-test rule does not apply, but state why in the task file"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
-  - id: F008
-    severity: note
+    severity: pass
     category: sequencing
-    summary: "Mid-slice window where chop and restore are silently off for legacy data"
-    location: "packages/core/src/services/WorktreeService.ts:325-326"
+    summary: "Sequencing, dependencies and test-with pairing are correct, and commits are distributed"
+    location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
 ---
 
 # Review: tasks — slice 934
@@ -72,60 +68,52 @@ findings:
 
 ## Findings
 
-### [CONCERN] MCP task names a tool that does not exist (`worktree_remove`)
+### [CONCERN] Warn-once module state has no specified reset path, but Task 3T requires resetting it
 
-Task 6 says: "change the `worktree_init` and `worktree_remove` descriptions (including line ~267)". The registered tool is `worktree_rm` (`server.registerTool('worktree_rm', …)` at line 261), not `worktree_remove`. The line reference (~267) is correct — line 267-268 holds `restoredRange is the 'default' worktree's new range … rangeNotRestored { reason, defaultRange }` — so the intent is recoverable, but a junior AI told to edit `worktree_remove` may conclude the tool is absent and either skip the edit or, worse, add a new registration. Task 6T inherits the same imprecision ("`worktree_list` output includes `isDefault` on each worktree" is fine; the tool-name error is only in Task 6). Change `worktree_remove` to `worktree_rm`.
+Task 3 specifies `getAll()` prints each warning "at most once per process, using a module-level set of printed warning strings". Task 3T then requires: "Repeated `getAll()` calls print each warning once (spy on `console.warn`); reset the module-level set between tests." The set is module-private to `FileProjectStore.ts` (verified: the file has no exported test hook today), so the task gives the implementer no way to satisfy its own test step short of `vi.resetModules()` plus a fresh dynamic import — and the current test file (`packages/core/tests/storage/FileProjectStore.test.ts`) constructs `new FileProjectStore()` statically after setting `process.env.CONTEXT_FORGE_DATA_DIR` in `beforeEach`, so the reset strategy interacts with env setup. Worse, without an explicit reset the once-per-process dedup will make a later warning test silently pass-for-the-wrong-reason because an earlier test already printed the same string. Either Task 3 should name the mechanism (e.g. an exported `resetPrintedWarningsForTests()` or an explicit `vi.resetModules()` recipe in Task 3T), or Task 3 should scope the dedup per store instance.
 
-### [CONCERN] Task 5T misdescribes the CLI test updates; the real breakage is unaddressed
+### [CONCERN] Slice restates a cost NFR, but no load/perf task or CI gate is added (and none exists)
 
-Task 5T's first bullet reads: "Update `cli/tests/commands/worktree.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`." No such cases exist. That file mocks the service wholesale (`vi.mock('@context-forge/core/node')` with `removeWorktree: mockRemoveWorktree`) and never constructs worktrees through `addWorktree` or seeds a default at all. What actually breaks after Task 5 is different: the two `rm` tests at lines ~420 and ~431 stub `mockRemoveWorktree.mockResolvedValue({ removed: sampleWorktree, migrated: false, restoredRange: [100, 799] })` with **no `defaultWorktree` field**, and then assert `"'default' worktree, now 100-799"` / `"'default' worktree keeps its range 100-299"` / `cf worktree update default --range`. Once Task 5 replaces the literal `'default'` with `defaultWorktree.name`, those mocks produce `undefined` (or a throw) rather than the asserted text. An implementer following the instruction literally will not find "name-seeded" cases, and the file needs a different edit: add `defaultWorktree: { id, name }` to the mocked remove results (or change the assertions). This bullet should name that change explicitly.
+The slice's Special Considerations carry a "Cost" NFR paragraph ("The migration is one in-memory pass over the projects on each `getAll()`... No measurable startup cost is expected"), and a review finding (F007 NFRs) was resolved by adding exactly that note. The task file's Context Summary explicitly declines a load-test task on the grounds that "the 900 architecture sets no latency targets for these paths" — a defensible reading, and I verified there is no `tests/load/` directory anywhere in the repo (two searches, both empty), so there is nothing to wire into CI. However, the criterion "a load test task exists in `tests/load/` covering that NFR (or this task breakdown adds one)" is therefore unmet, and the once-per-`getAll()` pass is on the hot read path of every CLI/MCP command. Recommend either adding a small bounded sanity task (e.g. asserting `getAll()` over a large synthetic `projects.json` stays within a fixed budget, wired as a normal test) or recording in the task list that no gate is intended and why, so the omission is explicit rather than implicit.
 
-### [CONCERN] Task 6T describes MCP test cases that do not exist, and its `isDefault` assertion cannot exercise the stated risk
+### [NOTE] Read-only `projects.json` criterion is covered only at the store level, not through the commands it names
 
-Two problems in one task:
+The success criterion reads: "With a read-only `projects.json`, read-only commands (`cf worktree list`, `cf check`, MCP `worktree_list`) work after upgrade and see migrated data. Commands that write fail as they do today." Task 3T covers the mechanism (`chmod` + `getAll()` returns migrated data without error), which is a reasonable proxy since those commands all read through `getAll()`. But no task exercises the named commands under a read-only data dir, and the Verification Walkthrough (Task 9, steps 1–7) never does a read-only run either. Consider adding a read-only line to the walkthrough rather than new automated tests.
 
-1. "Update `mcp-server/tests/worktreeTools.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`" — the file mocks `WorktreeService` entirely (`addWorktree: mockAddWorktree`, `removeWorktree: mockRemoveWorktree`, etc.) and never seeds worktrees; there is nothing of that shape to update. The only seeding-adjacent fixture is `packages/mcp-server/tests/fixtures/integration-project/projects.json`, and it declares no `worktrees` array at all, so the read migration is a no-op there. As written, the bullet sends the implementer looking for work that isn't there.
+### [NOTE] Name-keyed test helper and a now-obsolete name-matching test survive the sweep
 
-2. "Add: `worktree_update` called with an `isDefault` argument leaves the stored value unchanged" gives false confidence. The handler copies every received argument key into `updates`, but the MCP SDK validates `inputSchema` first and the `worktree_update` zod object declares no `isDefault` field, so zod strips the key before the handler sees it — the test passes whether or not the handler is safe, and never touches the "stray runtime key" path. The meaningful assertion (a stray `isDefault` in the updates object does not change the stored value) is already specified in Task 3T and is the one that matters. Either strengthen this bullet to assert the handler's collected `updates` object never contains `isDefault`, or drop it.
+Task 4T instructs updating "existing `WorktreeService.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`", which covers the ~15 seeding sites in the `chopDefaultRange`, `rangeOverride`, and `restore default range (#76)` blocks. Two things fall outside that instruction and outside Task 8's sweep, which greps for `name: ['\"]default['\"]`: (a) the local helper `defaultRange()` in that file locates the default with `w.name.toLowerCase() === 'default'`, so the grep will not find it; and (b) the case `'matches the default by name case-insensitively, as the chop does'` asserts the exact behavior this slice removes — after the change its name and comment are false, and it duplicates the new "a worktree named `Default` with `isDefault: false` is not chopped" case. Fold both into Task 4T explicitly.
 
-### [CONCERN] Integration Requirements criterion has no corresponding task
+### [NOTE] Task 6T leaves the asserted outcome of the MCP `isDefault`-injection test runtime-dependent
 
-The slice's Success Criteria include an Integration Requirements section: "`cf check` worktree attribution (`buildAttributedViews`) and `propagationTargets` behave the same. They don't use the default name today." No task verifies it. Task 7's sweep only covers the `grep` for name comparisons, and Task 8 runs the generic suite. Both call sites are indirectly at risk because the migration now rewrites every project on read: `buildAttributedViews` keys on worktree *count* (packages/core/src/introspection/mergeCheckResults.ts:36-41) and `propagationTargets` filters on resolved *path* equality with the project root (packages/cli/src/commands/worktreePropagation.ts:190-195), so both should be unaffected — but nothing in the task list confirms it, and the migration adds an `isDefault` field to objects these functions pass through. Add an explicit verification bullet (e.g. run `cf check` on a multi-worktree project and confirm the attribution output is unchanged, and the existing `check-worktree-attribution.test.ts` / `worktreePropagation.test.ts` suites still pass with the store-level migration active).
+Task 6T says: "Assert the call does not error and that the `updates` object passed to `mockUpdateWorktree` (third argument) has no `isDefault` key" and then adds "If the SDK rejects the unknown key instead of stripping it, assert that outcome and note it in the design walkthrough step 5." The primary assertion is well-aimed against the real risk I verified at `packages/mcp-server/src/tools/worktreeTools.ts:230-241` (the handler copies every argument key; only the zod schema keeps `isDefault` out), but the fallback branch leaves a junior executor to pick a passing assertion post hoc. Since zod object schemas strip unknown keys by default, state the expected outcome as the primary assertion and keep the alternative as a diagnostic note instead of a conditional success path.
 
-### [NOTE] Task 7's sweep command is quote-specific and cannot prove the criterion
+### [PASS] Every functional success criterion and Technical Requirement maps to a task
 
-Task 7 runs `grep -rn "'default'" packages/*/src`. The Technical Requirement it is meant to discharge is "no code outside `utils/defaultWorktree.ts` compares a worktree name to `'default'`" — but the codebase mixes quote styles, e.g. `WorktreeService.ts:182` uses `"default"` in a comment, `worktreePropagation.ts:185` uses `"default"`, and the MCP descriptions use `"default"`. A single-quote-only grep will miss any double-quoted reintroduction. Suggest `grep -rn "['\"]default['\"]" packages/*/src` (and the same for tests) so the sweep actually matches the stated criterion.
+Cross-referencing the slice's Success Criteria against the task list: `Default` never chopped (Task 4T); rename keeps chop/restore (4T); `init --name default` → `isDefault: false` (4T, with an explicit justification for skipping a CLI test at 5T); first-read migration + no write on read + next write saves for every project (3T); post-removal rename inert across a process restart (3T "fresh store instance" case); ambiguous candidates → all `false` + warn with names, ids and recovery step (2T, 3T); no-candidate-at-project-path → warn; no-candidate-silent → 2T "(silent)"; duplicate marker → add/range-update/remove fail, list/json/`worktree_list`/`worktree_get`/`cf check` and non-range updates keep working (4T, 5T); `isDefault` not settable through service, CLI or MCP update (4T, 6T); `rm` prints the current name (5, 5T). Technical Requirements are likewise covered: all eight `markLegacyDefaultWorktree` cases (2T), all four `FileProjectStore` cases (3T), the `'default'`-comparison sweep (Task 8, whose regex is deliberately broader than the design's `grep -rn "'default'"` and classifies the literal-comment hits the narrower pattern would miss), and the `storage/`→`services/` import ban (Tasks 3 and 8). No task traces to something the design does not authorize — the `(default)` list tag, the `defaultWorktree` result field and the `propagationTargets` regression case are each justified in the slice (Overview; API Contracts; Integration Requirements).
 
-### [NOTE] Existing "read returns stored fields verbatim" block and its NOTE comment become false
+### [PASS] Sequencing, dependencies and test-with pairing are correct, and commits are distributed
 
-Task 4 adds a read-time migration to `FileProjectStore.getAll()`, but Task 4T only adds new tests. The existing suite carries a prominent contract comment: "NOTE: `getAll()` returns stored records verbatim — no read-time field migration. `migrateProjectFields()` was intentionally removed (commit 8da8cc8) … These tests assert the verbatim pass-through contract, not migration." The tests themselves still pass (their fixtures declare no `worktrees`, so the migration is a no-op), but the comment now states the opposite of the new behavior, and it sits directly above the block a reader would consult. Task 4T should add a bullet to amend that comment (and the `describe('read returns stored fields verbatim', …)` title) to scope the verbatim claim to non-worktree fields.
-
-### [NOTE] NFR / load-test rule does not apply, but state why in the task file
-
-The slice restates a non-functional concern — the migration cost ("one in-memory pass over the projects on each `getAll()` … No measurable startup cost is expected, and the 900 architecture sets no latency targets for these paths"). There is no `tests/load/` infrastructure anywhere in the repository and no latency target to gate on, so no load-test task and no CI gating task is warranted here; the rule's premise (a measurable NFR) is absent. Worth one line in Task 8 acknowledging it, so the absence reads as a decision rather than an omission.
-
-### [NOTE] Mid-slice window where chop and restore are silently off for legacy data
-
-Task 3C (`fix(core): identify the default worktree by isDefault, not name`) lands before Task 4C (the store read migration). At the intermediate commit, a stored project that still has a name-only `default` worktree has no marked default, so `findDefaultWorktree` returns `undefined` and both `chopDefaultRange` and `restoreDefaultRange` become no-ops — precisely the "silently disables both" symptom #112 describes. This is harmless in the final artifact (both commits are on the same slice branch, and Task 3T rebuilds the affected core tests), but if anyone checks out or reviews the intermediate commit, or if the two commits are ever split, the failure is silent. Consider reordering (store migration before, or in the same commit as, the service switch) or adding a line to Task 3C stating the branch is not releasable until 4C lands.
+The critical ordering the design calls out is honored: the store's read-time migration (Task 3) lands before `WorktreeService` starts reading the flag (Task 4), so no intermediate commit reads legacy data with no `isDefault`. Dependencies run strictly forward (1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9) with no cycles; Task 5 consumes the `defaultWorktree` result field added in Task 4, and Task 6T consumes Task 6's description edits. Every implementation task up to the description-text change has an immediate test counterpart (2/2T, 3/3T, 4/4T, 5/5T, 6/6T); Task 1 is type-only with tests folded into 4T, which is where the type change is observable, and the CLI/MCP test tasks correctly do not attempt to seed defaults they cannot reach through their `WorktreeService` mocks. Commit checkpoints appear at Tasks 2C, 3C, 4C, 6C, 7C and 9 rather than batched at the end (Task 5's CLI edits riding in 6C is the only merged checkpoint, and its message could mention the `rm` note rename). Task 9 correctly stops before Phase 7 and writes no merge step, per the project's git rules.
 
 ### Run Digest
 
-- Response length: 9399 chars
+- Response length: 9237 chars
 - Response is newline-free: no
-- Tool calls made: 52
-- Tool calls failed: 0
+- Tool calls made: 39
+- Tool calls failed: 1
 - Stop reason: stop
 - Output budget: 384000 tokens
 - System prompt: custom
 - Settings sources: n/a (non-SDK)
-- Reasoning characters: 471687
+- Reasoning characters: 244714
 - Effort: backend default
 - Turns: 20
-- Tokens — prompt / cached / completion / reasoning: 1329415 / 1104512 / 120183 / 114514
-- Duration: 505.8 s
+- Tokens — prompt / cached / completion / reasoning: 831429 / 676736 / 65658 / 60775
+- Duration: 209.6 s
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 8
+- Finding-shaped matches — whole response: 7
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 8
-- Finding-shaped matches — surviving validation: 8
+- Finding-shaped matches — in findings section: 7
+- Finding-shaped matches — surviving validation: 7

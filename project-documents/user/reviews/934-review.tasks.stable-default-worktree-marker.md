@@ -11,54 +11,64 @@ aiModel: deepseek/deepseek-v4.1-flash
 status: complete
 dateCreated: 20261007
 dateUpdated: 20261007
-reviewedSha: 851c48707300960b5d88ca25bf88c5bf569fa949
-revision_number: 1
+reviewedSha: e95a751b365c7ba774975237e1540fa0e0a7a954
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 39
+toolCallsMade: 38
 turns: 20
-promptTokens: 831429
-cachedTokens: 676736
-completionTokens: 65658
-reasoningTokens: 60775
-durationSeconds: 209.6
+promptTokens: 1047285
+cachedTokens: 798336
+completionTokens: 72701
+reasoningTokens: 67568
+durationSeconds: 247.5
 runId: run-20261007-p5-ca66f7b8
 squadronVersion: 0.21.0
 findings:
   - id: F001
     severity: concern
-    category: testability
-    summary: "Warn-once module state has no specified reset path, but Task 3T requires resetting it"
-    location: "packages/core/src/storage/FileProjectStore.ts#getAll"
+    category: correctness
+    summary: "`findDefaultWorktree(worktrees)` has no exclusion parameter, but `chopDefaultRange` requires one"
+    location: "packages/core/src/services/WorktreeService.ts:362"
   - id: F002
     severity: concern
-    category: performance
-    summary: "Slice restates a cost NFR, but no load/perf task or CI gate is added (and none exists)"
+    category: test-coverage
+    summary: "Read-only `projects.json` criterion has no automated coverage for `cf check` or MCP `worktree_list`"
     location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
   - id: F003
     severity: note
-    category: requirements-coverage
-    summary: "Read-only `projects.json` criterion is covered only at the store level, not through the commands it names"
-    location: "packages/core/tests/storage/FileProjectStore.test.ts:81"
+    category: test-quality
+    summary: "Task 7's added assertions cannot fail"
+    location: "packages/cli/tests/commands/worktreePropagation.test.ts:354-378"
   - id: F004
     severity: note
-    category: test-maintenance
-    summary: "Name-keyed test helper and a now-obsolete name-matching test survive the sweep"
-    location: "packages/core/tests/services/WorktreeService.test.ts#defaultRange"
+    category: test-coverage
+    summary: "Duplicate-marker \"diagnostic paths keep working\" is only partly covered"
+    location: "packages/core/tests/services/WorktreeService.test.ts"
   - id: F005
     severity: note
-    category: task-clarity
-    summary: "Task 6T leaves the asserted outcome of the MCP `isDefault`-injection test runtime-dependent"
-    location: "packages/mcp-server/tests/worktreeTools.test.ts:580"
+    category: test-coverage
+    summary: "Recovery-sentence text (with the `projects.json` path) is never asserted"
+    location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
   - id: F006
-    severity: pass
-    category: requirements-coverage
-    summary: "Every functional success criterion and Technical Requirement maps to a task"
+    severity: note
+    category: process
+    summary: "Task 8 duplicates Task 3's dependency-direction check"
     location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
   - id: F007
-    severity: pass
-    category: sequencing
-    summary: "Sequencing, dependencies and test-with pairing are correct, and commits are distributed"
+    severity: note
+    category: task-sizing
+    summary: "Task 9 bundles several unrelated deliverables"
     location: "project-documents/user/tasks/934-tasks.stable-default-worktree-marker.md"
+  - id: F008
+    severity: note
+    category: documentation
+    summary: "`mergeCheckResults.ts` prose about the \"default\" name is unassigned"
+    location: "packages/core/src/introspection/mergeCheckResults.ts:21-25"
+  - id: F009
+    severity: pass
+    category: non-functional-requirements
+    summary: "NFR / load-test and CI-gating expectations are correctly scoped"
+    location: ".github/workflows/ci.yml"
 ---
 
 # Review: tasks — slice 934
@@ -68,52 +78,76 @@ findings:
 
 ## Findings
 
-### [CONCERN] Warn-once module state has no specified reset path, but Task 3T requires resetting it
+### [CONCERN] `findDefaultWorktree(worktrees)` has no exclusion parameter, but `chopDefaultRange` requires one
 
-Task 3 specifies `getAll()` prints each warning "at most once per process, using a module-level set of printed warning strings". Task 3T then requires: "Repeated `getAll()` calls print each warning once (spy on `console.warn`); reset the module-level set between tests." The set is module-private to `FileProjectStore.ts` (verified: the file has no exported test hook today), so the task gives the implementer no way to satisfy its own test step short of `vi.resetModules()` plus a fresh dynamic import — and the current test file (`packages/core/tests/storage/FileProjectStore.test.ts`) constructs `new FileProjectStore()` statically after setting `process.env.CONTEXT_FORGE_DATA_DIR` in `beforeEach`, so the reset strategy interacts with env setup. Worse, without an explicit reset the once-per-process dedup will make a later warning test silently pass-for-the-wrong-reason because an earlier test already printed the same string. Either Task 3 should name the mechanism (e.g. an exported `resetPrintedWarningsForTests()` or an explicit `vi.resetModules()` recipe in Task 3T), or Task 3 should scope the dedup per store instance.
+Task 2 specifies `findDefaultWorktree(worktrees)` as "the one worktree with `isDefault === true`, or `undefined`. Throws if more than one" — no `excludeId`, no filtering hook. Task 4 then says "`chopDefaultRange` and `restoreDefaultRange` locate the default through `findDefaultWorktree` instead of `findIndex(isDefaultWorktree)`. Range rules are unchanged."
 
-### [CONCERN] Slice restates a cost NFR, but no load/perf task or CI gate is added (and none exists)
+Those two instructions cannot both be honored. The current chop site is:
 
-The slice's Special Considerations carry a "Cost" NFR paragraph ("The migration is one in-memory pass over the projects on each `getAll()`... No measurable startup cost is expected"), and a review finding (F007 NFRs) was resolved by adding exactly that note. The task file's Context Summary explicitly declines a load-test task on the grounds that "the 900 architecture sets no latency targets for these paths" — a defensible reading, and I verified there is no `tests/load/` directory anywhere in the repo (two searches, both empty), so there is nothing to wire into CI. However, the criterion "a load test task exists in `tests/load/` covering that NFR (or this task breakdown adds one)" is therefore unmet, and the once-per-`getAll()` pass is on the hot read path of every CLI/MCP command. Recommend either adding a small bounded sanity task (e.g. asserting `getAll()` over a large synthetic `projects.json` stays within a fixed budget, wired as a normal test) or recording in the task list that no gate is intended and why, so the omission is explicit rather than implicit.
+```ts
+const defaultWt = worktrees.find(
+  (wt) => isDefaultWorktree(wt) && wt.id !== excludeId,
+);
+```
 
-### [NOTE] Read-only `projects.json` criterion is covered only at the store level, not through the commands it names
+The `wt.id !== excludeId` guard is what prevents an `updateWorktree` that changes the *default's own* range from chopping the default against itself. Substituting a bare `findDefaultWorktree(worktrees)` removes that guard: with `newRange === defaultWt.indexRange`, the overlap test passes, `lowerValid`/`upperValid` are both false, `candidate` stays `null`, and the code falls into the "new range covers entire default" branch — which either throws an artifact-collision error or assigns the `[0, 0]` sentinel and returns "Default worktree has no remaining index range." That is a destructive behavior change, whereas Task 4 asserts "Range rules are unchanged." `restoreDefaultRange` has the analogous self-case, currently handled by the separate `isDefaultWorktree(removed)` check at `WorktreeService.ts:326`.
 
-The success criterion reads: "With a read-only `projects.json`, read-only commands (`cf worktree list`, `cf check`, MCP `worktree_list`) work after upgrade and see migrated data. Commands that write fail as they do today." Task 3T covers the mechanism (`chmod` + `getAll()` returns migrated data without error), which is a reasonable proxy since those commands all read through `getAll()`. But no task exercises the named commands under a read-only data dir, and the Verification Walkthrough (Task 9, steps 1–7) never does a read-only run either. Consider adding a read-only line to the walkthrough rather than new automated tests.
+Fix the task text: either give the utility an exclusion parameter (e.g. `findDefaultWorktree(worktrees, excludeId?)`, documented as "the marked worktree, excluding `excludeId`"), or state explicitly in Task 4 that the caller filters before the call and how duplicate detection interacts with that filter (filtering can mask a genuine two-markers case, which is the error the design wants surfaced). Also make explicit whether a range-changing update with `rangeOverride: true` still triggers the duplicate-marker error — with the current control flow the override branch skips chop entirely, so `findDefaultWorktree` is never called and no error is raised.
 
-### [NOTE] Name-keyed test helper and a now-obsolete name-matching test survive the sweep
+### [CONCERN] Read-only `projects.json` criterion has no automated coverage for `cf check` or MCP `worktree_list`
 
-Task 4T instructs updating "existing `WorktreeService.test.ts` cases that seed a default by name and expect chop or restore to seed `isDefault: true`", which covers the ~15 seeding sites in the `chopDefaultRange`, `rangeOverride`, and `restore default range (#76)` blocks. Two things fall outside that instruction and outside Task 8's sweep, which greps for `name: ['\"]default['\"]`: (a) the local helper `defaultRange()` in that file locates the default with `w.name.toLowerCase() === 'default'`, so the grep will not find it; and (b) the case `'matches the default by name case-insensitively, as the chop does'` asserts the exact behavior this slice removes — after the change its name and comment are false, and it duplicates the new "a worktree named `Default` with `isDefault: false` is not chopped" case. Fold both into Task 4T explicitly.
+Slice Success Criterion: "With a read-only `projects.json`, read-only commands (`cf worktree list`, `cf check`, MCP `worktree_list`) work after upgrade and see migrated data." Three consumers are named.
 
-### [NOTE] Task 6T leaves the asserted outcome of the MCP `isDefault`-injection test runtime-dependent
+Task 3T automates only one path — a real `FileProjectStore` + real `WorktreeService` over a chmod'd file calling `listWorktrees` — and Task 6T explicitly declines an MCP `worktree_list` test ("with the service mocked it only echoes the fixture and proves nothing"). `cli/tests/commands/check-worktree-attribution.test.ts` replaces `FileProjectStore` with a stub class exposing `mockGetAll`/`mockGetById` (lines 25–38), so no migration runs in the `cf check` attribution tests either, and Task 7 only adds an `isDefault: true` field to those fixtures. That leaves `cf check` and MCP `worktree_list` under a read-only file verified only by Task 9's manual walkthrough (which covers `cfl worktree list --json` and `cfl check`, but not the MCP tool).
 
-Task 6T says: "Assert the call does not error and that the `updates` object passed to `mockUpdateWorktree` (third argument) has no `isDefault` key" and then adds "If the SDK rejects the unknown key instead of stripping it, assert that outcome and note it in the design walkthrough step 5." The primary assertion is well-aimed against the real risk I verified at `packages/mcp-server/src/tools/worktreeTools.ts:230-241` (the handler copies every argument key; only the zod schema keeps `isDefault` out), but the fallback branch leaves a junior executor to pick a passing assertion post hoc. Since zod object schemas strip unknown keys by default, state the expected outcome as the primary assertion and keep the alternative as a diagnostic note instead of a conditional success path.
+The mechanism is shared, so this is a coverage gap rather than a defect — but two of the three commands the criterion names have no automated proof, and one has none at all. Either widen Task 3T's command-path case to drive the attribution/merge path over the read-only file, or add a line to Task 9's manual step covering MCP `worktree_list` under a read-only `projects.json` so all three named surfaces are exercised somewhere.
 
-### [PASS] Every functional success criterion and Technical Requirement maps to a task
+### [NOTE] Task 7's added assertions cannot fail
 
-Cross-referencing the slice's Success Criteria against the task list: `Default` never chopped (Task 4T); rename keeps chop/restore (4T); `init --name default` → `isDefault: false` (4T, with an explicit justification for skipping a CLI test at 5T); first-read migration + no write on read + next write saves for every project (3T); post-removal rename inert across a process restart (3T "fresh store instance" case); ambiguous candidates → all `false` + warn with names, ids and recovery step (2T, 3T); no-candidate-at-project-path → warn; no-candidate-silent → 2T "(silent)"; duplicate marker → add/range-update/remove fail, list/json/`worktree_list`/`worktree_get`/`cf check` and non-range updates keep working (4T, 5T); `isDefault` not settable through service, CLI or MCP update (4T, 6T); `rm` prints the current name (5, 5T). Technical Requirements are likewise covered: all eight `markLegacyDefaultWorktree` cases (2T), all four `FileProjectStore` cases (3T), the `'default'`-comparison sweep (Task 8, whose regex is deliberately broader than the design's `grep -rn "'default'"` and classifies the literal-comment hits the narrower pattern would miss), and the `storage/`→`services/` import ban (Tasks 3 and 8). No task traces to something the design does not authorize — the `(default)` list tag, the `defaultWorktree` result field and the `propagationTargets` regression case are each justified in the slice (Overview; API Contracts; Integration Requirements).
+Task 7 adds `isDefault: true` to fixtures and one new `propagationTargets` case, then requires "Leave every assertion unchanged." `propagationTargets` filters on `wt.worktreePath && fs.existsSync(...) && path.resolve(...) !== resolvedRootPath` (`packages/cli/src/commands/worktreePropagation.ts:190-193`); it never reads `isDefault`. The fixtures are stubbed stores in the CLI tests, so the migration never runs there either. The new "root-path worktree marked `isDefault: true` and a sibling marked `false`" case therefore passes identically if the field is absent, `false`, or omitted — it is a non-discriminating test. The existing case at line 354 already pins the root-path-skip behavior. This is harmless, but it should not be counted as proof that the integration requirement holds; consider asserting on the service/store level (real `FileProjectStore`, duplicate markers present) if the intent is to show `isDefault` does not leak into propagation.
 
-### [PASS] Sequencing, dependencies and test-with pairing are correct, and commits are distributed
+### [NOTE] Duplicate-marker "diagnostic paths keep working" is only partly covered
 
-The critical ordering the design calls out is honored: the store's read-time migration (Task 3) lands before `WorktreeService` starts reading the flag (Task 4), so no intermediate commit reads legacy data with no `isDefault`. Dependencies run strictly forward (1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9) with no cycles; Task 5 consumes the `defaultWorktree` result field added in Task 4, and Task 6T consumes Task 6's description edits. Every implementation task up to the description-text change has an immediate test counterpart (2/2T, 3/3T, 4/4T, 5/5T, 6/6T); Task 1 is type-only with tests folded into 4T, which is where the type change is observable, and the CLI/MCP test tasks correctly do not attempt to seed defaults they cannot reach through their `WorktreeService` mocks. Commit checkpoints appear at Tasks 2C, 3C, 4C, 6C, 7C and 9 rather than batched at the end (Task 5's CLI edits riding in 6C is the only merged checkpoint, and its message could mention the `rm` note rename). Task 9 correctly stops before Phase 7 and writes no merge step, per the project's git rules.
+The slice promises that with two marked worktrees, "`cf worktree list` (table and `--json`), `worktree_list`, `worktree_get`, `cf check`, and updates that don't change a range still work." Task 4T asserts only the throwing paths plus "a non-range update still succeeds"; Task 8's walkthrough step 7 checks `cfl worktree list` shows both rows tagged. `worktree_get`, MCP `worktree_list`, and `cf check` under duplicate markers are not asserted anywhere. Task 5T covers the `list` tag for two marked rows, which is the closest automated proof. Consider adding `worktree_get` to the Task 4T/5T duplicate-marker case or naming the omission.
+
+### [NOTE] Recovery-sentence text (with the `projects.json` path) is never asserted
+
+The design's Migration rule pins exact warning copy: both warnings must end with `Range narrowing and restore are off for this project. To turn them on, set "isDefault": true on the intended worktree in <full projects.json path>.` Task 2T asserts that warnings name the project and candidates by name and id, and Task 3T asserts warn-once/stderr routing, but no task asserts the recovery sentence or that the injected path appears in it. Since the treatable failure mode is "user can't find the fix," one assertion on the shared suffix and the path would close it.
+
+### [NOTE] Task 8 duplicates Task 3's dependency-direction check
+
+Task 3 already includes "Confirm `packages/core/src/storage/` has no import from `services/`", and Task 8 repeats it (`grep -rn "services" packages/core/src/storage`). Not harmful as a final sweep, but the duplicate means a failure could be reported twice; keeping it only in the sweeping task (or only at the point of change) would be cleaner.
+
+### [NOTE] Task 9 bundles several unrelated deliverables
+
+Task 9 carries a CHANGELOG entry, a full build/typecheck/lint/test pass, a seven-step manual walkthrough with backup/restore of the real `projects.json`, an added chmod-read-only variation run through `cfl worktree list --json` and `cfl check` (including an MCP `worktree_update` call in step 5), and an update of the design document with real output. That is closer to three tasks than one (docs / automated verification / manual walkthrough), and a failure in any part makes the whole final task look incomplete. Splitting the walkthrough from the CHANGELOG+suite step would give a cleaner stopping point.
+
+### [NOTE] `mergeCheckResults.ts` prose about the "default" name is unassigned
+
+Task 8's sweep (`grep -rnEi "[\"'\`]default[\"'\`]..."` over `packages/*/src`) will hit this comment, which explains attribution by saying "a migrated project has exactly one worktree named \"default\"". Task 7 updates the sibling comment in `worktreePropagation.ts:185` but no task assigns this one. It is a comment, not a name comparison, so Task 8's classifier can legitimately pass it — but the sweep task should say so explicitly, since after this slice the default's name is arbitrary and the comment's framing is left stale.
+
+### [PASS] NFR / load-test and CI-gating expectations are correctly scoped
+
+The design's only performance content is the "Cost" bullet under Special Considerations ("one in-memory pass over the projects on each `getAll()`… the 900 architecture sets no latency targets for these paths"), which is neither a Success Criterion nor a Technical Requirement. `.github/workflows/ci.yml` runs only `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test` — there is no perf or load stage to extend, and no `tests/load/` directory exists under `packages/`. The task file states this reasoning explicitly ("No performance or load-test task, and no perf gate is added…"), so no load-test task is owed and no CI wiring task is silently omitted.
 
 ### Run Digest
 
-- Response length: 9237 chars
+- Response length: 10359 chars
 - Response is newline-free: no
-- Tool calls made: 39
-- Tool calls failed: 1
+- Tool calls made: 38
+- Tool calls failed: 0
 - Stop reason: stop
 - Output budget: 384000 tokens
 - System prompt: custom
 - Settings sources: n/a (non-SDK)
-- Reasoning characters: 244714
+- Reasoning characters: 272477
 - Effort: backend default
 - Turns: 20
-- Tokens — prompt / cached / completion / reasoning: 831429 / 676736 / 65658 / 60775
-- Duration: 209.6 s
+- Tokens — prompt / cached / completion / reasoning: 1047285 / 798336 / 72701 / 67568
+- Duration: 247.5 s
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 7
+- Finding-shaped matches — whole response: 9
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 7
-- Finding-shaped matches — surviving validation: 7
+- Finding-shaped matches — in findings section: 9
+- Finding-shaped matches — surviving validation: 9
