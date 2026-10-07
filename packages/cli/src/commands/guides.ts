@@ -149,12 +149,16 @@ export function strategyHelpText(): string {
  */
 export async function guidesInstallAction(
   projectPath: string,
-  opts?: { strategy?: string; source?: string }
+  opts?: { strategy?: string; source?: string; version?: string }
 ): Promise<void> {
   const cm = new ConfigManager(projectPath);
   const manager = new GuideManager(projectPath, cm);
 
-  const result = await manager.install(opts?.strategy, opts?.source);
+  // A relative local --source is relative to where the user typed it.
+  const result = await manager.install(opts?.strategy, opts?.source, {
+    version: opts?.version,
+    sourceRoot: process.cwd(),
+  });
 
   if (result.deprecatedAlias) {
     console.error(warn(guideMethodDeprecationMessage(result.deprecatedAlias, result.method)));
@@ -192,6 +196,10 @@ function reportCommitted(committed: boolean | undefined): void {
   );
 }
 
+const SOURCE_OPTION_HELP =
+  'Source repository URL, or a local .tgz/.tar.gz archive (tarball installs only; recorded as version "local")';
+const VERSION_OPTION_HELP = 'Install this release tag instead of the newest (tarball installs only)';
+
 export function registerGuidesCommand(program: Command): void {
   const cmd = program
     .command('guides')
@@ -217,12 +225,17 @@ export function registerGuidesCommand(program: Command): void {
     .command('install')
     .description('Install the AI project guide')
     .option('--strategy <method>', strategyHelpText())
-    .option('--source <url>', 'Source repository URL');
+    .option('--source <url|path.tgz>', SOURCE_OPTION_HELP)
+    .option('--version <tag>', VERSION_OPTION_HELP);
   withProjectOption(installCmd);
-  installCmd.action(async (opts: { strategy?: string; source?: string; project?: string }) => {
+  installCmd.action(async (opts: { strategy?: string; source?: string; version?: string; project?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
-        await guidesInstallAction(ctx.projectPath, { strategy: opts.strategy, source: opts.source });
+        await guidesInstallAction(ctx.projectPath, {
+          strategy: opts.strategy,
+          source: opts.source,
+          version: opts.version,
+        });
       } catch (err) {
         handleError(asUserError(err));
       }
@@ -262,22 +275,26 @@ export function registerGuidesCommand(program: Command): void {
   // cf guides update
   const updateCmd = cmd
     .command('update')
-    .description('Update an existing guide installation');
+    .description('Update an existing guide installation')
+    .option('--source <url|path.tgz>', SOURCE_OPTION_HELP)
+    .option('--version <tag>', VERSION_OPTION_HELP);
   withProjectOption(updateCmd);
   withYesOption(updateCmd);
-  updateCmd.action(async (opts: { project?: string; yes?: boolean }) => {
+  updateCmd.action(async (opts: { project?: string; yes?: boolean; source?: string; version?: string }) => {
       try {
         const ctx = await getGuideContext(opts.project);
         const cm = new ConfigManager(ctx.projectPath);
         const manager = new GuideManager(ctx.projectPath, cm, ctx.operationPath);
+        // A relative local --source is relative to where the user typed it.
+        const sourceOptions = { source: opts.source, version: opts.version, sourceRoot: process.cwd() };
 
         let result;
         try {
-          result = await manager.update();
+          result = await manager.update(sourceOptions);
         } catch (err) {
           if (err instanceof BranchGuardWarnError) {
             if (opts.yes) {
-              result = await manager.update({ confirmed: true });
+              result = await manager.update({ ...sourceOptions, confirmed: true });
             } else {
               console.error(warn(err.message));
               const confirmed = await askConfirmation('Continue? (y/N) ');
@@ -285,7 +302,7 @@ export function registerGuidesCommand(program: Command): void {
                 console.log('Update cancelled.');
                 return;
               }
-              result = await manager.update({ confirmed: true });
+              result = await manager.update({ ...sourceOptions, confirmed: true });
             }
           } else {
             throw err;

@@ -316,7 +316,7 @@ describe('guide_install', () => {
     const parsed = JSON.parse(content[0].text);
     expect(parsed.method).toBe('tarball');
     expect(result.notices).toBeUndefined();
-    expect(mockInstall).toHaveBeenCalledWith('tarball', undefined);
+    expect(mockInstall).toHaveBeenCalledWith('tarball', undefined, { version: undefined });
   });
 
   it('accepts the deprecated manual alias and returns one notice (D4, D5)', async () => {
@@ -344,7 +344,7 @@ describe('guide_install', () => {
     expect(notices[0]).toContain('deprecated');
     expect(notices[0]).toContain('tarball');
     // The raw alias reaches core, which owns normalization.
-    expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
+    expect(mockInstall).toHaveBeenCalledWith('manual', undefined, { version: undefined });
   });
 
   it('rejects a strategy outside the accepted set', async () => {
@@ -467,6 +467,85 @@ describe('guide_update', () => {
     const parsed = JSON.parse(content[0].text);
     expect(parsed.success).toBe(true);
     expect(parsed.newVersion).toBe('v0.13.2');
+  });
+});
+
+describe('guide_install / guide_update --version and --source parameters', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+  const tarballOnlyError =
+    '--version and local --source apply to tarball installs only (this guide is installed as submodule)';
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockGetById.mockResolvedValue(sampleProject);
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  function textOf(result: Awaited<ReturnType<Client['callTool']>>): string {
+    return (result.content as { type: string; text: string }[])[0].text;
+  }
+
+  it('guide_install passes source and version to the manager', async () => {
+    mockInstall.mockResolvedValue({ success: true, version: 'v0.2.0', method: 'tarball', path: '/p' });
+
+    const result = await client.callTool({
+      name: 'guide_install',
+      arguments: { projectId: 'test-project', strategy: 'tarball', source: 'guides/g.tgz', version: 'v0.2.0' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockInstall).toHaveBeenCalledWith('tarball', 'guides/g.tgz', { version: 'v0.2.0' });
+  });
+
+  it('guide_update passes source and version to the manager', async () => {
+    mockUpdate.mockResolvedValue({ success: true, previousVersion: 'v0.1.0', newVersion: 'v0.2.0', method: 'tarball' });
+
+    const result = await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project', source: 'guides/g.tgz', version: 'v0.2.0' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith({ source: 'guides/g.tgz', version: 'v0.2.0' });
+  });
+
+  it('guide_update keeps source and version on the confirmed retry', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce({ success: true, previousVersion: 'v0.1.0', newVersion: 'v0.2.0', method: 'tarball' });
+
+    await client.callTool({
+      name: 'guide_update',
+      arguments: { projectId: 'test-project', version: 'v0.2.0', confirm: true },
+    });
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { source: undefined, version: 'v0.2.0', confirmed: true });
+  });
+
+  it.each(['guide_install', 'guide_update'])('%s returns the tarball-only error as a tool error', async (name) => {
+    mockInstall.mockRejectedValue(new Error(tarballOnlyError));
+    mockUpdate.mockRejectedValue(new Error(tarballOnlyError));
+
+    const result = await client.callTool({ name, arguments: { projectId: 'test-project', version: 'v0.2.0' } });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain('tarball installs only');
+  });
+
+  it('lists the new parameters in the tool schemas', async () => {
+    const { tools } = await client.listTools();
+    const properties = (name: string): string[] =>
+      Object.keys((tools.find((t) => t.name === name)?.inputSchema.properties ?? {}) as Record<string, unknown>);
+
+    expect(properties('guide_install')).toEqual(expect.arrayContaining(['source', 'version']));
+    expect(properties('guide_update')).toEqual(expect.arrayContaining(['source', 'version']));
   });
 });
 

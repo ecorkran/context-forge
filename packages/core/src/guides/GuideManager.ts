@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { mkdirSync, rmSync, rmdirSync, readdirSync, existsSync } from 'fs';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { parseGuideExclude } from '../config/guideExclude.js';
-import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult, EnsureCheckoutResult } from './types.js';
+import type { GuideInfo, GuideMethod, InstallResult, UpdateResult, UninstallResult, InstallStrategy, SyncResult, EnsureCheckoutResult, TarballUpdateOptions } from './types.js';
 import {
   DEFAULT_SOURCE_GIT,
   GUIDE_RELATIVE_PATH,
@@ -13,6 +13,7 @@ import {
   isDeprecatedGuideMethodAlias,
 } from './types.js';
 import { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
+import { localSourceFile } from './tarballSource.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from './strategies/CloneStrategy.js';
@@ -35,6 +36,33 @@ export interface ResolvedStrategy {
  */
 function excludeIgnoredField(method: GuideMethod, exclude: readonly string[]): { excludeIgnored?: true } {
   return method !== 'tarball' && exclude.length > 0 ? { excludeIgnored: true } : {};
+}
+
+/**
+ * Throw when a tarball-only option reaches a guide installed another way.
+ * Callers pass `source` only when it came from an explicit override: a local
+ * git directory configured as guide.source stays valid for submodule/clone.
+ */
+function assertTarballOnlyOptions(
+  method: GuideMethod,
+  options: TarballUpdateOptions,
+  sourceOverride: string | undefined,
+  sourceRoot: string
+): void {
+  const localArchive = sourceOverride !== undefined && localSourceFile(sourceOverride, sourceRoot) !== null;
+  if (method !== 'tarball' && (options.version !== undefined || localArchive)) {
+    throw new Error(
+      `--version and local --source apply to tarball installs only (this guide is installed as ${method})`
+    );
+  }
+}
+
+/** Options for GuideManager.update: the branch-guard answer plus the tarball-only source options. */
+export interface GuideUpdateOptions extends TarballUpdateOptions {
+  /** Answers the branch guard's warning (not the preview confirmation). */
+  confirmed?: boolean;
+  /** Guide source for this call, overriding guide.source. */
+  source?: string;
 }
 
 export class GuideManager {
@@ -70,7 +98,11 @@ export class GuideManager {
    * a deprecated alias, the returned result carries it in `deprecatedAlias` so
    * the caller can warn (D5).
    */
-  async install(strategyOverride?: string, sourceOverride?: string): Promise<InstallResult> {
+  async install(
+    strategyOverride?: string,
+    sourceOverride?: string,
+    options: TarballUpdateOptions = {}
+  ): Promise<InstallResult> {
     // First, so a bad hand-edited value fails before anything is downloaded.
     const exclude = await this.resolveExclude();
     const source = sourceOverride || (await this.resolveSource());
@@ -79,6 +111,10 @@ export class GuideManager {
       : await this.resolveStrategy();
     const method = resolved.method;
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
+    const sourceRoot = options.sourceRoot ?? this.projectPath;
+
+    // Before the detector's network call, so nothing is fetched for a rejected option.
+    assertTarballOnlyOptions(method, options, sourceOverride, sourceRoot);
 
     // Check if already installed
     const info = await this.detector.detect(this.projectPath, source);
@@ -89,7 +125,9 @@ export class GuideManager {
     }
 
     const strategy = this.getStrategy(method, exclude);
-    const result = await strategy.install(this.projectPath, source, targetDir);
+    // Tarball-only options go to the tarball strategy and no other.
+    const strategyArgs = method === 'tarball' ? [{ ...options, sourceRoot }] : [];
+    const result = await strategy.install(this.projectPath, source, targetDir, ...strategyArgs);
 
     // Create user artifact directories so the project is ready to use
     this.createUserDirectories();
@@ -202,10 +240,14 @@ export class GuideManager {
     }
   }
 
-  /** Update an existing guide installation */
-  async update(opts?: { confirmed?: boolean }): Promise<UpdateResult> {
+  /**
+   * Update an existing guide installation. `source`, `version` and
+   * `sourceRoot` are tarball-only (see assertTarballOnlyOptions); `source`
+   * overrides guide.source for this call.
+   */
+  async update(opts: GuideUpdateOptions = {}): Promise<UpdateResult> {
     const exclude = await this.resolveExclude();
-    const source = await this.resolveSource();
+    const source = opts.source || (await this.resolveSource());
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
 
     const info = await this.detector.detect(this.projectPath, source);
@@ -219,13 +261,17 @@ export class GuideManager {
     if (verdict.outcome === 'block') {
       throw new BranchGuardBlockedError(verdict.trunk, verdict.current);
     }
-    if (verdict.outcome === 'warn' && opts?.confirmed !== true) {
+    if (verdict.outcome === 'warn' && opts.confirmed !== true) {
       throw new BranchGuardWarnError(verdict.trunk, verdict.current, verdict.ancestry);
     }
 
+    const sourceRoot = opts.sourceRoot ?? this.projectPath;
+    assertTarballOnlyOptions(info.method, opts, opts.source, sourceRoot);
+
     const strategy = this.getStrategy(info.method, exclude);
+    const strategyArgs = info.method === 'tarball' ? [{ version: opts.version, sourceRoot }] : [];
     const result = {
-      ...(await strategy.update(this.projectPath, targetDir, source)),
+      ...(await strategy.update(this.projectPath, targetDir, source, ...strategyArgs)),
       ...excludeIgnoredField(info.method, exclude),
     };
 

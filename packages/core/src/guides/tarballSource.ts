@@ -96,6 +96,16 @@ function looksLikePath(source: string): boolean {
 }
 
 /**
+ * Absolute path when `source` names an existing file (relative paths resolve
+ * against `projectRoot`), else null. A directory is not a local archive: a
+ * submodule or clone source may legitimately be a local git directory.
+ */
+export function localSourceFile(source: string, projectRoot: string): string | null {
+  const path = resolve(projectRoot, source);
+  return existsSync(path) && statSync(path).isFile() ? path : null;
+}
+
+/**
  * Decide whether `source` is a local archive or a remote repository, and
  * which tag applies. A source is local when it names an existing file; a
  * relative path resolves against `projectRoot` (callers pass the CLI's cwd or
@@ -106,8 +116,8 @@ export async function resolveTarballSource(
   version: string | undefined,
   projectRoot: string
 ): Promise<ResolvedTarballSource> {
-  const localPath = resolve(projectRoot, source);
-  if (existsSync(localPath) && statSync(localPath).isFile()) {
+  const localPath = localSourceFile(source, projectRoot);
+  if (localPath !== null) {
     if (!LOCAL_ARCHIVE_EXTENSIONS.some((ext) => localPath.endsWith(ext))) {
       throw new Error(`--source ${source} is a local file but not a .tgz/.tar.gz archive`);
     }
@@ -119,7 +129,7 @@ export async function resolveTarballSource(
     return { kind: 'local', path: localPath, tag: LOCAL_VERSION_MARKER };
   }
   if (looksLikePath(source)) {
-    throw new Error(`--source ${source}: file not found (looked for ${localPath})`);
+    throw new Error(`--source ${source}: file not found (looked for ${resolve(projectRoot, source)})`);
   }
 
   const tags = await listRemoteTags(source);

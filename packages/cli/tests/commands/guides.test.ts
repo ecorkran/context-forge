@@ -237,7 +237,7 @@ describe('cf guides install — deprecated strategy alias (D5)', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'guides', 'install', '--strategy', 'manual', '--project', 'proj_001']);
 
-    expect(mockInstall).toHaveBeenCalledWith('manual', undefined);
+    expect(mockInstall).toHaveBeenCalledWith('manual', undefined, { version: undefined, sourceRoot: process.cwd() });
   });
 
   it('reports the canonical method on stdout for an alias install', async () => {
@@ -292,7 +292,7 @@ describe('cf guides install — deprecated strategy alias (D5)', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'guides', 'install', '--project', 'proj_001']);
 
-    expect(mockInstall).toHaveBeenCalledWith(undefined, undefined);
+    expect(mockInstall).toHaveBeenCalledWith(undefined, undefined, { version: undefined, sourceRoot: process.cwd() });
     const stderr = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
     expect(stderr).toContain('deprecated');
     const stdout = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
@@ -418,7 +418,7 @@ describe('cf guides update', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001', '--yes']);
 
-    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, expect.objectContaining({ confirmed: true }));
     expect(mockAskConfirmation).not.toHaveBeenCalled();
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('updated successfully');
@@ -436,7 +436,7 @@ describe('cf guides update', () => {
     await program.parseAsync(['node', 'cf', 'guides', 'update', '--project', 'proj_001']);
 
     expect(mockAskConfirmation).toHaveBeenCalled();
-    expect(mockUpdate).toHaveBeenNthCalledWith(2, { confirmed: true });
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, expect.objectContaining({ confirmed: true }));
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('updated successfully');
   });
@@ -452,6 +452,84 @@ describe('cf guides update', () => {
     expect(process.exit).not.toHaveBeenCalled();
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('cancelled');
+  });
+});
+
+describe('cf guides --source and --version', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResolveProjectWorktree.mockResolvedValue({ id: 'proj_001', source: 'flag' });
+    mockGetAll.mockResolvedValue([sampleProject]);
+    mockGetById.mockResolvedValue(sampleProject);
+    MockGuideManager.mockImplementation(() => ({
+      status: mockStatus,
+      install: mockInstall,
+      update: mockUpdate,
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  const installed = {
+    success: true, version: 'local', method: 'tarball', path: '/tmp/test/project-documents/ai-project-guide',
+  };
+  const updated = { success: true, previousVersion: 'v0.12.0', newVersion: 'v0.2.0', method: 'tarball' };
+
+  it('install forwards --source and --version, resolving relative paths against the cwd', async () => {
+    mockInstall.mockResolvedValue({ ...installed, version: 'v0.2.0' });
+
+    await createProgram().parseAsync([
+      'node', 'cf', 'guides', 'install', '--strategy', 'tarball', '--source', './g.tgz', '--version', 'v0.2.0', '--project', 'proj_001',
+    ]);
+
+    expect(mockInstall).toHaveBeenCalledWith('tarball', './g.tgz', { version: 'v0.2.0', sourceRoot: process.cwd() });
+  });
+
+  it('install prints the resulting version', async () => {
+    mockInstall.mockResolvedValue(installed);
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', 'install', '--source', './g.tgz', '--project', 'proj_001']);
+
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('local');
+  });
+
+  it('update forwards --source and --version with the cwd as the root', async () => {
+    mockUpdate.mockResolvedValue(updated);
+
+    await createProgram().parseAsync([
+      'node', 'cf', 'guides', 'update', '--source', './g.tgz', '--version', 'v0.2.0', '--project', 'proj_001',
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith({ source: './g.tgz', version: 'v0.2.0', sourceRoot: process.cwd() });
+  });
+
+  it('update keeps --source and --version on the branch-guard retry', async () => {
+    mockUpdate
+      .mockRejectedValueOnce(new BranchGuardWarnError('main', 'feature-x', 'descends'))
+      .mockResolvedValueOnce(updated);
+
+    await createProgram().parseAsync([
+      'node', 'cf', 'guides', 'update', '--version', 'v0.2.0', '--project', 'proj_001', '--yes',
+    ]);
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      source: undefined, version: 'v0.2.0', sourceRoot: process.cwd(), confirmed: true,
+    });
+  });
+
+  it.each([
+    ['install', mockInstall],
+    ['update', mockUpdate],
+  ])('a tarball-only error from %s prints as a failure with a non-zero exit', async (command, mock) => {
+    mock.mockRejectedValue(new Error('--version and local --source apply to tarball installs only (this guide is installed as submodule)'));
+
+    await createProgram().parseAsync(['node', 'cf', 'guides', command, '--version', 'v0.2.0', '--project', 'proj_001']);
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('tarball installs only');
   });
 });
 

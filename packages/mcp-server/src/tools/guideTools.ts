@@ -33,6 +33,14 @@ const GUIDE_STRATEGY_DESCRIPTION = Object.entries(GUIDE_STRATEGIES)
   .map(([name, { summary }]) => describeGuideStrategy(name, summary))
   .join(', ');
 
+const SOURCE_PARAM_DESCRIPTION =
+  'Source repository URL, or the path of a local .tgz/.tar.gz guide archive (tarball installs only; ' +
+  'a relative path resolves against the project root, and the guide is recorded as version "local"). ' +
+  'Overrides guide.source config for this call.';
+const VERSION_PARAM_DESCRIPTION =
+  'Release tag to use instead of the newest, e.g. a tag listed by the remote (tarball installs only). ' +
+  'Cannot be combined with a local archive source.';
+
 interface ResolvedProject {
   projectPath: string;
   project: ProjectData;
@@ -137,19 +145,17 @@ export function registerGuideTools(server: McpServer): void {
             "Installation strategy. Overrides guide.git_strategy config for this call. " +
               "'manual' is a deprecated alias for 'tarball'."
           ),
-        source: z
-          .string()
-          .optional()
-          .describe('Source repository URL. Overrides guide.source config for this call.'),
+        source: z.string().optional().describe(SOURCE_PARAM_DESCRIPTION),
+        version: z.string().optional().describe(VERSION_PARAM_DESCRIPTION),
       },
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
-    async ({ projectId, strategy, source }) => {
+    async ({ projectId, strategy, source, version }) => {
       try {
         const { projectPath } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
-        const result = await manager.install(strategy, source);
+        const result = await manager.install(strategy, source, { version });
         // Deprecation surfaces as a structured notice rather than a log line,
         // since an MCP client has no stderr channel to read (D4). Same shared
         // shape every other tool uses.
@@ -192,24 +198,27 @@ export function registerGuideTools(server: McpServer): void {
               'trunk/integration branch. Omit on the first call; if the response asks for ' +
               'confirmation, retry the same call with confirm: true.'
           ),
+        source: z.string().optional().describe(SOURCE_PARAM_DESCRIPTION),
+        version: z.string().optional().describe(VERSION_PARAM_DESCRIPTION),
       },
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
-    async ({ projectId, confirm }) => {
+    async ({ projectId, confirm, source, version }) => {
       try {
         const { projectPath, project } = await resolveProjectWithData(projectId);
         const cm = new ConfigManager(projectPath);
         const manager = new GuideManager(projectPath, cm);
 
+        const sourceOptions = { source, version };
         let result;
         try {
-          result = await manager.update();
+          result = await manager.update(sourceOptions);
         } catch (error) {
           if (error instanceof BranchGuardWarnError) {
             if (confirm !== true) {
               return errorResult(`${error.message} Retry this call with confirm: true to proceed.`);
             }
-            result = await manager.update({ confirmed: true });
+            result = await manager.update({ ...sourceOptions, confirmed: true });
           } else if (error instanceof BranchGuardBlockedError) {
             return errorResult(error.message);
           } else {

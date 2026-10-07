@@ -6,8 +6,8 @@ lld: user/slices/931-slice.tarball-guide-update-preview-exclude-fixes-version-pi
 dependencies: [212, 916, 925]
 projectState: main is clean at 1fb0fb5; published version is 0.19.1. TarballStrategy.ts is 377 lines and owns tag lookup, download, extract, staging swap and commit. The 931 design passed review (concerns addressed). cf guides update has no preview, no --version, and no --source; guide.exclude refuses the whole project-guides tree and the re-extract commit omits .context-forge.toml.
 dateCreated: 20261006
-dateUpdated: 20261006
-status: not_started
+dateUpdated: 20261007
+status: in_progress
 ---
 
 ## Context Summary
@@ -60,77 +60,77 @@ status: not_started
 
 ### Part 0 — Branch
 
-- [ ] **Task 0: Create the slice branch** (effort: 1)
-  - [ ] Run `cf config get git.integration_branch`. If it prints a value,
+- [x] **Task 0: Create the slice branch** (effort: 1)
+  - [x] Run `cf config get git.integration_branch`. If it prints a value,
         STOP and ask the Project Manager. The plan assumes it is empty and
         the target is `main`.
-  - [ ] From a clean `main`, run
+  - [x] From a clean `main`, run
         `git checkout -b 931-slice.tarball-guide-update-preview-exclude-fixes-version-pinning main`.
         If the branch already exists, switch to it instead.
-  - [ ] Success: `git branch --show-current` prints the slice branch name.
+  - [x] Success: `git branch --show-current` prints the slice branch name.
 
 ### Part 1 — Extract tarballSource.ts (no behavior change)
 
-- [ ] **Task 1: Extract archive opening and tag lookup** (effort: 3)
-  - [ ] Create `core/src/guides/tarballSource.ts`. Move into it, unchanged in
+- [x] **Task 1: Extract archive opening and tag lookup** (effort: 3)
+  - [x] Create `core/src/guides/tarballSource.ts`. Move into it, unchanged in
         behavior: `PROXY_ENV_VARS`, `activeProxyEnvVars`, `describeRateLimit`,
         `parseGitHubOwnerRepo`, the tag-list half of `fetchLatestTag`, and the
         HTTP half of `downloadAndExtract` (URL, proxy hint, error wrapping,
         rate-limit message, dispatcher close).
-  - [ ] Shape the move so the tag list is a separate exported function
+  - [x] Shape the move so the tag list is a separate exported function
         (`listRemoteTags(source)`, newest first) and the latest tag is its
         first element. Design "Special Considerations": pinned resolution
         reuses this one list, with no second remote call.
-  - [ ] Add an exported stream opener that returns a Node `Readable` of the
+  - [x] Add an exported stream opener that returns a Node `Readable` of the
         raw `.tar.gz` bytes for a remote tag. `TarballStrategy` keeps the
         `pipeline(stream, createGunzip(), extract({ cwd, strip: 1, filter }))`
         part. The dispatcher must still be closed after the pipeline ends, so
         return an object `{ stream, close }` or accept a callback; choose one
         and use it consistently.
-  - [ ] Re-export `activeProxyEnvVars`, `describeRateLimit` and
+  - [x] Re-export `activeProxyEnvVars`, `describeRateLimit` and
         `parseGitHubOwnerRepo` from `TarballStrategy.ts` (or update imports in
         `core/src/guides/index.ts` and existing tests) so no importer breaks.
-  - [ ] Success: `pnpm -r build` and the existing
+  - [x] Success: `pnpm -r build` and the existing
         `TarballStrategy.test.ts` pass with **no edits to test assertions**
         (import paths may change). `TarballStrategy.ts` is under ~300 lines.
 
-- [ ] **Task 1T: Tests for the moved helpers** (effort: 2)
-  - [ ] Create `core/tests/guides/tarballSource.test.ts`. Move the
+- [x] **Task 1T: Tests for the moved helpers** (effort: 2)
+  - [x] Create `core/tests/guides/tarballSource.test.ts`. Move the
         `describeRateLimit`, `activeProxyEnvVars` and `parseGitHubOwnerRepo`
         describe blocks out of `TarballStrategy.test.ts` into it (copy, then
         delete the originals once green).
-  - [ ] Add a test for `listRemoteTags`: given mocked `gitExec` stdout with
+  - [x] Add a test for `listRemoteTags`: given mocked `gitExec` stdout with
         several tags plus a non-semver tag, it returns only semver tags sorted
         newest first; a tag-less remote returns an empty array.
-  - [ ] Success: all tests pass; no test lost (count before vs after).
+  - [x] Success: all tests pass; no test lost (count before vs after).
 
-- [ ] **Task 1C: Commit** — `refactor(core): extract tarballSource from TarballStrategy`
+- [x] **Task 1C: Commit** — `refactor(core): extract tarballSource from TarballStrategy`
 
 ### Part 2 — Local tarball source and --version (core)
 
-- [ ] **Task 2: Local-archive fixture helper** (effort: 2)
-  - [ ] Create `core/tests/guides/helpers/guideArchiveFixture.ts`. It builds a
+- [x] **Task 2: Local-archive fixture helper** (effort: 2)
+  - [x] Create `core/tests/guides/helpers/guideArchiveFixture.ts`. It builds a
         real `.tgz` in a temp dir using `tar.create` with a single top-level
         directory (`ai-project-guide/`) containing a small file set (at least:
         `project-guides/lint/csharp/a.txt`, `project-guides/lint/python/b.txt`,
         `project-guides/rules/r.md`, `scripts/s.sh`). Parameters: file map and
         optional second top-level directory (for the multi-root case).
-  - [ ] Export a helper that also writes a deliberately truncated copy of an
+  - [x] Export a helper that also writes a deliberately truncated copy of an
         archive (for the corrupt case).
-  - [ ] Success: a short self-test (`guideArchiveFixture.test.ts`) extracts the
+  - [x] Success: a short self-test (`guideArchiveFixture.test.ts`) extracts the
         fixture with `tar.extract({ strip: 1 })` and finds the expected files.
 
-- [ ] **Task 3: Source resolution** (effort: 3)
-  - [ ] In `tarballSource.ts` add `resolveTarballSource(source, version?,
+- [x] **Task 3: Source resolution** (effort: 3)
+  - [x] In `tarballSource.ts` add `resolveTarballSource(source, version?,
         projectRoot)` returning a discriminated union
         `{ kind: 'remote'; tag } | { kind: 'local'; path; tag: 'local' }`.
         Add `LOCAL_VERSION_MARKER = 'local'` as the single definition (put it
         beside `VERSION_MARKER_FILE` in `types.ts`).
-  - [ ] Remote, no version: newest tag from `listRemoteTags` (error
+  - [x] Remote, no version: newest tag from `listRemoteTags` (error
         `Could not determine latest version from remote.` if empty).
-  - [ ] Remote with version: tag must be in the list; otherwise throw naming
+  - [x] Remote with version: tag must be in the list; otherwise throw naming
         the requested tag and the newest available tag.
-  - [ ] Local detection per D5: a source is local when it names an existing
+  - [x] Local detection per D5: a source is local when it names an existing
         file. Relative paths resolve against `projectRoot` argument (callers
         pass CLI cwd or the project root). Existing path not ending in `.tgz`
         or `.tar.gz` → throw `--source <path> is a local file but not a
@@ -138,70 +138,70 @@ status: not_started
         or `~`, or contains a backslash → "file not found" error naming the
         path (not the GitHub owner/repo parse error). Paths outside the
         project root are allowed.
-  - [ ] Local plus `version` → throw `--version cannot be combined with a
+  - [x] Local plus `version` → throw `--version cannot be combined with a
         local --source; a local archive is always recorded as "local"`.
-  - [ ] Add the local stream opener: `createReadStream(path)`; a read error
+  - [x] Add the local stream opener: `createReadStream(path)`; a read error
         mid-stream must surface naming the file (wrap in the pipeline step in
         Task 4).
-  - [ ] Success: function is pure apart from `existsSync`/`gitExec`; builds.
+  - [x] Success: function is pure apart from `existsSync`/`gitExec`; builds.
 
-- [ ] **Task 3T: Source resolution tests** (effort: 2)
-  - [ ] In `tarballSource.test.ts` (temp dirs for local cases, mocked
+- [x] **Task 3T: Source resolution tests** (effort: 2)
+  - [x] In `tarballSource.test.ts` (temp dirs for local cases, mocked
         `gitExec` for remote): remote latest; remote pinned hit; remote
         pinned miss (message names tag and newest); local `.tgz`; local
         `.tar.gz`; existing non-archive file; missing path-like source;
         owner/repo URL still parsed as remote; local plus version refused;
         relative local path resolved against the given root.
-  - [ ] Success: all pass; each error message asserted by its flag/key text.
+  - [x] Success: all pass; each error message asserted by its flag/key text.
 
-- [ ] **Task 4: Types and source/version wiring in TarballStrategy** (effort: 3)
-  - [ ] Add `TarballUpdateOptions { version?; confirm? }` and extend
+- [x] **Task 4: Types and source/version wiring in TarballStrategy** (effort: 3)
+  - [x] Add `TarballUpdateOptions { version?; confirm? }` and extend
         `InstallStrategy.install/update` with an optional trailing `options`
         parameter in `types.ts` (design: Core types). Add `GuidePreview`,
         and the `UpdateResult` fields `preview`, `unchanged`, `cancelled`,
         `configCommitted` now so later tasks only fill them in.
-  - [ ] `TarballStrategy.install` and `.update` call `resolveTarballSource`
+  - [x] `TarballStrategy.install` and `.update` call `resolveTarballSource`
         and use its tag for the marker, commit message and result.
-  - [ ] `extractAndSwap` takes the resolved source (not a URL + tag) and
+  - [x] `extractAndSwap` takes the resolved source (not a URL + tag) and
         opens the stream via `tarballSource`.
-  - [ ] Short-circuit "already up to date" only for remote sources (design
+  - [x] Short-circuit "already up to date" only for remote sources (design
         Data Flow step 4). A local source always stages.
-  - [ ] Success: build passes; existing `TarballStrategy.test.ts` still
+  - [x] Success: build passes; existing `TarballStrategy.test.ts` still
         passes (update its mocks only where the call shape changed).
 
-- [ ] **Task 4T: Strategy tests with a real local archive** (effort: 2)
-  - [ ] Create `core/tests/guides/tarballStrategyLocal.test.ts` (real fs, temp
+- [x] **Task 4T: Strategy tests with a real local archive** (effort: 2)
+  - [x] Create `core/tests/guides/tarballStrategyLocal.test.ts` (real fs, temp
         project dir with a `project-documents/` folder; mock only `gitExec`/
         `commitPathsIfChanged`).
-  - [ ] Cases: local install records marker `local` and extracts the files;
+  - [x] Cases: local install records marker `local` and extracts the files;
         local update over an existing guide swaps it; local update with the
         same marker still stages (not short-circuited).
-  - [ ] Local-marker status (design Integration Requirements): after a local
+  - [x] Local-marker status (design Integration Requirements): after a local
         install, `TarballStrategy.detect()` returns version `local`;
         `GuideManager` status/info for that install reports an update
         available when the latest remote tag is mocked; a following plain
         update (no `source`, remote mocked via `gitExec` and a stubbed stream
         opener) records the latest remote tag, not `local`.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 4B: Archive error handling and multi-root guard** (effort: 3)
-  - [ ] Wrap the extract pipeline so a gunzip, tar or read error throws
+- [x] **Task 4B: Archive error handling and multi-root guard** (effort: 3)
+  - [x] Wrap the extract pipeline so a gunzip, tar or read error throws
         naming the archive (file path for local, URL for remote), after
         staging is removed.
-  - [ ] Multi-top-level guard (D5): the extract filter records the first path
+  - [x] Multi-top-level guard (D5): the extract filter records the first path
         segment of every entry; a second distinct segment aborts extraction,
         removes staging and throws `Archive must contain a single top-level
         directory`.
-  - [ ] Success: build passes; existing tests still pass.
+  - [x] Success: build passes; existing tests still pass.
 
-- [ ] **Task 4BT: Archive failure tests** (effort: 2)
-  - [ ] In `tarballStrategyLocal.test.ts`: corrupt (truncated) archive throws
+- [x] **Task 4BT: Archive failure tests** (effort: 2)
+  - [x] In `tarballStrategyLocal.test.ts`: corrupt (truncated) archive throws
         naming the file, staging removed, existing guide untouched;
         multi-top-level archive throws, staging removed, guide untouched.
-  - [ ] Success: all pass; `ls` of the temp project shows no
+  - [x] Success: all pass; `ls` of the temp project shows no
         `.ai-project-guide.staging` after any failure case.
 
-- [ ] **Task 4C: Commit** — `feat(core): add local tarball source and version pinning to TarballStrategy`
+- [x] **Task 4C: Commit** — `feat(core): add local tarball source and version pinning to TarballStrategy`
 
 ### Part 3 — GuideManager validation and CLI/MCP wiring for source and version
 
