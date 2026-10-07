@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 20261007
+
 ### Added
 
 - **`cf worktree list` tags the default worktree `(default)`**, and every worktree in `--json` and the MCP tools carries `isDefault`. `cf worktree rm` and the MCP `worktree_rm` result name the default worktree (`defaultWorktree { id, name }`) (#112)

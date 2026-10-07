@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-07
 
+### Release 0.19.3
+
+- **Contents:** Slice 932 — removing a worktree hands its index range back to the default worktree when the ranges border (#76). Slice 934 — the default worktree is identified by a stored `isDefault` marker instead of its name, with in-memory migration of existing data, a `(default)` tag in `cf worktree list`, and `defaultWorktree` on the remove result (#112).
+
+Tags: @context-forge/core@0.19.3, @context-forge/cli@0.19.3, @context-forge/mcp@0.19.3, @context-forge/context-forge@0.19.3
+
 ### Release 0.19.2
 
 - **Contents:** Slice 931 — `cf guides update` previews added/removed/changed files before swapping and asks to continue (#110); `guide.exclude` can skip a single `project-guides/lint/<language>` and its change is committed with the re-extract (#111); `--version <tag>` and local `--source <path.tgz>` on `cf guides install|update` and the MCP tools (#93).
