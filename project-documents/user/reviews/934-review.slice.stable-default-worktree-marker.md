@@ -11,54 +11,54 @@ aiModel: claude-sonnet-5-5
 status: complete
 dateCreated: 20261007
 dateUpdated: 20261007
-reviewedSha: 0924c7e2f39fd8f8607b2f042aaf5b1e2da3451f
-revision_number: 1
+reviewedSha: 7aa7717f632e81bdffcd7f90eab4e480487a10af
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
-durationSeconds: 17.7
+durationSeconds: 21.9
 runId: run-20261007-p4-efda7554
 squadronVersion: 0.21.0
 findings:
   - id: F001
     severity: pass
-    category: scope-alignment
-    summary: "Fixes a project-rule violation that fits the stated scope"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Overview"
+    category: architecture
+    summary: "Dependency direction and layer boundaries are correct"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Architecture"
   - id: F002
     severity: pass
-    category: layering
-    summary: "Dependency direction is correct and enforceable"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Component Structure"
+    category: scope
+    summary: "Hard-coded value and label-as-structure anti-pattern is consolidated"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:17-21"
   - id: F003
     severity: pass
     category: error-handling
-    summary: "Failure modes for the new I/O path are enumerated"
+    summary: "Failure modes for the new I/O path are enumerated with explicit handling"
     location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
   - id: F004
-    severity: concern
-    category: architectural-boundaries
-    summary: "Write-on-read migration changes the store's responsibilities"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Where the migration runs: the store, not the service"
+    severity: pass
+    category: nfr
+    summary: "NFR handling"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:294"
   - id: F005
     severity: concern
-    category: design-consistency
-    summary: "Migration heuristic relies on name matching, which the slice itself calls an anti-pattern"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Migration rule (`markLegacyDefaultWorktree`)"
+    category: scope
+    summary: "Slice size and risk exceed the architecture's \"low-risk maintenance\" framing"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:17-41"
   - id: F006
     severity: concern
-    category: integration-points
-    summary: "Public contract changes are not carried in the `interfaces` field"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:7"
+    category: error-handling
+    summary: "Write-on-read makes read-only commands fail in read-only environments"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:291"
   - id: F007
     severity: note
-    category: nfr
-    summary: "No NFRs apply, and the slice says so"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Special Considerations"
+    category: documentation
+    summary: "Design-review resolution tables embedded in the slice doc"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:303-325"
   - id: F008
     severity: note
-    category: process
-    summary: "Design review resolution table is traceable"
-    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md#Design Review Resolution"
+    category: dependencies
+    summary: "Out-of-scope stdout writes in storage are flagged but not tracked"
+    location: "project-documents/user/slices/934-slice.stable-default-worktree-marker.md:295-300"
 ---
 
 # Review: slice — slice 934
@@ -68,41 +68,56 @@ findings:
 
 ## Findings
 
-### [PASS] Fixes a project-rule violation that fits the stated scope
+### [PASS] Dependency direction and layer boundaries are correct
 
-The slice replaces name-based matching of the default worktree with a stored flag. This follows the project rule against user-accessible labels as logical structure. It fits the "Pattern consolidation and code quality improvements" scope item. The slice has acceptance criteria and a walkthrough, so it meets the "not open-ended" principle. It also records that the architecture has no explicit "defect fix" scope entry and leaves that question to the Project Manager, which is the right call.
+The design moves the default-worktree knowledge into `utils/defaultWorktree.ts`, which imports only from `types/`. That gives `storage → utils → types` and `services → utils, storage (interface)`. The rejected alternative, injecting the migration into the store, is argued sensibly. The design also takes the `WorktreeService.ts` size problem (482 lines) into account.
 
-### [PASS] Dependency direction is correct and enforceable
+### [PASS] Hard-coded value and label-as-structure anti-pattern is consolidated
 
-The shared logic lives in a new `utils/defaultWorktree.ts` that imports only from `types/`. This keeps `storage → utils → types` and `services → utils`, with no `storage → services` import. The slice also considers and rejects injecting the migration into the store, with reasons. It adds a testable technical requirement that `storage/` never imports from `services/`.
+The slice fits the architecture's "Pattern consolidation and code quality improvements" and "Hard-coded values → configuration or constants" scope items. A grep-based technical requirement (line 237) keeps the name literal in one module. Success criteria are specific, which satisfies the "intentional, not open-ended" principle.
 
-### [PASS] Failure modes for the new I/O path are enumerated
+### [PASS] Failure modes for the new I/O path are enumerated with explicit handling
 
-The load-time migration is the one new I/O path. The slice covers write failure (the command fails and the init promise clears so the next access retries), corrupt or unparseable files, concurrent in-process calls (stored init promise), and cross-process races (deterministic, idempotent result, no locking, explicitly out of scope). Ambiguous and no-candidate migration outcomes each have a defined result and warning. Each of these has a test requirement. The duplicate-marker error is limited to the range-changing paths, and the diagnostic paths keep working.
+The migration is a new write-on-read I/O path. The slice covers each failure mode:
+- A failed write rejects the load, and the init promise is cleared so the next access retries.
+- A corrupt file follows the existing `FileStorageService` recovery.
+- Concurrent in-process callers are closed off by storing the init promise.
+- Cross-process races are acknowledged and bounded.
+- Stdout and stderr are separated for MCP stdio.
 
-### [CONCERN] Write-on-read migration changes the store's responsibilities
+Tests are specified for each of these. This is stronger than the criteria require.
 
-`FileProjectStore.ensureInitialized()` now reads, applies a domain migration, writes, and prints warnings to stderr. The store already does legacy-location migration, so this has precedent. Printing to stderr from a storage layer is a new kind of side effect, though. It also reaches MCP server processes, where stderr use may not be appropriate. The slice does not say how warnings behave under the MCP server (stdio transport) or whether a logger abstraction exists. State the output channel for non-CLI consumers, or route warnings through whatever existing logging mechanism the store uses.
+### [PASS] NFR handling
 
-### [CONCERN] Migration heuristic relies on name matching, which the slice itself calls an anti-pattern
+The architecture states no latency or throughput targets. The slice says so and gives a cost note.
 
-The one-time migration identifies the legacy default by name (`default`, case-insensitive) and then by `worktreePath == projectPath`. This is a defensible bootstrap, and the slice confines it to one function. It is still a best-effort guess at user intent, and the migration is irreversible once written, because all absent values become explicit `false`. The slice covers the ambiguous cases with warnings and a hand-edit recovery. It also excludes any command to move the marker, so recovery for misclassified data depends on hand-editing JSON. This is acceptable for a low-risk initiative. Consider recording a trigger for the follow-up recovery command, for example how many warnings users hit.
+### [CONCERN] Slice size and risk exceed the architecture's "low-risk maintenance" framing
 
-### [CONCERN] Public contract changes are not carried in the `interfaces` field
+The 900 architecture sets `riskLevel: low`. Its principle is to group small items into themed slices. This slice goes further than a refactor:
+- a persisted schema change
+- a store-level data migration that rewrites user data on first read
+- a new heuristic with three warning outcomes
+- a changed `RemoveWorktreeResult` contract
+- new CLI output (the `(default)` tag)
+- MCP description changes
 
-`interfaces: []` is justified in the document, since no planned slice consumes the new contracts. But the slice changes externally visible contracts: `isDefault` on every `--json` and MCP worktree response, `RemoveWorktreeResult.defaultWorktree`, and the CLI `list` output. MCP tool descriptions change as well. Downstream agents and scripts that parse `list` table output could be affected by the added `(default)` tag. The slice calls these additive but gives no compatibility statement for table-output consumers. Add a line on whether table output is a supported parse target.
+The architecture's scope list has no "defects in shipped code" entry, and the slice says so itself (line 21). That leaves the scope fit resting on a stretched reading of "pattern consolidation." The PM decision on scope is deferred, not made. Record it before implementation, either by adding the scope entry to the 900 architecture or by getting explicit PM sign-off on the slice document. Consider whether the `(default)` tag and the `defaultWorktree` result field could be split into a follow-up to shrink the blast radius. The doc's own justification is that the tag supports migration-warning recovery, so this is a judgment call.
 
-### [NOTE] No NFRs apply, and the slice says so
+### [CONCERN] Write-on-read makes read-only commands fail in read-only environments
 
-The 900 architecture sets no latency or throughput targets. The slice notes this and adds a cost estimate: one in-memory pass, at most one write per legacy file. No restatement is required.
+If the migration write fails, `ensureInitialized()` rejects and the command fails. This applies to `cf worktree list`, `cf check` and MCP `worktree_list`, and to any other store access, including commands that never touch worktrees. In a read-only config directory, such as a locked-down CI image or a shared config, upgrading would break commands that worked before. The slice rejects the in-memory fallback for sound reasons (consumers acting on an unsaved default), but it does not address the regression for read-only consumers. State explicitly whether this breakage is accepted. Alternatively, scope the hard failure to mutating operations, with read paths proceeding on the in-memory migrated data plus a stderr warning. The same data feeds only advisory output on read paths, so the "act on an unsaved default" concern applies much less there.
 
-### [NOTE] Design review resolution table is traceable
+### [NOTE] Design-review resolution tables embedded in the slice doc
 
-Each prior finding maps to a section of the document that addresses it. The finding IDs skip F006, which may be intentional.
+Review-resolution history sits in the design document. It is useful for traceability, but it duplicates the content of the review file. It may be better kept only in the review artifact so the slice doc stays a forward-looking design.
+
+### [NOTE] Out-of-scope stdout writes in storage are flagged but not tracked
+
+The slice identifies existing `console.log` calls in the storage layer that could corrupt the MCP stdio stream, and defers them to the PM. This is the right call for scope. Make sure it becomes a tracked maintenance item, since it fits the "Anticipated Slices" themes (CLI/MCP pattern consistency).
 
 ### Run Digest
 
-- Response length: 5276 chars
+- Response length: 5248 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -114,7 +129,7 @@ Each prior finding maps to a section of the document that addresses it. The find
 - Effort: backend default
 - Turns: not computed
 - Tokens — prompt / cached / completion / reasoning: not computed / not computed / not computed / not computed
-- Duration: 17.7 s
+- Duration: 21.9 s
 - `## Summary` located: yes
 - `## Findings` located: yes
 - Finding-shaped matches — whole response: 8
