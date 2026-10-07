@@ -4,7 +4,7 @@ slice: restore-default-worktree-range-on-sibling-removal
 project: context-forge
 lld: user/slices/932-slice.restore-default-worktree-range-on-sibling-removal.md
 dependencies: []
-projectState: main at 0.19.2 (slice 931 shipped). removeWorktree() never restores a range chopDefaultRange() took from the default worktree unless no worktrees remain. Design reviewed (CONCERNS, resolved in the design).
+projectState: main at 0.19.2 (slice 931 shipped). removeWorktree() never restores a range chopDefaultRange() took from the default worktree unless no worktrees remain. Design reviewed (CONCERNS, resolved in the design). Tasks reviewed (PASS).
 dateCreated: 20261007
 dateUpdated: 20261007
 status: not_started
@@ -26,6 +26,8 @@ status: not_started
   - [ ] In `WorktreeService.ts`, add one definition each of the default-worktree name, the `[0, 0]` empty-range sentinel, the default-name match and the inclusive range-overlap test. Use them in `addWorktree`'s forward migration, `chopDefaultRange` and `findOverlaps` (no behavior change).
   - [ ] In `types/worktree.ts`, add the skip reasons as one `as const` object (`range-override`, `not-adjacent`, `would-overlap`) and its type.
   - [ ] Success: build passes; existing worktree tests pass unchanged.
+
+- [ ] **Task 1C: Commit** — `refactor(core): extract shared worktree range helpers`
 
 - [ ] **Task 2: Restore or report on removal** (effort: 2)
   - [ ] In `removeWorktree`, when worktrees remain, apply the design's Rule to the remaining default. Return `restoredRange` when restored, or `rangeNotRestored { reason, defaultRange }` when a default remains, the target is not the default, and nothing was restored.
