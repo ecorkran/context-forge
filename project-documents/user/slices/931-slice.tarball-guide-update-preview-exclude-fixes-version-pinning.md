@@ -3,7 +3,7 @@ docType: slice-design
 slice: tarball-guide-update-preview-exclude-fixes-version-pinning
 project: context-forge
 parent: user/architecture/900-slices.maintenance-and-refactoring.md
-dependencies: []
+dependencies: [212, 916, 925]
 interfaces: []
 dateCreated: 20261006
 dateUpdated: 20261006
@@ -24,7 +24,7 @@ Three changes to the tarball install/update path, bundled because they all touch
 
 Everything is tarball-only. Submodule and clone keep today's behavior. A new flag passed to them is an explicit error, never silently ignored.
 
-This is maintenance on the guide install path built in slices 212 and 925, so it belongs in the 900 initiative.
+This is maintenance on the guide install path built in slices 212 and 925, so it belongs in the 900 initiative. Scope note: #110 and #93 add small user-facing capabilities, which goes beyond the 900 architecture's literal list (consolidation, dead code, tests, developer-experience fixes). The PM chose to bundle them here as guide-path work on the same code.
 
 ## Value
 
@@ -91,7 +91,7 @@ packages/mcp-server/src/tools/guideTools.ts version/source params, preview in re
 3. `TarballStrategy.update` calls `resolveTarballSource(source, version)`:
    - Remote with no version: `fetchLatestTag()` (today's behavior).
    - Remote with a version: the same `ls-remote` tag list, and the tag must be in it. Otherwise throw, naming the tag and the newest available.
-   - Local: the tag is `opts.version ?? LOCAL_VERSION_MARKER` (`'local'`).
+   - Local: the tag is always `LOCAL_VERSION_MARKER` (`'local'`). Combining a local source with `--version` is an error (`--version cannot be combined with a local --source; a local archive is always recorded as "local"`), because a label on an unverified archive could later be mistaken for the real release.
 4. Short-circuit (remote only): the marker equals the tag and the exclude record equals the configured list, so return "already up to date" without downloading. A local source always stages, because the same `'local'` marker can name different archives.
 5. Stage into `.ai-project-guide.staging` (existing).
 6. `diffGuideTrees(targetDir, staging)` returns `{ added, removed, changed }`. cf's own bookkeeping files (version marker, exclude record) are ignored.
@@ -104,7 +104,7 @@ packages/mcp-server/src/tools/guideTools.ts version/source params, preview in re
 
 ### State Management
 
-- **Version marker** (`.context-forge-guide-version`): the tag, the `--version` value, or `local`. Read back by `detect()` and status as before. `local` compares unequal to any remote tag, so status reports an update available and a plain `cf guides update` moves to the latest remote release. That is the right default after testing a local build.
+- **Version marker** (`.context-forge-guide-version`): a remote release tag, or `local`. Read back by `detect()` and status as before. `local` compares unequal to any remote tag, so status reports an update available and a plain `cf guides update` moves to the latest remote release. That is the right default after testing a local build.
 - **Exclude record**: unchanged.
 - **No new config keys.** A pin is not persisted (D4).
 
@@ -129,20 +129,33 @@ No new dependencies. The tree diff compares file size first, then bytes (`Buffer
 
 **D2: Confirm via callback, not throw-and-retry.** The branch guard throws and the caller re-calls with `confirmed: true`. That's cheap because it runs before any download. Re-calling after a preview would download the archive twice. `update` instead takes `confirm?: (preview: GuidePreview) => Promise<boolean>`:
 - The CLI passes a prompt, unless `--yes` was given.
-- MCP passes nothing, so the update proceeds and the preview is in the result.
+- MCP passes nothing, so the update proceeds and the preview is in the result. MCP has no interactive channel, and the branch guard's throw-and-retry (`confirmed`) exists only for the off-trunk question. A preview that cannot block is acceptable because the swap lands as one git commit that the caller can revert. `confirmed` answers the branch guard only and has no effect on the preview.
 - A non-interactive CLI run without `--yes` behaves as the branch guard does today: `askConfirmation` reads stdin.
 
 **D3: Committing the config change (#111b).** When the applied exclude list changes (same-version re-extract, or a version update that also changes excludes), and `.context-forge.toml` is modified, parse its HEAD version and its working version. If they differ only in `guide.exclude`, add the file to the commit paths. Otherwise leave it out and report: `.context-forge.toml has other uncommitted changes; it was left out of the guide commit`. No partial-file staging. `commitPathsIfChanged` already scopes the commit to its pathspecs, so nothing else the user staged is swept in.
 
 **D4: Pins are per call.** `--version` changes what this install or update fetches. It is not written to config. A later plain `update` resolves latest. Reproducible team installs can come later as a `guide.version` key if needed. Nobody has asked for it, and it would need its own rules for interacting with `update`.
 
-**D5: Local source detection.** `--source` is local when it names an existing file. Relative paths resolve against the CLI's working directory, and against the project root for MCP (the server's cwd is not meaningful to the caller). An existing path whose name doesn't end in `.tgz` or `.tar.gz` is refused: `--source <path> is a local file but not a .tgz/.tar.gz archive`. A non-existent path that looks like a path (starts with `.`, `/` or `~`, or contains a backslash) gets a "file not found" error, not the current "cannot parse GitHub owner/repo" error. An archive whose entries are not under a single top-level directory is refused, since `strip: 1` would scatter it.
+**D5: Local source detection.** `--source` is local when it names an existing file. Relative paths resolve against the CLI's working directory, and against the project root for MCP (the server's cwd is not meaningful to the caller). An existing path whose name doesn't end in `.tgz` or `.tar.gz` is refused: `--source <path> is a local file but not a .tgz/.tar.gz archive`. A non-existent path that looks like a path (starts with `.`, `/` or `~`, or contains a backslash) gets a "file not found" error, not the current "cannot parse GitHub owner/repo" error. An archive whose entries are not under a single top-level directory is refused, since `strip: 1` would scatter it. The extract filter records the first path segment of every entry. A second distinct segment aborts the extraction, discards staging and throws, so nothing reaches the guide directory. Paths outside the project root are allowed for the local source, in the CLI and in MCP. Both run with the user's own file access, and the archive is only read, never executed.
 
 **D6: Two prompts, in order.** In the rare case where the branch guard warns (off-trunk update), the user is asked twice:
 1. The branch question, before any download.
 2. The preview, after staging.
 
 These are different questions at different points. Merging them would force the branch guard to download first, or to change its contract. `--yes` answers both. One `update` never asks the same question twice.
+
+**Failure modes.** Every row ends with the guide directory untouched and staging removed, except the post-swap commit failure.
+
+| Failure | Handling |
+|---|---|
+| `ls-remote` fails or times out (latest or pinned) | Throw with the git error. Same as today's `fetchLatestTag`. No fallback to a cached or guessed tag. |
+| Truncated or corrupt local `.tgz`, or a stream read error mid-extract | Throw naming the file. Staging removed. |
+| Archive has more than one top-level directory | Abort extraction, throw (D5). |
+| Swap fails | Existing restore of the previous guide runs, then throw. |
+| Commit fails after the swap | Throw with the git error. The new guide is in place but uncommitted, and the message says so. No rollback, which matches today. |
+| Confirm prompt at closed or non-TTY stdin (EOF) | Counts as decline: staging removed, `cancelled`. It is never an implicit yes. `--yes` is the way to run unattended. |
+| `diffGuideTrees` hits an unreadable file | Throw naming the path. Symlinks are compared by link target, not followed. |
+| D3: `git show HEAD:` fails (repo has no commits) | Treated as "not in HEAD": the file counts as exclude-only only when `guide.exclude` is its sole key (see Special Considerations). Any other git failure throws. |
 
 **Errors:** All new failures throw with messages that name the flag or key involved. A non-tarball method with `--version` or a local source is an error, not a notice, because ignoring an explicit flag would silently install something other than what was asked.
 
@@ -209,7 +222,7 @@ configCommitted?: boolean;  // D3: whether .context-forge.toml went into the gui
 - `project-guides/lint` and `project-guides/rules` are refused, with the D1 messages.
 - After `cf config set guide.exclude …` and `cf guides update`, the re-extract commit contains both the guide change and `.context-forge.toml`, and `git status` is clean. With other uncommitted edits in `.context-forge.toml`, the file is left out and the notice is printed.
 - `--version v0.20.1` installs or updates to exactly that tag. A tag that doesn't exist fails, naming it and the newest tag.
-- `--source ./ai-project-guide.tgz` installs from the file and records `local`, or the `--version` value when given. A later plain update moves to the latest remote release.
+- `--source ./ai-project-guide.tgz` installs from the file and records `local`. Adding `--version` to a local source is an error. A later plain update moves to the latest remote release.
 - `--version` or a local `--source` on a submodule or clone install fails with the tarball-only error message.
 
 ### Technical Requirements
@@ -217,7 +230,8 @@ configCommitted?: boolean;  // D3: whether .context-forge.toml went into the gui
 - Unit tests:
   - `diffGuideTrees` (added/removed/changed, bookkeeping files ignored).
   - The protection rule (allowed and refused cases, message text).
-  - Source resolution (remote latest, remote pinned hit and miss, local file, local non-archive, missing path).
+  - Source resolution (remote latest, remote pinned hit and miss, local file, local non-archive, missing path, local plus `--version` refused).
+  - Failure modes: corrupt local archive, multi-top-level archive, EOF at the confirm prompt (declines).
   - The D3 exclude-only config check (exclude-only diff, mixed diff, unmodified file).
 - Strategy tests with a local fixture archive, for the decline path (guide unchanged, staging removed) and the unchanged path. The local source makes these testable without network.
 - `pnpm -r build`, typecheck, lint and tests all pass.
@@ -259,7 +273,7 @@ Run from a scratch project with a tarball guide installed, using the local build
    (cd ../ai-project-guide && git archive --format=tar.gz --prefix=ai-project-guide/ -o /tmp/apg.tgz HEAD)
    cf guides update --source /tmp/apg.tgz --yes
    cf guides info                            # Version: local, update available
-   cf guides update --source /tmp/apg.tgz --version v0.21.0-rc1 --yes   # marker records v0.21.0-rc1
+   cf guides update --source /tmp/apg.tgz --version v0.21.0-rc1 --yes   # fails: --version cannot be combined with a local --source
    cf guides update --version v9.9.9         # fails: tag not found, names newest
    ```
 5. **MCP**: call `guide_update` with no arguments on a project behind latest. The result includes `preview` counts and the update is applied.
