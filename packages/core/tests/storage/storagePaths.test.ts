@@ -18,7 +18,7 @@ describe('storagePaths', () => {
   let originalEnv: string | undefined;
 
   beforeEach(async () => {
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     tempHome = await mkdtemp(join(tmpdir(), 'cf-storage-paths-test-'));
     originalEnv = process.env.CONTEXT_FORGE_DATA_DIR;

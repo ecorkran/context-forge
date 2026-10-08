@@ -45,7 +45,7 @@ function migrateLegacyPreferences(newPath: string, deps: StoragePathDeps): void 
   try {
     deps.mkdirSyncRecursive(dirname(newPath));
     deps.renameSync(legacyPath, newPath);
-    console.log(`Migrated context-forge config from ${legacyPath} to ${newPath}`);
+    console.warn(`Migrated context-forge config from ${legacyPath} to ${newPath}`);
   } catch (err) {
     console.error(
       `Failed to migrate context-forge config from ${legacyPath} to ${newPath} — continuing with a fresh location at ${newPath}. Move the old directory manually if needed.`,

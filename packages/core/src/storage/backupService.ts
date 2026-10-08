@@ -38,7 +38,7 @@ export async function createVersionedBackup(
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const versionedPath = join(storagePath, `${filename}.${timestamp}.backup`);
   await fs.copyFile(filePath, versionedPath);
-  console.log(`Versioned backup created: ${filename}.${timestamp}.backup`);
+  console.warn(`Versioned backup created: ${filename}.${timestamp}.backup`);
 
   await pruneOldBackups(storagePath, filename, fs);
 }
@@ -70,7 +70,7 @@ export async function pruneOldBackups(
       for (const old of toDelete) {
         await fs.unlink(join(storagePath, old));
       }
-      console.log(
+      console.warn(
         `Pruned ${toDelete.length} old versioned backup(s) for ${filename}`
       );
     }

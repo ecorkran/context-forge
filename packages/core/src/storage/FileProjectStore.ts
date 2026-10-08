@@ -181,7 +181,7 @@ export class FileProjectStore implements IProjectStore {
       );
     }
 
-    console.log(`Migrated projects.json from legacy location: ${legacyPath}`);
+    console.warn(`Migrated projects.json from legacy location: ${legacyPath}`);
     return true;
   }
 }
