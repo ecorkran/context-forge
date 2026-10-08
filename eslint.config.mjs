@@ -24,4 +24,12 @@ export default defineConfig(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    // Core runs inside the MCP stdio server, where stdout carries JSON-RPC.
+    // Diagnostics go to stderr only (#113).
+    files: ["packages/core/src/**/*.ts"],
+    rules: {
+      "no-console": ["error", { allow: ["warn", "error"] }],
+    },
+  },
 );
