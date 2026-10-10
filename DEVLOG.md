@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-10
+
+### Release 0.19.4
+
+- **Contents:** `{task-files}` template variable resolves split task files from disk so prompts can name every part (#114). Storage-layer diagnostics moved to stderr, plus a `no-console` lint rule for core (#113).
+
+Tags: @context-forge/core@0.19.4, @context-forge/cli@0.19.4, @context-forge/mcp@0.19.4, @context-forge/context-forge@0.19.4
+
 ## 2026-10-07
 
 ### Release 0.19.3

@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.4] - 20261010
+
+### Added
+
+- **`{task-files}` template variable** lists the slice's real task files found on disk: one path, or every part (`-1`, `-2`, ...) in numeric order, comma-separated, when the tasks file is split. It stays as literal `{task-files}` when no task file exists. Guide prompts can use it in place of the hard-coded `{sliceindex}-tasks.{slicename}.md` name (#114)
+
+### Fixed
+
+- **Diagnostics from the storage layer go to stderr**, so they no longer corrupt the MCP stdio stream (#113)
+
 ## [0.19.3] - 20261007
 
 ### Added
