@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-10
 
+### Release 0.19.5
+
+- **Contents:** Repo's own ai-project-guide updated to v0.20.4 (P6 prompt uses `{task-files}`, #114) so the release and its bundled guide match.
+
+Tags: @context-forge/core@0.19.5, @context-forge/cli@0.19.5, @context-forge/mcp@0.19.5, @context-forge/context-forge@0.19.5
+
 ### Release 0.19.4
 
 - **Contents:** `{task-files}` template variable resolves split task files from disk so prompts can name every part (#114). Storage-layer diagnostics moved to stderr, plus a `no-console` lint rule for core (#113).

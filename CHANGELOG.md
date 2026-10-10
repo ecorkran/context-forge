@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.5] - 20261010
+
+### Changed
+
+- **Bundled ai-project-guide updated to v0.20.4.** The P6 prompt now uses `{task-files}`, so a split tasks file lists every part (needs `cf` 0.19.4 or later; #114). Phase 6 wording in the process guide notes a pipeline run may span Phases 6 and 7 when the engine controls review and merge
+
 ## [0.19.4] - 20261010
 
 ### Added
