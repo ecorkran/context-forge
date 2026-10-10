@@ -139,6 +139,11 @@ export class TemplateProcessor {
       enhanced['task-file'] = data.fileTasks;
     }
 
+    // Task files resolved from disk (split-aware); see EnhancedContextData.taskFiles
+    if (data.taskFiles) {
+      enhanced['task-files'] = data.taskFiles;
+    }
+
     // Add date aliases for template variable substitution
     if (data.dateProject) {
       enhanced['project-date'] = data.dateProject;

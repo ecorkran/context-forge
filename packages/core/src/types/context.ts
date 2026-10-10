@@ -8,6 +8,13 @@ export interface ContextData {
   template: string;
   fileSlice: string;
   fileTasks: string;
+  /**
+   * Task files found on disk for the current slice, rendered for prompts
+   * (`{task-files}`): one path, or comma-separated paths when the tasks file is
+   * split into parts. Left undefined when no task file exists, so the
+   * placeholder stays visible instead of naming a file that isn't there.
+   */
+  taskFiles?: string;
   instruction: string;
   developmentPhase?: string;
   fileArch?: string;

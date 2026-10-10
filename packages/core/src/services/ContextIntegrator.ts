@@ -8,6 +8,12 @@ import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './cons
 import { getFieldNamesByGroup } from '../schema/projectSchema.js';
 
 /**
+ * Finds the slice's task file(s) on disk under a checkout and renders them for
+ * prompts. Returns undefined when none exist.
+ */
+export type TaskFilesResolver = (checkoutPath: string, fileSlice: string) => Promise<string | undefined>;
+
+/**
  * Default template for context generation
  * Uses markdown format with template variable substitution
  */
@@ -37,17 +43,21 @@ export class ContextIntegrator {
   private cachedProfiles: ProfileMap | null = null;
   private cachedPromptPath: string | null = null;
   private readFileFn: ((path: string) => string) | null;
+  private resolveTaskFilesFn: TaskFilesResolver | null;
 
   /**
    * @param engine Template engine for context generation
    * @param enableNewEngine Toggle between new and legacy template systems
    * @param readFileFn Optional file reader for profile loading (Node.js only)
+   * @param resolveTaskFilesFn Optional on-disk task file lookup (Node.js only)
    */
   constructor(
     engine: ContextTemplateEngine,
     enableNewEngine: boolean = true,
     readFileFn: ((path: string) => string) | null = null,
+    resolveTaskFilesFn: TaskFilesResolver | null = null,
   ) {
+    this.resolveTaskFilesFn = resolveTaskFilesFn;
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
@@ -88,6 +98,15 @@ export class ContextIntegrator {
 
     // Map project data to enhanced context data
     const enhancedData = this.mapProjectToEnhancedContext(project, worktreeId);
+
+    // Resolve the slice's real task file(s) from the checkout being worked in
+    if (this.resolveTaskFilesFn && project.fileSlice) {
+      const worktree = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+      const checkoutPath = worktree?.worktreePath ?? project.projectPath;
+      if (checkoutPath) {
+        enhancedData.taskFiles = await this.resolveTaskFilesFn(checkoutPath, project.fileSlice);
+      }
+    }
 
     // Generate using template engine
     return await this.templateEngine.generateContext(enhancedData);
