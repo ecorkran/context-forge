@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20261011
-dateUpdated: 20261011
-status: not_started
+dateUpdated: 20261012
+status: complete
 ---
 
 # Slice Design: Native Slice-Design Validation
@@ -187,7 +187,9 @@ FAIL user/slices/998-slice.no-doctype.md
 
 ### Verification Walkthrough
 
-From the context-forge repo root, after `pnpm -r build`:
+From the context-forge repo root, after `pnpm -r build`. Commands use the local build; the global `cf` is the published package and won't have this command until release. Verified 20261012.
+
+Caveat for zsh: don't store the command in a variable (`CF="node packages/cli/dist/index.js"; $CF ...`), because zsh doesn't word-split it and every call fails with exit 127. Spell it out, or use a function.
 
 1. This design passes:
    ```bash
@@ -202,21 +204,45 @@ From the context-forge repo root, after `pnpm -r build`:
    node packages/cli/dist/index.js validate design /tmp/broken-design.md
    # FAIL /tmp/broken-design.md
    #   missing: ## Value
+   echo $?   # 1
    ./project-documents/ai-project-guide/scripts/validate-slice-design /tmp/broken-design.md
-   # same two lines
+   # same two lines, exit 1
    ```
-3. Doctype check: remove the `docType` line from a copy, run it, and expect the frontmatter message and exit 1.
-4. Usage errors: `node packages/cli/dist/index.js validate design` with no arguments exits 2. A nonexistent path exits 2.
-5. JSON: add `--json` to step 1, and expect `"passed": 1, "failed": 0`.
-6. Parity sweep. Every design the script passes should pass here too:
+3. Doctype check:
+   ```bash
+   sed '/^docType:/d' project-documents/user/slices/214-slice.native-slice-design-validation.md > /tmp/nodoc-design.md
+   node packages/cli/dist/index.js validate design /tmp/nodoc-design.md
+   # FAIL /tmp/nodoc-design.md
+   #   frontmatter must declare 'docType: slice-design' (see file-naming-conventions.md)
+   echo $?   # 1
+   ```
+4. Usage errors (message on stderr, nothing on stdout):
+   ```bash
+   node packages/cli/dist/index.js validate design
+   # Error: no files given. Usage: cf validate design <file...>
+   echo $?   # 2
+   node packages/cli/dist/index.js validate design /tmp/does-not-exist.md
+   # Error: no such file: /tmp/does-not-exist.md
+   echo $?   # 2
+   ```
+5. JSON:
+   ```bash
+   node packages/cli/dist/index.js validate design --json project-documents/user/slices/214-slice.native-slice-design-validation.md
+   # { "template": "<repo>/project-documents/ai-project-guide/project-guides/templates/slice-design.md",
+   #   "passed": 1, "failed": 0,
+   #   "files": [ { "path": "project-documents/user/slices/214-slice.native-slice-design-validation.md", "pass": true, "missing": [] } ] }
+   echo $?   # 0
+   ```
+6. Parity sweep. Every design gets the same first word (PASS/FAIL) from both:
    ```bash
    for f in project-documents/user/slices/*-slice.*.md; do
      a=$(./project-documents/ai-project-guide/scripts/validate-slice-design "$f" | head -1 | cut -d' ' -f1)
      b=$(node packages/cli/dist/index.js validate design "$f" | head -1 | cut -d' ' -f1)
      [ "$a" = "$b" ] || echo "DIFF $f: script=$a cf=$b"
    done
+   # no output
    ```
-   No `DIFF` lines are expected, except for differences the leniency decisions above cause. Those are listed in the implementation notes when they occur.
+   On 20261012 this printed nothing across 102 slice files. See "Parity differences" below.
 
 ## Implementation Notes
 
@@ -226,6 +252,9 @@ From the context-forge repo root, after `pnpm -r build`:
 3. Add the `design` subcommand (`validateDesign.ts`), register it, and add the command tests.
 4. Run the parity sweep from the walkthrough and note any intended differences.
 5. Update the CLI command reference docs if they list `cf validate` subcommands.
+
+### Parity differences
+- None found. The 20261012 sweep over 102 slice files in `project-documents/user/slices/` gave the same PASS/FAIL as the bash script for every file. The leniency decisions (quoted `docType`, CRLF, real heading syntax) don't affect any existing document.
 
 ### Special Considerations
 - Release coupling: after release, send the ai-project-guide session the cf version and the exact command string.
