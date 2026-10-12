@@ -165,7 +165,7 @@ All state is on disk in the target checkout: the installed files, the managed bl
 | `test_flags_dry_run_*` (3) | Ported, snapshots unchanged. |
 | `test_flags_root_outside_guide` (`--root x` and `--root=x`) | One ported test: install with `targetRoot` set to another checkout. Snapshot kept (the run label stays `setup-ide <target> --root <ROOT>`, built by the harness). |
 | `test_flags_capabilities`, `test_flags_root_missing_directory`, `test_flags_root_without_value`, `test_flags_before_target_same_as_after`, usage and unsupported-target runs | Dropped. They test the bash argument parser. cf's commander parsing and `normalizeTarget` already have tests in `setup-ide.test.ts`. |
-| `test_rules_exclude` | Ported with `rulesExclude` passed in-process. The cf-stub tiers become one cf-level test showing that a configured `rules.exclude` reaches the installer. Env-tier tests dropped (PM decision 1). |
+| `test_rules_exclude`, `test_lint_python_excluded` | Ported with `rulesExclude` passed in-process. The cf-stub tiers become one cf-level test showing that a configured `rules.exclude` reaches the installer. Four snapshots currently set exclusions through the env var: `test_rules_exclude_env_wins`, `test_rules_exclude_always_on`, `test_rules_exclude_unmatched` and `test_lint_python_excluded`. `env_wins` is retired. The other three keep their scenario, but their active-source line changes from the env var to cf config. That spec change (PM decision 1) goes in its own commit with the reason, like the #38/#40 fixes. |
 | `test_real_guide` | Ported. It runs against the repo's installed guide at `project-documents/ai-project-guide/project-guides`, so it follows guide updates. |
 
 **Consumers updated in this slice:**
