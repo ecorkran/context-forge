@@ -8,9 +8,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "eslint .",
-    "typecheck": "pnpm -r typecheck",
-    "setup-guides": "curl -fsSL https://raw.githubusercontent.com/ecorkran/ai-project-guide/main/scripts/bootstrap.sh | bash",
-    "update-guides": "bash project-documents/ai-project-guide/scripts/template-stubs/update-guides.sh"
+    "typecheck": "pnpm -r typecheck"
   },
   "keywords": [
     "typescript",
