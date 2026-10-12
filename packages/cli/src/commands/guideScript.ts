@@ -1,5 +1,6 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
 import { propagationTargets } from './worktreePropagation.js';
 
@@ -19,6 +20,19 @@ export function capabilityFlag(capability: GuideCapabilityValue): string {
   return `--${capability}`;
 }
 
+/** The setup-ide script's location inside a guide checkout, and how cf runs it. */
+const SETUP_IDE_SCRIPT_RELATIVE_PATH = 'scripts/setup-ide';
+const SETUP_IDE_INTERPRETER = 'bash';
+
+export function setupIdeScriptPath(guideDir: string): string {
+  return path.join(guideDir, SETUP_IDE_SCRIPT_RELATIVE_PATH);
+}
+
+/** Run the setup-ide script with `args`. Every invocation goes through here. */
+export function execSetupIde(scriptPath: string, args: readonly string[], options: ExecFileSyncOptions): string | Buffer {
+  return execFileSync(SETUP_IDE_INTERPRETER, [scriptPath, ...args], options);
+}
+
 /** A failed child process from execFileSync carries its exit status. */
 function isProcessExit(err: unknown): err is Error & { status: number | null } {
   return err instanceof Error && 'status' in err;
@@ -31,12 +45,12 @@ function isProcessExit(err: unknown): err is Error & { status: number | null } {
  */
 export function readCapabilities(scriptPath: string, cwd: string): Set<string> | null {
   try {
-    const out = execFileSync('bash', [scriptPath, '--capabilities'], {
+    const out = execSetupIde(scriptPath, ['--capabilities'], {
       cwd,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return new Set(out.trim().split(/\s+/).filter(Boolean));
+    return new Set(out.toString().trim().split(/\s+/).filter(Boolean));
   } catch (err) {
     if (isProcessExit(err)) return null;
     throw err;
@@ -77,7 +91,7 @@ export function runSetupIdeInWorktrees(
     const name = wt.name ?? wt.id;
     console.log(`  → setup-ide in worktree: ${name} (${wtPath})`);
     try {
-      execFileSync('bash', [scriptPath, target, capabilityFlag(GuideCapability.Root), wtPath, ...flags], {
+      execSetupIde(scriptPath, [target, capabilityFlag(GuideCapability.Root), wtPath, ...flags], {
         cwd: wtPath,
         stdio: 'inherit',
       });

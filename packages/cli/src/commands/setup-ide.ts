@@ -1,7 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { askConfirmation } from '../utils/confirm.js';
-import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
   FileProjectStore,
@@ -20,9 +19,11 @@ import { propagateToWorktrees } from './worktreePropagation.js';
 import {
   GuideCapability,
   capabilityFlag,
+  execSetupIde,
   guideSupports,
   readCapabilities,
   runSetupIdeInWorktrees,
+  setupIdeScriptPath,
   type GuideCapabilityValue,
 } from './guideScript.js';
 import { readManifest } from './installManifest.js';
@@ -118,7 +119,7 @@ export async function setupIdeAction(
 
   // Locate setup-ide script
   const guideDir = path.join(projectPath, GUIDE_RELATIVE_PATH);
-  const scriptPath = path.join(guideDir, 'scripts/setup-ide');
+  const scriptPath = setupIdeScriptPath(guideDir);
 
   if (!fs.existsSync(scriptPath)) {
     throw new UserError(
@@ -174,9 +175,8 @@ export async function setupIdeAction(
   // else: managed install or dry run — proceed silently
 
   // Run the setup-ide script
-  const scriptArgs = [scriptPath, normalizedTarget, ...passFlags];
   try {
-    execFileSync('bash', scriptArgs, {
+    execSetupIde(scriptPath, [normalizedTarget, ...passFlags], {
       cwd: projectPath,
       stdio: 'inherit',
     });
