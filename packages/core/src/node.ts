@@ -27,6 +27,14 @@ export {
   type PathResult,
   type FrontmatterFileValidationResult,
 } from './schema/frontmatterFileValidator.js';
+export {
+  validateSliceDesignFiles,
+  SliceDesignValidationError,
+  DesignFailureReason,
+  SLICE_DESIGN_DOC_TYPE,
+  DOC_TYPE_FAILURE_MESSAGE,
+  type DesignValidationResult,
+} from './schema/sliceDesignFiles.js';
 
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector, resolveInitiativePlanPath } from './introspection/ArtifactIntrospector.js';
