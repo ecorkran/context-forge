@@ -98,3 +98,23 @@ describe('missingHeadings', () => {
     ]);
   });
 });
+
+describe('fence tracking', () => {
+  const required = '## Value\n<!-- required -->';
+
+  it.each([
+    ['tilde fences', ['~~~markdown', '## Value', '~~~']],
+    ['indented fences', ['1. Example:', '   ```markdown', '## Value', '   ```']],
+    ['a longer fence wrapping a three-backtick block', ['````markdown', '```', '```', '## Value', '````']],
+  ])('ignores headings inside %s', (_label, lines) => {
+    expect(missingFrom(lines.join('\n'), required)).toEqual(['## Value']);
+  });
+
+  it('does not close a backtick fence with tildes', () => {
+    expect(missingFrom(['```', '~~~', '## Value', '```'].join('\n'), required)).toEqual(['## Value']);
+  });
+
+  it('counts headings after a closed fence', () => {
+    expect(missingFrom(['~~~', 'code', '~~~', '## Value'].join('\n'), required)).toEqual([]);
+  });
+});

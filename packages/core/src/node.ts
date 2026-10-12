@@ -39,7 +39,7 @@ export {
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector, resolveInitiativePlanPath } from './introspection/ArtifactIntrospector.js';
 export { WorkflowNavigator, extractSliceIndex } from './introspection/WorkflowNavigator.js';
-export { parseFrontmatter } from './introspection/parsers/frontmatterParser.js';
+export { parseFrontmatter, parseFrontmatterText } from './introspection/parsers/frontmatterParser.js';
 export { parseSlicePlan } from './introspection/parsers/slicePlanParser.js';
 export { parseTaskItems, parseTaskFile } from './introspection/parsers/taskFileParser.js';
 export { parseFutureWork } from './introspection/parsers/futureWorkParser.js';

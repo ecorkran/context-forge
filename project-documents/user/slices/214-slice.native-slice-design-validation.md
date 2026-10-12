@@ -99,7 +99,8 @@ None. The command only reads files.
 
 **Line handling:**
 - `\r` is stripped before matching. The script kept it, which made CRLF files fail.
-- A code fence toggles on any line starting with three backticks, as in the script.
+- Code fences follow CommonMark: up to 3 spaces of indent, 3+ backticks or tildes, closed only by the same character at least as long. The script toggled on any line starting with three backticks, so tilde fences, indented fences and a longer fence wrapping a three-backtick block let example headings count (code review F001).
+- A required template heading whose normalized text is empty (e.g. `## {placeholder}`) is a template error, exit 2. It would otherwise prefix-match every heading at its level (code review F003).
 - The `<!-- required -->` marker is compared after trimming.
 
 **Paths:** file paths are printed exactly as given, the same as the script, so agents see the path they passed.
@@ -254,7 +255,7 @@ Caveat for zsh: don't store the command in a variable (`CF="node packages/cli/di
 5. Update the CLI command reference docs if they list `cf validate` subcommands.
 
 ### Parity differences
-- None found. The 20261012 sweep over 102 slice files in `project-documents/user/slices/` gave the same PASS/FAIL as the bash script for every file. The leniency decisions (quoted `docType`, CRLF, real heading syntax) don't affect any existing document.
+- None found. The 20261012 sweep over 102 slice files in `project-documents/user/slices/` gave the same PASS/FAIL as the bash script for every file. The leniency decisions (quoted `docType`, CRLF, real heading syntax) don't affect any existing document. The sweep was rerun after the CommonMark fence change from code review F001, with the same result.
 
 ### Special Considerations
 - Release coupling: after release, send the ai-project-guide session the cf version and the exact command string.

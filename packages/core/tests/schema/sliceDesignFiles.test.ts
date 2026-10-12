@@ -100,6 +100,13 @@ describe('errors', () => {
     );
   });
 
+  it('rejects a required heading with no matchable text', async () => {
+    const template = await writeTmp('template.md', '## Overview\n<!-- required -->\n## {placeholder}\n<!-- required -->\n');
+    await expect(validateSliceDesignFiles(template, [REAL_DESIGN])).rejects.toThrow(
+      /template heading '## \{placeholder\}' has no matchable text/,
+    );
+  });
+
   it('returns no results when a valid file precedes a missing one', async () => {
     const missing = join(tmpDir, 'missing.md');
     const run = validateSliceDesignFiles(REAL_TEMPLATE, [REAL_DESIGN, missing]);

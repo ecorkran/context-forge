@@ -19,9 +19,36 @@ export interface RequiredHeading {
   key: HeadingKey;
 }
 
+// Column 0 only, like the guide script. CommonMark also allows 1-3 spaces of
+// indent, but rejecting those makes an indented required heading fail loudly
+// rather than risk counting indented example text.
 const HEADING_PATTERN = /^(#{1,6})\s+(.*)$/;
 const REQUIRED_MARKER = '<!-- required -->';
-const FENCE_PREFIX = '```';
+// CommonMark fences: up to 3 spaces of indent, 3+ backticks or tildes.
+const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+/** An open fence's marker character and length; it closes on the same char, at least as long. */
+interface OpenFence {
+  char: string;
+  length: number;
+}
+
+/** The fence a line opens, or null. A backtick fence's info string may not contain backticks. */
+function openingFence(line: string): OpenFence | null {
+  const match = FENCE_PATTERN.exec(line);
+  if (!match) return null;
+  const [, marker, info] = match;
+  if (marker[0] === '`' && info.includes('`')) return null;
+  return { char: marker[0], length: marker.length };
+}
+
+/** Whether a line closes the open fence: same char, at least as long, nothing after. */
+function closesFence(line: string, open: OpenFence): boolean {
+  const match = FENCE_PATTERN.exec(line);
+  if (!match) return false;
+  const [, marker, rest] = match;
+  return marker[0] === open.char && marker.length >= open.length && rest.trim() === '';
+}
 
 /** Split text into lines with any trailing `\r` removed, so CRLF input matches. */
 function splitLines(text: string): string[] {
@@ -57,14 +84,15 @@ export function requiredHeadings(templateText: string): RequiredHeading[] {
 /** Every heading in a document, skipping fenced code blocks. */
 export function documentHeadingKeys(docText: string): HeadingKey[] {
   const keys: HeadingKey[] = [];
-  let inFence = false;
+  let fence: OpenFence | null = null;
 
   for (const line of splitLines(docText)) {
-    if (line.startsWith(FENCE_PREFIX)) {
-      inFence = !inFence;
+    if (fence) {
+      if (closesFence(line, fence)) fence = null;
       continue;
     }
-    if (inFence) continue;
+    fence = openingFence(line);
+    if (fence) continue;
 
     const key = headingKey(line);
     if (key) keys.push(key);

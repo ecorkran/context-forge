@@ -9,7 +9,7 @@
  */
 import { readFile, stat, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { parseFrontmatter } from '../introspection/parsers/frontmatterParser.js';
+import { parseFrontmatterText } from '../introspection/parsers/frontmatterParser.js';
 import {
   requiredHeadings,
   documentHeadingKeys,
@@ -66,6 +66,13 @@ async function loadRequiredHeadings(templatePath: string): Promise<RequiredHeadi
       `template declares no required headings: ${templatePath}`,
     );
   }
+  // An empty key would prefix-match every heading at its level and silently pass.
+  const empty = required.find((r) => r.key.text === '');
+  if (empty) {
+    throw new SliceDesignValidationError(
+      `template heading '${empty.heading}' has no matchable text: ${templatePath}`,
+    );
+  }
   return required;
 }
 
@@ -92,16 +99,15 @@ async function validateFile(
   file: string,
   required: RequiredHeading[],
 ): Promise<DesignValidationResult> {
-  const frontmatter = await parseFrontmatter(file);
-  if (frontmatter.data.docType !== SLICE_DESIGN_DOC_TYPE) {
-    return { path: file, pass: false, missing: [], reason: DesignFailureReason.DocType };
-  }
-
   let docText: string;
   try {
     docText = await readFile(file, 'utf-8');
   } catch (err) {
     throw new SliceDesignValidationError(`cannot read file: ${file}`, { cause: err });
+  }
+
+  if (parseFrontmatterText(file, docText).data.docType !== SLICE_DESIGN_DOC_TYPE) {
+    return { path: file, pass: false, missing: [], reason: DesignFailureReason.DocType };
   }
 
   const missing = missingHeadings(required, documentHeadingKeys(docText)).map((r) => r.heading);
