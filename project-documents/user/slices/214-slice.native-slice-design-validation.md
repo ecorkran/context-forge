@@ -64,12 +64,18 @@ The ai-project-guide is becoming docs only (PM decision 20261011). Every script 
 ### Data Flow
 
 1. The CLI resolves the checkout root (worktree-aware). The template path is `<root>/GUIDE_RELATIVE_PATH/SLICE_DESIGN_TEMPLATE_RELATIVE_PATH`.
-2. Core reads the template. A missing file, or a template with no required headings, is a template error (exit 2).
-3. For each file argument, in order:
-   - A file that doesn't exist is a usage error (exit 2). Like the script, cf stops at the first missing file.
+2. Core reads the template. A missing or unreadable template, or one with no required headings, is a template error (exit 2).
+3. **Preflight, before anything is validated:**
+   - Every file argument must exist, be a regular file and be readable.
+   - The first that isn't is a usage error (exit 2) that names it, and stdout gets nothing, in either human or JSON mode.
+   - So exit 2 never comes with partial results. This differs from the script, which printed results for earlier files before failing.
+4. For each file argument, in order:
    - A document whose frontmatter has no `docType: slice-design` fails with the frontmatter message.
    - Otherwise its heading keys are matched against the required list.
-4. The CLI prints the results, or JSON with `--json`. Exit 1 if any file failed, else 0.
+   - A failing file doesn't stop the run; later files are still checked.
+5. The CLI prints all results, or JSON with `--json`. Exit 1 if any file failed, else 0.
+
+Core signals usage and template problems with one typed error, `SliceDesignValidationError`, which carries the message. The CLI sends it through `handleError(err, 2)`. An `fs` error the preflight didn't anticipate is wrapped in it too, so every I/O failure exits 2, never with some other code.
 
 ### State Management
 
@@ -134,7 +140,7 @@ FAIL user/slices/998-slice.no-doctype.md
 
 `reason` appears only when a file fails for something other than missing headings. Its one value is `doctype`.
 
-**Exit codes:** 0 all pass, 1 at least one fails, 2 usage or template error (no file arguments, a file not found, template missing, template with no required headings). Commander's own usage error exits 1. To keep "no files" at exit 2, the argument is declared optional (`[files...]`) and the action checks for an empty list.
+**Exit codes:** 0 all pass, 1 at least one fails, 2 usage or template error (no file arguments; a file argument that is missing, not a regular file or unreadable; template missing or unreadable; template with no required headings), always with empty stdout. Commander's own usage error exits 1. To keep "no files" at exit 2, the argument is declared optional (`[files...]`) and the action checks for an empty list.
 
 ## Integration Points
 
@@ -143,6 +149,8 @@ FAIL user/slices/998-slice.no-doctype.md
 
 ### Consumes from Other Slices
 - The guide's template format: a heading followed by a `<!-- required -->` line. If a future guide changes the marker, the command fails loudly with "template declares no required headings" (exit 2) rather than passing everything.
+
+- Slice 212's `PROTECTED_GUIDE_PATHS`: `guide.exclude` refuses to exclude `project-guides/` and its `templates/`, so a tarball install can't remove the template this command reads.
 
 ### Guide coupling
 - The ai-project-guide session repoints these references to `cf validate design <path>` after the cf release that ships it:
@@ -160,7 +168,7 @@ FAIL user/slices/998-slice.no-doctype.md
 - A design missing required sections prints `FAIL <file>` and one `  missing: <heading>` line per missing section, written as in the template, and exits 1.
 - A file without `docType: slice-design` fails with the frontmatter message.
 - Several files are checked in order. The exit is 1 if any fails, and later files are still checked.
-- No arguments, a missing file, a missing template, or a template with no required headings each exit 2 with a message on stderr. The missing-template message names `cf guides update`.
+- No arguments, a missing, non-regular or unreadable file, a missing or unreadable template, or a template with no required headings each exit 2 with a message on stderr and nothing on stdout, including under `--json`. A test covers a run where a valid file comes before a missing one: exit 2 and empty stdout. The missing-template message names `cf guides update`.
 - `--json` emits the contract above.
 - The template is read from the invoking checkout's guide, so a worktree uses its own guide copy.
 
