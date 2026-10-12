@@ -38,6 +38,15 @@ export {
   type FrontmatterFinding,
 } from './schema/frontmatterSchema.js';
 
+// Slice-design structure check (required template headings)
+export {
+  requiredHeadings,
+  documentHeadingKeys,
+  missingHeadings,
+  type RequiredHeading,
+  type HeadingKey,
+} from './schema/sliceDesignValidator.js';
+
 // Git utilities
 export { GitWorktreeDiscovery, parseWorktreeListOutput } from './git/index.js';
 

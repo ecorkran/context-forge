@@ -311,6 +311,8 @@ export const GUIDE_MANAGED_NOTICE =
 export const DEFAULT_SOURCE_GIT = 'https://github.com/ecorkran/ai-project-guide.git';
 export const DEFAULT_SOURCE_API = 'https://api.github.com/repos/ecorkran/ai-project-guide';
 export const GUIDE_RELATIVE_PATH = 'project-documents/ai-project-guide';
+/** Slice-design template, relative to the guide root (GUIDE_RELATIVE_PATH). */
+export const SLICE_DESIGN_TEMPLATE_RELATIVE_PATH = 'project-guides/templates/slice-design.md';
 export const VERSION_MARKER_FILE = '.context-forge-guide-version';
 /** Version recorded for a guide installed from a local archive rather than a remote tag. */
 export const LOCAL_VERSION_MARKER = 'local';
