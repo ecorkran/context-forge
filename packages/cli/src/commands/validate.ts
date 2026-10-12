@@ -13,6 +13,7 @@ import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { withJsonOption, withProjectOption, withFixOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { printJson } from '../output/formatter.js';
+import { registerValidateDesignCommand } from './validateDesign.js';
 import { label, dim, error as errorStyle, warn as warnStyle } from '../output/styles.js';
 
 const SEVERITY_ICON: Record<string, string> = {
@@ -255,4 +256,6 @@ export function registerValidateCommand(program: Command): void {
       handleError(err, 2);
     }
   });
+
+  registerValidateDesignCommand(validateCmd);
 }
