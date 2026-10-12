@@ -54,7 +54,7 @@ status: not_started
   - [ ] `documentHeadingKeys(docText)`: every heading outside fenced code blocks. A fence toggles on any line starting with three backticks.
   - [ ] `missingHeadings(required, docKeys)`: required headings with no document heading of the same level whose text starts with the required text (prefix match).
   - [ ] Export the three functions and two types from `packages/core/src/index.ts`, beside the `frontmatterSchema.js` exports.
-  - [ ] Success: `pnpm -r build` passes; file under ~300 lines.
+  - [ ] Success: `pnpm -r build` and `pnpm lint` pass; file under ~300 lines.
 
 - [ ] **Task 2T: Pure validator tests** (effort: 2)
   - [ ] Create `packages/core/tests/schema/sliceDesignValidator.test.ts` using inline strings only.
@@ -79,7 +79,7 @@ status: not_started
   - [ ] Wrap any unexpected `fs` error in `SliceDesignValidationError` so all I/O failures surface as that one type.
   - [ ] Expose one entry function taking the template path and the file list, returning the results array.
   - [ ] Export the entry function, error class and result type from `packages/core/src/node.ts`, beside the `frontmatterFileValidator.js` exports.
-  - [ ] Success: `pnpm -r build` passes; file under ~300 lines.
+  - [ ] Success: `pnpm -r build` and `pnpm lint` pass; file under ~300 lines. Every `try`/`catch` follows the project exception-handling rule.
 
 - [ ] **Task 3T: File layer tests** (effort: 2)
   - [ ] Create `packages/core/tests/schema/sliceDesignFiles.test.ts`. Use temp directories for synthetic files.
@@ -88,7 +88,7 @@ status: not_started
   - [ ] A copy missing `## Value` fails with exactly that missing heading.
   - [ ] A copy without `docType` fails with `reason: 'doctype'`; a copy with quoted `docType: "slice-design"` passes.
   - [ ] Multiple files: a failing file followed by a passing one returns both results in order.
-  - [ ] Errors, each asserting `SliceDesignValidationError`: missing template (message contains `cf guides update`); template with no required markers; a valid file followed by a missing file (no results returned); a directory passed as a file.
+  - [ ] Errors, each asserting `SliceDesignValidationError`: missing template (message contains `cf guides update`); template with no required markers; a valid file followed by a missing file (no results returned); a directory passed as a file; an unreadable file (`chmod 000` on a temp file), skipped with `it.skipIf` when running as root (`process.getuid?.() === 0`) or on Windows, where the permission bit doesn't block reads.
   - [ ] Success: `pnpm --filter @context-forge/core test` passes.
 
 - [ ] **Task 3C: Commit** — `feat(core): add slice design file validation`
@@ -101,7 +101,7 @@ status: not_started
   - [ ] Human output per the design's API Contracts: `PASS <path>` / `FAIL <path>`, then `  missing: <heading>` per missing heading, or the frontmatter message for `reason: 'doctype'`. Paths are printed exactly as given.
   - [ ] `--json` output per the design's JSON contract (`template` absolute, `passed`, `failed`, `files`; `reason` only when set).
   - [ ] Exit 1 if any file failed, else 0. All `SliceDesignValidationError`s go through `handleError(err, 2)` with nothing written to stdout, in both modes.
-  - [ ] Success: `pnpm -r build` passes; `node packages/cli/dist/index.js validate design --help` shows the subcommand; new file under ~300 lines.
+  - [ ] Success: `pnpm -r build` passes; `node packages/cli/dist/index.js validate design --help` shows the subcommand; `pnpm lint` passes; new file under ~300 lines.
 
 - [ ] **Task 4T: Command tests** (effort: 3)
   - [ ] Create `packages/cli/tests/commands/validate-design.test.ts`, following the setup in `validate.test.ts`.
@@ -117,6 +117,7 @@ status: not_started
 - [ ] **Task 4C: Commit** — `feat(cli): add cf validate design command`
 
 - [ ] **Task 5: Verification walkthrough and parity sweep** (effort: 2)
+  - [ ] Confirm `project-documents/ai-project-guide/scripts/validate-slice-design` exists. If a guide update removed it, stop and ask the Project Manager; do not skip the sweep.
   - [ ] Run `pnpm -r build`, then steps 1–5 of the design's Verification Walkthrough. Each produces the stated output and exit code.
   - [ ] Run step 6 (parity sweep against `./project-documents/ai-project-guide/scripts/validate-slice-design`).
   - [ ] For every `DIFF` line: confirm it comes from a design leniency decision (quoted `docType`, CRLF, `\r`, real heading syntax). Any other difference is a bug: fix it and add a test in the matching test task's file.
