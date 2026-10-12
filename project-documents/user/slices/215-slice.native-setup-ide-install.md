@@ -135,18 +135,18 @@ All state is on disk in the target checkout: the installed files, the managed bl
   - No swallowed errors (project exception rule).
 - **Paths:** guide subdirectories (`project-guides/rules`, `agents`, `skills`, `lint`) are constants in one place in `ideInstall/`.
 
-### Decisions requiring PM confirmation
+### PM decisions (confirmed 20261011)
 
-1. **`rules.exclude` reads cf config only. The `CONTEXT_FORGE_RULES_EXCLUDE` env tier is dropped.**
+1. **`rules.exclude` reads cf config only. The `CONTEXT_FORGE_RULES_EXCLUDE` env tier is dropped.** This supersedes the 20260922 ruling.
    - The PM ruling of 20260922 added the env tier only because the bash script could run without cf.
    - That case no longer exists, and cf's standing rule is that no config key can be overridden by an env var.
    - The two env-based snapshots (`test_rules_exclude_env_wins` and the env source line) are dropped. The active-source message names cf config, using the wording the bash prints for its cf source.
-   - Alternative: keep the env tier in cf, which goes against that config rule.
+   - Rejected alternative: keep the env tier in cf, which goes against that config rule.
 2. **Fix #40 (stray newline in the default `**` glob) and #38 (final newline added when a managed block is replaced).**
    - #40 writes broken YAML (`applyTo: "**` then `**"`) into copilot instruction files and the AGENTS.md "Applies to" line.
    - #38 breaks the stated rule that bytes outside the block pass through untouched.
    - Each fix is its own commit, updating only that issue's snapshots (`test_targets_copilot_fresh` and `test_targets_agents_fresh` for #40, `test_managed_block_replaced_*` for #38).
-   - Cost: a one-time rewrite of affected files in existing installs. The alternative is porting both bugs as is.
+   - Cost: a one-time rewrite of affected files in existing installs. Rejected alternative: porting both bugs as is.
 
 ## Implementation Details
 
@@ -230,7 +230,7 @@ The command surface is unchanged: `cf setup-ide <target> [--dry-run] [--write-li
 ### Functional Requirements
 - `cf setup-ide <target>` for each of claude, cursor, copilot and agents (and the aliases openai and codex) installs without running bash or any guide script.
 - Output files, manifests and console output match the snapshot suite.
-- On the real guide, installs are byte-identical to the bash version, both fresh and when re-run over a bash-written install. Expected differences are limited to the #38/#40 fixes if the PM approves them.
+- On the real guide, installs are byte-identical to the bash version, both fresh and when re-run over a bash-written install. Expected differences are limited to the #38/#40 fixes. The fixes are approved.
 - `--dry-run` reports `+`/`~`/`-` changes and writes nothing to the project. `--write-lint` writes missing lint configs; with `--dry-run` it previews them.
 - Each registered worktree is installed from the main checkout's guide. A failing worktree doesn't stop the others, and the command exits non-zero naming them.
 - `rules.exclude` from cf config excludes matching scoped rules, prunes previously installed ones that weren't edited, and warns on patterns that match nothing or name an always-on rule.
@@ -256,7 +256,7 @@ From the context-forge repo root, after `pnpm -r build`:
    ```bash
    node packages/cli/dist/index.js setup-ide claude --dry-run
    # 🔍 Dry run for 'claude' — nothing was written
-   # 📋 No changes          (or only the #38/#40 fix lines, if approved)
+   # 📋 No changes          (or only lines from the #38/#40 fixes)
    git status --short       # clean
    ```
 4. **Real-guide parity**, run during implementation while the guide checkout still has the script. For each target:
@@ -302,7 +302,7 @@ From the context-forge repo root, after `pnpm -r build`:
    6. lint
 4. Run the real-guide parity check and resolve every diff.
 5. Wire `cf setup-ide`, `cf init` and the worktree loop to `installIde`, and delete `guideScript.ts`, the copy-and-prune propagation and their tests.
-6. If the PM approves, fix #40 and then #38, each in its own commit with its snapshot updates.
+6. Fix #40 and then #38, each in its own commit with its snapshot updates.
 7. Update docs that describe setup-ide as a guide script.
 
 ### Special Considerations
