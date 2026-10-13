@@ -366,6 +366,14 @@ Verified 20261013 on macOS (zsh). Run from the context-forge repo root after `pn
 - **F010 snapshot trigger:** single trigger, vitest `-u` via `toMatchFileSnapshot`.
 - Found while resolving these: the `rules.exclude` config description in `ConfigKeys.ts` still names the guide script as the consumer, so that file is added to the change list.
 
+### Code review resolutions (215-review.code, CONCERNS)
+- **F001 manifest prune containment (concern):** confirmed. The old worktree pruner rejected absolute, drive-letter and `..` paths and any path whose parent resolves outside the root via a symlink; the port dropped both. `InstallManifest.finish()` now skips such entries with a warning (`path resolves outside the project`). Test: `never deletes outside the project` in `manifest.test.ts`. Absolute paths need no case of their own: `path.join` re-roots them inside the project, so they are never found.
+- **F002 dry-run cleanup masking errors:** confirmed. A failed sandbox removal is now reported on stderr and no longer thrown, so the install's own error survives. No test: a removal failure is not practical to trigger portably.
+- **F003 duplicated install-path list:** confirmed. `dryRun.ts` exports `INSTALL_PATHS`, the test harness imports it, and the harness copy is deleted. The snapshots are unchanged.
+- **F004 `import.meta.url` decoding:** confirmed, test-only. The harness uses `fileURLToPath`.
+- **F005:** pass, no action.
+- The review's diff was truncated (256000 of 432693 characters), so it did not see all of the change.
+
 ### Implementation notes
 
 Intended differences from the bash script. None changes output for the real guide: the parity check (walkthrough step 4) gave IDENTICAL for all 8 runs (4 targets, fresh and re-run over a bash install) before the #38/#40 fixes, with no port fixes needed.
