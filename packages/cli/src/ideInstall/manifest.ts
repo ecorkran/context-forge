@@ -1,6 +1,5 @@
 /**
- * The install manifest, `.context-forge/<target>.manifest`: its reader and its
- * writer in one module.
+ * The install manifest, `.context-forge/<target>.manifest`.
  *
  * One line per wholesale-installed file, `<crc> <size> <path>`, with the CRC
  * from POSIX `cksum`. The format is unchanged from the guide's bash setup-ide
@@ -11,7 +10,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Target } from '../commands/ideTargets.js';
-import { UserError } from '../utils/errors.js';
 import { isDirectory, isEmptyDirectory, isFile } from './fsChecks.js';
 import { byteOrder, toRecords } from './lines.js';
 import type { Printer } from './output.js';
@@ -19,13 +17,6 @@ import { relativeToRoot } from './paths.js';
 
 /** Directory, relative to a checkout root, that holds the install manifests. */
 export const MANIFEST_DIR = '.context-forge';
-
-export interface ManifestEntry {
-  crc: number;
-  size: number;
-  /** Root-relative, `/`-separated. */
-  path: string;
-}
 
 /** POSIX cksum generator polynomial, processed MSB-first. */
 const CKSUM_POLYNOMIAL = 0x04c11db7;
@@ -65,61 +56,6 @@ export function cksum(buffer: Buffer): number {
 /** `<root>/.context-forge/<target>.manifest` */
 export function manifestPath(root: string, target: string): string {
   return path.join(root, MANIFEST_DIR, `${target}.manifest`);
-}
-
-/** Scratch file a manifest is staged in before being renamed into place. */
-export function manifestTempPath(root: string, target: string): string {
-  return path.join(root, MANIFEST_DIR, `.${target}.manifest.tmp`);
-}
-
-const NUMERIC = /^\d+$/;
-
-/**
- * Parses one manifest line. Splits on the first two runs of whitespace, so the
- * rest of the line (spaces included) is the path. Returns null for a blank line;
- * throws on a line without a numeric CRC and size.
- */
-export function parseManifestLine(line: string): ManifestEntry | null {
-  const trimmed = line.trim();
-  if (trimmed === '') return null;
-
-  const match = /^(\S+)\s+(\S+)\s+(.+)$/.exec(trimmed);
-  if (!match || !NUMERIC.test(match[1]) || !NUMERIC.test(match[2])) {
-    throw new Error(`expected '<crc> <size> <path>', got '${trimmed}'`);
-  }
-  return { crc: Number(match[1]), size: Number(match[2]), path: match[3] };
-}
-
-/**
- * Reads a checkout's manifest for a target. Returns null when the file is
- * missing (a guide older than v0.19.0), `[]` for an empty manifest (a target
- * that installs nothing wholesale). A malformed line throws a UserError naming
- * the file and line, so a partial baseline is never used.
- */
-export function readManifest(root: string, target: string): ManifestEntry[] | null {
-  const filePath = manifestPath(root, target);
-  let content: string;
-  try {
-    content = fs.readFileSync(filePath, 'utf-8');
-  } catch (err) {
-    // A missing manifest is the old-guide case, not an error.
-    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') return null;
-    throw err;
-  }
-
-  const entries: ManifestEntry[] = [];
-  const lines = content.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    let entry: ManifestEntry | null;
-    try {
-      entry = parseManifestLine(lines[i]);
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err);
-      throw new UserError(`Malformed install manifest ${filePath}, line ${i + 1}: ${reason}`);
-    }
-    if (entry) entries.push(entry);
-  }
-  return entries;
 }
 
 // ─── Writer ──────────────────────────────────────────────────────────────────

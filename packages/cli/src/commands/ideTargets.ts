@@ -45,44 +45,32 @@ export function invalidTargetMessage(input: string): string {
 }
 
 export interface TargetDescriptor {
-  /** Files probed for the managed marker; also the files backed up before overwrite. */
+  /** Files probed for the managed marker before the overwrite prompt. */
   markerFiles: string[];
-  /** Directories copied to worktrees, recursively. */
-  propagateDirs: string[];
   /** Label used in prompts and completion messages. */
   label: string;
-  /**
-   * Directories whose `*.prompt.md` files carrying GENERATED_MARKER are swept from
-   * worktrees. Those files predate the install manifest, so it never lists them.
-   */
-  generatedPromptDirs?: string[];
 }
 
 /**
- * One definition per target drives validation, the managed-marker check, backup,
- * and worktree propagation. The `Record<Target, TargetDescriptor>` annotation makes
- * the compiler reject a target added to the `Target` union without an entry here.
+ * One definition per target drives validation and the managed-marker check.
+ * The `Record<Target, TargetDescriptor>` annotation makes the compiler reject a
+ * target added to the `Target` union without an entry here.
  */
 export const TARGETS: Record<Target, TargetDescriptor> = {
   claude: {
     markerFiles: ['CLAUDE.md'],
-    propagateDirs: ['.claude/rules', '.claude/agents', '.claude/skills'],
     label: 'Claude Code',
   },
   copilot: {
     markerFiles: ['.github/copilot-instructions.md', 'AGENTS.md'],
-    propagateDirs: ['.github/instructions', '.github/prompts', AGENT_SKILLS_DIR],
     label: 'GitHub Copilot',
-    generatedPromptDirs: ['.github/prompts'],
   },
   cursor: {
     markerFiles: ['AGENTS.md'],
-    propagateDirs: ['.cursor/rules'],
     label: 'Cursor',
   },
   agents: {
     markerFiles: ['AGENTS.md'],
-    propagateDirs: [AGENT_SKILLS_DIR],
     label: 'agents',
   },
 };

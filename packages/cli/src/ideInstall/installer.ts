@@ -1,7 +1,6 @@
 /**
- * Entry point of the native setup-ide install, a port of the guide's
- * `scripts/setup-ide` and `scripts/setup-ide-lint.sh` (main, run_target_setup,
- * install_target).
+ * Entry point of the native setup-ide install, a port of the guide's bash
+ * setup-ide and setup-ide-lint.sh (main, run_target_setup, install_target).
  */
 import * as path from 'node:path';
 import type { Target } from '../commands/ideTargets.js';
