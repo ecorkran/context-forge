@@ -18,7 +18,7 @@ import type { InstallBase } from './installer.js';
 export const DRY_RUN_SANDBOX_PREFIX = 'cf-setup-ide-dry-run-';
 
 /** Top-level paths any target may write, relative to the target root. */
-const INSTALL_PATHS = [
+export const INSTALL_PATHS = [
   'CLAUDE.md',
   `CLAUDE.md${PREMANAGED_BACKUP_SUFFIX}`,
   'AGENTS.md',
@@ -99,7 +99,7 @@ function reportChanges(realRoot: string, sandbox: string, out: Printer): void {
  * Runs `install` against a sandbox copy and reports the difference. The run's
  * stdout is buffered and only its warning lines are replayed; its stderr passes
  * through. The sandbox is removed even when the install aborts or throws (bash
- * leaked it then); a failed removal propagates.
+ * leaked it then); a failed removal is reported on stderr.
  */
 export function dryRunInstall(
   target: Target,
@@ -119,6 +119,18 @@ export function dryRunInstall(
     }
     reportChanges(realRoot, sandbox, base.out);
   } finally {
+    removeSandbox(sandbox, base.out);
+  }
+}
+
+/**
+ * Cleanup must not replace the install's own error. A leftover temp dir is
+ * harmless, so a failed removal is reported on stderr instead of thrown.
+ */
+function removeSandbox(sandbox: string, out: Printer): void {
+  try {
     fs.rmSync(sandbox, { recursive: true, force: true });
+  } catch (err) {
+    out.statusErr('yellow', `⚠️  Could not remove dry-run sandbox ${sandbox}: ${String(err)}`);
   }
 }

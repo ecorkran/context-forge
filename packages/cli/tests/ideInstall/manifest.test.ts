@@ -114,6 +114,27 @@ describe('InstallManifest', () => {
     expect(manifestText()).toBe('');
   });
 
+  it('never deletes outside the project, whatever the manifest says', () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'install-manifest-outside-'));
+    try {
+      write(path.join(outside, 'victim.txt'), 'v\n');
+      write(path.join(outside, 'linked', 'victim.txt'), 'v\n');
+      fs.symlinkSync(path.join(outside, 'linked'), path.join(root, '.claude', 'escape'));
+      // An absolute path is re-rooted by path.join, so only `..` and symlinks can escape.
+      const escapes = [
+        path.relative(root, path.join(outside, 'victim.txt')),
+        '.claude/escape/victim.txt',
+      ];
+      write(manifestPath(root, 'claude'), escapes.map((rel) => entry('v\n', rel)).join('\n') + '\n');
+      fresh().finish();
+      expect(fs.existsSync(path.join(outside, 'victim.txt'))).toBe(true);
+      expect(fs.existsSync(path.join(outside, 'linked', 'victim.txt'))).toBe(true);
+      expect(stdout.match(/path resolves outside the project/g)).toHaveLength(escapes.length);
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it('removes emptied folders below two levels, never the install root', () => {
     const skill = path.join(root, '.claude', 'skills', 'old', 'deep', 'SKILL.md');
     write(skill, 's\n');

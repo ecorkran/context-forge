@@ -7,38 +7,19 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect } from 'vitest';
 import { normalizeTarget } from '../../src/commands/ideTargets.js';
+import { INSTALL_PATHS } from '../../src/ideInstall/dryRun.js';
 import { installIde } from '../../src/ideInstall/installer.js';
 
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FIXTURE_GUIDE = path.join(HERE, 'fixture_guide');
 export const FIXTURE_DATA = path.join(HERE, 'fixture_data');
 const SNAPSHOT_DIR = path.join(HERE, 'snapshots');
 
 /** Repo root of context-forge; its installed guide feeds the real-guide smoke test. */
 export const REPO_ROOT = path.resolve(HERE, '../../../..');
-
-/**
- * Paths setup-ide writes or prunes. The snapshot lists every file under these,
- * including files the project created itself, so "left alone" is visible too.
- */
-const INSTALL_PATHS = [
-  'CLAUDE.md',
-  'CLAUDE.md.pre-context-forge',
-  'AGENTS.md',
-  'AGENTS.md.pre-context-forge',
-  '.claude',
-  '.cursor',
-  '.github',
-  '.agents',
-  '.context-forge',
-  'ruff.toml',
-  'analysis_options.yaml',
-  'eslint.config.mjs',
-  '.editorconfig',
-  'Directory.Build.props',
-];
 
 const ANSI_RE = /\x1b\[[0-9;]*[A-Za-z]/g;
 const NO_FINAL_NEWLINE = '<no final newline>';

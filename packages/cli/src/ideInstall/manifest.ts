@@ -187,6 +187,10 @@ export class InstallManifest {
     for (const rel of stale) {
       const file = path.join(this.targetRoot, rel);
       if (rel === '' || !isFile(file)) continue;
+      if (this.escapesTargetRoot(rel, file)) {
+        this.out.status('yellow', `⚠️  Skipped ${rel}: path resolves outside the project`);
+        continue;
+      }
       // A legacy path has one entry per shipped version, so match any of them.
       if (oldLines.includes(`${cksumField(fs.readFileSync(file))} ${rel}`)) {
         fs.rmSync(file);
@@ -203,6 +207,20 @@ export class InstallManifest {
     fs.mkdirSync(path.join(this.targetRoot, MANIFEST_DIR), { recursive: true });
     const sorted = [...this.lines].sort(bySortKey3);
     fs.writeFileSync(this.oldManifest, sorted.map((line) => line + '\n').join(''));
+  }
+
+  /**
+   * Manifest paths come from a committed, user-editable file, so a deletion must
+   * stay inside the project: no absolute or `..` paths, and no symlinked
+   * install directory redirecting it elsewhere.
+   */
+  private escapesTargetRoot(rel: string, file: string): boolean {
+    if (path.isAbsolute(rel) || /^[A-Za-z]:/.test(rel) || rel.split(/[\\/]/).includes('..')) {
+      return true;
+    }
+    const root = fs.realpathSync(this.targetRoot);
+    const parent = fs.realpathSync(path.dirname(file));
+    return parent !== root && !parent.startsWith(root + path.sep);
   }
 
   /**
