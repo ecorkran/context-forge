@@ -12,6 +12,7 @@ import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
 import { setupAgents } from './targets/agents.js';
 import { setupClaude } from './targets/claude.js';
+import { setupCopilot } from './targets/copilot.js';
 
 export interface InstallOptions {
   /** Guide checkout to read sources from (the main checkout's guide, also for worktrees). */
@@ -36,7 +37,7 @@ export interface InstallResult {
 const TARGET_SETUP: Record<Target, (ctx: InstallContext) => void> = {
   claude: setupClaude,
   agents: setupAgents,
-  copilot: notPortedYet,
+  copilot: setupCopilot,
   cursor: notPortedYet,
 };
 

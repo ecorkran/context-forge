@@ -31,14 +31,14 @@ export function isEmptyDirectory(p: string): boolean {
 }
 
 /**
- * `"$dir"/*.md` filtered by `[ -f ]`: full paths in byte order (the LC_ALL=C
- * glob order), dotfiles skipped. Empty when dir is missing.
+ * `"$dir"/*<suffix>` filtered by `[ -f ]`: full paths in byte order (the
+ * LC_ALL=C glob order), dotfiles skipped. Empty when dir is missing.
  */
-export function listMarkdownFiles(dir: string): string[] {
+export function listMarkdownFiles(dir: string, suffix = '.md'): string[] {
   if (!isDirectory(dir)) return [];
   return fs
     .readdirSync(dir)
-    .filter((name) => name.endsWith('.md') && !name.startsWith('.'))
+    .filter((name) => name.endsWith(suffix) && !name.startsWith('.'))
     .sort(byteOrder)
     .map((name) => path.join(dir, name))
     .filter(isFile);

@@ -7,13 +7,9 @@ import * as path from 'node:path';
 import { InstallAbort, requireRulesDir, type InstallContext } from '../context.js';
 import { isDirectory, listMarkdownFiles } from '../fsChecks.js';
 import { hasAlwaysApply, stripNameField } from '../frontmatter.js';
+import { excludedMessage } from '../exclusions.js';
 import { compileClaudeRules } from '../rules.js';
 import { copyFiles, copySkills } from './copy.js';
-
-/** `⊘ Skipped <file> (excluded)`, shared by every target that copies scoped rules. */
-export function excludedMessage(filename: string): string {
-  return `⊘ Skipped ${filename} (excluded)`;
-}
 
 /** `copy_claude_modular_rules`: scoped rules to .claude/rules/, name: stripped. */
 function copyClaudeModularRules(ctx: InstallContext, targetDir: string): void {

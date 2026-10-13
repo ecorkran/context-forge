@@ -13,6 +13,11 @@ import type { Printer } from './output.js';
 /** Named in the active-exclusions notice. The only source since the env tier was dropped. */
 const EXCLUDE_SOURCE = 'cf config rules.exclude';
 
+/** `⊘ Skipped <file> (excluded)`, shared by every target that copies scoped rules. */
+export function excludedMessage(filename: string): string {
+  return `⊘ Skipped ${filename} (excluded)`;
+}
+
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -6,10 +6,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { assertSnapshot, installFiles, makeProject, makeTmpDir, run, snapshot } from './harness.js';
+import { assertSnapshot, installFiles, makeProject, makeTmpDir, run, snapshot, writeFiles } from './harness.js';
 
 /** Targets ported so far; extended as each target lands. */
-const TARGETS = ['claude', 'agents'] as const;
+const TARGETS = ['claude', 'agents', 'copilot'] as const;
+
+const GENERATED_MARKER = '<!-- context-forge:generated -->';
 
 let tmp: string;
 beforeEach(() => {
@@ -38,5 +40,26 @@ describe('targets', () => {
   ])('test_targets_alias_matches_reference[%s]', (alias, reference) => {
     // Fixed directory names: CLAUDE and claude collide on case-insensitive disks.
     expect(installed(path.join(tmp, 'alias'), alias)).toEqual(installed(path.join(tmp, 'reference'), reference));
+  });
+
+  it('test_targets_copilot_removes_generated_prompts_keeps_user_prompts', async () => {
+    const { project, guide } = makeProject(tmp);
+    writeFiles(project, {
+      '.github/prompts/old.prompt.md': `${GENERATED_MARKER}\nold generated\n`,
+      '.github/prompts/mine.prompt.md': 'my own prompt\n',
+    });
+    const result = run(guide, project, ['copilot']);
+    expect(fs.existsSync(path.join(project, '.github/prompts/old.prompt.md'))).toBe(false);
+    expect(fs.existsSync(path.join(project, '.github/prompts/mine.prompt.md'))).toBe(true);
+    await assertSnapshot('test_targets_copilot_prompts', snapshot(project, [result]));
+  });
+
+  it('test_targets_copilot_instruction_files_carry_marker', () => {
+    const { project, guide } = makeProject(tmp);
+    run(guide, project, ['copilot']);
+    const dir = path.join(project, '.github/instructions');
+    const files = fs.readdirSync(dir).filter((name) => name.endsWith('.instructions.md'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) expect(fs.readFileSync(path.join(dir, file), 'utf-8')).toContain(GENERATED_MARKER);
   });
 });
