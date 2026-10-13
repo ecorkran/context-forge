@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 import {
   registerSetupIdeCommand,
@@ -8,53 +8,56 @@ import {
   normalizeTarget,
   invalidTargetMessage,
 } from '../../src/commands/setup-ide.js';
+import type { InstallOptions } from '../../src/ideInstall/installer.js';
 
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockDetect = vi.fn();
 const mockExistsSync = vi.fn();
 const mockCopyFileSync = vi.fn();
-const mockCpSync = vi.fn();
 const mockReadFileSync = vi.fn();
-const mockExecFileSync = vi.fn();
-const mockMkdirSync = vi.fn();
-const mockReaddirSync = vi.fn();
 
-// The install manifest is read through this mocked fs. Report it missing (the
-// pre-manifest guide path, D4), which is the copy-only behavior these tests pin.
-function readFileSyncOrMissingManifest(...args: unknown[]): unknown {
-  if (String(args[0]).endsWith('.manifest')) {
-    throw Object.assign(new Error(`ENOENT: ${String(args[0])}`), { code: 'ENOENT' });
-  }
-  return mockReadFileSync(...args);
-}
+// The installer runs in-process; its behavior is covered by tests/ideInstall.
+// Here it is mocked so these tests pin only what cf passes it and does with the result.
+const mockInstallIde = vi.fn((_options: InstallOptions): { exitCode: 0 | 1 } => ({ exitCode: 0 }));
+
+vi.mock('../../src/ideInstall/installer.js', () => ({
+  installIde: (options: InstallOptions) => mockInstallIde(options),
+}));
+
+/** rules.exclude as configured per checkout root; unset roots resolve to ''. */
+const rulesExcludeByRoot = new Map<string, string>();
 
 // readline mock — controls user input simulation
 const mockQuestion = vi.fn();
 const mockRlClose = vi.fn();
 
-vi.mock('@context-forge/core/node', () => ({
-  FileProjectStore: vi.fn().mockImplementation(() => ({
-    getAll: mockGetAll,
-    getById: mockGetById,
-  })),
-  GuideDetector: vi.fn().mockImplementation(() => ({
-    detect: mockDetect,
-  })),
-  // setup-ide calls ensureGuideReady() before detecting, so the helper's
-  // GuideManager must exist on the mock. Default: nothing to do.
-  GuideManager: vi.fn().mockImplementation(() => ({
-    ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
-  })),
-  ConfigManager: vi.fn().mockImplementation(() => ({
-    get: vi.fn().mockResolvedValue({ value: '' }),
-  })),
-  GUIDE_RELATIVE_PATH: 'project-documents/ai-project-guide',
-  // Mirrors the real constant in core/guides/gitExec.ts (#78).
-  GUIDE_OFFLINE_REMEDIATION:
-    'Check your VPN/proxy connection, or install offline by pointing guide.source ' +
-    'at a local path or mirror (cf config set guide.source <path>).',
-}));
+vi.mock('@context-forge/core/node', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@context-forge/core/node')>();
+  return {
+    parseRulesExclude: actual.parseRulesExclude,
+    FileProjectStore: vi.fn().mockImplementation(() => ({
+      getAll: mockGetAll,
+      getById: mockGetById,
+    })),
+    GuideDetector: vi.fn().mockImplementation(() => ({
+      detect: mockDetect,
+    })),
+    // setup-ide calls ensureGuideReady() before detecting, so the helper's
+    // GuideManager must exist on the mock. Default: nothing to do.
+    GuideManager: vi.fn().mockImplementation(() => ({
+      ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
+    })),
+    ConfigManager: vi.fn().mockImplementation((root: string) => ({
+      get: vi.fn().mockResolvedValue({ value: rulesExcludeByRoot.get(root) ?? '' }),
+    })),
+    GUIDE_RELATIVE_PATH: 'project-documents/ai-project-guide',
+    // Mirrors the real constant in core/guides/gitExec.ts (#78).
+    GUIDE_OFFLINE_REMEDIATION:
+      'Check your VPN/proxy connection, or install offline by pointing guide.source ' +
+      'at a local path or mirror (cf config set guide.source <path>).',
+  };
+});
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -64,33 +67,13 @@ vi.mock('node:fs', async (importOriginal) => {
       ...actual,
       existsSync: (...args: unknown[]) => mockExistsSync(...args),
       copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
-      cpSync: (...args: unknown[]) => mockCpSync(...args),
-      readFileSync: (...args: unknown[]) => readFileSyncOrMissingManifest(...args),
-      mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
-      readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
+      readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
     },
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
     copyFileSync: (...args: unknown[]) => mockCopyFileSync(...args),
-    cpSync: (...args: unknown[]) => mockCpSync(...args),
-    readFileSync: (...args: unknown[]) => readFileSyncOrMissingManifest(...args),
-    mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
-    readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
+    readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
   };
 });
-
-// `setup-ide --capabilities` probes go to their own mock so script-run
-// assertions stay about real runs. Default: an older guide, which rejects the
-// probe as an unknown target and exits 1.
-const mockCapabilities = vi.fn((): string => {
-  throw Object.assign(new Error('Unsupported target'), { status: 1 });
-});
-
-vi.mock('node:child_process', () => ({
-  execFileSync: (...args: unknown[]) => {
-    const scriptArgs = args[1] as string[];
-    return scriptArgs.includes('--capabilities') ? mockCapabilities() : mockExecFileSync(...args);
-  },
-}));
 
 // Command/skill delivery is exercised in commandInstaller.test.ts; here it must
 // be mocked or the setup-ide action tests would write to the real home directory.
@@ -120,19 +103,18 @@ const sampleProject = {
   projectPath: '/tmp/test',
 };
 
-const sampleProjectWithWorktrees = {
+const twoWorktreeProject = {
   ...sampleProject,
-  worktrees: [{ id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' }],
+  worktrees: [
+    { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
+    { id: 'wt_002', name: 'bugfix', worktreePath: '/tmp/wt2' },
+  ],
 };
 
 const guidePath = '/tmp/test/project-documents/ai-project-guide';
-const scriptPath = `${guidePath}/scripts/setup-ide`;
 const claudeMdPath = '/tmp/test/CLAUDE.md';
-const claudeMdBakPath = '/tmp/test/CLAUDE.md.bak';
 const copilotInstructionsPath = '/tmp/test/.github/copilot-instructions.md';
-const copilotInstructionsBakPath = '/tmp/test/.github/copilot-instructions.md.bak';
 const agentsMdPath = '/tmp/test/AGENTS.md';
-const agentsMdBakPath = '/tmp/test/AGENTS.md.bak';
 
 const MANAGED_CONTENT = '[//]: # (context-forge:managed)\n\n# Content';
 const UNMANAGED_CONTENT = '# My custom instructions\n\nSome content here.';
@@ -142,6 +124,28 @@ function createProgram(): Command {
   program.exitOverride();
   registerSetupIdeCommand(program);
   return program;
+}
+
+/** [targetRoot, target, dryRun, writeLint, rulesExclude] of each installIde call. */
+function installs(): [string, string, boolean, boolean, readonly string[]][] {
+  return mockInstallIde.mock.calls.map(([o]) => [o.targetRoot, o.target, o.dryRun, o.writeLint, o.rulesExclude]);
+}
+
+function errText(): string {
+  return vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
+}
+
+function resetMocks(): void {
+  vi.clearAllMocks();
+  mockInstallIde.mockImplementation(() => ({ exitCode: 0 }));
+  rulesExcludeByRoot.clear();
+  mockDetect.mockResolvedValue({ installed: true });
+  mockExistsSync.mockReturnValue(false);
+  mockGetAll.mockResolvedValue([sampleProject]);
+  mockGetById.mockResolvedValue(sampleProject);
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 }
 
 // ─── target model and normalization ──────────────────────────────────────────
@@ -196,340 +200,154 @@ describe('invalidTargetMessage', () => {
 
 // ─── cf setup-ide command ────────────────────────────────────────────────────
 
+
 describe('cf setup-ide', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGetAll.mockResolvedValue([sampleProject]);
-    mockGetById.mockResolvedValue(sampleProject);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-  });
+  beforeEach(resetMocks);
 
   it('rejects invalid target and lists valid targets', async () => {
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'vim']);
-
-    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain("Invalid target 'vim'");
-    expect(output).toContain('claude');
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'vim']);
+    expect(errText()).toContain("Invalid target 'vim'");
+    expect(errText()).toContain('claude');
+    expect(mockInstallIde).not.toHaveBeenCalled();
   });
 
   it('rejects an unsupported target and lists all four canonical targets', async () => {
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'notarealtarget']);
-
-    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain("Invalid target 'notarealtarget'");
-    expect(output).toContain('claude');
-    expect(output).toContain('copilot');
-    expect(output).toContain('cursor');
-    expect(output).toContain('agents');
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'notarealtarget']);
+    for (const word of ["Invalid target 'notarealtarget'", 'claude', 'copilot', 'cursor', 'agents']) {
+      expect(errText()).toContain(word);
+    }
   });
 
   it('errors when guides not installed', async () => {
     mockDetect.mockResolvedValue({ installed: false });
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
-
-    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('Guides are not installed');
-    expect(output).toContain('cf guides install');
-    // #78: the offline/network fallback guidance must be surfaced here too, not
-    // only by `cf guides install` itself.
-    expect(output).toContain('cf config set guide.source');
-    expect(output).toContain('VPN/proxy');
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(errText()).toContain('Guides are not installed');
+    expect(errText()).toContain('cf guides install');
+    // #78: the offline/network fallback guidance must be surfaced here too.
+    expect(errText()).toContain('cf config set guide.source');
+    expect(errText()).toContain('VPN/proxy');
+    expect(mockInstallIde).not.toHaveBeenCalled();
   });
 
-  it('errors when setup-ide script not found', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockReturnValue(false);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
-
-    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('setup-ide script not found');
-    expect(output).toContain(scriptPath);
-  });
-
-  it('proceeds without prompt when no CLAUDE.md', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return false;
-      return false;
-    });
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'claude'],
-      expect.objectContaining({ cwd: '/tmp/test', stdio: 'inherit' }),
+  it('installs in-process from the project guide into the project root', async () => {
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(mockInstallIde).toHaveBeenCalledWith(
+      expect.objectContaining({ guideDir: guidePath, projectRoot: '/tmp/test', targetRoot: '/tmp/test', target: 'claude' }),
     );
+    expect(installs()).toEqual([['/tmp/test', 'claude', false, false, []]]);
+    expect(errText()).toContain('IDE setup complete for claude.');
   });
 
-  it('installs commands globally after claude setup', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
-
-    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
+  it.each([
+    ['codex', 'agents'],
+    ['openai', 'agents'],
+    ['CLAUDE', 'claude'],
+    ['copilot', 'copilot'],
+  ])('passes %s to the installer as %s', async (input, target) => {
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', input, '--project', 'proj_001']);
+    expect(installs()[0][1]).toBe(target);
   });
 
-  it('installs skills globally after codex setup (alias resolves to agents)', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
+  it('passes the configured rules.exclude as patterns', async () => {
+    rulesExcludeByRoot.set('/tmp/test', 'dart.md,swift*.md');
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(installs()[0][4]).toEqual(['dart.md', 'swift*.md']);
+  });
 
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'codex', '--project', 'proj_001']);
+  it('turns an install that reports failure into an error and exit 1', async () => {
+    mockInstallIde.mockReturnValue({ exitCode: 1 });
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(errText()).toContain('setup-ide failed for claude');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
+  });
 
-    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('agents');
+  it('installs commands globally after claude setup, and after codex (resolved to agents)', async () => {
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'codex', '--project', 'proj_001']);
+    expect(mockInstallCommandsForTarget.mock.calls).toEqual([['claude'], ['agents']]);
   });
 
   it('skips command delivery for targets without it (cursor)', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'cursor', '--project', 'proj_001']);
-
-    expect(mockExecFileSync).toHaveBeenCalled();
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'cursor', '--project', 'proj_001']);
+    expect(mockInstallIde).toHaveBeenCalled();
     expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
   });
 
-  it('creates .bak and invokes script with --yes when CLAUDE.md exists (no managed marker, no .bak)', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return true;
-      if (p === claudeMdBakPath) return false;
-      return false;
-    });
+  it('--dry-run and --write-lint reach the installer; a dry run prompts for and installs nothing', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === claudeMdPath);
     mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(claudeMdPath, claudeMdBakPath);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'claude'],
-      expect.objectContaining({ cwd: '/tmp/test', stdio: 'inherit' }),
-    );
-
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('Backed up CLAUDE.md');
-  });
-
-  it('--dry-run passes the flag through and writes nothing: no prompt, backup, propagation, or command install', async () => {
-    mockGetById.mockResolvedValue(sampleProjectWithWorktrees);
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath || p === '/tmp/wt1');
-    mockReadFileSync.mockImplementation((p: string) =>
-      p === scriptPath ? 'case "$arg" in --dry-run) DRY_RUN=1 ;; esac' : UNMANAGED_CONTENT,
-    );
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', '--dry-run', 'claude', '--project', 'proj_001']);
-
-    expect(mockQuestion).not.toHaveBeenCalled();
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockCpSync).not.toHaveBeenCalled();
-    expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledTimes(1);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'claude', '--dry-run'],
-      expect.objectContaining({ cwd: '/tmp/test', stdio: 'inherit' }),
-    );
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('Dry run complete for claude');
-  });
-
-  it('--dry-run refuses an older guide whose script ignores the flag, and runs nothing', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === claudeMdPath);
-    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? 'TARGET="$1"' : UNMANAGED_CONTENT));
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--dry-run', '--project', 'proj_001']);
-
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('does not support --dry-run');
-    expect(errOutput).toContain('cf guides update');
-  });
-
-  it('--write-lint passes through; combined with --dry-run both flags reach the script', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-    mockReadFileSync.mockImplementation((p: string) =>
-      p === scriptPath ? '--dry-run) DRY_RUN=1 ;; --write-lint) WRITE_LINT=1 ;;' : UNMANAGED_CONTENT,
-    );
-
-    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--write-lint', '--project', 'proj_001']);
-    expect(mockExecFileSync).toHaveBeenLastCalledWith('bash', [scriptPath, 'claude', '--write-lint'], expect.anything());
-    expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
-
-    mockInstallCommandsForTarget.mockClear();
     await createProgram().parseAsync([
       'node', 'cf', 'setup-ide', '--write-lint', 'claude', '--dry-run', '--project', 'proj_001',
     ]);
-    expect(mockExecFileSync).toHaveBeenLastCalledWith(
-      'bash',
-      [scriptPath, 'claude', '--dry-run', '--write-lint'],
-      expect.anything(),
-    );
+    expect(installs()).toEqual([['/tmp/test', 'claude', true, true, []]]);
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
     expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
-  });
-
-  it('--write-lint refuses a guide whose script supports --dry-run but not --write-lint', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? '--dry-run) DRY_RUN=1 ;;' : UNMANAGED_CONTENT));
-
-    await createProgram().parseAsync([
-      'node', 'cf', 'setup-ide', 'claude', '--dry-run', '--write-lint', '--project', 'proj_001',
-    ]);
-
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('does not support --write-lint');
-    expect(errOutput).not.toContain('--dry-run,');
-  });
-
-  it('handles non-zero script exit code', async () => {
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return false;
-      return false;
-    });
-    const execError = Object.assign(new Error('Command failed'), { status: 1 });
-    mockExecFileSync.mockImplementation(() => { throw execError; });
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
-
-    const output = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('setup-ide exited with code 1');
+    expect(errText()).toContain('Dry run complete for claude');
   });
 });
 
-describe('cf setup-ide with a guide that reports capabilities (v0.20.1+)', () => {
-  const ALL_CAPS = 'dry-run write-lint root\n';
-  const twoWorktreeProject = {
-    ...sampleProject,
-    worktrees: [
-      { id: 'wt_001', name: 'feature', worktreePath: '/tmp/wt1' },
-      { id: 'wt_002', name: 'bugfix', worktreePath: '/tmp/wt2' },
-    ],
-  };
-
+describe('cf setup-ide worktree loop', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockExecFileSync.mockReset();
-    mockDetect.mockResolvedValue({ installed: true });
+    resetMocks();
     mockGetById.mockResolvedValue(twoWorktreeProject);
-    mockExistsSync.mockImplementation((p: string) =>
-      [scriptPath, claudeMdPath, '/tmp/wt1', '/tmp/wt2'].includes(p),
-    );
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    // propagationTargets keeps only worktrees whose path exists.
+    mockExistsSync.mockImplementation((p: string) => p === '/tmp/wt1' || p === '/tmp/wt2');
   });
 
-  afterEach(() => {
-    mockCapabilities.mockReset();
-    mockCapabilities.mockImplementation(() => {
-      throw Object.assign(new Error('Unsupported target'), { status: 1 });
-    });
-  });
-
-  function scriptRuns(): string[][] {
-    return mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
-  }
-
-  it('skips .bak, runs the root, then each worktree with --root from the main checkout script', async () => {
-    mockCapabilities.mockReturnValue(ALL_CAPS);
-
-    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockCpSync).not.toHaveBeenCalled();
-    expect(scriptRuns()).toEqual([
-      [scriptPath, 'claude'],
-      [scriptPath, 'claude', '--root', '/tmp/wt1'],
-      [scriptPath, 'claude', '--root', '/tmp/wt2'],
-    ]);
-    expect(mockExecFileSync.mock.calls[1][2]).toEqual(expect.objectContaining({ cwd: '/tmp/wt1' }));
+  it('installs the root, then each worktree into its own root from the main checkout guide', async () => {
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(installs().map(([root]) => root)).toEqual(['/tmp/test', '/tmp/wt1', '/tmp/wt2']);
+    for (const [options] of mockInstallIde.mock.calls) {
+      expect(options.guideDir).toBe(guidePath);
+      expect(options.projectRoot).toBe(options.targetRoot);
+    }
+    const logText = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+    expect(logText).toContain('→ setup-ide in worktree: feature (/tmp/wt1)');
     expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
   });
 
-  it('a dry run reaches every worktree with the same flags and installs no commands', async () => {
-    mockCapabilities.mockReturnValue(ALL_CAPS);
+  it('reads rules.exclude for each worktree root', async () => {
+    rulesExcludeByRoot.set('/tmp/wt1', 'dart.md');
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(installs().map(([root, , , , exclude]) => [root, exclude])).toEqual([
+      ['/tmp/test', []],
+      ['/tmp/wt1', ['dart.md']],
+      ['/tmp/wt2', []],
+    ]);
+  });
 
+  it('a dry run reaches every worktree with the same flags and installs no commands', async () => {
     await createProgram().parseAsync([
       'node', 'cf', 'setup-ide', 'claude', '--dry-run', '--write-lint', '--project', 'proj_001',
     ]);
-
-    expect(scriptRuns()).toEqual([
-      [scriptPath, 'claude', '--dry-run', '--write-lint'],
-      [scriptPath, 'claude', '--root', '/tmp/wt1', '--dry-run', '--write-lint'],
-      [scriptPath, 'claude', '--root', '/tmp/wt2', '--dry-run', '--write-lint'],
+    expect(installs().map(([root, , dryRun, writeLint]) => [root, dryRun, writeLint])).toEqual([
+      ['/tmp/test', true, true],
+      ['/tmp/wt1', true, true],
+      ['/tmp/wt2', true, true],
     ]);
     expect(mockInstallCommandsForTarget).not.toHaveBeenCalled();
   });
 
   it('a failing worktree does not stop the others; the run then fails naming it', async () => {
-    mockCapabilities.mockReturnValue(ALL_CAPS);
-    mockExecFileSync.mockImplementation((_cmd: string, args: string[]) => {
-      if (args.includes('/tmp/wt1')) throw Object.assign(new Error('failed'), { status: 3 });
-      return undefined;
-    });
-
-    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
-
-    expect(scriptRuns().some((a) => a.includes('/tmp/wt2'))).toBe(true);
+    mockInstallIde.mockImplementation((o) => ({ exitCode: o.targetRoot === '/tmp/wt1' ? 1 : 0 }));
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(installs().map(([root]) => root)).toContain('/tmp/wt2');
     expect(mockInstallCommandsForTarget).toHaveBeenCalledWith('claude');
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('exited with code 3 in worktree feature');
-    expect(errOutput).toContain('setup-ide failed in worktree(s): feature.');
+    expect(errText()).toContain('setup-ide failed in worktree feature.');
+    expect(errText()).toContain('setup-ide failed in worktree(s): feature.');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  it('capabilities without root fall back to copy-and-prune propagation', async () => {
-    mockCapabilities.mockReturnValue('dry-run write-lint\n');
-
-    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--yes', '--project', 'proj_001']);
-
-    expect(scriptRuns()).toEqual([[scriptPath, 'claude']]);
-    // copyRootOutput copies the root's CLAUDE.md into each worktree. The guide
-    // reports capabilities, so it made its own backup: no .bak copy alongside.
-    expect(mockCopyFileSync.mock.calls).toEqual([
-      [claudeMdPath, '/tmp/wt1/CLAUDE.md'],
-      [claudeMdPath, '/tmp/wt2/CLAUDE.md'],
-    ]);
-  });
-
-  it('reported capabilities win over the script text: an unreported flag is refused', async () => {
-    mockCapabilities.mockReturnValue('dry-run\n');
-    mockReadFileSync.mockImplementation((p: string) => (p === scriptPath ? '--write-lint' : UNMANAGED_CONTENT));
-
-    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--write-lint', '--project', 'proj_001']);
-
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('does not support --write-lint');
+  it('stops on any other exception: it is a bug, not a worktree failure', async () => {
+    mockInstallIde.mockImplementation((o) => {
+      if (o.targetRoot === '/tmp/wt1') throw new TypeError('a bug');
+      return { exitCode: 0 };
+    });
+    await createProgram().parseAsync(['node', 'cf', 'setup-ide', 'claude', '--project', 'proj_001']);
+    expect(installs().map(([root]) => root)).not.toContain('/tmp/wt2');
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
 
@@ -655,320 +473,63 @@ describe('isManagedInstall', () => {
   });
 });
 
-// ─── setupIdeAction — copilot ────────────────────────────────────────────────
+// ─── setupIdeAction: the overwrite prompt ────────────────────────────────────
 
-describe('setupIdeAction — copilot target', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-    mockExecFileSync.mockReturnValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
+describe.each([
+  ['claude', claudeMdPath],
+  ['copilot', copilotInstructionsPath],
+  ['agents', agentsMdPath],
+  ['cursor', agentsMdPath],
+])('setupIdeAction — %s overwrite prompt', (target, markerFile) => {
+  beforeEach(resetMocks);
 
-  it('proceeds silently when managed marker present in copilot-instructions.md', async () => {
-    mockExistsSync.mockImplementation(
-      (p: string) => p === scriptPath || p === copilotInstructionsPath,
-    );
+  it('managed file present → no prompt, installs', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === markerFile);
     mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'copilot'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
+    await setupIdeAction('/tmp/test', target);
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(mockInstallIde).toHaveBeenCalledTimes(1);
   });
 
-  it('proceeds silently when no copilot files exist', async () => {
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-
-    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'copilot'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
+  it('no marker file → no prompt, installs', async () => {
+    await setupIdeAction('/tmp/test', target);
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(mockInstallIde).toHaveBeenCalledTimes(1);
   });
 
-  it('backs up unmanaged copilot-instructions.md with --yes', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === copilotInstructionsPath) return true;
-      if (p === copilotInstructionsBakPath) return false;
-      return false;
-    });
+  it('unmanaged file, user confirms → installs; cf takes no .bak (the installer backs up)', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === markerFile);
     mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, copilotInstructionsBakPath);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'copilot'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('Backed up');
-  });
-
-  it('prints Aborted and skips script when user denies prompt', async () => {
-    mockExistsSync.mockImplementation(
-      (p: string) => p === scriptPath || p === copilotInstructionsPath,
-    );
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-    // Simulate user typing 'n'
-    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
-
-    await setupIdeAction('/tmp/test', 'copilot');
-
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('Aborted.');
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-  });
-
-  it('backs up and runs script when user confirms prompt', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === copilotInstructionsPath) return true;
-      if (p === copilotInstructionsBakPath) return false;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-    // Simulate user typing 'y'
     mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('y'));
-
-    await setupIdeAction('/tmp/test', 'copilot');
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(copilotInstructionsPath, copilotInstructionsBakPath);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'copilot'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
+    await setupIdeAction('/tmp/test', target);
+    expect(mockQuestion).toHaveBeenCalled();
+    expect(mockCopyFileSync).not.toHaveBeenCalled();
+    expect(mockInstallIde).toHaveBeenCalledTimes(1);
   });
 
-  it('prints preserved message and does not copy when .bak already exists', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === copilotInstructionsPath) return true;
-      if (p === copilotInstructionsBakPath) return true;
-      return false;
-    });
+  it('unmanaged file, --yes → no prompt, installs', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === markerFile);
     mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    await setupIdeAction('/tmp/test', target, { yes: true });
+    expect(mockQuestion).not.toHaveBeenCalled();
+    expect(mockInstallIde).toHaveBeenCalledTimes(1);
+  });
 
-    await setupIdeAction('/tmp/test', 'copilot', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('existing backup preserved');
-    expect(mockExecFileSync).toHaveBeenCalled();
+  it('unmanaged file, user denies → Aborted, nothing installed', async () => {
+    mockExistsSync.mockImplementation((p: string) => p === markerFile);
+    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
+    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
+    expect(await setupIdeAction('/tmp/test', target)).toBeNull();
+    expect(errText()).toContain('Aborted.');
+    expect(mockInstallIde).not.toHaveBeenCalled();
   });
 });
 
-// ─── setupIdeAction — claude ─────────────────────────────────────────────────
+describe('setupIdeAction — guide missing', () => {
+  beforeEach(resetMocks);
 
-describe('setupIdeAction — claude target', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-    mockExecFileSync.mockReturnValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  it('skips backup when managed marker present, script runs', async () => {
-    mockExistsSync.mockImplementation(
-      (p: string) => p === scriptPath || p === claudeMdPath,
-    );
-    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'claude', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'claude'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('skips backup when no CLAUDE.md, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-
-    await setupIdeAction('/tmp/test', 'claude', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'claude'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('copies to .bak and prints notice when no marker and no existing .bak', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return true;
-      if (p === claudeMdBakPath) return false;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'claude', { yes: true });
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(claudeMdPath, claudeMdBakPath);
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('Backed up CLAUDE.md');
-  });
-
-  it('skips copy and prints preserved message when no marker but .bak exists', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === claudeMdPath) return true;
-      if (p === claudeMdBakPath) return true;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'claude', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('existing backup preserved at CLAUDE.md.bak');
-  });
-});
-
-// ─── setupIdeAction — cursor and agents targets ─────────────────────────────
-
-describe('setupIdeAction — cursor and agents targets', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDetect.mockResolvedValue({ installed: true });
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath);
-    mockExecFileSync.mockReturnValue(undefined);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  it('cursor: errors when guides not installed (same error as claude path)', async () => {
+  it.each(['claude', 'cursor', 'agents'])('%s: errors when guides not installed', async (target) => {
     mockDetect.mockResolvedValue({ installed: false });
-
-    await expect(setupIdeAction('/tmp/test', 'cursor')).rejects.toThrow('Guides are not installed');
-  });
-
-  it('agents: errors when guides not installed (same error as claude path)', async () => {
-    mockDetect.mockResolvedValue({ installed: false });
-
-    await expect(setupIdeAction('/tmp/test', 'agents')).rejects.toThrow('Guides are not installed');
-  });
-
-  it('codex invocation passes agents to the script', async () => {
-    await setupIdeAction('/tmp/test', 'codex', { yes: true });
-
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'agents'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('managed AGENTS.md present, target agents → no prompt, no backup, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === agentsMdPath);
-    mockReadFileSync.mockReturnValue(MANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'agents', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'agents'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('no conventions file present, target cursor → no prompt, script runs', async () => {
-    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'cursor'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('unmanaged AGENTS.md, --yes → AGENTS.md.bak created, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === agentsMdPath) return true;
-      if (p === agentsMdBakPath) return false;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, agentsMdBakPath);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'cursor'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('unmanaged AGENTS.md, user confirms → backup created, script runs', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === agentsMdPath) return true;
-      if (p === agentsMdBakPath) return false;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('y'));
-
-    await setupIdeAction('/tmp/test', 'agents');
-
-    expect(mockCopyFileSync).toHaveBeenCalledWith(agentsMdPath, agentsMdBakPath);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'bash',
-      [scriptPath, 'agents'],
-      expect.objectContaining({ cwd: '/tmp/test' }),
-    );
-  });
-
-  it('unmanaged AGENTS.md, user denies → Aborted printed, script NOT run', async () => {
-    mockExistsSync.mockImplementation((p: string) => p === scriptPath || p === agentsMdPath);
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-    mockQuestion.mockImplementation((_prompt: string, cb: (answer: string) => void) => cb('n'));
-
-    await setupIdeAction('/tmp/test', 'agents');
-
-    const errOutput = vi.mocked(console.error).mock.calls.map((c) => c[0]).join('\n');
-    expect(errOutput).toContain('Aborted.');
-    expect(mockExecFileSync).not.toHaveBeenCalled();
-  });
-
-  it('unmanaged AGENTS.md with existing .bak → existing backup preserved, .bak not overwritten', async () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p === scriptPath) return true;
-      if (p === agentsMdPath) return true;
-      if (p === agentsMdBakPath) return true;
-      return false;
-    });
-    mockReadFileSync.mockReturnValue(UNMANAGED_CONTENT);
-
-    await setupIdeAction('/tmp/test', 'cursor', { yes: true });
-
-    expect(mockCopyFileSync).not.toHaveBeenCalled();
-    const logOutput = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
-    expect(logOutput).toContain('existing backup preserved');
-    expect(mockExecFileSync).toHaveBeenCalled();
+    await expect(setupIdeAction('/tmp/test', target)).rejects.toThrow('Guides are not installed');
   });
 });

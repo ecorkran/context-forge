@@ -175,60 +175,60 @@ status: in_progress
 
 ### Dry run, lint, exclusions
 
-- [ ] **Task 18: `dryRun.ts`** (effort 3)
-  - [ ] Port `dry_run_install`, `list_install_files` and `report_dry_run_changes`:
+- [x] **Task 18: `dryRun.ts`** (effort 3)
+  - [x] Port `dry_run_install`, `list_install_files` and `report_dry_run_changes`:
     1. Make a sandbox with `fs.mkdtempSync`.
     2. Copy the existing install paths into it with `fs.cpSync`, skipping `.claude/worktrees`.
     3. Install there into a buffered sink.
     4. Print the buffered warning lines, then the `+`/`~`/`-` report in byte order.
-  - [ ] Remove the sandbox in a `finally`, so it's also removed when the install aborts or throws. A failed removal propagates. This differs from bash on purpose; note it for Task 34.
-  - [ ] Success: build passes.
+  - [x] Remove the sandbox in a `finally`, so it's also removed when the install aborts or throws. A failed removal propagates. This differs from bash on purpose; note it for Task 34.
+  - [x] Success: build passes.
 
-- [ ] **Task 19: Test the dry run and an outside root** (effort 2)
-  - [ ] Port the three `test_flags_dry_run_*` tests and `test_flags_root_outside_guide` (as one test with `targetRoot` set to another checkout).
-  - [ ] Add a unit test showing that the sandbox is removed after an install that aborts.
-  - [ ] Don't port these, which test the bash argument parser: `test_flags_capabilities`, `test_flags_root_missing_directory`, `test_flags_root_without_value`, `test_flags_before_target_same_as_after`, and the usage and unsupported-target runs.
-  - [ ] Success: the ported tests match their snapshots with no `-u`.
-  - [ ] Commit: `feat(cli): port setup-ide dry run`.
+- [x] **Task 19: Test the dry run and an outside root** (effort 2)
+  - [x] Port the three `test_flags_dry_run_*` tests and `test_flags_root_outside_guide` (as one test with `targetRoot` set to another checkout).
+  - [x] Add a unit test showing that the sandbox is removed after an install that aborts.
+  - [x] Don't port these, which test the bash argument parser: `test_flags_capabilities`, `test_flags_root_missing_directory`, `test_flags_root_without_value`, `test_flags_before_target_same_as_after`, and the usage and unsupported-target runs.
+  - [x] Success: the ported tests match their snapshots with no `-u`.
+  - [x] Commit: `feat(cli): port setup-ide dry run`.
 
-- [ ] **Task 20: `lint.ts`** (effort 3)
-  - [ ] Port all of `setup-ide-lint.sh`: language detection, the required-config checks and `--write-lint` writes. It reads from `projectRoot` and writes under `targetRoot`.
-  - [ ] Call it from `installer.ts`, replacing the Task 13 no-op.
-  - [ ] Success: build passes.
+- [x] **Task 20: `lint.ts`** (effort 3)
+  - [x] Port all of `setup-ide-lint.sh`: language detection, the required-config checks and `--write-lint` writes. It reads from `projectRoot` and writes under `targetRoot`.
+  - [x] Call it from `installer.ts`, replacing the Task 13 no-op.
+  - [x] Success: build passes.
 
-- [ ] **Task 21: Test lint** (effort 2)
-  - [ ] Port `test_lint.py`, except `test_lint_python_excluded`, which moves with Task 22.
-  - [ ] Success: the ported tests match their snapshots with no `-u`.
-  - [ ] Commit: `feat(cli): port setup-ide lint check`.
+- [x] **Task 21: Test lint** (effort 2)
+  - [x] Port `test_lint.py`, except `test_lint_python_excluded`, which moves with Task 22.
+  - [x] Success: the ported tests match their snapshots with no `-u`.
+  - [x] Commit: `feat(cli): port setup-ide lint check`.
 
-- [ ] **Task 22: Port `rules.exclude` tests; drop the env tier (spec-change commit)** (effort 2)
-  - [ ] Port `test_rules_exclude.py` and `test_lint_python_excluded`, passing `rulesExclude` in-process.
-  - [ ] Drop `test_rules_exclude_env_wins` and delete its `.snap`. Drop the cf-stub tier tests. Task 28 replaces them with one cf-level test.
-  - [ ] The active-source message names cf config, using the wording the bash prints for its cf source. Run `vitest -u` for exactly these three snapshots: `test_rules_exclude_always_on`, `test_rules_exclude_unmatched` and `test_lint_python_excluded`.
-  - [ ] Success: `git diff` on the snapshots shows only the active-source line in those three files and the deleted `env_wins` file. All ported tests pass.
-  - [ ] Commit, with the reason in the body (PM decision 1, 20261011): `test: drop the rules.exclude env tier from setup-ide snapshots`.
+- [x] **Task 22: Port `rules.exclude` tests; drop the env tier (spec-change commit)** (effort 2)
+  - [x] Port `test_rules_exclude.py` and `test_lint_python_excluded`, passing `rulesExclude` in-process.
+  - [x] Drop `test_rules_exclude_env_wins` and delete its `.snap`. Drop the cf-stub tier tests. Task 28 replaces them with one cf-level test.
+  - [x] The active-source message names cf config, using the wording the bash prints for its cf source. Run `vitest -u` for exactly these three snapshots: `test_rules_exclude_always_on`, `test_rules_exclude_unmatched` and `test_lint_python_excluded`.
+  - [x] Success: `git diff` on the snapshots shows only the active-source line in those three files and the deleted `env_wins` file. All ported tests pass.
+  - [x] Commit, with the reason in the body (PM decision 1, 20261011): `test: drop the rules.exclude env tier from setup-ide snapshots`.
 
-- [ ] **Task 23: `test_real_guide` smoke test** (effort 1)
-  - [ ] Port `test_real_guide.py` with no snapshot. For each of the four targets, install from the repo's installed guide at `project-documents/ai-project-guide/project-guides` and assert:
+- [x] **Task 23: `test_real_guide` smoke test** (effort 1)
+  - [x] Port `test_real_guide.py` with no snapshot. For each of the four targets, install from the repo's installed guide at `project-documents/ai-project-guide/project-guides` and assert:
     - exit 0
     - no `❌` in the output
     - the target's top-level files exist
-  - [ ] Success: passes for all four targets.
-  - [ ] Commit: `test: add setup-ide real-guide smoke test`.
+  - [x] Success: passes for all four targets.
+  - [x] Commit: `test: add setup-ide real-guide smoke test`.
 
 ### Parity checkpoint
 
-- [ ] **Task 24: Full-suite checkpoint** (effort 1)
-  - [ ] Run `pnpm -r build`, `pnpm lint` and `pnpm test`.
-  - [ ] Check every `ideInstall/` file against the ~300-line limit and split any that goes over.
-  - [ ] Success: all three pass and every snapshot change so far comes from Task 22.
+- [x] **Task 24: Full-suite checkpoint** (effort 1)
+  - [x] Run `pnpm -r build`, `pnpm lint` and `pnpm test`.
+  - [x] Check every `ideInstall/` file against the ~300-line limit and split any that goes over.
+  - [x] Success: all three pass and every snapshot change so far comes from Task 22.
 
-- [ ] **Task 25: Real-guide parity check** (effort 3)
-  - [ ] Run design walkthrough step 4 for claude, cursor, copilot and agents, for both a fresh install and a re-run over a bash-written install. Use the guide's bash script, which still exists at this point.
-  - [ ] The #38/#40 fixes haven't landed yet, so every target should come out IDENTICAL.
-  - [ ] Fix any diff in the port. Anything that can't match goes on a list for Task 34 and the PM.
-  - [ ] Success: 8 IDENTICAL results, or every diff listed and approved by the PM.
-  - [ ] Commit any port fixes: `fix(cli): match bash setup-ide output on the real guide`.
+- [x] **Task 25: Real-guide parity check** (effort 3)
+  - [x] Run design walkthrough step 4 for claude, cursor, copilot and agents, for both a fresh install and a re-run over a bash-written install. Use the guide's bash script, which still exists at this point.
+  - [x] The #38/#40 fixes haven't landed yet, so every target should come out IDENTICAL.
+  - [x] Fix any diff in the port. Anything that can't match goes on a list for Task 34 and the PM.
+  - [x] Success: 8 IDENTICAL results, or every diff listed and approved by the PM.
+  - [x] Commit any port fixes: `fix(cli): match bash setup-ide output on the real guide`.
 
 ### Wire up cf
 

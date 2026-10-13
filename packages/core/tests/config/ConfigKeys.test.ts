@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
+import { CONFIG_KEYS, parseRulesExclude } from '../../src/config/ConfigKeys.js';
 
 describe('CONFIG_KEYS', () => {
   it('every entry has a valid scope', () => {
@@ -15,6 +15,14 @@ describe('CONFIG_KEYS', () => {
   it('classifies guide.source and workflow.review_enabled as shared', () => {
     expect(CONFIG_KEYS['guide.source'].scope).toBe('shared');
     expect(CONFIG_KEYS['workflow.review_enabled'].scope).toBe('shared');
+  });
+});
+
+describe('parseRulesExclude', () => {
+  it('splits on commas and gives [] for an empty value', () => {
+    expect(parseRulesExclude('')).toEqual([]);
+    expect(parseRulesExclude('dart.md')).toEqual(['dart.md']);
+    expect(parseRulesExclude('dart.md,swift*.md')).toEqual(['dart.md', 'swift*.md']);
   });
 });
 

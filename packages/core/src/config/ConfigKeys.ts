@@ -173,8 +173,7 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       // The consuming script matches with a literal bash `case`, so " swift*.md"
       // would silently never match. A pattern that quietly does nothing is the
       // exact failure this key must not have.
-      const entries = value.split(',');
-      for (const entry of entries) {
+      for (const entry of parseRulesExclude(value)) {
         if (entry === '') {
           return 'must not contain an empty entry (check for a doubled or trailing comma)';
         }
@@ -186,3 +185,12 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     },
   },
 };
+
+/**
+ * A `rules.exclude` value as its list of patterns; empty means none. No
+ * trimming: the key's validator already rejects empty entries and whitespace
+ * around them. Every reader of the key splits it here.
+ */
+export function parseRulesExclude(value: string): string[] {
+  return value === '' ? [] : value.split(',');
+}

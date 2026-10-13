@@ -2,31 +2,25 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { askConfirmation } from '../utils/confirm.js';
 import { Command } from 'commander';
+import type { ProjectData } from '@context-forge/core';
 import {
+  ConfigManager,
   FileProjectStore,
   GuideDetector,
   GUIDE_RELATIVE_PATH,
   GUIDE_OFFLINE_REMEDIATION,
+  parseRulesExclude,
 } from '@context-forge/core/node';
 import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { ensureGuideReady } from '../utils/guideReady.js';
 
-import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS } from './ideTargets.js';
+import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS, type Target } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
-import { propagateToWorktrees } from './worktreePropagation.js';
-import {
-  GuideCapability,
-  capabilityFlag,
-  execSetupIde,
-  guideSupports,
-  readCapabilities,
-  runSetupIdeInWorktrees,
-  setupIdeScriptPath,
-  type GuideCapabilityValue,
-} from './guideScript.js';
-import { readManifest } from '../ideInstall/manifest.js';
+import { propagationTargets } from './worktreePropagation.js';
+import { installIde } from '../ideInstall/installer.js';
+import type { OutputSink } from '../ideInstall/output.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
 export {
@@ -71,22 +65,52 @@ export function isManagedInstall(projectPath: string, markerFiles: string[]): bo
   return false;
 }
 
-/** What a completed root setup-ide run needs to hand to the worktree step. */
+/** The installer writes straight to the process streams. */
+const PROCESS_OUTPUT: OutputSink = {
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+};
+
+/** `rules.exclude` as configured for the checkout at root (a worktree can carry its own). */
+async function readRulesExclude(root: string): Promise<string[]> {
+  const { value } = await new ConfigManager(root).get('rules.exclude');
+  if (typeof value !== 'string') {
+    throw new Error(`rules.exclude resolved to a ${typeof value}, expected a string`);
+  }
+  return parseRulesExclude(value);
+}
+
+export interface InstallFlags {
+  dryRun: boolean;
+  writeLint: boolean;
+}
+
+/** Install one checkout from guideDir. Exit 1 means the install reported its failure. */
+async function installCheckout(guideDir: string, root: string, target: Target, flags: InstallFlags): Promise<0 | 1> {
+  const { exitCode } = installIde({
+    guideDir,
+    projectRoot: root,
+    targetRoot: root,
+    target,
+    dryRun: flags.dryRun,
+    writeLint: flags.writeLint,
+    rulesExclude: await readRulesExclude(root),
+    out: PROCESS_OUTPUT,
+  });
+  return exitCode;
+}
+
+/** What a completed root install hands to the worktree step. */
 export interface SetupIdeRun {
-  scriptPath: string;
-  /** `setup-ide --capabilities` words, or null for a guide older than v0.20.1. */
-  capabilities: ReadonlySet<string> | null;
-  /** Pass-through flags given to the root run; worktree runs get the same ones. */
-  flags: string[];
+  /** The main checkout's guide: worktrees install from it too. */
+  guideDir: string;
 }
 
 /**
  * Run IDE setup for a project. Errors propagate to the caller. Returns the run
- * details when the guide script ran, null when the user declined the overwrite prompt.
- * With `dryRun`, the guide script previews its changes and writes nothing, so
- * the overwrite prompt and cf's own marker-file backups are skipped too.
- * With `writeLint`, the guide script also writes the missing lint configs it
- * reports. Both are refused when the installed guide's script does not handle them.
+ * details, or null when the user declined the overwrite prompt. With `dryRun`
+ * the install previews its changes and writes nothing, so the overwrite prompt
+ * is skipped too. With `writeLint`, missing lint configs are also written.
  */
 export async function setupIdeAction(
   projectPath: string,
@@ -100,8 +124,7 @@ export async function setupIdeAction(
   }
 
   // Check guide installation. Auto-init first: an uninitialized submodule
-  // reports as installed but has no scripts/ directory, which used to surface
-  // as a confusing "script not found" (#80).
+  // reports as installed but has no content (#80).
   await ensureGuideReady(projectPath);
 
   const detector = new GuideDetector();
@@ -116,75 +139,27 @@ export async function setupIdeAction(
         `  If that install fails to reach the guide repo: ${GUIDE_OFFLINE_REMEDIATION}`,
     );
   }
-
-  // Locate setup-ide script
   const guideDir = path.join(projectPath, GUIDE_RELATIVE_PATH);
-  const scriptPath = setupIdeScriptPath(guideDir);
 
-  if (!fs.existsSync(scriptPath)) {
-    throw new UserError(
-      `setup-ide script not found at ${scriptPath}. Your guides installation may be incomplete — try 'cf guides update'.`,
-    );
-  }
-
-  // Refuse a flag the script does not handle: an older guide would ignore it,
-  // and an ignored --dry-run runs a real install with cf's backups skipped.
-  const capabilities = readCapabilities(scriptPath, projectPath);
-  const requested: GuideCapabilityValue[] = [];
-  if (opts?.dryRun) requested.push(GuideCapability.DryRun);
-  if (opts?.writeLint) requested.push(GuideCapability.WriteLint);
-  const unsupported = requested.filter((c) => !guideSupports(scriptPath, capabilities, c));
-  if (unsupported.length > 0) {
-    throw new UserError(
-      `This guide version does not support ${unsupported.map(capabilityFlag).join(', ')}. Run 'cf guides update' and retry.`,
-    );
-  }
-  const passFlags = requested.map(capabilityFlag);
-
-  // Safety check — descriptor-driven, identical shape for every target
+  // Safety check — descriptor-driven, identical shape for every target. The
+  // installer itself backs up a file it has never managed, to
+  // <name>.pre-context-forge, so this only asks before touching it.
   const descriptor = TARGETS[normalizedTarget];
-  const markerPaths = descriptor.markerFiles.map((rel) => path.join(projectPath, ...rel.split('/')));
-
-  if (!opts?.dryRun && !isManagedInstall(projectPath, descriptor.markerFiles)) {
-    const existingPaths = markerPaths.filter((p) => fs.existsSync(p));
-
-    if (existingPaths.length > 0) {
-      if (!opts?.yes) {
-        console.error(`Warning: ${descriptor.label} IDE files already exist and will be overwritten.`);
-        const confirmed = await askConfirmation('Continue? (y/N) ');
-        if (!confirmed) {
-          console.error('Aborted.');
-          return null;
-        }
-      }
-
-      // A guide that reports capabilities (v0.20.1+) backs these files up
-      // itself, to <name>.pre-context-forge; a second .bak would be noise.
-      for (const filePath of capabilities ? [] : existingPaths) {
-        const bakPath = `${filePath}.bak`;
-        if (!fs.existsSync(bakPath)) {
-          fs.copyFileSync(filePath, bakPath);
-          console.log(`Backed up ${path.relative(projectPath, filePath)} → ${path.relative(projectPath, bakPath)}`);
-        } else {
-          console.log(`existing backup preserved at ${path.relative(projectPath, bakPath)}`);
-        }
+  if (!opts?.dryRun && !opts?.yes && !isManagedInstall(projectPath, descriptor.markerFiles)) {
+    const existing = descriptor.markerFiles.filter((rel) => fs.existsSync(path.join(projectPath, ...rel.split('/'))));
+    if (existing.length > 0) {
+      console.error(`Warning: ${descriptor.label} IDE files already exist and will be overwritten.`);
+      const confirmed = await askConfirmation('Continue? (y/N) ');
+      if (!confirmed) {
+        console.error('Aborted.');
+        return null;
       }
     }
-    // else: none of the marker files exist — fresh install, proceed silently
   }
-  // else: managed install or dry run — proceed silently
 
-  // Run the setup-ide script
-  try {
-    execSetupIde(scriptPath, [normalizedTarget, ...passFlags], {
-      cwd: projectPath,
-      stdio: 'inherit',
-    });
-  } catch (err) {
-    const code = (err as { status?: number }).status ?? 'unknown';
-    throw new UserError(
-      `setup-ide exited with code ${code}. Check the output above for details.`,
-    );
+  const flags: InstallFlags = { dryRun: opts?.dryRun ?? false, writeLint: opts?.writeLint ?? false };
+  if ((await installCheckout(guideDir, projectPath, normalizedTarget, flags)) !== 0) {
+    throw new UserError(`setup-ide failed for ${normalizedTarget}. Check the output above for details.`);
   }
 
   console.error(
@@ -192,7 +167,32 @@ export async function setupIdeAction(
       ? `Dry run complete for ${normalizedTarget}. Nothing was written.`
       : `IDE setup complete for ${normalizedTarget}.`,
   );
-  return { scriptPath, capabilities, flags: passFlags };
+  return { guideDir };
+}
+
+/**
+ * Install every registered worktree from the main checkout's guide, each with
+ * its own root and its own rules.exclude. A worktree whose install fails (exit
+ * 1, which includes filesystem errors) is recorded and the loop continues; any
+ * other exception is a bug and propagates. Returns the names that failed.
+ */
+export async function installWorktrees(
+  project: ProjectData,
+  guideDir: string,
+  target: Target,
+  flags: InstallFlags,
+): Promise<string[]> {
+  const failed: string[] = [];
+  for (const wt of propagationTargets(project)) {
+    const wtPath = wt.worktreePath!;
+    const name = wt.name ?? wt.id;
+    console.log(`  → setup-ide in worktree: ${name} (${wtPath})`);
+    if ((await installCheckout(guideDir, wtPath, target, flags)) !== 0) {
+      console.error(`  setup-ide failed in worktree ${name}.`);
+      failed.push(name);
+    }
+  }
+  return failed;
 }
 
 export function registerSetupIdeCommand(program: Command): void {
@@ -210,8 +210,7 @@ export function registerSetupIdeCommand(program: Command): void {
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean; writeLint?: boolean }) => {
       try {
         // Validate and normalize target early (before project resolution for fast
-        // failure). Both downstream calls use the normalized value — an alias like
-        // 'codex' has no entry in TARGETS, and propagateToWorktrees throws on a miss.
+        // failure). Everything downstream uses the normalized value.
         const normalizedTarget = normalizeTarget(target);
         if (!normalizedTarget) {
           throw new UserError(invalidTargetMessage(target));
@@ -232,27 +231,19 @@ export function registerSetupIdeCommand(program: Command): void {
           );
         }
 
-        // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
-        // Propagation prunes, and a "no" must never delete files.
-        // Snapshot before the script rewrites it: part of each worktree's prune
-        // baseline, so worktrees with no manifest of their own still prune.
-        const rootBaseline = readManifest(project.projectPath, normalizedTarget);
         const run = await setupIdeAction(project.projectPath, normalizedTarget, {
           yes: opts.yes,
           dryRun: opts.dryRun,
           writeLint: opts.writeLint,
         });
+        // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
         if (!run) return;
 
-        // Worktrees: a guide with --root installs each one itself (dry runs
-        // included). An older guide gets cf's copy-and-prune, which cannot
-        // preview, so a dry run leaves worktrees out.
-        let failedWorktrees: string[] = [];
-        if (guideSupports(run.scriptPath, run.capabilities, GuideCapability.Root)) {
-          failedWorktrees = runSetupIdeInWorktrees(project, run.scriptPath, normalizedTarget, run.flags);
-        } else if (!opts.dryRun) {
-          propagateToWorktrees(project, normalizedTarget, rootBaseline);
-        }
+        // Each worktree is installed from the main checkout's guide, dry runs included.
+        const failedWorktrees = await installWorktrees(project, run.guideDir, normalizedTarget, {
+          dryRun: opts.dryRun ?? false,
+          writeLint: opts.writeLint ?? false,
+        });
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it
         // installs to the global directory (design D5). Targets without command
