@@ -139,39 +139,39 @@ status: in_progress
 
 ### Targets
 
-- [ ] **Task 13: Installer flow and the claude target** (effort 4)
-  - [ ] In `installer.ts`, replace the stub with the real flow from `main`, `run_target_setup` and `install_target`: dispatch to the target, finish the manifest, run the lint check (left as a no-op until Task 20), and warn about unmatched exclusions.
-  - [ ] Error boundary (design, "Errors"):
+- [x] **Task 13: Installer flow and the claude target** (effort 4)
+  - [x] In `installer.ts`, replace the stub with the real flow from `main`, `run_target_setup` and `install_target`: dispatch to the target, finish the manifest, run the lint check (left as a no-op until Task 20), and warn about unmatched exclusions.
+  - [x] Error boundary (design, "Errors"):
     - Internal `InstallAbort` → exit 1.
     - A Node error with a string `code` → `❌ <message>` on stderr, exit 1.
     - Anything else propagates.
-  - [ ] A missing `project-guides/rules` raises `InstallAbort` with bash's message lines.
-  - [ ] In `targets/claude.ts`, port `setup_claude`, `copy_files`, `copy_skills` and `copy_claude_modular_rules`. Missing agents or skills source dirs are skipped, as in bash.
-  - [ ] Success: build passes.
+  - [x] A missing `project-guides/rules` raises `InstallAbort` with bash's message lines.
+  - [x] In `targets/claude.ts`, port `setup_claude`, `copy_files`, `copy_skills` and `copy_claude_modular_rules`. Missing agents or skills source dirs are skipped, as in bash.
+  - [x] Success: build passes.
 
-- [ ] **Task 14: Test the claude target** (effort 3)
-  - [ ] Port `test_targets.py` (claude cases), `test_managed_sections.py` (claude cases) and `test_ownership.py` as `*.test.ts`.
-  - [ ] Unit test the error boundary: a filesystem error becomes a `❌` line and exit 1, `InstallAbort` becomes exit 1, and any other error propagates.
-  - [ ] Success: every ported claude test matches its existing snapshot with no `-u`.
-  - [ ] Commit: `feat(cli): port setup-ide claude target`.
+- [x] **Task 14: Test the claude target** (effort 3)
+  - [x] Port `test_targets.py` (claude cases), `test_managed_sections.py` (claude cases) and `test_ownership.py` as `*.test.ts`.
+  - [x] Unit test the error boundary: a filesystem error becomes a `❌` line and exit 1, `InstallAbort` becomes exit 1, and any other error propagates.
+  - [x] Success: every ported claude test matches its existing snapshot with no `-u`.
+  - [x] Commit: `feat(cli): port setup-ide claude target`.
 
-- [ ] **Task 15: Agents target** (effort 3)
-  - [ ] Port `setup_agents` and `emit_agents_md` into `targets/agents.ts`.
-  - [ ] Port the agents cases of `test_targets` and `test_managed_sections`.
-  - [ ] Success: they match their snapshots with no `-u`. That includes `test_targets_agents_fresh` with the #40 newline still present.
-  - [ ] Commit: `feat(cli): port setup-ide agents target`.
+- [x] **Task 15: Agents target** (effort 3)
+  - [x] Port `setup_agents` and `emit_agents_md` into `targets/agents.ts`.
+  - [x] Port the agents cases of `test_targets` and `test_managed_sections`.
+  - [x] Success: they match their snapshots with no `-u`. That includes `test_targets_agents_fresh` with the #40 newline still present.
+  - [x] Commit: `feat(cli): port setup-ide agents target`.
 
-- [ ] **Task 16: Copilot target** (effort 3)
-  - [ ] Port `setup_copilot`, `emit_copilot_instruction_files` and `remove_generated_prompt_files` into `targets/copilot.ts`. That includes the instruction-file provenance stamp.
-  - [ ] Port the copilot cases of `test_targets` and `test_managed_sections`.
-  - [ ] Success: they match their snapshots with no `-u`.
-  - [ ] Commit: `feat(cli): port setup-ide copilot target`.
+- [x] **Task 16: Copilot target** (effort 3)
+  - [x] Port `setup_copilot`, `emit_copilot_instruction_files` and `remove_generated_prompt_files` into `targets/copilot.ts`. That includes the instruction-file provenance stamp.
+  - [x] Port the copilot cases of `test_targets` and `test_managed_sections`.
+  - [x] Success: they match their snapshots with no `-u`.
+  - [x] Commit: `feat(cli): port setup-ide copilot target`.
 
-- [ ] **Task 17: Cursor target** (effort 3)
-  - [ ] Port `setup_cursor` and `copy_cursor_rules` (`.mdc` conversion) into `targets/cursor.ts`.
-  - [ ] Port the cursor cases of `test_targets` and `test_managed_sections`.
-  - [ ] Success: they match their snapshots with no `-u`. Every `test_targets`, `test_managed_sections` and `test_ownership` test now passes.
-  - [ ] Commit: `feat(cli): port setup-ide cursor target`.
+- [x] **Task 17: Cursor target** (effort 3)
+  - [x] Port `setup_cursor` and `copy_cursor_rules` (`.mdc` conversion) into `targets/cursor.ts`.
+  - [x] Port the cursor cases of `test_targets` and `test_managed_sections`.
+  - [x] Success: they match their snapshots with no `-u`. Every `test_targets`, `test_managed_sections` and `test_ownership` test now passes.
+  - [x] Commit: `feat(cli): port setup-ide cursor target`.
 
 ### Dry run, lint, exclusions
 

@@ -6,6 +6,7 @@
 import * as path from 'node:path';
 import type { Target } from '../commands/ideTargets.js';
 import { InstallAbort, type InstallContext } from './context.js';
+import { dryRunInstall } from './dryRun.js';
 import { RuleExclusions } from './exclusions.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
@@ -81,7 +82,8 @@ export function installIde(options: InstallOptions): InstallResult {
     out.status('blue', `📍 Project root detected: ${projectRoot}`);
     out.status('blue', `📍 IDE directories will be created in: ${targetRoot}`);
     out.line();
-    installTarget(options.target, base);
+    if (options.dryRun) dryRunInstall(options.target, base, installTarget);
+    else installTarget(options.target, base);
     base.exclusions.warnUnmatched(base.guide.rules, out);
     return { exitCode: 0 };
   } catch (err) {

@@ -39,3 +39,12 @@ export function relativeToRoot(root: string, file: string): string {
   const prefix = root + '/';
   return file.startsWith(prefix) ? file.slice(prefix.length) : file;
 }
+
+/** Root-level files the lint check may write. Dry run copies them into its sandbox. */
+export const LINT_WRITE_PATHS = [
+  'ruff.toml',
+  'analysis_options.yaml',
+  'eslint.config.mjs',
+  '.editorconfig',
+  'Directory.Build.props',
+] as const;
