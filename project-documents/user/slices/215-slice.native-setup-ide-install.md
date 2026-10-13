@@ -337,3 +337,24 @@ From the context-forge repo root, after `pnpm -r build`:
 - **F009 input doc location:** read from the guide repository checkout (Dependencies).
 - **F010 snapshot trigger:** single trigger, vitest `-u` via `toMatchFileSnapshot`.
 - Found while resolving these: the `rules.exclude` config description in `ConfigKeys.ts` still names the guide script as the consumer, so that file is added to the change list.
+
+### Implementation notes
+
+Intended differences from the bash script. None changes output for the real guide: the parity check (walkthrough step 4) gave IDENTICAL for all 8 runs (4 targets, fresh and re-run over a bash install) before the #38/#40 fixes, with no port fixes needed.
+
+- **`echo -e`:** status messages are written as plain text; bash also interpreted backslash escapes in them (file names, patterns).
+- **Claude fallback section title** (a rule with no heading): implements the intended `\b\w` → uppercase, e.g. `my-rule.md` → `My Rule Rules`. BSD sed ran it as `s/bw/Ubw/g`.
+- **`rules.exclude` matching:** patterns are not glob-expanded against the current directory (the unquoted `for pattern in $RULES_EXCLUDE` bug). POSIX bracket classes such as `[[:alpha:]]` are not supported.
+- **Dry-run sandbox:** removed in a `finally`, so an aborted install no longer leaks it.
+- **Platform:** sorting and globbing always use byte order (bash under `LC_ALL=C` on macOS). On Linux or under another locale, bash could order manifests and globs differently; cf output is now the same everywhere.
+- **Bytes outside the managed block** are handled byte-exactly, including content that is not valid UTF-8.
+- **`.bak`:** cf no longer writes `<file>.bak` before an install. The installer's one-time `.pre-context-forge` backup covers it, as it already did for capability-reporting guides.
+
+Test migration:
+- Not ported, as the design's disposition table says: the bash argument-parser tests (`--capabilities`, `--root` parsing and errors, flag order, usage and unsupported-target runs) plus the run-from-subdirectory test, which exercised the script's project-root search. Their 6 snapshots were deleted. `test_flags_root_outside_guide` keeps the `--root <ROOT>` snapshot.
+- The cf-stub source-tier tests (`old_cf`, `no_cf`, `cf_exit1`, `cf_exit2`) and `env_wins` were retired with the env tier (PM decision 1). `cf_value` and `prunes` were kept with `rulesExclude` passed in-process; their snapshots did not change.
+- `test_harness_snapshot_missing_file_fails` was not ported: vitest's `toMatchFileSnapshot` owns that behavior (it fails on a missing file in CI).
+
+Removed with the script plumbing: `guideScript.ts`, the copy-and-prune worktree code, and what only that path used: the manifest reader (`readManifest`, `parseManifestLine`, `manifestTempPath`) and the `propagateDirs`/`generatedPromptDirs` descriptor fields. `parseRulesExclude` (core) is the single parser for the key, used by the validator and by each install.
+
+Release note: `tsc` does not delete outputs of removed sources, so a `packages/cli/dist/` built before this slice holds stale `commands/guideScript.*` and `commands/installManifest.*` files (removed from this checkout). Clean `dist/` before the publish build.
