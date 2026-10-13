@@ -11,117 +11,118 @@ project: context-forge
 verdict: CONCERNS
 verdictSource: stated
 sourceDocument: project-documents/user/slices/215-slice.native-setup-ide-install.md
-aiModel: deepseek/deepseek-v4.1-flash
-aiProfile: openrouter
+aiModel: claude-sonnet-5-5
+aiProfile: sdk
 status: complete
 dateCreated: 20261013
 dateUpdated: 20261013
-reviewedSha: 291dabe40105c2fa894674815d5d75c96912e2f1
+reviewedSha: 57a6b15471eba847144578583046e34b3e5e5ccf
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 33
+toolCallsMade: 1
 diffTruncated: true
-turns: 20
-promptTokens: 2308825
-cachedTokens: 2008064
-completionTokens: 77914
-reasoningTokens: 74410
-durationSeconds: 242.8
+durationSeconds: 37.3
 squadronVersion: 0.21.6
 findings:
   - id: F001
     severity: concern
     category: security
-    summary: "Manifest prune deletes by manifest path with no containment check"
-    location: "packages/cli/src/ideInstall/manifest.ts:188"
+    summary: "Install writes follow symlinks at the destination, with containment checked only for deletion"
+    location: "packages/cli/src/ideInstall/manifest.ts#InstallManifest.installFile"
   - id: F002
-    severity: note
+    severity: concern
     category: error-handling
-    summary: "Dry run's `finally` can mask the install's real error"
-    location: "packages/cli/src/ideInstall/dryRun.ts:122"
+    summary: "Manifest is no longer written atomically"
+    location: "packages/cli/src/ideInstall/manifest.ts#InstallManifest.finish"
   - id: F003
-    severity: note
-    category: maintainability
-    summary: "Marker/install-path lists are duplicated between the installer and the test harness"
-    location: "packages/cli/tests/ideInstall/harness.ts:28"
+    severity: concern
+    category: error-handling
+    summary: "Silent fallback for the Copilot instruction `name`"
+    location: "packages/cli/src/ideInstall/targets/copilot.ts#instructionFile"
   - id: F004
-    severity: note
+    severity: concern
     category: correctness
-    summary: "`import.meta.url` path is used without decoding"
-    location: "packages/cli/tests/ideInstall/harness.ts:14"
+    summary: "Unescaped dynamic field name in a RegExp"
+    location: "packages/cli/src/ideInstall/frontmatter.ts#getFrontmatterField"
   - id: F005
-    severity: pass
+    severity: concern
+    category: dry
+    summary: "Install flags are duplicated across call sites"
+    location: "packages/cli/src/commands/setup-ide.ts:157-195"
+  - id: F006
+    severity: note
+    category: structure
+    summary: "Large function in the managed-section merge"
+    location: "packages/cli/src/ideInstall/managedSection.ts#writeManagedSection"
+  - id: F007
+    severity: note
+    category: typing
+    summary: "Non-null assertion carried into the new worktree loop"
+    location: "packages/cli/src/commands/setup-ide.ts#installWorktrees"
+  - id: F008
+    severity: note
     category: testing
-    summary: "Error boundary and coverage of the new installer"
-    location: "packages/cli/src/ideInstall/installer.ts:68"
+    summary: "Test coverage and structure are strong"
+    location: "packages/cli/tests/ideInstall"
 ---
 
 # Review: code — slice 215
 
 **Verdict:** CONCERNS
-**Model:** deepseek/deepseek-v4.1-flash
-**Diff:** truncated: 256000 of 432693 characters reached the model
+**Model:** claude-sonnet-5-5
+**Diff:** truncated: 256000 of 434583 characters reached the model
 
 ## Findings
 
-### [CONCERN] Manifest prune deletes by manifest path with no containment check
+### [CONCERN] Install writes follow symlinks at the destination, with containment checked only for deletion
 
-`InstallManifest.finish()` takes `rel` from the previous manifest file and does:
+`installFile` calls `fs.writeFileSync(dest, content)` after `isFile(dest)`, and `isFile` follows symlinks. A symlinked destination such as `.claude/rules/x.md`, or a symlinked install directory, makes the write land outside the project. This happens when the content differs and the previous manifest allows the overwrite. `escapesTargetRoot` guards only the stale-delete path in `finish()`. The old prune code also treated symlinks as non-regular and kept them. Now `finish()` uses `isFile` (symlink-following) and will remove a symlink whose target bytes match a manifest entry. Run the same lexical and realpath containment check on write, and use `lstat` to refuse symlink destinations.
 
-```ts
-const file = path.join(this.targetRoot, rel);
-if (rel === '' || !isFile(file)) continue;
-if (oldLines.includes(`${cksumField(fs.readFileSync(file))} ${rel}`)) {
-  fs.rmSync(file);
-```
+### [CONCERN] Manifest is no longer written atomically
 
-The deleted `pruneStaleFiles` in `worktreePropagation.ts` (removed in this diff) had two guards that are now gone: `escapesLexically(relPath)` (rejecting absolute paths, drive letters, and `..` segments) and an `isWithin(worktreeReal, fs.realpathSync(path.dirname(absPath)))` check for a symlinked install directory pointing outside the checkout. I grepped `packages/cli/src/ideInstall/` for `escapesLexically`, `isWithin`, `realpathSync`, and `isAbsolute`: zero hits. `.context-forge/<target>.manifest` is a committed, user-editable file in every project, so a `..`-bearing or absolute path field now deletes the checksum-matching file wherever it points.
+The removed `copyManifest` staged the manifest in a temp file and renamed it, so it was never left truncated. `finish()` now calls `fs.writeFileSync(this.oldManifest, …)` directly. A crash or ENOSPC mid-write leaves a truncated manifest. The next run then treats the missing entries as not guide-owned and skips or keeps files. `managedSection.ts` already uses temp-plus-rename, so apply the same pattern here.
 
-The bash `scripts/setup-ide` has the same flaw (`rm "$TARGET_ROOT/$rel"`), so this is a faithful port — but cf had hardened it, and the slice's stated invariant ("everything it writes stays byte-identical") does not cover deleting the guard. Either restore the containment checks or record the removal as an accepted regression; silently dropping them is the outcome to avoid. Note the manifest is also read from worktrees that may have been written by an older/different tool.
+### [CONCERN] Silent fallback for the Copilot instruction `name`
 
-### [NOTE] Dry run's `finally` can mask the install's real error
+`getFrontmatterField(text, 'name') || stem` silently substitutes the file stem when `name:` is missing. Project rules say never to use silent fallback values. If the fallback is intended behavior ported from bash, document it with a comment and a test. Otherwise surface a warning, as `frontmatterWarning` does for cursor.
 
-```ts
-} finally {
-  fs.rmSync(sandbox, { recursive: true, force: true });
-}
-```
+### [CONCERN] Unescaped dynamic field name in a RegExp
 
-The doc comment says "a failed removal propagates," which is accurate but is the problem: if `install(...)` throws a `TypeError` (a genuine bug that `installIde` rethrows), and the sandbox removal then fails with `EACCES`/`EBUSY`, the cleanup error replaces the original and the diagnosis is lost. Since `installIde` catches filesystem errors and converts them to exit 1, this can also downgrade a real bug into a reported "filesystem failure". Consider catching and reporting the removal failure to stderr instead of letting it escape.
+`new RegExp(`^${field}:[ ]*`)` interpolates `field` without escaping. Current callers pass constants (`name`, `description`), so it is safe today. It is a latent bug for any future caller, and `escapeRegExp` already exists in `exclusions.ts`. Share it or restrict the parameter's type.
 
-### [NOTE] Marker/install-path lists are duplicated between the installer and the test harness
+### [CONCERN] Install flags are duplicated across call sites
 
-`INSTALL_PATHS` exists three times: `dryRun.ts:20`, `harness.ts:28`, and the bash `setup-ide`'s `INSTALL_PATHS`. The two TypeScript copies already differ in spelling (`MANIFEST_DIR` interpolation vs. the literal `.context-forge`). A target that starts writing a new top-level path must be added in all three or the dry-run diff and the snapshots silently stop covering it. At minimum, `harness.ts` should import `DRY_RUN_SKIP_PATH`/`MANIFEST_DIR` from the modules it mirrors rather than restating the literals.
+`{ dryRun: opts.dryRun ?? false, writeLint: opts.writeLint ?? false }` is built once in `setupIdeAction` and again in the command action for `installWorktrees`. `SetupIdeRun` already carries `guideDir`, so it could carry the `InstallFlags` as well. That keeps the root install and the worktree installs from drifting.
 
-### [NOTE] `import.meta.url` path is used without decoding
+### [NOTE] Large function in the managed-section merge
 
-```ts
-const HERE = path.dirname(new URL(import.meta.url).pathname);
-```
+`writeManagedSection` is about 55 lines, slightly over the ~50-line guideline. Extracting the per-state merge (the `switch`) would bring it under the limit.
 
-`.pathname` is percent-encoded, so a checkout path containing a space or non-ASCII character yields a bogus `FIXTURE_GUIDE`, and `makeGuide`/`REPO_ROOT` resolve to nothing. `fileURLToPath(new URL(import.meta.url))` (already the pattern in `tests/commands/installManifest.test.ts`, which this diff deletes) is the correct form. Test-only, but it fails in a way that looks like a fixture problem.
+### [NOTE] Non-null assertion carried into the new worktree loop
 
-### [PASS] Error boundary and coverage of the new installer
+`wt.worktreePath!` is kept from the old code. `propagationTargets` already filters on `worktreePath`, but it returns `WorktreeContext[]`, so the type does not reflect that. Narrowing the return type would remove the assertion.
 
-`installIde` distinguishes `InstallAbort` (exit 1), Node filesystem errors (reported on stderr, exit 1), and everything else (propagates), and `tests/ideInstall/installer.test.ts` exercises all three, including the rethrow of a `TypeError`. The command layer's tests were correctly narrowed to what cf passes the installer and does with `exitCode`, while the installer's own behavior is covered by the snapshot suite — that is the right split, and the ownership/managed-section suites are the kind of "protect the user's files" tests the change deserves (e.g. `tests/ideInstall/ownership.test.ts`, `managedSection.test.ts`, including the non-UTF-8 and no-final-newline cases).
+### [NOTE] Test coverage and structure are strong
+
+The port comes with snapshot-driven tests for each module: frontmatter, managed sections, lint, flags, installer error boundary and dry-run sandbox cleanup. The `setup-ide` command tests now mock the installer and pin the arguments passed, the worktree loop, and the rule that a non-failure exception propagates. One gap: I could not confirm that the removed "reads the repo's real claude manifest" real-input parser test has an equivalent. The truncated part of `manifest.test.ts` may cover it.
 
 ### Run Digest
 
-- Response length: 4894 chars
+- Response length: 4659 chars
 - Response is newline-free: no
-- Tool calls made: 33
+- Tool calls made: 1
 - Tool calls failed: 0
-- Stop reason: stop
-- Output budget: 384000 tokens
-- System prompt: custom
-- Settings sources: n/a (non-SDK)
-- Reasoning characters: 289604
+- Stop reason: end_turn
+- Output budget: backend default
+- System prompt: preset+append
+- Settings sources: project
+- Reasoning characters: 0
 - Effort: backend default
-- Turns: 20
-- Tokens — prompt / cached / completion / reasoning: 2308825 / 2008064 / 77914 / 74410
-- Duration: 242.8 s
+- Turns: not computed
+- Tokens — prompt / cached / completion / reasoning: not computed / not computed / not computed / not computed
+- Duration: 37.3 s
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 5
+- Finding-shaped matches — whole response: 8
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 5
-- Finding-shaped matches — surviving validation: 5
+- Finding-shaped matches — in findings section: 8
+- Finding-shaped matches — surviving validation: 8
