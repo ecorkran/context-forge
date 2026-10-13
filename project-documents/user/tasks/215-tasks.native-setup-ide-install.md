@@ -7,7 +7,7 @@ dependencies: []
 projectState: Slice 214 (cf validate design) merged to main. cf setup-ide still shells out to the guide's bash scripts/setup-ide via guideScript.ts, with capability probing, a .bak path, and a copy-and-prune worktree fallback. Installed guide is v0.20.10.
 dateCreated: 20261013
 dateUpdated: 20261013
-status: not_started
+status: in_progress
 ---
 
 ## Context Summary
@@ -38,34 +38,34 @@ status: not_started
 
 ### Setup and test infrastructure
 
-- [ ] **Task 1: Create the slice branch** (effort 1)
-  - [ ] Read the target with `cf config get git.integration_branch`. Empty means `main`.
-  - [ ] `git checkout -b 215-slice.native-setup-ide-install <target>`.
-  - [ ] Success: on the new branch, working tree clean.
+- [x] **Task 1: Create the slice branch** (effort 1)
+  - [x] Read the target with `cf config get git.integration_branch`. Empty means `main`.
+  - [x] `git checkout -b 215-slice.native-setup-ide-install <target>`.
+  - [x] Success: on the new branch, working tree clean.
 
-- [ ] **Task 2: Copy the fixtures and snapshots** (effort 1)
-  - [ ] Copy `GUIDE_REPO/tests/setup_ide/{fixture_guide,fixture_data,snapshots}` to `packages/cli/tests/ideInstall/` unchanged. Skip `__pycache__`.
-  - [ ] Make sure the files aren't picked up by lint, the TypeScript build or the npm package. Check eslint ignores and the cli `tsconfig` include and `files` settings.
-  - [ ] Success: `diff -r` against the guide copies shows no differences. Build and lint pass.
-  - [ ] Commit: `test: copy setup-ide fixtures and snapshots from the guide`.
+- [x] **Task 2: Copy the fixtures and snapshots** (effort 1)
+  - [x] Copy `GUIDE_REPO/tests/setup_ide/{fixture_guide,fixture_data,snapshots}` to `packages/cli/tests/ideInstall/` unchanged. Skip `__pycache__`.
+  - [x] Make sure the files aren't picked up by lint, the TypeScript build or the npm package. Check eslint ignores and the cli `tsconfig` include and `files` settings.
+  - [x] Success: `diff -r` against the guide copies shows no differences. Build and lint pass.
+  - [x] Commit: `test: copy setup-ide fixtures and snapshots from the guide`.
 
-- [ ] **Task 3: Installer contracts and stub** (effort 2)
-  - [ ] Create `output.ts` with the `OutputSink` interface (design, API Contracts).
-  - [ ] Create `installer.ts` with `InstallOptions` and an `installIde()` that throws a clear "not implemented" error. This stub exists only for the harness, and Task 13 replaces it.
-  - [ ] Create `paths.ts`, which defines the guide subdirectories (`project-guides/rules`, `agents`, `skills`, `lint`) once.
-  - [ ] Success: build passes. No commit here; this goes in with Task 4's commit.
+- [x] **Task 3: Installer contracts and stub** (effort 2)
+  - [x] Create `output.ts` with the `OutputSink` interface (design, API Contracts).
+  - [x] Create `installer.ts` with `InstallOptions` and an `installIde()` that throws a clear "not implemented" error. This stub exists only for the harness, and Task 13 replaces it.
+  - [x] Create `paths.ts`, which defines the guide subdirectories (`project-guides/rules`, `agents`, `skills`, `lint`) once.
+  - [x] Success: build passes. No commit here; this goes in with Task 4's commit.
 
-- [ ] **Task 4: Port the harness and `test_harness`** (effort 3)
-  - [ ] Port `harness.py` and `conftest.py` to `harness.ts`. It does the following:
+- [x] **Task 4: Port the harness and `test_harness`** (effort 3)
+  - [x] Port `harness.py` and `conftest.py` to `harness.ts`. It does the following:
     1. Copies the fixture guide and project into a temp dir.
     2. Calls `installIde` in-process with a capturing `OutputSink`.
     3. Collects stdout, stderr, the exit code and the file tree.
     4. Writes the snapshot text in the exact `.snap` layout.
     5. Compares with `expect(text).toMatchFileSnapshot(path)`.
-  - [ ] The run label stays the bash command line, for example `setup-ide <target> --root <ROOT>`. The harness builds it, so the snapshot headers don't change.
-  - [ ] Port `test_harness.py` to `harness.test.ts`. Its tests check the harness itself and pass against the stub.
-  - [ ] Success: `harness.test.ts` passes. Snapshot text built from a known run matches the `.snap` layout byte for byte.
-  - [ ] Commit: `test: port setup-ide snapshot harness to vitest`.
+  - [x] The run label stays the bash command line, for example `setup-ide <target> --root <ROOT>`. The harness builds it, so the snapshot headers don't change.
+  - [x] Port `test_harness.py` to `harness.test.ts`. Its tests check the harness itself and pass against the stub.
+  - [x] Success: `harness.test.ts` passes. Snapshot text built from a known run matches the `.snap` layout byte for byte.
+  - [x] Commit: `test: port setup-ide snapshot harness to vitest`.
 
 ### Core helpers
 
