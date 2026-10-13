@@ -6,8 +6,8 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20261011
-dateUpdated: 20261012
-status: not_started
+dateUpdated: 20261013
+status: complete
 ---
 
 # Slice Design: Native setup-ide Install
@@ -261,18 +261,27 @@ The command surface is unchanged: `cf setup-ide <target> [--dry-run] [--write-li
 
 ### Verification Walkthrough
 
-From the context-forge repo root, after `pnpm -r build`:
+Verified 20261013 on macOS (zsh). Run from the context-forge repo root after `pnpm -r build`. zsh does not word-split a command held in a variable, so commands are spelled out or wrapped in a shell function.
 
-1. **Suite:** `pnpm --filter @context-forge/cli test -- ideInstall` runs the ported tests, all passing against the copied snapshots.
-2. **No shell-out:** `grep -rn "scripts/setup-ide\|'bash'" packages/*/src` returns nothing.
+1. **Suite:**
+   ```bash
+   pnpm --filter @context-forge/cli exec vitest run tests/ideInstall
+   # Test Files  15 passed; every test passes against the copied snapshots
+   ```
+   (The originally written `pnpm --filter @context-forge/cli test -- ideInstall` runs the whole CLI suite, not just this directory.)
+2. **No shell-out:**
+   ```bash
+   grep -rn "scripts/setup-ide\|'bash'" packages/*/src   # no output, exit 1
+   ```
 3. **Dry run on this repo** (claude target, already installed):
    ```bash
    node packages/cli/dist/index.js setup-ide claude --dry-run
    # 🔍 Dry run for 'claude' — nothing was written
-   # 📋 No changes          (or only lines from the #38/#40 fixes)
-   git status --short       # clean
+   # 📋 No changes          (when the repo's install is current with its guide)
+   git status --short       # unchanged
    ```
-4. **Real-guide parity**, run during implementation while the guide checkout still has the script. For each target:
+   Caveat: on 20261013 this repo's install predated its guide (v0.20.10), so the dry run listed `~ .claude/rules/typescript.md`, `~ .context-forge/claude.manifest` and `~ CLAUDE.md`. The guide's bash script, run with `--dry-run` on the same checkout, listed the same three. That is a stale install, not a port difference. Nothing was written either way. The PM chose to leave the repo's install as it is.
+4. **Real-guide parity.** This needs the guide's bash script, so it was run during implementation and can't be rerun once the guide release removes the script. For each target, with a fresh copy of the installed guide in two temp projects A and B:
    ```bash
    T=claude   # then cursor, copilot, agents
    A=$(mktemp -d); B=$(mktemp -d)
@@ -286,15 +295,34 @@ From the context-forge repo root, after `pnpm -r build`:
      process.exit(r.exitCode);"
    diff -r --exclude=project-documents $A $B && echo "IDENTICAL $T"
    ```
-   This calls the built installer directly, with no helper file, and skips the command layer (project registry, overwrite prompt, command delivery), which isn't under test here. For the re-run case, run bash in both trees, then run the `node` line on `$B` and check that `diff` still reports identical. The step needs the guide's bash script, so it runs during implementation, before the guide release removes the script. After that, the ported suite and `test_real_guide` are the regression net.
-5. **Worktrees:** in a project with a registered worktree, `node packages/cli/dist/index.js setup-ide claude` prints `→ setup-ide in worktree: <name>`, and the worktree's `CLAUDE.md` and `.context-forge/claude.manifest` match the root's. Then, in the worktree only, run `node packages/cli/dist/index.js config set rules.exclude 'dart.md'` and run `setup-ide claude` from the main checkout again. The worktree's `.claude/rules/dart.md` is gone and the main checkout's is still there. Unset the key afterwards.
-6. **rules.exclude:**
+   Re-run case: run bash once in B and twice in A, then the `node` line on B, then `diff`. Result on 20261013 (guide v0.20.10, before the #38/#40 fixes): `IDENTICAL` for all 8 runs (4 targets × fresh and re-run).
+5. **Worktrees.** Run this in a throwaway project, not a real one: `cf init` and `cf worktree init` write to the global project registry, and `setup-ide claude` also installs cf's commands into `~/.claude/commands`. On 20261013 it ran in a scratch git repo. Afterwards the project was unregistered, and `~/.config/context-forge/projects.json`, `app-state.json` and `~/.claude/commands` were checked byte-identical to their state before the run.
    ```bash
-   node packages/cli/dist/index.js config set rules.exclude 'dart.md'
-   node packages/cli/dist/index.js setup-ide claude
-   ls .claude/rules/dart.md   # absent
-   node packages/cli/dist/index.js config unset rules.exclude
+   lcf() { node /path/to/context-forge/packages/cli/dist/index.js "$@"; }
+   D=$(mktemp -d); mkdir -p $D/proj/project-documents && cd $D/proj && git init -q
+   cp -R /path/to/context-forge/project-documents/ai-project-guide project-documents/
+   git add -A && git commit -qm init
+   lcf init --lite --name wtdemo
+   git worktree add -q ../proj-wt -b wt-branch
+   lcf worktree init --name feature --range 500-599 --path $D/proj-wt
+   lcf setup-ide claude
+   # … IDE setup complete for claude.
+   #   → setup-ide in worktree: feature (<D>/proj-wt)
+   diff -q CLAUDE.md ../proj-wt/CLAUDE.md && diff -q .context-forge/claude.manifest ../proj-wt/.context-forge/claude.manifest   # identical
+   (cd ../proj-wt && lcf config set rules.exclude 'dart.md')
+   lcf setup-ide claude
+   # in the worktree run: ⊘ Skipped dart.md (excluded) / 🧹 Removed .claude/rules/dart.md … / ℹ️  Rule exclusions active from cf config rules.exclude: dart.md
+   ls ../proj-wt/.claude/rules/dart.md   # No such file
+   ls .claude/rules/dart.md              # present
    ```
+6. **rules.exclude**, in the same throwaway project. Don't run this on a project that already sets `rules.exclude`: `config set` replaces the value and `config unset` then removes it.
+   ```bash
+   lcf config set rules.exclude 'dart.md'
+   lcf setup-ide claude          # exit 0
+   ls .claude/rules/dart.md      # No such file
+   lcf config unset rules.exclude
+   ```
+   Cleanup: `lcf project rm wtdemo --yes`, `git worktree remove --force ../proj-wt`, then delete `$D`.
 
 ## Risk Assessment
 

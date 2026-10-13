@@ -7,7 +7,7 @@ dependencies: []
 projectState: Slice 214 (cf validate design) merged to main. cf setup-ide still shells out to the guide's bash scripts/setup-ide via guideScript.ts, with capability probing, a .bak path, and a copy-and-prune worktree fallback. Installed guide is v0.20.10.
 dateCreated: 20261013
 dateUpdated: 20261013
-status: in_progress
+status: complete
 ---
 
 ## Context Summary
@@ -232,7 +232,7 @@ status: in_progress
 
 ### Wire up cf
 
-- [ ] **Task 26: Call `installIde` from `cf setup-ide` and `cf init`** (effort 3)
+- [x] **Task 26: Call `installIde` from `cf setup-ide` and `cf init`** (effort 3)
   - [x] In `setup-ide.ts` `setupIdeAction`, replace `execSetupIde` with `installIde`. Arguments:
     - `guideDir` comes from `GUIDE_RELATIVE_PATH`
     - `projectRoot` and `targetRoot` are the project path
@@ -240,7 +240,7 @@ status: in_progress
   - [x] Exit 1 becomes a `UserError`.
   - [x] Remove capability probing (`readCapabilities`, `guideSupports`, `GuideCapability`) and the `.bak` path. Keep target validation, project resolution, the overwrite prompt and command delivery.
   - [x] `init.ts` goes through `setupIdeAction` and shouldn't need code changes. Check that it builds and its tests pass.
-  - [ ] Success: build passes. `node packages/cli/dist/index.js setup-ide claude --dry-run` on this repo reports no changes, and `git status` stays clean.
+  - [x] Success: build passes. `node packages/cli/dist/index.js setup-ide claude --dry-run` on this repo reports no changes, and `git status` stays clean. (PM 20261013: on this repo the dry run lists 3 changes from an install older than guide v0.20.10; the bash script lists the same 3, and the PM chose to leave the repo's install as is.)
 
 - [x] **Task 27: Rewrite the worktree loop** (effort 3)
   - [x] Replace `runSetupIdeInWorktrees` and the `propagateToWorktrees` fallback with a loop in `setup-ide.ts` over `propagationTargets(project)`:
@@ -277,40 +277,40 @@ status: in_progress
 
 ### Approved fixes
 
-- [ ] **Task 31: Fix #40, the default-glob newline** (effort 2)
-  - [ ] Fix the default `**` glob in `frontmatter.ts`, so it no longer writes `applyTo: "**` and `**"` on two lines.
-  - [ ] Update the Task 9 unit test.
-  - [ ] Run the suite without `-u` and list the failing snapshots. Expect 18: `test_targets_copilot_fresh`, `test_targets_copilot_prompts`, `test_targets_agents_fresh`, the `test_managed_*_agents` snapshots, and every `test_lint_*` snapshot (each shows `broken.md`'s `Applies to:` line). Check that each failure's diff is only the default-glob pair joining into one line. Any other failure is a bug in the fix, not a snapshot to update.
-  - [ ] Run `vitest -u` scoped to exactly the failing files from that list.
-  - [ ] Success: `git diff` on the snapshots shows only default-glob lines, and all tests pass.
-  - [ ] Commit: `fix(cli): drop stray newline from default applyTo glob (#40)`.
+- [x] **Task 31: Fix #40, the default-glob newline** (effort 2)
+  - [x] Fix the default `**` glob in `frontmatter.ts`, so it no longer writes `applyTo: "**` and `**"` on two lines.
+  - [x] Update the Task 9 unit test.
+  - [x] Run the suite without `-u` and list the failing snapshots. Expect 18: `test_targets_copilot_fresh`, `test_targets_copilot_prompts`, `test_targets_agents_fresh`, the `test_managed_*_agents` snapshots, and every `test_lint_*` snapshot (each shows `broken.md`'s `Applies to:` line). Check that each failure's diff is only the default-glob pair joining into one line. Any other failure is a bug in the fix, not a snapshot to update.
+  - [x] Run `vitest -u` scoped to exactly the failing files from that list.
+  - [x] Success: `git diff` on the snapshots shows only default-glob lines, and all tests pass.
+  - [x] Commit: `fix(cli): drop stray newline from default applyTo glob (#40)`.
 
-- [ ] **Task 32: Fix #38, the extra final newline on block replace** (effort 2)
-  - [ ] In `managedSection.ts`, bytes outside the block pass through untouched when a managed block is replaced. No final newline is added.
-  - [ ] Update the Task 11 unit test.
-  - [ ] Run the suite without `-u` and list the failing snapshots. `test_managed_block_replaced_*` will fail. Any re-run test that replaces a block may also fail (`test_managed_backup_kept_*`, the second-run `test_ownership_*` tests). Check that each failure's diff is only the dropped extra final newline. Any other failure is a bug in the fix.
-  - [ ] Run `vitest -u` scoped to exactly those failing files.
-  - [ ] Success: `git diff` on the snapshots shows only trailing-newline changes, and all tests pass.
-  - [ ] Commit: `fix(cli): keep trailing bytes when replacing managed block (#38)`.
+- [x] **Task 32: Fix #38, the extra final newline on block replace** (effort 2)
+  - [x] In `managedSection.ts`, bytes outside the block pass through untouched when a managed block is replaced. No final newline is added.
+  - [x] Update the Task 11 unit test.
+  - [x] Run the suite without `-u` and list the failing snapshots. `test_managed_block_replaced_*` will fail. Any re-run test that replaces a block may also fail (`test_managed_backup_kept_*`, the second-run `test_ownership_*` tests). Check that each failure's diff is only the dropped extra final newline. Any other failure is a bug in the fix.
+  - [x] Run `vitest -u` scoped to exactly those failing files.
+  - [x] Success: `git diff` on the snapshots shows only trailing-newline changes, and all tests pass.
+  - [x] Commit: `fix(cli): keep trailing bytes when replacing managed block (#38)`.
 
 ### Docs and verification
 
-- [ ] **Task 33: Docs** (effort 1)
-  - [ ] Check that `README.md` and `cf setup-ide --help` still describe the command accurately.
-  - [ ] Update docs in `packages/` and `project-documents/user/architecture/` that describe setup-ide as a guide script (`200-slices.developer-onboarding.md`, `900-slices.maintenance-and-refactoring.md`).
-  - [ ] Add a CHANGELOG entry under Unreleased: native install, #38/#40 fixes, env tier removed.
-  - [ ] Success: `grep -rn "scripts/setup-ide"` over README and docs finds only historical references.
-  - [ ] Commit: `docs: describe cf setup-ide as a native install`.
+- [x] **Task 33: Docs** (effort 1)
+  - [x] Check that `README.md` and `cf setup-ide --help` still describe the command accurately.
+  - [x] Update docs in `packages/` and `project-documents/user/architecture/` that describe setup-ide as a guide script (`200-slices.developer-onboarding.md`, `900-slices.maintenance-and-refactoring.md`).
+  - [x] Add a CHANGELOG entry under Unreleased: native install, #38/#40 fixes, env tier removed.
+  - [x] Success: `grep -rn "scripts/setup-ide"` over README and docs finds only historical references.
+  - [x] Commit: `docs: describe cf setup-ide as a native install`.
 
-- [ ] **Task 34: Verification walkthrough and implementation notes** (effort 2)
-  - [ ] Run design walkthrough steps 1, 2, 3, 5 and 6 after `pnpm -r build`. Step 4 was done in Task 25. Step 5 needs a project with a registered worktree. If none is available, ask the PM.
-  - [ ] Add an "Implementation notes" section to the slice design listing the intended differences:
+- [x] **Task 34: Verification walkthrough and implementation notes** (effort 2)
+  - [x] Run design walkthrough steps 1, 2, 3, 5 and 6 after `pnpm -r build`. Step 4 was done in Task 25. Step 5 needs a project with a registered worktree. If none is available, ask the PM.
+  - [x] Add an "Implementation notes" section to the slice design listing the intended differences:
     - `echo -e`
     - the BSD-sed title fallback
     - glob expansion of `rules.exclude` against the current directory
     - the dry-run sandbox cleanup
     - Linux output
     - anything from Task 25
-  - [ ] Run `pnpm -r build`, `pnpm lint` and `pnpm test` once more.
-  - [ ] Success: every walkthrough step behaves as the design describes, and all checks pass.
-  - [ ] Commit: `docs: add slice 215 implementation notes`.
+  - [x] Run `pnpm -r build`, `pnpm lint` and `pnpm test` once more.
+  - [x] Success: every walkthrough step behaves as the design describes, and all checks pass.
+  - [x] Commit: `docs: add slice 215 implementation notes`.
