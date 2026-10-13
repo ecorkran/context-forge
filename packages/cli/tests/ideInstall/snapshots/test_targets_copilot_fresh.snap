@@ -15,8 +15,7 @@ exit: 0
 📋 Compiled 2 alwaysApply rules → AGENTS.md
 
 📄 Emitting scoped instruction files...
-✅ broken.md → .github/instructions/broken.instructions.md (applyTo: **
-**)
+✅ broken.md → .github/instructions/broken.instructions.md (applyTo: **)
 ✅ scoped-a.md → .github/instructions/scoped-a.instructions.md (applyTo: **/*.aa,**/*.ab)
 ✅ scoped-b.md → .github/instructions/scoped-b.instructions.md (applyTo: **/*.bb)
 📋 Emitted 3 scoped rule files to .github/instructions/
@@ -48,7 +47,7 @@ description: Fixture skill A.
 Fixture skill body.
 --- .context-forge/copilot.manifest
 308677497 84 .agents/skills/skill-a/SKILL.md
-4068321915 139 .github/instructions/broken.instructions.md
+1764846989 136 .github/instructions/broken.instructions.md
 2286035793 183 .github/instructions/scoped-a.instructions.md
 3922562033 183 .github/instructions/scoped-b.instructions.md
 --- .github/copilot-instructions.md
@@ -66,8 +65,7 @@ Fixture skill body.
 --- .github/instructions/broken.instructions.md
 ---
 name: broken-rules
-applyTo: "**
-**"
+applyTo: "**"
 ---
 <!-- context-forge:generated -->
 

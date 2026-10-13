@@ -58,8 +58,8 @@ describe('getApplyTo', () => {
     expect(getApplyTo('---\npaths:\n  - a\nother: b\n  - c\n---\n')).toBe('a');
   });
 
-  it('pins #40: no paths gives the default twice, newline-separated', () => {
-    expect(getApplyTo('---\ndescription: d\n---\nbody\n')).toBe('**\n**');
+  it('gives the default once when the frontmatter has no paths (#40)', () => {
+    expect(getApplyTo('---\ndescription: d\n---\nbody\n')).toBe('**');
   });
 
   it('gives the default once with no frontmatter', () => {

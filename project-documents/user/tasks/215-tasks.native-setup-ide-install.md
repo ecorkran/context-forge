@@ -233,47 +233,47 @@ status: in_progress
 ### Wire up cf
 
 - [ ] **Task 26: Call `installIde` from `cf setup-ide` and `cf init`** (effort 3)
-  - [ ] In `setup-ide.ts` `setupIdeAction`, replace `execSetupIde` with `installIde`. Arguments:
+  - [x] In `setup-ide.ts` `setupIdeAction`, replace `execSetupIde` with `installIde`. Arguments:
     - `guideDir` comes from `GUIDE_RELATIVE_PATH`
     - `projectRoot` and `targetRoot` are the project path
     - `rulesExclude` is read with `new ConfigManager(projectRoot).get('rules.exclude')` and parsed by one shared helper, `parseRulesExclude(value): string[]`, exported from `packages/core/src/config/ConfigKeys.ts`. It splits on `,` and returns `[]` for an empty value. No trimming: the validator already rejects whitespace around entries. The `rules.exclude` validator calls the same helper, and Task 27 uses it for each worktree. Add core unit tests for it.
-  - [ ] Exit 1 becomes a `UserError`.
-  - [ ] Remove capability probing (`readCapabilities`, `guideSupports`, `GuideCapability`) and the `.bak` path. Keep target validation, project resolution, the overwrite prompt and command delivery.
-  - [ ] `init.ts` goes through `setupIdeAction` and shouldn't need code changes. Check that it builds and its tests pass.
+  - [x] Exit 1 becomes a `UserError`.
+  - [x] Remove capability probing (`readCapabilities`, `guideSupports`, `GuideCapability`) and the `.bak` path. Keep target validation, project resolution, the overwrite prompt and command delivery.
+  - [x] `init.ts` goes through `setupIdeAction` and shouldn't need code changes. Check that it builds and its tests pass.
   - [ ] Success: build passes. `node packages/cli/dist/index.js setup-ide claude --dry-run` on this repo reports no changes, and `git status` stays clean.
 
-- [ ] **Task 27: Rewrite the worktree loop** (effort 3)
-  - [ ] Replace `runSetupIdeInWorktrees` and the `propagateToWorktrees` fallback with a loop in `setup-ide.ts` over `propagationTargets(project)`:
+- [x] **Task 27: Rewrite the worktree loop** (effort 3)
+  - [x] Replace `runSetupIdeInWorktrees` and the `propagateToWorktrees` fallback with a loop in `setup-ide.ts` over `propagationTargets(project)`:
     - Each worktree calls `installIde` with its root as both `projectRoot` and `targetRoot`, and the main checkout's guide.
     - `rules.exclude` is read again for each worktree root, parsed with `parseRulesExclude` (Task 26).
     - It prints `→ setup-ide in worktree: <name>`.
-  - [ ] Failure handling:
+  - [x] Failure handling:
     - A worktree that returns 1, or hits a filesystem error, is recorded and the loop continues. The command then exits non-zero naming those worktrees.
     - Any other exception propagates.
-  - [ ] Success: build passes.
+  - [x] Success: build passes.
 
-- [ ] **Task 28: Test the cf wiring** (effort 3)
-  - [ ] In `setup-ide.test.ts`, replace the tests that mock `execFileSync('bash', ...)` with tests that mock or spy on `installIde`. Cover:
+- [x] **Task 28: Test the cf wiring** (effort 3)
+  - [x] In `setup-ide.test.ts`, replace the tests that mock `execFileSync('bash', ...)` with tests that mock or spy on `installIde`. Cover:
     - the target and its aliases reach it
     - exit 1 becomes a `UserError`
     - a configured `rules.exclude` reaches `rulesExclude`. This replaces the cf-stub tier tests.
     - the worktree loop reads `rules.exclude` per root, continues past a failing worktree and names it, and stops on a non-filesystem exception
-  - [ ] Success: the CLI tests pass.
-  - [ ] Commit: `feat(cli): run setup-ide install in-process`.
+  - [x] Success: the CLI tests pass.
+  - [x] Commit: `feat(cli): run setup-ide install in-process`.
 
-- [ ] **Task 29: Delete the script plumbing** (effort 2)
-  - [ ] Confirm the build and full suite pass first. Only then delete:
+- [x] **Task 29: Delete the script plumbing** (effort 2)
+  - [x] Confirm the build and full suite pass first. Only then delete:
     - `guideScript.ts`
     - from `worktreePropagation.ts`, everything except `propagationTargets`: `pruneStaleFiles`, `sweepGeneratedPrompts`, `copyManifest`, `copyRootOutput`, `propagateToWorktrees` and their helpers
     - `worktreePrune.test.ts`, and the bash- or propagation-based cases in `worktreePropagation.test.ts` and `setup-ide.test.ts`. Keep the `propagationTargets` tests.
-  - [ ] Success: build, lint and `pnpm test` pass. `grep -rn "scripts/setup-ide\|'bash'" packages/*/src` returns nothing.
-  - [ ] Commit: `refactor(cli): remove setup-ide guide script plumbing`.
+  - [x] Success: build, lint and `pnpm test` pass. `grep -rn "scripts/setup-ide\|'bash'" packages/*/src` returns nothing.
+  - [x] Commit: `refactor(cli): remove setup-ide guide script plumbing`.
 
-- [ ] **Task 30: Update wording that names the guide script** (effort 1)
-  - [ ] `ideTargets.ts`: rewrite the comments that call the guide "the sole writer" of the markers. The literals don't change.
-  - [ ] `packages/core/src/config/ConfigKeys.ts`: the `rules.exclude` description and validator comment now name cf's installer as the consumer. Validation doesn't change.
-  - [ ] Success: build and the core config tests pass.
-  - [ ] Commit: `docs(core): name cf installer as rules.exclude consumer`.
+- [x] **Task 30: Update wording that names the guide script** (effort 1)
+  - [x] `ideTargets.ts`: rewrite the comments that call the guide "the sole writer" of the markers. The literals don't change.
+  - [x] `packages/core/src/config/ConfigKeys.ts`: the `rules.exclude` description and validator comment now name cf's installer as the consumer. Validation doesn't change.
+  - [x] Success: build and the core config tests pass.
+  - [x] Commit: `docs(core): name cf installer as rules.exclude consumer`.
 
 ### Approved fixes
 

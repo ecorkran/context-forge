@@ -84,8 +84,7 @@ languages and tools and are deliberately not inlined here — read the
 relevant file when working in that area:
 
 - `project-documents/ai-project-guide/project-guides/rules/broken.md`
-  Applies to: `**
-**`
+  Applies to: `**`
 - `project-documents/ai-project-guide/project-guides/rules/scoped-a.md` — Fixture scoped rule A, two path globs.
   Applies to: `**/*.aa,**/*.ab`
 - `project-documents/ai-project-guide/project-guides/rules/scoped-b.md` — Fixture scoped rule B, one path glob, no name field.

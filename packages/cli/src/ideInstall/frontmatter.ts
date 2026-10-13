@@ -4,7 +4,7 @@
  * awk program tracks frontmatter differently; the differences are deliberate
  * and pinned by snapshots, so the helpers do not share a parser.
  */
-import { fromRecords, stripTrailingNewlines, toRecords, anyLineMatches, anyLineContains } from './lines.js';
+import { fromRecords, toRecords, anyLineMatches, anyLineContains } from './lines.js';
 
 /** A frontmatter fence: exactly `---` (so `---\r` is not one). */
 export const FENCE = '---';
@@ -56,13 +56,12 @@ function stripOneQuotePair(value: string): string {
 }
 
 /**
- * `get_apply_to`: the `paths:` list joined with commas, quotes stripped.
- * With no paths, the closing fence prints `**` and exits, and awk still runs
- * END, which prints `**` again: the value is `**\n**` (#40, ported as is).
- * With unclosed frontmatter and paths collected, it is empty.
+ * `get_apply_to`: the `paths:` list joined with commas, quotes stripped, or
+ * `**` when there are none. With unclosed frontmatter and paths collected, it
+ * is empty. (bash printed `**` twice when the frontmatter closed with no paths,
+ * because awk runs END after `exit`: #40, fixed here.)
  */
 export function getApplyTo(text: string): string {
-  const printed: string[] = [];
   const paths: string[] = [];
   let inFrontmatter = false;
   let inPaths = false;
@@ -72,8 +71,7 @@ export function getApplyTo(text: string): string {
         inFrontmatter = true;
         continue;
       }
-      printed.push(paths.length > 0 ? paths.join(',') : DEFAULT_APPLY_TO);
-      break;
+      return paths.length > 0 ? paths.join(',') : DEFAULT_APPLY_TO;
     }
     if (!inFrontmatter) continue;
     if (PATHS_KEY.test(line)) {
@@ -86,9 +84,8 @@ export function getApplyTo(text: string): string {
     }
     if (inPaths && !LIST_ITEM_START.test(line)) inPaths = false;
   }
-  // awk's END block.
-  if (paths.length === 0) printed.push(DEFAULT_APPLY_TO);
-  return stripTrailingNewlines(fromRecords(printed));
+  // End of file without a closing fence.
+  return paths.length === 0 ? DEFAULT_APPLY_TO : '';
 }
 
 /**
