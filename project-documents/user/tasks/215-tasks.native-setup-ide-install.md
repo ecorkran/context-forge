@@ -69,73 +69,73 @@ status: in_progress
 
 ### Core helpers
 
-- [ ] **Task 5: `lines.ts`** (effort 2)
-  - [ ] Implement `toRecords(text)` and `fromRecords(lines)` with awk record semantics:
+- [x] **Task 5: `lines.ts`** (effort 2)
+  - [x] Implement `toRecords(text)` and `fromRecords(lines)` with awk record semantics:
     - split on `\n`
     - keep a final line that has no newline
     - write back with `\n`
     - leave `\r` in place
-  - [ ] Add the helper that strips trailing newlines the way `$(...)` does.
-  - [ ] Success: the module builds.
+  - [x] Add the helper that strips trailing newlines the way `$(...)` does.
+  - [x] Success: the module builds.
 
-- [ ] **Task 6: Test `lines.ts`** (effort 1)
-  - [ ] Unit tests for each line-handling edge case in the findings doc: empty file, no final newline, CRLF, several trailing newlines.
-  - [ ] Success: tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall line helpers`.
+- [x] **Task 6: Test `lines.ts`** (effort 1)
+  - [x] Unit tests for each line-handling edge case in the findings doc: empty file, no final newline, CRLF, several trailing newlines.
+  - [x] Success: tests pass.
+  - [x] Commit: `feat(cli): add ideInstall line helpers`.
 
-- [ ] **Task 7: `output.ts` status lines** (effort 2)
-  - [ ] Port `print_status` and the color constants. Status lines carry ANSI colors on the stream bash uses for each one. Message, emoji and color literals are defined once.
-  - [ ] `echo -e` escape interpretation isn't pinned: implement plain text and record the difference for the implementation notes (Task 34).
-  - [ ] Unit tests: color wrapping, and which stream each kind of status goes to.
-  - [ ] Success: tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall status output`.
+- [x] **Task 7: `output.ts` status lines** (effort 2)
+  - [x] Port `print_status` and the color constants. Status lines carry ANSI colors on the stream bash uses for each one. Message, emoji and color literals are defined once.
+  - [x] `echo -e` escape interpretation isn't pinned: implement plain text and record the difference for the implementation notes (Task 34).
+  - [x] Unit tests: color wrapping, and which stream each kind of status goes to.
+  - [x] Success: tests pass.
+  - [x] Commit: `feat(cli): add ideInstall status output`.
 
-- [ ] **Task 8: `frontmatter.ts`** (effort 3)
-  - [ ] Port `has_always_apply`, `validate_frontmatter`, `get_apply_to`, `get_frontmatter_field`, `convert_paths_to_globs` and `strip_name_field`. Each keeps the bash edge cases from the findings doc section "Frontmatter helpers".
-  - [ ] Port the current default-glob behavior as is, including the #40 stray newline. Task 31 fixes it.
-  - [ ] Success: the module builds.
+- [x] **Task 8: `frontmatter.ts`** (effort 3)
+  - [x] Port `has_always_apply`, `validate_frontmatter`, `get_apply_to`, `get_frontmatter_field`, `convert_paths_to_globs` and `strip_name_field`. Each keeps the bash edge cases from the findings doc section "Frontmatter helpers".
+  - [x] Port the current default-glob behavior as is, including the #40 stray newline. Task 31 fixes it.
+  - [x] Success: the module builds.
 
-- [ ] **Task 9: Test `frontmatter.ts`** (effort 2)
-  - [ ] One unit test per edge case in the findings doc's frontmatter section, plus #40 pinned as current behavior. Task 31 updates that test.
-  - [ ] Success: tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall frontmatter helpers`.
+- [x] **Task 9: Test `frontmatter.ts`** (effort 2)
+  - [x] One unit test per edge case in the findings doc's frontmatter section, plus #40 pinned as current behavior. Task 31 updates that test.
+  - [x] Success: tests pass.
+  - [x] Commit: `feat(cli): add ideInstall frontmatter helpers`.
 
-- [ ] **Task 10: `manifest.ts` (absorbs `installManifest.ts`)** (effort 3)
-  - [ ] Move everything in `commands/installManifest.ts` (`cksum`, `readManifest`, `parseManifestLine`, the path helpers, `MANIFEST_DIR`) into `ideInstall/manifest.ts`.
-  - [ ] Update the importers and delete `installManifest.ts`. The importers are `commands/setup-ide.ts`, `commands/worktreePropagation.ts`, `tests/commands/worktreePrune.test.ts` and `tests/commands/installManifest.test.ts` (moved below). Confirm with `grep -rn installManifest packages/cli` before deleting.
-  - [ ] Port `begin_manifest`, `install_file`, `record_installed_file`, `finish_manifest`, `legacy_manifest_entries` and `remove_empty_install_dirs`. Include:
+- [x] **Task 10: `manifest.ts` (absorbs `installManifest.ts`)** (effort 3)
+  - [x] Move everything in `commands/installManifest.ts` (`cksum`, `readManifest`, `parseManifestLine`, the path helpers, `MANIFEST_DIR`) into `ideInstall/manifest.ts`.
+  - [x] Update the importers and delete `installManifest.ts`. The importers are `commands/setup-ide.ts`, `commands/worktreePropagation.ts`, `tests/commands/worktreePrune.test.ts` and `tests/commands/installManifest.test.ts` (moved below). Confirm with `grep -rn installManifest packages/cli` before deleting.
+  - [x] Port `begin_manifest`, `install_file`, `record_installed_file`, `finish_manifest`, `legacy_manifest_entries` and `remove_empty_install_dirs`. Include:
     - the ownership checks
     - the no-manifest skip warning (#34)
     - the edited-file warning
     - bash's manifest sort order
-  - [ ] Move `installManifest.test.ts` to `tests/ideInstall/manifest.test.ts`. Its `cksum` cases, including `analyze-SKILL.md` → `4163870229 9896`, carry over.
-  - [ ] Add unit tests for: adopting a byte-equal file, skipping an unowned differing file, the no-manifest skip, pruning a stale unedited file, keeping an edited one, and removing empty directories at the depth rule.
-  - [ ] Success: build passes, and the manifest tests and the existing worktree tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall manifest module`.
+  - [x] Move `installManifest.test.ts` to `tests/ideInstall/manifest.test.ts`. Its `cksum` cases, including `analyze-SKILL.md` → `4163870229 9896`, carry over.
+  - [x] Add unit tests for: adopting a byte-equal file, skipping an unowned differing file, the no-manifest skip, pruning a stale unedited file, keeping an edited one, and removing empty directories at the depth rule.
+  - [x] Success: build passes, and the manifest tests and the existing worktree tests pass.
+  - [x] Commit: `feat(cli): add ideInstall manifest module`.
 
-- [ ] **Task 11: `managedSection.ts`** (effort 3)
-  - [ ] Add `MANAGED_MARKER_END = '[//]: # (context-forge:managed end)'` to `ideTargets.ts` next to the other marker literals. It's detection only and never emitted.
-  - [ ] Port `managed_state` (managed / legacy / unmanaged / broken), `write_managed_section` and `backup_premanaged_file`. Include:
+- [x] **Task 11: `managedSection.ts`** (effort 3)
+  - [x] Add `MANAGED_MARKER_END = '[//]: # (context-forge:managed end)'` to `ideTargets.ts` next to the other marker literals. It's detection only and never emitted.
+  - [x] Port `managed_state` (managed / legacy / unmanaged / broken), `write_managed_section` and `backup_premanaged_file`. Include:
     - writing a temp file, then renaming it into place
     - the `.pre-context-forge` backup
     - legacy migration, keeping content after a hand-added end marker (#33) with both migration messages
-  - [ ] Port the current block-replace behavior as is, including the #38 extra final newline. Task 32 fixes it.
-  - [ ] Unit tests: each state, legacy migration with and without an end marker, the broken-markers error, and no second backup when the file already has the BEGIN/END markers.
-  - [ ] Success: tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall managed-section module`.
+  - [x] Port the current block-replace behavior as is, including the #38 extra final newline. Task 32 fixes it.
+  - [x] Unit tests: each state, legacy migration with and without an end marker, the broken-markers error, and no second backup when the file already has the BEGIN/END markers.
+  - [x] Success: tests pass.
+  - [x] Commit: `feat(cli): add ideInstall managed-section module`.
 
-- [ ] **Task 12: `rules.ts`** (effort 3)
-  - [ ] Port `compile_claude_rules`, `compile_always_on_rules`, `rule_is_excluded`, `warn_unmatched_exclusions` and `always_apply_rule_matches`. Include:
+- [x] **Task 12: `rules.ts`** (effort 3)
+  - [x] Port `compile_claude_rules`, `compile_always_on_rules`, `rule_is_excluded`, `warn_unmatched_exclusions` and `always_apply_rule_matches`. Include:
     - rule discovery in byte order
     - the two body extractors
     - section titles. The BSD-sed `s/bw/Ubw/g` fallback title isn't pinned: implement the intended title and note the difference for Task 34.
-  - [ ] Convert `rules.exclude` globs to an anchored RegExp matched against the basename. Bash `case` semantics: `*`, `?` and `[...]` are special, every other character is literal.
-  - [ ] Unit tests:
+  - [x] Convert `rules.exclude` globs to an anchored RegExp matched against the basename. Bash `case` semantics: `*`, `?` and `[...]` are special, every other character is literal.
+  - [x] Unit tests:
     - glob conversion: `*`, `?`, a bracket class, regex metacharacters as literals
     - byte-order discovery
     - unmatched-pattern and always-on-pattern warnings
-  - [ ] Success: tests pass.
-  - [ ] Commit: `feat(cli): add ideInstall rule compilation`.
+  - [x] Success: tests pass.
+  - [x] Commit: `feat(cli): add ideInstall rule compilation`.
 
 ### Targets
 
