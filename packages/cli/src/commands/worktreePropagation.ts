@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import { UserError } from '../utils/errors.js';
 import { GENERATED_MARKER, normalizeTarget, TARGETS, type TargetDescriptor } from './ideTargets.js';
-import { cksum, manifestPath, manifestTempPath, readManifest, type ManifestEntry } from './installManifest.js';
+import { cksum, manifestPath, manifestTempPath, readManifest, type ManifestEntry } from '../ideInstall/manifest.js';
 
 /** Printed once per run when the root has no manifest after the guide script (the guide predates the manifest). */
 const PRE_MANIFEST_NOTICE =

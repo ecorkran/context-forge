@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProjectData } from '@context-forge/core';
-import { cksum, manifestPath, manifestTempPath, type ManifestEntry } from '../../src/commands/installManifest.js';
+import { cksum, manifestPath, manifestTempPath, type ManifestEntry } from '../../src/ideInstall/manifest.js';
 import { propagateToWorktrees, pruneStaleFiles, sweepGeneratedPrompts } from '../../src/commands/worktreePropagation.js';
 import { GENERATED_MARKER } from '../../src/commands/ideTargets.js';
 

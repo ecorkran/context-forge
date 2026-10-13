@@ -26,7 +26,7 @@ import {
   setupIdeScriptPath,
   type GuideCapabilityValue,
 } from './guideScript.js';
-import { readManifest } from './installManifest.js';
+import { readManifest } from '../ideInstall/manifest.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
 export {
