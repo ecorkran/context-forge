@@ -205,7 +205,7 @@ export function registerSetupIdeCommand(program: Command): void {
   ideCmd.option('--dry-run', 'Preview the files setup-ide would add, change, or remove; write nothing');
   ideCmd.option(
     '--write-lint',
-    'Also write missing lint configs the guide reports (ruff.toml, eslint.config.mjs, ...); with --dry-run, preview them',
+    'Also write missing lint configs the lint check reports (ruff.toml, eslint.config.mjs, ...); with --dry-run, preview them',
   );
   ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean; writeLint?: boolean }) => {
       try {

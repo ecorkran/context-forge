@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`cf validate design <file...>`** checks Phase 4 slice designs for every section the guide's slice-design template marks required, printing `PASS`/`FAIL` per file with each missing heading named. Exit 0 all pass, 1 any fail, 2 usage or template error; `--json` and `--project` supported. It replaces the guide's `scripts/validate-slice-design`, which the guide drops as it goes docs-only. Also accepts a quoted `docType` and CRLF files, which the script rejected
 
+### Changed
+
+- **`cf setup-ide` installs IDE files itself.** It no longer runs the guide's bash `setup-ide` script, so bash is no longer needed. Its output matches the script's byte for byte on the current guide for all four targets, apart from the two fixes below. Worktrees are installed the same way from the main checkout's guide, each with its own `rules.exclude`. The command, targets, aliases and flags are unchanged. A file setup-ide has never managed is backed up once to `<name>.pre-context-forge`; cf no longer also writes a `.bak`. A dry run's sandbox is now removed even when the install fails
+
+### Fixed
+
+- A scoped rule with no `paths:` no longer gets a broken two-line `applyTo: "**` / `**"` in its Copilot instruction file, or a split `Applies to` line in AGENTS.md (#40)
+- Replacing the managed block in CLAUDE.md or AGENTS.md no longer adds a final newline the file did not have (#38)
+
+### Removed
+
+- The `CONTEXT_FORGE_RULES_EXCLUDE` environment variable no longer overrides `rules.exclude`; set it with `cf config set rules.exclude`
+
 ## [0.19.5] - 20261010
 
 ### Changed
