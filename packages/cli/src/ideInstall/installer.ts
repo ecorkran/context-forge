@@ -13,6 +13,7 @@ import { guidePaths } from './paths.js';
 import { setupAgents } from './targets/agents.js';
 import { setupClaude } from './targets/claude.js';
 import { setupCopilot } from './targets/copilot.js';
+import { setupCursor } from './targets/cursor.js';
 
 export interface InstallOptions {
   /** Guide checkout to read sources from (the main checkout's guide, also for worktrees). */
@@ -38,12 +39,8 @@ const TARGET_SETUP: Record<Target, (ctx: InstallContext) => void> = {
   claude: setupClaude,
   agents: setupAgents,
   copilot: setupCopilot,
-  cursor: notPortedYet,
+  cursor: setupCursor,
 };
-
-function notPortedYet(): void {
-  throw new Error('target not ported yet');
-}
 
 /** Everything a target install needs except the manifest, which each install opens itself. */
 export type InstallBase = Omit<InstallContext, 'manifest'>;

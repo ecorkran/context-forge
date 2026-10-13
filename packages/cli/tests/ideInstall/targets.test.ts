@@ -8,8 +8,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assertSnapshot, installFiles, makeProject, makeTmpDir, run, snapshot, writeFiles } from './harness.js';
 
-/** Targets ported so far; extended as each target lands. */
-const TARGETS = ['claude', 'agents', 'copilot'] as const;
+const TARGETS = ['claude', 'cursor', 'copilot', 'agents'] as const;
 
 const GENERATED_MARKER = '<!-- context-forge:generated -->';
 
@@ -61,5 +60,21 @@ describe('targets', () => {
     const files = fs.readdirSync(dir).filter((name) => name.endsWith('.instructions.md'));
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) expect(fs.readFileSync(path.join(dir, file), 'utf-8')).toContain(GENERATED_MARKER);
+  });
+
+  it('test_targets_cursor_removes_superseded_always_on_mdc', async () => {
+    const { project, guide } = makeProject(tmp);
+    writeFiles(project, { '.cursor/rules/always-a.mdc': 'from an earlier run\n' });
+    const result = run(guide, project, ['cursor']);
+    expect(fs.existsSync(path.join(project, '.cursor/rules/always-a.mdc'))).toBe(false);
+    await assertSnapshot('test_targets_cursor_superseded_mdc', snapshot(project, [result]));
+  });
+
+  it('test_targets_cursor_agents_folder_warned_and_kept', async () => {
+    const { project, guide } = makeProject(tmp);
+    writeFiles(project, { '.cursor/agents/old-agent.md': 'left by an older run\n' });
+    const result = run(guide, project, ['cursor']);
+    expect(fs.existsSync(path.join(project, '.cursor/agents/old-agent.md'))).toBe(true);
+    await assertSnapshot('test_targets_cursor_agents_dir', snapshot(project, [result]));
   });
 });
