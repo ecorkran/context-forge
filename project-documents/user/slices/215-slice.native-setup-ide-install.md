@@ -158,7 +158,7 @@ All state is on disk in the target checkout: the installed files, the managed bl
 2. **Fix #40 (stray newline in the default `**` glob) and #38 (final newline added when a managed block is replaced).**
    - #40 writes broken YAML (`applyTo: "**` then `**"`) into copilot instruction files and the AGENTS.md "Applies to" line.
    - #38 breaks the stated rule that bytes outside the block pass through untouched.
-   - Each fix is its own commit, updating only that issue's snapshots (`test_targets_copilot_fresh` and `test_targets_agents_fresh` for #40, `test_managed_block_replaced_*` for #38).
+   - Each fix is its own commit, updating only the snapshots that issue changes, with each diff checked to contain only that change. #40 touches 18 snapshots: the copilot fresh and prompts runs, the agents fresh run, the `test_managed_*_agents` runs and every `test_lint_*` run. #38 touches `test_managed_block_replaced_*` and any re-run test that replaces a block. (Corrected after the task review: this line first listed only two #40 snapshots.)
    - Cost: a one-time rewrite of affected files in existing installs. Rejected alternative: porting both bugs as is.
 
 ## Implementation Details

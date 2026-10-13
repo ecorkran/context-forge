@@ -20,7 +20,7 @@ status: not_started
   - Guide repo checkout: `/Users/manta/source/repos/manta/ai-project-guide` (called **GUIDE_REPO** below). Port the bash from `GUIDE_REPO/scripts/`. The suite is in `GUIDE_REPO/tests/setup_ide/`.
   - Findings doc: `GUIDE_REPO/project-documents/user/analysis/120-analysis.setup-ide-port-findings.md`. It lists every bash edge case the port must reproduce. Read the relevant section before each module task.
 - Guide v0.20.10 check (done 20261013): two late bash changes are in scope with no design change needed. Content after a hand-added `[//]: # (context-forge:managed end)` line survives migration (#33). A differing file with no manifest is skipped with a warning, not backed up (#34). Both are in the findings doc and pinned by snapshots (`test_managed_legacy_end_*`, `test_ownership_no_manifest_differing`).
-- Next: Phase 6 on branch `215-slice.native-setup-ide-install`, then code review, then Phase 7 merge. After release, send the ai-project-guide-old session the cf version that stops calling `scripts/setup-ide`.
+- Next: Phase 6 on branch `215-slice.native-setup-ide-install`, then code review, then Phase 7 merge. After release, send the ai-project-guide session (the peer currently named `ai-project-guide-old`) the cf version that stops calling `scripts/setup-ide`.
 
 ### Conventions for every task
 
@@ -53,7 +53,7 @@ status: not_started
   - [ ] Create `output.ts` with the `OutputSink` interface (design, API Contracts).
   - [ ] Create `installer.ts` with `InstallOptions` and an `installIde()` that throws a clear "not implemented" error. This stub exists only for the harness, and Task 13 replaces it.
   - [ ] Create `paths.ts`, which defines the guide subdirectories (`project-guides/rules`, `agents`, `skills`, `lint`) once.
-  - [ ] Success: build passes.
+  - [ ] Success: build passes. No commit here; this goes in with Task 4's commit.
 
 - [ ] **Task 4: Port the harness and `test_harness`** (effort 3)
   - [ ] Port `harness.py` and `conftest.py` to `harness.ts`. It does the following:
@@ -81,12 +81,14 @@ status: not_started
 - [ ] **Task 6: Test `lines.ts`** (effort 1)
   - [ ] Unit tests for each line-handling edge case in the findings doc: empty file, no final newline, CRLF, several trailing newlines.
   - [ ] Success: tests pass.
+  - [ ] Commit: `feat(cli): add ideInstall line helpers`.
 
 - [ ] **Task 7: `output.ts` status lines** (effort 2)
   - [ ] Port `print_status` and the color constants. Status lines carry ANSI colors on the stream bash uses for each one. Message, emoji and color literals are defined once.
   - [ ] `echo -e` escape interpretation isn't pinned: implement plain text and record the difference for the implementation notes (Task 34).
   - [ ] Unit tests: color wrapping, and which stream each kind of status goes to.
   - [ ] Success: tests pass.
+  - [ ] Commit: `feat(cli): add ideInstall status output`.
 
 - [ ] **Task 8: `frontmatter.ts`** (effort 3)
   - [ ] Port `has_always_apply`, `validate_frontmatter`, `get_apply_to`, `get_frontmatter_field`, `convert_paths_to_globs` and `strip_name_field`. Each keeps the bash edge cases from the findings doc section "Frontmatter helpers".
@@ -96,10 +98,11 @@ status: not_started
 - [ ] **Task 9: Test `frontmatter.ts`** (effort 2)
   - [ ] One unit test per edge case in the findings doc's frontmatter section, plus #40 pinned as current behavior. Task 31 updates that test.
   - [ ] Success: tests pass.
+  - [ ] Commit: `feat(cli): add ideInstall frontmatter helpers`.
 
 - [ ] **Task 10: `manifest.ts` (absorbs `installManifest.ts`)** (effort 3)
   - [ ] Move everything in `commands/installManifest.ts` (`cksum`, `readManifest`, `parseManifestLine`, the path helpers, `MANIFEST_DIR`) into `ideInstall/manifest.ts`.
-  - [ ] Update the importers (`ideTargets.ts`, `worktreePropagation.ts` and their tests) and delete `installManifest.ts`.
+  - [ ] Update the importers and delete `installManifest.ts`. The importers are `commands/setup-ide.ts`, `commands/worktreePropagation.ts`, `tests/commands/worktreePrune.test.ts` and `tests/commands/installManifest.test.ts` (moved below). Confirm with `grep -rn installManifest packages/cli` before deleting.
   - [ ] Port `begin_manifest`, `install_file`, `record_installed_file`, `finish_manifest`, `legacy_manifest_entries` and `remove_empty_install_dirs`. Include:
     - the ownership checks
     - the no-manifest skip warning (#34)
@@ -233,7 +236,7 @@ status: not_started
   - [ ] In `setup-ide.ts` `setupIdeAction`, replace `execSetupIde` with `installIde`. Arguments:
     - `guideDir` comes from `GUIDE_RELATIVE_PATH`
     - `projectRoot` and `targetRoot` are the project path
-    - `rulesExclude` is read with `new ConfigManager(projectRoot).get('rules.exclude')`, split on `,`, with an empty value giving `[]`
+    - `rulesExclude` is read with `new ConfigManager(projectRoot).get('rules.exclude')` and parsed by one shared helper, `parseRulesExclude(value): string[]`, exported from `packages/core/src/config/ConfigKeys.ts`. It splits on `,` and returns `[]` for an empty value. No trimming: the validator already rejects whitespace around entries. The `rules.exclude` validator calls the same helper, and Task 27 uses it for each worktree. Add core unit tests for it.
   - [ ] Exit 1 becomes a `UserError`.
   - [ ] Remove capability probing (`readCapabilities`, `guideSupports`, `GuideCapability`) and the `.bak` path. Keep target validation, project resolution, the overwrite prompt and command delivery.
   - [ ] `init.ts` goes through `setupIdeAction` and shouldn't need code changes. Check that it builds and its tests pass.
@@ -242,7 +245,7 @@ status: not_started
 - [ ] **Task 27: Rewrite the worktree loop** (effort 3)
   - [ ] Replace `runSetupIdeInWorktrees` and the `propagateToWorktrees` fallback with a loop in `setup-ide.ts` over `propagationTargets(project)`:
     - Each worktree calls `installIde` with its root as both `projectRoot` and `targetRoot`, and the main checkout's guide.
-    - `rules.exclude` is read again for each worktree root.
+    - `rules.exclude` is read again for each worktree root, parsed with `parseRulesExclude` (Task 26).
     - It prints `→ setup-ide in worktree: <name>`.
   - [ ] Failure handling:
     - A worktree that returns 1, or hits a filesystem error, is recorded and the loop continues. The command then exits non-zero naming those worktrees.
@@ -276,14 +279,18 @@ status: not_started
 
 - [ ] **Task 31: Fix #40, the default-glob newline** (effort 2)
   - [ ] Fix the default `**` glob in `frontmatter.ts`, so it no longer writes `applyTo: "**` and `**"` on two lines.
-  - [ ] Update the Task 9 unit test. Run `vitest -u` only for `test_targets_copilot_fresh` and `test_targets_agents_fresh`.
-  - [ ] Success: the snapshot diff only changes the glob lines, and all tests pass.
+  - [ ] Update the Task 9 unit test.
+  - [ ] Run the suite without `-u` and list the failing snapshots. Expect 18: `test_targets_copilot_fresh`, `test_targets_copilot_prompts`, `test_targets_agents_fresh`, the `test_managed_*_agents` snapshots, and every `test_lint_*` snapshot (each shows `broken.md`'s `Applies to:` line). Check that each failure's diff is only the default-glob pair joining into one line. Any other failure is a bug in the fix, not a snapshot to update.
+  - [ ] Run `vitest -u` scoped to exactly the failing files from that list.
+  - [ ] Success: `git diff` on the snapshots shows only default-glob lines, and all tests pass.
   - [ ] Commit: `fix(cli): drop stray newline from default applyTo glob (#40)`.
 
 - [ ] **Task 32: Fix #38, the extra final newline on block replace** (effort 2)
   - [ ] In `managedSection.ts`, bytes outside the block pass through untouched when a managed block is replaced. No final newline is added.
-  - [ ] Update the Task 11 unit test. Run `vitest -u` only for the `test_managed_block_replaced_*` snapshots.
-  - [ ] Success: the snapshot diff only changes the trailing newline, and all tests pass.
+  - [ ] Update the Task 11 unit test.
+  - [ ] Run the suite without `-u` and list the failing snapshots. `test_managed_block_replaced_*` will fail. Any re-run test that replaces a block may also fail (`test_managed_backup_kept_*`, the second-run `test_ownership_*` tests). Check that each failure's diff is only the dropped extra final newline. Any other failure is a bug in the fix.
+  - [ ] Run `vitest -u` scoped to exactly those failing files.
+  - [ ] Success: `git diff` on the snapshots shows only trailing-newline changes, and all tests pass.
   - [ ] Commit: `fix(cli): keep trailing bytes when replacing managed block (#38)`.
 
 ### Docs and verification
