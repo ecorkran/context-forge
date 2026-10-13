@@ -23,7 +23,7 @@ exit: 0
    • Scoped language/tool rules are indexed by path, not inlined
    • Skills copied to .agents/skills/
 -- stderr
-ℹ️  Rule exclusions active from CONTEXT_FORGE_RULES_EXCLUDE: python.md
+ℹ️  Rule exclusions active from cf config rules.exclude: python.md
 == files
 --- .agents/skills/skill-a/SKILL.md
 ---

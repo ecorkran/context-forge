@@ -35,7 +35,7 @@ exit: 0
    • Agents copied to .claude/agents/
    • Skills copied to .claude/skills/
 -- stderr
-ℹ️  Rule exclusions active from CONTEXT_FORGE_RULES_EXCLUDE: nomatch*.md
+ℹ️  Rule exclusions active from cf config rules.exclude: nomatch*.md
 ⚠️  warning: rules.exclude pattern 'nomatch*.md' matched no rule files
 == files
 --- .claude/agents/agent-a.md

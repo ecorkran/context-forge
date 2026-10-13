@@ -35,7 +35,7 @@ exit: 0
    • Agents copied to .claude/agents/
    • Skills copied to .claude/skills/
 -- stderr
-ℹ️  Rule exclusions active from CONTEXT_FORGE_RULES_EXCLUDE: always-a.md
+ℹ️  Rule exclusions active from cf config rules.exclude: always-a.md
 ⚠️  warning: rules.exclude pattern 'always-a.md' names an always-on rule and was ignored
    Always-on rules are compiled into the managed block, not installed as files.
 == files
