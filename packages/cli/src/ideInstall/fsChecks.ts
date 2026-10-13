@@ -3,6 +3,8 @@
  * `[ -f ]`, `[ -d ]` and `[ -e ]` do, and is false for a missing path.
  */
 import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { byteOrder } from './lines.js';
 
 function statOrNull(p: string): fs.Stats | null {
   return fs.statSync(p, { throwIfNoEntry: false }) ?? null;
@@ -26,4 +28,18 @@ export function exists(p: string): boolean {
 /** `ls -A` is empty. */
 export function isEmptyDirectory(p: string): boolean {
   return fs.readdirSync(p).length === 0;
+}
+
+/**
+ * `"$dir"/*.md` filtered by `[ -f ]`: full paths in byte order (the LC_ALL=C
+ * glob order), dotfiles skipped. Empty when dir is missing.
+ */
+export function listMarkdownFiles(dir: string): string[] {
+  if (!isDirectory(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith('.md') && !name.startsWith('.'))
+    .sort(byteOrder)
+    .map((name) => path.join(dir, name))
+    .filter(isFile);
 }
