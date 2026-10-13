@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assertSnapshot, installFiles, makeProject, makeTmpDir, run, snapshot } from './harness.js';
 
 /** Targets ported so far; extended as each target lands. */
-const TARGETS = ['claude'] as const;
+const TARGETS = ['claude', 'agents'] as const;
 
 let tmp: string;
 beforeEach(() => {
@@ -31,7 +31,11 @@ describe('targets', () => {
     await assertSnapshot(`test_targets_${target}_fresh`, snapshot(project, [result]));
   });
 
-  it.each([['CLAUDE', 'claude']])('test_targets_alias_matches_reference[%s]', (alias, reference) => {
+  it.each([
+    ['codex', 'agents'],
+    ['openai', 'agents'],
+    ['CLAUDE', 'claude'],
+  ])('test_targets_alias_matches_reference[%s]', (alias, reference) => {
     // Fixed directory names: CLAUDE and claude collide on case-insensitive disks.
     expect(installed(path.join(tmp, 'alias'), alias)).toEqual(installed(path.join(tmp, 'reference'), reference));
   });

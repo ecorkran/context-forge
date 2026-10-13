@@ -10,6 +10,7 @@ import { RuleExclusions } from './exclusions.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
+import { setupAgents } from './targets/agents.js';
 import { setupClaude } from './targets/claude.js';
 
 export interface InstallOptions {
@@ -34,7 +35,7 @@ export interface InstallResult {
 /** The per-target setup functions; the Record makes a new Target a compile error until added. */
 const TARGET_SETUP: Record<Target, (ctx: InstallContext) => void> = {
   claude: setupClaude,
-  agents: notPortedYet,
+  agents: setupAgents,
   copilot: notPortedYet,
   cursor: notPortedYet,
 };

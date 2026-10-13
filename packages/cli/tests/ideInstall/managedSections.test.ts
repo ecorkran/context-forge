@@ -15,7 +15,10 @@ const LEGACY = '[//]: # (context-forge:managed)';
 const LEGACY_END = '[//]: # (context-forge:managed end)';
 
 /** [target, file, the H1 the generated block starts with]; extended as each target lands. */
-const TARGETS: [string, string, string][] = [['claude', 'CLAUDE.md', '# Project Guidelines for Claude']];
+const TARGETS: [string, string, string][] = [
+  ['claude', 'CLAUDE.md', '# Project Guidelines for Claude'],
+  ['agents', 'AGENTS.md', '# Project Guidelines'],
+];
 
 const BROKEN: [string, string][] = [
   ['two_begin', `top\n${BEGIN}\none\n${BEGIN}\ntwo\n${END}\n`],
