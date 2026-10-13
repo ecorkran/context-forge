@@ -99,7 +99,7 @@ describe('guide.exclude', () => {
   });
 
   it('refuses a protected path, naming it', () => {
-    expect(def.validate?.('scripts')).toContain('scripts');
+    expect(def.validate?.('project-guides')).toContain('project-guides');
   });
 
   it('refuses an unsupported wildcard', () => {

@@ -13,7 +13,7 @@
  */
 
 /** Guide paths cf needs to run. No exclude may equal or contain one, or sit inside one except as carved out below. */
-export const PROTECTED_GUIDE_PATHS = ['project-guides', 'scripts'] as const;
+export const PROTECTED_GUIDE_PATHS = ['project-guides'] as const;
 
 /**
  * Protected subtrees whose children, but not the subtree itself, may be

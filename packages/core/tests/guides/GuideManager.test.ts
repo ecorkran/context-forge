@@ -465,7 +465,7 @@ describe('GuideManager', () => {
   });
 
   describe('guide.exclude', () => {
-    const protectedMessage = 'guide.exclude entry "scripts" would remove scripts, which cf requires.';
+    const protectedMessage = 'guide.exclude entry "project-guides" would remove project-guides, which cf requires.';
 
     function configWith(exclude: string, strategy: string): void {
       mockConfigManager.get.mockImplementation(async (key: string) => {
@@ -495,7 +495,7 @@ describe('GuideManager', () => {
     });
 
     it('rejects a protected path on install and update before any strategy runs', async () => {
-      configWith('scripts', 'tarball');
+      configWith('project-guides', 'tarball');
       mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
       const tarball = mockStrategy(TarballStrategy, 'tarball');
       const manager = new GuideManager(projectPath, mockConfigManager as never);
@@ -554,7 +554,7 @@ describe('GuideManager', () => {
     });
 
     it('status rejects a protected path', async () => {
-      configWith('scripts', 'tarball');
+      configWith('project-guides', 'tarball');
       mockDetect.mockResolvedValue({ ...installedInfo, method: 'tarball' });
 
       await expect(new GuideManager(projectPath, mockConfigManager as never).status())

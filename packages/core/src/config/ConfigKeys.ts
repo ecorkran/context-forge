@@ -43,7 +43,7 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: '',
     description:
-      'Comma-separated guide-relative paths that tarball installs skip (e.g. "tool-guides/**,framework-guides"). A trailing "/" or "/**" means the same as the bare path; no other wildcards are supported. project-guides and scripts are protected and cannot be excluded, except subpaths of ' + EXCLUDABLE_GUIDE_SUBTREES.join(', ') + ' (e.g. a single language: ' + EXCLUDABLE_GUIDE_SUBTREES[0] + '/csharp). Applies to tarball installs only (submodule and clone ignore it). A change takes effect on the next `cf guides update`. Empty means install everything.',
+      'Comma-separated guide-relative paths that tarball installs skip (e.g. "tool-guides/**,framework-guides"). A trailing "/" or "/**" means the same as the bare path; no other wildcards are supported. project-guides is protected and cannot be excluded, except subpaths of ' + EXCLUDABLE_GUIDE_SUBTREES.join(', ') + ' (e.g. a single language: ' + EXCLUDABLE_GUIDE_SUBTREES[0] + '/csharp). Applies to tarball installs only (submodule and clone ignore it). A change takes effect on the next `cf guides update`. Empty means install everything.',
     scope: ConfigScope.Shared,
     validate: (value) => {
       if (typeof value !== 'string') return 'must be a string';

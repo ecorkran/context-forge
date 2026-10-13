@@ -59,9 +59,6 @@ describe('parseGuideExclude()', () => {
     const insideProjectGuides = (entry: string): string =>
       `guide.exclude entry "${entry}" is inside project-guides, which cf requires. ` +
       'Only subpaths of project-guides/lint can be excluded.';
-    const insideScripts = (entry: string): string =>
-      `guide.exclude entry "${entry}" is inside scripts, which cf requires. ` +
-      'Only subpaths of project-guides/lint can be excluded.';
     const wouldRemove = (entry: string, protectedPath: string): string =>
       `guide.exclude entry "${entry}" would remove ${protectedPath}, which cf requires.`;
     const wholeLint = (entry: string): string =>
@@ -87,9 +84,6 @@ describe('parseGuideExclude()', () => {
       ['project-guides/lint-other', insideProjectGuides('project-guides/lint-other')],
       ['project-guides', wouldRemove('project-guides', 'project-guides')],
       ['project-guides/**', wouldRemove('project-guides/**', 'project-guides')],
-      ['scripts', wouldRemove('scripts', 'scripts')],
-      ['scripts/x.sh', insideScripts('scripts/x.sh')],
-      ['scripts/setup-ide', insideScripts('scripts/setup-ide')],
     ])('refuses %j with the exact message', (raw, message) => {
       expect(rejection(raw).message).toBe(message);
     });
@@ -102,10 +96,11 @@ describe('parseGuideExclude()', () => {
   });
 
   it('does not treat a shared name prefix as protected', () => {
-    expect(parseGuideExclude('scripts-old,project-guides-archive')).toEqual([
-      'project-guides-archive',
-      'scripts-old',
-    ]);
+    expect(parseGuideExclude('project-guides-archive')).toEqual(['project-guides-archive']);
+  });
+
+  it('no longer protects scripts, which cf stopped reading in slice 215', () => {
+    expect(parseGuideExclude('scripts')).toEqual(['scripts']);
   });
 });
 

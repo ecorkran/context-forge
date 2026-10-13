@@ -967,7 +967,7 @@ describe('guide.exclude reporting', () => {
   });
 
   it('prints a GuideExcludeError as a user error with no stack and exits non-zero', async () => {
-    const message = 'guide.exclude entry "scripts" would remove scripts, which cf requires.';
+    const message = 'guide.exclude entry "project-guides" would remove project-guides, which cf requires.';
     mockInstall.mockRejectedValue(new GuideExcludeError(message));
 
     await run('install');
