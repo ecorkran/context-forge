@@ -8,6 +8,7 @@ import type { Target } from '../commands/ideTargets.js';
 import { InstallAbort, type InstallContext } from './context.js';
 import { dryRunInstall } from './dryRun.js';
 import { RuleExclusions } from './exclusions.js';
+import { checkLintConfigs } from './lint.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
@@ -53,6 +54,7 @@ export function installTarget(target: Target, base: InstallBase): void {
   TARGET_SETUP[target](ctx);
   manifest.finish();
   ctx.out.line();
+  checkLintConfigs(ctx);
 }
 
 /** A Node filesystem error (EACCES, ENOSPC, …): an environment failure, not a bug. */
