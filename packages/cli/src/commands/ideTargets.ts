@@ -97,8 +97,9 @@ export const MANAGED_MARKER_END = '[//]: # (context-forge:managed end)';
 /**
  * Every form that marks a file as context-forge-managed.
  *
- * The guide's `setup-ide` script is the sole writer of these markers; cf only
- * reads them. Both forms live here so the literals appear in exactly one place.
+ * cf's installer (ideInstall/) writes the BEGIN/END pair; the legacy form is
+ * only detected and migrated. Every marker literal lives in this module so it
+ * appears in exactly one place: they are a contract with files in users' projects.
  */
 export const MANAGED_MARKERS = [
   { marker: MANAGED_MARKER, match: 'exact-line' },
@@ -106,7 +107,7 @@ export const MANAGED_MARKERS = [
 ] as const;
 
 /**
- * Tags a file the guide generated wholesale (e.g. legacy `.github/prompts/*.prompt.md`).
- * Written only by the guide; cf reads it to sweep superseded prompt files.
+ * Tags a file generated wholesale from one source: `.github/instructions/*.instructions.md`
+ * now, and legacy `.github/prompts/*.prompt.md`, which the copilot install removes.
  */
 export const GENERATED_MARKER = '<!-- context-forge:generated -->';

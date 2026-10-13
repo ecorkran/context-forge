@@ -165,14 +165,14 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     type: 'string',
     default: '',
     description:
-      'Comma-separated filename globs for scoped rule files to skip when installing rules (e.g. "dart.md,swift*.md"). Matching is basename-only. As of ai-project-guide v0.19.0, setup-ide also prunes a previously-installed file that now matches an exclude pattern, via its per-target manifest — not just skips it on future installs. Empty means install everything. Consumed by the guide\'s setup-ide script, not by cf itself: cf stores and validates the value, the script acts on it. Rules marked alwaysApply are not excludable.',
+      'Comma-separated filename globs for scoped rule files to skip when installing rules (e.g. "dart.md,swift*.md"). Matching is basename-only. cf setup-ide skips matching rules and prunes a previously installed file that now matches, via its per-target manifest, unless it was edited since. Empty means install everything. Rules marked alwaysApply are not excludable.',
     scope: ConfigScope.Shared,
     validate: (value) => {
       if (typeof value !== 'string') return 'must be a string';
       if (value === '') return null; // empty = no exclusions (identity default)
-      // The consuming script matches with a literal bash `case`, so " swift*.md"
-      // would silently never match. A pattern that quietly does nothing is the
-      // exact failure this key must not have.
+      // cf's installer matches each pattern literally (bash `case` glob rules),
+      // so " swift*.md" would silently never match. A pattern that quietly does
+      // nothing is the exact failure this key must not have.
       for (const entry of parseRulesExclude(value)) {
         if (entry === '') {
           return 'must not contain an empty entry (check for a doubled or trailing comma)';

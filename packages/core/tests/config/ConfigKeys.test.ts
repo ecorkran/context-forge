@@ -40,7 +40,7 @@ describe('rules.exclude', () => {
 
   it('names its consumer in the description', () => {
     // Someone reading `cf config get rules.exclude` should not have to guess
-    // who acts on it — cf stores and validates, the guide script acts.
+    // who acts on it: cf setup-ide.
     expect(def.description).toContain('setup-ide');
   });
 
@@ -55,7 +55,7 @@ describe('rules.exclude', () => {
   });
 
   it('rejects surrounding whitespace on an entry', () => {
-    // The consuming bash `case` matches literally, so " swift*.md" would
+    // The installer matches patterns literally, so " swift*.md" would
     // silently never match.
     const result = def.validate?.('dart.md, swift*.md');
     expect(result).toBeTruthy();
