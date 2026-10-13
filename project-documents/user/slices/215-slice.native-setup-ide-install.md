@@ -6,7 +6,7 @@ parent: user/architecture/200-slices.developer-onboarding.md
 dependencies: []
 interfaces: []
 dateCreated: 20261011
-dateUpdated: 20261011
+dateUpdated: 20261012
 status: not_started
 ---
 
@@ -62,7 +62,7 @@ Hard requirement: everything it writes stays byte-identical to what the bash ver
 - `TARGETS`, `normalizeTarget` and the marker literals (`packages/cli/src/commands/ideTargets.ts`).
 - `cksum`, `readManifest` and `parseManifestLine` (`packages/cli/src/commands/installManifest.ts`), which already implement the manifest format byte for byte.
 - `propagationTargets` (`worktreePropagation.ts`), for the list of worktrees to install.
-- Input document: the guide's `project-documents/user/analysis/120-analysis.setup-ide-port-findings.md` (guide commit 26908c1). It lists the bash behaviors a port has to reproduce.
+- Input document: the guide's `project-documents/user/analysis/120-analysis.setup-ide-port-findings.md` (guide commit 26908c1). It lists the bash behaviors a port has to reproduce. Read it from the guide repository checkout (`../ai-project-guide`), not from the installed guide: the installed tree has no `project-documents/user/` or `tests/`. The `tests/setup_ide/` sources for the migration also come from that checkout.
 
 ## Architecture
 
@@ -88,19 +88,20 @@ Existing files that change:
 - `guideScript.ts`: deleted. `runSetupIdeInWorktrees` becomes a loop in `setup-ide.ts` that calls `installIde` with each worktree as the target root.
 - `worktreePropagation.ts`: reduced to `propagationTargets`. The copy-and-prune fallback for pre-`--root` guides is deleted.
 - `ideTargets.ts`: comments that call the guide "the sole writer" of the markers are updated. The literals stay.
+- `packages/core/src/config/ConfigKeys.ts`: the `rules.exclude` description ("Consumed by the guide's setup-ide script, not by cf itself") and its validator comment ("The consuming script matches with a literal bash `case`") now name cf's installer. Validation is unchanged.
 
 ### Data Flow
 
-1. `cf setup-ide <target>` resolves the project and normalizes the target, then reads `rules.exclude` from the checkout's config.
+1. `cf setup-ide <target>` resolves the project and normalizes the target, then reads `rules.exclude` from the config of the checkout being installed. The worktree loop reads it again for each worktree root and doesn't reuse the main checkout's value. That matches bash, which runs `cd "$PROJECT_ROOT" && cf config get rules.exclude` with `PROJECT_ROOT` set to the `--root` worktree. `rules.exclude` is a Shared-scope key, so a worktree on another branch can carry its own value.
 2. `installIde({ guideDir, projectRoot, targetRoot, target, dryRun, writeLint, rulesExclude, out })`:
    - Real run: `targetRoot === projectRoot`.
-   - Dry run: `dryRun.ts` creates a sandbox, copies the existing install paths into it (skipping `.claude/worktrees`), sets `targetRoot` to the sandbox and runs the install, writing the run's output to a buffer. It then prints the warning lines from the buffer and the change report.
+   - Dry run: `dryRun.ts` creates a sandbox, copies the existing install paths into it (skipping `.claude/worktrees`), sets `targetRoot` to the sandbox and runs the install, writing the run's output to a buffer. It then prints the warning lines from the buffer and the change report. The sandbox is removed in a `finally` (`fs.rmSync(sandbox, { recursive: true, force: true })`), so it is also removed when the install aborts or throws. If the removal itself fails, that error propagates. Bash has no trap, so under `set -e` it leaks the sandbox whenever the install fails. This is an intended difference, and no snapshot covers it.
 3. A target install reads guide sources and writes files under `targetRoot`:
    - Wholesale files go through `manifest.ts`, which checks ownership against the previous manifest.
    - Composite files go through `managedSection.ts`.
 4. `finish_manifest` prunes stale, unedited files and writes `.context-forge/<target>.manifest`, sorted the same way as bash.
 5. The lint check reads project files from `projectRoot` and writes missing configs under `targetRoot` when `writeLint` is set.
-6. The return value is `{ exitCode: 0 | 1 }`. `cf setup-ide` turns 1 into a `UserError`. The worktree loop records which worktrees failed and keeps going, as it does today.
+6. The return value is `{ exitCode: 0 | 1 }`. `cf setup-ide` turns 1 into a `UserError`. The worktree loop records which worktrees returned 1 and keeps going, as it does today (see Failure modes).
 
 ### State Management
 
@@ -120,7 +121,7 @@ All state is on disk in the target checkout: the installed files, the managed bl
   - The harness is about 226 lines and the tests about 730. Porting them is mechanical.
   - The snapshot files carry the spec and copy over unchanged.
   - The harness calls `installIde` in-process with a capturing `OutputSink` rather than a subprocess. That's faster, and it doesn't touch the global command install or the project registry the way the full `cf setup-ide` command would.
-  - Snapshot updates use vitest's `-u` convention: the harness writes the file when `process.env.UPDATE_SNAPSHOTS` is set or vitest is in update mode. A missing snapshot fails.
+  - Each test has one `.snap` file, so the harness compares with `expect(text).toMatchFileSnapshot(path)`. vitest's `-u` is the only update trigger; there is no env var. A missing snapshot fails in CI, which follows vitest's standard behavior.
 
 ### Patterns and Conventions
 
@@ -131,8 +132,20 @@ All state is on disk in the target checkout: the installed files, the managed bl
 - **Output literals defined once.** Status messages, emoji and colors are constants in `output.ts` or next to their use. Marker literals stay in `ideTargets.ts`.
 - **Errors:**
   - Bash exits mid-run with `exit 1` after printing its messages. The port throws an internal `InstallAbort` once the messages are written, and `installIde` catches it at the boundary and returns exit 1.
+  - A Node filesystem error (an `Error` with a string `code`, e.g. `EACCES`, `ENOSPC`, `EXDEV`) is an environment failure, not a bug. Bash under `set -e` prints the failing command's error and exits 1. `installIde` matches that: it writes `❌ <message>` to stderr and returns exit 1.
   - Any other exception propagates. It's a bug, not a reported install failure.
-  - No swallowed errors (project exception rule).
+  - No swallowed errors (project exception rule). The handler in `installIde` is the install's process boundary, and every failure it maps still reaches the user.
+- **Failure modes:**
+
+  | Failure | Handling |
+  |---|---|
+  | Rules source dir missing (`project-guides/rules`) | `InstallAbort` with bash's `❌ ... Rules source directory not found` lines, exit 1. |
+  | Agents or skills source dir missing | Skipped, as bash does (`if [ -d ... ]`): both are optional guide content. |
+  | `copy_files` source dir missing | `❌ Source directory not found`, then the bash return-1 path, ported as is. |
+  | Filesystem error mid-install | `❌ <message>` and exit 1 (above). |
+  | Partial install (failure after some files are written) | The manifest isn't rewritten, as in bash. A re-run recovers on its own: a file that exists and is byte-equal to the guide's version is adopted (`install_file` only checks ownership when the content differs), and managed blocks are found by their markers. No extra recovery code. |
+  | One worktree fails (exit 1 or filesystem error) | Recorded by name; the loop continues; the command exits non-zero naming them. That's today's behavior, since every bash failure is a process exit. |
+  | One worktree throws anything else | Propagates and stops the loop: it's a bug, and the same input would fail in every worktree. |
 - **Paths:** guide subdirectories (`project-guides/rules`, `agents`, `skills`, `lint`) are constants in one place in `ideInstall/`.
 
 ### PM decisions (confirmed 20261011)
@@ -166,7 +179,7 @@ All state is on disk in the target checkout: the installed files, the managed bl
 | `test_flags_root_outside_guide` (`--root x` and `--root=x`) | One ported test: install with `targetRoot` set to another checkout. Snapshot kept (the run label stays `setup-ide <target> --root <ROOT>`, built by the harness). |
 | `test_flags_capabilities`, `test_flags_root_missing_directory`, `test_flags_root_without_value`, `test_flags_before_target_same_as_after`, usage and unsupported-target runs | Dropped. They test the bash argument parser. cf's commander parsing and `normalizeTarget` already have tests in `setup-ide.test.ts`. |
 | `test_rules_exclude`, `test_lint_python_excluded` | Ported with `rulesExclude` passed in-process. The cf-stub tiers become one cf-level test showing that a configured `rules.exclude` reaches the installer. Four snapshots currently set exclusions through the env var: `test_rules_exclude_env_wins`, `test_rules_exclude_always_on`, `test_rules_exclude_unmatched` and `test_lint_python_excluded`. `env_wins` is retired. The other three keep their scenario, but their active-source line changes from the env var to cf config. That spec change (PM decision 1) goes in its own commit with the reason, like the #38/#40 fixes. |
-| `test_real_guide` | Ported. It runs against the repo's installed guide at `project-documents/ai-project-guide/project-guides`, so it follows guide updates. |
+| `test_real_guide` | Ported as is: a smoke test with no snapshot. For each target it asserts exit 0, no `❌` in the output, and that the target's top-level files exist. It runs against the repo's installed guide at `project-documents/ai-project-guide/project-guides`, so guide content updates don't break it, and it keeps working after the bash script is gone. Byte parity is the job of walkthrough step 4, not this test. |
 
 **Consumers updated in this slice:**
 - `setup-ide.ts` (`setupIdeAction` and the command action)
@@ -179,7 +192,7 @@ All state is on disk in the target checkout: the installed files, the managed bl
 - The ported suite shows the files, manifest, output and exit code match the bash version on fixtures.
 - The real-guide parity check shows byte-identical files for all four targets on the real guide, both for a fresh install and for a re-run over a bash-written install. It runs during implementation, while the bash script still exists.
 
-**Old guides:** the installer reads only the guide's source folders, so any guide from v0.19 on works. No probing is needed.
+**Old guides:** the installer reads only the guide's source folders, so any guide from v0.19 on works. No version probing is needed. A guide without `project-guides/rules` fails explicitly (see Failure modes).
 
 **Guide coupling:** after the cf release, the ai-project-guide session removes `scripts/setup-ide`, `scripts/setup-ide-lint.sh` and `tests/setup_ide/`. An old cf paired with a newer guide then fails on the missing script. The PM accepted that.
 
@@ -230,7 +243,7 @@ The command surface is unchanged: `cf setup-ide <target> [--dry-run] [--write-li
 ### Functional Requirements
 - `cf setup-ide <target>` for each of claude, cursor, copilot and agents (and the aliases openai and codex) installs without running bash or any guide script.
 - Output files, manifests and console output match the snapshot suite.
-- On the real guide, installs are byte-identical to the bash version, both fresh and when re-run over a bash-written install. Expected differences are limited to the #38/#40 fixes. The fixes are approved.
+- On the real guide, installs are byte-identical to the bash version, both fresh and when re-run over a bash-written install. Expected differences are limited to the #38/#40 fixes, plus, on Linux, any place where Linux bash output differed from macOS (see Risk Assessment). The fixes are approved.
 - `--dry-run` reports `+`/`~`/`-` changes and writes nothing to the project. `--write-lint` writes missing lint configs; with `--dry-run` it previews them.
 - Each registered worktree is installed from the main checkout's guide. A failing worktree doesn't stop the others, and the command exits non-zero naming them.
 - `rules.exclude` from cf config excludes matching scoped rules, prunes previously installed ones that weren't edited, and warns on patterns that match nothing or name an always-on rule.
@@ -265,11 +278,16 @@ From the context-forge repo root, after `pnpm -r build`:
    A=$(mktemp -d); B=$(mktemp -d)
    for d in $A $B; do mkdir -p $d/project-documents; cp -R project-documents/ai-project-guide $d/project-documents/; done
    (cd $A && bash project-documents/ai-project-guide/scripts/setup-ide $T)
-   # cf side: the vitest parity helper calls installIde on $B with the same guide
+   node --input-type=module -e "
+     const { installIde } = await import('$PWD/packages/cli/dist/ideInstall/installer.js');
+     const out = { stdout: (t) => process.stdout.write(t), stderr: (t) => process.stderr.write(t) };
+     const r = installIde({ guideDir: '$B/project-documents/ai-project-guide', projectRoot: '$B', targetRoot: '$B',
+       target: '$T', dryRun: false, writeLint: false, rulesExclude: [], out });
+     process.exit(r.exitCode);"
    diff -r --exclude=project-documents $A $B && echo "IDENTICAL $T"
    ```
-   Repeat with a second run over the bash-written tree, so cf re-runs over a bash install with nothing changing.
-5. **Worktrees:** in a project with a registered worktree, `node packages/cli/dist/index.js setup-ide claude` prints `→ setup-ide in worktree: <name>`, and the worktree's `CLAUDE.md` and `.context-forge/claude.manifest` match the root's.
+   This calls the built installer directly, with no helper file, and skips the command layer (project registry, overwrite prompt, command delivery), which isn't under test here. For the re-run case, run bash in both trees, then run the `node` line on `$B` and check that `diff` still reports identical. The step needs the guide's bash script, so it runs during implementation, before the guide release removes the script. After that, the ported suite and `test_real_guide` are the regression net.
+5. **Worktrees:** in a project with a registered worktree, `node packages/cli/dist/index.js setup-ide claude` prints `→ setup-ide in worktree: <name>`, and the worktree's `CLAUDE.md` and `.context-forge/claude.manifest` match the root's. Then, in the worktree only, run `node packages/cli/dist/index.js config set rules.exclude 'dart.md'` and run `setup-ide claude` from the main checkout again. The worktree's `.claude/rules/dart.md` is gone and the main checkout's is still there. Unset the key afterwards.
 6. **rules.exclude:**
    ```bash
    node packages/cli/dist/index.js config set rules.exclude 'dart.md'
@@ -309,3 +327,13 @@ From the context-forge repo root, after `pnpm -r build`:
 - Keep the ported tests' names identical to the pytest names, so the snapshot files map one to one.
 - The findings doc lists `cksum` test data: `fixture_data/analyze-SKILL.md` gives `4163870229 9896`. The existing `installManifest.test.ts` covers the algorithm, and it carries over.
 - After release, send the ai-project-guide session the cf version. Until then the guide keeps both scripts.
+
+### Design review resolutions (215-review.slice, CONCERNS)
+- **F004 filesystem failure handling:** added the filesystem-error rule and the Failure modes table under Errors. Partial installs recover on re-run because of how `install_file` already works, so no new code is needed.
+- **F005 dry-run cleanup:** the sandbox is removed in `finally` (Data Flow step 2).
+- **F006 parity check:** step 4 now calls the built `installIde` directly. `test_real_guide` is defined as a snapshot-free smoke test that keeps working after the script is removed.
+- **F007 `rules.exclude` scope:** read per worktree root, matching bash. Walkthrough step 5 checks it.
+- **F008 Linux:** added to the expected differences in Success Criteria.
+- **F009 input doc location:** read from the guide repository checkout (Dependencies).
+- **F010 snapshot trigger:** single trigger, vitest `-u` via `toMatchFileSnapshot`.
+- Found while resolving these: the `rules.exclude` config description in `ConfigKeys.ts` still names the guide script as the consumer, so that file is added to the change list.
