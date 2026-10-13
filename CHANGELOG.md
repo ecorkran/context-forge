@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.6] - 20261013
+
 ### Added
 
 - **`cf validate design <file...>`** checks Phase 4 slice designs for every section the guide's slice-design template marks required, printing `PASS`/`FAIL` per file with each missing heading named. Exit 0 all pass, 1 any fail, 2 usage or template error; `--json` and `--project` supported. It replaces the guide's `scripts/validate-slice-design`, which the guide drops as it goes docs-only. Also accepts a quoted `docType` and CRLF files, which the script rejected
