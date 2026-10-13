@@ -96,6 +96,16 @@ export const MANAGED_MARKER = '[//]: # (context-forge:managed)';
  */
 export const MANAGED_BEGIN_MARKER = '<!-- BEGIN:context-forge -->';
 
+/** Closes the BEGIN/END pair. The installer matches both as whole lines. */
+export const MANAGED_END_MARKER = '<!-- END:context-forge -->';
+
+/**
+ * Never emitted, but projects hand-added it after the legacy marker to put
+ * their own content after the generated span. Detection only: everything after
+ * it survives legacy migration.
+ */
+export const MANAGED_MARKER_END = '[//]: # (context-forge:managed end)';
+
 /**
  * Every form that marks a file as context-forge-managed.
  *
