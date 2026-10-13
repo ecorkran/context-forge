@@ -71,8 +71,8 @@ describe.each(TARGETS)('managed sections [%s]', (target, filename, h1) => {
     const result = run(guide, project, [target]);
     const data = fs.readFileSync(file(project), 'utf-8');
     expect(data.startsWith(`${above}${BEGIN}\n${h1}`)).toBe(true);
-    // Recorded quirk (#38): awk adds a final newline the file did not have.
-    expect(data.endsWith(`${END}\n${below}\n`)).toBe(true);
+    // #38: the missing final newline is kept too.
+    expect(data.endsWith(`${END}\n${below}`)).toBe(true);
     expect(data).not.toContain('stale generated content');
     expect(fs.existsSync(backup(project))).toBe(false);
     await assertSnapshot(name('block_replaced', target), snapshot(project, [result]));

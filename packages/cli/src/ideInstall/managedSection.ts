@@ -105,8 +105,9 @@ function migrateLegacy(original: string, content: string): string {
 }
 
 /**
- * Replaces the block's contents. Every line is rewritten as an awk record, so a
- * file whose last line had no newline gains one (#38, ported as is).
+ * Replaces the block's contents. Bytes outside the block pass through
+ * untouched, including a missing final newline. (bash rewrote every line as an
+ * awk record and so added one: #38, fixed here.)
  */
 function replaceBlock(original: string, content: string): string {
   const out: string[] = [];
@@ -122,7 +123,8 @@ function replaceBlock(original: string, content: string): string {
       out.push(line);
     }
   }
-  return fromRecords(out);
+  const merged = fromRecords(out);
+  return original === '' || original.endsWith('\n') ? merged : merged.slice(0, -1);
 }
 
 /**

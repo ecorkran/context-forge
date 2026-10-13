@@ -79,10 +79,10 @@ describe('writeManagedSection', () => {
     expect(stdout).not.toContain('Backed up');
   });
 
-  it('replaces only the block, keeping CR and outside bytes; pins #38 final newline', () => {
+  it('replaces only the block, keeping CR and outside bytes, including no final newline (#38)', () => {
     write(Buffer.from(`above\r\n${BEGIN}\nstale\n${END}\nbelow, no newline`));
     merge();
-    expect(read()).toBe(`above\r\n${BEGIN}\n${CONTENT}${END}\nbelow, no newline\n`);
+    expect(read()).toBe(`above\r\n${BEGIN}\n${CONTENT}${END}\nbelow, no newline`);
   });
 
   it('passes bytes that are not valid UTF-8 through untouched', () => {
