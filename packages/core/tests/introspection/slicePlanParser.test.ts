@@ -234,4 +234,14 @@ describe('parseSlicePlan', () => {
       expect(entry.description).toBeDefined();
     }
   });
+
+  it('finds the (nnn) index behind bold prefixes such as **DEPRECATED (date)** (#117)', async () => {
+    const result = await parseSlicePlan(join(FIXTURES, 'prefixed-slice-plan.md'));
+    expect(result.entries.map((e) => [e.index, e.name, e.indexSource])).toEqual([
+      [120, 'Finished Slice', 'explicit'],
+      [121, 'Setup IDE Python Rewrite', 'explicit'],
+      [122, 'Another Slice', 'explicit'],
+      [123, 'Plain Slice', 'explicit'],
+    ]);
+  });
 });

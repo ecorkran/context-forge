@@ -5,8 +5,12 @@ import type { NormalizedStatus, SlicePlanEntry, SlicePlanResult } from '../types
 /** Checkbox character marking a plan-line entry as deprecated/descoped (GitHub #61). */
 const DEPRECATED_MARKER = '~';
 
-/** Matches `N. [ ] **(NNN) Slice Name** — description` — indexed format */
-const PLAN_INDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}])\\]\\s+\\*\\*\\((\\d+)\\)\\s+(.+?)\\*\\*\\s*(.*)`);
+/**
+ * Matches `N. [ ] **(NNN) Slice Name** — description` — indexed format.
+ * Bold prefixes before the index, e.g. `**DEPRECATED (20261011)** **(121) Name**`,
+ * are skipped so the `(NNN)` is still found (GitHub #117).
+ */
+const PLAN_INDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}])\\]\\s+(?:\\*\\*[^*]+\\*\\*\\s+)*\\*\\*\\((\\d+)\\)\\s+(.+?)\\*\\*\\s*(.*)`);
 
 /** Matches `N. [ ] **Slice Name** — description` — unindexed format (no parenthesized index) */
 const PLAN_UNINDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}])\\]\\s+\\*\\*([^(].*?)\\*\\*\\s*(.*)`);
