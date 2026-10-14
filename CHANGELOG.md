@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.8] - 20261013
+
+### Changed
+
+- **`cf setup-ide` helps fix a weak ESLint flat config.** When an existing `eslint.config.*` lacks the guide's required rules, it prints the import and spread to add, warns that new lint errors will follow, and with `--write-lint` copies the guide's `required-rules.mjs` into the project. The config itself is never edited, and an existing `required-rules.mjs` is kept (#115)
+
+### Fixed
+
+- `cf guides install` no longer says "not a git repository, or the guide path is gitignored" when the guide simply matches what is already committed, such as a reinstall of the same version
+- The Claude Code setup note no longer names a hardcoded "(general, git)" rule list
+
 ## [0.19.7] - 20261013
 
 ### Changed

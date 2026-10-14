@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-13
 
+### Release 0.19.8
+
+- **Contents:** setup-ide offers the guide's `required-rules.mjs` for weak ESLint flat configs (fixes #115); guide install names the unchanged case when it makes no commit; stale setup-ide note text fixed. Filed #119 (tarball uninstall leaves the deletion uncommitted).
+
+Tags: @context-forge/core@0.19.8, @context-forge/cli@0.19.8, @context-forge/mcp@0.19.8, @context-forge/context-forge@0.19.8
+
 ### Release 0.19.7
 
 - **Contents:** Repo's own ai-project-guide updated to v0.20.11 (scripts/ removed, Fixes section added) and the IDE install refreshed with the native `cf setup-ide`.
