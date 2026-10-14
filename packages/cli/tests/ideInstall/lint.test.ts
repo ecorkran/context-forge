@@ -23,6 +23,10 @@ const PYPROJECT_PLAIN = '[project]\nname = "demo"\n';
 const PYPROJECT_WITH_RUFF = '[project]\nname = "demo"\n\n[tool.ruff]\nline-length = 100\n';
 const RUFF_COMPLETE = '[lint]\nselect = ["E", "F", "W", "I", "UP", "BLE", "ASYNC", "B"]\n';
 const PYTHON_BASELINE = fs.readFileSync(path.join(FIXTURE_GUIDE, 'lint/python/ruff.toml'), 'utf-8');
+const REQUIRED_RULES = 'required-rules.mjs';
+const REQUIRED_RULES_BLOCK = fs.readFileSync(path.join(FIXTURE_GUIDE, 'lint/typescript', REQUIRED_RULES), 'utf-8');
+// A Next.js-style flat config with none of the required rules.
+const ESLINT_WEAK = 'import next from "eslint-config-next";\nexport default [...next];\n';
 
 let tmp: string;
 beforeEach(() => {
@@ -78,6 +82,55 @@ describe('lint', () => {
     expect(runs[0].stdout).toContain(`Lint (${language})`);
     expect(exists(project, written)).toBe(true);
     await assertSnapshot(`test_lint_${language}`, snapshot(project, runs));
+  });
+
+  it('test_lint_typescript_weak_flat_config_suggests_required_rules', () => {
+    const { project, runs } = lintRun({ 'tsconfig.json': '{}\n', 'eslint.config.mjs': ESLINT_WEAK }, []);
+    expect(runs[0].stdout).toContain('missing required rules');
+    expect(runs[0].stdout).toContain(`import requiredRules from "./${REQUIRED_RULES}"`);
+    expect(runs[0].stdout).toContain('...requiredRules');
+    expect(runs[0].stdout).toContain('Expect new lint errors');
+    expect(runs[0].stdout).toContain('--write-lint');
+    expect(exists(project, REQUIRED_RULES)).toBe(false);
+  });
+
+  it('test_lint_typescript_weak_flat_config_write_lint_copies_required_rules', () => {
+    const { project, runs } = lintRun({ 'tsconfig.json': '{}\n', 'eslint.config.mjs': ESLINT_WEAK }, ['--write-lint']);
+    expect(read(project, REQUIRED_RULES)).toBe(REQUIRED_RULES_BLOCK);
+    expect(read(project, 'eslint.config.mjs')).toBe(ESLINT_WEAK);
+    expect(runs[0].stdout).toContain(`wrote ${REQUIRED_RULES}`);
+  });
+
+  it('test_lint_typescript_write_lint_keeps_existing_required_rules', () => {
+    const edited = '// edited by the project\nexport default [];\n';
+    const { project, runs } = lintRun(
+      { 'tsconfig.json': '{}\n', 'eslint.config.mjs': ESLINT_WEAK, [REQUIRED_RULES]: edited },
+      ['--write-lint'],
+    );
+    expect(read(project, REQUIRED_RULES)).toBe(edited);
+    expect(runs[0].stdout).not.toContain(`wrote ${REQUIRED_RULES}`);
+  });
+
+  it('test_lint_typescript_guide_without_required_rules_says_to_update', () => {
+    const { project, guide } = makeProject(tmp);
+    fs.rmSync(path.join(guide, 'project-guides/lint/typescript', REQUIRED_RULES));
+    writeFiles(project, { 'tsconfig.json': '{}\n', 'eslint.config.mjs': ESLINT_WEAK });
+    const result = run(guide, project, ['agents', '--write-lint']);
+    expect(result.stdout).toContain(`This guide has no ${REQUIRED_RULES}`);
+    expect(exists(project, REQUIRED_RULES)).toBe(false);
+  });
+
+  it('test_lint_typescript_config_importing_required_rules_passes', () => {
+    const importing = `import requiredRules from "./${REQUIRED_RULES}";\nexport default [...requiredRules];\n`;
+    const { runs } = lintRun({ 'tsconfig.json': '{}\n', 'eslint.config.mjs': importing }, []);
+    expect(runs[0].stdout).toContain('eslint.config.mjs has the required rules');
+  });
+
+  it('test_lint_typescript_weak_legacy_config_gets_no_import_hint', () => {
+    const { project, runs } = lintRun({ 'tsconfig.json': '{}\n', '.eslintrc.json': '{}\n' }, ['--write-lint']);
+    expect(runs[0].stdout).toContain('missing required rules');
+    expect(runs[0].stdout).not.toContain('requiredRules');
+    expect(exists(project, REQUIRED_RULES)).toBe(false);
   });
 
   it.each([

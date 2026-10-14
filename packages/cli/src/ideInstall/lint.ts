@@ -18,6 +18,10 @@ import { anyLineContains, anyLineMatches, fromRecords, stripTrailingNewlines, to
 const SPACE = '[ \\t\\n\\v\\f\\r]';
 const LANGUAGES = ['python', 'dart', 'typescript', 'csharp'] as const;
 type Language = (typeof LANGUAGES)[number];
+/** The guide's composable block for an existing ESLint flat config. */
+const REQUIRED_RULES_FILE = 'required-rules.mjs';
+/** Flat configs are `eslint.config.*`; legacy `.eslintrc*` cannot import the block. */
+const FLAT_CONFIG_PREFIX = 'eslint.config.';
 
 function read(file: string): string {
   return fs.readFileSync(file, 'utf-8');
@@ -172,12 +176,38 @@ class LintCheck {
     const cfg = candidates.find((name) => isFile(path.join(this.root, name)));
     if (cfg !== undefined) {
       const text = read(path.join(this.root, cfg));
-      this.report('typescript', cfg, missingRequirements(this.source('typescript', 'required'), text));
+      const missing = missingRequirements(this.source('typescript', 'required'), text);
+      this.report('typescript', cfg, missing);
+      if (missing !== '' && cfg.startsWith(FLAT_CONFIG_PREFIX)) this.offerRequiredRules(cfg);
       return;
     }
     this.writeOrSuggest('typescript', 'eslint.config.mjs', fs.readFileSync(this.source('typescript', 'eslint.config.mjs')));
     if (this.ctx.writeLint) {
       this.ctx.out.status('blue', '   Install: npm i -D eslint @eslint/js typescript-eslint, and add a "lint": "eslint ." script');
+    }
+  }
+
+  /**
+   * A weak flat config is never edited. Instead: the two lines that add the
+   * guide's required-rules block, and with writeLint, the block itself so the
+   * import resolves. A project's own copy of the block is left alone.
+   */
+  private offerRequiredRules(cfg: string): void {
+    const { out } = this.ctx;
+    const block = this.source('typescript', REQUIRED_RULES_FILE);
+    if (!isFile(block)) {
+      out.status('yellow', `   This guide has no ${REQUIRED_RULES_FILE}; run cf guides update for the composable block`);
+      return;
+    }
+    out.status('yellow', `   Add to ${cfg}: import requiredRules from "./${REQUIRED_RULES_FILE}";`);
+    out.status('yellow', '   then ...requiredRules as the last entry of the exported config array');
+    out.status('yellow', '   Expect new lint errors once these rules are on; they are real findings');
+    if (isFile(path.join(this.root, REQUIRED_RULES_FILE))) return;
+    if (this.ctx.writeLint) {
+      fs.writeFileSync(path.join(this.ctx.targetRoot, REQUIRED_RULES_FILE), fs.readFileSync(block));
+      out.status('green', `✅ Lint (typescript): wrote ${REQUIRED_RULES_FILE}`);
+    } else {
+      out.status('yellow', `   Run setup-ide with --write-lint to add ${REQUIRED_RULES_FILE}`);
     }
   }
 
