@@ -4,7 +4,7 @@ import { TemplateProcessor } from './TemplateProcessor.js';
 import { ContextTemplateEngine } from './ContextTemplateEngine.js';
 import { ContextProfileParser } from './ContextProfileParser.js';
 import type { ProfileMap } from './ContextProfileParser.js';
-import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
+import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH, DEFAULT_TARGET_BRANCH } from './constants.js';
 import { getFieldNamesByGroup } from '../schema/projectSchema.js';
 
 /**
@@ -12,6 +12,12 @@ import { getFieldNamesByGroup } from '../schema/projectSchema.js';
  * prompts. Returns undefined when none exist.
  */
 export type TaskFilesResolver = (checkoutPath: string, fileSlice: string) => Promise<string | undefined>;
+
+/**
+ * Reads the configured git.integration_branch for one checkout (the project
+ * root or a worktree's own path). Returns '' when unset.
+ */
+export type IntegrationBranchResolver = (checkoutPath: string) => Promise<string>;
 
 /**
  * Default template for context generation
@@ -44,20 +50,24 @@ export class ContextIntegrator {
   private cachedPromptPath: string | null = null;
   private readFileFn: ((path: string) => string) | null;
   private resolveTaskFilesFn: TaskFilesResolver | null;
+  private resolveIntegrationBranchFn: IntegrationBranchResolver | null;
 
   /**
    * @param engine Template engine for context generation
    * @param enableNewEngine Toggle between new and legacy template systems
    * @param readFileFn Optional file reader for profile loading (Node.js only)
    * @param resolveTaskFilesFn Optional on-disk task file lookup (Node.js only)
+   * @param resolveIntegrationBranchFn Optional per-checkout integration branch lookup (Node.js only)
    */
   constructor(
     engine: ContextTemplateEngine,
     enableNewEngine: boolean = true,
     readFileFn: ((path: string) => string) | null = null,
     resolveTaskFilesFn: TaskFilesResolver | null = null,
+    resolveIntegrationBranchFn: IntegrationBranchResolver | null = null,
   ) {
     this.resolveTaskFilesFn = resolveTaskFilesFn;
+    this.resolveIntegrationBranchFn = resolveIntegrationBranchFn;
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
@@ -99,13 +109,21 @@ export class ContextIntegrator {
     // Map project data to enhanced context data
     const enhancedData = this.mapProjectToEnhancedContext(project, worktreeId);
 
-    // Resolve the slice's real task file(s) from the checkout being worked in
-    if (this.resolveTaskFilesFn && project.fileSlice) {
-      const worktree = (project.worktrees ?? []).find((w) => w.id === worktreeId);
-      const checkoutPath = worktree?.worktreePath ?? project.projectPath;
-      if (checkoutPath) {
-        enhancedData.taskFiles = await this.resolveTaskFilesFn(checkoutPath, project.fileSlice);
-      }
+    // Both lookups read from the checkout being worked in: the worktree's own
+    // path when one is selected, else the project root.
+    const worktree = (project.worktrees ?? []).find((w) => w.id === worktreeId);
+    const checkoutPath = worktree?.worktreePath ?? project.projectPath;
+
+    // Resolve the slice's real task file(s)
+    if (this.resolveTaskFilesFn && project.fileSlice && checkoutPath) {
+      enhancedData.taskFiles = await this.resolveTaskFilesFn(checkoutPath, project.fileSlice);
+    }
+
+    // Resolve where work in this checkout forks from and merges into
+    if (this.resolveIntegrationBranchFn && checkoutPath) {
+      const integrationBranch = await this.resolveIntegrationBranchFn(checkoutPath);
+      enhancedData.integrationBranch = integrationBranch;
+      enhancedData.targetBranch = integrationBranch || DEFAULT_TARGET_BRANCH;
     }
 
     // Generate using template engine

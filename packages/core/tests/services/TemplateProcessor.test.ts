@@ -216,6 +216,23 @@ describe('TemplateProcessor', () => {
     });
   });
 
+  describe('processTemplate — branch variables (#70)', () => {
+    it('resolves {targetBranch} and {integrationBranch}', () => {
+      const data = createTestContextData({ integrationBranch: 'dev/erik', targetBranch: 'dev/erik' });
+      expect(processor.processTemplate('{targetBranch} {integrationBranch}', data)).toBe('dev/erik dev/erik');
+    });
+
+    it('renders a {{#if targetBranch}} block when set', () => {
+      const data = createTestContextData({ targetBranch: 'main' });
+      expect(processor.processTemplate('{{#if targetBranch}}target: {targetBranch}{{/if}}', data)).toBe('target: main');
+    });
+
+    it('renders a {{#if targetBranch}} block as empty when the variable is absent (older callers)', () => {
+      const data = createTestContextData({});
+      expect(processor.processTemplate('a{{#if targetBranch}}target: {targetBranch}{{/if}}b', data)).toBe('ab');
+    });
+  });
+
   describe('processTemplate — worktree aliases', () => {
     it('resolves {worktreeName} when worktree data is present', () => {
       const data = createTestContextData({ worktreeName: 'world-server' });

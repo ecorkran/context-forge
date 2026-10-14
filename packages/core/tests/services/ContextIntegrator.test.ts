@@ -259,6 +259,53 @@ describe('ContextIntegrator', () => {
     });
   });
 
+  describe('integration branch data flow (#70)', () => {
+    const worktrees = [
+      { id: 'wt_001', name: 'world-server', indexRange: [300, 499] as [number, number], worktreePath: '/tmp/test-wt' },
+    ];
+
+    async function generate(configured: string, worktreeId?: string) {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const resolver = vi.fn(async () => configured);
+      const integrator = new ContextIntegrator(engine, true, null, null, resolver);
+      const project = createTestProjectData({ projectPath: '/tmp/test', worktrees });
+      await integrator.generateContextFromProject(project, worktreeId);
+      return { contextData: generateSpy.mock.calls[0][0], resolver };
+    }
+
+    it('sets integrationBranch and targetBranch to the configured branch', async () => {
+      const { contextData } = await generate('dev/erik');
+      expect(contextData.integrationBranch).toBe('dev/erik');
+      expect(contextData.targetBranch).toBe('dev/erik');
+    });
+
+    it('resolves targetBranch to main when nothing is configured', async () => {
+      const { contextData } = await generate('');
+      expect(contextData.integrationBranch).toBe('');
+      expect(contextData.targetBranch).toBe('main');
+    });
+
+    it('reads the config from the project root without a worktree', async () => {
+      const { resolver } = await generate('', undefined);
+      expect(resolver).toHaveBeenCalledWith('/tmp/test');
+    });
+
+    it('reads the config from the worktree checkout when a worktree is selected', async () => {
+      const { resolver } = await generate('dev/erik', 'wt_001');
+      expect(resolver).toHaveBeenCalledWith('/tmp/test-wt');
+    });
+
+    it('leaves both fields undefined when no resolver is injected', async () => {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true);
+      await integrator.generateContextFromProject(createTestProjectData({ projectPath: '/tmp/test' }));
+      expect(generateSpy.mock.calls[0][0].targetBranch).toBeUndefined();
+      expect(generateSpy.mock.calls[0][0].integrationBranch).toBeUndefined();
+    });
+  });
+
   describe('profile-aware filtering', () => {
     const PROFILES_CONTENT = `## Prompts
 \`\`\`yaml

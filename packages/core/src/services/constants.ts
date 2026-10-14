@@ -3,6 +3,9 @@ import type { TemplateStatement } from '../types/statements.js';
 /** Relative path (from project root) to the default statements file */
 export const STATEMENTS_FILE_RELATIVE_PATH = 'default-statements.md';
 
+/** Trunk branch that work targets when git.integration_branch is unset */
+export const DEFAULT_TARGET_BRANCH = 'main';
+
 /** Relative path (from project root) to the system prompt file */
 export const PROMPT_FILE_RELATIVE_PATH =
   'project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md';

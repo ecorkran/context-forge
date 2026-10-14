@@ -6,6 +6,7 @@ import { ContextTemplateEngine } from './ContextTemplateEngine.js';
 import { ContextIntegrator } from './ContextIntegrator.js';
 import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
 import { resolveTaskFilesForPrompt } from './taskFilesResolver.js';
+import { resolveIntegrationBranchForPrompt } from './integrationBranchResolver.js';
 
 /**
  * Resolve the system prompt file path for a project.
@@ -47,7 +48,13 @@ export function createContextPipeline(projectPath: string): {
 
   const engine = new ContextTemplateEngine(promptParser, statementManager);
   const readFileFn = (filePath: string): string => fs.readFileSync(filePath, 'utf-8');
-  const integrator = new ContextIntegrator(engine, true, readFileFn, resolveTaskFilesForPrompt);
+  const integrator = new ContextIntegrator(
+    engine,
+    true,
+    readFileFn,
+    resolveTaskFilesForPrompt,
+    resolveIntegrationBranchForPrompt,
+  );
 
   return { engine, integrator };
 }

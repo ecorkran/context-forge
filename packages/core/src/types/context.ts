@@ -29,6 +29,10 @@ export interface ContextData {
   worktreeName?: string;
   worktreeIndexStart?: number;
   worktreeIndexEnd?: number;
+  /** Configured git.integration_branch for the checkout; empty when unset. */
+  integrationBranch?: string;
+  /** Branch work forks from and merges into: integrationBranch if set, else the default trunk. */
+  targetBranch?: string;
 }
 
 /**
