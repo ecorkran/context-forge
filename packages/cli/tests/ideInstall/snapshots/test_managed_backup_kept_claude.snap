@@ -32,7 +32,7 @@ exit: 0
 ✅ Setup complete for Claude Code!
 
 💡 Claude Code setup notes:
-   • CLAUDE.md contains alwaysApply rules (general, git)
+   • CLAUDE.md contains the alwaysApply rules listed above
    • Modular rules copied to .claude/rules/
    • Agents copied to .claude/agents/
    • Skills copied to .claude/skills/
@@ -69,7 +69,7 @@ exit: 0
 ✅ Setup complete for Claude Code!
 
 💡 Claude Code setup notes:
-   • CLAUDE.md contains alwaysApply rules (general, git)
+   • CLAUDE.md contains the alwaysApply rules listed above
    • Modular rules copied to .claude/rules/
    • Agents copied to .claude/agents/
    • Skills copied to .claude/skills/

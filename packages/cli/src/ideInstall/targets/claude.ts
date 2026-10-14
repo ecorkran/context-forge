@@ -69,7 +69,7 @@ export function setupClaude(ctx: InstallContext): void {
   out.status('green', '✅ Setup complete for Claude Code!');
   out.line();
   out.status('blue', '💡 Claude Code setup notes:');
-  out.line('   • CLAUDE.md contains alwaysApply rules (general, git)');
+  out.line('   • CLAUDE.md contains the alwaysApply rules listed above');
   out.line('   • Modular rules copied to .claude/rules/');
   if (hasAgents) out.line('   • Agents copied to .claude/agents/');
   if (hasSkills) out.line('   • Skills copied to .claude/skills/');
