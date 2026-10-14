@@ -883,6 +883,17 @@ describe('guide.exclude reporting', () => {
     expect(stderr()).toContain('guide.exclude entry "tool-guide" matched nothing in v0.19.3');
   });
 
+  it('install with nothing to commit names the unchanged case, not just repo or gitignore', async () => {
+    // Reinstalling the same version after an uninstall restores identical files.
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.19.3', method: 'tarball', path: tarballPath, committed: false,
+    });
+
+    await run('install');
+
+    expect(stdout()).toContain('already committed');
+  });
+
   it('update with excludeChanged reports the re-extract instead of "already at latest"', async () => {
     mockUpdate.mockResolvedValue({
       success: true, previousVersion: 'v0.19.3', newVersion: 'v0.19.3', method: 'tarball',

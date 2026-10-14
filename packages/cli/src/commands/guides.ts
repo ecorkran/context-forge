@@ -194,7 +194,7 @@ function reportCommitted(committed: boolean | undefined): void {
     `  ${label('Commit:')}   ${
       committed
         ? valueStyle('committed (not pushed)')
-        : dim('not committed — not a git repository, or the guide path is gitignored')
+        : dim('no new commit — the guide is already committed as-is, gitignored, or not in a git repository')
     }`
   );
 }

@@ -191,9 +191,9 @@ export interface InstallResult {
    */
   deprecatedAlias?: string;
   /**
-   * Whether the strategy committed the installed guide. False when the project
-   * is not a git work tree or gitignores the guide; absent for strategies that
-   * have nothing to commit (clone).
+   * Whether the strategy committed the installed guide. False when the guide
+   * matches what is already committed, the project gitignores it, or it is not
+   * a git work tree; absent for strategies that have nothing to commit (clone).
    */
   committed?: boolean;
   /**
