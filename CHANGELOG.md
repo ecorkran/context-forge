@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.9] - 20261014
+
+### Added
+
+- **Built context carries the branch work targets.** New template variables `integrationBranch` (the configured `git.integration_branch`, empty when unset) and `targetBranch` (that branch, or `main`), resolved per checkout so each worktree gets its own. The guide's system prompt can state the merge target directly instead of asking the agent to look it up (#70)
+
+### Fixed
+
+- **`cf next` and `cf status` no longer follow a cancelled slice.** A current slice that is deprecated or deferred is reported as no active slice, with a warning, and `cf next` moves on to the next real one (#117)
+- **Plan entries with a bold prefix keep their index.** `**DEPRECATED (date)** **(121) Name**` now parses as slice 121, not slice 1 (#117)
+- **`cf config get` truncates long values** to the terminal width. Piped output and `--value` stay whole (#118)
+- **Tarball guide uninstall commits the removal** (`docs: uninstall ai-project-guide <version>`), as install already commits the guide, so a reinstall of the same version shows up as a change (#119)
+
 ## [0.19.8] - 20261013
 
 ### Changed

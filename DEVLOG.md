@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-14
+
+### Release 0.19.9
+
+- **Contents:** `integrationBranch`/`targetBranch` context variables (fixes #70); `cf next`/`cf status` skip a deprecated or deferred current slice and plan entries with a bold prefix keep their index (#117, remaining parts open); `cf config get` truncation (fixes #118); tarball guide uninstall commits the removal (fixes #119). Initiative 200 closed.
+
+Tags: @context-forge/core@0.19.9, @context-forge/cli@0.19.9, @context-forge/mcp@0.19.9, @context-forge/context-forge@0.19.9
+
 ## 2026-10-13
 
 ### Release 0.19.8
