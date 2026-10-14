@@ -202,6 +202,58 @@ describe('WorkflowNavigator — derived-status entry selection (slice 911)', () 
     expect(next.warnings ?? []).toEqual([]);
   });
 
+  it.each([
+    ['deprecated', 'deprecated'],
+    ['deferred', 'deferred'],
+  ])('#117: a current slice whose design status is %s is not followed by getStatus/getNext', async (_label, designStatus) => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-117-'));
+    writeSliceDesign(root, 120, 'done', 'complete');
+    writeSliceDesign(root, 121, 'cancelled', designStatus);
+    writeTaskFile(root, 121, 'cancelled', ['x', ' ', ' ']);
+    writeSliceDesign(root, 130, 'genuinely-next', 'not-started');
+    writeSlicePlan(
+      root,
+      '1. [x] **(120) Done** — complete.\n' +
+        '2. [ ] **(121) Cancelled** — no longer wanted.\n' +
+        '3. [ ] **(130) Genuinely Next** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '121-slice.cancelled.md',
+      fileTasks: '121-tasks.cancelled.md',
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const status = await nav.getStatus(project);
+    expect(status.activeSlice!.status).toBe('no-active-slice');
+    expect(status.warnings!.some((w) => w.includes('121') && w.includes(designStatus))).toBe(true);
+
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 130');
+    expect(next.warnings!.some((w) => w.includes('121') && w.includes(designStatus))).toBe(true);
+  });
+
+  it('#117: a current slice marked [~] in the plan with no design file is not followed', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-nav-117-plan-'));
+    writeSliceDesign(root, 130, 'genuinely-next', 'not-started');
+    writeSlicePlan(
+      root,
+      '1. [~] **(122) Descoped** — cut for scope.\n' +
+        '2. [ ] **(130) Genuinely Next** — nothing done yet.',
+    );
+
+    const nav = new WorkflowNavigator();
+    const project = makeScratchProject(root, {
+      fileSlice: '122-slice.descoped.md',
+      fileTasks: undefined,
+      developmentPhase: 'Phase 6: Implementation',
+    });
+
+    const next = await nav.getNext(project);
+    expect(next.suggestedCommand).toBe('cf set slice 130');
+  });
+
   it('wording: active in-progress slice recommends "Continue", not "Advance to"', async () => {
     // The active slice itself (900) is in-implementation with partial progress —
     // exercises the pre-existing in-implementation branch, confirming its wording

@@ -126,6 +126,7 @@ export class WorkflowNavigator {
     // collected here rather than thrown — #62: cf status must keep running.
     const warnings: string[] = [];
     status.slicePlan = await this.parseSlicePlanSafe(project, projectPath, warnings);
+    this.dropInactiveSlice(status, warnings);
     if (warnings.length > 0) {
       status.warnings = warnings;
     }
@@ -134,6 +135,24 @@ export class WorkflowNavigator {
     status.summary = this.buildSummary(status);
 
     return status;
+  }
+
+  /**
+   * A current slice that the plan resolves to deprecated or deferred is not
+   * work to continue (#117). Report no active slice, so cf status and cf next
+   * route to the next real candidate, and warn so the stale `fileSlice` is not
+   * a silent surprise. Uses the resolved plan entry, which already folds in
+   * design frontmatter, task progress and the plan line's `[~]` marker.
+   */
+  private dropInactiveSlice(status: WorkflowStatus, warnings: string[]): void {
+    const active = status.activeSlice;
+    if (!active || active.index === null || active.status === 'no-active-slice') return;
+    const entry = status.slicePlan?.entries.find((e) => e.index === active.index);
+    if (entry?.status !== STATUS.Deprecated && entry?.status !== STATUS.Deferred) return;
+    warnings.push(
+      `Current slice ${active.index} is ${entry.status}; ignoring it. Point the project at another slice with cf set slice <index>.`,
+    );
+    status.activeSlice = { name: active.name, index: active.index, status: 'no-active-slice' };
   }
 
   /**
