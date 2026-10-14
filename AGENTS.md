@@ -1,6 +1,16 @@
 <!-- BEGIN:context-forge -->
 # Project Guidelines
 
+## Fixes
+
+A fix is any work that will be committed as `fix:`. Decide the commit type before starting. For a fix, follow this instead of the slice workflow.
+
+- **Feature, not fix:** a new user-facing option, a changed file or state format, or a new component is a feature and gets its own slice. Say so in one line. Size alone never makes something a feature.
+- **Small fix:** the issue is the spec. Write a test that fails for the reported reason, fix the code, run format, lint, typecheck and the touched area's tests, then commit to the target as `fix: {summary}` with `Fixes #{n}`. No branch, task file or review.
+- **Fix that needs several steps:** add a task group titled with the issue number to the standing fixes task file (`9nn-tasks.standing-fixes.md`) and work it on the target, one commit per task. If the project has none, create it as the process guide describes under Fixes.
+- **Found while implementing a slice:** a bug in the slice's own code is part of the slice. Anything else: file an issue and continue.
+- No review unless the Project Manager asks.
+
 ## Core Principles
 
 - Always resist adding complexity. Ensure it is truly necessary.
@@ -20,16 +30,16 @@
 - Never scatter comparison values across code. If a value is used in conditionals, switch cases, or lookups, define it once (enum, constant, or config) and reference that definition everywhere. Changing a value should require editing exactly one place.
 - Do not hard-code magic defaults.  In the example below, the defaults for model and n are both wrong.  If such defaults are needed they should be centralized at the config level.  This applies in all languages.
 ```python
-  async def _model_start(promt:str) -> str {
-    model = self._config.model or "gpt-5.3-codex"
-    n = self._config.index or 1234
-  }
+async def _model_start(self, prompt: str) -> str:
+    model = self._config.model or "gpt-5.3-codex"  # wrong: silent fallback to a magic model
+    n = self._config.index or 1234                 # wrong: magic number
+    ...
 ```
 - NEVER use user-accessible labels as logical structure.  They are fragile.
 
 ### Exception Handling
 - Every try/except must either: (a) re-raise after logging at ERROR level with logger.exception, (b) handle a specific exception with a comment explaining why swallowing is correct (e.g., ConnectionClosed: pass for normal teardown), or (c) be a top-level handler at a process boundary. Bare except: and except Exception: pass are bugs by definition.
-- Each language rules file names a required linter config that enforces this mechanically. Run the linter in the pre-commit hook and in CI; `setup-ide` reports a missing or weak config.
+- Each language rules file names a required linter config that enforces this mechanically. Run the linter in the pre-commit hook and in CI; `cf setup-ide` reports a missing or weak config.
 
 ## Source Control and Builds
 - Keep commits semantic; build after all changes.
@@ -71,7 +81,7 @@ hallucination trap.
 
 - All markdown files must include YAML frontmatter as specified in `file-naming-conventions.md`
 - Use checklist format for all task files.  Each item and subitem should have a `[ ]` "checkbox".
-- After completing a task or subtask, delegate checklist updates to the `task-checker` agent rather than editing task files inline. This keeps the main agent's context focused on implementation. If task-checker is unavailable, check off tasks directly.
+- After completing a task or subtask, delegate checklist updates to the `task-checker` agent rather than editing task files inline. This keeps the main agent's context focused on implementation. If task-checker is unavailable, check off tasks directly. Check off only items you have verified as done. Leave unfinished items unchecked, including when work stops to wait for the Project Manager.
 - Preserve sections titled "## User-Provided Concept" exactly as 
   written — never modify or remove.
 - Keep success summaries concise and minimal.
@@ -79,7 +89,7 @@ hallucination trap.
 ## Git Rules
 
 ### Branch Naming
-A branch corresponds to one unit of work: slice implementation (Phase 6). Planning work (Phases 0–5: concept, initiative plan, architecture, slice plan, slice design, task breakdown, and reviews of those artifacts) does not get its own branch — it commits directly to the current integration target (see below).
+A branch corresponds to one unit of work: slice implementation (Phase 6). Planning work (Phases 0–5: concept, initiative plan, architecture, slice plan, slice design, task breakdown, and reviews of those artifacts) does not get its own branch — it commits directly to the current integration target (see below). Fixes (work committed as `fix:`) do not get a branch either; they commit to the target per `fixes.md`.
 
 - **Slice work** → `{index}-slice.{name}`, where `{index}` is the slice's index and `{name}` is the document name without the `.md` extension.
 
