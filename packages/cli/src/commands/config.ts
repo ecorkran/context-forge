@@ -6,6 +6,7 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { withJsonOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
+import { truncateToTerminal } from '../output/tables.js';
 import { label, value as valueStyle, dim, success } from '../output/styles.js';
 
 /**
@@ -64,6 +65,9 @@ async function resolveScopeAndPath(opts: {
  */
 const UNKNOWN_KEY_EXIT_CODE = 2;
 
+/** Visible width of a `Value:   ` style label prefix in the single-key view. */
+const DETAIL_LABEL_WIDTH = 9;
+
 export function registerConfigCommand(program: Command): void {
   const cmd = program
     .command('config')
@@ -98,11 +102,14 @@ export function registerConfigCommand(program: Command): void {
             return;
           }
           const maxKey = Math.max(...entries.map((e) => e.key.length));
-          const maxVal = Math.max(...entries.map((e) => String(e.value ?? '').length), 5);
-          for (const e of entries) {
-            const val = String(e.value ?? '');
-            console.log(`  ${e.key.padEnd(maxKey)}  ${valueStyle(val.padEnd(maxVal))}  ${dim(e.source)}`);
-          }
+          const maxSource = Math.max(...entries.map((e) => e.source.length));
+          // Indent + two 2-space gaps surround the key, value and source columns.
+          const reserved = 2 + maxKey + 2 + 2 + maxSource;
+          const vals = entries.map((e) => truncateToTerminal(String(e.value ?? ''), reserved));
+          const maxVal = Math.max(...vals.map((v) => v.length), 5);
+          entries.forEach((e, i) => {
+            console.log(`  ${e.key.padEnd(maxKey)}  ${valueStyle(vals[i].padEnd(maxVal))}  ${dim(e.source)}`);
+          });
           return;
         }
 
@@ -119,10 +126,10 @@ export function registerConfigCommand(program: Command): void {
         }
 
         console.log(`${label('Key:')}     ${result.key}`);
-        console.log(`${label('Value:')}   ${valueStyle(String(result.value ?? ''))}`);
+        console.log(`${label('Value:')}   ${valueStyle(truncateToTerminal(String(result.value ?? ''), DETAIL_LABEL_WIDTH))}`);
         console.log(`${label('Source:')}  ${result.source}`);
         if (result.description) {
-          console.log(`${label('About:')}   ${result.description}`);
+          console.log(`${label('About:')}   ${truncateToTerminal(result.description, DETAIL_LABEL_WIDTH)}`);
         }
       } catch (err) {
         handleError(err);

@@ -15,6 +15,16 @@ function terminalWidth(): number {
 }
 
 /**
+ * Cut `text` so that `reserved` characters of surrounding output (labels,
+ * indent, sibling columns) plus the text fit the terminal. Never narrower than
+ * MIN_TRUNCATED_COLUMN_WIDTH; unchanged when output is not a TTY.
+ */
+export function truncateToTerminal(text: string, reserved: number): string {
+  const width = Math.max(MIN_TRUNCATED_COLUMN_WIDTH, terminalWidth() - reserved);
+  return truncateCell(text, width);
+}
+
+/**
  * Render a borderless table with bold/cyan headers and an underline separator.
  * Matches orchestration CLI style: no cell borders, column-aligned with padding.
  *

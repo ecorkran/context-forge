@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import { registerConfigCommand } from '../../src/commands/config.js';
 import { resolveProject } from '@context-forge/core';
@@ -133,6 +133,58 @@ describe('cf config get', () => {
 
     const output = vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string;
     expect(JSON.parse(output)).toEqual(result);
+  });
+});
+
+describe('cf config get on a narrow terminal (#118)', () => {
+  const LONG = 'x'.repeat(200);
+  const COLUMNS = 60;
+  let ttyDescriptor: PropertyDescriptor | undefined;
+  let columnsDescriptor: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+    columnsDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+    Object.defineProperty(process.stdout, 'columns', { value: COLUMNS, configurable: true });
+  });
+
+  afterEach(() => {
+    for (const [prop, desc] of [['isTTY', ttyDescriptor], ['columns', columnsDescriptor]] as const) {
+      if (desc) Object.defineProperty(process.stdout, prop, desc);
+      else delete (process.stdout as unknown as Record<string, unknown>)[prop];
+    }
+  });
+
+  const visible = (line: unknown): string => String(line).replace(/\x1B\[[0-9;]*m/g, ''); // eslint-disable-line no-control-regex
+
+  it('truncates a long value and description for a single key', async () => {
+    mockGet.mockResolvedValue({ key: 'guide.source', value: LONG, source: 'user', description: LONG });
+
+    await createProgram().parseAsync(['node', 'cf', 'config', 'get', 'guide.source']);
+
+    const lines = vi.mocked(console.log).mock.calls.map((c) => visible(c[0]));
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(COLUMNS);
+    expect(lines.some((l) => l.includes('…'))).toBe(true);
+  });
+
+  it('truncates long values in the list-all view', async () => {
+    mockList.mockResolvedValue([{ key: 'guide.source', value: LONG, source: 'user', description: '' }]);
+
+    await createProgram().parseAsync(['node', 'cf', 'config', 'get']);
+
+    const lines = vi.mocked(console.log).mock.calls.map((c) => visible(c[0]));
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(COLUMNS);
+  });
+
+  it('leaves --value output whole for scripts', async () => {
+    mockGet.mockResolvedValue({ key: 'guide.source', value: LONG, source: 'user', description: '' });
+
+    await createProgram().parseAsync(['node', 'cf', 'config', 'get', 'guide.source', '--value']);
+
+    expect(vi.mocked(console.log).mock.calls[0][0]).toBe(LONG);
   });
 });
 
