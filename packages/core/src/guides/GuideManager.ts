@@ -12,7 +12,7 @@ import {
   normalizeGuideMethod,
   isDeprecatedGuideMethodAlias,
 } from './types.js';
-import { GUIDE_OFFLINE_REMEDIATION } from './gitExec.js';
+import { GUIDE_OFFLINE_REMEDIATION, commitPathIfChanged } from './gitExec.js';
 import { localSourceFile } from './tarballSource.js';
 import { GuideDetector } from './GuideDetector.js';
 import { SubmoduleStrategy } from './strategies/SubmoduleStrategy.js';
@@ -345,10 +345,17 @@ export class GuideManager {
         );
       }
     } else {
-      // clone or manual — just remove the directory
+      // clone, tarball or manual — remove the directory, then commit the removal
+      // as install does. No-op when the project is not a git repo or ignores the guide.
       if (existsSync(targetDir)) {
         rmSync(targetDir, { recursive: true, force: true });
       }
+      const versionSuffix = version ? ` ${version}` : '';
+      await commitPathIfChanged(
+        this.projectPath,
+        GUIDE_RELATIVE_PATH,
+        `docs: uninstall ai-project-guide${versionSuffix}`
+      );
     }
 
     return { success: true, method, version };

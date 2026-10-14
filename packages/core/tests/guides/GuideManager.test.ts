@@ -22,6 +22,7 @@ vi.mock('../../src/guides/gitExec.js', async () => {
     gitExec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
     isGitAvailable: vi.fn().mockResolvedValue(true),
     isGitRepo: vi.fn().mockResolvedValue(true),
+    commitPathIfChanged: vi.fn().mockResolvedValue(true),
     // Text, not behavior: GuideManager appends it, and the test checks how often.
     GUIDE_OFFLINE_REMEDIATION: actual.GUIDE_OFFLINE_REMEDIATION,
   };
@@ -69,7 +70,7 @@ import { GuideDetector } from '../../src/guides/GuideDetector.js';
 import { SubmoduleStrategy } from '../../src/guides/strategies/SubmoduleStrategy.js';
 import { CloneStrategy } from '../../src/guides/strategies/CloneStrategy.js';
 import { TarballStrategy, readExcludeRecord } from '../../src/guides/strategies/TarballStrategy.js';
-import { gitExec, GUIDE_OFFLINE_REMEDIATION } from '../../src/guides/gitExec.js';
+import { gitExec, commitPathIfChanged, GUIDE_OFFLINE_REMEDIATION } from '../../src/guides/gitExec.js';
 import { GUIDE_RELATIVE_PATH } from '../../src/guides/types.js';
 import { CONFIG_KEYS } from '../../src/config/ConfigKeys.js';
 import {
@@ -824,7 +825,7 @@ describe('GuideManager', () => {
       expect(mockGitExec).toHaveBeenCalledTimes(1);
     });
 
-    it('removes clone/tarball directory without git operations', async () => {
+    it('removes clone/tarball directory and commits the removal (#119)', async () => {
       const cloneInfo = { ...installedInfo, method: 'clone' as const };
       mockDetect.mockResolvedValue(cloneInfo);
       mockExistsSync.mockReturnValue(true);
@@ -838,6 +839,11 @@ describe('GuideManager', () => {
         { recursive: true, force: true },
       );
       expect(mockGitExec).not.toHaveBeenCalled();
+      expect(commitPathIfChanged).toHaveBeenCalledWith(
+        projectPath,
+        GUIDE_RELATIVE_PATH,
+        'docs: uninstall ai-project-guide v0.12.0',
+      );
     });
 
     it('errors when guide not installed', async () => {
