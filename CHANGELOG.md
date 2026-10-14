@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.7] - 20261013
+
+### Changed
+
+- **Bundled ai-project-guide updated to v0.20.11.** The guide drops its `scripts/` folder (cf has done its own installs and design validation since 0.19.6) and adds a Fixes workflow section to the rules `cf setup-ide` installs
+
 ## [0.19.6] - 20261013
 
 ### Added

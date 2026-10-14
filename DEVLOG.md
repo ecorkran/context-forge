@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-13
 
+### Release 0.19.7
+
+- **Contents:** Repo's own ai-project-guide updated to v0.20.11 (scripts/ removed, Fixes section added) and the IDE install refreshed with the native `cf setup-ide`.
+
+Tags: @context-forge/core@0.19.7, @context-forge/cli@0.19.7, @context-forge/mcp@0.19.7, @context-forge/context-forge@0.19.7
+
 ### Release 0.19.6
 
 - **Contents:** Slice 214 (`cf validate design`) and slice 215 (native `cf setup-ide` install, no longer shells out to the guide's bash script; fixes #38, #40). `scripts` no longer protected in `guide.exclude`.
