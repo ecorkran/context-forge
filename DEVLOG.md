@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-14
 
+### Release 0.19.11
+
+- **Contents:** warning when a checkout is behind its upstream (fixes #104); clearer setup-ide hint for a weak TypeScript ESLint config.
+
+Tags: @context-forge/core@0.19.11, @context-forge/cli@0.19.11, @context-forge/mcp@0.19.11, @context-forge/context-forge@0.19.11
+
 ### Release 0.19.10
 
 - **Contents:** `cf setup-ide --force` replaces unmanaged or edited rule files, backing each up once (fixes #120).

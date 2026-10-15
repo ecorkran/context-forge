@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.11] - 20261014
+
 ### Added
 
 - **Warning when a checkout is behind its upstream.** `cf next`, `cf status`, `cf list slices`, `cf list tasks` and `cf check` now say when the checkout they read from trails its upstream (e.g. `trading-data-maintenance is 16 commits behind origin/main; artifact lists may be incomplete`), so a stale list is no longer a silent surprise. Local only: it uses the last fetch, never touches the network, and stays quiet for repos with no upstream. `list` and `check` print it on stderr; `next` and `status` show it with their other warnings; `next`, `status` and `list slices` include it in `warnings` in `--json`, and the `workflow_next` and `workflow_status` MCP tools do the same (#104)
