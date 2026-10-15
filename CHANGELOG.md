@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf setup-ide --force` replaces rule files setup-ide would otherwise skip.** Unmanaged files and files edited since install are overwritten with the guide's version. Each replaced file is saved once as `<name>.pre-context-forge`, and the new file is recorded in the install manifest so later runs manage it normally. Works with `--dry-run` (#120)
+
 ## [0.19.9] - 20261014
 
 ### Added
