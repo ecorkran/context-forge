@@ -89,8 +89,11 @@ describe('lint', () => {
     expect(runs[0].stdout).toContain('missing required rules');
     expect(runs[0].stdout).toContain(`import requiredRules from "./${REQUIRED_RULES}"`);
     expect(runs[0].stdout).toContain('...requiredRules');
-    expect(runs[0].stdout).toContain('Expect new lint errors');
-    expect(runs[0].stdout).toContain('--write-lint');
+    expect(runs[0].stdout).toContain('Turning these rules on will surface new lint errors');
+    // The file must exist before the import resolves, so creating it comes first.
+    const out = runs[0].stdout;
+    expect(out.indexOf('1. Run setup-ide with --write-lint')).toBeGreaterThan(-1);
+    expect(out.indexOf('--write-lint')).toBeLessThan(out.indexOf('import requiredRules'));
     expect(exists(project, REQUIRED_RULES)).toBe(false);
   });
 

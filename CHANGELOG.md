@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Clearer setup-ide hint for a weak TypeScript ESLint config.** The fix is now numbered in working order (run `--write-lint` to create `required-rules.mjs`, then add the import), with the new-lint-errors note last
+
 ## [0.19.10] - 20261014
 
 ### Added

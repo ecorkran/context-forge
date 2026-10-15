@@ -199,16 +199,19 @@ class LintCheck {
       out.status('yellow', `   This guide has no ${REQUIRED_RULES_FILE}; run cf guides update for the composable block`);
       return;
     }
-    out.status('yellow', `   Add to ${cfg}: import requiredRules from "./${REQUIRED_RULES_FILE}";`);
-    out.status('yellow', '   then ...requiredRules as the last entry of the exported config array');
-    out.status('yellow', '   Expect new lint errors once these rules are on; they are real findings');
-    if (isFile(path.join(this.root, REQUIRED_RULES_FILE))) return;
-    if (this.ctx.writeLint) {
+    const hasBlock = isFile(path.join(this.root, REQUIRED_RULES_FILE));
+    if (!hasBlock && this.ctx.writeLint) {
       fs.writeFileSync(path.join(this.ctx.targetRoot, REQUIRED_RULES_FILE), fs.readFileSync(block));
       out.status('green', `✅ Lint (typescript): wrote ${REQUIRED_RULES_FILE}`);
-    } else {
-      out.status('yellow', `   Run setup-ide with --write-lint to add ${REQUIRED_RULES_FILE}`);
     }
+    // Steps in the order they work: the file must exist before the import resolves.
+    const needsWrite = !hasBlock && !this.ctx.writeLint;
+    const editStep = needsWrite ? 2 : 1;
+    out.status('yellow', '   To fix:');
+    if (needsWrite) out.status('yellow', `     1. Run setup-ide with --write-lint   (adds ${REQUIRED_RULES_FILE})`);
+    out.status('yellow', `     ${editStep}. In ${cfg}, add:  import requiredRules from "./${REQUIRED_RULES_FILE}";`);
+    out.status('yellow', '        and put ...requiredRules last in the exported config array');
+    out.status('yellow', '   Turning these rules on will surface new lint errors. They are real findings.');
   }
 
   csharp(): void {
