@@ -13,7 +13,7 @@ import type { Target } from '../commands/ideTargets.js';
 import { isDirectory, isEmptyDirectory, isFile } from './fsChecks.js';
 import { byteOrder, toRecords } from './lines.js';
 import type { Printer } from './output.js';
-import { relativeToRoot } from './paths.js';
+import { PREMANAGED_BACKUP_SUFFIX, relativeToRoot } from './paths.js';
 
 /** Directory, relative to a checkout root, that holds the install manifests. */
 export const MANIFEST_DIR = '.context-forge';
@@ -120,6 +120,8 @@ export class InstallManifest {
     private readonly targetRoot: string,
     private readonly target: Target,
     private readonly out: Printer,
+    /** `--force`: replace any differing file, edited or not, after backing it up. */
+    private readonly force: boolean,
   ) {
     this.oldManifest = manifestPath(targetRoot, target);
   }
@@ -128,17 +130,28 @@ export class InstallManifest {
    * `install_file`: write content to dest unless that would overwrite a file
    * the guide does not own. Ownership is the previous manifest; identical
    * content is adopted. Without any manifest a differing file is left alone.
+   * With force, a differing file is backed up and replaced regardless.
    * Returns false when the file was left alone.
    */
   installFile(content: Buffer, dest: string): boolean {
     const rel = relativeToRoot(this.targetRoot, dest);
     if (isFile(dest)) {
       const current = fs.readFileSync(dest);
-      if (!current.equals(content) && !this.mayOverwrite(current, rel)) return false;
+      if (!current.equals(content)) {
+        if (this.force) this.backUp(dest, rel);
+        else if (!this.mayOverwrite(current, rel)) return false;
+      }
     }
     fs.writeFileSync(dest, content);
     this.lines.push(`${cksumField(content)} ${rel}`);
     return true;
+  }
+
+  /** Single backup beside the file; a later forced run replaces it. */
+  private backUp(dest: string, rel: string): void {
+    const backup = dest + PREMANAGED_BACKUP_SUFFIX;
+    fs.copyFileSync(dest, backup);
+    this.out.status('yellow', `💾 Backed up ${rel} → ${path.basename(backup)}`);
   }
 
   private mayOverwrite(current: Buffer, rel: string): boolean {

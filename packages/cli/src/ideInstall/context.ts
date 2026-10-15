@@ -15,6 +15,8 @@ export interface InstallContext {
   /** Checkout written to: the project, a worktree, or a dry-run sandbox. */
   targetRoot: string;
   writeLint: boolean;
+  /** Replace files the guide does not own, edited or not (backed up first). */
+  force: boolean;
   out: Printer;
   /** Shared across a dry run's sandbox install, so warnings see every match. */
   exclusions: RuleExclusions;

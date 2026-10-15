@@ -43,6 +43,7 @@ describe('installIde error boundary', () => {
         target: 'claude',
         dryRun: false,
         writeLint: false,
+        force: false,
         rulesExclude: [],
         out: { stdout: bug, stderr: bug },
       });

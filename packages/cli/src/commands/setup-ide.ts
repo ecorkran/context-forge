@@ -83,6 +83,7 @@ async function readRulesExclude(root: string): Promise<string[]> {
 export interface InstallFlags {
   dryRun: boolean;
   writeLint: boolean;
+  force: boolean;
 }
 
 /** Install one checkout from guideDir. Exit 1 means the install reported its failure. */
@@ -94,6 +95,7 @@ async function installCheckout(guideDir: string, root: string, target: Target, f
     target,
     dryRun: flags.dryRun,
     writeLint: flags.writeLint,
+    force: flags.force,
     rulesExclude: await readRulesExclude(root),
     out: PROCESS_OUTPUT,
   });
@@ -115,7 +117,7 @@ export interface SetupIdeRun {
 export async function setupIdeAction(
   projectPath: string,
   target: string,
-  opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean }
+  opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean; force?: boolean }
 ): Promise<SetupIdeRun | null> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
@@ -157,7 +159,11 @@ export async function setupIdeAction(
     }
   }
 
-  const flags: InstallFlags = { dryRun: opts?.dryRun ?? false, writeLint: opts?.writeLint ?? false };
+  const flags: InstallFlags = {
+    dryRun: opts?.dryRun ?? false,
+    writeLint: opts?.writeLint ?? false,
+    force: opts?.force ?? false,
+  };
   if ((await installCheckout(guideDir, projectPath, normalizedTarget, flags)) !== 0) {
     throw new UserError(`setup-ide failed for ${normalizedTarget}. Check the output above for details.`);
   }
@@ -207,7 +213,11 @@ export function registerSetupIdeCommand(program: Command): void {
     '--write-lint',
     'Also write missing lint configs the lint check reports (ruff.toml, eslint.config.mjs, ...); with --dry-run, preview them',
   );
-  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean; writeLint?: boolean }) => {
+  ideCmd.option(
+    '--force',
+    'Replace rule files setup-ide would skip (unmanaged or edited), saving each old file as <name>.pre-context-forge; with --dry-run, preview them',
+  );
+  ideCmd.action(async (target: string, opts: { project?: string; yes?: boolean; dryRun?: boolean; writeLint?: boolean; force?: boolean }) => {
       try {
         // Validate and normalize target early (before project resolution for fast
         // failure). Everything downstream uses the normalized value.
@@ -235,6 +245,7 @@ export function registerSetupIdeCommand(program: Command): void {
           yes: opts.yes,
           dryRun: opts.dryRun,
           writeLint: opts.writeLint,
+          force: opts.force,
         });
         // Declined overwrite prompt: the root is unchanged, so worktrees must be too.
         if (!run) return;
@@ -243,6 +254,7 @@ export function registerSetupIdeCommand(program: Command): void {
         const failedWorktrees = await installWorktrees(project, run.guideDir, normalizedTarget, {
           dryRun: opts.dryRun ?? false,
           writeLint: opts.writeLint ?? false,
+          force: opts.force ?? false,
         });
 
         // Command/skill delivery: setup-ide is a machine-level operation, so it

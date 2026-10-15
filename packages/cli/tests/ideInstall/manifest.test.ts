@@ -40,9 +40,9 @@ describe('InstallManifest', () => {
     fs.writeFileSync(file, text);
   };
   const entry = (text: string, rel: string): string => `${cksum(Buffer.from(text))} ${text.length} ${rel}`;
-  const fresh = (): InstallManifest => {
+  const fresh = (force = false): InstallManifest => {
     stdout = '';
-    return new InstallManifest(root, 'claude', new Printer({ stdout: (t) => (stdout += t), stderr: () => {} }));
+    return new InstallManifest(root, 'claude', new Printer({ stdout: (t) => (stdout += t), stderr: () => {} }), force);
   };
   const manifestText = (): string => fs.readFileSync(manifestPath(root, 'claude'), 'utf-8');
 
@@ -97,6 +97,46 @@ describe('InstallManifest', () => {
     expect(fs.readFileSync(rule('a.md'), 'utf-8')).toBe('edited\n');
     expect(manifestText()).toBe(`${old}\n`);
     expect(stdout).toContain('Kept .claude/rules/a.md: edited since it was installed');
+  });
+
+  describe('force', () => {
+    const backup = (): string => rule('a.md') + '.pre-context-forge';
+
+    it('replaces a differing file with no manifest, backs it up, and lists it', () => {
+      write(rule('a.md'), 'mine\n');
+      const run = fresh(true);
+      expect(run.installFile(Buffer.from('guide\n'), rule('a.md'))).toBe(true);
+      run.finish();
+      expect(fs.readFileSync(rule('a.md'), 'utf-8')).toBe('guide\n');
+      expect(fs.readFileSync(backup(), 'utf-8')).toBe('mine\n');
+      expect(manifestText()).toBe(`${entry('guide\n', '.claude/rules/a.md')}\n`);
+      expect(stdout).toContain('Backed up .claude/rules/a.md');
+    });
+
+    it('replaces an unlisted file and a file edited since install', () => {
+      write(manifestPath(root, 'claude'), `${entry('v1\n', '.claude/rules/b.md')}\n`);
+      write(rule('a.md'), 'unlisted\n');
+      write(rule('b.md'), 'edited\n');
+      const run = fresh(true);
+      expect(run.installFile(Buffer.from('guide\n'), rule('a.md'))).toBe(true);
+      expect(run.installFile(Buffer.from('v2\n'), rule('b.md'))).toBe(true);
+      expect(fs.readFileSync(rule('b.md'), 'utf-8')).toBe('v2\n');
+      expect(fs.readFileSync(rule('b.md') + '.pre-context-forge', 'utf-8')).toBe('edited\n');
+    });
+
+    it('keeps one backup, the latest replaced content', () => {
+      write(rule('a.md'), 'first\n');
+      fresh(true).installFile(Buffer.from('guide\n'), rule('a.md'));
+      write(rule('a.md'), 'second\n');
+      fresh(true).installFile(Buffer.from('guide\n'), rule('a.md'));
+      expect(fs.readFileSync(backup(), 'utf-8')).toBe('second\n');
+    });
+
+    it('writes no backup when the file is new or already identical', () => {
+      expect(fresh(true).installFile(Buffer.from('guide\n'), rule('a.md'))).toBe(true);
+      expect(fresh(true).installFile(Buffer.from('guide\n'), rule('a.md'))).toBe(true);
+      expect(fs.existsSync(backup())).toBe(false);
+    });
   });
 
   it('prunes a stale unedited file and keeps a stale edited one', () => {

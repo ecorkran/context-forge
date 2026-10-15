@@ -26,6 +26,7 @@ export interface InstallOptions {
   target: Target;
   dryRun: boolean;
   writeLint: boolean;
+  force: boolean;
   /** Patterns from `rules.exclude`, already split. Empty = install everything. */
   rulesExclude: readonly string[];
   out: OutputSink;
@@ -48,7 +49,7 @@ export type InstallBase = Omit<InstallContext, 'manifest'>;
 
 /** `install_target`: run the target, finish the manifest, check lint configs. */
 export function installTarget(target: Target, base: InstallBase): void {
-  const manifest = new InstallManifest(base.targetRoot, target, base.out);
+  const manifest = new InstallManifest(base.targetRoot, target, base.out, base.force);
   const ctx: InstallContext = { ...base, manifest };
   TARGET_SETUP[target](ctx);
   manifest.finish();
@@ -75,6 +76,7 @@ export function installIde(options: InstallOptions): InstallResult {
     projectRoot,
     targetRoot,
     writeLint: options.writeLint,
+    force: options.force,
     out,
     exclusions: new RuleExclusions(options.rulesExclude),
   };

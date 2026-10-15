@@ -100,6 +100,7 @@ export function run(
     target,
     dryRun: args.includes('--dry-run'),
     writeLint: args.includes('--write-lint'),
+    force: args.includes('--force'),
     rulesExclude: options.rulesExclude ?? [],
     out: { stdout: (text) => (stdout += text), stderr: (text) => (stderr += text) },
   });
