@@ -6,10 +6,11 @@ import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@con
 import type { NormalizedStatus } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { UserError } from '../utils/errors.js';
+import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
-import { label, success, dim } from '../output/styles.js';
+import { label, success, dim, warn } from '../output/styles.js';
 import { renderEntryStatus, type DisplayStatus } from '../output/entryStatusDisplay.js';
 
 /** Shared action handler for listing slices from the active slice plan. */
@@ -158,8 +159,12 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
 
   const planName = (planPath.split('/').pop() ?? planPath).replace(/\.md$/, '');
 
+  const lagWarning = await checkoutLagWarning(project, worktreeId);
+  if (lagWarning) console.error(warn(`⚠ ${lagWarning}`));
+
   if (opts.json) {
     printJson({
+      ...(lagWarning ? { warnings: [lagWarning] } : {}),
       slicePlan: planName,
       total: planResult.totalSlices,
       completed: planResult.completedSlices,

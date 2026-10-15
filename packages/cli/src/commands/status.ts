@@ -5,6 +5,7 @@ import { resolveProject, type ProjectData } from '@context-forge/core';
 import { resolveProjectWorktree, findWorktreeByNameOrId, type ResolutionSource } from '../utils/project.js';
 import { applyWorktreeOverlay } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -129,6 +130,8 @@ export function registerStatusCommand(program: Command): void {
         const config = new ConfigManager(project.projectPath);
         const nav = new WorkflowNavigator(config);
         const status = await nav.getStatus(project);
+        const lagWarning = await checkoutLagWarning(project, resolvedWorktreeId);
+        if (lagWarning) status.warnings = [...(status.warnings ?? []), lagWarning];
 
         if (opts.json) {
           printJson({ ...status, resolutionSource: source, ...(worktreeCtx ? { worktree: worktreeCtx } : {}) });

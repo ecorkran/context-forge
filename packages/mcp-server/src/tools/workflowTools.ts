@@ -13,8 +13,11 @@ import {
   scopeCheck,
   resolveFixInvokingPath,
   planFixRun,
+  upstreamLag,
+  formatUpstreamLagWarning,
 } from '@context-forge/core/node';
 import {
+  type ResolvedProject,
   resolveProject,
   mergeCheckResults,
   buildAttributedViews,
@@ -24,6 +27,21 @@ import { resolveProjectId } from './resolveProjectId.js';
 
 function errorResult(message: string): { content: { type: 'text'; text: string }[]; isError: true } {
   return { content: [{ type: 'text', text: message }], isError: true };
+}
+
+/**
+ * Add a `warnings` entry when the checkout the project resolved to trails its
+ * upstream (#104). Local only; absent when current or not applicable.
+ */
+async function withUpstreamLagWarning<T extends { warnings?: string[] }>(
+  project: ResolvedProject,
+  result: T,
+): Promise<T> {
+  if (!project.projectPath) return result;
+  const lag = await upstreamLag(project.projectPath);
+  if (!lag || lag.behind === 0) return result;
+  const name = project.resolvedWorktree?.name ?? project.name;
+  return { ...result, warnings: [...(result.warnings ?? []), formatUpstreamLagWarning(name, lag)] };
 }
 
 function jsonResult(data: unknown): { content: { type: 'text'; text: string }[] } {
@@ -135,10 +153,10 @@ export function registerWorkflowTools(server: McpServer): void {
         const config = new ConfigManager(project.projectPath);
         const nav = new WorkflowNavigator(config);
         const status = await nav.getStatus(project);
-        const result = project.resolvedWorktree
+        const withWorktree = project.resolvedWorktree
           ? { ...status, worktree: project.resolvedWorktree }
           : status;
-        return jsonResult(result);
+        return jsonResult(await withUpstreamLagWarning(project, withWorktree));
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);
@@ -182,10 +200,10 @@ export function registerWorkflowTools(server: McpServer): void {
         const config = new ConfigManager(project.projectPath);
         const nav = new WorkflowNavigator(config);
         const next = await nav.getNext(project);
-        const result = project.resolvedWorktree
+        const withWorktree = project.resolvedWorktree
           ? { ...next, worktree: project.resolvedWorktree }
           : next;
-        return jsonResult(result);
+        return jsonResult(await withUpstreamLagWarning(project, withWorktree));
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return errorResult(`Error: ${msg}`);

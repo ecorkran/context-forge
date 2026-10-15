@@ -12,6 +12,7 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
 import { UserError } from '../utils/errors.js';
+import { warnIfBehindUpstream } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
 import { label, success, dim } from '../output/styles.js';
@@ -36,6 +37,8 @@ export async function taskListAction(opts: { json?: boolean; all?: boolean; proj
       'No projectPath configured. Set one with: cf set projectPath /path/to/project',
     );
   }
+
+  await warnIfBehindUpstream(project, worktreeId);
 
   if (opts.archIndex !== undefined && opts.all) {
     throw new UserError(

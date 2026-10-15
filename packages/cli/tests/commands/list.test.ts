@@ -29,6 +29,8 @@ const mockIntrospectorParseTaskFile = vi.fn().mockResolvedValue({
 const mockIntrospectorParseFrontmatter = vi.fn().mockResolvedValue({ filePath: '', found: false, data: {} });
 
 vi.mock('@context-forge/core/node', () => ({
+  upstreamLag: vi.fn().mockResolvedValue(null),
+  formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,

@@ -21,6 +21,8 @@ const mockWtGetWorktreeByName = vi.fn();
 vi.mock('@context-forge/core/node', async () => {
   const actual = await vi.importActual<typeof import('@context-forge/core/node')>('@context-forge/core/node');
   return {
+    upstreamLag: vi.fn().mockResolvedValue(null),
+    formatUpstreamLagWarning: vi.fn(),
     // Real routing (slice 213): for a single checkout it only orchestrates the mocked checker.
     planRoutedFixes: actual.planRoutedFixes,
     applyFixPlan: actual.applyFixPlan,

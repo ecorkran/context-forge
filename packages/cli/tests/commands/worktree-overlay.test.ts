@@ -13,6 +13,8 @@ const mockParseSlicePlan = vi.fn();
 const mockResolveArtifactPath = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
+  upstreamLag: vi.fn().mockResolvedValue(null),
+  formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,

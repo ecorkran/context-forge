@@ -3,6 +3,7 @@ import { FileProjectStore, WorkflowNavigator, ConfigManager } from '@context-for
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
 import { label, value as valueStyle, dim, warn } from '../output/styles.js';
@@ -26,6 +27,8 @@ export function registerNextCommand(program: Command): void {
         const config = new ConfigManager(project.projectPath);
         const nav = new WorkflowNavigator(config);
         const result = await nav.getNext(project);
+        const lagWarning = await checkoutLagWarning(project, worktreeId);
+        if (lagWarning) result.warnings = [...(result.warnings ?? []), lagWarning];
 
         if (opts.json) {
           printJson(result);

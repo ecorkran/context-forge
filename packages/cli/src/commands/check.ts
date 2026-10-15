@@ -24,6 +24,7 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { withJsonOption, withProjectOption, withYesOption, withFixOption } from '../options.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { warnIfBehindUpstream } from '../utils/upstreamLag.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { label, dim } from '../output/styles.js';
@@ -158,6 +159,8 @@ export function registerCheckCommand(program: Command): void {
         // buildAttributedViews owns the count-not-presence rule; it is shared
         // with MCP's workflow_check so the invariant cannot drift between the
         // two consumers of the same merge.
+        await warnIfBehindUpstream(project, worktreeId);
+
         const projectViews = buildAttributedViews(project);
         const showWorktree = projectViews.some((v) => v.worktree !== undefined);
 

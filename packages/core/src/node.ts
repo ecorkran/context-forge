@@ -53,7 +53,15 @@ export { updateCheckbox, updateFrontmatterField } from './introspection/writers/
 export { computeAutoSetFields } from './project-autoset.js';
 
 // Git utilities — spawns git subprocess (fs/process dependent)
-export { GitWorktreeDiscovery, checkoutReadiness, FIX_GIT_TIMEOUT_MS, type ReadinessResult } from './git/index.js';
+export {
+  GitWorktreeDiscovery,
+  checkoutReadiness,
+  FIX_GIT_TIMEOUT_MS,
+  upstreamLag,
+  formatUpstreamLagWarning,
+  type ReadinessResult,
+  type UpstreamLag,
+} from './git/index.js';
 
 // Worktree management — uses IProjectStore (Node.js-backed)
 export { WorktreeService } from './services/WorktreeService.js';

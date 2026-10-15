@@ -8,6 +8,8 @@ const mockGetStatus = vi.fn();
 const mockListGitWorktrees = vi.fn().mockResolvedValue([]);
 
 vi.mock('@context-forge/core/node', () => ({
+  upstreamLag: vi.fn().mockResolvedValue(null),
+  formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,

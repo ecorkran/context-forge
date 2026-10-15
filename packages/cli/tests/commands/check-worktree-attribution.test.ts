@@ -23,6 +23,8 @@ vi.mock('node:readline', () => ({
 }));
 
 vi.mock('@context-forge/core/node', async () => ({
+  upstreamLag: vi.fn().mockResolvedValue(null),
+  formatUpstreamLagWarning: vi.fn(),
   scopeCheck: (await vi.importActual<typeof import('@context-forge/core/node')>('@context-forge/core/node')).scopeCheck,
   FileProjectStore: class {
     getAll = mockGetAll;
