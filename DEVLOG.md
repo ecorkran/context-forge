@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-16
+
+### Release 0.19.12
+
+- **Contents:** `/cf:onboard`, the Codex onboard skill and the `agent_onboard` MCP tool now suggest the guide's `/setup-ci` skill (guide v0.21.1) once a project has a stack.
+
+Tags: @context-forge/core@0.19.12, @context-forge/cli@0.19.12, @context-forge/mcp@0.19.12, @context-forge/context-forge@0.19.12
+
 ## 2026-10-14
 
 ### Release 0.19.11
