@@ -54,6 +54,11 @@ After the concept conversation concludes (or if the user wants to pause),
 mention that \`workflow_next\` (or \`cf next\` on the CLI) provides ongoing
 guidance that adapts as the project progresses.
 
+Once the project has code and a detectable stack, and it has neither a
+\`.github/workflows/ci.yml\` nor a release skill, suggest running the
+\`setup-ci\` skill. It sets up CI and can generate the project's own release
+skill. Offer it once; if the user declines, don't ask again.
+
 ## Notes
 
 - If the user already has a project but is in a later phase (not Phase 0),

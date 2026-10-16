@@ -58,6 +58,11 @@ After the concept conversation concludes (or if the user wants to pause),
 mention: "You can run `cf next` (or `/cf:next`) anytime to see what to do
 next. It adapts as your project progresses."
 
+Once the project has code and a detectable stack, and it has neither a
+`.github/workflows/ci.yml` nor a `.claude/skills/release` skill, suggest
+running `/setup-ci`. It sets up CI and can generate the project's own
+`/release` skill. Offer it once; if the user declines, don't ask again.
+
 ## Notes
 
 - If any MCP tool call fails, fall back to the CLI equivalent.

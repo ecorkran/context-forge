@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`/cf:onboard` suggests `/setup-ci`.** Once a new project has code and a detectable stack but no CI workflow or release skill, onboarding offers the guide's `setup-ci` skill once. The same text is in the Codex onboard skill and the `agent_onboard` MCP tool
+
 ## [0.19.11] - 20261014
 
 ### Added
