@@ -3,7 +3,7 @@ docType: slice-design
 slice: pending-decision-gate
 project: context-forge
 parent: project-documents/user/architecture/240-slices.review-aware-workflow-gating.md
-dependencies: [241]
+dependencies: [241, 242]
 interfaces: []
 dateCreated: 20261017
 dateUpdated: 20261017
@@ -54,7 +54,8 @@ One config key, `workflow.decision_gate_enabled` (default `true`), turns all of 
 ### Prerequisites
 - **Slice 241 (complete):** `deriveSliceStatus()` as the single source of truth for slice status, the `getNext()` lifecycle cascade, and the optional `ConfigManager` constructor dependency on `WorkflowNavigator`.
 - **Slice 242 (complete):** the ConsistencyChecker per-slice rule pattern that the new rule follows.
-- **ai-project-guide#44 (closed, shipped in the installed guide):** the template text that defines the status field.
+- **ai-project-guide#44 (closed, shipped in the installed guide):** the template text that defines the status field. This is an external prerequisite, not a slice, so it is not in the frontmatter `dependencies`.
+- **Scope of initiative 240:** arch 240 covers review gating only. Hosting a non-review gate in the same navigator and checker mechanisms is recorded as a scope revision in the slice plan's Notes.
 
 ### Interfaces Required
 - `detectDocuments(projectPath, index)` → `sliceDesign` relative path.
@@ -109,26 +110,31 @@ None persisted. The gate is computed from the design file on every call, like th
 ### D1 — Status-line grammar (lenient)
 Status: decided
 
-A line is a decision-status line when, after trimming, it matches:
+The grammar fails closed: anything that is not clearly `decided` or a known non-decision status blocks.
+
+**Label.** A line is a status line when, after trimming, it starts with the `status` label: an optional bullet (`-`, `*`, `+`), optional emphasis (`**`, `__`, `*`, `_`) around the label, then a colon. The match is case-insensitive. Only this prefix is anchored; the rest of the line is free text.
 
 ```
-^(?:[-*+]\s+)?(?:\*\*|__)?status(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(?<value>[A-Za-z][\w -]*?)\s*(?:\*\*|__)?\s*$
+^(?:[-*+]\s+)?[*_]{0,2}status[*_]{0,2}\s*:
 ```
 
-- Case-insensitive throughout. The following all count:
+**Value.** After the colon, leading whitespace and emphasis markers are stripped. The value is the first token, a run of `[A-Za-z0-9_-]`, lowercased. Trailing punctuation and prose are ignored, so `pending-pm.`, `pending-pm;`, `Pending-PM — waiting on PM`, and `pending-pm*` all yield the token `pending-pm`. The line is then classified:
 
-  ```
-  Status: pending-pm
-  **Status:** pending-pm
-  - status: Pending-PM
-  * **Status**: decided
-  ```
-- The value is normalized to lowercase, with runs of spaces or underscores turned into `-`. `decided` → decided. Any value whose normalized form starts with `pending` (`pending-pm`, `pending pm`, `pending_pm`, `pending`) → pending. A typo of the pending token must block, not slip through.
-- Any other value (`Status: complete`, `Status: in_progress`) is not a decision-status line and is ignored. Designs use "Status" in other senses, and treating those as unknown decisions would be a false positive.
-- Lines inside fenced code blocks are skipped, using the same CommonMark fence rules as the heading validator. This lets a design (this one included) quote the grammar without tripping the gate. A line that starts with a backtick (inline code) does not match.
+| First token | Result |
+|---|---|
+| `decided` | decided |
+| `not_started`, `in_progress`, `complete`, `completed`, `deferred`, `deprecated` (the frontmatter status vocabulary) | ignored: not a decision status |
+| anything else, including no token | **pending** |
+
+- "Anything else" covers the forms the guide defines (`pending-pm`, `pending pm`, `pending_pm`), misspellings (`pendng-pm`), and values that mean "not decided" (`TBD`, `open`, `undecided`). All of them block. A misread line is reported by heading and line number (D2), so a false positive costs one edit. A silent pass would repeat the amoeba-108 failure.
+- Known residual: prose that starts with the label and an unlisted word (for example `Status: shipped in 0.12`) blocks. That is the accepted cost of failing closed. Adding words to the ignore list is a one-line change in the parser.
+- YAML frontmatter is skipped, so a design's own `status:` field is never read as a decision.
+- Lines inside fenced code blocks are skipped, using the same CommonMark fence rules as the heading validator. This lets a design (this one included) quote the grammar without tripping the gate. A line that starts with a backtick (inline code) does not match the label.
 - The status line can appear anywhere in the document, as the slice plan requires. It is not tied to the Technical Decisions section, so a design that puts decisions in another section is still gated.
 
-Rejected: matching only the line directly under a `###` heading (strict). The slice plan asks for "anywhere in the design", and strict position matching fails silently on reasonable layouts, which is what the project's parsing rules forbid.
+Rejected:
+- Matching only the line directly under a `###` heading (strict). The slice plan asks for "anywhere in the design", and strict position matching fails silently on reasonable layouts, which the project's parsing rules forbid.
+- Recognizing only `pending*` values and ignoring everything else (this design's first draft). Trailing punctuation and misspellings slipped through, which is the failure this slice exists to prevent.
 
 ### D2 — Naming a pending decision
 Status: decided
@@ -191,7 +197,13 @@ The parser needs the same fence handling as the heading validator. The private `
 ### D7 — `cf validate design` output
 Status: decided
 
-`DesignValidationResult` gains `pending: PendingDecision[]` (always present, empty when the gate is disabled or nothing is pending). `pass` becomes `missing.length === 0 && pending.length === 0`. A docType failure still short-circuits, as today. The top-level `ValidateDesignJson` gains `decisionGateEnabled: boolean`, so a consumer can tell "nothing pending" from "not checked". The config is read from the invoking checkout root that `resolveTemplatePath` already resolves. Exit codes do not change: 0 all pass, 1 any fail, 2 usage/template error.
+`DesignValidationResult` gains `pending: PendingDecision[]` (always present, empty when the gate is disabled or nothing is pending). `pass` becomes `missing.length === 0 && pending.length === 0`. A docType failure still short-circuits, as today. The top-level `ValidateDesignJson` gains `decisionGateEnabled: boolean`, so a consumer can tell "nothing pending" from "not checked". Exit codes do not change: 0 all pass, 1 any fail, 2 usage/template error.
+
+Config plumbing. Core stays config-free, and the CLI decides:
+
+- `resolveTemplatePath` becomes `resolveCheckout`, returning `{ checkoutRoot, templatePath }`. Today it computes the checkout root and throws it away.
+- `validateDesignAction` builds `new ConfigManager(checkoutRoot)` and calls `isDecisionGateEnabled(config)`.
+- The flag is passed in as a named option: `validateSliceDesignFiles(templatePath, files, { decisionGateEnabled })`. Core then passes it on to `validateFile()`, which runs `findPendingDecisions` only when the flag is true.
 
 Human output, after any `missing:` lines:
 
@@ -203,7 +215,7 @@ FAIL project-documents/user/slices/108-slice.example.md
 ### D8 — ConsistencyChecker rule severity is `warning`
 Status: decided
 
-`cf check` reports artifact inconsistencies. A pending decision during Phase 4 is a legitimate in-progress state, not an inconsistency, and an `error` would fail `cf check` (and any hook that runs it) while the architect is still writing the design. `warning`, with one finding per affected slice that lists each decision, matches 242's missing-review-artifact rule. The blocking itself is done by `cf next` and `cf validate design`. The rule applies to slices that have a design and are not complete (same scope as D4), and it is not auto-fixable.
+`cf check` reports artifact inconsistencies. A pending decision during Phase 4 is a legitimate in-progress state, not an inconsistency, and an `error` would fail `cf check` (and any hook that runs it) while the architect is still writing the design. `warning`, with one finding per affected slice that lists each decision, matches 242's missing-review-artifact rule. The blocking itself is done by `cf next` and `cf validate design`. **`cf check` / `workflow_check` is not a blocking gate for this condition:** a warning does not change its exit status, so a pipeline that gates on `cf check` alone will not stop. This is stated in the `docs/REVIEW-GATING.md` section as well. The rule applies to slices that have a design and are not complete (same scope as D4), and it is not auto-fixable.
 
 ## Implementation Details
 
@@ -216,6 +228,11 @@ export interface PendingDecision { heading: string; line: number }
 export function findPendingDecisions(text: string): PendingDecision[];          // pure
 export async function isDecisionGateEnabled(config: ConfigManager): Promise<boolean>;
 export async function readPendingDecisions(absPath: string): Promise<PendingDecision[]>;
+export async function validateSliceDesignFiles(           // existing; options param added
+  templatePath: string,
+  files: readonly string[],
+  options: { decisionGateEnabled: boolean },
+): Promise<DesignValidationResult[]>;
 ```
 
 `readPendingDecisions` raises a missing or unreadable design file. It does not return an empty list for one. The callers have just detected the file through `detectDocuments`, so a read failure is a real error (TD-2a), not "no decisions".
@@ -246,7 +263,7 @@ export async function readPendingDecisions(absPath: string): Promise<PendingDeci
 ## Success Criteria
 
 ### Functional Requirements
-- `findPendingDecisions` recognizes every D1 form (plain, bold label, bold whole, bullet, any case, `pending pm` / `pending_pm` / `pending` variants), ignores other `Status:` values, ignores lines inside fenced blocks, and attributes each match to the nearest preceding heading with the correct line number.
+- `findPendingDecisions` follows the D1 table: label forms (plain, bold label, bold whole, bullet, any case) are recognized; `decided` passes; the frontmatter vocabulary is ignored; every other value blocks. Frontmatter and fenced lines are skipped. Each match is attributed to the nearest preceding heading with the correct line number.
 - `cf validate design` on a design with one pending decision prints `FAIL`, a `pending-pm:` line naming it, and exits 1. After the line is changed to `decided`, it prints `PASS` and exits 0.
 - A design with no status lines passes `cf validate design` exactly as before 245.
 - With an active slice whose design has a pending decision and no task file, `cf next` returns the decision-gate recommendation, not "Create task breakdown". With a task file at zero or partial progress, it returns the same recommendation, not "Continue implementation". With all tasks checked, it is unaffected.
@@ -256,7 +273,8 @@ export async function readPendingDecisions(absPath: string): Promise<PendingDeci
 - With `workflow.decision_gate_enabled = false`, all of the above revert to pre-245 behavior, and `cf validate design --json` reports `decisionGateEnabled: false`.
 
 ### Technical Requirements
-- Pure parser unit tests, using the real template text (`templates/slice-design.md`, which must yield zero pending) and a fixture modeled on the amoeba 108 decision layout.
+- Pure parser unit tests, using the real template text (`project-documents/ai-project-guide/project-guides/templates/slice-design.md`, resolved via `SLICE_DESIGN_TEMPLATE_RELATIVE_PATH`, which must yield zero pending) and a fixture modeled on the amoeba 108 decision layout.
+- Parser fixtures that must block: trailing punctuation or prose (`pending-pm.`, `pending-pm;`, `Pending-PM — waiting on PM`, `pending-pm*`), a misspelling (`pendng-pm`), not-decided words (`TBD`, `undecided`, `open`), and an empty value. Fixtures that must not block: `decided.` and `Decided — PM 20261017`, each frontmatter-vocabulary value, and the design's own frontmatter `status:` line. The ignore-list fixture pins current behavior, so widening or narrowing that list is a deliberate change.
 - Existing `sliceDesignValidator` tests pass unchanged after the fence-helper move (D6).
 - Navigator tests cover each D4 position, the review-gate precedence, and the no-config case.
 - No new file over ~300 lines. ConsistencyChecker gains a single call into `decisionGate.ts`, not inline parsing.
@@ -264,7 +282,7 @@ export async function readPendingDecisions(absPath: string): Promise<PendingDeci
 
 ### Integration Requirements
 - MCP `workflow_next` / `workflow_status` / `workflow_check` responses carry the new fields with no MCP code change beyond the `workflow_check` description string.
-- README config table and `docs/REVIEW-GATING.md` document the key, its default, the `pending-decision` status, and the Squadron contract.
+- README config table and `docs/REVIEW-GATING.md` document the key, its default, the `pending-decision` status, and the Squadron contract. They also state that `cf check` reports the condition but does not block on it (D8).
 
 ### Verification Walkthrough
 
@@ -284,7 +302,7 @@ Run from a scratch project (or context-forge itself), using the local build: `no
    ```
 
    Exit code 1 (`echo $?`).
-2. **Lenient forms.** Change the line to the bold label form, then the bullet form, then `status: Pending PM`. Each still FAILs. Change it to `Status: decided` → `PASS`, exit 0.
+2. **Lenient forms.** Change the line to the bold label form, then the bullet form, then `status: Pending PM`, then `pending-pm.` with a trailing period, then `TBD`. Each still FAILs. Change it to `Status: decided` → `PASS`, exit 0.
 3. **Fenced example ignored.** Put the pending line inside a fenced block → `PASS`.
 4. **JSON contract.** `cf validate design /tmp/pd.md --json` (pending again) → `files[0].pending` has one entry with `heading` and `line`, and `decisionGateEnabled: true`.
 5. **`cf next` blocks Phase 5.** In a project whose active slice has a design but no task file, add a pending line to the design. `cf next` → `Next: Blocked: design has pending PM decisions`, with the decision listed. `cf next --json` includes `pendingDecisions`. `cf status` shows `Status: pending-decision`.
