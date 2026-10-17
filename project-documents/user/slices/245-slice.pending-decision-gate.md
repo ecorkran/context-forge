@@ -130,6 +130,7 @@ The grammar fails closed: anything that is not clearly `decided` or a known non-
 - Known residual: prose that starts with the label and an unlisted word (for example `Status: shipped in 0.12`) blocks. That is the accepted cost of failing closed. Adding words to the ignore list is a one-line change in the parser.
 - YAML frontmatter is skipped, so a design's own `status:` field is never read as a decision.
 - Lines inside fenced code blocks are skipped, using the same CommonMark fence rules as the heading validator. This lets a design (this one included) quote the grammar without tripping the gate. A line that starts with a backtick (inline code) does not match the label.
+- Leading blockquote markers (`>`, possibly nested) are stripped before the label match, so a decision written inside a blockquote still blocks. Indented (4-space) code blocks are not skipped: a status line in one is matched, which fails closed and names the line. Fixtures pin both cases.
 - The status line can appear anywhere in the document, as the slice plan requires. It is not tied to the Technical Decisions section, so a design that puts decisions in another section is still gated.
 
 Rejected:
@@ -187,6 +188,7 @@ New branch `LIFECYCLE: decision-gate`, placed before `needs-tasks` in the cascad
 
 - `phase` is Phase 4 because the work owed is design work. `enrich()` therefore adds its usual `cf set phase` suggestion when the project is set to a later phase.
 - `pendingDecisions` is a new optional field on `NextAction` and `SliceStatus`. It is present only for this status, and existing fields keep their shape. Squadron should test for `pendingDecisions` (or for the `pending-decision` slice status from `cf status --json`), not the `recommendation` string. The recommendation is a user-facing label and must not be used as logic.
+- Arch 240's Related Work note on the Amoeba Runner says the gate must not change the `NextAction` return type, only add `recommendation` values. This optional field relaxes that wording on purpose. It is backward compatible, and the alternative (encoding decisions in the rationale string) would make consumers parse a label. `docs/REVIEW-GATING.md` notes that `pendingDecisions` is the one additive field on `NextAction` and that consumers key on field names.
 - Human `cf next` output adds one indented line per decision under `Rationale:`.
 
 ### D6 — Extract fence helpers into `markdownLines.ts`
@@ -215,7 +217,7 @@ FAIL project-documents/user/slices/108-slice.example.md
 ### D8 — ConsistencyChecker rule severity is `warning`
 Status: decided
 
-`cf check` reports artifact inconsistencies. A pending decision during Phase 4 is a legitimate in-progress state, not an inconsistency, and an `error` would fail `cf check` (and any hook that runs it) while the architect is still writing the design. `warning`, with one finding per affected slice that lists each decision, matches 242's missing-review-artifact rule. The blocking itself is done by `cf next` and `cf validate design`. **`cf check` / `workflow_check` is not a blocking gate for this condition:** a warning does not change its exit status, so a pipeline that gates on `cf check` alone will not stop. This is stated in the `docs/REVIEW-GATING.md` section as well. The rule applies to slices that have a design and are not complete (same scope as D4), and it is not auto-fixable.
+`cf check` reports artifact inconsistencies. A pending decision during Phase 4 is a legitimate in-progress state, not an inconsistency, and an `error` would fail `cf check` (and any hook that runs it) while the architect is still writing the design. `warning`, with one finding per affected slice that lists each decision, matches 242's missing-review-artifact rule. The blocking itself is done by `cf next` and `cf validate design`. **`cf check` / `workflow_check` is not a blocking gate for this condition:** a warning does not change its exit status, so a pipeline that gates on `cf check` alone will not stop. This is stated in the `docs/REVIEW-GATING.md` section as well. The rule applies to slices that have a design and are not complete (same scope as D4), and it is not auto-fixable. A design that cannot be read is the one exception: it produces an `error` finding (see API Contracts).
 
 ## Implementation Details
 
@@ -235,7 +237,15 @@ export async function validateSliceDesignFiles(           // existing; options p
 ): Promise<DesignValidationResult[]>;
 ```
 
-`readPendingDecisions` raises a missing or unreadable design file. It does not return an empty list for one. The callers have just detected the file through `detectDocuments`, so a read failure is a real error (TD-2a), not "no decisions".
+`readPendingDecisions` raises a missing or unreadable design file. It does not return an empty list for one. The callers have just detected the file through `detectDocuments`, so a read failure is a real error, not "no decisions". This follows slice 911's TD-2a: a resolution failure is surfaced, never treated as absent. Each surface handles the rejection as follows:
+
+| Surface | On a design read failure |
+|---|---|
+| `cf validate design` | Does not call `readPendingDecisions`. `validateFile()` already reads the text and runs the pure parser, and its existing read failure throws `SliceDesignValidationError`, so the command exits 2. No change. |
+| `deriveSliceStatus()` (`cf next`, `cf status`, MCP) | Propagates, like the task-file read failure in the same function. The command fails with an error naming the file, rather than reporting a workflow position it could not determine. |
+| ConsistencyChecker rule | Caught per slice and turned into an `error`-severity `pending-decision` finding that names the file and the message. The run continues with the other slices. This mirrors `safeEvaluateGate`. |
+
+Fixtures: the checker run with one unreadable design yields that error finding and still checks the remaining slices. `getNext()` with an unreadable design rejects.
 
 **Config key:**
 
