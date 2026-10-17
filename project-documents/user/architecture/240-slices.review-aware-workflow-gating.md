@@ -3,8 +3,8 @@ docType: slice-plan
 parent: project-documents/user/architecture/240-arch.review-aware-workflow-gating.md
 project: context-forge
 dateCreated: 20260624
-dateUpdated: 20260704
-status: complete
+dateUpdated: 20261017
+status: in_progress
 ---
 
 # Slice Plan: Review-Aware Workflow Gating
@@ -19,6 +19,7 @@ status: complete
 1. [x] **(241) Gate Logic in WorkflowNavigator** — The full review-gate mechanism, covering **all four lifecycle boundaries** in one coherent slice. The review type is **derived from lifecycle position**, not configured: `arch` before slice-plan creation, `slice` after design (before tasks), `tasks` after task-breakdown (before implementation), `code` after implementation (before advance). Add `pending-review` and `review-failed` to the `SliceStatus` enum. Extend `deriveSliceStatus()` (and the pre-slice-plan/no-active-slice path) to evaluate the gate at each boundary and set these values. Add a standalone `reviewGate.ts` evaluator (position→reviewType derivation, verdict decision matrix, `review_unknown_as`/`review_threshold` resolution) reused by 242. Inject `ConfigManager` into `WorkflowNavigator` (optional ctor dep; gating off ⇒ identical behavior). Fill the reserved `LIFECYCLE: review-gate` branch in `getNext()` returning `review`/`blocked` recommendations with structured rationale. Introduce the `STATUS` const (referenced by 910). Full unit coverage of the decision matrix and every boundary. Dependencies: 240. Risk: Medium. Effort: 4/5
 2. [x] **(242) ConsistencyChecker Review Rule** — Add missing-artifact (`warning`) and failing-verdict (`error`) consistency rules, reusing 241's `reviewGate.ts` evaluator. Neither is auto-fixable. Verify `cf check` surfaces both conditions correctly. Dependencies: 240, 241. Risk: Low. Effort: 2/5
 3. [x] **(243) Documentation and README Updates** — Document new config keys (`workflow.review_enabled`, `workflow.review_threshold`, `workflow.review_unknown_as`), the **position-derived review-type model** (which boundary owes which review type), new slice status values (`pending-review`, `review-failed`), and updated `cf next` / `cf check` behavior. Note that `review_type` is derived from position, not configured — document why the earlier per-gate `review_type` config keys are inert/removed. Update any existing README or configuration reference sections that describe workflow behavior or status values. Dependencies: 241, 242. Risk: Low. Effort: 1/5
+4. [ ] **(245) Pending Decision Gate** — Enforce the slice-design decision status defined in ai-project-guide#44 (issue #121). Each decision in a design carries a `Status: decided` or `Status: pending-pm` line under its heading; parse it leniently (any case, optional bold or leading bullet) anywhere in the design. `cf validate design` fails when any decision is `pending-pm` and names each one. `cf next` and the workflow check pipelines call do not advance a slice to Phase 5 or Phase 6 while its design holds a `pending-pm` decision; they report the pending decisions to the PM instead. Designs with no status lines pass. One config key, `workflow.decision_gate_enabled`, turns off both the validate failure and the `cf next` block; its default is settled in the slice design. Squadron consumes the gate through cf before implement (squadron#223). Dependencies: 241. Risk: Low. Effort: 2/5
 
 ## Notes
 - No migration or refactoring slices — initiative 240 is purely additive to initiative 160's infrastructure. No existing interfaces change.
