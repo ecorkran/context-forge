@@ -190,6 +190,6 @@ The `pre-slice-plan` transition (arch review must pass before slice plan creatio
 
 - **180-arch.initiative-context-worktree** — Established worktree-scoped config resolution. The `workflow.review_*` keys should be resolvable at worktree scope (per-initiative review policy) as well as project scope, using the resolution chain 180 introduced.
 
-- **Amoeba Runner** (external) — Downstream consumer of `review` and `blocked` recommendations. Routes to a review agent when the gate fires. Depends on CF returning structured `recommendation` values with a stable vocabulary — the gate must not change the `NextAction` return type, only add new `recommendation` string values.
+- **Amoeba Runner** (external) — Downstream consumer of `review` and `blocked` recommendations. Routes to a review agent when the gate fires. Depends on CF returning structured `recommendation` values with a stable vocabulary — the gate must not change existing `NextAction` fields, only add new `recommendation` string values and additive optional fields (slice 245 adds `pendingDecisions`).
 
 - **001-review-gating-architecture-input.context-forge.md** — Source-grounded architecture input note, including file:line citations for the insertion point and the `DocumentDetectionResult` gap. Superseded by this document.

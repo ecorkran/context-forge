@@ -110,7 +110,7 @@ None persisted. The gate is computed from the design file on every call, like th
 ### D1 — Status-line grammar (lenient)
 Status: decided
 
-The grammar fails closed: anything that is not clearly `decided` or a known non-decision status blocks.
+The grammar blocks only on a known pending word. Any other value is ignored, because `Status:` is common prose in older designs (`**Status:** Executed and verified`, `**STATUS: SCRAPPED**`) and the gate defaults on. A scan of existing slice designs across the PM's repos found about 12 designs with such lines, none of them real pending decisions. Failing closed would have broken all of them on upgrade.
 
 **Label.** A line is a status line when, after trimming, it starts with the `status` label: an optional bullet (`-`, `*`, `+`), optional emphasis (`**`, `__`, `*`, `_`) around the label, then a colon. The match is case-insensitive. Only this prefix is anchored; the rest of the line is free text.
 
@@ -123,19 +123,19 @@ The grammar fails closed: anything that is not clearly `decided` or a known non-
 | First token | Result |
 |---|---|
 | `decided` | decided |
-| `not_started`, `in_progress`, `complete`, `completed`, `deferred`, `deprecated` (the frontmatter status vocabulary) | ignored: not a decision status |
-| anything else, including no token | **pending** |
+| `pending-pm`, `pending_pm`, `pending` (covers `pending pm`, whose first token is `pending`), `tbd`, `undecided`, `open` | **pending** |
+| anything else, including `decided`, the frontmatter vocabulary, prose, and no token | ignored |
 
-- "Anything else" covers the forms the guide defines (`pending-pm`, `pending pm`, `pending_pm`), misspellings (`pendng-pm`), and values that mean "not decided" (`TBD`, `open`, `undecided`). All of them block. A misread line is reported by heading and line number (D2), so a false positive costs one edit. A silent pass would repeat the amoeba-108 failure.
-- Known residual: prose that starts with the label and an unlisted word (for example `Status: shipped in 0.12`) blocks. That is the accepted cost of failing closed. Adding words to the ignore list is a one-line change in the parser.
+- The pending list is a single constant in the parser. Adding a word is a one-line change.
+- Known residual: a misspelling such as `pendng-pm` is ignored. The guide template defines the values, so this is rare, and ignoring it is the accepted cost of not breaking existing prose `Status:` lines.
 - YAML frontmatter is skipped, so a design's own `status:` field is never read as a decision.
 - Lines inside fenced code blocks are skipped, using the same CommonMark fence rules as the heading validator. This lets a design (this one included) quote the grammar without tripping the gate. A line that starts with a backtick (inline code) does not match the label.
-- Leading blockquote markers (`>`, possibly nested) are stripped before the label match, so a decision written inside a blockquote still blocks. Indented (4-space) code blocks are not skipped: a status line in one is matched, which fails closed and names the line. Fixtures pin both cases.
+- Leading blockquote markers (`>`, possibly nested) are stripped before the label match, so a decision written inside a blockquote still blocks. Indented (4-space) code blocks are not skipped: a pending status line in one is matched and names the line. Fixtures pin both cases.
 - The status line can appear anywhere in the document, as the slice plan requires. It is not tied to the Technical Decisions section, so a design that puts decisions in another section is still gated.
 
 Rejected:
 - Matching only the line directly under a `###` heading (strict). The slice plan asks for "anywhere in the design", and strict position matching fails silently on reasonable layouts, which the project's parsing rules forbid.
-- Recognizing only `pending*` values and ignoring everything else (this design's first draft). Trailing punctuation and misspellings slipped through, which is the failure this slice exists to prevent.
+- Failing closed, where any value other than `decided` or a frontmatter word blocks (this design's second draft). It blocks pre-existing prose `Status:` lines in older designs, which breaks them on upgrade with the gate on by default.
 
 ### D2 — Naming a pending decision
 Status: decided
@@ -273,7 +273,7 @@ Fixtures: the checker run with one unreadable design yields that error finding a
 ## Success Criteria
 
 ### Functional Requirements
-- `findPendingDecisions` follows the D1 table: label forms (plain, bold label, bold whole, bullet, any case) are recognized; `decided` passes; the frontmatter vocabulary is ignored; every other value blocks. Frontmatter and fenced lines are skipped. Each match is attributed to the nearest preceding heading with the correct line number.
+- `findPendingDecisions` follows the D1 table: label forms (plain, bold label, bold whole, bullet, any case) are recognized; `decided` passes; only the known pending words block; every other value is ignored. Frontmatter and fenced lines are skipped. Each match is attributed to the nearest preceding heading with the correct line number.
 - `cf validate design` on a design with one pending decision prints `FAIL`, a `pending-pm:` line naming it, and exits 1. After the line is changed to `decided`, it prints `PASS` and exits 0.
 - A design with no status lines passes `cf validate design` exactly as before 245.
 - With an active slice whose design has a pending decision and no task file, `cf next` returns the decision-gate recommendation, not "Create task breakdown". With a task file at zero or partial progress, it returns the same recommendation, not "Continue implementation". With all tasks checked, it is unaffected.
@@ -284,7 +284,7 @@ Fixtures: the checker run with one unreadable design yields that error finding a
 
 ### Technical Requirements
 - Pure parser unit tests, using the real template text (`project-documents/ai-project-guide/project-guides/templates/slice-design.md`, resolved via `SLICE_DESIGN_TEMPLATE_RELATIVE_PATH`, which must yield zero pending) and a fixture modeled on the amoeba 108 decision layout.
-- Parser fixtures that must block: trailing punctuation or prose (`pending-pm.`, `pending-pm;`, `Pending-PM — waiting on PM`, `pending-pm*`), a misspelling (`pendng-pm`), not-decided words (`TBD`, `undecided`, `open`), and an empty value. Fixtures that must not block: `decided.` and `Decided — PM 20261017`, each frontmatter-vocabulary value, and the design's own frontmatter `status:` line. The ignore-list fixture pins current behavior, so widening or narrowing that list is a deliberate change.
+- Parser fixtures that must block: trailing punctuation or prose (`pending-pm.`, `pending-pm;`, `Pending-PM — waiting on PM`, `pending-pm*`), `pending pm`, and not-decided words (`TBD`, `undecided`, `open`). Fixtures that must not block: `decided.` and `Decided — PM 20261017`, each frontmatter-vocabulary value, a misspelling (`pendng-pm`), an empty value, real prose from older designs (`**Status:** Executed and verified`, `**STATUS: SCRAPPED**`, `Status: shipped in 0.12`), and the design's own frontmatter `status:` line. The pending-word list fixture pins current behavior, so widening or narrowing that list is a deliberate change.
 - Existing `sliceDesignValidator` tests pass unchanged after the fence-helper move (D6).
 - Navigator tests cover each D4 position, the review-gate precedence, and the no-config case.
 - No new file over ~300 lines. ConsistencyChecker gains a single call into `decisionGate.ts`, not inline parsing.
