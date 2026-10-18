@@ -28,6 +28,8 @@ import {
 } from '../schema/projectSchema.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
+import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
+import type { PendingDecision } from '../schema/pendingDecisions.js';
 import {
   evaluateReviewGate,
   evaluateExemption,
@@ -78,6 +80,9 @@ type ReviewType = 'slice' | 'tasks' | 'code';
 function isReviewType(value: string): value is ReviewType {
   return value === 'slice' || value === 'tasks' || value === 'code';
 }
+
+/** User-facing label of the decision-gate action; consumers must key on `pendingDecisions`, not this text. */
+const DECISION_GATE_RECOMMENDATION = 'Blocked: design has pending PM decisions';
 
 export class WorkflowNavigator {
   /** Maps a review gate's reviewType to the phase a stale developmentPhase should be corrected to. */
@@ -333,6 +338,22 @@ export class WorkflowNavigator {
         slice: project.fileSlice,
         phase: 'Phase 4: Slice Design',
         summary: `Create design for slice ${slice.index ?? slice.name}`,
+      });
+    }
+
+    // LIFECYCLE: decision-gate — the design still has PM decisions to settle (cf Phase 4 work)
+    if (slice.status === 'pending-decision') {
+      const decisions = slice.pendingDecisions ?? [];
+      const sliceLabel = slice.index ?? slice.name;
+      const count = decisions.length;
+      const listed = decisions.map((d) => `${d.heading} (line ${d.line})`).join('; ');
+      return enrich({
+        recommendation: DECISION_GATE_RECOMMENDATION,
+        rationale: `Slice ${sliceLabel} design has ${count} decision${count !== 1 ? 's' : ''} pending PM confirmation: ${listed}. Resolve each with the PM and set its status line to decided before task breakdown.`,
+        slice: project.fileSlice,
+        phase: 'Phase 4: Slice Design',
+        summary: `Blocked — slice ${sliceLabel} has ${count} pending PM decision${count !== 1 ? 's' : ''}`,
+        pendingDecisions: decisions,
       });
     }
 
@@ -666,6 +687,18 @@ export class WorkflowNavigator {
     const gateExempt = await this.reviewNoneExemption(projectPath, docs.sliceDesign);
     if (gateExempt) base = { ...base, gateExempt };
 
+    // Parsed up front so the decision gate can tell finished work from unfinished work.
+    const taskPaths = docs.taskFile?.map((p) => join(projectPath, p));
+    const taskResult = taskPaths ? await this.parseTaskFileSafe(taskPaths) : null;
+
+    // Decision gate (D4): precedes every review gate; skipped once all tasks are done.
+    if (taskResult?.inferredStatus !== STATUS.Complete) {
+      const pendingDecisions = await this.pendingDecisionsFor(projectPath, docs.sliceDesign);
+      if (pendingDecisions.length > 0) {
+        return { ...base, status: 'pending-decision', pendingDecisions };
+      }
+    }
+
     // Design exists but no task file → needs-tasks (pre-tasks / 'slice' gate)
     if (!docs.taskFile) {
       const gate = await this.evaluateGate(projectPath, index, 'preTasks');
@@ -679,10 +712,7 @@ export class WorkflowNavigator {
       return { ...base, status: 'needs-tasks' };
     }
 
-    // Task file exists — parse to determine progress
-    const taskPaths = docs.taskFile.map((p) => join(projectPath, p));
-    const taskResult = await this.parseTaskFileSafe(taskPaths);
-
+    // Task file exists — taskResult (parsed above) gives progress
     if (!taskResult || taskResult.totalTasks === 0) {
       return { ...base, status: 'needs-tasks' };
     }
@@ -722,6 +752,16 @@ export class WorkflowNavigator {
     }
 
     return { ...base, status: 'in-implementation', taskProgress };
+  }
+
+  /**
+   * The design's pending PM decisions. Empty when the gate is off (no config, or
+   * workflow.decision_gate_enabled false). Read errors propagate: an unreadable design
+   * must not look like a clean one.
+   */
+  private async pendingDecisionsFor(projectPath: string, sliceDesign: string): Promise<PendingDecision[]> {
+    if (!this.config || !(await isDecisionGateEnabled(this.config))) return [];
+    return readPendingDecisions(join(projectPath, sliceDesign));
   }
 
   /**

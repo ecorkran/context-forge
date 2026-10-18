@@ -122,28 +122,28 @@ revision_number: 2
 
 Core and CLI change together in this task, so no commit leaves a temporary hard-coded flag.
 
-- [ ] In `packages/core/src/schema/sliceDesignFiles.ts`:
-  - [ ] Add `pending: PendingDecision[]` to `DesignValidationResult`. It is always present.
-  - [ ] Add a required parameter `options: { decisionGateEnabled: boolean }` to `validateSliceDesignFiles` and pass it on to `validateFile()`.
-  - [ ] In `validateFile()`, run `findPendingDecisions` on the text it has already read, and only when the flag is true. Otherwise use `pending: []`. Do not call `readPendingDecisions` here (API Contracts table).
-  - [ ] Set `pass = missing.length === 0 && pending.length === 0`. A docType failure still short-circuits, with `pending: []`.
-- [ ] In `packages/cli/src/commands/validateDesign.ts`:
-  - [ ] Rename `resolveTemplatePath` to `resolveCheckout`, returning `{ checkoutRoot, templatePath }`.
-  - [ ] In `validateDesignAction`, build `new ConfigManager(checkoutRoot)`, call `isDecisionGateEnabled(config)`, and pass `{ decisionGateEnabled }` to `validateSliceDesignFiles`.
-  - [ ] Add `decisionGateEnabled: boolean` to `ValidateDesignJson`. Each `files[]` entry carries `pending`.
-  - [ ] Human output: after any `missing:` lines, print one line per pending decision, `  pending-pm: {heading} (line {n})`. Define the `pending-pm` label once as a constant.
-  - [ ] Exit codes do not change: 0 when all pass, 1 when any fails, 2 on a usage or template error.
-- [ ] Tests:
-  - [ ] `sliceDesignFiles.test.ts`:
-    - [ ] Existing calls pass `{ decisionGateEnabled: true }`, and their expected results gain only `pending: []`.
-    - [ ] A pending line with the gate enabled gives `pass: false` and one `pending` entry. With the gate disabled it gives `pass: true` and `pending: []`.
-    - [ ] A missing heading plus a pending line reports both.
-  - [ ] `validate-design.test.ts`:
-    - [ ] A pending line prints `FAIL` and the `pending-pm: … (line N)` line, and exits 1. Changed to `decided`, it prints `PASS` and exits 0.
-    - [ ] A design with no status lines passes as before.
-    - [ ] `--json` has `files[0].pending` and `decisionGateEnabled: true`. With the key set to `false`, the design passes and the output reports `decisionGateEnabled: false`.
-  - [ ] Success: `pnpm typecheck`, `pnpm --filter @context-forge/core test -- sliceDesign`, and `pnpm --filter @context-forge/cli test -- validate-design` pass.
-- [ ] Commit: `feat: fail cf validate design on pending decisions`
+- [x] In `packages/core/src/schema/sliceDesignFiles.ts`:
+  - [x] Add `pending: PendingDecision[]` to `DesignValidationResult`. It is always present.
+  - [x] Add a required parameter `options: { decisionGateEnabled: boolean }` to `validateSliceDesignFiles` and pass it on to `validateFile()`.
+  - [x] In `validateFile()`, run `findPendingDecisions` on the text it has already read, and only when the flag is true. Otherwise use `pending: []`. Do not call `readPendingDecisions` here (API Contracts table).
+  - [x] Set `pass = missing.length === 0 && pending.length === 0`. A docType failure still short-circuits, with `pending: []`.
+- [x] In `packages/cli/src/commands/validateDesign.ts`:
+  - [x] Rename `resolveTemplatePath` to `resolveCheckout`, returning `{ checkoutRoot, templatePath }`.
+  - [x] In `validateDesignAction`, build `new ConfigManager(checkoutRoot)`, call `isDecisionGateEnabled(config)`, and pass `{ decisionGateEnabled }` to `validateSliceDesignFiles`.
+  - [x] Add `decisionGateEnabled: boolean` to `ValidateDesignJson`. Each `files[]` entry carries `pending`.
+  - [x] Human output: after any `missing:` lines, print one line per pending decision, `  pending-pm: {heading} (line {n})`. Define the `pending-pm` label once as a constant.
+  - [x] Exit codes do not change: 0 when all pass, 1 when any fails, 2 on a usage or template error.
+- [x] Tests:
+  - [x] `sliceDesignFiles.test.ts`:
+    - [x] Existing calls pass `{ decisionGateEnabled: true }`, and their expected results gain only `pending: []`.
+    - [x] A pending line with the gate enabled gives `pass: false` and one `pending` entry. With the gate disabled it gives `pass: true` and `pending: []`.
+    - [x] A missing heading plus a pending line reports both.
+  - [x] `validate-design.test.ts`:
+    - [x] A pending line prints `FAIL` and the `pending-pm: … (line N)` line, and exits 1. Changed to `decided`, it prints `PASS` and exits 0.
+    - [x] A design with no status lines passes as before.
+    - [x] `--json` has `files[0].pending` and `decisionGateEnabled: true`. With the key set to `false`, the design passes and the output reports `decisionGateEnabled: false`.
+  - [x] Success: `pnpm typecheck`, `pnpm --filter @context-forge/core test -- sliceDesign`, and `pnpm --filter @context-forge/cli test -- validate-design` pass.
+- [x] Commit: `feat: fail cf validate design on pending decisions`
 - **Effort:** 2/5
 
 ---

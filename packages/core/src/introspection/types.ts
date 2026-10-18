@@ -1,4 +1,5 @@
 import type { ExemptReason } from './reviewGate.js';
+import type { PendingDecision } from '../schema/pendingDecisions.js';
 
 /** Normalized status values used across introspection results */
 export const STATUS = {
@@ -351,12 +352,15 @@ export interface SliceStatus {
     | 'complete'
     | 'no-active-slice'
     | 'pending-review'
-    | 'review-failed';
+    | 'review-failed'
+    | 'pending-decision';
   taskProgress?: {
     completed: number;
     total: number;
     inferredStatus: NormalizedStatus;
   };
+  /** Present only when status is 'pending-decision': the design's undecided PM decisions. */
+  pendingDecisions?: PendingDecision[];
   /** Set when gating is on and the slice is exempt from review (review-none only); getNext() appends its EXEMPT_NOTE to the rationale. */
   gateExempt?: ExemptReason;
   /** Set when status is 'pending-review' or 'review-failed'; carries the gate's rationale for getNext() to route without recomputing the gate. */
@@ -395,6 +399,8 @@ export interface NextAction {
   slice?: string;
   phase?: string;
   summary: string;
+  /** Present only on the decision-gate action: the design's undecided PM decisions. Consumers key on this field, never on `recommendation` text. */
+  pendingDecisions?: PendingDecision[];
   /** Non-blocking warnings about project configuration (e.g., index band mismatches) */
   warnings?: string[];
 }

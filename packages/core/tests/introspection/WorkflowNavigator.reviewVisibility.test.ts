@@ -12,6 +12,7 @@ const NAME = 'docs-only';
 const NOTE = EXEMPT_NOTE[EXEMPT_REASON.ReviewNone];
 
 const GATE_ENABLED = {
+  'workflow.decision_gate_enabled': false, // slice 245: keeps these fixtures independent of the decision gate
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',
