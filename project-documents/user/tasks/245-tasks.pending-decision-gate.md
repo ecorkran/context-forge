@@ -11,8 +11,8 @@ projectState: 'Initiative 240 review gating is merged (241 navigator gate in der
   per-decision `Status: decided | pending-pm` line in the installed slice-design template.
   Nothing in Context Forge reads that line yet (issue #121).'
 dateCreated: 20261017
-dateUpdated: '20261018'
-status: in_progress
+dateUpdated: '20261017'
+status: complete
 turns: 37
 promptTokens: 2048901
 cachedTokens: 1946403
@@ -179,7 +179,7 @@ Core and CLI change together in this task, so no commit leaves a temporary hard-
 ## Task 6: `cf next` output and the status/MCP surfaces (D5)
 
 - [x] In `packages/cli/src/commands/next.ts`, when `result.pendingDecisions` is present, print one `dim` line per decision after `Rationale:` (:51): `  - {heading} (line {n})`. `--json` needs no change.
-- [x] Tests. Each one uses a fixture whose active slice design has a pending line and no task file:
+- [x] Tests. Each one uses mocked navigator results carrying a pending-decision payload:
   - [x] `packages/cli/tests/commands/next.test.ts`: the human output lists each decision, and `--json` includes `pendingDecisions`. Output with nothing pending is unchanged.
   - [x] `packages/cli/tests/commands/status.test.ts`: the human output shows `Status: pending-decision`. `--json` has `activeSlice.status === 'pending-decision'` and `activeSlice.pendingDecisions`.
   - [x] `packages/mcp-server/tests/workflowTools.test.ts`: the `workflow_next` response includes `pendingDecisions`. The `workflow_status` response has `activeSlice.status === 'pending-decision'`.
@@ -193,46 +193,48 @@ Note: The CLI and MCP tests in this task follow the existing pattern of mocking 
 
 ## Task 7: ConsistencyChecker rule `pending-decision`, with tests (D8)
 
-- [ ] Add `'pending-decision'` to the ConsistencyChecker rule-id type, wherever the existing rule ids are declared.
-- [ ] In `ConsistencyChecker.ts`, add one private method next to `safeEvaluateGate` (:592), for example `pendingDecisionFindings(...)`. It calls `readPendingDecisions` and returns:
-  - [ ] one non-fixable `warning` finding, rule `pending-decision`, listing each `{heading} (line {n})`, when anything is pending;
-  - [ ] when the read rejects, one `error` finding with the same rule that names the file and the message. The catch is per slice so the run continues. Mirror `safeEvaluateGate`, including its comment explaining why the catch is correct;
-  - [ ] no findings otherwise.
-- [ ] In `checkSlice()` (:244), call that method only when the slice has a design, is not complete (D4 scope), and the gate is enabled through the checker's `ConfigManager`. Without a config, the gate is off.
-- [ ] In `packages/mcp-server/src/tools/workflowTools.ts` (~:221), add the rule to the `workflow_check` "Detects:" string.
-- [ ] Tests in a new `packages/core/tests/introspection/ConsistencyChecker.pendingDecision.test.ts`, with fixtures set up like `ConsistencyChecker.reviewGate.test.ts`:
-  - [ ] An in-progress slice with two pending lines gives exactly one `warning` that names both decisions. Its error count is zero, so `cf check` does not fail.
-  - [ ] There is no finding for a complete slice, for a slice with nothing pending, or with the gate disabled.
-  - [ ] One unreadable design and one pending design give an `error` for the first and a `warning` for the second.
-  - [ ] Success: `pnpm --filter @context-forge/core test -- ConsistencyChecker` and `pnpm --filter @context-forge/mcp test` pass.
-- [ ] Commit: `feat(core): add pending-decision consistency check`
+- [x] Add `'pending-decision'` to the ConsistencyChecker rule-id type, wherever the existing rule ids are declared.
+- [x] In `ConsistencyChecker.ts`, add one private method next to `safeEvaluateGate` (:592), for example `pendingDecisionFindings(...)`. It calls `readPendingDecisions` and returns:
+  - [x] one non-fixable `warning` finding, rule `pending-decision`, listing each `{heading} (line {n})`, when anything is pending;
+  - [x] when the read rejects, one `error` finding with the same rule that names the file and the message. The catch is per slice so the run continues. Mirror `safeEvaluateGate`, including its comment explaining why the catch is correct;
+  - [x] no findings otherwise.
+- [x] In `checkSlice()` (:244), call that method only when the slice has a design, is not complete (D4 scope), and the gate is enabled through the checker's `ConfigManager`. Without a config, the gate is off.
+- [x] In `packages/mcp-server/src/tools/workflowTools.ts` (~:221), add the rule to the `workflow_check` "Detects:" string.
+- [x] Tests in a new `packages/core/tests/introspection/ConsistencyChecker.pendingDecision.test.ts`, with fixtures set up like `ConsistencyChecker.reviewGate.test.ts`:
+  - [x] An in-progress slice with two pending lines gives exactly one `warning` that names both decisions. Its error count is zero, so `cf check` does not fail.
+  - [x] There is no finding for a complete slice, for a slice with nothing pending, or with the gate disabled.
+  - [x] One unreadable design and one pending design give an `error` for the first and a `warning` for the second.
+  - [x] Success: `pnpm --filter @context-forge/core test -- ConsistencyChecker` and `pnpm --filter @context-forge/mcp test` pass.
+- [x] Commit: `feat(core): add pending-decision consistency check`
 - **Effort:** 2/5
+
+Note: Three existing ConsistencyChecker tests (duplicateIndex, reviewGate, reviewGateWidened) each got one line adding `'workflow.decision_gate_enabled': false` to their stub config constants, because `makeStubConfig` throws on unknown keys. No assertions changed.
 
 ---
 
 ## Task 8: Documentation
 
-- [ ] `README.md` config table (near :385): add `workflow.decision_gate_enabled | shared | Block design validation and cf next on pending PM decisions (on by default).`
-- [ ] `docs/REVIEW-GATING.md`: add a short **Decision Gate** section after "Workflow States" (~:84). It covers:
-  - [ ] the status-line form, quoted inside a fence, the pending words, and the fact that other values are ignored;
-  - [ ] the key, its default `true`, and that it is independent of `review_enabled`, `review: none`, and the effective date;
-  - [ ] the `pending-decision` status: it fires in Phase 5 and 6, not on complete slices, and takes precedence over review gates;
-  - [ ] that `cf check` / `workflow_check` only warns and **does not block** (D8);
-  - [ ] the Squadron contract: `cf validate design --json` (`files[].pending`, `decisionGateEnabled`), `cf next --json` (`pendingDecisions`), `cf status --json` (`activeSlice.status`). Consumers key on field names, never on `recommendation` text, and `pendingDecisions` is the one additive field on `NextAction`.
-- [ ] Add a `pending-decision` bullet to "Workflow States" and to "`cf check` Findings", each linking to the new section.
-  - [ ] Success: every key, field, and status string in the docs matches the code. Cross-check with `grep -rn "decision_gate_enabled\|pendingDecisions\|pending-decision" packages/*/src`.
-- [ ] Commit: `docs: document the pending decision gate`
+- [x] `README.md` config table (near :385): add `workflow.decision_gate_enabled | shared | Block design validation and cf next on pending PM decisions (on by default).`
+- [x] `docs/REVIEW-GATING.md`: add a short **Decision Gate** section after "Workflow States" (~:84). It covers:
+  - [x] the status-line form, quoted inside a fence, the pending words, and the fact that other values are ignored;
+  - [x] the key, its default `true`, and that it is independent of `review_enabled`, `review: none`, and the effective date;
+  - [x] the `pending-decision` status: it fires in Phase 5 and 6, not on complete slices, and takes precedence over review gates;
+  - [x] that `cf check` / `workflow_check` only warns and **does not block** (D8);
+  - [x] the Squadron contract: `cf validate design --json` (`files[].pending`, `decisionGateEnabled`), `cf next --json` (`pendingDecisions`), `cf status --json` (`activeSlice.status`). Consumers key on field names, never on `recommendation` text, and `pendingDecisions` is the one additive field on `NextAction`.
+- [x] Add a `pending-decision` bullet to "Workflow States" and to "`cf check` Findings", each linking to the new section.
+  - [x] Success: every key, field, and status string in the docs matches the code. Cross-check with `grep -rn "decision_gate_enabled\|pendingDecisions\|pending-decision" packages/*/src`.
+- [x] Commit: `docs: document the pending decision gate`
 - **Effort:** 1/5
 
 ---
 
 ## Task 9: CI check and walkthrough
 
-- [ ] Run the CI sequence from `.github/workflows/ci.yml`, in its order: `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Every step passes.
-- [ ] Run the design's **Verification Walkthrough** steps 1–9 with `node packages/cli/dist/index.js`:
-  - [ ] Use `/tmp/pd.md` for steps 1–4.
-  - [ ] For steps 5–9, put a temporary pending line in the 245 design, then revert it.
-  - [ ] Finish with `cf config unset workflow.decision_gate_enabled`.
-  - [ ] Success: every step gives the expected output, and `git status` shows no stray config or design edits.
+- [x] Run the CI sequence from `.github/workflows/ci.yml`, in its order: `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Every step passes.
+- [x] Run the design's **Verification Walkthrough** steps 1–9 with `node packages/cli/dist/index.js`:
+  - [x] Use a scratch copy of a passing design (`pd.md`) for steps 1–4. It was kept in the session scratchpad rather than `/tmp`.
+  - [x] For steps 5–9, put a temporary pending line in the 245 design, then revert it.
+  - [x] Finish with `cf config unset workflow.decision_gate_enabled`.
+  - [x] Success: every step gives the expected output, and `git status` shows no stray config or design edits.
 - [ ] Commit any corrections with the matching semantic prefix. If there is nothing to commit, note that in the task-checker update.
 - **Effort:** 1/5

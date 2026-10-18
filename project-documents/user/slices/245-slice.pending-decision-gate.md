@@ -7,7 +7,7 @@ dependencies: [241, 242]
 interfaces: []
 dateCreated: 20261017
 dateUpdated: 20261017
-status: not_started
+status: complete
 ---
 
 # Slice Design: Pending Decision Gate
@@ -320,6 +320,17 @@ Run from a scratch project (or context-forge itself), using the local build: `no
 7. **`cf check`.** `cf check` lists a `pending-decision` warning for that slice.
 8. **Resolve.** Set the line to `decided`. `cf next` returns the normal recommendation (task breakdown or continue implementation).
 9. **Switch off.** `cf config set workflow.decision_gate_enabled false`, then restore the pending line. `cf validate design` PASSes, `cf next` is unaffected, and `cf check` shows no `pending-decision` finding. `cf config unset workflow.decision_gate_enabled` restores the default.
+
+**Verified 20261017** against the local build, with these specifics and caveats:
+
+- Steps 1–4 ran on a copy of `214-slice.native-slice-design-validation.md` with the `### D9 — Example` block appended. Step 1 printed `FAIL <path>` then `  pending-pm: D9 — Example (line 265)` and exited 1. The line number is the status line's position in the copy, so it differs for any other file. Step 2's five variants (`**Status:** pending-pm`, `- Status: pending-pm`, `status: Pending PM`, `Status: pending-pm.`, `Status: TBD`) each printed `FAIL`, and `Status: decided` printed `PASS` with exit 0. Step 4 printed `decisionGateEnabled: true` and `files[0].pending == [{heading: "D9 — Example", line: 265}]`.
+- Steps 5–9 ran in this repo (active slice 245) with a temporary `### D99 — Temp` / `Status: pending-pm` block appended to this design, then `git checkout` of the design afterwards.
+  - Step 5 needs no task file. Temporarily move `user/tasks/245-tasks.*.md` aside, run, and move it back. `cf next --json` gave `recommendation: "Blocked: design has pending PM decisions"` and `pendingDecisions: [{heading: "D99 — Temp", line: 341}]`. `cf status` showed `Status:   pending-decision`.
+  - Step 6 ran with the real, partly checked task file: the same block, plus `Run: cf set phase 'Phase 4: Slice Design'` because the project phase was 6.
+  - Step 7: `cf check` printed `⚠ [245] Slice 245 design has 1 decision pending PM confirmation: D99 — Temp (line 341)`.
+  - Step 8: after setting the line to `decided`, `cf next` returned `Continue implementation — 17 tasks remaining` (the count depends on task progress at the time).
+  - Step 9: with the key set to `false`, `cf next` was unaffected and `cf check` printed no `pending-decision` finding. `cf config unset` restored the default.
+- The `cf config set/unset` calls write the project's shared config. Run them from the project root and confirm `git status` is clean afterwards.
 
 ## Implementation Notes
 

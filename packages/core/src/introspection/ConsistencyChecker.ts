@@ -592,7 +592,6 @@ export class ConsistencyChecker {
     return findings;
   }
 
-  /** Rule: slice marked complete in the plan but its code review is absent or failing. */
   /**
    * Rule: slice design has decisions still pending PM confirmation. Reported only (warning);
    * the navigator, not the checker, blocks. No config means the gate is off.
@@ -630,6 +629,7 @@ export class ConsistencyChecker {
     }
   }
 
+  /** Rule: slice marked complete in the plan but its code review is absent or failing. */
   /**
    * Wraps a single evaluateReviewGate() call so a throw (e.g. malformed review-gate
    * frontmatter) degrades to one error-severity finding instead of aborting the whole

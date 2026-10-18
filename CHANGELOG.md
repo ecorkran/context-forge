@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pending PM decisions block a slice design.** A slice design whose decision status line says `pending-pm` (or `tbd`, `undecided`, `open`, `pending`) now fails `cf validate design`, which names each decision and its line. `cf next` and `cf status` report a new `pending-decision` status for the slice and the MCP `workflow_next` / `workflow_status` tools do the same, with the decisions listed under `pendingDecisions` in `--json`. `cf check` adds a `pending-decision` warning. It is on by default and designs with no status lines are unaffected; set `workflow.decision_gate_enabled` to `false` to turn it off everywhere (#121)
+
 ## [0.19.13] - 20261016
 
 ### Changed
