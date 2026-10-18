@@ -12,7 +12,7 @@ projectState: 'Initiative 240 review gating is merged (241 navigator gate in der
   Nothing in Context Forge reads that line yet (issue #121).'
 dateCreated: 20261017
 dateUpdated: '20261018'
-status: not_started
+status: in_progress
 turns: 37
 promptTokens: 2048901
 cachedTokens: 1946403
@@ -54,50 +54,50 @@ revision_number: 2
 
 ## Task 0: Pre-flight
 
-- [ ] Read the target: `node packages/cli/dist/index.js config get git.integration_branch`. Empty means the target is `main`.
-- [ ] Confirm a clean working tree (`git status --short`).
-- [ ] Create the slice branch from the target: `git checkout -b 245-slice.pending-decision-gate {target}`. If the branch already exists, switch to it instead.
-- [ ] Run `pnpm -r build` and `pnpm --filter @context-forge/core test` once, to record a green baseline.
-  - [ ] Success: you are on `245-slice.pending-decision-gate` and the baseline build and tests pass. If the baseline fails, stop and report it. Do not fix unrelated failures in this slice.
+- [x] Read the target: `node packages/cli/dist/index.js config get git.integration_branch`. Empty means the target is `main`.
+- [x] Confirm a clean working tree (`git status --short`).
+- [x] Create the slice branch from the target: `git checkout -b 245-slice.pending-decision-gate {target}`. If the branch already exists, switch to it instead.
+- [x] Run `pnpm -r build` and `pnpm --filter @context-forge/core test` once, to record a green baseline.
+  - [x] Success: you are on `245-slice.pending-decision-gate` and the baseline build and tests pass. If the baseline fails, stop and report it. Do not fix unrelated failures in this slice.
 - **Effort:** 1/5
 
 ---
 
 ## Task 1: Extract the fence helpers into `markdownLines.ts` (D6)
 
-- [ ] Create `packages/core/src/schema/markdownLines.ts`. Move `OpenFence`, `openingFence`, `closesFence`, and `splitLines` from `sliceDesignValidator.ts` into it **unchanged**, and export all four.
-- [ ] In `sliceDesignValidator.ts`, delete the moved definitions and import them from `./markdownLines.js`.
-- [ ] Add a short header comment to `markdownLines.ts`: "CommonMark fence and line helpers shared by the heading validator and the pending-decision parser."
-- [ ] Do not export the helpers from the package entry points (`node.ts` / `index.ts`). They are internal to `schema/`.
-  - [ ] Success: `sliceDesignValidator.test.ts` and `sliceDesignFiles.test.ts` pass **without modification**. That is the behavior-preservation check.
-  - [ ] Success: `pnpm typecheck` and `pnpm lint` pass, and `grep -n "function openingFence" packages/core/src/schema/*.ts` matches only `markdownLines.ts`.
-- [ ] Commit: `refactor(core): extract fence helpers into markdownLines`
+- [x] Create `packages/core/src/schema/markdownLines.ts`. Move `OpenFence`, `openingFence`, `closesFence`, and `splitLines` from `sliceDesignValidator.ts` into it **unchanged**, and export all four.
+- [x] In `sliceDesignValidator.ts`, delete the moved definitions and import them from `./markdownLines.js`.
+- [x] Add a short header comment to `markdownLines.ts`: "CommonMark fence and line helpers shared by the heading validator and the pending-decision parser."
+- [x] Do not export the helpers from the package entry points (`node.ts` / `index.ts`). They are internal to `schema/`.
+  - [x] Success: `sliceDesignValidator.test.ts` and `sliceDesignFiles.test.ts` pass **without modification**. That is the behavior-preservation check.
+  - [x] Success: `pnpm typecheck` and `pnpm lint` pass, and `grep -n "function openingFence" packages/core/src/schema/*.ts` matches only `markdownLines.ts`.
+- [x] Commit: `refactor(core): extract fence helpers into markdownLines`
 - **Effort:** 1/5
 
 ---
 
 ## Task 2: Pure parser `pendingDecisions.ts`, with tests (D1, D2)
 
-- [ ] Create `packages/core/src/schema/pendingDecisions.ts`. It is pure: no Node imports and no config. Export:
-  - [ ] `interface PendingDecision { heading: string; line: number }`. This is the only definition of the type. Every other module imports it from here.
-  - [ ] `findPendingDecisions(text: string): PendingDecision[]`.
-- [ ] Hold the pending words (`pending-pm`, `pending_pm`, `pending`, `tbd`, `undecided`, `open`) in one module constant, and the `(no heading)` placeholder in another.
-- [ ] Implement D1 and D2 with the `markdownLines.ts` helpers:
-  - [ ] Skip the frontmatter block and fenced lines.
-  - [ ] Strip blockquote markers.
-  - [ ] Match the anchored, case-insensitive label.
-  - [ ] Take the first `[A-Za-z0-9_-]` token, lowercased.
-  - [ ] Report the nearest heading outside a fence and the 1-based line number.
-  - [ ] Do not skip indented code blocks.
-- [ ] Tests in `packages/core/tests/schema/pendingDecisions.test.ts`:
-  - [ ] Cover the block and no-block fixtures listed in the design's **Technical Requirements**, the label forms in D1, and the blockquote and indented-block pins in D1.
-  - [ ] Pin the pending-word list with one `it.each`, plus a comment saying that changing the list is deliberate.
-  - [ ] Frontmatter values: run `it.each` over the exported `VALID_STATUSES`, not a typed list.
-  - [ ] Attribution: separate headings, duplicate headings told apart by line, `(no heading)`, and a fenced heading that is not used.
-  - [ ] An amoeba 108-style fixture where only `### D7 — …` is pending.
-  - [ ] The installed template (`SLICE_DESIGN_TEMPLATE_RELATIVE_PATH`) and this slice's design both give zero pending. A missing template fails the test; it does not skip.
-  - [ ] Success: `pnpm --filter @context-forge/core test -- pendingDecisions` passes.
-- [ ] Commit: `feat(core): add pending-decision parser`
+- [x] Create `packages/core/src/schema/pendingDecisions.ts`. It is pure: no Node imports and no config. Export:
+  - [x] `interface PendingDecision { heading: string; line: number }`. This is the only definition of the type. Every other module imports it from here.
+  - [x] `findPendingDecisions(text: string): PendingDecision[]`.
+- [x] Hold the pending words (`pending-pm`, `pending_pm`, `pending`, `tbd`, `undecided`, `open`) in one module constant, and the `(no heading)` placeholder in another.
+- [x] Implement D1 and D2 with the `markdownLines.ts` helpers:
+  - [x] Skip the frontmatter block and fenced lines.
+  - [x] Strip blockquote markers.
+  - [x] Match the anchored, case-insensitive label.
+  - [x] Take the first `[A-Za-z0-9_-]` token, lowercased.
+  - [x] Report the nearest heading outside a fence and the 1-based line number.
+  - [x] Do not skip indented code blocks.
+- [x] Tests in `packages/core/tests/schema/pendingDecisions.test.ts`:
+  - [x] Cover the block and no-block fixtures listed in the design's **Technical Requirements**, the label forms in D1, and the blockquote and indented-block pins in D1.
+  - [x] Pin the pending-word list with one `it.each`, plus a comment saying that changing the list is deliberate.
+  - [x] Frontmatter values: run `it.each` over the exported `VALID_STATUSES`, not a typed list.
+  - [x] Attribution: separate headings, duplicate headings told apart by line, `(no heading)`, and a fenced heading that is not used.
+  - [x] An amoeba 108-style fixture where only `### D7 — …` is pending.
+  - [x] The installed template (`SLICE_DESIGN_TEMPLATE_RELATIVE_PATH`) and this slice's design both give zero pending. A missing template fails the test; it does not skip.
+  - [x] Success: `pnpm --filter @context-forge/core test -- pendingDecisions` passes.
+- [x] Commit: `feat(core): add pending-decision parser`
 - **Effort:** 2/5
 
 ---

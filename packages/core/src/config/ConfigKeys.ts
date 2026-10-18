@@ -74,6 +74,13 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     description: 'Enable review gating in the workflow navigator (off by default; no behavior change when false)',
     scope: ConfigScope.Shared,
   },
+  'workflow.decision_gate_enabled': {
+    type: 'boolean',
+    default: true,
+    description:
+      'When true, a pending PM decision in a slice design fails `cf validate design` and blocks `cf next` from Phase 5 and 6. When false, the parser never runs.',
+    scope: ConfigScope.Shared,
+  },
   'workflow.review_threshold': {
     type: 'string',
     default: 'concerns',

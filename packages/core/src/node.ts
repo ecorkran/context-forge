@@ -36,6 +36,9 @@ export {
   type DesignValidationResult,
 } from './schema/sliceDesignFiles.js';
 
+export { findPendingDecisions, type PendingDecision } from './schema/pendingDecisions.js';
+export { isDecisionGateEnabled, readPendingDecisions } from './schema/decisionGate.js';
+
 // Introspection — artifact parsing and document detection (fs dependent)
 export { ArtifactIntrospector, resolveInitiativePlanPath } from './introspection/ArtifactIntrospector.js';
 export { WorkflowNavigator, extractSliceIndex } from './introspection/WorkflowNavigator.js';

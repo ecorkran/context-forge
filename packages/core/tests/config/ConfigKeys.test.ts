@@ -18,6 +18,15 @@ describe('CONFIG_KEYS', () => {
   });
 });
 
+describe('workflow.decision_gate_enabled', () => {
+  it('is a shared boolean defaulting to true', () => {
+    const def = CONFIG_KEYS['workflow.decision_gate_enabled'];
+    expect(def.type).toBe('boolean');
+    expect(def.scope).toBe('shared');
+    expect(def.default).toBe(true);
+  });
+});
+
 describe('parseRulesExclude', () => {
   it('splits on commas and gives [] for an empty value', () => {
     expect(parseRulesExclude('')).toEqual([]);
