@@ -9,6 +9,12 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ## 2026-10-18
 
+### Release 0.19.15
+
+- **Contents:** fix: `cf next` in Phase 0 now finds a `000-concept.*.md` on disk when `fileConcept` is unset, instead of asking for a concept that already exists
+
+Tags: @context-forge/core@0.19.15, @context-forge/cli@0.19.15, @context-forge/mcp@0.19.15, @context-forge/context-forge@0.19.15
+
 ### Release 0.19.14
 
 - **Contents:** slice 245 pending-decision gate (#121): `cf validate design`, `cf next`/`cf status`, and `cf check` block or warn on designs with pending PM decisions, behind `workflow.decision_gate_enabled`; project guide updated to v0.21.6

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.15] - 20261018
+
 ### Fixed
 
 - **`cf next` no longer asks for a concept that already exists.** In Phase 0 it only recognised a concept registered in the project's `fileConcept` field, which nothing sets automatically, so a `000-concept.*.md` already in `project-guides/` still got "describe what you want to build". It now finds the concept file on disk, the same way it finds the initiative plan, and advises advancing to Phase 1.
