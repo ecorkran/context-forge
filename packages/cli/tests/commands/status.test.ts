@@ -87,6 +87,39 @@ describe('cf status', () => {
     expect(output).toContain('3/5 tasks');
   });
 
+  describe('pending-decision slice', () => {
+    const pendingStatus = {
+      ...sampleStatus,
+      activeSlice: {
+        name: 'auth',
+        index: 100,
+        status: 'pending-decision',
+        pendingDecisions: [{ heading: 'D1 — First', line: 12 }],
+      },
+    };
+
+    it('shows the pending-decision status', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetStatus.mockResolvedValue(pendingStatus);
+
+      await createProgram().parseAsync(['node', 'cf', 'status', '--project', 'proj_001']);
+
+      const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+      expect(output).toContain('pending-decision');
+    });
+
+    it('--json carries the status and the decisions', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetStatus.mockResolvedValue(pendingStatus);
+
+      await createProgram().parseAsync(['node', 'cf', 'status', '--project', 'proj_001', '--json']);
+
+      const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+      expect(parsed.activeSlice.status).toBe('pending-decision');
+      expect(parsed.activeSlice.pendingDecisions).toEqual([{ heading: 'D1 — First', line: 12 }]);
+    });
+  });
+
   it('outputs valid JSON with --json flag', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockGetStatus.mockResolvedValue(sampleStatus);

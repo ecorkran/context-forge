@@ -106,6 +106,54 @@ describe('cf next', () => {
     expect(parsed.slice).toBe('100-slice.auth');
   });
 
+  describe('pending decisions', () => {
+    const pendingAction = {
+      recommendation: 'Blocked: design has pending PM decisions',
+      rationale: 'Slice 100 design has 2 decisions pending PM confirmation.',
+      slice: '100-slice.auth',
+      summary: 'Blocked — slice 100 has 2 pending PM decisions',
+      pendingDecisions: [
+        { heading: 'D1 — First', line: 12 },
+        { heading: 'D2 — Second', line: 40 },
+      ],
+    };
+
+    it('lists each decision under the rationale', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue(pendingAction);
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001']);
+
+      const lines = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+      expect(lines.some((l) => l.includes('  - D1 — First (line 12)'))).toBe(true);
+      expect(lines.some((l) => l.includes('  - D2 — Second (line 40)'))).toBe(true);
+    });
+
+    it('--json includes pendingDecisions', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue(pendingAction);
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001', '--json']);
+
+      const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+      expect(parsed.pendingDecisions).toEqual(pendingAction.pendingDecisions);
+    });
+
+    it('prints no decision lines when nothing is pending', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue({
+        recommendation: 'Continue implementation — 2 tasks remaining',
+        rationale: 'In progress.',
+        summary: 'Continue',
+      });
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001']);
+
+      const lines = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+      expect(lines.some((l) => l.includes('(line '))).toBe(false);
+    });
+  });
+
   it('constructs ConfigManager at project path and passes it to WorkflowNavigator, surfacing a blocked recommendation end-to-end', async () => {
     mockGetById.mockResolvedValue(sampleProject);
     mockGetNext.mockResolvedValue({

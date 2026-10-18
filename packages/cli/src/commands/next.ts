@@ -49,6 +49,9 @@ export function registerNextCommand(program: Command): void {
           console.log(label('Phase:     ') + valueStyle(result.phase));
         }
         console.log(label('Rationale: ') + dim(result.rationale));
+        for (const decision of result.pendingDecisions ?? []) {
+          console.log(dim(`  - ${decision.heading} (line ${decision.line})`));
+        }
         if (result.suggestedCommand) {
           console.log(label('Run:       ') + valueStyle(result.suggestedCommand));
         }

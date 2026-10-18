@@ -306,6 +306,27 @@ describe('workflow_status', () => {
     expect(parsed.summary).toContain('slice 100');
   });
 
+  it('passes a pending-decision slice and its decisions through', async () => {
+    const decisions = [{ heading: 'D1 — First', line: 12 }];
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetStatus.mockResolvedValue({
+      project: 'test-project',
+      phase: 'Phase 4: Slice Design',
+      activeSlice: { name: 'test-feature', index: 100, status: 'pending-decision', pendingDecisions: decisions },
+      slicePlan: null,
+      summary: 'test-project — slice 100 pending-decision',
+    });
+
+    const result = await client.callTool({
+      name: 'workflow_status',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    const parsed = parseResult(result) as { activeSlice: { status: string; pendingDecisions: unknown } };
+    expect(parsed.activeSlice.status).toBe('pending-decision');
+    expect(parsed.activeSlice.pendingDecisions).toEqual(decisions);
+  });
+
   it('returns error for missing project', async () => {
     mockGetById.mockResolvedValue(undefined);
 
@@ -354,6 +375,24 @@ describe('workflow_next', () => {
     const parsed = parseResult(result) as typeof mockNext;
     expect(parsed.recommendation).toContain('Continue implementation');
     expect(parsed.summary).toContain('slice 100');
+  });
+
+  it('includes pendingDecisions when the design has pending PM decisions', async () => {
+    const decisions = [{ heading: 'D1 — First', line: 12 }];
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetNext.mockResolvedValue({
+      recommendation: 'Blocked: design has pending PM decisions',
+      rationale: 'Slice 100 design has 1 decision pending PM confirmation.',
+      summary: 'Blocked — slice 100 has 1 pending PM decision',
+      pendingDecisions: decisions,
+    });
+
+    const result = await client.callTool({
+      name: 'workflow_next',
+      arguments: { projectId: MOCK_PROJECT.id },
+    });
+
+    expect((parseResult(result) as { pendingDecisions: unknown }).pendingDecisions).toEqual(decisions);
   });
 
   it('constructs WorkflowNavigator with a ConfigManager for the project path (review gating needs it)', async () => {
