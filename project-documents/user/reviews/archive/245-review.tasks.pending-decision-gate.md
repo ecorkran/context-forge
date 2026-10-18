@@ -14,16 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261017
 dateUpdated: 20261017
-reviewedSha: a5532ef74d49b626bc568769ab0a3b4ac92261aa
+reviewedSha: f91bcdf6d58c164bb810c0011f3866bd0f5aa444
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 2
-turns: 3
-promptTokens: 97439
-cachedTokens: 8724
-cacheWriteTokens: 88711
-completionTokens: 4517
-durationSeconds: 38.4
-costUsd: 0.401606
+toolCallsMade: 3
+turns: 4
+promptTokens: 174538
+cachedTokens: 89256
+cacheWriteTokens: 85276
+completionTokens: 2617
+durationSeconds: 22.8
+costUsd: 0.376925
 costBasis: provider
 runId: run-20261018-p5-f1858748
 squadronVersion: 0.23.1
@@ -31,38 +32,38 @@ findings:
   - id: F001
     severity: pass
     category: coverage
-    summary: "Success criteria coverage is complete"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:79-318"
+    summary: "Success-criteria coverage is complete"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md"
   - id: F002
     severity: concern
-    category: coverage
-    summary: "No automated check that `cf status` and the MCP tools surface the new status and payload"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:47,233"
+    category: sequencing
+    summary: "Tasks 2, 5 and 7 have no commit and sit apart from their test tasks"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:79-97"
   - id: F003
     severity: concern
-    category: sequencing
-    summary: "The Task 6 temporary hard-coded `true` leaves a committed transitional state"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:159,172"
+    category: proportionality
+    summary: "Task 3 over-specifies the parser test matrix"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:99-123"
   - id: F004
     severity: concern
-    category: proportionality
-    summary: "Task count and step detail are heavy for an effort-2/5 slice"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:127-148,152-197"
+    category: scope
+    summary: "Task 7 is dense and its `deriveSliceStatus()` restructuring is under-specified"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:177-190"
   - id: F005
     severity: concern
-    category: prompt-hygiene
-    summary: "Task 3 puts example frontmatter values next to a lookup instruction"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:105"
+    category: proportionality
+    summary: "Task 12 duplicates verification and lacks an explicit CI check"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:256-266"
   - id: F006
     severity: note
-    category: architecture
-    summary: "Task 13 puts consistency-finding construction in a `schema/` module"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:265-270"
+    category: accuracy
+    summary: "Verified code anchors"
+    location: "packages/core/src/schema/frontmatterSchema.ts:32"
   - id: F007
     severity: note
-    category: clarity
-    summary: "Stray context line"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:51"
+    category: granularity
+    summary: "Task 0 pre-flight is lightweight but appropriate"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:55-62"
 ---
 
 # Review: tasks — slice 245
@@ -72,48 +73,64 @@ findings:
 
 ## Findings
 
-### [PASS] Success criteria coverage is complete
+### [PASS] Success-criteria coverage is complete
 
-Each functional and technical requirement traces to a task:
-- Parser grammar, attribution and fixtures are in Tasks 2–3. These include the real template, the amoeba layout fixture, and this design as a fixture.
-- `cf validate design` output and JSON are in Tasks 6–9, including the disabled-gate case.
-- Navigator zero, partial and complete positions, review-gate precedence, and no-config behaviour are in Tasks 10–11.
-- The `cf check` warning, per-slice error isolation, and complete slices being skipped are in Tasks 13–14.
-- Docs and the Squadron contract are in Task 15.
-- The walkthrough and the self-validation of this design are in Task 16.
-- The fence-helper move is checked by the unchanged `sliceDesignValidator` tests in Task 1.
+Every Functional and Technical Requirement in the slice traces to a task:
+- **Parser (D1/D2):** Tasks 2 and 3.
+- **`cf validate design` PASS/FAIL, JSON, and the no-status-line case:** Tasks 5 and 6.
+- **`cf next` at no task file, zero progress, partial progress, and all checked:** Tasks 7 and 8.
+- **Review-gate precedence:** Task 8.
+- **`cf status` and the MCP tools:** Task 9.
+- **`cf check` warning:** Task 10.
+- **Gate off:** Tasks 6, 8, and 10.
+- **Docs and the D8 non-blocking statement:** Task 11.
+- **Template and self-design fixtures, and the D6 behavior-preservation check:** Tasks 1 and 3.
+- **Verification Walkthrough:** Task 12.
 
-No task falls outside the slice scope. No merge task is written, which follows the Phase 7 rule. Commits are spread through the file. There is no NFR, so no load-test or CI-wiring task is needed.
+I found no scope creep.
 
-### [CONCERN] No automated check that `cf status` and the MCP tools surface the new status and payload
+### [CONCERN] Tasks 2, 5 and 7 have no commit and sit apart from their test tasks
 
-The slice requires that `cf status` shows `Status: pending-decision` and that `--json` includes `pendingDecisions`. The task file asserts `status.ts` needs no change (line 47). Task 11 tests only the core `getStatus()` result (line 233). No CLI `status` test and no MCP `workflow_next` or `workflow_status` test checks that the field survives serialization. Only the manual walkthrough in Task 16 covers it. Add one assertion to the existing `status` CLI test. Alternatively, state explicitly that serialization is covered by the walkthrough only.
+Tasks 2, 5 and 7 are implementation tasks with no commit step of their own. Their tests and commits come in Tasks 3, 6 and 8. This follows the test-with pattern. But `git add`/commit "at least once per task" is the project rule, and Task 5 touches core and CLI together with no checkpoint until Task 6.
+- **Fix:** keep the code and tests in one commit as the file already does, but state it. Merge each pair into one task ("Task 2+3"), or add an explicit note that the commit is deferred to the paired test task.
+- **Task 7 detail:** Task 7's own success criterion ("existing navigator tests pass unchanged") is the only gate before the new behavior is tested. This is fine only if the pair is treated as one unit.
 
-### [CONCERN] The Task 6 temporary hard-coded `true` leaves a committed transitional state
+### [CONCERN] Task 3 over-specifies the parser test matrix
 
-Task 6 makes the CLI pass `{ decisionGateEnabled: true }` with a `TODO(245 Task 8)` comment. Task 7 then commits this on its own, so the commit ignores the config key. That is the silent hard-coded default the project rules prohibit, and it is only temporary. Move the CLI plumbing so it lands before the first commit that touches `validateSliceDesignFiles` callers. Alternatively, merge Tasks 6–9 into one implementation task followed by one test task. That removes the TODO round-trip.
+Task 3 enumerates roughly 40 parser cases. The slice's Technical Requirements already require most of them.
+- **Duplicated cases:** The "Label forms" and "Values that block" lists each repeat forms the slice names. The separate "Pending-word list pin" `it.each` duplicates the six words already tested individually in "Values that block" (`pending_pm`, `TBD`, `undecided`, `open`, and the rest).
+- **Suggested cut:** Fold the pin into a single `it.each` over the pending constant's words, as the slice's pin fixture intends. Drop the individual word cases from the "Values that block" list.
+- **Splitting:** The task also bundles fixtures, skips, edge cases, attribution, the amoeba fixture, the real template and the self-design fixture. If it stays together, state that these are `it.each` tables so the junior executor does not write 40 separate tests.
 
-### [CONCERN] Task count and step detail are heavy for an effort-2/5 slice
+### [CONCERN] Task 7 is dense and its `deriveSliceStatus()` restructuring is under-specified
 
-The file has 17 tasks, and several are 1/5 implementation or test halves: Tasks 4/5, 6/7, 8/9, and 12. Merge each small implementation and test pair into one task with a single commit. That keeps the test-with pattern and cuts roughly four tasks. Task 10 also dictates internal structure that the slice does not require. Examples are the helper name, the "restructure order only as far as needed" guidance, and the "~40 lines, else move to decisionGate.ts" rule (lines 210-224). Trim these to the behavioural requirements from D4 and D5. Task 3 enumerates each label and value form as separate bullets (lines 102-105). Collapsing them into the `it.each` tables the task already mentions would keep the same coverage with less text.
+Task 7 combines three changes:
+- the type changes;
+- a re-ordering of `deriveSliceStatus()` ("restructure the existing order only as far as that requires");
+- the new `getNext()` branch with its rationale, summary and constant strings.
 
-### [CONCERN] Task 3 puts example frontmatter values next to a lookup instruction
+The restructuring is the riskiest part. A junior executor gets no concrete guidance on which existing early returns the decision check must precede, or how `gateExempt` and `complete` interact. The slice's D4 lists the positions (`needs-tasks`, review-gate statuses, `in-implementation`), but the task does not map them to code.
+- **Fix:** split Task 7 into 7a (types plus `deriveSliceStatus`) and 7b (`getNext()` branch). Or add a sentence naming the return points the check goes before, and what stays unchanged for the `complete` case.
 
-The instruction says to use "each frontmatter status value (`not_started`, `in_progress`, `complete`, and any others listed in `packages/core/src/schema/frontmatterSchema.ts`)". The project's hallucination-trap rule says not to place hard-coded example values beside a value the implementer must retrieve from a source. Rewrite it as: derive the values from the exported frontmatter status vocabulary in `frontmatterSchema.ts`, and fail if that list cannot be found. Do not list examples.
+### [CONCERN] Task 12 duplicates verification and lacks an explicit CI check
 
-### [NOTE] Task 13 puts consistency-finding construction in a `schema/` module
+The slice states no NFRs, so no load test is needed, and this is not a finding.
+- **Redundant verification:** Task 12 re-runs `pnpm test`, build, lint and typecheck, which the earlier tasks already run per-package. The walkthrough is valuable because it is the only end-to-end check of the CLI and MCP surfaces, but the full-suite duplication is mostly redundant. It is acceptable as a final gate.
+- **Walkthrough mutates the tracked design:** Steps 5–9 temporarily edit the 245 design file, which is tracked. A crash mid-walkthrough would leave a pending line in a tracked file that Task 3's self-design fixture asserts is clean. Use a copy in a scratch project, as the slice's Walkthrough preamble itself suggests ("a scratch project (or context-forge itself)").
 
-`pendingDecisionFindings` lives in `schema/decisionGate.ts` but returns introspection finding types. That creates a schema-to-introspection dependency while introspection already imports from schema. The slice design mandates `decisionGate.ts` as the single call target, so this is acceptable. Check that no import cycle appears when Task 13 is built.
+### [NOTE] Verified code anchors
 
-### [NOTE] Stray context line
+Both `VALID_STATUSES` (frontmatterSchema.ts:32) and `SLICE_DESIGN_TEMPLATE_RELATIVE_PATH` (guides/types.ts:315) exist as the task file cites. I did not verify the other line-number anchors in the Context Summary.
 
-"The next planned slice comes from the 240 slice plan. Slice 245 is the last listed entry." has no use in any task. Remove it, or state what it is for.
+### [NOTE] Task 0 pre-flight is lightweight but appropriate
+
+Task 0 has no commit and is small, but it handles branch creation and the baseline, so keeping it separate is reasonable.
 
 ### Run Digest
 
-- Response length: 5172 chars
+- Response length: 5558 chars
 - Response is newline-free: no
-- Tool calls made: 2
+- Tool calls made: 3
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -121,10 +138,10 @@ The instruction says to use "each frontmatter status value (`not_started`, `in_p
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 97439 / 8724 / 88711 / 4517 / not computed
-- Duration: 38.4 s
-- Cost: $0.40 (provider)
+- Turns: 4
+- Tokens — prompt / cached / cache write / completion / reasoning: 174538 / 89256 / 85276 / 2617 / not computed
+- Duration: 22.8 s
+- Cost: $0.38 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
 - Finding-shaped matches — whole response: 7

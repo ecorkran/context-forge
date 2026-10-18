@@ -6,7 +6,7 @@ slice: pending-decision-gate
 conventionsSource: AGENTS.md
 projectRules: []
 project: context-forge
-verdict: CONCERNS
+verdict: PASS
 verdictSource: stated
 sourceDocument: project-documents/user/tasks/245-tasks.pending-decision-gate.md
 aiModel: claude-sonnet-5-5
@@ -14,17 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261017
 dateUpdated: 20261017
-reviewedSha: f91bcdf6d58c164bb810c0011f3866bd0f5aa444
-revision_number: 1
+reviewedSha: 598853a8bf75f2ba7b1e6c7713ff6e2f447df89e
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 3
 turns: 4
-promptTokens: 174538
-cachedTokens: 89256
-cacheWriteTokens: 85276
-completionTokens: 2617
-durationSeconds: 22.8
-costUsd: 0.376925
+promptTokens: 174631
+cachedTokens: 87805
+cacheWriteTokens: 86820
+completionTokens: 3753
+durationSeconds: 29.6
+costUsd: 0.394316
 costBasis: provider
 runId: run-20261018-p5-f1858748
 squadronVersion: 0.23.1
@@ -32,103 +32,82 @@ findings:
   - id: F001
     severity: pass
     category: coverage
-    summary: "Success-criteria coverage is complete"
+    summary: "Success criteria trace to tasks"
     location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md"
   - id: F002
-    severity: concern
+    severity: pass
     category: sequencing
-    summary: "Tasks 2, 5 and 7 have no commit and sit apart from their test tasks"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:79-97"
+    summary: "Sequencing and commit distribution"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md"
   - id: F003
-    severity: concern
-    category: proportionality
-    summary: "Task 3 over-specifies the parser test matrix"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:99-123"
-  - id: F004
-    severity: concern
+    severity: note
     category: scope
-    summary: "Task 7 is dense and its `deriveSliceStatus()` restructuring is under-specified"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:177-190"
+    summary: "Task 5 is the heaviest task and its steps are prescriptive"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md (Task 5)"
+  - id: F004
+    severity: note
+    category: testing
+    summary: "The docType short-circuit rule in Task 4 has no test"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md (Task 4)"
   - id: F005
-    severity: concern
-    category: proportionality
-    summary: "Task 12 duplicates verification and lacks an explicit CI check"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:256-266"
+    severity: note
+    category: risk
+    summary: "Task 9 edits the slice's own design file for the walkthrough"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md (Task 9)"
   - id: F006
     severity: note
-    category: accuracy
-    summary: "Verified code anchors"
-    location: "packages/core/src/schema/frontmatterSchema.ts:32"
-  - id: F007
-    severity: note
-    category: granularity
-    summary: "Task 0 pre-flight is lightweight but appropriate"
-    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md:55-62"
+    category: proportionality
+    summary: "Task 6 tests across three surfaces"
+    location: "project-documents/user/tasks/245-tasks.pending-decision-gate.md (Task 6)"
 ---
 
 # Review: tasks — slice 245
 
-**Verdict:** CONCERNS
+**Verdict:** PASS
 **Model:** claude-sonnet-5-5
 
 ## Findings
 
-### [PASS] Success-criteria coverage is complete
+### [PASS] Success criteria trace to tasks
 
-Every Functional and Technical Requirement in the slice traces to a task:
-- **Parser (D1/D2):** Tasks 2 and 3.
-- **`cf validate design` PASS/FAIL, JSON, and the no-status-line case:** Tasks 5 and 6.
-- **`cf next` at no task file, zero progress, partial progress, and all checked:** Tasks 7 and 8.
-- **Review-gate precedence:** Task 8.
-- **`cf status` and the MCP tools:** Task 9.
-- **`cf check` warning:** Task 10.
-- **Gate off:** Tasks 6, 8, and 10.
-- **Docs and the D8 non-blocking statement:** Task 11.
-- **Template and self-design fixtures, and the D6 behavior-preservation check:** Tasks 1 and 3.
-- **Verification Walkthrough:** Task 12.
+Each functional and technical criterion has a task:
+- **Parser (D1/D2) and its fixtures:** Task 2.
+- **`cf validate design`, the `--json` fields, exit codes, and gate-off behavior:** Task 4.
+- **Navigator status, `getNext()` routing, the zero/partial/complete positions, review precedence, the no-config case, and the unreadable-design rejection:** Task 5.
+- **`cf next` output and the `cf status` and MCP surfaces:** Task 6.
+- **ConsistencyChecker warning, per-slice error on an unreadable design, and the `workflow_check` description string:** Task 7.
+- **README and `docs/REVIEW-GATING.md`, including the D8 "does not block" statement and the Squadron contract:** Task 8.
+- **Config key (D3) and the `decisionGate.ts` I/O helpers:** Task 3.
+- **Fence-helper extraction (D6) with the existing tests as the behavior check:** Task 1.
+- **Verification Walkthrough and the CI sequence:** Task 9.
 
-I found no scope creep.
+Every task traces back to the design. The slice design restates no NFR, so no load-test or CI-gating task is needed.
 
-### [CONCERN] Tasks 2, 5 and 7 have no commit and sit apart from their test tasks
+### [PASS] Sequencing and commit distribution
 
-Tasks 2, 5 and 7 are implementation tasks with no commit step of their own. Their tests and commits come in Tasks 3, 6 and 8. This follows the test-with pattern. But `git add`/commit "at least once per task" is the project rule, and Task 5 touches core and CLI together with no checkpoint until Task 6.
-- **Fix:** keep the code and tests in one commit as the file already does, but state it. Merge each pair into one task ("Task 2+3"), or add an explicit note that the commit is deferred to the paired test task.
-- **Task 7 detail:** Task 7's own success criterion ("existing navigator tests pass unchanged") is the only gate before the new behavior is tested. This is fine only if the pair is treated as one unit.
+The dependency chain is Task 1 (helpers), Task 2 (parser), Task 3 (config key and `decisionGate.ts`), then Tasks 4, 5 and 7 (consumers), Task 6 (CLI output), Task 8 (docs), and Task 9 (walkthrough). No task needs something a later task builds.
 
-### [CONCERN] Task 3 over-specifies the parser test matrix
+Task 4 changes core and CLI together, so no commit leaves a half-wired flag. That is a deliberate and sound choice. Tasks 1–8 each end in a semantic commit, so commits are spread across the work and not batched at the end. Task 9 commits only if corrections are needed.
 
-Task 3 enumerates roughly 40 parser cases. The slice's Technical Requirements already require most of them.
-- **Duplicated cases:** The "Label forms" and "Values that block" lists each repeat forms the slice names. The separate "Pending-word list pin" `it.each` duplicates the six words already tested individually in "Values that block" (`pending_pm`, `TBD`, `undecided`, `open`, and the rest).
-- **Suggested cut:** Fold the pin into a single `it.each` over the pending constant's words, as the slice's pin fixture intends. Drop the individual word cases from the "Values that block" list.
-- **Splitting:** The task also bundles fixtures, skips, edge cases, attribution, the amoeba fixture, the real template and the self-design fixture. If it stays together, state that these are `it.each` tables so the junior executor does not write 40 separate tests.
+### [NOTE] Task 5 is the heaviest task and its steps are prescriptive
 
-### [CONCERN] Task 7 is dense and its `deriveSliceStatus()` restructuring is under-specified
+Task 5 has a four-step ordered list for `deriveSliceStatus()`, including moving the task-file parse up. It also covers the types, the routing branch, and about seven test scenarios. At effort 3/5 it is still completable, and the ordering constraint is needed for correctness. The constraint is that the early return must come before any `evaluateGate` call and must reuse `taskResult`. I would not split it. If the implementer struggles, the natural split is "types and `deriveSliceStatus`" and "`getNext` branch".
 
-Task 7 combines three changes:
-- the type changes;
-- a re-ordering of `deriveSliceStatus()` ("restructure the existing order only as far as that requires");
-- the new `getNext()` branch with its rationale, summary and constant strings.
+### [NOTE] The docType short-circuit rule in Task 4 has no test
 
-The restructuring is the riskiest part. A junior executor gets no concrete guidance on which existing early returns the decision check must precede, or how `gateExempt` and `complete` interact. The slice's D4 lists the positions (`needs-tasks`, review-gate statuses, `in-implementation`), but the task does not map them to code.
-- **Fix:** split Task 7 into 7a (types plus `deriveSliceStatus`) and 7b (`getNext()` branch). Or add a sentence naming the return points the check goes before, and what stays unchanged for the `complete` case.
+Task 4 specifies that a docType failure still short-circuits with `pending: []`. D7 requires this. It is not in the Success Criteria list, and the listed `sliceDesignFiles.test.ts` cases do not exercise it. Existing docType-failure tests will probably catch a regression only through the new `pending: []` field in their expected results. If you want it pinned explicitly, add one assertion to the existing docType-failure test. It is optional.
 
-### [CONCERN] Task 12 duplicates verification and lacks an explicit CI check
+### [NOTE] Task 9 edits the slice's own design file for the walkthrough
 
-The slice states no NFRs, so no load test is needed, and this is not a finding.
-- **Redundant verification:** Task 12 re-runs `pnpm test`, build, lint and typecheck, which the earlier tasks already run per-package. The walkthrough is valuable because it is the only end-to-end check of the CLI and MCP surfaces, but the full-suite duplication is mostly redundant. It is acceptable as a final gate.
-- **Walkthrough mutates the tracked design:** Steps 5–9 temporarily edit the 245 design file, which is tracked. A crash mid-walkthrough would leave a pending line in a tracked file that Task 3's self-design fixture asserts is clean. Use a copy in a scratch project, as the slice's Walkthrough preamble itself suggests ("a scratch project (or context-forge itself)").
+Steps 5–9 add a temporary pending line to the 245 design and then revert it. The design's "Special Considerations" relies on that file staying clean, as a zero-pending regression fixture (Task 2 asserts this). The task already requires `git status` to show no stray edits, which covers the risk. A scratch project would avoid it, but that is a preference and not a defect.
 
-### [NOTE] Verified code anchors
+### [NOTE] Task 6 tests across three surfaces
 
-Both `VALID_STATUSES` (frontmatterSchema.ts:32) and `SLICE_DESIGN_TEMPLATE_RELATIVE_PATH` (guides/types.ts:315) exist as the task file cites. I did not verify the other line-number anchors in the Context Summary.
-
-### [NOTE] Task 0 pre-flight is lightweight but appropriate
-
-Task 0 has no commit and is small, but it handles branch creation and the baseline, so keeping it separate is reasonable.
+Task 6 adds tests in `next.test.ts`, `status.test.ts` and `workflowTools.test.ts` for surfaces that serialize the navigator output without code changes. This is justified. The design's success criteria name `cf status` and the MCP responses explicitly, and the fixtures are small. I would not cut them.
 
 ### Run Digest
 
-- Response length: 5558 chars
+- Response length: 4660 chars
 - Response is newline-free: no
 - Tool calls made: 3
 - Tool calls failed: 0
@@ -139,12 +118,12 @@ Task 0 has no commit and is small, but it handles branch creation and the baseli
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 4
-- Tokens — prompt / cached / cache write / completion / reasoning: 174538 / 89256 / 85276 / 2617 / not computed
-- Duration: 22.8 s
-- Cost: $0.38 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 174631 / 87805 / 86820 / 3753 / not computed
+- Duration: 29.6 s
+- Cost: $0.39 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 7
+- Finding-shaped matches — whole response: 6
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 7
-- Finding-shaped matches — surviving validation: 7
+- Finding-shaped matches — in findings section: 6
+- Finding-shaped matches — surviving validation: 6
