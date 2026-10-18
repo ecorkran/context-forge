@@ -3,11 +3,25 @@ docType: tasks
 slice: pending-decision-gate
 project: context-forge
 lld: project-documents/user/slices/245-slice.pending-decision-gate.md
-dependencies: [241, 242]
-projectState: "Initiative 240 review gating is merged (241 navigator gate in deriveSliceStatus/getNext, 242 ConsistencyChecker per-slice rule pattern). ai-project-guide#44 shipped the per-decision `Status: decided | pending-pm` line in the installed slice-design template. Nothing in Context Forge reads that line yet (issue #121)."
+dependencies:
+- 241
+- 242
+projectState: 'Initiative 240 review gating is merged (241 navigator gate in deriveSliceStatus/getNext,
+  242 ConsistencyChecker per-slice rule pattern). ai-project-guide#44 shipped the
+  per-decision `Status: decided | pending-pm` line in the installed slice-design template.
+  Nothing in Context Forge reads that line yet (issue #121).'
 dateCreated: 20261017
-dateUpdated: 20261017
+dateUpdated: '20261018'
 status: not_started
+turns: 18
+promptTokens: 801443
+cachedTokens: 739229
+cacheWriteTokens: 62184
+completionTokens: 17895
+durationSeconds: 158.0
+costUsd: 1.003619
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Tasks: Pending Decision Gate (Slice 245)
