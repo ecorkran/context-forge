@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-18
+
+### Release 0.19.14
+
+- **Contents:** slice 245 pending-decision gate (#121): `cf validate design`, `cf next`/`cf status`, and `cf check` block or warn on designs with pending PM decisions, behind `workflow.decision_gate_enabled`; project guide updated to v0.21.6
+
+Tags: @context-forge/core@0.19.14, @context-forge/cli@0.19.14, @context-forge/mcp@0.19.14, @context-forge/context-forge@0.19.14
+
 ## 2026-10-16
 
 ### Release 0.19.13
