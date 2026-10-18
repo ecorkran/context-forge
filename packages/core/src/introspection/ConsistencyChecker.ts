@@ -22,6 +22,7 @@ import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter
 import { formatDateProject } from '../project-defaults.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
+import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
 import { CONFIG_KEYS, ConfigScope } from '../config/ConfigKeys.js';
 import { getProjectConfigPath, getProjectPersonalConfigPath } from '../config/configPaths.js';
 import {
@@ -53,6 +54,9 @@ function extractSliceIndex(fileSlice: string | undefined): number | null {
  * Compares related artifact states within a project and flags mismatches.
  * Optionally applies non-destructive corrections to fixable findings.
  */
+/** Rule id of the pending-PM-decision finding. */
+const PENDING_DECISION_RULE = 'pending-decision';
+
 export class ConsistencyChecker {
   constructor(
     private readonly introspector: IArtifactIntrospector,
@@ -284,6 +288,11 @@ export class ConsistencyChecker {
     findings.push(
       ...await this.ruleReviewGate(planEntry, sliceIndex, projectPath, slicePlanPath, resolvedGate, docs),
     );
+
+    // Same scope as the navigator gate (D4): a slice whose tasks are all done is past the point of blocking.
+    if (sliceDesignRel && taskResult?.inferredStatus !== STATUS.Complete) {
+      findings.push(...await this.pendingDecisionFindings(projectPath, sliceDesignRel, sliceIndex));
+    }
 
     return findings;
   }
@@ -584,6 +593,43 @@ export class ConsistencyChecker {
   }
 
   /** Rule: slice marked complete in the plan but its code review is absent or failing. */
+  /**
+   * Rule: slice design has decisions still pending PM confirmation. Reported only (warning);
+   * the navigator, not the checker, blocks. No config means the gate is off.
+   */
+  private async pendingDecisionFindings(
+    projectPath: string,
+    sliceDesignRel: string,
+    sliceIndex: number,
+  ): Promise<ConsistencyFinding[]> {
+    if (!this.config || !(await isDecisionGateEnabled(this.config))) return [];
+    try {
+      const pending = await readPendingDecisions(join(projectPath, sliceDesignRel));
+      if (pending.length === 0) return [];
+      const listed = pending.map((d) => `${d.heading} (line ${d.line})`).join('; ');
+      return [{
+        rule: PENDING_DECISION_RULE,
+        severity: 'warning',
+        location: sliceDesignRel,
+        description: `Slice ${sliceIndex} design has ${pending.length} decision${pending.length !== 1 ? 's' : ''} pending PM confirmation: ${listed}`,
+        suggestedFix: `Resolve each with the PM and set its status line to decided in ${sliceDesignRel}`,
+        fixable: false,
+      }];
+    } catch (err) {
+      // Per-slice catch so one unreadable design degrades to a finding and the run continues;
+      // the same reason safeEvaluateGate catches. The read error itself is reported, not dropped.
+      const message = err instanceof Error ? err.message : String(err);
+      return [{
+        rule: PENDING_DECISION_RULE,
+        severity: 'error',
+        location: sliceDesignRel,
+        description: `Failed to read ${sliceDesignRel} for pending decisions: ${message}`,
+        suggestedFix: `Make ${sliceDesignRel} readable and re-run the check`,
+        fixable: false,
+      }];
+    }
+  }
+
   /**
    * Wraps a single evaluateReviewGate() call so a throw (e.g. malformed review-gate
    * frontmatter) degrades to one error-severity finding instead of aborting the whole

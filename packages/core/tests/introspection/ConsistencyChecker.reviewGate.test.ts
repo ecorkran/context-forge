@@ -12,6 +12,7 @@ import { makeStubConfig } from '../helpers/stubConfig.js';
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
 
 const GATE_ENABLED_DEFAULTS = {
+  'workflow.decision_gate_enabled': false, // slice 245: keeps these fixtures independent of the decision gate
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',

@@ -220,7 +220,8 @@ export function registerWorkflowTools(server: McpServer): void {
         'Run consistency checks on a project to detect mismatches between related artifacts. ' +
         'Detects: task completion vs. slice plan checkbox, frontmatter status vs. computed state, ' +
         'missing artifact cross-references, plan checkbox vs. frontmatter status, ' +
-        'duplicate slice indices, missing plan status field, plan status vs. entries, architecture status vs. plans. ' +
+        'duplicate slice indices, missing plan status field, plan status vs. entries, architecture status vs. plans, ' +
+        'pending PM decisions in a slice design (warning only, never blocks). ' +
         'Defaults to all-slices mode; provide sliceIndex to narrow to one slice. ' +
         'With fix=true, applies non-destructive corrections to fixable findings. With worktrees, ' +
         'each fix is written only in the checkout that owns it; writes into other checkouts are ' +
