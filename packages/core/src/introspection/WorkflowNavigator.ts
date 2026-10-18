@@ -26,7 +26,7 @@ import {
   TASK_BREAKDOWN_PHASE,
   IMPLEMENTATION_PHASE,
 } from '../schema/projectSchema.js';
-import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
+import { resolveConceptPath, resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
 import type { PendingDecision } from '../schema/pendingDecisions.js';
@@ -196,6 +196,7 @@ export class WorkflowNavigator {
       // never exist yet at the end of Phase 1, so they cannot disambiguate it.
       const initiativePlanExists =
         (await resolveInitiativePlanPath(project.projectPath)) !== null;
+      const conceptExists = await this.conceptDocExists(project);
 
       // pre-slice-plan / 'arch' gate — evaluated before first-run guidance, and regardless
       // of whether a slice plan already exists, because the arch review requirement does not
@@ -228,6 +229,7 @@ export class WorkflowNavigator {
         project,
         archFileExists,
         initiativePlanExists,
+        conceptExists,
         status,
       );
       if (firstRunAction !== null) {
@@ -516,11 +518,16 @@ export class WorkflowNavigator {
    * via resolveArtifactPath first; if the field isn't mapped, fall back to treating the
    * value as a direct relative path within the project.
    */
-  private conceptDocExists(project: ProjectData): boolean {
-    if (!project.fileConcept || !project.projectPath) return false;
-    const resolved = resolveArtifactPath('fileConcept', project.fileConcept);
-    const relPath = resolved ?? project.fileConcept;
-    return existsSync(join(project.projectPath, relPath));
+  private async conceptDocExists(project: ProjectData): Promise<boolean> {
+    if (!project.projectPath) return false;
+    if (project.fileConcept) {
+      const resolved = resolveArtifactPath('fileConcept', project.fileConcept);
+      const relPath = resolved ?? project.fileConcept;
+      if (existsSync(join(project.projectPath, relPath))) return true;
+    }
+    // fileConcept is never set automatically, so a concept written to the conventional
+    // location must count even when unregistered (mirrors the initiative plan check).
+    return (await resolveConceptPath(project.projectPath)) !== null;
   }
 
   /**
@@ -532,6 +539,7 @@ export class WorkflowNavigator {
     project: ProjectData,
     archFileExists: boolean,
     initiativePlanExists: boolean,
+    conceptExists: boolean,
     status: WorkflowStatus,
   ): NextAction | null {
     // Only applies to projects without both arch and slice plan
@@ -555,7 +563,7 @@ export class WorkflowNavigator {
       phase.startsWith('Phase 0') &&
       !archFileExists &&
       status.slicePlan === null &&
-      !this.conceptDocExists(project)
+      !conceptExists
     ) {
       return {
         recommendation: 'Your project is in Phase 0 (Concept). Start by describing what you want to build.',
@@ -567,10 +575,7 @@ export class WorkflowNavigator {
     }
 
     // Phase 0, concept doc exists → advance to Phase 1 (Initiative Plan)
-    if (
-      phase.startsWith('Phase 0') &&
-      this.conceptDocExists(project)
-    ) {
+    if (phase.startsWith('Phase 0') && conceptExists) {
       return {
         recommendation: 'Concept document exists. Advance to Phase 1 (Initiative Plan).',
         rationale:

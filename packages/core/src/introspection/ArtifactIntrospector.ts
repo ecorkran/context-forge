@@ -17,20 +17,35 @@ import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 
+/** Find the first file in the project's project-guides directory matching `pattern`. */
+async function findProjectGuideFile(projectPath: string, pattern: RegExp): Promise<string | null> {
+  const guidesDir = join(projectPath, 'project-documents/user/project-guides');
+  try {
+    const files = await readdir(guidesDir);
+    const match = files.find((f) => pattern.test(f));
+    return match ? join(guidesDir, match) : null;
+  } catch {
+    // Missing directory means the artifact has not been created yet
+    return null;
+  }
+}
+
 /**
  * Locate the initiative plan file for a project.
  * Convention: project-documents/user/project-guides/001-initiative-plan.*.md
  * Returns the full path, or null if not found.
  */
-export async function resolveInitiativePlanPath(projectPath: string): Promise<string | null> {
-  const guidesDir = join(projectPath, 'project-documents/user/project-guides');
-  try {
-    const files = await readdir(guidesDir);
-    const match = files.find((f) => /^001-initiative-plan\..*\.md$/i.test(f));
-    return match ? join(guidesDir, match) : null;
-  } catch {
-    return null;
-  }
+export function resolveInitiativePlanPath(projectPath: string): Promise<string | null> {
+  return findProjectGuideFile(projectPath, /^001-initiative-plan\..*\.md$/i);
+}
+
+/**
+ * Locate the concept file for a project.
+ * Convention: project-documents/user/project-guides/000-concept.*.md
+ * Returns the full path, or null if not found.
+ */
+export function resolveConceptPath(projectPath: string): Promise<string | null> {
+  return findProjectGuideFile(projectPath, /^000-concept\..*\.md$/i);
 }
 
 /**

@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { WorkflowNavigator } from '../../src/introspection/WorkflowNavigator.js';
 import { PROJECT_ROOT, makeProject } from '../helpers/workflowNavigatorFixtures.js';
 
@@ -73,6 +76,29 @@ describe('WorkflowNavigator', () => {
 
       expect(next.recommendation).toContain('Advance to Phase 1');
       expect(next.suggestedCommand).toBe("cf set phase 'Phase 1: Initiative Plan'");
+    });
+
+    it('Phase 0, concept file on disk but fileConcept unset → advance to Phase 1', async () => {
+      // Real-world layout: concept written by the agent, never registered via cf set concept
+      const dir = mkdtempSync(join(tmpdir(), 'cf-concept-'));
+      try {
+        const guides = join(dir, 'project-documents/user/project-guides');
+        mkdirSync(guides, { recursive: true });
+        writeFileSync(join(guides, '000-concept.test-project.md'), '# concept\n');
+        const project = makeProject({
+          fileSlice: '',
+          fileSlicePlan: undefined,
+          fileArch: undefined,
+          fileConcept: undefined,
+          developmentPhase: 'Phase 0: Concept',
+          projectPath: dir,
+        });
+        const next = await nav.getNext(project);
+
+        expect(next.recommendation).toContain('Advance to Phase 1');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
 
     it('Phase 1, initiative plan absent on disk → cf build for initiative plan', async () => {
