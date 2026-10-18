@@ -16,6 +16,7 @@ import {
   missingHeadings,
   type RequiredHeading,
 } from './sliceDesignValidator.js';
+import { findPendingDecisions, type PendingDecision } from './pendingDecisions.js';
 
 /** The docType a slice design must declare in its frontmatter. */
 export const SLICE_DESIGN_DOC_TYPE = 'slice-design';
@@ -45,7 +46,14 @@ export interface DesignValidationResult {
   pass: boolean;
   /** Missing required headings, written as in the template. */
   missing: string[];
+  /** Pending PM decisions; always present, empty when the gate is off or nothing is pending. */
+  pending: PendingDecision[];
   reason?: DesignFailureReason;
+}
+
+/** Caller-resolved switches; the config lookup stays out of this module. */
+export interface ValidateDesignOptions {
+  decisionGateEnabled: boolean;
 }
 
 /** Read the template and return its required headings. */
@@ -98,6 +106,7 @@ async function preflight(files: readonly string[]): Promise<void> {
 async function validateFile(
   file: string,
   required: RequiredHeading[],
+  options: ValidateDesignOptions,
 ): Promise<DesignValidationResult> {
   let docText: string;
   try {
@@ -107,11 +116,13 @@ async function validateFile(
   }
 
   if (parseFrontmatterText(file, docText).data.docType !== SLICE_DESIGN_DOC_TYPE) {
-    return { path: file, pass: false, missing: [], reason: DesignFailureReason.DocType };
+    return { path: file, pass: false, missing: [], pending: [], reason: DesignFailureReason.DocType };
   }
 
   const missing = missingHeadings(required, documentHeadingKeys(docText)).map((r) => r.heading);
-  return { path: file, pass: missing.length === 0, missing };
+  // Reuse the text already read; readPendingDecisions would read the file a second time.
+  const pending = options.decisionGateEnabled ? findPendingDecisions(docText) : [];
+  return { path: file, pass: missing.length === 0 && pending.length === 0, missing, pending };
 }
 
 /**
@@ -121,13 +132,14 @@ async function validateFile(
 export async function validateSliceDesignFiles(
   templatePath: string,
   files: readonly string[],
+  options: ValidateDesignOptions,
 ): Promise<DesignValidationResult[]> {
   const required = await loadRequiredHeadings(templatePath);
   await preflight(files);
 
   const results: DesignValidationResult[] = [];
   for (const file of files) {
-    results.push(await validateFile(file, required));
+    results.push(await validateFile(file, required, options));
   }
   return results;
 }

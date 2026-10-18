@@ -104,16 +104,16 @@ revision_number: 2
 
 ## Task 3: Config key and `decisionGate.ts`, with tests (D3, API Contracts)
 
-- [ ] In `packages/core/src/config/ConfigKeys.ts`, add `workflow.decision_gate_enabled`, shaped like `workflow.review_enabled` (:71): `boolean`, default `true`, `ConfigScope.Shared`. Description: when true, a pending PM decision in a slice design fails `cf validate design` and blocks `cf next` from Phase 5 and 6. When false, the parser never runs.
-- [ ] Create `packages/core/src/schema/decisionGate.ts` (Node I/O only, no finding construction):
-  - [ ] `isDecisionGateEnabled(config: ConfigManager): Promise<boolean>`. It reads the key through `config.get()`, so the registry default applies. Do not re-type the key string in several places.
-  - [ ] `readPendingDecisions(absPath: string): Promise<PendingDecision[]>`. It reads the file and returns `findPendingDecisions(text)`. Read errors **propagate**; never return `[]` for a missing or unreadable file.
-- [ ] Export `PendingDecision`, `findPendingDecisions`, `isDecisionGateEnabled`, and `readPendingDecisions` from `packages/core/src/node.ts`.
-- [ ] Tests:
-  - [ ] `ConfigKeys.test.ts`: the key is boolean, shared, and defaults to `true`.
-  - [ ] New `packages/core/tests/schema/decisionGate.test.ts`, using a temp project with a real `ConfigManager`: `isDecisionGateEnabled` is `true` when unset and `false` when set to `false`. `readPendingDecisions` returns the parser result for a file with a pending line, and **rejects** for a nonexistent path.
-  - [ ] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ConfigKeys decisionGate` pass.
-- [ ] Commit: `feat(core): add workflow.decision_gate_enabled and decision gate helpers`
+- [x] In `packages/core/src/config/ConfigKeys.ts`, add `workflow.decision_gate_enabled`, shaped like `workflow.review_enabled` (:71): `boolean`, default `true`, `ConfigScope.Shared`. Description: when true, a pending PM decision in a slice design fails `cf validate design` and blocks `cf next` from Phase 5 and 6. When false, the parser never runs.
+- [x] Create `packages/core/src/schema/decisionGate.ts` (Node I/O only, no finding construction):
+  - [x] `isDecisionGateEnabled(config: ConfigManager): Promise<boolean>`. It reads the key through `config.get()`, so the registry default applies. Do not re-type the key string in several places.
+  - [x] `readPendingDecisions(absPath: string): Promise<PendingDecision[]>`. It reads the file and returns `findPendingDecisions(text)`. Read errors **propagate**; never return `[]` for a missing or unreadable file.
+- [x] Export `PendingDecision`, `findPendingDecisions`, `isDecisionGateEnabled`, and `readPendingDecisions` from `packages/core/src/node.ts`.
+- [x] Tests:
+  - [x] `ConfigKeys.test.ts`: the key is boolean, shared, and defaults to `true`.
+  - [x] New `packages/core/tests/schema/decisionGate.test.ts`, using a temp project with a real `ConfigManager`: `isDecisionGateEnabled` is `true` when unset and `false` when set to `false`. `readPendingDecisions` returns the parser result for a file with a pending line, and **rejects** for a nonexistent path.
+  - [x] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ConfigKeys decisionGate` pass.
+- [x] Commit: `feat(core): add workflow.decision_gate_enabled and decision gate helpers`
 - **Effort:** 1/5
 
 ---

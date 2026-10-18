@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ConfigManager } from '@context-forge/core/node';
 import { registerValidateCommand } from '../../src/commands/validate.js';
 
 /**
@@ -65,16 +66,20 @@ describe('cf validate design', () => {
   let projectRoot: string;
   let worktreeRoot: string;
   let originalCwd: string;
+  let originalDataDir: string | undefined;
   let stdout: string;
   let logLines: string[];
   let errors: string[];
 
   beforeEach(() => {
     originalCwd = process.cwd();
+    // Keep the developer's user-level config out of the gate setting.
+    originalDataDir = process.env.CONTEXT_FORGE_DATA_DIR;
     // realpath: macOS cwd reports /private/var while mkdtemp returns /var.
     tmpRoot = realpathSync(mkdtempSync(join(tmpdir(), 'cf-validate-design-')));
     projectRoot = join(tmpRoot, 'main-checkout');
     worktreeRoot = join(tmpRoot, 'wt-alpha');
+    process.env.CONTEXT_FORGE_DATA_DIR = join(tmpRoot, 'data');
     installTemplate(projectRoot);
     installTemplate(worktreeRoot);
     // A second worktree so the resolver can't pass by having only one choice.
@@ -119,6 +124,8 @@ describe('cf validate design', () => {
 
   afterEach(() => {
     process.chdir(originalCwd);
+    if (originalDataDir === undefined) delete process.env.CONTEXT_FORGE_DATA_DIR;
+    else process.env.CONTEXT_FORGE_DATA_DIR = originalDataDir;
     vi.restoreAllMocks();
     process.exitCode = undefined;
     rmSync(tmpRoot, { recursive: true, force: true });
@@ -184,15 +191,59 @@ describe('cf validate design', () => {
     await run('--json', DESIGN_214, broken, noDoc);
     expect(JSON.parse(stdout)).toEqual({
       template: join(projectRoot, GUIDE, TEMPLATE_IN_GUIDE),
+      decisionGateEnabled: true,
       passed: 1,
       failed: 2,
       files: [
-        { path: DESIGN_214, pass: true, missing: [] },
-        { path: broken, pass: false, missing: ['## Value'] },
-        { path: noDoc, pass: false, missing: [], reason: 'doctype' },
+        { path: DESIGN_214, pass: true, missing: [], pending: [] },
+        { path: broken, pass: false, missing: ['## Value'], pending: [] },
+        { path: noDoc, pass: false, missing: [], pending: [], reason: 'doctype' },
       ],
     });
     expect(process.exitCode).toBe(1);
+  });
+
+  describe('pending decisions', () => {
+    const withStatus = (status: string): string =>
+      writeTmp('pending.md', `${design214()}\n### D99 — Open question\nStatus: ${status}\n`);
+    const pendingLine = (): number => design214().split('\n').length + 2;
+
+    it('prints the pending decision and exits 1', async () => {
+      const file = withStatus('pending-pm');
+      await run(file);
+      expect(logLines).toEqual([
+        `FAIL ${file}`,
+        `  pending-pm: D99 — Open question (line ${pendingLine()})`,
+      ]);
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('passes once the decision is decided', async () => {
+      const file = withStatus('decided');
+      await run(file);
+      expect(logLines).toEqual([`PASS ${file}`]);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('--json carries files[].pending and decisionGateEnabled', async () => {
+      const file = withStatus('pending-pm');
+      await run('--json', file);
+      const output = JSON.parse(stdout);
+      expect(output.decisionGateEnabled).toBe(true);
+      expect(output.files[0].pending).toEqual([
+        { heading: 'D99 — Open question', line: pendingLine() },
+      ]);
+    });
+
+    it('passes and reports the gate off when workflow.decision_gate_enabled is false', async () => {
+      await new ConfigManager(projectRoot).set('workflow.decision_gate_enabled', false, 'project');
+      const file = withStatus('pending-pm');
+      await run('--json', file);
+      const output = JSON.parse(stdout);
+      expect(output.decisionGateEnabled).toBe(false);
+      expect(output.files[0]).toMatchObject({ pass: true, pending: [] });
+      expect(process.exitCode).toBeUndefined();
+    });
   });
 
   describe('exit 2 with empty stdout', () => {

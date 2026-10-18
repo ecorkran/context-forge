@@ -20,6 +20,9 @@ const REAL_DESIGN = join(
   'project-documents/user/slices/214-slice.native-slice-design-validation.md',
 );
 
+const GATE_ON = { decisionGateEnabled: true };
+const GATE_OFF = { decisionGateEnabled: false };
+
 let tmpDir: string;
 let designText: string;
 
@@ -52,33 +55,33 @@ describe('real template', () => {
   });
 
   it('passes the 214 slice design', async () => {
-    const results = await validateSliceDesignFiles(REAL_TEMPLATE, [REAL_DESIGN]);
-    expect(results).toEqual([{ path: REAL_DESIGN, pass: true, missing: [] }]);
+    const results = await validateSliceDesignFiles(REAL_TEMPLATE, [REAL_DESIGN], GATE_ON);
+    expect(results).toEqual([{ path: REAL_DESIGN, pass: true, missing: [], pending: [] }]);
   });
 });
 
 describe('validateSliceDesignFiles', () => {
   it('reports exactly the missing heading', async () => {
     const file = await writeTmp('broken.md', withoutValueSection(designText));
-    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file]);
-    expect(result).toEqual({ path: file, pass: false, missing: ['## Value'] });
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON);
+    expect(result).toEqual({ path: file, pass: false, missing: ['## Value'], pending: [] });
   });
 
   it('fails a file without docType with the doctype reason', async () => {
     const file = await writeTmp('nodoc.md', designText.replace(/^docType:.*\n/m, ''));
-    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file]);
-    expect(result).toEqual({ path: file, pass: false, missing: [], reason: DesignFailureReason.DocType });
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON);
+    expect(result).toEqual({ path: file, pass: false, missing: [], pending: [], reason: DesignFailureReason.DocType });
   });
 
   it('accepts a quoted docType', async () => {
     const file = await writeTmp('quoted.md', designText.replace(/^docType:.*$/m, 'docType: "slice-design"'));
-    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file]);
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON);
     expect(result.pass).toBe(true);
   });
 
   it('checks every file in order when an earlier one fails', async () => {
     const broken = await writeTmp('broken.md', withoutValueSection(designText));
-    const results = await validateSliceDesignFiles(REAL_TEMPLATE, [broken, REAL_DESIGN]);
+    const results = await validateSliceDesignFiles(REAL_TEMPLATE, [broken, REAL_DESIGN], GATE_ON);
     expect(results.map((r) => [r.path, r.pass])).toEqual([
       [broken, false],
       [REAL_DESIGN, true],
@@ -86,30 +89,59 @@ describe('validateSliceDesignFiles', () => {
   });
 });
 
+describe('pending decisions', () => {
+  /** The 214 design with a pending status line appended under its own heading. */
+  const withPending = (text: string): string => `${text}\n### D99 — Open question\nStatus: pending-pm\n`;
+
+  it('fails a design with a pending decision when the gate is on', async () => {
+    const file = await writeTmp('pending.md', withPending(designText));
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON);
+    expect(result.pass).toBe(false);
+    expect(result.missing).toEqual([]);
+    expect(result.pending).toEqual([
+      { heading: 'D99 — Open question', line: designText.split('\n').length + 2 },
+    ]);
+  });
+
+  it('passes the same design with an empty pending list when the gate is off', async () => {
+    const file = await writeTmp('pending.md', withPending(designText));
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_OFF);
+    expect(result).toEqual({ path: file, pass: true, missing: [], pending: [] });
+  });
+
+  it('reports a missing heading and a pending decision together', async () => {
+    const file = await writeTmp('both.md', withPending(withoutValueSection(designText)));
+    const [result] = await validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON);
+    expect(result.pass).toBe(false);
+    expect(result.missing).toEqual(['## Value']);
+    expect(result.pending).toHaveLength(1);
+  });
+});
+
 describe('errors', () => {
   it('names cf guides update when the template is missing', async () => {
-    const run = validateSliceDesignFiles(join(tmpDir, 'nope.md'), [REAL_DESIGN]);
+    const run = validateSliceDesignFiles(join(tmpDir, 'nope.md'), [REAL_DESIGN], GATE_ON);
     await expect(run).rejects.toThrow(SliceDesignValidationError);
     await expect(run).rejects.toThrow(/cf guides update/);
   });
 
   it('rejects a template with no required markers', async () => {
     const template = await writeTmp('template.md', '## Overview\n## Value\n');
-    await expect(validateSliceDesignFiles(template, [REAL_DESIGN])).rejects.toThrow(
+    await expect(validateSliceDesignFiles(template, [REAL_DESIGN], GATE_ON)).rejects.toThrow(
       /template declares no required headings/,
     );
   });
 
   it('rejects a required heading with no matchable text', async () => {
     const template = await writeTmp('template.md', '## Overview\n<!-- required -->\n## {placeholder}\n<!-- required -->\n');
-    await expect(validateSliceDesignFiles(template, [REAL_DESIGN])).rejects.toThrow(
+    await expect(validateSliceDesignFiles(template, [REAL_DESIGN], GATE_ON)).rejects.toThrow(
       /template heading '## \{placeholder\}' has no matchable text/,
     );
   });
 
   it('returns no results when a valid file precedes a missing one', async () => {
     const missing = join(tmpDir, 'missing.md');
-    const run = validateSliceDesignFiles(REAL_TEMPLATE, [REAL_DESIGN, missing]);
+    const run = validateSliceDesignFiles(REAL_TEMPLATE, [REAL_DESIGN, missing], GATE_ON);
     await expect(run).rejects.toThrow(SliceDesignValidationError);
     await expect(run).rejects.toThrow(`no such file: ${missing}`);
   });
@@ -117,7 +149,7 @@ describe('errors', () => {
   it('rejects a directory passed as a file', async () => {
     const dir = join(tmpDir, 'adir');
     await mkdir(dir);
-    await expect(validateSliceDesignFiles(REAL_TEMPLATE, [dir])).rejects.toThrow(
+    await expect(validateSliceDesignFiles(REAL_TEMPLATE, [dir], GATE_ON)).rejects.toThrow(
       new SliceDesignValidationError(`not a regular file: ${dir}`),
     );
   });
@@ -126,7 +158,7 @@ describe('errors', () => {
   it.skipIf(cannotBlockReads)('rejects an unreadable file', async () => {
     const file = await writeTmp('locked.md', designText);
     await chmod(file, 0o000);
-    await expect(validateSliceDesignFiles(REAL_TEMPLATE, [file])).rejects.toThrow(
+    await expect(validateSliceDesignFiles(REAL_TEMPLATE, [file], GATE_ON)).rejects.toThrow(
       new SliceDesignValidationError(`cannot read file: ${file}`),
     );
   });

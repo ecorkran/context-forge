@@ -1,12 +1,14 @@
 import path from 'node:path';
 import type { Command } from 'commander';
 import {
+  ConfigManager,
   FileProjectStore,
   GUIDE_RELATIVE_PATH,
   SLICE_DESIGN_TEMPLATE_RELATIVE_PATH,
   DOC_TYPE_FAILURE_MESSAGE,
   DesignFailureReason,
   SliceDesignValidationError,
+  isDecisionGateEnabled,
   validateSliceDesignFiles,
 } from '@context-forge/core/node';
 import type { DesignValidationResult } from '@context-forge/core/node';
@@ -25,13 +27,20 @@ interface ValidateDesignOpts {
 export interface ValidateDesignJson {
   /** Absolute path of the template the files were checked against. */
   template: string;
+  /** Whether the pending-decision gate was applied (workflow.decision_gate_enabled). */
+  decisionGateEnabled: boolean;
   passed: number;
   failed: number;
   files: DesignValidationResult[];
 }
 
-/** Absolute template path in the invoking checkout's guide (worktree-aware). */
-async function resolveTemplatePath(opts: ValidateDesignOpts): Promise<string> {
+/** Label printed before each pending decision; the human-output counterpart of `files[].pending`. */
+const PENDING_LABEL = 'pending-pm';
+
+/** The invoking checkout (worktree-aware) and the slice-design template inside its guide. */
+async function resolveCheckout(
+  opts: ValidateDesignOpts,
+): Promise<{ checkoutRoot: string; templatePath: string }> {
   const store = new FileProjectStore();
   const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
   const project = await store.getById(id);
@@ -42,7 +51,12 @@ async function resolveTemplatePath(opts: ValidateDesignOpts): Promise<string> {
   if (!checkoutRoot) {
     throw new UserError('No projectPath configured. Set one with: cf set projectPath /path/to/project');
   }
-  return path.resolve(checkoutRoot, GUIDE_RELATIVE_PATH, SLICE_DESIGN_TEMPLATE_RELATIVE_PATH);
+  const templatePath = path.resolve(
+    checkoutRoot,
+    GUIDE_RELATIVE_PATH,
+    SLICE_DESIGN_TEMPLATE_RELATIVE_PATH,
+  );
+  return { checkoutRoot, templatePath };
 }
 
 /** Print PASS/FAIL lines in the guide script's format. */
@@ -55,6 +69,9 @@ function printHumanOutput(results: DesignValidationResult[]): void {
     for (const heading of result.missing) {
       console.log(`  missing: ${heading}`);
     }
+    for (const decision of result.pending) {
+      console.log(`  ${PENDING_LABEL}: ${decision.heading} (line ${decision.line})`);
+    }
   }
 }
 
@@ -65,13 +82,15 @@ async function validateDesignAction(files: string[], opts: ValidateDesignOpts): 
     );
   }
 
-  const template = await resolveTemplatePath(opts);
-  const results = await validateSliceDesignFiles(template, files);
+  const { checkoutRoot, templatePath: template } = await resolveCheckout(opts);
+  const decisionGateEnabled = await isDecisionGateEnabled(new ConfigManager(checkoutRoot));
+  const results = await validateSliceDesignFiles(template, files, { decisionGateEnabled });
   const failed = results.filter((r) => !r.pass).length;
 
   if (opts.json) {
     const output: ValidateDesignJson = {
       template,
+      decisionGateEnabled,
       passed: results.length - failed,
       failed,
       files: results,
