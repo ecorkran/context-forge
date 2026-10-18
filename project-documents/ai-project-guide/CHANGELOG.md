@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.6] - 2026-10-17
+
+### Fixed
+- `agents/task-checker.md` and `skills/setup-ci/SKILL.md`: quoted the `description:` line. Unquoted colons made the frontmatter invalid, so task-checker lost its model and color settings and setup-ci would not load.
+- `rules/fixes.md`: quoted the `description:` line so "Fixes #n" is not read as a YAML comment.
+
+## [0.21.5] - 2026-10-17
+
+### Changed
+- `skills/setup-ci`: with no `pyproject.toml` or `package.json`, offers a minimal uv Python skeleton (TypeScript not yet covered). Offers a standard `.gitignore` when it is missing or weak.
+- `skills/setup-ci`: always asks for the publish target instead of inferring PyPI or npm from the manifest. When `requires-python` has no upper bound, offers the installed interpreters as choices.
+- `lint/python/ruff.toml`: excludes `*.md`, so ruff no longer formats or lints Python examples in markdown.
+
+## [0.21.4] - 2026-10-17
+
+### Changed
+- `file-naming-conventions.md`: 900-999 splits into 900-989 (sequential, numbered in order, never continuing into 990-999) and 990-999 (standing slices, assigned by hand). 990 is the standing fixes slice.
+- Process guide, Fixes: a new standing fixes slice uses index 990.
+
 ## [0.21.3] - 2026-10-17
 
 ### Changed
