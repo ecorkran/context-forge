@@ -72,16 +72,13 @@ describe('ConsistencyChecker — pending-decision rule (slice 245)', () => {
     const fx = makeFixture();
     writeFileSync(join(fx.userDir, 'slices', '5-slice.first.md'), designText('pending-pm', 'tbd'));
 
-    const checker = new ConsistencyChecker(introspectorFor(fx.planPath), makeStubConfig(GATE_ON));
-    const result = await checker.checkAll(projectFor(fx.root));
-    const findings = result.findings.filter((f) => f.rule === RULE);
+    const findings = await findingsFor(fx, makeStubConfig(GATE_ON));
 
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('warning');
     expect(findings[0].fixable).toBe(false);
     expect(findings[0].description).toContain('D1 — Question 1');
     expect(findings[0].description).toContain('D2 — Question 2');
-    expect(result.findings.filter((f) => f.rule === RULE && f.severity === 'error')).toHaveLength(0);
   });
 
   it('gives no finding when nothing is pending', async () => {

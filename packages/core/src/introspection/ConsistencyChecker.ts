@@ -50,13 +50,13 @@ function extractSliceIndex(fileSlice: string | undefined): number | null {
   return match ? parseInt(match[1], 10) : null;
 }
 
+/** Rule id of the pending-PM-decision finding. */
+const PENDING_DECISION_RULE = 'pending-decision';
+
 /**
  * Compares related artifact states within a project and flags mismatches.
  * Optionally applies non-destructive corrections to fixable findings.
  */
-/** Rule id of the pending-PM-decision finding. */
-const PENDING_DECISION_RULE = 'pending-decision';
-
 export class ConsistencyChecker {
   constructor(
     private readonly introspector: IArtifactIntrospector,
@@ -629,7 +629,6 @@ export class ConsistencyChecker {
     }
   }
 
-  /** Rule: slice marked complete in the plan but its code review is absent or failing. */
   /**
    * Wraps a single evaluateReviewGate() call so a throw (e.g. malformed review-gate
    * frontmatter) degrades to one error-severity finding instead of aborting the whole
@@ -698,6 +697,7 @@ export class ConsistencyChecker {
     };
   }
 
+  /** Rule: slice marked complete in the plan but its code review is absent or failing. */
   private async ruleReviewGate(
     planEntry: SlicePlanEntry | null,
     sliceIndex: number,

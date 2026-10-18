@@ -26,6 +26,7 @@ export interface RequiredHeading {
 // rather than risk counting indented example text.
 const HEADING_PATTERN = /^(#{1,6})\s+(.*)$/;
 const REQUIRED_MARKER = '<!-- required -->';
+
 /** Normalize a heading line into its key, or null if the line is not a heading. */
 function headingKey(line: string): HeadingKey | null {
   const match = HEADING_PATTERN.exec(line);

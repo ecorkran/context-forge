@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../../src/schema/decisionGate.js';
+import { makeStubConfig } from '../helpers/stubConfig.js';
 
 describe('decisionGate', () => {
   let dataDir: string;
@@ -37,6 +38,11 @@ describe('decisionGate', () => {
       const config = new ConfigManager(projectDir);
       await config.set('workflow.decision_gate_enabled', false, 'project');
       expect(await isDecisionGateEnabled(config)).toBe(false);
+    });
+
+    it('throws on a non-boolean value instead of treating it as off', async () => {
+      const config = makeStubConfig({ 'workflow.decision_gate_enabled': 'true' });
+      await expect(isDecisionGateEnabled(config)).rejects.toThrow(/must be true or false/);
     });
   });
 

@@ -11,10 +11,17 @@ import { findPendingDecisions, type PendingDecision } from './pendingDecisions.j
 
 const DECISION_GATE_KEY = 'workflow.decision_gate_enabled';
 
-/** Whether the decision gate is on. The registry default (true) applies when the key is unset. */
+/**
+ * Whether the decision gate is on. The registry default (true) applies when the key is unset.
+ * A non-boolean value (e.g. a hand-edited `"true"` string) throws rather than silently
+ * turning the gate off.
+ */
 export async function isDecisionGateEnabled(config: ConfigManager): Promise<boolean> {
   const { value } = await config.get(DECISION_GATE_KEY);
-  return value === true;
+  if (typeof value !== 'boolean') {
+    throw new Error(`Config key "${DECISION_GATE_KEY}" must be true or false, got ${JSON.stringify(value)}`);
+  }
+  return value;
 }
 
 /**
