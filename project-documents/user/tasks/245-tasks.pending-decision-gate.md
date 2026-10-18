@@ -13,15 +13,16 @@ projectState: 'Initiative 240 review gating is merged (241 navigator gate in der
 dateCreated: 20261017
 dateUpdated: '20261018'
 status: not_started
-turns: 18
-promptTokens: 801443
-cachedTokens: 739229
-cacheWriteTokens: 62184
-completionTokens: 17895
-durationSeconds: 158.0
-costUsd: 1.003619
-usageRounds: 1
-pricedRounds: 1
+turns: 30
+promptTokens: 1518103
+cachedTokens: 1430314
+cacheWriteTokens: 87743
+completionTokens: 28407
+durationSeconds: 245.3
+costUsd: 1.556612
+usageRounds: 2
+pricedRounds: 2
+revision_number: 1
 ---
 
 # Tasks: Pending Decision Gate (Slice 245)
