@@ -236,5 +236,5 @@ Note: Three existing ConsistencyChecker tests (duplicateIndex, reviewGate, revie
   - [x] For steps 5–9, put a temporary pending line in the 245 design, then revert it.
   - [x] Finish with `cf config unset workflow.decision_gate_enabled`.
   - [x] Success: every step gives the expected output, and `git status` shows no stray config or design edits.
-- [ ] Commit any corrections with the matching semantic prefix. If there is nothing to commit, note that in the task-checker update.
+- [x] Commit any corrections with the matching semantic prefix. If there is nothing to commit, note that in the task-checker update.
 - **Effort:** 1/5
