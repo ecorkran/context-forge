@@ -383,6 +383,7 @@ Three interfaces — use whichever fits your workflow:
 |-----|-------|---------|
 | `git.integration_branch` | personal | Long-lived branch that work branches fork from and merge into instead of `main` (e.g. `dev/erik`). Changes git topology, not just names. |
 | `workflow.review_enabled` | shared | Turn on review gating (off by default). |
+| `workflow.decision_gate_enabled` | shared | Block design validation and `cf next` on pending PM decisions (on by default). |
 | `workflow.review_threshold` | shared | Verdict floor that clears a gate (`pass` \| `concerns`). |
 | `workflow.review_gate_effective_date` | shared | Grandfather work designed before `YYYYMMDD` past the gate. |
 | `workflow.auto_advance` | shared | Auto-advance to the next slice when the current one completes. |

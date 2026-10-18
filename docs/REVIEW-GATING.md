@@ -86,9 +86,29 @@ Split reviews (`*.part-N.md`) are judged part by part, so one derived part can b
 - **`pending-review`** — the boundary's review artifact doesn't exist yet. `cf next` recommends `review` (write the review before proceeding).
 - **`review-failed`** — a review artifact exists but its verdict doesn't clear the configured threshold. `cf next` recommends `blocked`.
 
-Both are recommendations only. Nothing in Context Forge prevents you from creating the next artifact anyway — the gate shapes guidance, not permission.
+- **`pending-decision`** — the slice design still has a decision waiting on the PM. `cf next` recommends `Blocked: design has pending PM decisions` and lists each one. See [Decision Gate](#decision-gate).
+
+All of these are recommendations only. Nothing in Context Forge prevents you from creating the next artifact anyway — the gate shapes guidance, not permission.
+
+## Decision Gate
+
+A slice design records each decision with a status line. The installed slice-design template defines it:
+
+```
+Status: decided
+```
+
+A line whose first word is `pending-pm` (also `pending_pm`, `pending`, `tbd`, `undecided`, `open`) marks a decision the PM still owes an answer on. Any other value is ignored, because `Status:` is also ordinary prose in older designs. Case, bullets, bold and trailing punctuation do not matter. Frontmatter and fenced code blocks are skipped.
+
+- **Key:** `workflow.decision_gate_enabled`, default `true`, shared. It is independent of `review_enabled`, `review: none`, and the effective date. When `false`, the parser never runs on any surface.
+- **`cf validate design`** fails a design with a pending decision and prints `pending-pm: {heading} (line {n})` for each.
+- **`pending-decision` status:** `cf next` and `cf status` report it while the slice is at Phase 5 or 6 (no task file, or tasks not all done). It does not fire on a slice whose tasks are all checked, and it takes precedence over every review gate, since answering a decision changes the design a review would cover.
+- **`cf check` / `workflow_check`** reports a `pending-decision` **warning** per slice. It **does not block**; `cf next` does the blocking.
+- **Squadron contract:** `cf validate design --json` has `files[].pending` (`{ heading, line }[]`) and `decisionGateEnabled`. `cf next --json` has `pendingDecisions`, the one additive field on `NextAction`. `cf status --json` has `activeSlice.status === 'pending-decision'`. Consumers key on these field names, never on `recommendation` text.
 
 ## `cf check` Findings
+
+A slice design with a pending PM decision gets a **`pending-decision`** **warning** (see [Decision Gate](#decision-gate)). It is reported only and never blocks.
 
 With gating on, `cf check` (no `--slice` flag — i.e. `checkAll()`) surfaces a `review-gate` finding at **all four boundaries**: `arch`, `slice`, `tasks`, and `code`. (`cf check --slice <n>` only evaluates the slice/tasks/code boundaries for that one slice — arch-boundary checking runs only in the full `cf check` sweep, since it applies across the architecture rather than to one slice.)
 
