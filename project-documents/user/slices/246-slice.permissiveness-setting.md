@@ -36,6 +36,7 @@ Excluded:
 - Slice 245 is complete. It set the pattern of one `workflow.*` key for one gate.
 - ai-project-guide ships the `cautious` and `autonomous` fragments (see D2). The code can be built and tested against fixture fragments before that release; the feature cannot be used for real until it ships.
 - The guide request is the first task of this slice, not the last. It is an issue on ai-project-guide that states the path convention, the two level meanings from D1, and the baseline-conflict requirement in Special Considerations. The slice records the issue number and the guide version that satisfies it in this section before the slice is closed. Closing the slice with the feature unusable is allowed only if the PM accepts that explicitly.
+- **Satisfied:** ai-project-guide#46 (closed). Guide v0.21.9 ships `rules/permissiveness/cautious.md` and `autonomous.md`. v0.21.7 added the baseline bullet to general.md. The fragments carry `name` and `description` frontmatter and a `### Permissiveness: <level>` heading; neither has `alwaysApply`. The project's installed guide is v0.21.6 and must be updated (`cf guides update`) before the feature can be exercised for real; tests use fixtures in this shape.
 
 ### Interfaces Required
 - `ConfigManager` reads the key per checkout, as `resolveIntegrationBranchForPrompt` does for `git.integration_branch`.
@@ -97,7 +98,8 @@ Status: decided
   - The guide cannot be located (the existing guide-resolution error propagates).
   - The fragment file is missing. The message names the level and the expected path, says the installed guide may predate this feature, and points to `cf guides update`.
   - The file exists but cannot be read. The message carries the path and the underlying error.
-  - The file is empty or whitespace-only. An empty fragment would otherwise look like `standard`.
+  - The file has no body: it is empty, whitespace-only, or only frontmatter. An empty fragment would otherwise look like `standard`.
+- The fragment files begin with YAML frontmatter. The resolver strips it and injects only the body, which opens with its own `### Permissiveness: <level>` heading. The frontmatter is a guide-side file convention, not prompt content. Core's `parseFrontmatterText` returns only the key/values, not the body, and the installer's helper lives in the cli package, so the resolver carries one small leniently-written function that drops a leading `---` block (any line endings, trailing whitespace allowed). A test uses the real v0.21.9 file text as its fixture.
 - No silent fallback to `standard`: a project that asked for autonomous work must not quietly get the default. This follows the existing rule that a failing config read propagates.
 - Failures are raised only when the phase applies. A project on `autonomous` with a bad fragment can still run `cf build` in the concept phase.
 
