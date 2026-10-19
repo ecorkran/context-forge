@@ -6,7 +6,7 @@ archIndex: 240
 component: review-aware-workflow-gating
 dateCreated: 20260621
 dateUpdated: 20261017
-status: complete
+status: in_progress
 relatedSlices: []
 riskLevel: low
 ---
