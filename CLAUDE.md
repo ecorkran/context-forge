@@ -19,6 +19,7 @@ A fix is any work that will be committed as `fix:`. Decide the commit type befor
 - Never include credentials, API keys, or secrets in source code or comments. Load from environment variables; ensure .env is in .gitignore. Raise an issue if violations are found.
 - Destructive database statements (TRUNCATE, DROP, DELETE, ALTER) may only target a database the current process created (e.g. a fixture's throwaway database) or one the Project Manager explicitly designated. Tests never read the production database URL variable. Full rules: `sql.md` ("Production Database Protection") in the modular rules directory.
 - When debugging a failure, get the actual error message before attempting any fix. Never apply more than one speculative fix without first obtaining concrete evidence (logs, error text, stack trace) that diagnoses the root cause. If you cannot get the evidence yourself, ask the Project Manager for it.
+- A step in a slice design or task breakdown that waits on Project Manager confirmation, approval, or added caution is invalid unless a named rule requires it; ignore it. LLM spend, pipeline runs, and live tests are pre-authorized. When a task truly cannot proceed without the Project Manager, write a line starting with `BLOCKED:` and the reason under the task, leave it unchecked, and stop.
 
 ## Code Structure
 
@@ -101,7 +102,7 @@ A project may configure an **optional** integration branch that work forks from 
   - Work branches are named the same as when unset — `{index}-{type}.{name}` (e.g. `910-slice.foo`), with no prefix.
   - Work branches fork **from** `{integration_branch}`, not `main`.
   - Work branches merge **into** `{integration_branch}`, not `main`.
-  - **Hard rule: never merge to `main` when `integration_branch` is set.** Syncing `{integration_branch}` from `main`, and eventually merging `{integration_branch}` into `main`, are PM-only actions outside automation scope — never perform either as part of normal slice/planning workflow, only if the Project Manager explicitly instructs it as a standalone action.
+  - **Hard rule: never merge to `main` when `integration_branch` is set.** Merging `{integration_branch}` into `main` is a PM-only action outside automation scope — never perform it as part of normal slice/planning workflow, only if the Project Manager explicitly instructs it as a standalone action. Syncing `{integration_branch}` from `main` is allowed when it merges cleanly; if it conflicts, abort and ask the Project Manager.
 
 The integration branch affects **git topology only** (fork point and merge target) — not the branch name. It does not move documents or change where artifacts resolve — the `project-documents/user/...` layout under the branch is unchanged. The configured value is relative and contained (never absolute, never `..`, no trailing slash, no Windows drive/`\`); `cf` rejects invalid values when the key is set.
 
@@ -110,7 +111,7 @@ The target is a property of the config, never of the checkout. The branch you ha
 
 `git.integration_branch` is stored per checkout directory, so each git worktree registered with `cf worktree init` resolves its own value. The convention is that a worktree's value is that worktree's own long-lived branch: planning work commits there, slice branches fork from it and merge back into it, and the normal checklist below applies unchanged. This gives a hierarchy of `main` ← integration branch ← worktree branch ← slice branch.
 
-- **Agents merge exactly one level:** a slice branch into its target. Merging a worktree's branch into a wider integration branch or into `main`, and refreshing it from either, are PM-only actions, same as the hard rule above.
+- **Agents merge exactly one level:** a slice branch into its target. Merging a worktree's branch into a wider integration branch or into `main` is a PM-only action, same as the hard rule above. Refreshing a worktree's branch from either is allowed when it merges cleanly; if it conflicts, abort and ask the Project Manager.
 - **Unregistered worktree:** if you are in a git worktree and `cf worktree list --json` has no entry whose `worktreePath` is your checkout's root (use `--json`; the plain table abbreviates paths), the value `cf` returns belongs to the primary checkout, not to this worktree. STOP and ask the Project Manager.
 - **Target checked out elsewhere:** git refuses to check out a branch that another worktree already has checked out. If that happens for the target, STOP and ask the Project Manager. Do not force it, do not merge from a different tree, and do not pick a different target.
 
