@@ -5,12 +5,22 @@ project: context-forge
 lld: project-documents/user/slices/246-slice.permissiveness-setting.md
 dependencies:
 - 245
-projectState: 'Slice 245 (workflow.decision_gate_enabled) is merged. ai-project-guide#46 is closed;
-  guide v0.21.9 is installed in this repo and ships rules/permissiveness/cautious.md and
-  autonomous.md. Nothing in Context Forge reads a permissiveness setting yet (issue #122).'
+projectState: 'Slice 245 (workflow.decision_gate_enabled) is merged. ai-project-guide#46
+  is closed; guide v0.21.9 is installed in this repo and ships rules/permissiveness/cautious.md
+  and autonomous.md. Nothing in Context Forge reads a permissiveness setting yet (issue
+  #122).'
 dateCreated: 20261019
 dateUpdated: 20261019
 status: not_started
+turns: 27
+promptTokens: 1583234
+cachedTokens: 1506518
+cacheWriteTokens: 76664
+completionTokens: 20256
+durationSeconds: 225.8
+costUsd: 1.320225
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Tasks: Permissiveness Setting (Slice 246)
@@ -171,7 +181,7 @@ status: not_started
   - [ ] the fragment path convention `project-guides/rules/permissiveness/<level>.md`, owned by ai-project-guide (v0.21.9 or later);
   - [ ] that a missing fragment fails the build and `cf guides update` fixes it;
   - [ ] that cf does not read or enforce `BLOCKED:` lines (D7), and that sessions outside `cf build` / `/cf:build` do not get the setting (D3).
-- [ ] Slice design `Dependencies` section: confirm it records ai-project-guide#46 and v0.21.9 (it does as of 20261019). Correct the stale sentence saying the installed guide is v0.21.6 and must be updated; it is now v0.21.9.
+- [ ] Slice design `Dependencies` section: confirm it records ai-project-guide#46 and v0.21.9 and that the installed guide is v0.21.9 (corrected 20261019). No edit needed unless the guide version changed since.
 - [ ] `CHANGELOG.md` `[Unreleased]`: one line for `workflow.permissiveness` (#122).
   - [ ] Success: every key, level, path, and command name in the docs matches the code. Cross-check with `grep -rn "permissiveness" packages/*/src`.
 - [ ] Commit: `docs: document workflow.permissiveness`
