@@ -12,15 +12,16 @@ projectState: 'Slice 245 (workflow.decision_gate_enabled) is merged. ai-project-
 dateCreated: 20261019
 dateUpdated: 20261019
 status: not_started
-turns: 27
-promptTokens: 1583234
-cachedTokens: 1506518
-cacheWriteTokens: 76664
-completionTokens: 20256
-durationSeconds: 225.8
-costUsd: 1.320225
-usageRounds: 1
-pricedRounds: 1
+turns: 39
+promptTokens: 2471586
+cachedTokens: 2379171
+cacheWriteTokens: 92345
+completionTokens: 26384
+durationSeconds: 296.8
+costUsd: 1.742836
+usageRounds: 2
+pricedRounds: 2
+revision_number: 1
 ---
 
 # Tasks: Permissiveness Setting (Slice 246)
