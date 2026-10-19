@@ -30,7 +30,7 @@ pricedRounds: 1
 - Working on slice 246, `permissiveness-setting` (issue #122). Design: `user/slices/246-slice.permissiveness-setting.md`. Decisions D1–D7 there are the spec; tasks cite them rather than repeating them.
 - New config key `workflow.permissiveness` (`cautious` | `standard` | `autonomous`, default `standard`). On every `cf build` / MCP `context_build`, a new resolver reads the key for the checkout. When the phase applies (Phase 4, 5 or 6) and the level is not `standard`, it loads `<guide>/project-guides/rules/permissiveness/<level>.md`, strips the frontmatter, and the template engine renders the body as its own section right after the instruction prompt.
 - `standard` adds nothing (D4). A missing, unreadable, or empty fragment in an applicable phase fails the build (D6). cf never enforces `BLOCKED:` (D7). `cf setup-ide` does not change (D3); a test pins that it ignores the `permissiveness/` subdirectory (D2).
-- Prerequisite is satisfied: the guide request (ai-project-guide#46) shipped in v0.21.9, and this repo's installed guide is already v0.21.9 (commit `bb1e06b9`). The design's note that the installed guide is v0.21.6 is out of date. Implementation Notes steps 1 and 7 are therefore already done; Task 8 confirms the record.
+- Prerequisite is satisfied: the guide request (ai-project-guide#46) shipped in v0.21.9, and this repo's installed guide is already v0.21.9 (commit `bb1e06b9`). Implementation Notes steps 1 and 7 are therefore already done.
 - Verified code anchors (as of 20261019):
   - `packages/core/src/config/ConfigKeys.ts`: `CONFIG_KEYS` (:19). `workflow.decision_gate_enabled` (:77) and the enum-typed `workflow.review_threshold` (:84) are the models. `ConfigManager.ts:101` already rejects a non-enum string with `must be one of [...]`; no new validator code is needed.
   - `packages/core/src/schema/projectSchema.ts`: `SLICE_DESIGN_PHASE` (:36), `TASK_BREAKDOWN_PHASE` (:39), `IMPLEMENTATION_PHASE` (:42). Values are the display strings, e.g. `Phase 5: Task Breakdown`.
@@ -76,36 +76,23 @@ pricedRounds: 1
 
 ---
 
-## Task 2: Fragment fixtures
+## Task 2: `permissivenessResolver.ts`, with tests (D4, D5, D6)
 
 - [ ] Create `packages/core/tests/fixtures/permissiveness/` and copy into it, byte for byte, the installed guide files `project-documents/ai-project-guide/project-guides/rules/permissiveness/cautious.md` and `autonomous.md` (v0.21.9). These are the real-shape fixtures the design requires.
-- [ ] Add a one-line `README.md` in that directory: "Verbatim copies of ai-project-guide v0.21.9 rules/permissiveness fragments. Refresh when the guide changes the format."
   - [ ] Success: `diff` between each fixture and its installed source prints nothing.
-- [ ] Commit: `test(core): add permissiveness fragment fixtures`
-- **Effort:** 1/5
-
----
-
-## Task 3: `permissivenessResolver.ts`, with tests (D4, D5, D6)
-
 - [ ] In `packages/core/src/services/ContextIntegrator.ts`, next to `IntegrationBranchResolver` (:20), declare `export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;`.
 - [ ] Create `packages/core/src/services/permissivenessResolver.ts` (Node only), modeled on `integrationBranchResolver.ts`. Module constants, each defined once:
   - [ ] `PERMISSIVENESS_PHASES`: a `ReadonlySet<string>` of `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, `IMPLEMENTATION_PHASE` imported from `schema/projectSchema.ts` (D5). Export it for tests.
   - [ ] `PERMISSIVENESS_FRAGMENT_DIR`: `rules/permissiveness`, relative to the guide's `project-guides` directory.
-- [ ] Export `resolvePermissivenessForPrompt: PermissivenessResolver`. Order of checks:
-  1. If `instruction` is not in `PERMISSIVENESS_PHASES`, return `''` without reading config or the guide (D5, D6 last bullet).
-  2. Read `workflow.permissiveness` with `new ConfigManager(checkoutPath).get(...)`. A read error propagates. If the value is not a string, throw, as the integration-branch resolver does.
-  3. If the level is `STANDARD_PERMISSIVENESS`, return `''` (D4).
-  4. Locate the guide with `resolvePromptFilePath(checkoutPath)` (its error propagates). The fragment path is `path.join(path.dirname(promptPath), PERMISSIVENESS_FRAGMENT_DIR, `${level}.md`)`.
-  5. Missing file: throw an error that names the level and the expected path, says the installed guide may predate this feature, and says to run `cf guides update`.
-  6. Read failure for any other reason: throw an error carrying the path and the underlying message (use `{ cause }`).
-  7. Strip frontmatter (below). If the remaining body is empty or whitespace-only, throw an error naming the path and saying the fragment has no body.
-  8. Return the trimmed body.
-- [ ] Add one small private function `stripLeadingFrontmatter(text)`. It drops a leading `---` block only when the first line is `---`, and ends at the next line that is `---`. Accept `\n` and `\r\n` and trailing whitespace on both delimiter lines. A file with no frontmatter is returned unchanged. An opening `---` with no closing line is treated as all frontmatter (empty body, so step 7 fails it).
-- [ ] Keep the file under ~120 lines. No fallback to `standard` anywhere.
-- [ ] Tests in new `packages/core/tests/services/permissivenessResolver.test.ts`. Build a temp checkout per test: copy the core fixture guide's `prompt.ai-project.system.md` into the guide path, copy the Task 2 fixtures into `rules/permissiveness/` as a test needs them, and set the level with a real `ConfigManager`.
+- [ ] Export `resolvePermissivenessForPrompt: PermissivenessResolver`, implementing D4–D6:
+  - [ ] Outside `PERMISSIVENESS_PHASES`, or at `STANDARD_PERMISSIVENESS`, return `''`. Outside the phases, return before reading the guide, so a bad fragment cannot fail a non-applicable build (D6, last bullet).
+  - [ ] Read the level with `ConfigManager` for the checkout; a read error propagates, as in `integrationBranchResolver.ts`.
+  - [ ] Locate the guide with `resolvePromptFilePath` (Interfaces Required); the fragment is `<PERMISSIVENESS_FRAGMENT_DIR>/<level>.md` beside the prompt file.
+  - [ ] Raise each D6 error with the content D6 lists, strip frontmatter as D6 describes, and return the body.
+- [ ] No fallback to `standard` anywhere.
+- [ ] Tests in new `packages/core/tests/services/permissivenessResolver.test.ts`. Build a temp checkout per test: copy the core fixture guide's `prompt.ai-project.system.md` into the guide path, copy the fixtures above into `rules/permissiveness/` as a test needs them, and set the level with a real `ConfigManager`.
   - [ ] `it.each` over `PERMISSIVENESS_PHASES`: `autonomous` and `cautious` each return the fixture body. The result starts with `### Permissiveness: <level>` and contains no `---` or `name:` line.
-  - [ ] Non-applicable phases (`ARCHITECTURE_PHASE` and `Phase 0: Concept` via `PHASE_MAP['0']`): `''` for `autonomous`, even with **no guide** in the checkout. That proves step 1 short-circuits.
+  - [ ] Non-applicable phases (`ARCHITECTURE_PHASE` and `Phase 0: Concept` via `PHASE_MAP['0']`): `''` for `autonomous`, even with **no guide** in the checkout. That proves the phase check comes first.
   - [ ] A custom instruction string, and `implementation` (the integrator's default for an unset instruction): `''`.
   - [ ] Key unset and key `standard` in an applicable phase: `''`, even with no fragment files present.
   - [ ] D6 failures, each `rejects.toThrow` with a message check: no guide installed (the `resolvePromptFilePath` error); fragment file missing (message has the level, the path, and `cf guides update`); unreadable file (a directory named `autonomous.md` is a portable way to force a read error); empty file; whitespace-only file; frontmatter-only file.
@@ -117,7 +104,7 @@ pricedRounds: 1
 
 ---
 
-## Task 4: Integrator and engine wiring, with tests
+## Task 3: Integrator and engine wiring, with tests
 
 - [ ] `packages/core/src/types/context.ts`: add `permissivenessFragment?: string` to `ContextData`, after `targetBranch`, with a one-line doc comment ("Guide fragment for workflow.permissiveness; empty or undefined when none applies.").
 - [ ] `ContextIntegrator.ts`:
@@ -134,22 +121,19 @@ pricedRounds: 1
 
 ---
 
-## Task 5: Pipeline wiring and pipeline test
+## Task 4: Pipeline wiring and pipeline test
 
 - [ ] `CoreServiceFactory.ts`: import `resolvePermissivenessForPrompt` and pass it as the sixth argument to `new ContextIntegrator(...)`. This one change covers `cf build` and `context_build`.
 - [ ] Tests in `packages/core/tests/services/CoreServiceFactory.test.ts`, each on a temp copy of `fixtures/test-project` with the Task 2 fixtures in `rules/permissiveness/`:
   - [ ] `autonomous`, `instruction: TASK_BREAKDOWN_PHASE`: the output contains the fragment body, positioned after the instruction prompt text and before the next section.
-  - [ ] Same project, `instruction: ARCHITECTURE_PHASE`: no `### Permissiveness:` heading.
-  - [ ] Byte-identical default: for each phase in `PERMISSIVENESS_PHASES`, the output with the key unset equals the output with `standard` set, and both equal the output of a `ContextIntegrator` built by hand with the same arguments minus the permissiveness resolver.
-  - [ ] Level change: set `autonomous`, build; set `cautious`, build again with the same pipeline. The second output has the cautious heading and not the autonomous one.
-  - [ ] Missing fragment: `cautious` with no `cautious.md`, in an applicable phase, rejects with the D6 message.
+  - [ ] Byte-identical default: for each phase in `PERMISSIVENESS_PHASES`, the output with the key unset equals the output of a `ContextIntegrator` built by hand with the same arguments minus the permissiveness resolver.
   - [ ] Success: `pnpm --filter @context-forge/core test` passes in full.
 - [ ] Commit: `feat(core): wire permissiveness resolver into context pipeline`
 - **Effort:** 2/5
 
 ---
 
-## Task 6: CLI and MCP smoke tests
+## Task 5: CLI and MCP smoke tests
 
 - [ ] `packages/cli/tests/integration/build.integration.test.ts`: one test on a temp copy of the MCP integration fixture project, with the `autonomous` fixture added at `rules/permissiveness/` and the key set to `autonomous`. Override `instruction` to `IMPLEMENTATION_PHASE` and assert the output contains `### Permissiveness: autonomous`.
 - [ ] `packages/mcp-server/tests/integration/mcpIntegration.test.ts`: one `context_build` test on the same kind of temp copy, asserting the same heading in the tool result. If the fixture registry makes a temp copy impractical, add the fragment and config to a per-test temp copy of the registry the file already uses. Do not modify the shared fixture on disk.
@@ -160,9 +144,9 @@ pricedRounds: 1
 
 ---
 
-## Task 7: setup-ide ignores the `permissiveness/` subdirectory (D2)
+## Task 6: setup-ide ignores the `permissiveness/` subdirectory (D2)
 
-- [ ] In `packages/cli/tests/ideInstall/rules.test.ts`, add one test. In a temp rules directory, put `general.md` (with `alwaysApply: true` frontmatter, like the existing fixtures) and `permissiveness/autonomous.md` (the Task 2 fixture).
+- [ ] In `packages/cli/tests/ideInstall/rules.test.ts`, add one test. In a temp rules directory, put `general.md` (with `alwaysApply: true` frontmatter, like the existing fixtures) and `permissiveness/autonomous.md` (the fixture added in Task 2).
   - [ ] `listMarkdownFiles(rulesDir)` returns only `general.md`.
   - [ ] `compileAlwaysOnRules` output does not contain `Permissiveness: autonomous`.
 - [ ] No source change in `packages/cli/src`. If the test fails, stop and report it: it means setup-ide would install the fragments, which contradicts D2.
@@ -172,7 +156,7 @@ pricedRounds: 1
 
 ---
 
-## Task 8: Documentation
+## Task 7: Documentation
 
 - [ ] `README.md` "Key configuration" table (~:386, after `workflow.decision_gate_enabled`): add `workflow.permissiveness | shared | How readily AI work waits on the PM: cautious, standard (default) or autonomous. Applied by cf build in Phases 4–6.`
 - [ ] `README.md`: below the table, add a short **Permissiveness** subsection:
@@ -181,7 +165,6 @@ pricedRounds: 1
   - [ ] the fragment path convention `project-guides/rules/permissiveness/<level>.md`, owned by ai-project-guide (v0.21.9 or later);
   - [ ] that a missing fragment fails the build and `cf guides update` fixes it;
   - [ ] that cf does not read or enforce `BLOCKED:` lines (D7), and that sessions outside `cf build` / `/cf:build` do not get the setting (D3).
-- [ ] Slice design `Dependencies` section: confirm it records ai-project-guide#46 and v0.21.9 and that the installed guide is v0.21.9 (corrected 20261019). No edit needed unless the guide version changed since.
 - [ ] `CHANGELOG.md` `[Unreleased]`: one line for `workflow.permissiveness` (#122).
   - [ ] Success: every key, level, path, and command name in the docs matches the code. Cross-check with `grep -rn "permissiveness" packages/*/src`.
 - [ ] Commit: `docs: document workflow.permissiveness`
@@ -189,14 +172,14 @@ pricedRounds: 1
 
 ---
 
-## Task 9: CI check and walkthrough
+## Task 8: CI check and walkthrough
 
 - [ ] Run the CI sequence from `.github/workflows/ci.yml`, in its order: `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Every step passes.
 - [ ] Run the design's **Verification Walkthrough** steps 1–6 in this repo with `node packages/cli/dist/index.js`, saving outputs in the session scratchpad, not the repo:
   - [ ] Step 1: set phase 4 and save the `build` output; `config get workflow.permissiveness` prints `standard`.
   - [ ] Step 2: the installed guide already has `autonomous.md`; no test fragment is needed. Set `autonomous` and rebuild; the fragment follows the instruction prompt. Call `context_build` through the MCP server (or the `mcpIntegration` test harness) and confirm the same section.
   - [ ] Step 3: set phase 2 and rebuild; no `### Permissiveness:` heading.
-  - [ ] Step 4: move the installed `rules/permissiveness/cautious.md` aside, set `cautious`, set phase 4 and build; the build fails naming the missing path. Move the file back.
+  - [ ] Step 4: move the installed `rules/permissiveness/cautious.md` aside, set `cautious`, set phase 4 and build; the build fails naming the missing path. The file is tracked in git: restore it with `git restore` on its path and confirm `git status` shows no guide change.
   - [ ] Step 5: `config set workflow.permissiveness bogus` is rejected and lists the three levels.
   - [ ] Step 6: set `standard`, rebuild, and `diff` against step 1; no difference.
   - [ ] Finish with `config unset workflow.permissiveness` and restore the phase to what it was before step 1.
