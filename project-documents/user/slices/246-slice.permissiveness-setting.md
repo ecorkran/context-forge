@@ -35,6 +35,7 @@ Excluded:
 ### Prerequisites
 - Slice 245 is complete. It set the pattern of one `workflow.*` key for one gate.
 - ai-project-guide ships the `cautious` and `autonomous` fragments (see D2). The code can be built and tested against fixture fragments before that release; the feature cannot be used for real until it ships.
+- The guide request is the first task of this slice, not the last. It is an issue on ai-project-guide that states the path convention, the two level meanings from D1, and the baseline-conflict requirement in Special Considerations. The slice records the issue number and the guide version that satisfies it in this section before the slice is closed. Closing the slice with the feature unusable is allowed only if the PM accepts that explicitly.
 
 ### Interfaces Required
 - `ConfigManager` reads the key per checkout, as `resolveIntegrationBranchForPrompt` does for `git.integration_branch`.
@@ -49,6 +50,8 @@ Excluded:
 - `ContextTemplateEngine.buildTemplate`: one new conditional section after the instruction section, present only when the resolver returned text.
 
 The CLI `cf build` and the MCP `context_build` both use `createContextPipeline`, so one wiring change covers both.
+
+Why a separate resolver file: the integrator does not read files or config itself; the task-file and integration-branch lookups are injected, Node.js-only functions. The permissiveness lookup reads config and a guide file, so it takes the same route, and it can be tested without constructing an integrator.
 
 ### Data Flow
 `cf config set workflow.permissiveness autonomous` → next `cf build` → resolver reads the key for the checkout → if the phase is in the applicable set, loads `<guide rules>/permissiveness/autonomous.md` → integrator attaches the text to the context data → engine renders it as its own section after the instruction prompt.
@@ -85,11 +88,18 @@ Status: decided
 - The section appears when the project is in slice design, task breakdown or implementation, identified by the schema's phase constants. Elsewhere (concept, initiative plan, architecture, slice plan) waiting is allowed at every level, per the issue, so the section is omitted.
 - Phase 6 is included because unattended runs spend most of their time there and invented gates stall them most. The set is one constant, so changing it is a one-line edit.
 - Phase scoping lives in cf. The fragments stay phase-agnostic and short.
+- The phase is the `instruction` value on the enhanced context data. That is the value the integrator already uses to choose the instruction prompt, so the fragment always accompanies the prompt it qualifies. `cf set phase` keeps `instruction` in step, and a worktree's own context supplies its own value.
+- An `instruction` that is not one of the schema's phase strings (a custom instruction, or unset) is not an applicable phase: the section is omitted. That is defined behavior, not a fallback, because custom instructions are a supported input and have no phase to scope to. A test pins it.
 
 ### D6 — A missing fragment is an error
 Status: decided
-- If the level is `cautious` or `autonomous`, the phase applies and the guide has no matching fragment, the build fails with a message naming the level, the expected path and `cf guides update`.
+- If the level is `cautious` or `autonomous` and the phase applies, each of these fails the build with a named error:
+  - The guide cannot be located (the existing guide-resolution error propagates).
+  - The fragment file is missing. The message names the level and the expected path, says the installed guide may predate this feature, and points to `cf guides update`.
+  - The file exists but cannot be read. The message carries the path and the underlying error.
+  - The file is empty or whitespace-only. An empty fragment would otherwise look like `standard`.
 - No silent fallback to `standard`: a project that asked for autonomous work must not quietly get the default. This follows the existing rule that a failing config read propagates.
+- Failures are raised only when the phase applies. A project on `autonomous` with a bad fragment can still run `cf build` in the concept phase.
 
 ### D7 — cf does not enforce waiting
 Status: decided
@@ -114,7 +124,8 @@ Status: decided
 
 ### Technical Requirements
 - Level names and the applicable-phase set are each defined once; no repeated string literals.
-- Tests cover: validator, each level in an applicable and a non-applicable phase, level change, missing fragment, the subdirectory not being picked up by setup-ide as a rule, and CLI and MCP parity.
+- Resolver tests cover: validator, each level in an applicable and a non-applicable phase, a custom or unset `instruction`, every D6 failure (including the empty file), and the subdirectory not being picked up by setup-ide as a rule.
+- One pipeline-level test confirms the section lands after the instruction prompt. CLI and MCP each get a smoke test; both share the pipeline, so no separate parity matrix.
 - Tests use a fragment fixture in the shape the guide will ship.
 - Existing build and setup-ide tests pass unchanged.
 
@@ -122,22 +133,23 @@ Status: decided
 - Squadron and other pipelines that build context through cf receive the section with no changes of their own.
 
 ### Verification Walkthrough
-1. `cf config get workflow.permissiveness` prints `standard`. Save `cf build` output in a design-phase project.
-2. Put a test fragment at `<guide>/project-guides/rules/permissiveness/autonomous.md`. Run `cf config set workflow.permissiveness autonomous`, then `cf build`. Confirm the fragment appears after the instruction prompt.
-3. `cf set phase` to a concept or architecture phase and rebuild. Confirm the fragment is absent.
-4. `cf config set workflow.permissiveness cautious` with no `cautious.md` present, back in a design phase, then `cf build`. Confirm it fails naming the missing path.
-5. `cf config set workflow.permissiveness bogus` is rejected, listing the valid levels.
-6. Set the level back to `standard`, rebuild, and confirm the output matches the one saved in step 1.
-7. Call the MCP `context_build` tool for the same project and confirm the same section appears.
+1. In a design-phase project, save `cf build` output at the default level (`cf config get workflow.permissiveness` prints `standard`).
+2. Put a test fragment at `<guide>/project-guides/rules/permissiveness/autonomous.md`, run `cf config set workflow.permissiveness autonomous`, then `cf build`. The fragment appears after the instruction prompt. The MCP `context_build` tool shows the same section.
+3. `cf set phase` to an architecture phase and rebuild. The fragment is absent.
+4. Set `cautious` with no `cautious.md` present, return to a design phase and build. The build fails naming the missing path.
+5. Set `bogus`. It is rejected and the valid levels are listed.
+6. Set `standard` and rebuild. The output matches step 1.
 
 ## Implementation Notes
 ### Development Approach
-1. Config key, constant and validator, with tests.
-2. `permissivenessResolver.ts` with tests, including the missing-fragment error and the phase set.
-3. Wire it through `ContextIntegrator`, `createContextPipeline` and the template engine; confirm the CLI and MCP outputs match.
-4. Test that setup-ide ignores the `permissiveness/` subdirectory.
-5. Docs: README and config reference.
-6. Raise the two fragments with ai-project-guide, with the phase-scope wording from #122.
+1. Raise the two fragments with ai-project-guide first, with the phase-scope wording from #122, and record the issue number in Dependencies.
+2. Config key, constant and validator, with tests.
+3. `permissivenessResolver.ts` with tests, including every D6 failure and the phase set.
+4. Wire it through `ContextIntegrator`, `createContextPipeline` and the template engine; add the pipeline test and the CLI and MCP smoke tests.
+5. Test that setup-ide ignores the `permissiveness/` subdirectory.
+6. Docs: README and config reference (the config key and the fragment path convention; the project documents config keys in one place).
+7. Before closing, record the guide version that ships the fragments.
 
 ### Special Considerations
+- Baseline conflict, for the guide request: general.md calls invented confirmation gates invalid, while `cautious` asks for more waiting. The guide's `cautious` fragment must say plainly that it overrides that baseline rule for the phases it applies in, otherwise the AI sees two contradicting instructions. cf cannot settle this; the guide owns the wording.
 - Slice 246 ships cf support only. The feature goes live when ai-project-guide releases the fragments. Releasing cf first is safe: default users see no change.
