@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.9] - 2026-10-19
+
+### Added
+- `rules/permissiveness/cautious.md` and `rules/permissiveness/autonomous.md`: fragments context-forge appends to its build output for the `workflow.permissiveness` setting (#46). `standard` is the baseline in `rules/general.md` and has no file. `cautious` states that it overrides the baseline's "invented confirmation gates are invalid" rule. The subdirectory keeps setup-ide from installing them as scoped rules.
+
+## [0.21.8] - 2026-10-19
+
+### Changed
+- `rules/git.md` (and the CLAUDE.md block): syncing the integration branch from `main`, and refreshing a worktree's branch from its parent, are no longer PM-only. They are allowed when the merge is clean; on conflict, abort and ask the PM. Merging upward into the integration branch or `main` stays PM-only.
+
+## [0.21.7] - 2026-10-18
+
+### Changed
+- `rules/general.md`: slice designs and task breakdowns may not wait on Project Manager confirmation, approval, or added caution unless a named rule requires it. When a task truly needs the PM, write a `BLOCKED:` line and reason under it, leave it unchecked, and stop. Unattended pipelines (squadron) parse the marker.
+
 ## [0.21.6] - 2026-10-17
 
 ### Fixed
