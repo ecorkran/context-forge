@@ -68,12 +68,8 @@ Excluded:
 
 ### Interfaces Required
 - **Probe contract** `capability-probe-contract.md`, `probe_version` 1. Field names locked at squadron commit 32b3c609. Squadron 366's revision keeps every name and widens `analysis_skill_installed` and `understand_plugin_installed` to "bool or null"; the fixture (D8) uses the revised document.
-- Readings from squadron 366's design (squadron-brownfield 4b3afa91), confirmed against its probe code. cf doesn't act on any of them; they shape the test fixtures and the walkthrough:
-  - `graph.path` is null whenever `graph.present` is false.
-  - `analysis_skill_installed` on `claude-code` is true only with a 366-era `sq/analysis.md` dispatcher that routes `understand`.
-  - `understand_plugin_installed` means installed, not enabled.
-  - Exit 0 whenever the object is built; a field it can't determine is null and gets one WARNING log line on stderr; exit 1 with an error on stderr and nothing on stdout when the probe breaks.
-  - The probe resolves the project from its working directory (`Path.cwd()` → git toplevel), so cf must run it with `cwd` set to the checkout. For a CF project in a monorepo subdirectory, the graph facts therefore describe the repository root, not the folder. This is accepted: cf passes the JSON through, the graph is squadron's and covers the whole repository, and 265 checks it on a real repository.
+- Field meanings and exit-code behavior are the contract's and squadron 366's design's (squadron-brownfield 4b3afa91); cf doesn't act on them.
+- The probe resolves the project from its working directory (`Path.cwd()` → git toplevel), so cf must run it with `cwd` set to the checkout. For a CF project in a monorepo subdirectory, the graph facts therefore describe the repository root, not the folder. This is accepted: cf passes the JSON through, the graph is squadron's and covers the whole repository, and 265 checks on a real repository that the prompt copes with it.
 - **Squadron 362's output:** `project-documents/user/analysis/{index}-analysis.codebase-comprehension.md`, frontmatter `docType: analysis`. Each run takes a new index (lowest unused ≥ 940) and never overwrites.
 - `parseFrontmatterText` (`introspection/parsers/frontmatterParser.ts`), `ContextProfileParser` (already used by 261's guide check).
 
@@ -132,13 +128,10 @@ None. The probe outcome and the comprehension path are recomputed on every selec
 Status: decided
 - `execFile` from `node:child_process` (no shell), command `SQUADRON_PROBE_COMMAND = { file: 'sq', args: ['probe', '--json'] }`, `cwd: checkoutPath`. The checkout is where adoption runs, and the probe resolves its project from its working directory.
 - Limits, each one constant in `squadronProbe.ts`: `SQUADRON_PROBE_TIMEOUT_MS` (10 s; the probe runs a few read-only git commands) and `SQUADRON_PROBE_MAX_BUFFER_BYTES` (1 MiB).
-- The wrapper turns the call into a `ProbeRun` and nothing else. It reads the `execFile` callback's error fields, checked in this order:
-  - `code === 'ENOENT'` → `{ kind: 'not-found' }`;
-  - `code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'` → `{ kind: 'spawn-failed', message: 'output exceeded 1 MiB' }` (Node kills the child for this too, so it's checked before `killed`);
-  - `killed === true` → `{ kind: 'timed-out' }`. With the buffer case taken, the timeout is the only remaining kill Node makes itself;
-  - `signal` set (killed from outside, e.g. OOM or an external SIGTERM) → `{ kind: 'signaled', signal }`;
-  - any other string `code` (EACCES, …) → `{ kind: 'spawn-failed', message }`;
-  - no error, or a numeric `code` → `{ kind: 'exited', exitCode, stdout, stderr }`.
+- The wrapper turns the call into a `ProbeRun` and nothing else:
+  - error `code === 'ENOENT'` → `{ kind: 'not-found' }`;
+  - no error, or a numeric `code` → `{ kind: 'exited', exitCode, stdout, stderr }`;
+  - any other error (timeout, output over the buffer, a signal kill, EACCES) → `{ kind: 'could-not-run', detail }`, where `detail` is the error's string `code` or else its `signal`. These all lead to the same statement, so cf doesn't tell them apart.
 - No environment changes. Squadron's log format (text or JSON) is the user's setting, and D3 carries its lines either way.
 - Rejected: `gitExec`; it's git-specific (credential env, network hints). Rejected: a shell string; nothing here needs a shell.
 
@@ -152,14 +145,12 @@ Status: decided
   ```
 - In order:
   1. `not-found` → unavailable, "`sq` was not found on PATH".
-  2. `timed-out` → unavailable, "`sq probe` did not finish within 10 s".
-  3. `spawn-failed` → unavailable, "`sq probe` could not run: {message}".
-  4. `signaled` → unavailable, "`sq probe` was killed by {signal}".
-  5. Non-zero exit → unavailable, "`sq probe --json` exited with code {n}". A squadron older than the probe lands here (Typer's "No such command", exit 2), and its stderr line says so.
-  6. `JSON.parse(stdout.trim())` throws, or the result isn't a plain object → unavailable, "`sq probe --json` printed output that is not a JSON object".
-  7. `probe_version` isn't the number `SUPPORTED_PROBE_VERSION` (1) → unavailable, "`sq probe` reports probe_version {value}; this cf supports 1". A missing value reads as "missing".
-  8. Otherwise available, with `json` = `stdout.trim()`, unchanged.
-- `ProbeUnavailableReason` reuses `ProbeRun`'s four failure kinds and adds the three classification cases (non-zero exit, unreadable output, unsupported version). It's rendered to text in one place (D6), so no reason text is written twice.
+  2. `could-not-run` → unavailable, "`sq probe` could not run or did not finish within 10 s with at most 1 MiB of output ({detail})".
+  3. Non-zero exit → unavailable, "`sq probe --json` exited with code {n}". A squadron older than the probe lands here (Typer's "No such command", exit 2), and its stderr line says so.
+  4. `JSON.parse(stdout.trim())` throws, or the result isn't a plain object → unavailable, "`sq probe --json` printed output that is not a JSON object".
+  5. `probe_version` isn't the number `SUPPORTED_PROBE_VERSION` (1) → unavailable, "`sq probe` reports probe_version {value}; this cf supports 1". A missing value reads as "missing".
+  6. Otherwise available, with `json` = `stdout.trim()`, unchanged.
+- `ProbeUnavailableReason` reuses `ProbeRun`'s two failure kinds and adds the three classification cases (non-zero exit, unreadable output, unsupported version). It's rendered to text in one place (D6), so no reason text is written twice.
 - Only `probe_version` is checked. The contract guarantees the shape for a version, squadron's own contract test (366 D11) enforces it, and the guide prompt is the only reader of the other fields. Checking more fields would duplicate squadron's test and reject the additive fields its versioning rules allow.
 - Rejected: scraping a JSON object out of noisy stdout. The contract says stdout holds exactly one object; anything else is a broken probe and is reported as such.
 
@@ -235,9 +226,7 @@ Status: decided
 export const SUPPORTED_PROBE_VERSION = 1;
 export type ProbeRun =
   | { kind: 'not-found' }
-  | { kind: 'timed-out' }
-  | { kind: 'spawn-failed'; message: string }
-  | { kind: 'signaled'; signal: string }
+  | { kind: 'could-not-run'; detail: string }
   | { kind: 'exited'; exitCode: number; stdout: string; stderr: string };
 export type ProbeUnavailableReason =
   | Exclude<ProbeRun, { kind: 'exited' }>
@@ -277,7 +266,7 @@ export type AdoptionSelection =
 ### Functional Requirements
 - On a build that selects the brownfield prompt, Adoption Facts holds exactly one of:
   - the probe JSON verbatim, with stderr warnings or "none";
-  - "Squadron: unavailable." with the right reason for each case: `sq` missing, non-zero exit, timeout, a signal kill, output over the buffer limit, non-JSON output, a JSON non-object, `probe_version` 2 or missing. Any stderr lines are included.
+  - "Squadron: unavailable." with the right reason for each case: `sq` missing, could not run (timeout, buffer, signal or spawn error), non-zero exit, non-JSON output, a JSON non-object, `probe_version` 2 or missing. Any stderr lines are included.
 - A probe that exits 0 with a null field and a WARNING line shows both the JSON and that line.
 - `fileComprehension`:
   - one comprehension document present → `Comprehension: user/analysis/{n}-analysis.codebase-comprehension.md` in Project Context;
@@ -288,7 +277,7 @@ export type AdoptionSelection =
 - CLI and MCP builds of the same fixture with the same fake probe are identical (261's parity test, extended).
 
 ### Technical Requirements
-- Unit tests: `classifyProbeRun` for every `ProbeRun` and every D2 branch; stderr handling (verbatim, blank lines dropped); `renderSquadronFacts` for both outcomes, with and without warnings, and the fence-length rule; `findComprehensionAnalysis` (match, highest index, wrong `docType` skipped, case-insensitive name, missing directory, non-ENOENT error throws `AdoptionError`); `runSquadronProbe` against a small fake executable for not-found, exit codes, stderr capture, timeout, buffer overflow and a signal kill.
+- Unit tests: `classifyProbeRun` for every `ProbeRun` and every D2 branch; stderr handling (verbatim, blank lines dropped); `renderSquadronFacts` for both outcomes, with and without warnings, and the fence-length rule; `findComprehensionAnalysis` (match, highest index, wrong `docType` skipped, case-insensitive name, missing directory, non-ENOENT error throws `AdoptionError`); `runSquadronProbe` against a small fake executable for not-found, exit codes, stderr capture and a timeout.
 - Contract test (D8).
 - Integration tests in `pipeline-integration.test.ts` with an injected probe: available, unavailable, comprehension present and absent.
 - `pnpm -r build`, lint, typecheck and all existing tests pass. 261's tests that asserted the fixed squadron bullet are updated to the D6 text.
@@ -327,11 +316,9 @@ Use the local build: `alias cfl="node $PWD/packages/cli/dist/index.js"` from the
 
 ### Technical Risks
 - **MCP server PATH.** An MCP client may launch cf's MCP server with a smaller PATH than the user's shell, so `context_build` reports "`sq` was not found on PATH" while `cf build` finds it.
-- **Contract drift.** The fixture is a copy. A squadron change that bumps nothing but renames a field would pass cf's contract test until someone updates the fixture.
 
 ### Mitigation Strategies
 - The not-found reason names PATH, so the cause is visible in the prompt and the agent says it. 265 checks the MCP path on a real setup. If it proves common, an `sq` path setting is a follow-up, not part of this slice.
-- Squadron's own contract test (366 D11) fails on a rename against the same document, and its versioning rules forbid renaming without a version bump. 265's real-repo runs use the real probe.
 
 ## Implementation Notes
 
@@ -346,5 +333,5 @@ Use the local build: `alias cfl="node $PWD/packages/cli/dist/index.js"` from the
 Effort: 2/5.
 
 ### Special Considerations
-- The probe adds one process spawn to each brownfield build, at most 10 s when it hangs and typically well under a second. Builds that don't select the brownfield prompt pay nothing.
+- The probe adds one process spawn to each brownfield build, typically well under a second. The 10 s timeout kills `sq` itself; a git child it started that still holds the output pipe could delay the result beyond that. That's unlikely for a read-only probe, so cf adds no separate deadline. Builds that don't select the brownfield prompt pay nothing.
 - The probe reads the user's home directory (installed commands and plugins). cf passes its output through and stores nothing.
