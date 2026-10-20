@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { PERMISSIVENESS_FRAGMENT_DIR } from '@context-forge/core/node';
 import { caseGlobToRegExp, RuleExclusions } from '../../src/ideInstall/exclusions.js';
 import { listMarkdownFiles } from '../../src/ideInstall/fsChecks.js';
 import { Printer } from '../../src/ideInstall/output.js';
@@ -15,6 +16,8 @@ import { makeTmpDir, writeFiles } from './harness.js';
 
 const ALWAYS = (body: string): string => `---\ndescription: d\nalwaysApply: true\n---\n${body}`;
 const SCOPED = '---\ndescription: d\npaths:\n  - "**/*.x"\n---\n### Scoped\n';
+// Real guide fragments, copied byte for byte into core's test fixtures.
+const PERMISSIVENESS_FIXTURES = path.resolve(import.meta.dirname, '../../../core/tests/fixtures/permissiveness');
 
 let tmp: string;
 let stdout: string;
@@ -111,6 +114,24 @@ describe('compileAlwaysOnRules', () => {
       '<!-- BEGIN:context-forge -->\n# H\n\n## a\n\n## B\nbee\n\nTAIL\n<!-- END:context-forge -->\n',
     );
     expect(stdout).toContain('📋 Compiled 2 alwaysApply rules → AGENTS.md');
+  });
+
+  it('ignores guide permissiveness fragments in the rules subdirectory (slice 246, D2)', () => {
+    // cf build, not setup-ide, delivers these; a setup-ide that installed them would defeat the setting.
+    const fragment = fs.readFileSync(path.join(PERMISSIVENESS_FIXTURES, 'autonomous.md'), 'utf-8');
+    const rules = path.join(tmp, 'rules');
+    writeFiles(rules, {
+      'general.md': ALWAYS('# General\nbody\n'),
+      // The rules dir here is the guide's `rules/`, so only the last path segment applies.
+      [`${path.basename(PERMISSIVENESS_FRAGMENT_DIR)}/autonomous.md`]: fragment,
+    });
+    expect(fragment).toContain('### Permissiveness: autonomous');
+
+    expect(listMarkdownFiles(rules).map((f) => path.basename(f))).toEqual(['general.md']);
+
+    const outFile = path.join(tmp, 'out', 'AGENTS.md');
+    compileAlwaysOnRules({ rulesDir: rules, outFile, label: 'AGENTS.md', h1: 'H', trailing: '', out: printer });
+    expect(fs.readFileSync(outFile, 'utf-8')).not.toContain('Permissiveness: autonomous');
   });
 });
 
