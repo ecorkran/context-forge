@@ -11,15 +11,16 @@ projectState: main at 0.19.16. Three hand-written onboarding recipes (`commands/
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
-turns: 14
-promptTokens: 683436
-cachedTokens: 619389
-cacheWriteTokens: 64023
-completionTokens: 16217
-durationSeconds: 154.7
-costUsd: 0.960781
-usageRounds: 1
-pricedRounds: 1
+turns: 24
+promptTokens: 1545668
+cachedTokens: 1461512
+cacheWriteTokens: 84112
+completionTokens: 23359
+durationSeconds: 222.1
+costUsd: 1.432838
+usageRounds: 2
+pricedRounds: 2
+revision_number: 1
 ---
 
 ## Context Summary
