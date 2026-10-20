@@ -65,6 +65,25 @@ Adoption is a branch inside onboarding, not a separate product.
 
 Each step leaves standard artifacts behind, so a user can stop after any of them and resume with `cf next`.
 
+## Responsibility Split with Squadron (proposed 20261020, pending PM sign-off)
+
+Agreed in discussion between the CF and squadron agents. Squadron initiative 440 shrinks to the items marked squadron.
+
+| Capability | Owner | Notes |
+|---|---|---|
+| (a) Detection and onboard branching | CF | Squadron drops its 440 detection item. |
+| (b) Handoff | Shared | CF detects and offers. Squadron provides the entry point (`/sq:analysis understand`, squadron slice 366) and a **capability probe**: one `sq` command printing JSON for sq installed, analysis skill installed, `understand-anything` plugin present, graph present and how stale. CF reads only the probe and never inspects squadron's install paths. Output is recognized by existing filename/`docType` conventions plus squadron 361's provenance block. |
+| (c) Architecture from code | CF | CF writes the architecture doc on both paths. With squadron present, squadron 362's comprehension analysis is an input the prompt reads. One writer. |
+| (d) Existing-state slice plan and retroactive marker | CF | Squadron 364 supplies the graph's `layers[]` as an optional signal for retroactive slice boundaries. Marker spec requirement: a retroactive entry **counts as complete** for every "done" check (squadron's pipeline gates read slice status) and is **never treated as reviewed**. |
+| (e) Conventions reconciliation | CF | Squadron has nothing here. |
+| (f) Docs, ADR and CI mapping | CF | |
+| (g) Brownfield-aware `cf next` / `agent_onboard` | CF | |
+| Concept (`000-concept`) | Shared | Squadron 363 writes it from the graph; CF's fallback writes it from repo prose. The handoff picks exactly one per run, and neither overwrites an existing concept without the PM saying so. |
+| Initiative candidates | Squadron | On brownfield, squadron 364 proposes forward work only (complexity clusters). Layer-boundary candidates describe existing components, so they feed (c) and (d) instead. Candidates are indexed after retroactive entries. Squadron 364's "candidates adopt" writes CF's initiative-plan format and never sets the retroactive marker. It is frozen until the handoff contract settles. |
+| Adoption baseline (squadron 400) | Squadron | CF may offer it at handoff via the probe. CF doesn't consume its output. |
+
+Consequences: the graph is optional by construction. With no graph, the probe says so and CF's own path runs. Squadron drops its planned non-graph analysis path (360 future-work item 4) because CF's fallback covers it. Squadron 366 should land before CF's handoff slice.
+
 ## Technical Considerations
 
 - **What counts as brownfield.** The threshold must not misfire on a repo that is only scaffolding (a framework starter, a README and a license). The costs are lopsided: a false greenfield wastes a conversation, a false brownfield writes wrong artifacts. The user needs an explicit override in both directions.
