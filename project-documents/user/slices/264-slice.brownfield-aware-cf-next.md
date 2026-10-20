@@ -50,7 +50,11 @@ Included:
 - `WorkflowNavigator.computeNext`: one call in the no-active-slice guard, after the existing arch gate. Its result can return an action, add a warning, or skip first-run logic (D1).
 - Extraction of the existing `preSlicePlan` gate → `NextAction` mapping into one helper, used by the existing arch gate and by the adoption step that writes the existing-state plan (D4).
 - A structured `adoptionStep` field on `NextAction`, so consumers key on it and never on recommendation text (D6).
-- Two small changes to the 261/263 `adoption/` code, both extractions with no behavior change (Interfaces Required).
+- Three changes to the 261/263 `adoption/` code, unless those slices ship them (Interfaces Required):
+  - `isConceptInstruction`, extracted from 261's resolver. No behavior change.
+  - `findExistingStatePlan`, split out of 263's `completeAdoptionIfPlanRecorded`. No behavior change.
+  - A changed return type for `findPlanningArtifacts`: kinded entries instead of `string[]`. Its callers (261's resolver and 263's completion code) are updated to read `path`, or to filter on `kind` instead of re-matching filenames.
+- A `SLICE_PLANNING_PHASE` export in `projectSchema.ts`, beside the existing phase constants (D6).
 
 Excluded:
 - Running brownfield detection (the source walk) in `cf next`. Detection stays in the build (D2).
@@ -144,6 +148,7 @@ Status: decided
 - With `adoption.state` at `""`, `cf next` behaves as today. It doesn't walk the source tree to guess whether the project is brownfield.
 - Why: detection has one owner, the build (261), and it can throw `AdoptionError` on a tree it can't judge. `cf next` would then either fail on a question it doesn't need answered, or swallow the error. Onboarding hands off to `cf build`, never to `cf next` (260), so the first brownfield build sets `in_progress` before `cf next` matters. In the rare case `cf next` runs first on an unset brownfield repo, it recommends `cf build`, which is correct: the build detects and selects the brownfield prompt.
 - `declined` is a fresh project (261 D3) and gets today's navigation.
+- **Departure from the arch, recorded.** The arch's "One detection, many consumers" principle lists `cf next` as a consumer of detection. Here `cf next` consumes only detection's persisted result, `adoption.state`. That keeps the principle's intent: no second heuristic, and core owns detection. It leaves one gap: on an unset brownfield repo, `cf next` run before the first `cf build` gives today's navigation, which points at `cf build`. 265's real-repo runs include that case (Integration Points).
 - Rejected: a read-only detection resolver for `cf next`. It's another caller of the source walk that has nothing to do with its result except change wording.
 
 ### D3 — `cf next` stays read-only; the build records completion
@@ -188,7 +193,7 @@ The first condition that matches decides:
 
 - **`plan-missing`:** the state says complete, but no slice plan has a retroactive entry. This happens when the PM set `complete` by hand. Recommendation: "adoption.state is complete, but no existing-state slice plan (a slice plan with retroactive entries) was found." The rationale gives both ways on: `cf config set adoption.state in_progress`, then `cf build`, to write it; or `declined` to treat the project as new. No command is suggested, because cf can't tell which the PM wants. Navigating as if the project were fresh would be a silent fallback.
 - **`register-plan`:** "Adoption is complete. Register the derived architecture and existing-state slice plan." The command is `cf set arch {archStem}` when an architecture artifact shares the plan's index (263 D6 puts both at 100). `computeAutoSetFields` then sets `fileSlicePlan` from it, so one command registers both. With no same-index architecture, the command is `cf set plan {planStem}`. Stems come from the found paths.
-- **`plan-new-work`:** the plan records only history. "Adoption is complete. Every entry in {planStem} is recorded history. Plan the first new work as entries after the retroactive ones." Command: `cf set phase 'Phase 3: Slice Planning'`, then `cf build`. This is the one adoption recommendation that moves the phase, because new work starts at slice planning against the derived architecture. 263 D6 puts new work in the same plan, after the retroactive entries.
+- **`plan-new-work`:** the plan records only history. "Adoption is complete. Every entry in {planStem} is recorded history. Plan the first new work as entries after the retroactive ones." The command depends on the current phase. If the instruction doesn't resolve to `SLICE_PLANNING_PHASE`, it's `cf set phase 'Phase 3: Slice Planning'`, then `cf build`. Once it does, it's `cf build` alone, so the advice doesn't repeat a phase change that has already been made. The step stays `plan-new-work` in both cases, because the work is the same and only the command differs. The step ends when an entry that isn't retroactive is added and condition 3 no longer holds. This is the one adoption recommendation that moves the phase, because new work starts at slice planning against the derived architecture. 263 D6 puts new work in the same plan, after the retroactive entries.
 - **`adopted`:** D1's fall-through. It recommends `cf set slice {first new index}`, then `cf set phase 4`.
 - A registered plan that isn't the existing-state plan (the PM moved on to another plan) goes to `adopted` (condition 4). The user's pointer is respected, and normal navigation runs on it.
 - With an active slice, none of this applies (D1).
@@ -233,6 +238,7 @@ export interface AdoptionNavInputs {
   existingStatePlanPath: string | null;   // findExistingStatePlan
   registeredPlanPath: string | null;      // fileSlicePlan resolved, file present
   registeredPlanHasOpenEntry: boolean;    // only meaningful when registered === existing-state plan
+  slicePlanningInstruction: boolean;      // resolvePhaseValue(project.instruction) === SLICE_PLANNING_PHASE (D6)
 }
 export function gatherAdoptionInputs(project: ResolvedProject, status: WorkflowStatus): Promise<AdoptionNavInputs>;
 export function decideAdoptionNav(inputs: AdoptionNavInputs): AdoptionNav;
@@ -248,7 +254,7 @@ For `""` and `declined`, `gatherAdoptionInputs` stops after the state read and r
 ## Integration Points
 
 ### Provides to Other Slices
-- **265 (end-to-end verification):** the "`cf next` points at new work" end state its real-repo runs check, and `adoptionStep` for asserting each step.
+- **265 (end-to-end verification):** the "`cf next` points at new work" end state its real-repo runs check, and `adoptionStep` for asserting each step. Its runs include `cf next` before the first `cf build` on an unset brownfield repo (D2).
 - **Guide (ai-project-guide):** `adoptionStep` values, should the brownfield prompt or adoption guide want to tell the agent to check `cf next`. No guide change is required by this slice.
 
 ### Consumes from Other Slices
@@ -272,14 +278,18 @@ For `""` and `declined`, `gatherAdoptionInputs` stops after the state read and r
   - no existing-state plan → step `plan-missing`, no suggested command
   - plan not registered, same-index arch present → step `register-plan`, `cf set arch 100-arch.{name}`. After running it, `fileSlicePlan` is set and the next `cf next` recommends `cf set slice` for the first non-retroactive entry.
   - plan registered with new entries → "Pick slice {first new index}". No "Advance to Phase 1" recommendation in any complete-state fixture.
-  - plan registered, all entries retroactive → step `plan-new-work`, command `cf set phase 'Phase 3: Slice Planning'`
+  - plan registered, all entries retroactive, instruction not Phase 3 → step `plan-new-work`, command `cf set phase 'Phase 3: Slice Planning'`
+  - the same plan with the instruction already at Phase 3 → step `plan-new-work`, command `cf build`, no phase change
   - a different plan registered → normal navigation on that plan
 - **Active slice set:** recommendations are unchanged in every adoption state.
 - **Parity:** `workflow_next` returns the same `recommendation`, `suggestedCommand` and `adoptionStep` as `cf next --json` for every adoption fixture.
 - **Read-only:** `adoption.state` and the project record are unchanged after `cf next` in every fixture.
 
 ### Technical Requirements
-- Unit tests for `decideAdoptionNav`: every row of D4 and D6, `paused`, and `not-adopting` for `""` and `declined`.
+- Unit tests for `decideAdoptionNav`: every row of D4 and D6 (both `plan-new-work` commands), `paused`, and `not-adopting` for `""` and `declined`.
+- An import-boundary test. It scans the source files' import specifiers and fails if:
+  - any file under `adoption/` imports from `introspection/`, other than `introspection/parsers/`; or
+  - any file under `introspection/` imports from `adoption/`, other than `adoption/index.js`.
 - Navigator tests (fixtures in temp dirs): each Functional Requirements bullet, including the gate-before-step-4 case and the active-slice case.
 - A real-format fixture: an existing-state plan line written exactly as 263's Marker Specification gives it.
 - This repo's `cf next` and `cf next --json` output is unchanged (state `""`).
@@ -319,7 +329,7 @@ Use the local build (the global `cf` is the published package): `alias cfl="node
    cfl next                     # expect: "Pick slice 102: Export to CSV", cf set slice 102
    ```
    This is the initiative's end state: the first piece of new work, not Phase 0.
-6. **No new work.** Check entry 102 (`[x]`) and mark it retroactive, then `cfl next`. Expect step `plan-new-work` and `cf set phase 'Phase 3: Slice Planning'`. Undo the edit.
+6. **No new work.** Check entry 102 (`[x]`) and mark it retroactive, then `cfl next`. Expect step `plan-new-work` and `cf set phase 'Phase 3: Slice Planning'`. Run `cfl set phase 'Phase 3: Slice Planning' && cfl next`. Expect step `plan-new-work` again, now with `cf build` and no phase change. Undo the edit, and restore with `cfl set phase 'Phase 0: Concept'`.
 7. **Paused.** `cfl config set adoption.state in_progress && cfl set phase 'Phase 2: Architecture' && cfl next`. Expect the Phase 2 recommendation plus the paused warning. Restore with `cfl set phase 'Phase 0: Concept'`.
 8. **MCP parity.** From an MCP client in `/tmp/bf`, call `workflow_next` at steps 2 and 5 and compare `recommendation`, `suggestedCommand` and `adoptionStep` with `cfl next --json`. Expect them to match.
 
@@ -334,4 +344,4 @@ Use the local build (the global `cf` is the published package): `alias cfl="node
 
 ### Special Considerations
 - Performance: planned and greenfield projects add one `ConfigManager.get` on the no-active-slice path. The adoption reads (`readdir`, one slice plan parse) run only for `in_progress` or `complete`.
-- `adoption/` already imports from `introspection/parsers/` (263), and this slice makes `introspection/` import from `adoption/`. Those are different files, so there's no module cycle, but `adoptionNavigation.ts` must import only from `adoption/index.ts` and never the other way round.
+- `adoption/` already imports from `introspection/parsers/` (263), and this slice makes `introspection/` import from `adoption/`. Those are different files, so there's no module cycle. The repo's ESLint config has no import-boundary rule, so a test guards the boundary instead (Technical Requirements).
