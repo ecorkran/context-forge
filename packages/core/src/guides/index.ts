@@ -39,3 +39,4 @@ export {
   BranchGuardBlockedError,
   BranchGuardWarnError,
 } from './branchGuard.js';
+export { MIN_GUIDE_VERSION, checkGuideMinimum } from './guideMinimum.js';
