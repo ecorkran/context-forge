@@ -188,6 +188,35 @@ describe('ContextTemplateEngine', () => {
     });
   });
 
+  describe('permissiveness fragment (slice 246)', () => {
+    const FRAGMENT = '### Permissiveness: sample\n\nSample body.';
+
+    it('renders the fragment once, after the instruction prompt and before additional instructions', async () => {
+      const engine = createEngine();
+      const data = createTestEnhancedContextData({ additionalNotes: 'Check types', permissivenessFragment: FRAGMENT });
+
+      const output = await engine.generateContext(data);
+      const instructionAt = output.indexOf('### Instruction Prompt');
+      const fragmentAt = output.indexOf(FRAGMENT);
+      const notesAt = output.indexOf('## Additional Instructions');
+      expect(output.split(FRAGMENT)).toHaveLength(2);
+      expect(instructionAt).toBeGreaterThanOrEqual(0);
+      expect(fragmentAt).toBeGreaterThan(instructionAt);
+      expect(notesAt).toBeGreaterThan(fragmentAt);
+    });
+
+    it.each([
+      ['an empty string', ''],
+      ['whitespace', '   '],
+      ['undefined', undefined],
+    ])('adds nothing for %s', async (_label, fragment) => {
+      const engine = createEngine();
+      const baseline = await engine.generateContext(createTestEnhancedContextData());
+      const output = await engine.generateContext(createTestEnhancedContextData({ permissivenessFragment: fragment }));
+      expect(output).toBe(baseline);
+    });
+  });
+
   describe('validateInputData', () => {
     it('returns error context when projectName missing', async () => {
       const engine = createEngine();

@@ -79,28 +79,28 @@ revision_number: 1
 
 ## Task 2: `permissivenessResolver.ts`, with tests (D4, D5, D6)
 
-- [ ] Create `packages/core/tests/fixtures/permissiveness/` and copy into it, byte for byte, the installed guide files `project-documents/ai-project-guide/project-guides/rules/permissiveness/cautious.md` and `autonomous.md` (v0.21.9). These are the real-shape fixtures the design requires.
-  - [ ] Success: `diff` between each fixture and its installed source prints nothing.
-- [ ] In `packages/core/src/services/ContextIntegrator.ts`, next to `IntegrationBranchResolver` (:20), declare `export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;`.
-- [ ] Create `packages/core/src/services/permissivenessResolver.ts` (Node only), modeled on `integrationBranchResolver.ts`. Module constants, each defined once:
-  - [ ] `PERMISSIVENESS_PHASES`: a `ReadonlySet<string>` of `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, `IMPLEMENTATION_PHASE` imported from `schema/projectSchema.ts` (D5). Export it for tests.
-  - [ ] `PERMISSIVENESS_FRAGMENT_DIR`: `rules/permissiveness`, relative to the guide's `project-guides` directory.
-- [ ] Export `resolvePermissivenessForPrompt: PermissivenessResolver`, implementing D4–D6:
-  - [ ] Outside `PERMISSIVENESS_PHASES`, or at `STANDARD_PERMISSIVENESS`, return `''`. Outside the phases, return before reading the guide, so a bad fragment cannot fail a non-applicable build (D6, last bullet).
-  - [ ] Read the level with `ConfigManager` for the checkout; a read error propagates, as in `integrationBranchResolver.ts`.
-  - [ ] Locate the guide with `resolvePromptFilePath` (Interfaces Required); the fragment is `<PERMISSIVENESS_FRAGMENT_DIR>/<level>.md` beside the prompt file.
-  - [ ] Raise each D6 error with the content D6 lists, strip frontmatter as D6 describes, and return the body.
-- [ ] No fallback to `standard` anywhere.
-- [ ] Tests in new `packages/core/tests/services/permissivenessResolver.test.ts`. Build a temp checkout per test: copy the core fixture guide's `prompt.ai-project.system.md` into the guide path, copy the fixtures above into `rules/permissiveness/` as a test needs them, and set the level with a real `ConfigManager`.
-  - [ ] `it.each` over `PERMISSIVENESS_PHASES`: `autonomous` and `cautious` each return the fixture body. The result starts with `### Permissiveness: <level>` and contains no `---` or `name:` line.
-  - [ ] Non-applicable phases (`ARCHITECTURE_PHASE` and `Phase 0: Concept` via `PHASE_MAP['0']`): `''` for `autonomous`, even with **no guide** in the checkout. That proves the phase check comes first.
-  - [ ] A custom instruction string, and `implementation` (the integrator's default for an unset instruction): `''`.
-  - [ ] Key unset and key `standard` in an applicable phase: `''`, even with no fragment files present.
-  - [ ] D6 failures, each `rejects.toThrow` with a message check: no guide installed (the `resolvePromptFilePath` error); fragment file missing (message has the level, the path, and `cf guides update`); unreadable file (a directory named `autonomous.md` is a portable way to force a read error); empty file; whitespace-only file; frontmatter-only file.
-  - [ ] Frontmatter stripping: the real fixture with `\r\n` line endings, and a delimiter line with trailing spaces, both give the same body as the `\n` fixture.
-  - [ ] Worktree: two temp checkouts with different levels each get their own fragment.
-  - [ ] Success: `pnpm typecheck`, `pnpm lint`, and `pnpm --filter @context-forge/core test -- permissivenessResolver` pass.
-- [ ] Commit: `feat(core): add permissiveness fragment resolver`
+- [x] Create `packages/core/tests/fixtures/permissiveness/` and copy into it, byte for byte, the installed guide files `project-documents/ai-project-guide/project-guides/rules/permissiveness/cautious.md` and `autonomous.md` (v0.21.9). These are the real-shape fixtures the design requires.
+  - [x] Success: `diff` between each fixture and its installed source prints nothing.
+- [x] In `packages/core/src/services/ContextIntegrator.ts`, next to `IntegrationBranchResolver` (:20), declare `export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;`.
+- [x] Create `packages/core/src/services/permissivenessResolver.ts` (Node only), modeled on `integrationBranchResolver.ts`. Module constants, each defined once:
+  - [x] `PERMISSIVENESS_PHASES`: a `ReadonlySet<string>` of `SLICE_DESIGN_PHASE`, `TASK_BREAKDOWN_PHASE`, `IMPLEMENTATION_PHASE` imported from `schema/projectSchema.ts` (D5). Export it for tests.
+  - [x] `PERMISSIVENESS_FRAGMENT_DIR`: `rules/permissiveness`, relative to the guide's `project-guides` directory.
+- [x] Export `resolvePermissivenessForPrompt: PermissivenessResolver`, implementing D4–D6:
+  - [x] Outside `PERMISSIVENESS_PHASES`, or at `STANDARD_PERMISSIVENESS`, return `''`. Outside the phases, return before reading the guide, so a bad fragment cannot fail a non-applicable build (D6, last bullet).
+  - [x] Read the level with `ConfigManager` for the checkout; a read error propagates, as in `integrationBranchResolver.ts`.
+  - [x] Locate the guide with `resolvePromptFilePath` (Interfaces Required); the fragment is `<PERMISSIVENESS_FRAGMENT_DIR>/<level>.md` beside the prompt file.
+  - [x] Raise each D6 error with the content D6 lists, strip frontmatter as D6 describes, and return the body.
+- [x] No fallback to `standard` anywhere.
+- [x] Tests in new `packages/core/tests/services/permissivenessResolver.test.ts`. Build a temp checkout per test: copy the core fixture guide's `prompt.ai-project.system.md` into the guide path, copy the fixtures above into `rules/permissiveness/` as a test needs them, and set the level with a real `ConfigManager`.
+  - [x] `it.each` over `PERMISSIVENESS_PHASES`: `autonomous` and `cautious` each return the fixture body. The result starts with `### Permissiveness: <level>` and contains no `---` or `name:` line.
+  - [x] Non-applicable phases (`ARCHITECTURE_PHASE` and `Phase 0: Concept` via `PHASE_MAP['0']`): `''` for `autonomous`, even with **no guide** in the checkout. That proves the phase check comes first.
+  - [x] A custom instruction string, and `implementation` (the integrator's default for an unset instruction): `''`.
+  - [x] Key unset and key `standard` in an applicable phase: `''`, even with no fragment files present.
+  - [x] D6 failures, each `rejects.toThrow` with a message check: no guide installed (the `resolvePromptFilePath` error); fragment file missing (message has the level, the path, and `cf guides update`); unreadable file (a directory named `autonomous.md` is a portable way to force a read error); empty file; whitespace-only file; frontmatter-only file.
+  - [x] Frontmatter stripping: the real fixture with `\r\n` line endings, and a delimiter line with trailing spaces, both give the same body as the `\n` fixture.
+  - [x] Worktree: two temp checkouts with different levels each get their own fragment.
+  - [x] Success: `pnpm typecheck`, `pnpm lint`, and `pnpm --filter @context-forge/core test -- permissivenessResolver` pass.
+- [x] Commit: `feat(core): add permissiveness fragment resolver`
 - **Effort:** 3/5
 
 ---

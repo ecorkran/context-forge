@@ -33,6 +33,8 @@ export interface ContextData {
   integrationBranch?: string;
   /** Branch work forks from and merges into: integrationBranch if set, else the default trunk. */
   targetBranch?: string;
+  /** Guide fragment for workflow.permissiveness; empty or undefined when none applies. */
+  permissivenessFragment?: string;
 }
 
 /**

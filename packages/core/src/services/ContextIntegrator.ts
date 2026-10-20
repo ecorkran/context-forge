@@ -26,6 +26,18 @@ export type IntegrationBranchResolver = (checkoutPath: string) => Promise<string
 export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;
 
 /**
+ * Raised when workflow.permissiveness is set but its fragment cannot be loaded.
+ * generateContextFromProject rethrows it (every other error becomes an error
+ * stub) so the build fails instead of silently dropping the setting.
+ */
+export class PermissivenessFragmentError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'PermissivenessFragmentError';
+  }
+}
+
+/**
  * Default template for context generation
  * Uses markdown format with template variable substitution
  */
@@ -57,6 +69,7 @@ export class ContextIntegrator {
   private readFileFn: ((path: string) => string) | null;
   private resolveTaskFilesFn: TaskFilesResolver | null;
   private resolveIntegrationBranchFn: IntegrationBranchResolver | null;
+  private resolvePermissivenessFn: PermissivenessResolver | null;
 
   /**
    * @param engine Template engine for context generation
@@ -64,6 +77,7 @@ export class ContextIntegrator {
    * @param readFileFn Optional file reader for profile loading (Node.js only)
    * @param resolveTaskFilesFn Optional on-disk task file lookup (Node.js only)
    * @param resolveIntegrationBranchFn Optional per-checkout integration branch lookup (Node.js only)
+   * @param resolvePermissivenessFn Optional per-checkout permissiveness fragment lookup (Node.js only)
    */
   constructor(
     engine: ContextTemplateEngine,
@@ -71,9 +85,11 @@ export class ContextIntegrator {
     readFileFn: ((path: string) => string) | null = null,
     resolveTaskFilesFn: TaskFilesResolver | null = null,
     resolveIntegrationBranchFn: IntegrationBranchResolver | null = null,
+    resolvePermissivenessFn: PermissivenessResolver | null = null,
   ) {
     this.resolveTaskFilesFn = resolveTaskFilesFn;
     this.resolveIntegrationBranchFn = resolveIntegrationBranchFn;
+    this.resolvePermissivenessFn = resolvePermissivenessFn;
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
@@ -95,6 +111,8 @@ export class ContextIntegrator {
         return this.generateWithLegacySystem(project);
       }
     } catch (error: unknown) {
+      // A configured permissiveness level that cannot be applied must fail the build.
+      if (error instanceof PermissivenessFragmentError) throw error;
       console.error('Error generating context from project:', error);
       return this.getErrorContext(project, error);
     }
@@ -115,7 +133,7 @@ export class ContextIntegrator {
     // Map project data to enhanced context data
     const enhancedData = this.mapProjectToEnhancedContext(project, worktreeId);
 
-    // Both lookups read from the checkout being worked in: the worktree's own
+    // All three lookups read from the checkout being worked in: the worktree's own
     // path when one is selected, else the project root.
     const worktree = (project.worktrees ?? []).find((w) => w.id === worktreeId);
     const checkoutPath = worktree?.worktreePath ?? project.projectPath;
@@ -130,6 +148,15 @@ export class ContextIntegrator {
       const integrationBranch = await this.resolveIntegrationBranchFn(checkoutPath);
       enhancedData.integrationBranch = integrationBranch;
       enhancedData.targetBranch = integrationBranch || DEFAULT_TARGET_BRANCH;
+    }
+
+    // Resolve the permissiveness fragment for this checkout. Keyed on the same
+    // `instruction` value that selects the instruction prompt; errors propagate.
+    if (this.resolvePermissivenessFn && checkoutPath) {
+      enhancedData.permissivenessFragment = await this.resolvePermissivenessFn(
+        checkoutPath,
+        enhancedData.instruction
+      );
     }
 
     // Generate using template engine

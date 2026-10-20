@@ -8,6 +8,7 @@ import {
   PERMISSIVENESS_PHASES,
   resolvePermissivenessForPrompt,
 } from '../../src/services/permissivenessResolver.js';
+import { PermissivenessFragmentError } from '../../src/services/ContextIntegrator.js';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
 import { getProjectConfigPath } from '../../src/config/configPaths.js';
 import { PERMISSIVENESS_LEVELS, STANDARD_PERMISSIVENESS } from '../../src/config/ConfigKeys.js';
@@ -123,9 +124,9 @@ describe('resolvePermissivenessForPrompt', () => {
   describe('failures (no fallback to standard)', () => {
     it('no guide installed: names the missing prompt file', async () => {
       const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL, guide: false });
-      await expect(resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE)).rejects.toThrow(
-        /No prompt file found/
-      );
+      const attempt = resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE);
+      await expect(attempt).rejects.toThrow(/No prompt file found/);
+      await expect(attempt).rejects.toBeInstanceOf(PermissivenessFragmentError);
     });
 
     it('missing fragment: names the level, the path, and the guides update command', async () => {
@@ -134,6 +135,7 @@ describe('resolvePermissivenessForPrompt', () => {
       await expect(attempt).rejects.toThrow(AUTONOMOUS_LEVEL);
       await expect(attempt).rejects.toThrow(fragmentPath(checkout, AUTONOMOUS_LEVEL));
       await expect(attempt).rejects.toThrow('cf guides update');
+      await expect(attempt).rejects.toBeInstanceOf(PermissivenessFragmentError);
     });
 
     it('unreadable fragment: a directory where the file should be', async () => {

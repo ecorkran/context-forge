@@ -8,6 +8,7 @@ import {
   SLICE_DESIGN_PHASE,
   TASK_BREAKDOWN_PHASE,
 } from '../schema/projectSchema.js';
+import { PermissivenessFragmentError } from './ContextIntegrator.js';
 import type { PermissivenessResolver } from './ContextIntegrator.js';
 import { resolvePromptFilePath } from './promptFilePath.js';
 
@@ -56,20 +57,7 @@ function readFragment(fragmentPath: string, level: PermissivenessLevel): string 
   return body;
 }
 
-/**
- * Resolves the guide fragment for workflow.permissiveness in one checkout.
- *
- * Returns '' when the instruction is not a phase 4-6 string or the level is
- * `standard`. Otherwise returns the body of `<level>.md` from the installed
- * guide, frontmatter removed. A missing guide, or a missing, unreadable or
- * body-less fragment, throws; there is no fallback to `standard`.
- */
-export const resolvePermissivenessForPrompt: PermissivenessResolver = async (
-  checkoutPath,
-  instruction
-) => {
-  if (!PERMISSIVENESS_PHASES.has(instruction)) return '';
-
+async function loadFragment(checkoutPath: string): Promise<string> {
   const { value } = await new ConfigManager(checkoutPath).get('workflow.permissiveness');
   if (!isPermissivenessLevel(value)) {
     throw new Error(
@@ -81,4 +69,26 @@ export const resolvePermissivenessForPrompt: PermissivenessResolver = async (
   const projectGuidesDir = path.dirname(resolvePromptFilePath(checkoutPath));
   const fragmentPath = path.join(projectGuidesDir, PERMISSIVENESS_FRAGMENT_DIR, `${value}.md`);
   return readFragment(fragmentPath, value);
+}
+
+/**
+ * Resolves the guide fragment for workflow.permissiveness in one checkout.
+ *
+ * Returns '' when the instruction is not a phase 4-6 string or the level is
+ * `standard`. Otherwise returns the body of `<level>.md` from the installed
+ * guide, frontmatter removed. Any failure past the phase check (bad config
+ * value, missing guide, or a missing, unreadable or body-less fragment) throws
+ * PermissivenessFragmentError; there is no fallback to `standard`.
+ */
+export const resolvePermissivenessForPrompt: PermissivenessResolver = async (
+  checkoutPath,
+  instruction
+) => {
+  if (!PERMISSIVENESS_PHASES.has(instruction)) return '';
+  try {
+    return await loadFragment(checkoutPath);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new PermissivenessFragmentError(message, { cause: err });
+  }
 };

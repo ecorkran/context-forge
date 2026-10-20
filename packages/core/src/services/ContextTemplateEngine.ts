@@ -109,6 +109,17 @@ export class ContextTemplateEngine {
       order: 3
     });
 
+    // 3.5. Permissiveness fragment (conditional, slice 246). The fragment carries its own heading.
+    if (data.permissivenessFragment?.trim()) {
+      sections.push({
+        key: 'permissiveness',
+        title: '',
+        content: data.permissivenessFragment,
+        conditional: false,
+        order: 3.5
+      });
+    }
+
     // 4. Additional instructions section (conditional)
     if (data.additionalNotes && data.additionalNotes.trim()) {
       sections.push({
