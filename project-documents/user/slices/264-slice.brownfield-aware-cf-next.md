@@ -3,11 +3,23 @@ docType: slice-design
 slice: brownfield-aware-cf-next
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
-dependencies: [261, 263]
-interfaces: [265]
+dependencies:
+- 261
+- 263
+interfaces:
+- 265
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 21
+promptTokens: 1513735
+cachedTokens: 1400510
+cacheWriteTokens: 113189
+completionTokens: 26430
+durationSeconds: 258.6
+costUsd: 1.714687
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: brownfield-aware-cf-next
