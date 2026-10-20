@@ -36,6 +36,15 @@ describe('workflow.decision_gate_enabled', () => {
   });
 });
 
+describe('workflow.setup_ci_offer', () => {
+  it('is a shared boolean defaulting to true', () => {
+    const def = CONFIG_KEYS['workflow.setup_ci_offer'];
+    expect(def.type).toBe('boolean');
+    expect(def.scope).toBe('shared');
+    expect(def.default).toBe(true);
+  });
+});
+
 describe('workflow.permissiveness', () => {
   const def = CONFIG_KEYS['workflow.permissiveness'];
   let dataDir: string;

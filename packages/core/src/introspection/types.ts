@@ -391,6 +391,16 @@ export interface WorkflowStatus {
   warnings?: string[];
 }
 
+/** Stable id of the setup-ci offer. Consumers key on this, never on the message text. */
+export const SETUP_CI_OFFER_ID = 'setup-ci';
+
+/** An optional suggestion attached to a next action. It never displaces the recommendation. */
+export interface NextOffer {
+  /** Stable identifier; consumers key on this, never on `message`. */
+  id: string;
+  message: string;
+}
+
 /** Recommended next action from the workflow navigator */
 export interface NextAction {
   recommendation: string;
@@ -403,6 +413,8 @@ export interface NextAction {
   pendingDecisions?: PendingDecision[];
   /** Non-blocking warnings about project configuration (e.g., index band mismatches) */
   warnings?: string[];
+  /** Optional, non-blocking suggestions (e.g. the setup-ci offer). Present on any result, including gate-blocked ones. */
+  offers?: NextOffer[];
 }
 
 /** Introspection summary suitable for enriching project_get */

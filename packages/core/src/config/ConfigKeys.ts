@@ -88,6 +88,13 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       'When true, a pending PM decision in a slice design fails `cf validate design` and blocks `cf next` from Phase 5 and 6. When false, the parser never runs.',
     scope: ConfigScope.Shared,
   },
+  'workflow.setup_ci_offer': {
+    type: 'boolean',
+    default: true,
+    description:
+      'When true, `cf next` offers the setup-ci skill for a project with a build manifest and no recognized CI or release skill. Set to false to stop the offer.',
+    scope: ConfigScope.Shared,
+  },
   'workflow.permissiveness': {
     type: 'string',
     default: STANDARD_PERMISSIVENESS,
