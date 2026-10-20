@@ -7,6 +7,7 @@ import { ContextIntegrator } from './ContextIntegrator.js';
 import { STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
 import { resolveTaskFilesForPrompt } from './taskFilesResolver.js';
 import { resolveIntegrationBranchForPrompt } from './integrationBranchResolver.js';
+import { resolvePermissivenessForPrompt } from './permissivenessResolver.js';
 import { resolvePromptFilePath } from './promptFilePath.js';
 
 // Defined in its own module so resolvers can use it without importing this factory.
@@ -40,6 +41,7 @@ export function createContextPipeline(projectPath: string): {
     readFileFn,
     resolveTaskFilesForPrompt,
     resolveIntegrationBranchForPrompt,
+    resolvePermissivenessForPrompt,
   );
 
   return { engine, integrator };
