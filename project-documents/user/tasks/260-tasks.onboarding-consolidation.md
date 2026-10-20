@@ -10,7 +10,7 @@ projectState: main at 0.19.16. Three hand-written onboarding recipes (`commands/
   Design reviewed (round 2 CONCERNS, resolved in the design).
 dateCreated: 20261020
 dateUpdated: 20261020
-status: in_progress
+status: complete
 turns: 27
 promptTokens: 1850049
 cachedTokens: 1755102
@@ -243,11 +243,10 @@ revision_number: 2
   - [x] Any defect found here is fixed in its own commit typed by what it is (`fix:`, `feat:`, `test:`), not folded into a verification commit.
   - [x] Success: all automated checks and listed walkthrough steps pass.
 
-- [ ] **Task 17: Installed commands and live onboarding runs** (effort: 2)
+- [x] **Task 17: Installed commands and live onboarding runs** (effort: 2)
   - [x] Run `node packages/cli/dist/index.js install-commands` and confirm the installed `/cf:onboard` is the new text (Special Considerations).
   - [x] Walkthrough step 3 (live runs are pre-authorized), Claude half: in an empty temp directory, run `/cf:onboard demo` through Claude Code headless (`claude -p`).
-  - [ ] Walkthrough step 3, Codex half: `$cf-onboard demo` through `codex exec`.
-    - BLOCKED: `codex exec` rejects the configured model `gpt-6.1-sol` for a ChatGPT account, so the skill never loads.
+  - [x] Walkthrough step 3, Codex half: `$cf-onboard demo` through `codex exec`.
   - [x] Walkthrough step 4 precondition: `node packages/cli/dist/index.js status` in this repository shows it registered, in a phase other than Phase 0, with slice 260 set. If not, write a `BLOCKED:` line with the actual state and skip step 4. Otherwise run `/cf:onboard` here through `claude -p`.
   - [x] Record under this task, per run, whether setup, then `cf build`, then the concept question (step 3) or no concept question (step 4) occurred. If a CLI is not installed or cannot run headless, write a `BLOCKED:` line naming it and leave that item unchecked.
   - [x] Any defect found is fixed in its own commit typed by what it is.
@@ -256,8 +255,8 @@ revision_number: 2
   Run record (20261020):
   - Claude greenfield (`claude -p "/cf:onboard demo"`, empty temp dir, isolated data dir): setup ran, `cf build` ran, the agent asked "What do you want to build?". Pass.
   - Claude mid-project (`claude -p "/cf:onboard"` in this repository, Phase 6, slice 260): `project_list` found the registration, setup skipped, `context_build` ran, no concept question. Pass.
-  - BLOCKED: `codex exec '$cf-onboard demo'` cannot run headless on this machine: the configured model `gpt-6.1-sol` is rejected with "not supported when using Codex with a ChatGPT account" (HTTP 400), before the skill loads.
+  - Codex greenfield (`codex exec '$cf-onboard demo'`, codex-cli 0.163.0, empty temp dir, isolated data dir): setup ran (project registered, guide v0.22.2 installed), `cf build` loaded the Phase 0 context, and the agent asked "What do you want to build with `demo`?". Pass. The workspace-write sandbox blocked `git init` and the global command install; the agent reported both. The first attempt with codex-cli 0.146.1 failed before the skill loaded: that CLI could not read the models cache written by the newer desktop app (client 0.162.0) and the server rejected the request with HTTP 400. Updating the CLI fixed it.
   - Defect found and fixed during Task 16 (`fix(core)`, 6664d9af): every recipe told the agent to run `cf init <name>`, but `cf init` takes `--name <name>`; it rejects a positional name. The recipe now says `cf init --name <name>`.
   - Trap hit during the runs: `cf init` in the greenfield run (global published `cf`) re-installed the old bundled commands over the locally installed ones, so the mid-project run first used the old recipe. Re-running `node packages/cli/dist/index.js install-commands` restored the new text before the run recorded above.
 
-- [ ] **Task 17C: Commit** — `docs: record slice 260 live onboarding runs`
+- [x] **Task 17C: Commit** — `docs: record slice 260 live onboarding runs`
