@@ -7,7 +7,7 @@ dependencies: [245]
 interfaces: []
 dateCreated: 20261019
 dateUpdated: 20261019
-status: not_started
+status: complete
 ---
 
 # Slice Design: Permissiveness Setting
@@ -135,12 +135,17 @@ Status: decided
 - Squadron and other pipelines that build context through cf receive the section with no changes of their own.
 
 ### Verification Walkthrough
-1. In a design-phase project, save `cf build` output at the default level (`cf config get workflow.permissiveness` prints `standard`).
-2. Put a test fragment at `<guide>/project-guides/rules/permissiveness/autonomous.md`, run `cf config set workflow.permissiveness autonomous`, then `cf build`. The fragment appears after the instruction prompt. The MCP `context_build` tool shows the same section.
-3. `cf set phase` to an architecture phase and rebuild. The fragment is absent.
-4. Set `cautious` with no `cautious.md` present, return to a design phase and build. The build fails naming the missing path.
-5. Set `bogus`. It is rejected and the valid levels are listed.
-6. Set `standard` and rebuild. The output matches step 1.
+Run from the repo root against the local build (`pnpm -r build` first). Define `cf() { node packages/cli/dist/index.js "$@"; }`; the global `cf` is the published npm build. Verified 20261019 in this repo with guide v0.21.9 installed (both fragments present, so no test fragment is needed). Note the starting state (`cf get`: phase and instruction), because step 1 changes it and the last step restores it.
+
+Caveat: `cf build` without `--json` prints only a summary on stderr. The context itself is printed only with `--json`, so every build below uses it and reads the `context` field.
+
+1. Default level. `cf set phase 4`, then `cf config get workflow.permissiveness` prints `Value: standard` / `Source: default`. Save `cf build --json > step1.json`. Expected: exit 0; `context` contains `### Instruction Prompt` and no `### Permissiveness:`.
+2. Autonomous. `cf config set workflow.permissiveness autonomous` prints `Set workflow.permissiveness = autonomous (project)` and adds one line to the tracked `.context-forge.toml`. `cf build --json > step2.json`. Expected: `context` has `### Permissiveness: autonomous` after `### Instruction Prompt` and before `### 3rd-Party Tools & MCP`. The MCP `context_build` tool shares the pipeline; its test (`mcpIntegration.test.ts`, "context_build — workflow.permissiveness") asserts the same heading with a temp project, and the real CLI path is asserted in `build.integration.test.ts`.
+3. Not applicable phase. `cf set phase 2` and `cf build --json`. Expected: exit 0, no `### Permissiveness:` heading.
+4. Missing fragment. Move the tracked `project-documents/ai-project-guide/project-guides/rules/permissiveness/cautious.md` aside, `cf config set workflow.permissiveness cautious`, `cf set phase 4`, `cf build`. Expected: exit 1 and stderr `Error: workflow.permissiveness is "cautious" but its guide fragment is missing: <path>/rules/permissiveness/cautious.md. Run 'cf guides update' to refresh the AI project guide.` Restore the file with `git restore project-documents/ai-project-guide/project-guides/rules/permissiveness/cautious.md`; `git status` then shows no guide change.
+5. Invalid level. `cf config set workflow.permissiveness bogus`. Expected: exit 1, `Error: Config key "workflow.permissiveness" must be one of ["cautious", "standard", "autonomous"], got "bogus"`.
+6. Back to standard. `cf config set workflow.permissiveness standard`, then `cf build --json > step6.json`. Expected: `diff step1.json step6.json` prints nothing.
+7. Restore. `cf config unset workflow.permissiveness` (prints `Unset workflow.permissiveness (project)`; `config get` is back to `standard` / `default`), then `cf set phase 6` (or whatever the starting phase was). Expected: `git diff .context-forge.toml` is empty and `git status` shows no stray config, guide, or project-state change.
 
 ## Implementation Notes
 ### Development Approach
