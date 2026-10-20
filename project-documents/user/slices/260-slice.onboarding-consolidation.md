@@ -4,10 +4,21 @@ slice: onboarding-consolidation
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
 dependencies: []
-interfaces: [261, 265]
+interfaces:
+- 261
+- 265
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 27
+promptTokens: 1866579
+cachedTokens: 1772533
+cacheWriteTokens: 93994
+completionTokens: 25086
+durationSeconds: 252.5
+costUsd: 1.608714
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: onboarding-consolidation
