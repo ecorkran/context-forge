@@ -14,55 +14,61 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: 49e205c272189fd7d19be126b9ecd0609e005bfa
+reviewedSha: a8bc673ed9d876b585e510a73491006d71dd7771
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 3
-turns: 4
-promptTokens: 216558
-cachedTokens: 135311
-cacheWriteTokens: 81241
-completionTokens: 2971
-durationSeconds: 26.1
-costUsd: 0.368946
+toolCallsMade: 2
+turns: 3
+promptTokens: 98922
+cachedTokens: 11266
+cacheWriteTokens: 87652
+completionTokens: 9582
+durationSeconds: 75.7
+costUsd: 0.448292
 costBasis: provider
 runId: run-20261020-slices-plan-a67cc35b
 squadronVersion: 0.23.5
 findings:
   - id: F001
     severity: pass
-    category: alignment
-    summary: "Outcome order, boundaries and fail-fast guide rule match the architecture"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#Technical Decisions"
+    category: architecture-alignment
+    summary: "Outcome order, state model and scope boundaries match the architecture"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:30-40"
   - id: F002
-    severity: concern
-    category: proportionality
-    summary: "Overweight: the full report and its facts are built before any consumer needs them"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D5 — Detection report contents"
+    severity: pass
+    category: error-handling
+    summary: "Failure modes are enumerated for the new I/O paths"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D2 — Source walk rules"
   - id: F003
     severity: concern
-    category: proportionality
-    summary: "Resolver has too many layers and options for the single decision it makes"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D7 — Build integration through an injected resolver"
+    category: dependency-direction
+    summary: "Dependency direction: `adoption/` depends on contracts defined in `services/`"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:98-100, 247-271"
   - id: F004
     severity: concern
-    category: error-handling
-    summary: "State-write failure and concurrent-build behavior are not specified"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D9 — Missing guide profile or prompt fails the build"
+    category: integration-points
+    summary: "The squadron placeholder doesn't match the Adoption Facts contract in the architecture"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:40, 223"
   - id: F005
     severity: concern
-    category: nfr
-    summary: "No performance target for the new work on the build path"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D2 — Source walk rules"
+    category: under-specification
+    summary: "The explicit `--it brownfield-adoption` path is under-specified"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:112-121, 184, 219-220, 233"
   - id: F006
-    severity: note
-    category: design-risk
-    summary: "`adoption.state` doubles as the user override and the persisted state"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D3 — `adoption.state` is both the persisted state and the override"
+    severity: concern
+    category: hidden-dependency
+    summary: "Resume depends on the stored instruction staying at Phase 0, which the slice doesn't establish"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:180-186, 298, 362"
   - id: F007
+    severity: concern
+    category: proportionality
+    summary: "The design is heavier than the slice needs"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:159-168, 227-236, 332-372"
+  - id: F008
     severity: note
-    category: traceability
-    summary: "Parent link and slice-plan alignment"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:5"
+    category: architecture-alignment
+    summary: "\"One detection, many consumers\" is only partly realized"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:45, 199, 211"
 ---
 
 # Review: slice — slice 261
@@ -72,50 +78,74 @@ findings:
 
 ## Findings
 
-### [PASS] Outcome order, boundaries and fail-fast guide rule match the architecture
+### [PASS] Outcome order, state model and scope boundaries match the architecture
 
-The outcome order of state, then already planned, then code signals matches the architecture. The concept alone does not count as planned. The brownfield prompt is appended as a section outside the template. `detection/` holds facts and `adoption/` holds policy. A missing profile or prompt raises `AdoptionPromptMissingError` and never falls back to the concept prompt. Core does not read rule files or docs for meaning. The override works in both directions through one key. The monorepo scope is handled, and CI at the repository root is delegated to 260's `recognizeCi`.
+- The order is persisted state, then already planned (concept alone doesn't count), then code signals. This matches the architecture's three-way outcome.
+- Detection is scoped to the project folder, with CI at the repo root delegated to 260's `recognizeCi`, as the architecture requires.
+- Squadron probing, the retroactive marker, `cf next` and rule-file interpretation are excluded and mapped to 262, 263, 264 and 266/267.
+- D9 refuses to fall back to the concept prompt when the guide lacks the profile or prompt. This honours "guide owns content, cf owns logic".
 
-### [CONCERN] Overweight: the full report and its facts are built before any consumer needs them
+### [PASS] Failure modes are enumerated for the new I/O paths
 
-The only decision-making signal is source volume (D1). The slice also builds `projectDocs.ts` (readme, doc dirs, ADR dirs), `ruleFiles.ts`, `history.ts` (which spawns git), and the renderer's "none found" listing of each. These facts do reach the Adoption Facts section, which the guide prompt requires, so some of them are needed. But the following are only needed by later slices, or have no consumer yet:
-- `findDocDirs`, `findAdrDirs`, `ADR_DIRS` and `findRuleFiles` are justified in "Provides to Other Slices" as shared lists for 266 and 267. Those two slices are "Later" and are not in the core goal. Their lists can be created when they need them.
-- Markdown file counts per doc and ADR directory are not used by anything in this slice.
-- `resolveAdoption` is described as "for 262–264". 262 and 264 are separate slices. The resolver can be extracted when they arrive.
+- D2 covers ENOENT mid-walk, other filesystem errors and the entry cap.
+- D5 covers git absence, non-repo and the 5 s timeout.
+- D9 covers a failed state write, concurrent builds, a malformed config and a missing guide prompt.
+- Each has an explicit outcome, and none falls back silently.
+- The one-second detection target is stated, and the architecture sets no NFR on this path.
 
-Cut or defer: the markdown counts, and the 266 and 267 list exports (keep only what the Adoption Facts section renders). Decide whether the guide prompt actually requires docs, ADR and rule-file facts. If it does, say which facts it requires and keep only those.
+### [CONCERN] Dependency direction: `adoption/` depends on contracts defined in `services/`
 
-### [CONCERN] Resolver has too many layers and options for the single decision it makes
+- `AdoptionResolver`, `AdoptionSelection`, `AdoptionPromptMissingError` and `BROWNFIELD_ADOPTION_INSTRUCTION` are declared in `services/ContextIntegrator.ts`.
+- `adoption/adoptionResolver.ts` must return and throw them, so the decision layer imports from the consuming layer.
+- 262 and 264 also extend `adoption/`, and they will inherit that inverted import.
+- Declare these contracts in `adoption/`, and have `ContextIntegrator` import them. That matches the doc's own rule that `adoption/` owns the selection rule and the instruction key.
 
-The design has two resolver layers: `resolveAdoption` (read-only) and `createAdoptionResolver({ stateWrites })`. It also adds a required `adoptionStateWrites: 'persist' | 'read-only'` option on `createContextPipeline` and `generateContext`. Existing callers are updated to pass it, the `AdoptionSelection` union is new, and `EnhancedContextData.adoptionFacts` is new. `template_preview` needs a no-write path, so one flag is justified. The two-resolver split is the part to question: `createAdoptionResolver` is mostly `resolveAdoption` plus a write, a profile check and a render. The design also duplicates the outcome-to-selection mapping in the Data Flow, D4 and the renderer's exhaustive switch. Consider folding the `resolveAdoption` and resolver layers until a second consumer (262 or 264) exists, or state which of the two files holds the selection rule.
+### [CONCERN] The squadron placeholder doesn't match the Adoption Facts contract in the architecture
 
-### [CONCERN] State-write failure and concurrent-build behavior are not specified
+- The architecture says the Adoption Facts section carries the probe JSON verbatim or a plain statement that squadron is unavailable. The prompt takes the CF-only path when squadron is absent or unreadable.
+- The slice introduces a third state, "Squadron probe: not run… no probe output is available". It asserts that the guide v0.22.2 prompt will take the CF-only path, but nothing in the slice verifies that.
+- If the prompt keys on "unavailable" wording, a squadron user could be sent down the wrong path.
+- Check the v0.22.2 prompt's handling of this section and align the bullet's wording to it. Alternatively, emit the architecture's "squadron unavailable" statement with a "probe not implemented in this cf version" qualifier.
+- Add the check to the Verification Walkthrough.
 
-This is a new I/O path: the build now writes `.context-forge.toml`. D9 says only that "a failed state write [is] rethrown the same way". The following cases are left open:
-- Whether a failed write leaves the build with no prompt, or aborts after detection but before output. The write happens before prompt assembly in the Data Flow, so a write failure blocks the whole build, including on read-only checkouts.
-- Two builds racing to write `in_progress`. Both write the same value, so this is probably harmless, but the design should say so.
-- A parse failure of an existing malformed `.context-forge.toml` in `readAdoptionState`. That is `ConfigManager`'s behavior, but this slice makes it newly fatal for Phase 0 builds.
-- `readHistory` failure modes other than "unknown": git hanging, or a very large repo making `rev-list --count` slow. There is no timeout or cap.
+### [CONCERN] The explicit `--it brownfield-adoption` path is under-specified
 
-State the handling for each in one line, such as an explicit error naming the override, or a git timeout. The existing stub-versus-rethrow behavior in `generateContextFromProject` should also be confirmed for the Phase 0 path.
+- D4 says an explicit `brownfield-adoption` instruction "always gets the Adoption Facts… whatever the outcome", and never writes state.
+- The Data Flow steps and D8's "Outcome and why" bullet assume `decideOutcome` ran. The slice doesn't say whether the decide step (state read, planning check, source walk) runs on this path.
+- If it runs, a `declined` or planned project gets a brownfield prompt whose facts say "adoption closed" or "already planned". A big non-source tree could also throw `DetectionError` on the escape hatch that D9 recommends.
+- If it doesn't run, the Outcome bullet has nothing to show.
+- State what the facts section says for an explicit instruction. Examples are "outcome: not evaluated (explicit instruction)" with the decide step skipped, or evaluated and shown.
+- Also say which root each fact uses: `projectPath` or `checkoutPath`. The resolver receives both, but D5 only says "checkout root".
 
-### [CONCERN] No performance target for the new work on the build path
+### [CONCERN] Resume depends on the stored instruction staying at Phase 0, which the slice doesn't establish
 
-D2 says the walk cost is "bounded by the threshold, not by repo size". That holds only when the code reaches 2000 lines. A repo with few source lines and a very large tree of non-source files, or large directories outside `EXCLUDED_DIRS`, walks entirely and synchronously. The walk blocks the event loop in the MCP server, and the design has no entry or file-count cap and no time bound. The architecture states no NFR for this path, so this is not a violation. The slice still adds a synchronous walk to a hot path (every Phase 0 `context_build`) and should either state a target or a cap, or explain why the walk is acceptable. One idea: re-detect only while the state is unset, which the design already does, and cap the entries visited.
+- The architecture requires that a re-run of `cf build` resume the brownfield prompt from the persisted state.
+- D4 narrows selection to builds whose instruction resolves to the concept phase. Resume then works only if nothing advances or persists the project's instruction while adoption proceeds.
+- That could be `cf next`, `--phase` persistence, or an instruction updated when artifacts appear.
+- The slice never checks this. Walkthrough step 5 only adds files and rebuilds.
+- Confirm, and record in D4, that no existing command mutates the stored instruction. If one does, the architecture's resume guarantee fails silently.
+- Also note that selecting on the instruction string is selecting on a user-visible label. Using the phase constants, as the doc does for `CONCEPT_PHASE`, mitigates this. The literal `'brownfield-adoption'` instruction match remains.
 
-### [NOTE] `adoption.state` doubles as the user override and the persisted state
+### [CONCERN] The design is heavier than the slice needs
 
-Setting `declined` to override loses the information that detection had said brownfield. A user who later unsets the key sees detection run again, which is intended. The transitions table says `in_progress` to `declined` is an override, but an auto-written `in_progress` followed by a manual `declined` is indistinguishable from a user's first choice. This is acceptable given the choice not to add a second key. The one thing to confirm is that 264 and 263 treat `declined` as "fresh project", as D3 says. That meaning is stated only here and not in the architecture, which lists no `declined` state. It extends the architecture's "user override exists in both directions", which is fine.
+Cuts to consider:
+- **Error types.** There are four new types: `AdoptionPromptMissingError`, `AdoptionStateWriteError`, `AdoptionStateReadError` and `DetectionError`. `AdoptionStateReadError` only re-wraps a parse error that already exists. Let the existing parse error propagate, and fold the other two into one adoption error that carries a remedy.
+- **`SOURCE_EXTENSIONS`.** About 40 entries are specified up front. The 2000-line threshold has wide margin, so a core list with extension by constant later would meet the requirement. 265's real-repo runs are already planned to tune it.
+- **Walkthrough.** Ten steps, including an `npm create vite` network step. They largely restate the Success Criteria. Keep the planned-project diff, the brownfield persist, the override, the missing-profile and the parity steps. Fold the rest into the automated fixtures already listed.
+- **Rejected-alternatives text.** The "Rejected:" paragraphs restate reasoning at length. Trim them to one line each.
+- The history, docs, ADR and rule-file facts are assigned by the slice plan, so don't drop them. They are gathered lazily and only rendered, which is the right weight.
 
-### [NOTE] Parent link and slice-plan alignment
+### [NOTE] "One detection, many consumers" is only partly realized
 
-The `parent` field points to the slice plan. The success criteria in the slice plan are all covered: each outcome, scaffold-only, shallow clones, monorepo, override both ways, persistence and resume, the named error, and CLI/MCP parity. No assigned scope is dropped. The effort is 3/5, and the scope above is somewhat larger than that implies. The proportionality cuts above would bring it back in line.
+- The Value section says 262–267 "read the report… from core". D5 and D7 state that no `DetectionReport` type exists and that facts go straight into the renderer.
+- Only `decideOutcome`, `readAdoptionState` and `findPlanningArtifacts` are reusable. 264 extracts its own read-only resolver later.
+- This is acceptable for proportionality, since the first non-build consumer shapes the contract. Reword the Value bullet so it doesn't overstate what 262–267 receive.
 
 ### Run Digest
 
-- Response length: 7253 chars
+- Response length: 7729 chars
 - Response is newline-free: no
-- Tool calls made: 3
+- Tool calls made: 2
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -123,13 +153,13 @@ The `parent` field points to the slice plan. The success criteria in the slice p
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 4
-- Tokens — prompt / cached / cache write / completion / reasoning: 216558 / 135311 / 81241 / 2971 / not computed
-- Duration: 26.1 s
-- Cost: $0.37 (provider)
+- Turns: 3
+- Tokens — prompt / cached / cache write / completion / reasoning: 98922 / 11266 / 87652 / 9582 / not computed
+- Duration: 75.7 s
+- Cost: $0.45 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 7
+- Finding-shaped matches — whole response: 8
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 7
-- Finding-shaped matches — surviving validation: 7
+- Finding-shaped matches — in findings section: 8
+- Finding-shaped matches — surviving validation: 8

@@ -14,17 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: a8bc673ed9d876b585e510a73491006d71dd7771
-revision_number: 1
+reviewedSha: b88df50313d4624368a1405dbb52c18b1f10236f
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 2
-turns: 3
-promptTokens: 98922
-cachedTokens: 11266
-cacheWriteTokens: 87652
-completionTokens: 9582
-durationSeconds: 75.7
-costUsd: 0.448292
+toolCallsMade: 4
+turns: 5
+promptTokens: 265886
+cachedTokens: 174618
+cacheWriteTokens: 91260
+completionTokens: 7246
+durationSeconds: 60.5
+costUsd: 0.455709
 costBasis: provider
 runId: run-20261020-slices-plan-a67cc35b
 squadronVersion: 0.23.5
@@ -32,43 +32,33 @@ findings:
   - id: F001
     severity: pass
     category: architecture-alignment
-    summary: "Outcome order, state model and scope boundaries match the architecture"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:30-40"
+    summary: "Outcome order, boundaries and failure handling match the architecture"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#Technical Decisions"
   - id: F002
-    severity: pass
-    category: error-handling
-    summary: "Failure modes are enumerated for the new I/O paths"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D2 — Source walk rules"
+    severity: concern
+    category: scope-and-interfaces
+    summary: "No reusable detection report is delivered, although the plan and architecture promise one"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D5 and #D7"
   - id: F003
     severity: concern
-    category: dependency-direction
-    summary: "Dependency direction: `adoption/` depends on contracts defined in `services/`"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:98-100, 247-271"
+    category: integration
+    summary: "Phase 0 gating leaves the exit from adoption undefined"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D4 and #Integration Points"
   - id: F004
     severity: concern
-    category: integration-points
-    summary: "The squadron placeholder doesn't match the Adoption Facts contract in the architecture"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:40, 223"
+    category: error-handling
+    summary: "Source signal can silently miss real codebases, and the walk cap can block a build"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#D2"
   - id: F005
-    severity: concern
-    category: under-specification
-    summary: "The explicit `--it brownfield-adoption` path is under-specified"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:112-121, 184, 219-220, 233"
-  - id: F006
-    severity: concern
-    category: hidden-dependency
-    summary: "Resume depends on the stored instruction staying at Phase 0, which the slice doesn't establish"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:180-186, 298, 362"
-  - id: F007
-    severity: concern
-    category: proportionality
-    summary: "The design is heavier than the slice needs"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:159-168, 227-236, 332-372"
-  - id: F008
     severity: note
-    category: architecture-alignment
-    summary: "\"One detection, many consumers\" is only partly realized"
-    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md:45, 199, 211"
+    category: dependency-direction
+    summary: "Package-level import direction between `adoption/` and `services/`"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md#Component Structure"
+  - id: F006
+    severity: note
+    category: proportionality
+    summary: "Proportionality is acceptable, with some restatement"
+    location: "project-documents/user/slices/261-slice.detection-and-adoption-state.md"
 ---
 
 # Review: slice — slice 261
@@ -78,74 +68,47 @@ findings:
 
 ## Findings
 
-### [PASS] Outcome order, state model and scope boundaries match the architecture
+### [PASS] Outcome order, boundaries and failure handling match the architecture
 
-- The order is persisted state, then already planned (concept alone doesn't count), then code signals. This matches the architecture's three-way outcome.
-- Detection is scoped to the project folder, with CI at the repo root delegated to 260's `recognizeCi`, as the architecture requires.
-- Squadron probing, the retroactive marker, `cf next` and rule-file interpretation are excluded and mapped to 262, 263, 264 and 266/267.
-- D9 refuses to fall back to the concept prompt when the guide lacks the profile or prompt. This honours "guide owns content, cf owns logic".
+- **Outcome order:** D1 uses the architecture's order of state, then already planned, then code signals. A concept alone does not count as planned.
+- **Boundaries:** `detection/` stays facts-only and policy lives in `adoption/`. Squadron is not probed, and the "squadron unavailable" statement is checked against the v0.22.2 prompt.
+- **Missing guide profile:** D9 fails the build with a named error and never falls back to the concept prompt.
+- **I/O failure modes:** D2, D5 and D9 cover walk errors, the walk cap, git timeout or absence, state write failure, concurrent writes and a malformed TOML file. Each has an explicit strategy.
 
-### [PASS] Failure modes are enumerated for the new I/O paths
+### [CONCERN] No reusable detection report is delivered, although the plan and architecture promise one
 
-- D2 covers ENOENT mid-walk, other filesystem errors and the entry cap.
-- D5 covers git absence, non-repo and the 5 s timeout.
-- D9 covers a failed state write, concurrent builds, a malformed config and a missing guide prompt.
-- Each has an explicit outcome, and none falls back silently.
-- The one-second detection target is stated, and the architecture sets no NFR on this path.
+- **What the plan assigns:** The slice plan says 261 "provides the detection report, the outcome and the adoption state (consumed by 262–264, 266, 267)". The architecture's principle is "One detection, many consumers", exposed to every surface including `cf next`.
+- **What the design does:** D5 drops the `DetectionReport` type and builder. Facts are gathered lazily inside `adoptionResolver.ts` only when the brownfield prompt is selected. The state write (step 5) sits in the same sequence as the decision.
+- **Consequence:** D7 defers the read-only resolver to 264 ("264 extracts one from `adoptionResolver.ts`"). The one decision that is meant to live in core is therefore only partly reusable. 264 and 262 have to refactor the build-time resolver to get the report.
+- **What to change:** Either split the pure decision from the build side effects now, or reduce the Provides list and the "One decision in core" claim to what is actually delivered. A thin `decide(checkoutPath)` function returning the outcome with no write would cost little. The Integration Requirements ("263 and 264 can read and write the state through `adoption/` only") should then be checked against it.
 
-### [CONCERN] Dependency direction: `adoption/` depends on contracts defined in `services/`
+### [CONCERN] Phase 0 gating leaves the exit from adoption undefined
 
-- `AdoptionResolver`, `AdoptionSelection`, `AdoptionPromptMissingError` and `BROWNFIELD_ADOPTION_INSTRUCTION` are declared in `services/ContextIntegrator.ts`.
-- `adoption/adoptionResolver.ts` must return and throw them, so the decision layer imports from the consuming layer.
-- 262 and 264 also extend `adoption/`, and they will inherit that inverted import.
-- Declare these contracts in `adoption/`, and have `ContextIntegrator` import them. That matches the doc's own rule that `adoption/` owns the selection rule and the instruction key.
+- **The coupling:** D4 selects the brownfield prompt only while the stored instruction is the concept phase. Nothing in cf moves the phase (D4 verified this). The architecture's resume model ("The adoption state resumes the brownfield prompt") now depends on the instruction staying at Phase 0 for the whole adoption.
+- **The gap:** When the state reaches `complete`, the stored instruction is still `Phase 0: Concept`. `cf build` on an adopted project then assembles the concept prompt, because `complete` is treated as closed. The architecture's goal is that the workflow "starts where the project is".
+- **What to change:** D4 records the constraint on 264 but not who moves the phase at completion. Add to Integration Points for 263 and 264 that completing adoption must also take the instruction off the concept phase, or say explicitly that the PM does this by hand. Otherwise the property the slice relies on becomes a silent trap for the slices after it.
 
-### [CONCERN] The squadron placeholder doesn't match the Adoption Facts contract in the architecture
+### [CONCERN] Source signal can silently miss real codebases, and the walk cap can block a build
 
-- The architecture says the Adoption Facts section carries the probe JSON verbatim or a plain statement that squadron is unavailable. The prompt takes the CF-only path when squadron is absent or unreadable.
-- The slice introduces a third state, "Squadron probe: not run… no probe output is available". It asserts that the guide v0.22.2 prompt will take the CF-only path, but nothing in the slice verifies that.
-- If the prompt keys on "unavailable" wording, a squadron user could be sent down the wrong path.
-- Check the v0.22.2 prompt's handling of this section and align the bullet's wording to it. Alternatively, emit the architecture's "squadron unavailable" statement with a "probe not implemented in this cf version" qualifier.
-- Add the check to the Verification Walkthrough.
+- **Missed languages:** `SOURCE_EXTENSIONS` omits mainstream ecosystems such as `vue`, `svelte`, `scala`, `ex`/`exs`, `dart`, `sh` and `lua`. A real Vue, Svelte, Elixir, Dart or Scala repo scores well under 2000 lines and gets the greenfield concept prompt.
+- **No visibility:** The Adoption Facts section reports only the count. It reports nothing about skipped files, so the PM cannot see why a large repo was judged greenfield.
+- **Cost of the miss:** The architecture says a false greenfield costs only a conversation, and that is true here. But brownfield detection is the whole point of the initiative, and D2 defers gap discovery to 265.
+- **Hard fail on the cap:** Hitting `MAX_WALK_ENTRIES` (20,000) below the line threshold throws `AdoptionError` and fails the whole Phase 0 build. That is plausible for a repo with large non-source trees that are not in `EXCLUDED_DIRS`. The failure carries a remedy, but it is harsher than the architecture's lopsided-cost reasoning supports.
+- **What to change:** Widen the extension list to cover the main ecosystems. Decide whether the cap should fail the build or report "undetermined" in the facts. Report the number of unrecognized-extension files, so the PM can see the miss.
 
-### [CONCERN] The explicit `--it brownfield-adoption` path is under-specified
+### [NOTE] Package-level import direction between `adoption/` and `services/`
 
-- D4 says an explicit `brownfield-adoption` instruction "always gets the Adoption Facts… whatever the outcome", and never writes state.
-- The Data Flow steps and D8's "Outcome and why" bullet assume `decideOutcome` ran. The slice doesn't say whether the decide step (state read, planning check, source walk) runs on this path.
-- If it runs, a `declined` or planned project gets a brownfield prompt whose facts say "adoption closed" or "already planned". A big non-source tree could also throw `DetectionError` on the escape hatch that D9 recommends.
-- If it doesn't run, the Outcome bullet has nothing to show.
-- State what the facts section says for an explicit instruction. Examples are "outcome: not evaluated (explicit instruction)" with the decide step skipped, or evaluated and shown.
-- Also say which root each fact uses: `projectPath` or `checkoutPath`. The resolver receives both, but D5 only says "checkout root".
+`ContextIntegrator` (services) imports contracts from `adoption/`, while `adoptionResolver.ts` imports the guide parsers from `services/`. The `contracts.ts` split avoids a file-level cycle, but the two directories still depend on each other. The design must ensure the integrator never imports from `adoption/index.ts`. Wiring the resolver in `CoreServiceFactory`, the composition root, makes the direction one-way.
 
-### [CONCERN] Resume depends on the stored instruction staying at Phase 0, which the slice doesn't establish
+### [NOTE] Proportionality is acceptable, with some restatement
 
-- The architecture requires that a re-run of `cf build` resume the brownfield prompt from the persisted state.
-- D4 narrows selection to builds whose instruction resolves to the concept phase. Resume then works only if nothing advances or persists the project's instruction while adoption proceeds.
-- That could be `cf next`, `--phase` persistence, or an instruction updated when artifacts appear.
-- The slice never checks this. Walkthrough step 5 only adds files and rebuilds.
-- Confirm, and record in D4, that no existing command mutates the stored instruction. If one does, the architecture's resume guarantee fails silently.
-- Also note that selecting on the instruction string is selecting on a user-visible label. Using the phase constants, as the doc does for `CONCEPT_PHASE`, mitigates this. The literal `'brownfield-adoption'` instruction match remains.
-
-### [CONCERN] The design is heavier than the slice needs
-
-Cuts to consider:
-- **Error types.** There are four new types: `AdoptionPromptMissingError`, `AdoptionStateWriteError`, `AdoptionStateReadError` and `DetectionError`. `AdoptionStateReadError` only re-wraps a parse error that already exists. Let the existing parse error propagate, and fold the other two into one adoption error that carries a remedy.
-- **`SOURCE_EXTENSIONS`.** About 40 entries are specified up front. The 2000-line threshold has wide margin, so a core list with extension by constant later would meet the requirement. 265's real-repo runs are already planned to tune it.
-- **Walkthrough.** Ten steps, including an `npm create vite` network step. They largely restate the Success Criteria. Keep the planned-project diff, the brownfield persist, the override, the missing-profile and the parity steps. Fold the rest into the automated fixtures already listed.
-- **Rejected-alternatives text.** The "Rejected:" paragraphs restate reasoning at length. Trim them to one line each.
-- The history, docs, ADR and rule-file facts are assigned by the slice plan, so don't drop them. They are gathered lazily and only rendered, which is the right weight.
-
-### [NOTE] "One detection, many consumers" is only partly realized
-
-- The Value section says 262–267 "read the report… from core". D5 and D7 state that no `DetectionReport` type exists and that facts go straight into the renderer.
-- Only `decideOutcome`, `readAdoptionState` and `findPlanningArtifacts` are reusable. 264 extracts its own read-only resolver later.
-- This is acceptable for proportionality, since the first non-build consumer shapes the contract. Reword the Value bullet so it doesn't overstate what 262–267 receive.
+The mechanism count fits an effort 3/5 slice. The explicit `brownfield-adoption` instruction path is extra to the plan, but D9 needs it as the escape hatch for read-only checkouts. The resolver's step order is stated three times (Data Flow, D7 and Component Structure), and the Technical Requirements fixture list overlaps the Functional Requirements list. Both could be trimmed without losing anything.
 
 ### Run Digest
 
-- Response length: 7729 chars
+- Response length: 6506 chars
 - Response is newline-free: no
-- Tool calls made: 2
+- Tool calls made: 4
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -153,13 +116,13 @@ Cuts to consider:
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 98922 / 11266 / 87652 / 9582 / not computed
-- Duration: 75.7 s
-- Cost: $0.45 (provider)
+- Turns: 5
+- Tokens — prompt / cached / cache write / completion / reasoning: 265886 / 174618 / 91260 / 7246 / not computed
+- Duration: 60.5 s
+- Cost: $0.46 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 8
+- Finding-shaped matches — whole response: 6
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 8
-- Finding-shaped matches — surviving validation: 8
+- Finding-shaped matches — in findings section: 6
+- Finding-shaped matches — surviving validation: 6
