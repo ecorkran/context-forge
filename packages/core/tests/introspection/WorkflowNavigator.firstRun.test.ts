@@ -130,7 +130,9 @@ describe('WorkflowNavigator', () => {
       expect(next.suggestedCommand).toBe("cf set phase 'Phase 2: Architecture'");
     });
 
-    it('Phase 2, no arch, no plan → cf build --phase architecture', async () => {
+    it('Phase 2, no arch selected → select first initiative without an arch doc', async () => {
+      // Fixture plan: 100 is checked, 200 is the first unchecked with no arch file,
+      // 900 is maintenance and must never be suggested.
       const project = makeProject({
         fileSlice: '',
         fileSlicePlan: undefined,
@@ -140,7 +142,21 @@ describe('WorkflowNavigator', () => {
       const next = await nav.getNext(project);
 
       expect(next.recommendation).toContain('Phase 2 (Architecture)');
-      expect(next.suggestedCommand).toBe('cf build --phase architecture');
+      expect(next.recommendation).toContain('200 Second Initiative');
+      expect(next.suggestedCommand).toBe('cf set arch 200');
+    });
+
+    it('Phase 2, arch selected but not written → name it, plain cf build', async () => {
+      const project = makeProject({
+        fileSlice: '',
+        fileSlicePlan: undefined,
+        fileArch: '200-arch.second-initiative',
+        developmentPhase: 'Phase 2: Architecture',
+      });
+      const next = await nav.getNext(project);
+
+      expect(next.recommendation).toContain('200-arch.second-initiative');
+      expect(next.suggestedCommand).toBe('cf build');
     });
 
     it('FR-3 does not fire when arch file exists on disk', async () => {

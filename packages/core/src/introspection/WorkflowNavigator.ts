@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import type { ProjectData, ResolvedProject } from '../types/index.js';
 import type {
   SliceStatus,
@@ -42,6 +42,18 @@ import {
   type GateResult,
 } from './reviewGate.js';
 import { isInIndexRange } from '../utils/worktree-overlay.js';
+
+/** Architecture docs live here, relative to the project root. */
+const ARCH_DIR = 'project-documents/user/architecture';
+
+/** Initiatives at or above this index are maintenance (perpetual), not architected in order. */
+const MAINTENANCE_INDEX_FLOOR = 900;
+
+/** An initiative named in the initiative plan. */
+interface InitiativeRef {
+  index: number;
+  name: string;
+}
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator.md".
@@ -230,6 +242,7 @@ export class WorkflowNavigator {
         archFileExists,
         initiativePlanExists,
         conceptExists,
+        await this.findNextInitiative(project.projectPath),
         status,
       );
       if (firstRunAction !== null) {
@@ -531,6 +544,27 @@ export class WorkflowNavigator {
   }
 
   /**
+   * First unchecked initiative in the initiative plan that has no architecture
+   * file yet. Maintenance initiatives (perpetual, never "architected") are skipped.
+   * Returns null when there is no plan or nothing left to architect.
+   */
+  private async findNextInitiative(projectPath: string): Promise<InitiativeRef | null> {
+    const planPath = await resolveInitiativePlanPath(projectPath);
+    if (!planPath) return null;
+    const plan = await parseSlicePlan(planPath);
+    const archDir = join(projectPath, ARCH_DIR);
+    const archFiles = existsSync(archDir) ? readdirSync(archDir) : [];
+    const entry = plan.entries.find(
+      (e) =>
+        !e.isChecked &&
+        e.indexSource === 'explicit' &&
+        e.index < MAINTENANCE_INDEX_FLOOR &&
+        !archFiles.some((f) => f.startsWith(`${e.index}-arch.`)),
+    );
+    return entry ? { index: entry.index, name: entry.name } : null;
+  }
+
+  /**
    * Returns enriched guidance for sparse/fresh project states (FR-1–FR-4).
    * Only called when no active slice is set AND the project lacks established artifacts.
    * Returns null if no first-run condition matches (falls through to the `no-active-slice` guard).
@@ -540,6 +574,7 @@ export class WorkflowNavigator {
     archFileExists: boolean,
     initiativePlanExists: boolean,
     conceptExists: boolean,
+    nextInitiative: InitiativeRef | null,
     status: WorkflowStatus,
   ): NextAction | null {
     // Only applies to projects without both arch and slice plan
@@ -613,6 +648,27 @@ export class WorkflowNavigator {
 
     // Phase 2, no arch and no plan
     if (phase.startsWith('Phase 2') && !archFileExists && status.slicePlan === null) {
+      // Arch already selected (cf set arch) but not written: name it, and use
+      // plain `cf build` like the other phases — the phase selects the prompt.
+      if (project.fileArch) {
+        return {
+          recommendation: `Your project is in Phase 2 (Architecture). Create the architecture document for ${project.fileArch}.`,
+          rationale:
+            'The initiative is selected but its architecture document does not exist yet. Use an architecture prompt to define its high-level structure.',
+          suggestedCommand: 'cf build',
+          summary: `Start Phase 2 — create the architecture document for ${project.fileArch} with cf build`,
+        };
+      }
+      // Initiative plan lists work still to architect: suggest selecting the first.
+      if (nextInitiative) {
+        return {
+          recommendation: `Your project is in Phase 2 (Architecture). Select the next initiative: ${nextInitiative.index} ${nextInitiative.name}.`,
+          rationale:
+            'The initiative plan lists initiatives in order. Select the first one without an architecture document, then create its architecture.',
+          suggestedCommand: `cf set arch ${nextInitiative.index}`,
+          summary: `Start Phase 2 — select initiative ${nextInitiative.index} (${nextInitiative.name})`,
+        };
+      }
       return {
         recommendation: 'Your project is in Phase 2 (Architecture). Create an architecture document.',
         rationale:
