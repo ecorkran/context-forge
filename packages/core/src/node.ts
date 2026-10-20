@@ -6,6 +6,7 @@ export { StatementManager } from './services/StatementManager.js';
 export { SystemPromptParser } from './services/SystemPromptParser.js';
 export { ProjectPathService } from './services/ProjectPathService.js';
 export { createContextPipeline, resolvePromptFilePath } from './services/CoreServiceFactory.js';
+export { PERMISSIVENESS_FRAGMENT_DIR } from './services/permissivenessResolver.js';
 
 // Storage — filesystem-backed project CRUD, backup, and storage utilities
 export * from './storage/index.js';

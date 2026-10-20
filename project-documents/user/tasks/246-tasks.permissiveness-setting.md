@@ -89,6 +89,7 @@ revision_number: 1
   - [x] Outside `PERMISSIVENESS_PHASES`, or at `STANDARD_PERMISSIVENESS`, return `''`. Outside the phases, return before reading the guide, so a bad fragment cannot fail a non-applicable build (D6, last bullet).
   - [x] Read the level with `ConfigManager` for the checkout; a read error propagates, as in `integrationBranchResolver.ts`.
   - [x] Locate the guide with `resolvePromptFilePath` (Interfaces Required); the fragment is `<PERMISSIVENESS_FRAGMENT_DIR>/<level>.md` beside the prompt file.
+    - Done as: `resolvePromptFilePath` moved to `services/promptFilePath.ts` and re-exported from `CoreServiceFactory`, so the resolver does not import the factory (avoids a cycle).
   - [x] Raise each D6 error with the content D6 lists, strip frontmatter as D6 describes, and return the body.
 - [x] No fallback to `standard` anywhere.
 - [x] Tests in new `packages/core/tests/services/permissivenessResolver.test.ts`. Build a temp checkout per test: copy the core fixture guide's `prompt.ai-project.system.md` into the guide path, copy the fixtures above into `rules/permissiveness/` as a test needs them, and set the level with a real `ConfigManager`.
@@ -107,29 +108,30 @@ revision_number: 1
 
 ## Task 3: Integrator and engine wiring, with tests
 
-- [ ] `packages/core/src/types/context.ts`: add `permissivenessFragment?: string` to `ContextData`, after `targetBranch`, with a one-line doc comment ("Guide fragment for workflow.permissiveness; empty or undefined when none applies.").
-- [ ] `ContextIntegrator.ts`:
-  - [ ] Add a sixth constructor parameter `resolvePermissivenessFn: PermissivenessResolver | null = null`, stored like `resolveIntegrationBranchFn`, with a matching `@param` line.
-  - [ ] In `generateWithTemplateEngine`, after the integration-branch block: when the function and `checkoutPath` are set, `enhancedData.permissivenessFragment = await this.resolvePermissivenessFn(checkoutPath, enhancedData.instruction)`. Use `enhancedData.instruction`, the same value that selects the instruction prompt (D5). Errors propagate.
-  - [ ] Update the comment above the lookups ("Both lookups…") so it covers all three.
-- [ ] `ContextTemplateEngine.buildTemplate`: after the instruction section, push a section only when `data.permissivenessFragment?.trim()` is non-empty: `key: 'permissiveness'`, `title: ''` (the fragment carries its own heading), `content: data.permissivenessFragment`, `conditional: false`, `order: 3.5`. Comment it `// 3.5. Permissiveness fragment (conditional, slice 246)`.
-- [ ] Tests:
-  - [ ] `ContextIntegrator.test.ts`, next to the integration-branch tests (~:277): the resolver gets the worktree path when a worktree is selected and the project path otherwise, and gets the instruction value; its return value lands on `permissivenessFragment`; a rejecting resolver rejects `generateContextFromProject`; with no resolver injected the field stays `undefined`.
-  - [ ] `ContextTemplateEngine.test.ts`: with a fragment, the output contains it once, after `### Instruction Prompt` and before `## Additional Instructions`; with `''`, `'   '` or `undefined`, the output equals the output for the same data without the field.
-  - [ ] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ContextIntegrator ContextTemplateEngine` pass, and existing tests in both files pass unmodified.
-- [ ] Commit: `feat(core): render permissiveness fragment after instruction prompt`
+- [x] `packages/core/src/types/context.ts`: add `permissivenessFragment?: string` to `ContextData`, after `targetBranch`, with a one-line doc comment ("Guide fragment for workflow.permissiveness; empty or undefined when none applies.").
+- [x] `ContextIntegrator.ts`:
+  - PM decision (option A): `generateContextFromProject` catches all errors and returns an error stub, so a rejecting resolver would not fail the build. Added `PermissivenessFragmentError` (in ContextIntegrator.ts, browser-safe). The resolver wraps every failure past the phase check in it; the integrator's catch rethrows only that class. Task 5 smoke tests must also cover the failure case: `cf build` exits non-zero and `context_build` returns an error when the fragment is missing.
+  - [x] Add a sixth constructor parameter `resolvePermissivenessFn: PermissivenessResolver | null = null`, stored like `resolveIntegrationBranchFn`, with a matching `@param` line.
+  - [x] In `generateWithTemplateEngine`, after the integration-branch block: when the function and `checkoutPath` are set, `enhancedData.permissivenessFragment = await this.resolvePermissivenessFn(checkoutPath, enhancedData.instruction)`. Use `enhancedData.instruction`, the same value that selects the instruction prompt (D5). Errors propagate.
+  - [x] Update the comment above the lookups ("Both lookups…") so it covers all three.
+- [x] `ContextTemplateEngine.buildTemplate`: after the instruction section, push a section only when `data.permissivenessFragment?.trim()` is non-empty: `key: 'permissiveness'`, `title: ''` (the fragment carries its own heading), `content: data.permissivenessFragment`, `conditional: false`, `order: 3.5`. Comment it `// 3.5. Permissiveness fragment (conditional, slice 246)`.
+- [x] Tests:
+  - [x] `ContextIntegrator.test.ts`, next to the integration-branch tests (~:277): the resolver gets the worktree path when a worktree is selected and the project path otherwise, and gets the instruction value; its return value lands on `permissivenessFragment`; a rejecting resolver rejects `generateContextFromProject`; with no resolver injected the field stays `undefined`.
+  - [x] `ContextTemplateEngine.test.ts`: with a fragment, the output contains it once, after `### Instruction Prompt` and before `## Additional Instructions`; with `''`, `'   '` or `undefined`, the output equals the output for the same data without the field.
+  - [x] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ContextIntegrator ContextTemplateEngine` pass, and existing tests in both files pass unmodified.
+- [x] Commit: `feat(core): render permissiveness fragment after instruction prompt`
 - **Effort:** 2/5
 
 ---
 
 ## Task 4: Pipeline wiring and pipeline test
 
-- [ ] `CoreServiceFactory.ts`: import `resolvePermissivenessForPrompt` and pass it as the sixth argument to `new ContextIntegrator(...)`. This one change covers `cf build` and `context_build`.
-- [ ] Tests in `packages/core/tests/services/CoreServiceFactory.test.ts`, each on a temp copy of `fixtures/test-project` with the Task 2 fixtures in `rules/permissiveness/`:
-  - [ ] `autonomous`, `instruction: TASK_BREAKDOWN_PHASE`: the output contains the fragment body, positioned after the instruction prompt text and before the next section.
-  - [ ] Byte-identical default: for each phase in `PERMISSIVENESS_PHASES`, the output with the key unset equals the output of a `ContextIntegrator` built by hand with the same arguments minus the permissiveness resolver.
-  - [ ] Success: `pnpm --filter @context-forge/core test` passes in full.
-- [ ] Commit: `feat(core): wire permissiveness resolver into context pipeline`
+- [x] `CoreServiceFactory.ts`: import `resolvePermissivenessForPrompt` and pass it as the sixth argument to `new ContextIntegrator(...)`. This one change covers `cf build` and `context_build`.
+- [x] Tests in `packages/core/tests/services/CoreServiceFactory.test.ts`, each on a temp copy of `fixtures/test-project` with the Task 2 fixtures in `rules/permissiveness/`:
+  - [x] `autonomous`, `instruction: TASK_BREAKDOWN_PHASE`: the output contains the fragment body, positioned after the instruction prompt text and before the next section.
+  - [x] Byte-identical default: for each phase in `PERMISSIVENESS_PHASES`, the output with the key unset equals the output of a `ContextIntegrator` built by hand with the same arguments minus the permissiveness resolver.
+  - [x] Success: `pnpm --filter @context-forge/core test` passes in full.
+- [x] Commit: `feat(core): wire permissiveness resolver into context pipeline`
 - **Effort:** 2/5
 
 ---
@@ -138,6 +140,7 @@ revision_number: 1
 
 - [ ] `packages/cli/tests/integration/build.integration.test.ts`: one test on a temp copy of the MCP integration fixture project, with the `autonomous` fixture added at `rules/permissiveness/` and the key set to `autonomous`. Override `instruction` to `IMPLEMENTATION_PHASE` and assert the output contains `### Permissiveness: autonomous`.
 - [ ] `packages/mcp-server/tests/integration/mcpIntegration.test.ts`: one `context_build` test on the same kind of temp copy, asserting the same heading in the tool result. If the fixture registry makes a temp copy impractical, add the fragment and config to a per-test temp copy of the registry the file already uses. Do not modify the shared fixture on disk.
+- [ ] Failure case: with level `autonomous` and no fragment file, `cf build` exits non-zero naming the path, and `context_build` returns an MCP error.
 - [ ] No parity matrix: both share `createContextPipeline` (design, Technical Requirements).
   - [ ] Success: `pnpm --filter @context-forge/cli test` and `pnpm --filter @context-forge/mcp test` pass, and `git status` shows no changes under any `tests/fixtures/` directory except `packages/core/tests/fixtures/permissiveness/`.
 - [ ] Commit: `test: add cf build and context_build permissiveness smoke tests`

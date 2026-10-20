@@ -6,8 +6,17 @@
  * are isolated from any user data.
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import {
+  ConfigManager,
+  PERMISSIVENESS_FRAGMENT_DIR,
+  PERMISSIVENESS_LEVELS,
+} from '@context-forge/core/node';
+import { IMPLEMENTATION_PHASE, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import {
   createIntegrationClient,
   setupFixtureEnv,
@@ -274,6 +283,64 @@ describe('context_build', () => {
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toContain('UNIQUE_ADDITIONAL_MARKER_XYZ');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// context_build — workflow.permissiveness (slice 246)
+// ---------------------------------------------------------------------------
+
+describe('context_build — workflow.permissiveness', () => {
+  const FIXTURE_DIR = path.resolve(import.meta.dirname, '../fixtures/integration-project');
+  const FIXTURE_FRAGMENTS = path.resolve(import.meta.dirname, '../../../core/tests/fixtures/permissiveness');
+  const PROJECT_PATH_PLACEHOLDER = '__FIXTURE_PROJECT_PATH__';
+  // The most permissive level (last in the list); it has a fragment fixture.
+  const LEVEL = PERMISSIVENESS_LEVELS[PERMISSIVENESS_LEVELS.length - 1];
+  const fragmentDirOf = (checkout: string): string =>
+    path.join(checkout, path.dirname(PROMPT_FILE_RELATIVE_PATH), PERMISSIVENESS_FRAGMENT_DIR);
+
+  let checkout: string;
+
+  // A per-test temp copy of the fixture project: the shared fixture on disk is never modified.
+  beforeEach(async () => {
+    checkout = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-mcp-permissiveness-'));
+    fs.cpSync(path.join(FIXTURE_DIR, 'integration-project'), checkout, { recursive: true });
+    fs.mkdirSync(fragmentDirOf(checkout), { recursive: true });
+    fs.cpSync(FIXTURE_FRAGMENTS, fragmentDirOf(checkout), { recursive: true });
+
+    const projectsJson = fs
+      .readFileSync(path.join(FIXTURE_DIR, 'projects.json'), 'utf-8')
+      .replace(PROJECT_PATH_PLACEHOLDER, checkout);
+    fs.writeFileSync(path.join(fixtureEnv.tempDir, 'projects.json'), projectsJson);
+    await new ConfigManager(checkout).set('workflow.permissiveness', LEVEL, 'project');
+  });
+
+  afterEach(async () => {
+    fs.rmSync(checkout, { recursive: true, force: true });
+    await resetFixtureData(fixtureEnv.tempDir);
+  });
+
+  async function build(): Promise<{ isError: boolean; text: string }> {
+    const result = await client.callTool({
+      name: 'context_build',
+      arguments: { projectId: FIXTURE_PROJECT_ID, instruction: IMPLEMENTATION_PHASE },
+    });
+    const content = result.content as { type: string; text: string }[];
+    return { isError: result.isError === true, text: content[0].text };
+  }
+
+  it('adds the configured fragment to the built context', async () => {
+    const { isError, text } = await build();
+    expect(isError).toBe(false);
+    expect(text).toContain(`### Permissiveness: ${LEVEL}`);
+  });
+
+  it('returns an MCP error, naming the fragment, when it is missing', async () => {
+    fs.rmSync(fragmentDirOf(checkout), { recursive: true, force: true });
+    const { isError, text } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain(`${LEVEL}.md`);
+    expect(text).toContain('cf guides update');
   });
 });
 
