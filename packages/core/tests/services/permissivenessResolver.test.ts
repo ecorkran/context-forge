@@ -22,7 +22,8 @@ const FIXTURE_PROMPT = join(TESTS_DIR, 'fixtures', 'test-project', PROMPT_FILE_R
 
 // Levels that load a fragment (every level except the one that adds nothing).
 const FRAGMENT_LEVELS = PERMISSIVENESS_LEVELS.filter((level) => level !== STANDARD_PERMISSIVENESS);
-const [AUTONOMOUS_LEVEL] = FRAGMENT_LEVELS;
+// Any level that loads a fragment; the tests do not depend on which one.
+const [SAMPLE_FRAGMENT_LEVEL] = FRAGMENT_LEVELS;
 const APPLICABLE_PHASES = [...PERMISSIVENESS_PHASES];
 
 function fixtureText(level: PermissivenessLevel): string {
@@ -116,31 +117,31 @@ describe('resolvePermissivenessForPrompt', () => {
     ];
 
     it.each(nonApplicable)('%s returns "" with no guide installed', async (_label, instruction) => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL, guide: false });
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL, guide: false });
       expect(await resolvePermissivenessForPrompt(checkout, instruction)).toBe('');
     });
   });
 
   describe('failures (no fallback to standard)', () => {
     it('no guide installed: names the missing prompt file', async () => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL, guide: false });
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL, guide: false });
       const attempt = resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE);
       await expect(attempt).rejects.toThrow(/No prompt file found/);
       await expect(attempt).rejects.toBeInstanceOf(PermissivenessFragmentError);
     });
 
     it('missing fragment: names the level, the path, and the guides update command', async () => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL, fragments: [] });
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL, fragments: [] });
       const attempt = resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE);
-      await expect(attempt).rejects.toThrow(AUTONOMOUS_LEVEL);
-      await expect(attempt).rejects.toThrow(fragmentPath(checkout, AUTONOMOUS_LEVEL));
+      await expect(attempt).rejects.toThrow(SAMPLE_FRAGMENT_LEVEL);
+      await expect(attempt).rejects.toThrow(fragmentPath(checkout, SAMPLE_FRAGMENT_LEVEL));
       await expect(attempt).rejects.toThrow('cf guides update');
       await expect(attempt).rejects.toBeInstanceOf(PermissivenessFragmentError);
     });
 
     it('unreadable fragment: a directory where the file should be', async () => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL, fragments: [] });
-      mkdirSync(fragmentPath(checkout, AUTONOMOUS_LEVEL), { recursive: true });
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL, fragments: [] });
+      mkdirSync(fragmentPath(checkout, SAMPLE_FRAGMENT_LEVEL), { recursive: true });
       await expect(resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE)).rejects.toThrow(
         /could not be read/
       );
@@ -152,8 +153,8 @@ describe('resolvePermissivenessForPrompt', () => {
       ['frontmatter-only', '---\nname: x\ndescription: y\n---\n'],
       ['empty-frontmatter-only', '---\n---\n'],
     ])('%s fragment has no body', async (_label, content) => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL });
-      writeFileSync(fragmentPath(checkout, AUTONOMOUS_LEVEL), content);
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL });
+      writeFileSync(fragmentPath(checkout, SAMPLE_FRAGMENT_LEVEL), content);
       await expect(resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE)).rejects.toThrow(
         /has no body/
       );
@@ -173,15 +174,15 @@ describe('resolvePermissivenessForPrompt', () => {
 
   describe('frontmatter stripping', () => {
     it('gives the same body for CRLF line endings and padded delimiter lines', async () => {
-      const checkout = await makeCheckout('proj', { level: AUTONOMOUS_LEVEL });
+      const checkout = await makeCheckout('proj', { level: SAMPLE_FRAGMENT_LEVEL });
       const expected = await resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE);
-      const original = fixtureText(AUTONOMOUS_LEVEL);
+      const original = fixtureText(SAMPLE_FRAGMENT_LEVEL);
       const variants = [
         original.replace(/\n/g, '\r\n'),
         original.replace(/^---\n/, '---  \n').replace(/\n---\n/, '\n---\t\n'),
       ];
       for (const variant of variants) {
-        writeFileSync(fragmentPath(checkout, AUTONOMOUS_LEVEL), variant);
+        writeFileSync(fragmentPath(checkout, SAMPLE_FRAGMENT_LEVEL), variant);
         expect(await resolvePermissivenessForPrompt(checkout, IMPLEMENTATION_PHASE)).toBe(expected);
       }
     });

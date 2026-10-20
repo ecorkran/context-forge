@@ -41,7 +41,7 @@ function readFragment(fragmentPath: string, level: PermissivenessLevel): string 
   try {
     raw = fs.readFileSync(fragmentPath, 'utf-8');
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
+    const code = err instanceof Error && 'code' in err ? String(err.code) : undefined;
     const problem = code === 'ENOENT' ? 'is missing' : `could not be read (${code ?? String(err)})`;
     throw new Error(
       `workflow.permissiveness is "${level}" but its guide fragment ${problem}: ${fragmentPath}. ${GUIDE_UPDATE_HINT}`,
