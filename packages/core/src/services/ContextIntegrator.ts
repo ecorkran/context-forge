@@ -20,6 +20,12 @@ export type TaskFilesResolver = (checkoutPath: string, fileSlice: string) => Pro
 export type IntegrationBranchResolver = (checkoutPath: string) => Promise<string>;
 
 /**
+ * Returns the guide fragment for workflow.permissiveness in one checkout, given
+ * the project's `instruction` value. Returns '' when no fragment applies.
+ */
+export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;
+
+/**
  * Default template for context generation
  * Uses markdown format with template variable substitution
  */

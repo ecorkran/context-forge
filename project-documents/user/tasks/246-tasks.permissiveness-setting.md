@@ -63,16 +63,16 @@ revision_number: 1
 
 ## Task 1: Config key and level constants, with tests (D1)
 
-- [ ] In `packages/core/src/config/ConfigKeys.ts`, export two constants above `CONFIG_KEYS`:
-  - [ ] `PERMISSIVENESS_LEVELS = ['cautious', 'standard', 'autonomous'] as const`, plus a `PermissivenessLevel` type derived from it.
-  - [ ] `STANDARD_PERMISSIVENESS: PermissivenessLevel`, taken from the array (not re-typed as a literal). It is both the default and the one level with no fragment (D4).
-- [ ] Add `workflow.permissiveness` next to `workflow.decision_gate_enabled`: `type: 'string'`, `default: STANDARD_PERMISSIVENESS`, `enum: [...PERMISSIVENESS_LEVELS]`, `scope: ConfigScope.Shared`. Description: how readily AI work waits on the PM; `cf build` adds the guide's `rules/permissiveness/<level>.md` in Phases 4–6; `standard` adds nothing.
-- [ ] Export `PERMISSIVENESS_LEVELS`, `STANDARD_PERMISSIVENESS`, and `PermissivenessLevel` from the same entry point that exports the other `ConfigKeys` symbols.
-- [ ] Tests in `packages/core/tests/config/ConfigKeys.test.ts`:
-  - [ ] The key is a shared string, its default is `standard`, and its `enum` equals `PERMISSIVENESS_LEVELS`.
-  - [ ] With a real `ConfigManager` on a temp dir: each of the three levels is accepted by `set`; `bogus` is rejected and the error message contains every level name (loop over `PERMISSIVENESS_LEVELS`; do not type the names again).
-  - [ ] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ConfigKeys` pass, and `grep -rn "'autonomous'" packages/core/src` matches only `ConfigKeys.ts`.
-- [ ] Commit: `feat(core): add workflow.permissiveness config key`
+- [x] In `packages/core/src/config/ConfigKeys.ts`, export two constants above `CONFIG_KEYS`:
+  - [x] `PERMISSIVENESS_LEVELS = ['cautious', 'standard', 'autonomous'] as const`, plus a `PermissivenessLevel` type derived from it.
+  - [x] `STANDARD_PERMISSIVENESS: PermissivenessLevel`, taken from the array (not re-typed as a literal). It is both the default and the one level with no fragment (D4).
+- [x] Add `workflow.permissiveness` next to `workflow.decision_gate_enabled`: `type: 'string'`, `default: STANDARD_PERMISSIVENESS`, `enum: [...PERMISSIVENESS_LEVELS]`, `scope: ConfigScope.Shared`. Description: how readily AI work waits on the PM; `cf build` adds the guide's `rules/permissiveness/<level>.md` in Phases 4–6; `standard` adds nothing.
+- [x] Export `PERMISSIVENESS_LEVELS`, `STANDARD_PERMISSIVENESS`, and `PermissivenessLevel` from the same entry point that exports the other `ConfigKeys` symbols.
+- [x] Tests in `packages/core/tests/config/ConfigKeys.test.ts`:
+  - [x] The key is a shared string, its default is `standard`, and its `enum` equals `PERMISSIVENESS_LEVELS`.
+  - [x] With a real `ConfigManager` on a temp dir: each of the three levels is accepted by `set`; `bogus` is rejected and the error message contains every level name (loop over `PERMISSIVENESS_LEVELS`; do not type the names again).
+  - [x] Success: `pnpm typecheck` and `pnpm --filter @context-forge/core test -- ConfigKeys` pass, and `grep -rn "'autonomous'" packages/core/src` matches only `ConfigKeys.ts`.
+- [x] Commit: `feat(core): add workflow.permissiveness config key`
 - **Effort:** 1/5
 
 ---
