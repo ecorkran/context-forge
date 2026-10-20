@@ -81,7 +81,7 @@ Only two squadron steps are *offered*, because they're optional: the 400 adoptio
 
 The squadron path runs only on surfaces the probe's `surfaces` list names. CF never names a surface itself: the list is squadron's to maintain, and neither this design nor CF's tests fix its contents. On a surface the list doesn't name, CF takes its own path even when squadron is installed.
 
-If squadron is present but the `understand-anything` plugin is not, the agent stops and tells the PM how to install it, or offers the CF-only path. That's a real choice, so the PM makes it. If squadron is absent, or the probe can't be read, the agent says so and takes the CF-only path.
+The `understand-anything` plugin is needed only to build or refresh the graph. With a current graph, the squadron path runs whatever the plugin's state. When the graph must be built and the plugin is reported missing or unknown (null), the agent stops and tells the PM how to install it, or offers the CF-only path. That's a real choice, so the PM makes it; an unknown state is never treated as "missing" without asking. cf itself doesn't branch on probe fields; these rules live in the guide prompt. If squadron is absent, or the probe can't be read, the agent says so and takes the CF-only path.
 
 ### The CF-only path (fallback)
 
