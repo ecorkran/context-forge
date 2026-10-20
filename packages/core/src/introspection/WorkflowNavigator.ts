@@ -673,8 +673,8 @@ export class WorkflowNavigator {
         recommendation: 'Your project is in Phase 2 (Architecture). Create an architecture document.',
         rationale:
           'Use an architecture prompt to define the high-level structure. For small projects, you can skip architecture and go straight to a slice plan.',
-        suggestedCommand: 'cf build --phase architecture',
-        summary: 'Start Phase 2 — generate an architecture prompt with cf build --phase architecture',
+        suggestedCommand: 'cf build',
+        summary: 'Start Phase 2 — generate an architecture prompt with cf build',
       };
     }
 
