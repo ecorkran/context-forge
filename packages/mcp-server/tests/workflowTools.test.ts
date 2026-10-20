@@ -395,6 +395,16 @@ describe('workflow_next', () => {
     expect((parseResult(result) as { pendingDecisions: unknown }).pendingDecisions).toEqual(decisions);
   });
 
+  it('passes offers from the navigator through to the response', async () => {
+    const offers = [{ id: 'setup-ci', message: 'No CI detected for this project.' }];
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGetNext.mockResolvedValue({ recommendation: 'r', rationale: 'r', summary: 's', offers });
+
+    const result = await client.callTool({ name: 'workflow_next', arguments: { projectId: MOCK_PROJECT.id } });
+
+    expect((parseResult(result) as { offers: unknown }).offers).toEqual(offers);
+  });
+
   it('constructs WorkflowNavigator with a ConfigManager for the project path (review gating needs it)', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockGetNext.mockResolvedValue({ recommendation: 'r', rationale: 'r', summary: 's' });

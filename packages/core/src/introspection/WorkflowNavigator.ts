@@ -29,6 +29,7 @@ import {
 import { resolveConceptPath, resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
+import { evaluateSetupCiOffer } from './setupCiOffer.js';
 import type { PendingDecision } from '../schema/pendingDecisions.js';
 import {
   evaluateReviewGate,
@@ -177,6 +178,17 @@ export class WorkflowNavigator {
    * Uses a priority-ordered state machine based on getStatus().
    */
   async getNext(project: ResolvedProject): Promise<NextAction> {
+    const next = await this.computeNext(project);
+    // The setup-ci offer rides on every result (including gate blocks) and never
+    // changes the recommendation (slice 260, D6).
+    if (!this.config || !project.projectPath) return next;
+    const { offer, warning } = await evaluateSetupCiOffer(project.projectPath, this.config);
+    if (offer) next.offers = [offer];
+    if (warning) next.warnings = [...(next.warnings ?? []), warning];
+    return next;
+  }
+
+  private async computeNext(project: ResolvedProject): Promise<NextAction> {
     // GUARD: no-project-path
     if (!project.projectPath) {
       return {

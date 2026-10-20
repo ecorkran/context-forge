@@ -172,7 +172,8 @@ export function registerWorkflowTools(server: McpServer): void {
       description:
         'Get the recommended next action for a project based on its current state. ' +
         'Returns a prioritized recommendation with rationale and optional suggested CLI command. ' +
-        'Response shape: { recommendation, rationale, suggestedCommand?, slice?, phase?, summary }.',
+        'Response shape: { recommendation, rationale, suggestedCommand?, slice?, phase?, summary, offers?: [{ id, message }] }. ' +
+        'offers are optional suggestions (e.g. id "setup-ci"); key on id, never on message.',
       inputSchema: {
         projectId: z
           .string()

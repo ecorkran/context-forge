@@ -106,6 +106,49 @@ describe('cf next', () => {
     expect(parsed.slice).toBe('100-slice.auth');
   });
 
+  describe('offers', () => {
+    const baseAction = {
+      recommendation: 'Continue implementation — 2 tasks remaining',
+      rationale: 'In progress.',
+      suggestedCommand: 'cf build',
+      summary: 'Continue',
+    };
+    const offer = { id: 'setup-ci', message: 'No CI detected for this project.' };
+
+    it('prints one Offer line after Run', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue({ ...baseAction, offers: [offer] });
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001']);
+
+      const lines = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
+      const offerLines = lines.filter((l) => l.includes('Offer:'));
+      expect(offerLines).toHaveLength(1);
+      expect(offerLines[0]).toContain(offer.message);
+      expect(lines.findIndex((l) => l.includes('Offer:'))).toBeGreaterThan(lines.findIndex((l) => l.includes('Run:')));
+    });
+
+    it('prints no Offer line without offers', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue(baseAction);
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001']);
+
+      const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
+      expect(output).not.toContain('Offer:');
+    });
+
+    it('includes offers in --json output', async () => {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGetNext.mockResolvedValue({ ...baseAction, offers: [offer] });
+
+      await createProgram().parseAsync(['node', 'cf', 'next', '--project', 'proj_001', '--json']);
+
+      const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+      expect(parsed.offers).toEqual([offer]);
+    });
+  });
+
   describe('pending decisions', () => {
     const pendingAction = {
       recommendation: 'Blocked: design has pending PM decisions',

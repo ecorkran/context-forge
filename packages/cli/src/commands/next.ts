@@ -55,6 +55,9 @@ export function registerNextCommand(program: Command): void {
         if (result.suggestedCommand) {
           console.log(label('Run:       ') + valueStyle(result.suggestedCommand));
         }
+        for (const offer of result.offers ?? []) {
+          console.log(label('Offer:     ') + dim(offer.message));
+        }
       } catch (err) {
         handleError(err);
       }

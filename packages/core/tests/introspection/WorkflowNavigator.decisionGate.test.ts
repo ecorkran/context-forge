@@ -16,7 +16,7 @@ const designText = (status: string, extraFrontmatter = ''): string =>
 const taskText = (...boxes: boolean[]): string =>
   `---\ndocType: tasks\n---\n# Tasks\n${boxes.map((b, i) => `- [${b ? 'x' : ' '}] Task ${i + 1}`).join('\n')}\n`;
 
-const GATE_ON = { 'workflow.decision_gate_enabled': true, 'workflow.review_enabled': false };
+const GATE_ON = { 'workflow.decision_gate_enabled': true, 'workflow.review_enabled': false, 'workflow.setup_ci_offer': false };
 
 describe('WorkflowNavigator — decision gate (slice 245)', () => {
   let root: string;

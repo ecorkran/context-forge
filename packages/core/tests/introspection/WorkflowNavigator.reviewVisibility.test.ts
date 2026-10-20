@@ -13,6 +13,7 @@ const NOTE = EXEMPT_NOTE[EXEMPT_REASON.ReviewNone];
 
 const GATE_ENABLED = {
   'workflow.decision_gate_enabled': false, // slice 245: keeps these fixtures independent of the decision gate
+  'workflow.setup_ci_offer': false, // slice 260: keeps these fixtures independent of the setup-ci offer
   'workflow.review_enabled': true,
   'workflow.review_threshold': 'concerns',
   'workflow.review_unknown_as': 'fail',
