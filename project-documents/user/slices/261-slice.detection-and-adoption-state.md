@@ -3,11 +3,26 @@ docType: slice-design
 slice: detection-and-adoption-state
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
-dependencies: [260]
-interfaces: [262, 263, 264, 266, 267]
+dependencies:
+- 260
+interfaces:
+- 262
+- 263
+- 264
+- 266
+- 267
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 33
+promptTokens: 2512810
+cachedTokens: 2393045
+cacheWriteTokens: 119703
+completionTokens: 33874
+durationSeconds: 334.4
+costUsd: 2.114289
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: detection-and-adoption-state
