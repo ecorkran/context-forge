@@ -53,6 +53,9 @@ export { FutureWorkCollector } from './introspection/FutureWorkCollector.js';
 export { ConsistencyChecker } from './introspection/ConsistencyChecker.js';
 export { updateCheckbox, updateFrontmatterField } from './introspection/writers/markdownWriter.js';
 
+// Detection — project-folder facts (CI, build manifests); fs dependent
+export * from './detection/index.js';
+
 // Project defaults — fs-dependent auto-set rules (uses resolveFileByIndex)
 export { computeAutoSetFields } from './project-autoset.js';
 
