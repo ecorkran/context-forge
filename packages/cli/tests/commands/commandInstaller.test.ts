@@ -120,6 +120,22 @@ describe('commandInstaller', () => {
     });
   });
 
+  describe('installCommands — rendered onboarding assets', () => {
+    it('installs cf/onboard.md for claude with no stale-entry removals', () => {
+      const { installed, removed } = installCommands('claude', tempDir);
+      expect(installed).toContain('onboard.md');
+      expect(fs.existsSync(path.join(tempDir, 'cf', 'onboard.md'))).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    it('installs cf-onboard/SKILL.md for agents with no stale-entry removals', () => {
+      const { installed, removed } = installCommands('agents', tempDir);
+      expect(installed).toContain('cf-onboard');
+      expect(fs.existsSync(path.join(tempDir, 'cf-onboard', 'SKILL.md'))).toBe(true);
+      expect(removed).toEqual([]);
+    });
+  });
+
   describe('installCommands — claude (flat-md)', () => {
     it('copies all command files on fresh install', () => {
       const { installed } = installCommands('claude', tempDir);

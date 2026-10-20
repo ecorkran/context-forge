@@ -16,6 +16,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "render:onboard": "node scripts/render-onboard.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
