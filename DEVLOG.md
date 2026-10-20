@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-19
+
+### Release 0.19.16
+
+- **Contents:** slice 246 `workflow.permissiveness` setting (#122); install-hint fix (`cf guides install`)
+
+Tags: @context-forge/core@0.19.16, @context-forge/cli@0.19.16, @context-forge/mcp@0.19.16, @context-forge/context-forge@0.19.16
+
 ## 2026-10-18
 
 ### Release 0.19.15
