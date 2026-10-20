@@ -67,7 +67,7 @@ revision_number: 1
   - [ ] Directory signatures: list with `readdirSync`; `ENOENT` means none; anything else (including `ENOTDIR` when the path is a file) throws. Extension match is case-sensitive on `.yml` / `.yaml`.
   - [ ] `matches` holds absolute paths, without duplicates. `recognized` is `matches.length > 0`.
   - [ ] Keep the file under ~300 lines; split the root walk into its own function.
-  - [ ] Create `packages/core/src/detection/index.ts` re-exporting `recognizeCi`, `CI_SIGNATURES`, `CiRecognition`, `hasBuildManifest`, `BUILD_MANIFESTS`. Keep `pathPresent` internal to core. Export it from `packages/core/src/node.ts` (fs-dependent), not `index.ts`.
+  - [ ] Create `packages/core/src/detection/index.ts` re-exporting `recognizeCi`, `CI_SIGNATURES`, `CiRecognition`, `hasBuildManifest`, `BUILD_MANIFESTS`, and re-export that barrel from `packages/core/src/node.ts` (fs-dependent), not `index.ts`. `pathPresent` is not in the barrel and is never exported from `node.ts`; detection files import it by path.
   - [ ] Success: `pnpm -r build` and `pnpm -r typecheck` pass.
 
 - [ ] **Task 2T: CI recognizer tests** (effort: 3)
@@ -181,9 +181,9 @@ revision_number: 1
 - [ ] **Task 10T: Drift test** (effort: 2)
   - [ ] Create `packages/cli/tests/onboardRender.test.ts`: for each CLI surface, render and compare byte-for-byte to the committed file.
   - [ ] Failure message names the file path and the command `pnpm --filter @context-forge/cli render:onboard`.
-  - [ ] Verify by hand: append a line to `commands/cf/onboard.md`, run the test, confirm it fails with that message, then `git checkout` the file.
-  - [ ] Add a check to `packages/cli/tests/commands/commandInstaller.test.ts` (or confirm an existing one) that installing the Claude and agents targets yields `cf/onboard.md` and `cf-onboard/SKILL.md` with no stale-entry removals.
-  - [ ] Success: all pass.
+  - [ ] Verify by hand: append a line to `commands/cf/onboard.md`, run the test, confirm it fails with that message, then restore it by re-running `pnpm --filter @context-forge/cli render:onboard` (not `git checkout`: before Task 10C the committed file is still the old hand-written recipe).
+  - [ ] Add a test to `packages/cli/tests/commands/commandInstaller.test.ts` asserting that installing the Claude and agents targets yields `cf/onboard.md` and `cf-onboard/SKILL.md` and reports no stale-entry removals.
+  - [ ] Success: after a fresh `pnpm -r build` (the drift test imports `@context-forge/core` from `dist`), all pass.
 
 - [ ] **Task 10C: Commit** — `feat(cli): render onboarding assets from core with drift test`
 
@@ -238,9 +238,16 @@ revision_number: 1
 - [ ] **Task 16: Full verification** (effort: 2)
   - [ ] Run format, lint, `pnpm -r typecheck`, `pnpm -r build`, `pnpm -r test`. All pass.
   - [ ] Every new source file is under ~300 lines (`wc -l`).
-  - [ ] Run Verification Walkthrough steps 1, 2 and 5–9 from the slice design with the local build; each matches its expected output. Step 9 uses a temp repository built for the test.
-  - [ ] Run `node packages/cli/dist/index.js install-commands` and confirm the installed `/cf:onboard` is the new text (Special Considerations).
-  - [ ] Run Walkthrough steps 3–4 (live runs are pre-authorized): in an empty temp directory, run `/cf:onboard demo` through Claude Code headless (`claude -p`) and `$cf-onboard demo` through `codex exec`; repeat step 4 in this repository. Record under this task, per run, whether setup, then `cf build`, then the concept question (step 3) or no concept question (step 4) occurred. If a CLI is not installed or cannot run headless, write a `BLOCKED:` line naming it and leave this item unchecked.
-  - [ ] Success: all automated checks pass; any fix made here is committed as part of this task.
+  - [ ] Run Verification Walkthrough steps 1, 2 and 6–9 from the slice design with the local build; each matches its expected output. Step 9 uses a temp repository built for the test. Step 5 (`agent_onboard`) is covered by the Task 11T test.
+  - [ ] Any defect found here is fixed in its own commit typed by what it is (`fix:`, `feat:`, `test:`), not folded into a verification commit.
+  - [ ] Success: all automated checks and listed walkthrough steps pass.
 
-- [ ] **Task 16C: Commit** — `chore: verify slice 260 onboarding consolidation` (only if Task 16 changed files)
+- [ ] **Task 17: Installed commands and live onboarding runs** (effort: 2)
+  - [ ] Run `node packages/cli/dist/index.js install-commands` and confirm the installed `/cf:onboard` is the new text (Special Considerations).
+  - [ ] Walkthrough step 3 (live runs are pre-authorized): in an empty temp directory, run `/cf:onboard demo` through Claude Code headless (`claude -p`) and `$cf-onboard demo` through `codex exec`.
+  - [ ] Walkthrough step 4 precondition: `node packages/cli/dist/index.js status` in this repository shows it registered, in a phase other than Phase 0, with slice 260 set. If not, write a `BLOCKED:` line with the actual state and skip step 4. Otherwise run `/cf:onboard` here through `claude -p`.
+  - [ ] Record under this task, per run, whether setup, then `cf build`, then the concept question (step 3) or no concept question (step 4) occurred. If a CLI is not installed or cannot run headless, write a `BLOCKED:` line naming it and leave that item unchecked.
+  - [ ] Any defect found is fixed in its own commit typed by what it is.
+  - [ ] Success: each run's outcome or `BLOCKED:` line is recorded.
+
+- [ ] **Task 17C: Commit** — `docs: record slice 260 live onboarding runs`
