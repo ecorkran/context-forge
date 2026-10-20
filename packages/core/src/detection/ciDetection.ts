@@ -2,7 +2,7 @@
 // CI_SIGNATURES is the only place a signature is written; the scanner reads it.
 import { readdirSync } from 'fs';
 import { dirname, join, resolve } from 'path';
-import { pathPresent } from './pathPresent.js';
+import { isEnoent, pathPresent } from './pathPresent.js';
 
 export type CiSignature =
   | { kind: 'file'; path: string }
@@ -49,7 +49,7 @@ function listYamlFiles(dir: string): string[] {
   } catch (error) {
     // ENOENT means the directory is not there: no matches. Anything else
     // (including ENOTDIR when the path is a file) is a real error.
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (isEnoent(error)) return [];
     throw error;
   }
   return names

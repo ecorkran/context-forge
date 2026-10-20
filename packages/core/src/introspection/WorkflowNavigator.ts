@@ -178,7 +178,8 @@ export class WorkflowNavigator {
    * Uses a priority-ordered state machine based on getStatus().
    */
   async getNext(project: ResolvedProject): Promise<NextAction> {
-    const next = await this.computeNext(project);
+    // Copy so attaching offers/warnings can never touch a result shared between calls.
+    const next: NextAction = { ...(await this.computeNext(project)) };
     // The setup-ci offer rides on every result (including gate blocks) and never
     // changes the recommendation (slice 260, D6).
     if (!this.config || !project.projectPath) return next;

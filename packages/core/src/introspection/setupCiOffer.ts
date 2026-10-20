@@ -3,7 +3,7 @@ import { join } from 'path';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { hasBuildManifest } from '../detection/buildManifest.js';
 import { recognizeCi } from '../detection/ciDetection.js';
-import { pathPresent } from '../detection/pathPresent.js';
+import { isFsError, pathPresent } from '../detection/pathPresent.js';
 import { SETUP_CI_OFFER_ID, type NextOffer } from './types.js';
 
 const SETUP_CI_OFFER_KEY = 'workflow.setup_ci_offer';
@@ -31,10 +31,6 @@ async function isOfferEnabled(config: ConfigManager): Promise<boolean> {
     throw new Error(`Config key "${SETUP_CI_OFFER_KEY}" must be true or false, got ${JSON.stringify(value)}`);
   }
   return value;
-}
-
-function isFsError(error: unknown): error is Error & { code: string; path?: string } {
-  return error instanceof Error && typeof (error as { code?: unknown }).code === 'string';
 }
 
 /** True when the project has a build manifest and no recognized CI and no release skill. */

@@ -30,11 +30,13 @@ describe('recognizeCi', () => {
 
   describe.each(CI_SIGNATURES.filter((s) => s.kind === 'dir').map((s) => s.path))('directory %s', (path) => {
     it('recognizes a .yml file', () => {
-      expect(recognizeCi((touch(dir, `${path}/test.yml`), dir)).recognized).toBe(true);
+      touch(dir, `${path}/test.yml`);
+      expect(recognizeCi(dir).recognized).toBe(true);
     });
 
     it('recognizes a .yaml file', () => {
-      expect(recognizeCi((touch(dir, `${path}/ci.yaml`), dir)).recognized).toBe(true);
+      touch(dir, `${path}/ci.yaml`);
+      expect(recognizeCi(dir).recognized).toBe(true);
     });
 
     it('does not recognize a non-yaml file alone', () => {
