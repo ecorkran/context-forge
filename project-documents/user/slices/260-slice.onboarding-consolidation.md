@@ -81,6 +81,8 @@ This slice replaces the three copies with one cf-owned source in core that is re
 packages/core/src/onboarding/
   onboardRecipe.ts        recipe steps + ONBOARD_SURFACES table + renderOnboardRecipe(surface)
 packages/core/src/detection/
+  index.ts                re-exports the detection facts (exported from node.ts)
+  pathPresent.ts          shared missing-file rule: ENOENT → false, other errors throw (internal)
   ciDetection.ts          recognizeCi(projectPath) → CiRecognition   (sync)
   buildManifest.ts        BUILD_MANIFESTS + hasBuildManifest(projectPath) → boolean   (sync)
 packages/core/src/introspection/
@@ -222,6 +224,7 @@ Status: decided
   - installed version at or above the minimum → `null`
   - below the minimum → "Installed ai-project-guide is v{installed}; context-forge needs v{MIN} or newer. Run: cf guides update"
   - version unknown (`null` from detection) → "Installed ai-project-guide version is unknown; context-forge needs v{MIN} or newer. Run: cf guides update"
+  - version `local` (`LOCAL_VERSION_MARKER`, a local-archive install) → treated as unknown, because it is not a release version and `isNewerVersion` reports it as older than any release
   - no guide installed: no warning from this check. The build's existing missing-guide error already covers it.
 - Delivery, beside the prompt and never inside it. `cf build` writes `Warning: {message}` to stderr, the same channel as its existing warnings, so stdout stays clean for piping. `context_build` returns the warning as a second text content item after the prompt. The build still succeeds: an old guide degrades the conversation but doesn't break it.
 - It runs on every build, in every phase, because the minimum covers the whole initiative, not just Phase 0. Slice 261 reuses `MIN_GUIDE_VERSION` and raises it if its own guide needs change.
