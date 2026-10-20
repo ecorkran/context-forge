@@ -16,7 +16,7 @@ status: not_started
 1. [ ] **(260) Onboarding Consolidation** — Replace the three hand-written onboarding recipes (`packages/cli/commands/cf/onboard.md`, the Codex `cf-onboard` skill, and the `agent_onboard` text in `agentOnboardTool.ts`) with one cf-owned source rendered to each surface. The recipe shrinks to setup (registration check, `cf init`, or the MCP `project_create`/`guide_install` fallback) followed by "run `cf build` and follow it" (`context_build` on the MCP-only path). The `/setup-ci` offer leaves onboard and moves to `cf next`, and CI recognition stops keying on the single filename `.github/workflows/ci.yml`.
    - **Value:** ends the drift between three copies, and leaves onboarding with no methodology content, so brownfield needs no onboard changes at all.
    - **Success criteria:** the three surfaces come from one source, and a test fails if a rendered copy diverges from it. A greenfield run behaves as today: setup, then the concept conversation (the opener now comes from the guide's concept prompt, v0.22.0+). `cf next` offers `/setup-ci` once a stack is detected and no CI is recognized. An existing CI workflow under another name is recognized.
-   - **Dependencies:** none in this repo. Guide ≥ v0.22.0 for the concept-prompt opener.
+   - **Dependencies:** none in this repo. Guide ≥ v0.22.1, the initiative minimum. The concept-prompt opener shipped in v0.22.0.
    - **Interfaces:** provides the single onboarding source; consumes `cf build` / `context_build` unchanged.
    - **Risk:** Low. **Effort:** 2/5
 

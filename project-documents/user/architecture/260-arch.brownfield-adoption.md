@@ -64,7 +64,7 @@ Core produces one detection report: source, history, docs, ADRs, CI, rule files,
 2. **Already planned:** the repo holds a CF/SQ planning artifact (an initiative plan, an architecture doc or a slice plan). A concept on its own does not count. The project is registered and development continues from the artifacts; there is no brownfield path (PM ruling 20261020; this case is expected to be very rare).
 3. **Brownfield or greenfield:** decided from the code signals. Brownfield sets the adoption state to in progress and `cf build` selects the brownfield prompt. Greenfield gets the concept prompt as today.
 
-A user override exists in both directions. Detection is scoped to the project's own folder, so a CF project in a monorepo subdirectory is judged on that folder.
+A user override exists in both directions. Detection is scoped to the project's own folder, so a CF project in a monorepo subdirectory is judged on that folder. CI is the one exception: CI configs live at the repository root, so CI recognition also checks the root. Slice 260's `recognizeCi` owns that exception, and the detection report consumes it.
 
 The adoption state is a persisted project value owned by core, readable by `cf build`, `cf next` and the checker. It moves from in progress to complete when the existing-state slice plan is written. Because the state persists, a user can stop after any step and resume with `cf build` or `cf next`.
 

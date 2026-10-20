@@ -52,7 +52,7 @@ This slice replaces the three copies with one cf-owned source in core that is re
 - The new recipe content: a registration check, then `cf init` (or the MCP `project_create`/`guide_install` fallback), then a handoff to `cf build` / `context_build`.
 - A core CI recognizer covering several providers and any GitHub workflow filename.
 - A `setup-ci` offer on `cf next` and `workflow_next`, with a stable id, and a config key that suppresses it.
-- README and CLI/MCP README updates for the changed onboarding behavior and the new config key.
+- In the root `README.md`: one updated onboarding section (setup plus handoff, the guide minimum, `cf guides update`) and one line documenting the new config key.
 
 **Excluded:**
 - Detection of brownfield, greenfield or already-planned projects, adoption state, and profile selection (slice 261).
@@ -65,7 +65,7 @@ This slice replaces the three copies with one cf-owned source in core that is re
 
 ### Prerequisites
 - None in this repo.
-- **ai-project-guide ≥ v0.22.1,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. cf has no runtime minimum-guide check, and this slice doesn't add one. The minimum is declared in the release's CHANGELOG entry and in the README's onboarding section, each with the update command, `cf guides update`. A new `cf init` installs the current guide, so only existing projects with an older installed guide need it. With an older guide, onboarding still reaches the concept prompt, but nobody asks the opening question until the user speaks.
+- **ai-project-guide ≥ v0.22.1,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. cf has no runtime minimum-guide check, and this slice doesn't add one. The minimum is declared in the README's onboarding section, together with the update command, `cf guides update`. A new `cf init` installs the current guide, so only existing projects with an older installed guide need it. With an older guide, onboarding still reaches the concept prompt, but nobody asks the opening question until the user speaks.
 
 ### Interfaces Required
 - `cf build` / `context_build`, unchanged. In a fresh project they build the Phase 0 concept prompt, because `cf init` sets `developmentPhase` to `Phase 0: Concept` (`project-defaults.ts`).
@@ -80,7 +80,7 @@ packages/core/src/onboarding/
   onboardRecipe.ts        recipe steps + ONBOARD_SURFACES table + renderOnboardRecipe(surface)
 packages/core/src/detection/
   ciDetection.ts          recognizeCi(projectPath) → CiRecognition   (sync)
-  setupCiOffer.ts         evaluateSetupCiOffer(projectPath, config) → Promise<SetupCiOfferResult>
+  setupCiOffer.ts         evaluateSetupCiOffer(projectPath, config) → Promise<NextOffer | null>
 
 packages/cli/scripts/render-onboard.mjs   writes the two CLI assets from the renderer
 packages/cli/commands/cf/onboard.md                 (rendered, committed)
@@ -161,7 +161,7 @@ Surface differences:
 
 ### D4 — CI recognition covers several providers and any GitHub workflow filename
 Status: decided
-- `recognizeCi(projectPath): CiRecognition` is synchronous. It returns `{ recognized: boolean; matches: CiMatch[] }`, where `CiMatch` is `{ root: CiRoot; path: string }`, `CiRoot` is `'project' | 'repository'`, and `path` is relative to that root. 261 can report each match with its location.
+- `recognizeCi(projectPath): CiRecognition` is synchronous. It returns `{ recognized: boolean; matches: string[] }`, where `matches` holds the absolute paths of the matched files. Absolute paths are unambiguous whichever directory they were found in. If 261 needs more detail, it extends the result then.
 - Signatures are one exported constant, `CI_SIGNATURES`:
   - `.github/workflows/`: any `*.yml` or `*.yaml` file
   - `.gitlab-ci.yml`
@@ -171,7 +171,7 @@ Status: decided
   - `Jenkinsfile`
   - `.travis.yml`
   - `.buildkite/`: any `*.yml` or `*.yaml` file
-- Directories checked: `projectPath` (root `'project'`), and the repository root (root `'repository'`) when it differs from `projectPath`. When they are the same directory, it is checked once, as `'project'`. The repository root is the nearest directory at or above `projectPath` that contains a `.git` entry. That entry can be a directory or a file, so worktrees and submodules resolve to their own checkout. If no ancestor has one, the project is not in a repository, and only `projectPath` is checked.
+- Directories checked: `projectPath`, and the repository root when it differs from `projectPath`. When they are the same directory, it is checked once. The repository root is the nearest directory at or above `projectPath` that contains a `.git` entry. That entry can be a directory or a file, so worktrees and submodules resolve to their own checkout. If no ancestor has one, the project is not in a repository, and only `projectPath` is checked.
 - **Deliberate exception to the arch's project-folder rule.** The arch scopes detection to the project's own folder. CI is the exception: every provider in `CI_SIGNATURES` reads its config from the repository root by default. A project-folder-only check would report "no CI" for every monorepo subproject. 261 uses `recognizeCi` as is for its CI fact. Its other facts keep the project-folder scope.
 - Rejected: `git rev-parse --show-toplevel` to find the repository root. It is async, spawns a process, and fails for reasons other than "not a repository" (dubious ownership, a missing `git` binary). The design would then have to tell those failures apart.
 - Rejected: parsing workflow contents to tell CI apart from other automation. A repository with any workflow file has chosen its automation. Offering `setup-ci` there invites a duplicate, which is the bug being fixed.
@@ -186,18 +186,14 @@ Status: decided
 
 ### D6 — The offer is an additive `offers` field on NextAction with a stable id
 Status: decided
-- `NextAction` gains `offers?: NextOffer[]`, where `NextOffer` is `{ id: NextOfferId; message: string; declineCommand: string }` and `NextOfferId` is a union with one member, `'setup-ci'`, defined as a constant. Consumers key on `id`, never on `message`. This follows the rule already applied to `pendingDecisions`.
+- `NextAction` gains `offers?: NextOffer[]`, where `NextOffer` is `{ id: string; message: string }`. The only id is the constant `SETUP_CI_OFFER_ID = 'setup-ci'`. Consumers key on `id`, never on `message`. This follows the rule already applied to `pendingDecisions`.
 - `WorkflowNavigator.getNext` becomes a thin wrapper. Today's body moves unchanged into a private `computeNext`. `getNext` calls it, then `evaluateSetupCiOffer`, and sets `offers` when the result has an offer. Every return path, including gates and blocks, gets the offer, and no early return is touched. The offer logic itself lives in `detection/setupCiOffer.ts`, because `WorkflowNavigator.ts` is already over 1000 lines.
-- Sync/async shape: `getNext` is already `async getNext(project): Promise<NextAction>`, so its signature and its callers (`next.ts`, `workflow_next`) don't change. `evaluateSetupCiOffer(projectPath, config): Promise<SetupCiOfferResult>` is async only because `ConfigManager.get` is. The filesystem checks inside it (`recognizeCi`, `hasBuildManifest`, the release-skill check) are synchronous.
+- Sync/async shape: `getNext` is already `async getNext(project): Promise<NextAction>`, so its signature and its callers (`next.ts`, `workflow_next`) don't change. `evaluateSetupCiOffer(projectPath, config): Promise<NextOffer | null>` is async only because `ConfigManager.get` is. The filesystem checks inside it (`recognizeCi`, `hasBuildManifest`, the release-skill check) are synchronous.
 - The offer is evaluated only when the navigator has a `ConfigManager` (both `cf next` and `workflow_next` pass one) and `project.projectPath` is set. Without either, the suppression key or the project files can't be read. The constructor parameter is already optional, so existing navigator tests that construct it without config compile unchanged and see no `offers`.
 - Conditions, all required: `workflow.setup_ci_offer` is `true`; `hasBuildManifest` is true; `recognizeCi` is not recognized; and no release skill exists at `.claude/skills/release/SKILL.md` or `.agents/skills/release/SKILL.md` under `projectPath`. The release-skill condition keeps today's rule that the offer is made only when neither exists.
-- Failures. The offer is advisory, so it never decides whether `cf next` succeeds. The one exception is a misconfiguration:
-  - A non-boolean `workflow.setup_ci_offer` throws, and `cf next` / `workflow_next` fail, the same as with `workflow.decision_gate_enabled`. The user set a bad value and must see it.
-  - A filesystem error during the checks (any error carrying a Node `code`, such as `EACCES` on an unreadable `.github/`, other than the `ENOENT`/`ENOTDIR` that mean "not present") is caught in `evaluateSetupCiOffer`. The result is `{ offer: null, warning }`, with `warning` = `setup-ci offer skipped: {error message}`, and `getNext` appends it to `warnings`. The catch names the error type and has a comment saying why swallowing is correct, as the exception-handling rule requires.
-  - Any other error propagates.
-- `SetupCiOfferResult` is `{ offer: NextOffer | null; warning?: string }`.
-- `message`: "No CI detected for this project. The setup-ci skill can add CI and a release skill." `declineCommand`: `cf config set workflow.setup_ci_offer false`.
-- CLI rendering in `next.ts`: after the `Run:` line, `Offer:     {message}`, then a dim line `           Not wanted? {declineCommand}`. JSON output carries the field as is.
+- Failures: one rule. A missing file means "not present". Any other error propagates, as it does for the files `cf next` already reads. There is no separate failure channel for the offer.
+- `message`: "No CI detected for this project. The setup-ci skill can add CI and a release skill. Not wanted? Run: cf config set workflow.setup_ci_offer false"
+- CLI rendering in `next.ts`: after the `Run:` line, `Offer:     {message}`. JSON output carries the field as is.
 - `workflow_next`'s description adds `offers?` to its response shape.
 - Rejected: putting the offer in `warnings`. Warnings report configuration problems. A missing CI is not one.
 - Rejected: replacing the recommendation with the offer. CI is optional, and it must never displace the workflow's next step.
@@ -206,7 +202,7 @@ Status: decided
 Status: decided
 - New key in `ConfigKeys.ts`: `workflow.setup_ci_offer`, type boolean, default `true`, scope `ConfigScope.Shared`. Description: "When true, `cf next` offers the setup-ci skill for a project with a build manifest and no recognized CI or release skill. Set to false to stop the offer."
 - It is shared because whether a project wants cf to suggest CI is a project decision, not a per-developer one.
-- The navigator reads it with the same type guard as `isDecisionGateEnabled`. A non-boolean value is an error, never treated as `true`.
+- The navigator reads it with the same type guard as `isDecisionGateEnabled`. A non-boolean value is an error, never treated as `true`. `cf config set` already rejects one, so the guard only matters for hand-edited config, and it gets no test of its own.
 - Rejected: offering on every run with no way to stop it. `cf next` runs constantly, and the old recipe's "offer once; if declined, don't ask again" would be lost.
 - Rejected: leaving "once" to the agent. Agents don't keep memory across sessions.
 
@@ -239,16 +235,14 @@ Status: decided
 type OnboardSurface = 'claude-command' | 'agent-skill' | 'mcp-tool';
 function renderOnboardRecipe(surface: OnboardSurface): string;
 
-type CiRoot = 'project' | 'repository';
-interface CiMatch { root: CiRoot; path: string }
-interface CiRecognition { recognized: boolean; matches: CiMatch[] }
+interface CiRecognition { recognized: boolean; matches: string[] }  // absolute paths
 function recognizeCi(projectPath: string): CiRecognition;
 ```
 
 **`NextAction` addition** (`introspection/types.ts`):
 ```ts
-type NextOfferId = 'setup-ci';
-interface NextOffer { id: NextOfferId; message: string; declineCommand: string }
+const SETUP_CI_OFFER_ID = 'setup-ci';
+interface NextOffer { id: string; message: string }
 // NextAction gains: offers?: NextOffer[]
 ```
 
@@ -257,14 +251,15 @@ interface NextOffer { id: NextOfferId; message: string; declineCommand: string }
 Next:      Your project is in Phase 0 (Concept). Start by describing what you want to build.
 Rationale: ...
 Run:       cf build
-Offer:     No CI detected for this project. The setup-ci skill can add CI and a release skill.
-           Not wanted? cf config set workflow.setup_ci_offer false
+Offer:     No CI detected for this project. The setup-ci skill can add CI and a release skill. Not wanted? Run: cf config set workflow.setup_ci_offer false
 ```
 
 ## Integration Points
 
 ### Provides to Other Slices
-- **261:** `recognizeCi` and `CI_SIGNATURES` for the detection report's CI fact, and the `detection/` module as the home for the rest of the report. The onboarding recipe needs no changes for 261, because profile selection happens inside `cf build`.
+- **261:** `recognizeCi` and `CI_SIGNATURES` for the detection report's CI fact, and the `detection/` module as the home for the rest of the report.
+  - `recognizeCi` owns the repository-root exception to project-folder scoping (D4). 261 consumes it and doesn't re-implement CI detection. The exception is also recorded in the arch's detection section.
+  - 261 owns "has code". When its report lands, it takes over `BUILD_MANIFESTS` as its manifest signal, or replaces it with its own. The offer then reads the report, and the private `hasBuildManifest` in `setupCiOffer.ts` is deleted. Only one definition remains in core. The onboarding recipe needs no changes for 261, because profile selection happens inside `cf build`.
 - **265:** the documented onboarding flow and config key, which the end-to-end runs and docs build on.
 
 ### Consumes from Other Slices
@@ -278,25 +273,23 @@ Offer:     No CI detected for this project. The setup-ci skill can add CI and a 
 - No surface contains a concept opener, a phase-specific note or a `setup-ci` offer. Each contains the registration check, `cf init` or the MCP fallback, and the `cf build` / `context_build` handoff.
 - A greenfield run in an empty directory goes: setup, then `cf build`, then the concept prompt's opening question. The order is the same as today.
 - `cf next` and `workflow_next` include an `offers` entry with id `setup-ci` when a `BUILD_MANIFESTS` file exists and there is no recognized CI and no release skill. They include none when any condition fails.
-- An unreadable CI directory doesn't fail `cf next`. It drops the offer and adds a `setup-ci offer skipped: ...` warning.
 - A project with `.github/workflows/test.yml` (no `ci.yml`), `.gitlab-ci.yml`, or another `CI_SIGNATURES` entry is recognized and gets no offer.
 - A CF project in a monorepo subdirectory whose CI is at the repository root is recognized.
-- `cf config set workflow.setup_ci_offer false` stops the offer. A non-boolean value makes `cf next` fail with a named error.
+- `cf config set workflow.setup_ci_offer false` stops the offer.
 
 ### Technical Requirements
 - Drift test: changing the source without re-rendering (or editing a rendered file) fails `pnpm -r test`, and the failure names the file and the regenerate command.
 - Unit tests for `recognizeCi`:
   - each signature, and the `.github/workflows` and `.buildkite` extension filters
-  - a repository-root match reported with root `'repository'`
-  - `projectPath` equal to the repository root, checked once and reported as `'project'`
+  - a match at the repository root, reported by absolute path
+  - `projectPath` equal to the repository root, checked once
   - a `.git` file (worktree) as the repository marker
   - no repository
-- Unit tests for `evaluateSetupCiOffer`: each condition on and off, each `BUILD_MANIFESTS` entry, a bad config value (throws), and an unreadable `.github/` (no offer, a warning).
-- The release's CHANGELOG entry and the README's onboarding section state the guide minimum (v0.22.1) and `cf guides update`.
+- Unit tests for `evaluateSetupCiOffer`: each condition on and off, and each `BUILD_MANIFESTS` entry.
 - A navigator test confirms `offers` is attached on a gate-blocked result as well as a normal one.
 - A test confirms `agent_onboard` returns the `mcp-tool` rendering plus the project-name line.
 - Format, lint and typecheck pass. New files stay within the ~300-line guideline.
-- `README.md`, `packages/cli/README.md` and `packages/mcp-server/README.md` describe onboarding as setup plus handoff, and document `workflow.setup_ci_offer`.
+- The root `README.md`'s onboarding section describes setup plus handoff and states the guide minimum (v0.22.1) with `cf guides update`. One line documents `workflow.setup_ci_offer`.
 
 ### Integration Requirements
 - `cf install-commands` (Claude and agents targets) installs the rendered files with no stale-entry removals.
