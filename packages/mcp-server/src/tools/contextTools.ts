@@ -275,7 +275,7 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'List Prompts',
       description:
-        'List available prompt templates from the project-local ai-project-guide. Requires guides to be installed (cf guide install). Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
+        'List available prompt templates from the project-local ai-project-guide. Requires guides to be installed (cf guides install). Returns template names and metadata. Use prompt_get to retrieve the full content of a specific template.',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to resolve from CWD.'),
       },
@@ -310,7 +310,7 @@ export function registerContextTools(server: McpServer): void {
     {
       title: 'Get Prompt',
       description:
-        'Get the full content of a specific prompt template from the project-local ai-project-guide. Requires guides to be installed (cf guide install). Returns the raw template text.',
+        'Get the full content of a specific prompt template from the project-local ai-project-guide. Requires guides to be installed (cf guides install). Returns the raw template text.',
       inputSchema: {
         projectId: z.string().optional().describe('Project ID. Use project_list to find IDs. Omit to resolve from CWD.'),
         templateName: z.string().describe('Template name or key to match. Use prompt_list to see available templates.'),

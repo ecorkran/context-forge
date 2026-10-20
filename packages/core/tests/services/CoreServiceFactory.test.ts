@@ -47,7 +47,7 @@ describe('CoreServiceFactory — createContextPipeline', () => {
   });
 
   it('resolvePromptFilePath throws when guide is not installed', () => {
-    expect(() => resolvePromptFilePath('/tmp/no-such-project')).toThrow('cf guide install');
+    expect(() => resolvePromptFilePath('/tmp/no-such-project')).toThrow('cf guides install');
   });
 
   it('resolvePromptFilePath returns path when guide is installed', () => {

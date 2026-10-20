@@ -16,6 +16,6 @@ export function resolvePromptFilePath(projectPath: string): string {
     return projectLocalPath;
   }
   throw new Error(
-    `No prompt file found at ${projectLocalPath}. Run 'cf guide install' to set up the AI project guide.`
+    `No prompt file found at ${projectLocalPath}. Run 'cf guides install' to set up the AI project guide.`
   );
 }
