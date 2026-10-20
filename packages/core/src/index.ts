@@ -73,3 +73,12 @@ export {
 
 // Default worktree identification (the isDefault marker, never the name)
 export { isDefaultWorktree, findDefaultWorktree } from './utils/defaultWorktree.js';
+
+// Onboarding — single-source recipe for the onboarding command, skill and MCP tool (pure string code)
+export {
+  ONBOARD_SURFACES,
+  GENERATED_NOTICE,
+  renderOnboardRecipe,
+  type OnboardSurface,
+  type OnboardSurfaceProfile,
+} from './onboarding/onboardRecipe.js';
