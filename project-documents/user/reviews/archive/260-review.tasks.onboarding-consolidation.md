@@ -14,70 +14,61 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: 8cee2e67c2fac88ec79688c955324a8f3a1adbad
+reviewedSha: eadac87eb00a70b462b41d03f8e20f2d8ea5d56d
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
 turns: 3
-promptTokens: 138586
-cachedTokens: 57314
-cacheWriteTokens: 81268
-completionTokens: 13968
-durationSeconds: 66.2
-costUsd: 0.024542
+promptTokens: 101439
+cachedTokens: 9623
+cacheWriteTokens: 91812
+completionTokens: 17340
+durationSeconds: 81.9
+costUsd: 0.02786
 costBasis: provider
 runId: run-20261020-p5-2eb33972
 squadronVersion: 0.23.5
 findings:
   - id: F001
-    severity: pass
-    category: uncategorized
-    summary: "All success criteria and technical requirements are traced to tasks"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:39-252"
+    severity: concern
+    category: sequencing
+    summary: "`pathPresent` is both internal and exported in Task 2"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:70"
   - id: F002
     severity: concern
-    category: uncategorized
-    summary: "README changes exceed the design's stated scope"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:238"
+    category: sequencing
+    summary: "Task 10T's \"git checkout\" step would revert the render output"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:184"
   - id: F003
     severity: concern
-    category: uncategorized
-    summary: "Design commits to an arch doc update that no task performs"
-    location: "project-documents/user/slices/260-slice.onboarding-consolidation.md:289"
+    category: granularity
+    summary: "Task 16 is overloaded and has an open-ended fix bucket"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:241"
   - id: F004
-    severity: concern
-    category: uncategorized
-    summary: "Browser-safe export of the offer evaluator is not specified"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:110"
+    severity: note
+    category: coverage
+    summary: "Task 10T's installer check is conditional"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:185"
   - id: F005
-    severity: concern
-    category: uncategorized
-    summary: "Greenfield criterion has no executed verification"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:249"
+    severity: note
+    category: sequencing
+    summary: "Drift test depends on a built core package and no ordering is stated"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:182"
   - id: F006
-    severity: concern
-    category: uncategorized
-    summary: "Broad catch in the offer path does not state how it meets the exception rules"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:113"
+    severity: note
+    category: granularity
+    summary: "Tasks 3, 3T and 4 are very small"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:88"
   - id: F007
-    severity: note
-    category: uncategorized
-    summary: "`local` guide marker handling is not in the design's result list"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:213"
+    severity: pass
+    category: coverage
+    summary: "Success criteria are fully covered"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:41"
   - id: F008
-    severity: note
-    category: uncategorized
-    summary: "Commit checkpoints are per group, not per task"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:92"
-  - id: F009
-    severity: note
-    category: uncategorized
-    summary: "Some effort-1 tasks could be merged"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:46"
-  - id: F010
-    severity: note
-    category: uncategorized
-    summary: "Helper files are not in the design's component structure"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:47"
+    severity: pass
+    category: sequencing
+    summary: "Test-with pattern and commit checkpoints are well distributed"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:60"
 ---
 
 # Review: tasks — slice 260
@@ -87,49 +78,44 @@ findings:
 
 ## Findings
 
-### [PASS] All success criteria and technical requirements are traced to tasks
+### [CONCERN] `pathPresent` is both internal and exported in Task 2
 
-Checked each Functional, Technical and Integration criterion from the slice design. Recipe rendering (10–12), CI recognition and tests (3, 3T), the offer and its I/O-warning paths (6, 6T, 7, 7T), `cf next` and `workflow_next` (8, 9), the config key (4), the guide minimum warning in both surfaces (13–15), the drift test and installer check (11T), the README (16), and the full verification walkthrough (17) all have tasks. There is no NFR, so no load test is required.
+Task 1 and the slice's Component Structure say `pathPresent` is internal to core. Task 2 says "Keep `pathPresent` internal to core. Export it from `packages/core/src/node.ts`." The slice design says `node.ts` exports the detection facts, not `pathPresent`. The last clause most likely means the detection facts. As written, an implementer could export the helper publicly, which the slice rules out. Reword it to say `node.ts` re-exports `recognizeCi`, `CI_SIGNATURES`, `CiRecognition`, `hasBuildManifest` and `BUILD_MANIFESTS`, and that `pathPresent` stays unexported from `node.ts`.
 
-### [CONCERN] README changes exceed the design's stated scope
+### [CONCERN] Task 10T's "git checkout" step would revert the render output
 
-Task 16 updates the `/cf:onboard` row in the Slash Commands table. The design allows "one updated onboarding section" plus "one line" for the config key, and its success check says "no other README sections change." The Slash Commands row is a second section that the design excludes. Either drop that sub-item or amend the design to include it.
+Task 10 writes the rendered `onboard.md` and `SKILL.md` but does not commit them until Task 10C, which comes after 10T. The hand check in 10T then says to append a line, run the test, and "then `git checkout` the file." That restores the last committed file, which is the old hand-written recipe, not the render output. The drift test would then fail and the wrong content could be committed. Restore by re-running `pnpm --filter @context-forge/cli render:onboard` instead. Use `git checkout` only after 10C.
 
-### [CONCERN] Design commits to an arch doc update that no task performs
+### [CONCERN] Task 16 is overloaded and has an open-ended fix bucket
 
-The Integration Points section says the repository-root CI exception "is also recorded in the arch's detection section." No task edits the architecture document, and no success criterion covers it. Add a sub-item to Task 3 or Task 16, or remove the claim from the design.
+Task 16 combines automated checks, the local-build walkthrough, `install-commands`, two live headless runs (Claude Code and Codex), and the in-repo mid-project run. It also says "any fix made here is committed as part of this task," which makes the scope unbounded and sits oddly with the one-commit-per-task rule. Three specific gaps:
+- Walkthrough step 5 calls `agent_onboard` over MCP. The local CLI cannot run it, and the task does not say how to make the call. The unit test in 11T covers the same behavior, so either name an MCP client or mark step 5 as covered by 11T.
+- Walkthrough step 4 assumes this repository is registered at Phase 4 with slice 260 set (design line 350). Task 16 does not check that precondition, so a wrong state would make the step's result meaningless.
+- Split the live runs and the `install-commands` check into a Task 17 with its own commit. Keep Task 16 for automated checks and walkthrough steps 1, 2 and 5–9. Replace "any fix made here" with a rule that any fix gets its own `fix:`/`feat:` commit with a message matching its real type, not `chore:`.
 
-### [CONCERN] Browser-safe export of the offer evaluator is not specified
+### [NOTE] Task 10T's installer check is conditional
 
-`setupCiOffer.ts` lives in `introspection/`, and it calls the fs-dependent `recognizeCi` and `hasBuildManifest`. Task 5 confirms that `introspection/index.ts` is browser-safe. Task 6 never says where `evaluateSetupCiOffer` is exported. The Context Summary says fs-dependent modules go in `node.ts`, but Task 6 does not repeat that rule. An implementer following Task 6 literally could add it to the browser-safe barrel. Add an explicit instruction to export it from `node.ts` only.
+"Add a check ... (or confirm an existing one)" lets the implementer skip the check if they judge an existing test covers it. The Integration Requirement that `install-commands` yields the rendered files with no stale-entry removals should be stated as a required assertion, with the file named.
 
-### [CONCERN] Greenfield criterion has no executed verification
+### [NOTE] Drift test depends on a built core package and no ordering is stated
 
-The success criterion "A greenfield run ... goes: setup, then `cf build`, then the concept prompt's opening question" is only checked by Walkthrough steps 3–4, which Task 17 defers with "do not mark them done unless actually run." Live runs are pre-authorized, so the implementer should run them, or the task should name who does and where the result is recorded. As written, the criterion can silently remain unverified.
+`onboardRender.test.ts` imports `@context-forge/core`, which resolves to `dist`. Task 10 says to build before rendering, but Task 10T does not say the test needs a fresh build. The slice design states this requirement at Context Summary line 34. Add it to 10T's success line.
 
-### [CONCERN] Broad catch in the offer path does not state how it meets the exception rules
+### [NOTE] Tasks 3, 3T and 4 are very small
 
-Task 6 wraps all three filesystem checks in one try/catch that converts every error into a warning. The project's exception rules require either logging at ERROR and re-raising, or catching a specific exception with a comment. The design asks for "any other filesystem error" to become a warning, so the behavior is correct. The task should still say how the catch complies: narrow it to the fs error codes that are handled, or log at ERROR before returning the warning.
+Task 3 adds one config key, 3T tests its registration, and Task 4 adds two type declarations. None of them has its own success criterion. Task 3T's key-registration check is harmless and follows the existing pattern, but it is the one test not tied to a criterion. Merging 3 and 4 into Task 5 would keep the commit at 5C and remove a checkpoint without losing coverage. Either choice is acceptable.
 
-### [NOTE] `local` guide marker handling is not in the design's result list
+### [PASS] Success criteria are fully covered
 
-D8 lists three outcomes: at or above the minimum, below it, and unknown (`null`). Task 13 adds a fourth case, the `local` marker, and treats it as unknown. The task's reasoning is sound, since `isNewerVersion` would otherwise report a local install as older than the minimum. Record this decision in D8 so the design and the task agree.
+Every functional, technical and integration criterion in the slice design maps to a task (see Summary). The unit-test list in the design, including the four I/O failure classes, the navigator's gate-blocked and I/O-warning cases, and the `checkGuideMinimum` cases, is covered by Tasks 1T, 2T, 5T, 6T, 11T and 12T.
 
-### [NOTE] Commit checkpoints are per group, not per task
+### [PASS] Test-with pattern and commit checkpoints are well distributed
 
-Commits are spread across the plan, not batched at the end, which meets the distribution check. But Tasks 1–3E (eight items) share one commit, and so do 13–15. The project rule asks for at least one commit per task. Consider a commit after Task 2T, so the manifest check is committed before the CI recognizer.
-
-### [NOTE] Some effort-1 tasks could be merged
-
-Tasks 1/1T (path-presence helper and its six tests), 2/2T (manifest check) and 3E (re-export) are small and tightly coupled to Task 3. Merging 1 and 2 into one task, and folding 3E into Task 3, would cut three task headers without changing the work.
-
-### [NOTE] Helper files are not in the design's component structure
-
-`detection/pathPresent.ts` and `detection/index.ts` are not listed in the design's Component Structure. Both are reasonable, and the design's "missing file means not present" rule supports the helper. The `lstat`/`stat` detail in the Context Summary is an implementation choice rather than a design requirement. Add the two files to the design's component list so the file set matches what the task creates.
+Each implementation group is followed by its test task. Commits fall after every group of two to four tasks, so no work is batched to the end. The only exceptions are Task 4 (types only) and Tasks 7/8, whose tests are inline or follow directly, which is proportionate.
 
 ### Run Digest
 
-- Response length: 5682 chars
+- Response length: 6439 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -140,12 +126,12 @@ Tasks 1/1T (path-presence helper and its six tests), 2/2T (manifest check) and 3
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 138586 / 57314 / 81268 / 13968 / not computed
-- Duration: 66.2 s
-- Cost: $0.02 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 101439 / 9623 / 91812 / 17340 / not computed
+- Duration: 81.9 s
+- Cost: $0.03 (provider)
 - `## Summary` located: yes
-- `## Findings` located: yes
-- Finding-shaped matches — whole response: 10
+- `## Findings` located: no
+- Finding-shaped matches — whole response: 8
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 10
-- Finding-shaped matches — surviving validation: 10
+- Finding-shaped matches — in findings section: 8
+- Finding-shaped matches — surviving validation: 8

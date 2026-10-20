@@ -14,61 +14,66 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: eadac87eb00a70b462b41d03f8e20f2d8ea5d56d
-revision_number: 1
+reviewedSha: 071a5a63afb653bcb118972987acbc5349afdfb9
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 2
-turns: 3
-promptTokens: 101439
-cachedTokens: 9623
-cacheWriteTokens: 91812
-completionTokens: 17340
-durationSeconds: 81.9
-costUsd: 0.02786
+toolCallsMade: 12
+turns: 13
+promptTokens: 403435
+cachedTokens: 295512
+cacheWriteTokens: 107913
+completionTokens: 23038
+durationSeconds: 107.0
+costUsd: 0.061957
 costBasis: provider
 runId: run-20261020-p5-2eb33972
 squadronVersion: 0.23.5
 findings:
   - id: F001
-    severity: concern
-    category: sequencing
-    summary: "`pathPresent` is both internal and exported in Task 2"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:70"
+    severity: pass
+    category: coverage
+    summary: "Success criteria and walkthrough are covered"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:41-253"
   - id: F002
-    severity: concern
+    severity: pass
     category: sequencing
-    summary: "Task 10T's \"git checkout\" step would revert the render output"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:184"
+    summary: "Sequencing and commit checkpoints hold"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:41-253"
   - id: F003
     severity: concern
-    category: granularity
-    summary: "Task 16 is overloaded and has an open-ended fix bucket"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:241"
-  - id: F004
-    severity: note
-    category: coverage
-    summary: "Task 10T's installer check is conditional"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:185"
-  - id: F005
-    severity: note
     category: sequencing
-    summary: "Drift test depends on a built core package and no ordering is stated"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:182"
+    summary: "Task 10 success check cannot pass before its commit"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:179"
+  - id: F004
+    severity: concern
+    category: coverage
+    summary: "No test asserts the D2 generated-file comment"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:166-171"
+  - id: F005
+    severity: concern
+    category: task-size
+    summary: "Task 5 bundles too many concerns for one task"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:101-121"
   - id: F006
     severity: note
-    category: granularity
-    summary: "Tasks 3, 3T and 4 are very small"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:88"
+    category: scope
+    summary: "Task 17 precondition is looser than walkthrough step 4"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:248"
   - id: F007
-    severity: pass
-    category: coverage
-    summary: "Success criteria are fully covered"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:41"
+    severity: note
+    category: granularity
+    summary: "Tasks 3 and 4 are too small to stand alone"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:88-99"
   - id: F008
-    severity: pass
-    category: sequencing
-    summary: "Test-with pattern and commit checkpoints are well distributed"
-    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:60"
+    severity: note
+    category: scope
+    summary: "Walkthrough step 9 changes to a temp-repository test"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:241"
+  - id: F009
+    severity: note
+    category: process
+    summary: "Tasks 0 and 16 have no commit checkpoint"
+    location: "project-documents/user/tasks/260-tasks.onboarding-consolidation.md:41-44"
 ---
 
 # Review: tasks — slice 260
@@ -78,60 +83,61 @@ findings:
 
 ## Findings
 
-### [CONCERN] `pathPresent` is both internal and exported in Task 2
+### [PASS] Success criteria and walkthrough are covered
 
-Task 1 and the slice's Component Structure say `pathPresent` is internal to core. Task 2 says "Keep `pathPresent` internal to core. Export it from `packages/core/src/node.ts`." The slice design says `node.ts` exports the detection facts, not `pathPresent`. The last clause most likely means the detection facts. As written, an implementer could export the helper publicly, which the slice rules out. Reword it to say `node.ts` re-exports `recognizeCi`, `CI_SIGNATURES`, `CiRecognition`, `hasBuildManifest` and `BUILD_MANIFESTS`, and that `pathPresent` stays unexported from `node.ts`.
+Each functional, technical and integration criterion maps to a task and a test: rendered assets and drift (9, 10T), offers and I/O warnings (5–8T), the recognizer (2T), the manifest check (1T), the guide minimum (12–14T), the README (15), and walkthrough steps 1–9 (16, 17). Install-commands with no stale removals is covered by 10T. The slice has no restated NFR, so no load test is required.
 
-### [CONCERN] Task 10T's "git checkout" step would revert the render output
+### [PASS] Sequencing and commit checkpoints hold
 
-Task 10 writes the rendered `onboard.md` and `SKILL.md` but does not commit them until Task 10C, which comes after 10T. The hand check in 10T then says to append a line, run the test, and "then `git checkout` the file." That restores the last committed file, which is the old hand-written recipe, not the render output. The drift test would then fail and the wrong content could be committed. Restore by re-running `pnpm --filter @context-forge/cli render:onboard` instead. Use `git checkout` only after 10C.
+Each dependency points backward: 3 before 5, 4 and 5 before 6, 6 before 7 and 8, 12 before 13 and 14, and core builds before the CLI and MCP consumers. Checkpoints 1C, 2C, 5C, 8C, 9C, 10C, 11C, 14C, 15C and 17C are spread through the list. I confirmed that the paths the tasks name exist: the arch doc, the core index, node, ConfigKeys, WorkflowNavigator, types and GuideDetector, the CLI next, build and onboard.md, the MCP tools, and the named test files.
 
-### [CONCERN] Task 16 is overloaded and has an open-ended fix bucket
+### [CONCERN] Task 10 success check cannot pass before its commit
 
-Task 16 combines automated checks, the local-build walkthrough, `install-commands`, two live headless runs (Claude Code and Codex), and the in-repo mid-project run. It also says "any fix made here is committed as part of this task," which makes the scope unbounded and sits oddly with the one-commit-per-task rule. Three specific gaps:
-- Walkthrough step 5 calls `agent_onboard` over MCP. The local CLI cannot run it, and the task does not say how to make the call. The unit test in 11T covers the same behavior, so either name an MCP client or mark step 5 as covered by 11T.
-- Walkthrough step 4 assumes this repository is registered at Phase 4 with slice 260 set (design line 350). Task 16 does not check that precondition, so a wrong state would make the step's result meaningless.
-- Split the live runs and the `install-commands` check into a Task 17 with its own commit. Keep Task 16 for automated checks and walkthrough steps 1, 2 and 5–9. Replace "any fix made here" with a rule that any fix gets its own `fix:`/`feat:` commit with a message matching its real type, not `chore:`.
+Task 10 requires that rerunning the render script leaves `git status --short packages/cli/commands` empty. Right after the render, both rendered files differ from HEAD, so status still shows them modified. The empty status only holds after 10C commits. Either move that check to after 10C, or change it to "rerunning the script leaves the working tree unchanged (same `git diff` on a second run)."
 
-### [NOTE] Task 10T's installer check is conditional
+### [CONCERN] No test asserts the D2 generated-file comment
 
-"Add a check ... (or confirm an existing one)" lets the implementer skip the check if they judge an existing test covers it. The Integration Requirement that `install-commands` yields the rendered files with no stale-entry removals should be stated as a required assertion, with the file named.
+Task 9 requires each CLI rendering to carry the generated-file HTML comment on the line after its frontmatter (D2). Task 9T checks recipe content and frontmatter only. The drift test (10T) compares against renderer output, so it still passes if the renderer stops emitting the comment. Add an assertion to 9T that the `claude-command` and `agent-skill` outputs contain the D2 comment directly after the frontmatter.
 
-### [NOTE] Drift test depends on a built core package and no ordering is stated
+### [CONCERN] Task 5 bundles too many concerns for one task
 
-`onboardRender.test.ts` imports `@context-forge/core`, which resolves to `dist`. Task 10 says to build before rendering, but Task 10T does not say the test needs a fresh build. The slice design states this requirement at Context Summary line 34. Add it to 10T's success line.
+Task 5 combines the config guard, the four-condition check order, the filesystem error wrapper with its warning text, the message, and the `node.ts` export. Task 5T adds about 14 cases, including four I/O failure classes that each need `chmod`, symlink or `ENOTDIR` fixtures. Split it into 5a (condition order, config guard, message, with their tests) and 5b (the try/catch warning path with its I/O-class tests). Each part is then verifiable on its own before the shared 5C commit.
 
-### [NOTE] Tasks 3, 3T and 4 are very small
+### [NOTE] Task 17 precondition is looser than walkthrough step 4
 
-Task 3 adds one config key, 3T tests its registration, and Task 4 adds two type declarations. None of them has its own success criterion. Task 3T's key-registration check is harmless and follows the existing pattern, but it is the one test not tied to a criterion. Merging 3 and 4 into Task 5 would keep the commit at 5C and remove a checkpoint without losing coverage. Either choice is acceptable.
+Walkthrough step 4 expects the repository in Phase 4 with slice 260 set. Task 17 accepts any phase other than Phase 0. Restoring the walkthrough's condition keeps the run comparable to the design's expected output.
 
-### [PASS] Success criteria are fully covered
+### [NOTE] Tasks 3 and 4 are too small to stand alone
 
-Every functional, technical and integration criterion in the slice design maps to a task (see Summary). The unit-test list in the design, including the four I/O failure classes, the navigator's gate-blocked and I/O-warning cases, and the `checkGuideMinimum` cases, is covered by Tasks 1T, 2T, 5T, 6T, 11T and 12T.
+Task 3 is one config key and Task 4 is two types and their exports, each effort 1. Either could fold into Task 5 as its first step. Both are already committed in 5C, so this is a readability choice and not a defect.
 
-### [PASS] Test-with pattern and commit checkpoints are well distributed
+### [NOTE] Walkthrough step 9 changes to a temp-repository test
 
-Each implementation group is followed by its test task. Commits fall after every group of two to four tasks, so no work is batched to the end. The only exceptions are Task 4 (types only) and Tasks 7/8, whose tests are inline or follow directly, which is proportionate.
+Task 16 runs step 9 against "a temp repository built for the test." Task 2T covers the monorepo case at unit level, so coverage holds. If the PM wants the manual run as the design writes it, run it on a real checkout.
+
+### [NOTE] Tasks 0 and 16 have no commit checkpoint
+
+Task 0 only creates the branch, and Task 16 is verification that changes nothing unless it finds a defect. Both are acceptable without a commit. Task 16 already routes any defect into its own commit.
 
 ### Run Digest
 
-- Response length: 6439 chars
+- Response length: 5227 chars
 - Response is newline-free: no
-- Tool calls made: 2
-- Tool calls failed: 0
+- Tool calls made: 12
+- Tool calls failed: 2
 - Stop reason: end_turn
 - Output budget: backend default
 - System prompt: preset+append
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 101439 / 9623 / 91812 / 17340 / not computed
-- Duration: 81.9 s
-- Cost: $0.03 (provider)
+- Turns: 13
+- Tokens — prompt / cached / cache write / completion / reasoning: 403435 / 295512 / 107913 / 23038 / not computed
+- Duration: 107.0 s
+- Cost: $0.06 (provider)
 - `## Summary` located: yes
-- `## Findings` located: no
-- Finding-shaped matches — whole response: 8
+- `## Findings` located: yes
+- Finding-shaped matches — whole response: 9
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 8
-- Finding-shaped matches — surviving validation: 8
+- Finding-shaped matches — in findings section: 9
+- Finding-shaped matches — surviving validation: 9
