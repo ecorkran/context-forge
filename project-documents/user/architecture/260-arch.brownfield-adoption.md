@@ -55,7 +55,7 @@ This initiative gives CF a brownfield path. When onboarding finds an existing co
 Adoption is a branch inside onboarding, not a separate product.
 
 1. **Setup** runs as today (`cf init` or its MCP equivalent), so the guide is installed and the project registered. Squadron's flows need both.
-2. **Detection** reports whether the repository holds an existing system and what it holds: source, history, docs, ADRs, CI, rule files, squadron availability. Every onboarding surface reads the same report.
+2. **Detection** reports whether the repository holds an existing system and what it holds: source, history, docs, ADRs, CI, rule files, squadron availability. Every onboarding surface reads the same report. There are three outcomes. **Greenfield** follows today's path. **Already planned** means the repo carries CF/SQ planning artifacts: it is registered and development continues from those artifacts, with no brownfield path (PM ruling 20261020; this case is expected to be very rare). **Brownfield** means an existing codebase with no CF/SQ planning artifacts, and it continues below.
 3. **Baseline.** With squadron available, the user is offered squadron's comprehension and concept flows, and their output lands as standard CF artifacts. Without squadron, the guide's brownfield prompts drive the agent to draft a concept from the repository's own prose and filesystem, interviewing the PM only for what no artifact can hold.
 4. **Architecture** is reverse-engineered from the code into an ordinary architecture document. Downstream phases consume it like any other; it differs only in provenance.
 5. **Existing-state slice plan** records what is built as completed, retroactive slices, with new work planned after them. The checker and review gate recognize retroactive entries and don't demand reviews that never happened.
@@ -75,7 +75,8 @@ Each step leaves standard artifacts behind, so a user can stop after any of them
 - **Reconciliation is judgement.** Deciding that two rules contradict is semantic. Core can enumerate rule sources and the guide rules that apply; the comparison itself is agent work. It also has to coexist with #123's CLAUDE.md/AGENTS.md split and with existing managed blocks.
 - **Mapping without moving.** Existing docs have inbound links, tooling and owners. Referencing them in place keeps those intact, but leaves CF artifacts pointing outside `project-documents/`. Introspection has to tolerate that.
 - **Guide release coupling.** Brownfield prompts and the adoption guide ship in ai-project-guide. cf surfaces that reference them can't ship ahead of the guide release that contains them, which is the same ordering rule as the docs-only boundary.
-- **Duplicated onboarding recipes.** Three copies of the greenfield recipe exist today. Adding a brownfield branch to each multiplies drift. Whether they converge on one source is a decision for the first slice.
+- **Duplicated onboarding recipes.** Three copies of the greenfield recipe exist today. Adding a brownfield branch to each multiplies drift. The PM has made this the first decision of the initiative (20261020): it is resolved by discussion before any slice design.
+- **CF/SQ responsibility split.** Squadron's 360 band already covers part of this ground (graph-based comprehension, concept generation, initiative candidates), and its 364 and 366 are unfinished. The split between CF 260 and squadron 440 has to be agreed before slice planning, along with whether 364's and 366's decisions still hold once CF owns detection and setup.
 
 ## Anticipated Slices
 
