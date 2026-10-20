@@ -11,7 +11,7 @@ projectState: 'Slice 245 (workflow.decision_gate_enabled) is merged. ai-project-
   #122).'
 dateCreated: 20261019
 dateUpdated: 20261019
-status: in_progress
+status: complete
 turns: 39
 promptTokens: 2471586
 cachedTokens: 2379171
@@ -138,55 +138,56 @@ revision_number: 1
 
 ## Task 5: CLI and MCP smoke tests
 
-- [ ] `packages/cli/tests/integration/build.integration.test.ts`: one test on a temp copy of the MCP integration fixture project, with the `autonomous` fixture added at `rules/permissiveness/` and the key set to `autonomous`. Override `instruction` to `IMPLEMENTATION_PHASE` and assert the output contains `### Permissiveness: autonomous`.
-- [ ] `packages/mcp-server/tests/integration/mcpIntegration.test.ts`: one `context_build` test on the same kind of temp copy, asserting the same heading in the tool result. If the fixture registry makes a temp copy impractical, add the fragment and config to a per-test temp copy of the registry the file already uses. Do not modify the shared fixture on disk.
-- [ ] Failure case: with level `autonomous` and no fragment file, `cf build` exits non-zero naming the path, and `context_build` returns an MCP error.
-- [ ] No parity matrix: both share `createContextPipeline` (design, Technical Requirements).
-  - [ ] Success: `pnpm --filter @context-forge/cli test` and `pnpm --filter @context-forge/mcp test` pass, and `git status` shows no changes under any `tests/fixtures/` directory except `packages/core/tests/fixtures/permissiveness/`.
-- [ ] Commit: `test: add cf build and context_build permissiveness smoke tests`
+- [x] `packages/cli/tests/integration/build.integration.test.ts`: one test on a temp copy of the MCP integration fixture project, with the `autonomous` fixture added at `rules/permissiveness/` and the key set to `autonomous`. Override `instruction` to `IMPLEMENTATION_PHASE` and assert the output contains `### Permissiveness: autonomous`.
+  - Note: `cf build` prints the context only with `--json`; the CLI test uses it. `PERMISSIVENESS_FRAGMENT_DIR` is exported from core/node for the CLI and MCP tests.
+- [x] `packages/mcp-server/tests/integration/mcpIntegration.test.ts`: one `context_build` test on the same kind of temp copy, asserting the same heading in the tool result. If the fixture registry makes a temp copy impractical, add the fragment and config to a per-test temp copy of the registry the file already uses. Do not modify the shared fixture on disk.
+- [x] Failure case: with level `autonomous` and no fragment file, `cf build` exits non-zero naming the path, and `context_build` returns an MCP error.
+- [x] No parity matrix: both share `createContextPipeline` (design, Technical Requirements).
+  - [x] Success: `pnpm --filter @context-forge/cli test` and `pnpm --filter @context-forge/mcp test` pass, and `git status` shows no changes under any `tests/fixtures/` directory except `packages/core/tests/fixtures/permissiveness/`.
+- [x] Commit: `test: add cf build and context_build permissiveness smoke tests`
 - **Effort:** 2/5
 
 ---
 
 ## Task 6: setup-ide ignores the `permissiveness/` subdirectory (D2)
 
-- [ ] In `packages/cli/tests/ideInstall/rules.test.ts`, add one test. In a temp rules directory, put `general.md` (with `alwaysApply: true` frontmatter, like the existing fixtures) and `permissiveness/autonomous.md` (the fixture added in Task 2).
-  - [ ] `listMarkdownFiles(rulesDir)` returns only `general.md`.
-  - [ ] `compileAlwaysOnRules` output does not contain `Permissiveness: autonomous`.
-- [ ] No source change in `packages/cli/src`. If the test fails, stop and report it: it means setup-ide would install the fragments, which contradicts D2.
-  - [ ] Success: `pnpm --filter @context-forge/cli test -- rules` passes, and every existing setup-ide test (including `realGuide.test.ts` and the snapshots) passes unmodified.
-- [ ] Commit: `test(cli): pin that setup-ide ignores rules subdirectories`
+- [x] In `packages/cli/tests/ideInstall/rules.test.ts`, add one test. In a temp rules directory, put `general.md` (with `alwaysApply: true` frontmatter, like the existing fixtures) and `permissiveness/autonomous.md` (the fixture added in Task 2).
+  - [x] `listMarkdownFiles(rulesDir)` returns only `general.md`.
+  - [x] `compileAlwaysOnRules` output does not contain `Permissiveness: autonomous`.
+- [x] No source change in `packages/cli/src`. If the test fails, stop and report it: it means setup-ide would install the fragments, which contradicts D2.
+  - [x] Success: `pnpm --filter @context-forge/cli test -- rules` passes, and every existing setup-ide test (including `realGuide.test.ts` and the snapshots) passes unmodified.
+- [x] Commit: `test(cli): pin that setup-ide ignores rules subdirectories`
 - **Effort:** 1/5
 
 ---
 
 ## Task 7: Documentation
 
-- [ ] `README.md` "Key configuration" table (~:386, after `workflow.decision_gate_enabled`): add `workflow.permissiveness | shared | How readily AI work waits on the PM: cautious, standard (default) or autonomous. Applied by cf build in Phases 4–6.`
-- [ ] `README.md`: below the table, add a short **Permissiveness** subsection:
-  - [ ] the three levels and what each means (D1), and that `standard` adds nothing;
-  - [ ] that `cf build` / `context_build` add the fragment after the instruction prompt in Phases 4, 5 and 6 only, and that a change applies at the next build with no `cf setup-ide`;
-  - [ ] the fragment path convention `project-guides/rules/permissiveness/<level>.md`, owned by ai-project-guide (v0.21.9 or later);
-  - [ ] that a missing fragment fails the build and `cf guides update` fixes it;
-  - [ ] that cf does not read or enforce `BLOCKED:` lines (D7), and that sessions outside `cf build` / `/cf:build` do not get the setting (D3).
-- [ ] `CHANGELOG.md` `[Unreleased]`: one line for `workflow.permissiveness` (#122).
-  - [ ] Success: every key, level, path, and command name in the docs matches the code. Cross-check with `grep -rn "permissiveness" packages/*/src`.
-- [ ] Commit: `docs: document workflow.permissiveness`
+- [x] `README.md` "Key configuration" table (~:386, after `workflow.decision_gate_enabled`): add `workflow.permissiveness | shared | How readily AI work waits on the PM: cautious, standard (default) or autonomous. Applied by cf build in Phases 4–6.`
+- [x] `README.md`: below the table, add a short **Permissiveness** subsection:
+  - [x] the three levels and what each means (D1), and that `standard` adds nothing;
+  - [x] that `cf build` / `context_build` add the fragment after the instruction prompt in Phases 4, 5 and 6 only, and that a change applies at the next build with no `cf setup-ide`;
+  - [x] the fragment path convention `project-guides/rules/permissiveness/<level>.md`, owned by ai-project-guide (v0.21.9 or later);
+  - [x] that a missing fragment fails the build and `cf guides update` fixes it;
+  - [x] that cf does not read or enforce `BLOCKED:` lines (D7), and that sessions outside `cf build` / `/cf:build` do not get the setting (D3).
+- [x] `CHANGELOG.md` `[Unreleased]`: one line for `workflow.permissiveness` (#122).
+  - [x] Success: every key, level, path, and command name in the docs matches the code. Cross-check with `grep -rn "permissiveness" packages/*/src`.
+- [x] Commit: `docs: document workflow.permissiveness`
 - **Effort:** 1/5
 
 ---
 
 ## Task 8: CI check and walkthrough
 
-- [ ] Run the CI sequence from `.github/workflows/ci.yml`, in its order: `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Every step passes.
-- [ ] Run the design's **Verification Walkthrough** steps 1–6 in this repo with `node packages/cli/dist/index.js`, saving outputs in the session scratchpad, not the repo:
-  - [ ] Step 1: set phase 4 and save the `build` output; `config get workflow.permissiveness` prints `standard`.
-  - [ ] Step 2: the installed guide already has `autonomous.md`; no test fragment is needed. Set `autonomous` and rebuild; the fragment follows the instruction prompt. Call `context_build` through the MCP server (or the `mcpIntegration` test harness) and confirm the same section.
-  - [ ] Step 3: set phase 2 and rebuild; no `### Permissiveness:` heading.
-  - [ ] Step 4: move the installed `rules/permissiveness/cautious.md` aside, set `cautious`, set phase 4 and build; the build fails naming the missing path. The file is tracked in git: restore it with `git restore` on its path and confirm `git status` shows no guide change.
-  - [ ] Step 5: `config set workflow.permissiveness bogus` is rejected and lists the three levels.
-  - [ ] Step 6: set `standard`, rebuild, and `diff` against step 1; no difference.
-  - [ ] Finish with `config unset workflow.permissiveness` and restore the phase to what it was before step 1.
-  - [ ] Success: every step gives the expected result, and `git status` shows no stray config, guide, or project-state changes.
-- [ ] Commit any corrections with the matching semantic prefix. If there is nothing to commit, note that in the task-checker update.
+- [x] Run the CI sequence from `.github/workflows/ci.yml`, in its order: `pnpm install --frozen-lockfile`, `pnpm -r build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Every step passes.
+- [x] Run the design's **Verification Walkthrough** steps 1–6 in this repo with `node packages/cli/dist/index.js`, saving outputs in the session scratchpad, not the repo:
+  - [x] Step 1: set phase 4 and save the `build` output; `config get workflow.permissiveness` prints `standard`.
+  - [x] Step 2: the installed guide already has `autonomous.md`; no test fragment is needed. Set `autonomous` and rebuild; the fragment follows the instruction prompt. Call `context_build` through the MCP server (or the `mcpIntegration` test harness) and confirm the same section.
+  - [x] Step 3: set phase 2 and rebuild; no `### Permissiveness:` heading.
+  - [x] Step 4: move the installed `rules/permissiveness/cautious.md` aside, set `cautious`, set phase 4 and build; the build fails naming the missing path. The file is tracked in git: restore it with `git restore` on its path and confirm `git status` shows no guide change.
+  - [x] Step 5: `config set workflow.permissiveness bogus` is rejected and lists the three levels.
+  - [x] Step 6: set `standard`, rebuild, and `diff` against step 1; no difference.
+  - [x] Finish with `config unset workflow.permissiveness` and restore the phase to what it was before step 1.
+  - [x] Success: every step gives the expected result, and `git status` shows no stray config, guide, or project-state changes.
+- [x] Commit any corrections with the matching semantic prefix. If there is nothing to commit, note that in the task-checker update.
 - **Effort:** 1/5
