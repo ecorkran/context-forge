@@ -64,10 +64,10 @@ cf init                   # CLI: creates project, installs guides, configures ID
 cf init --ide copilot     # Same, but configured for VS Code Copilot instead of Claude Code
 cf init --ide codex       # Same, but configured for OpenAI Codex (also: cursor, agents, openai)
 # — or —
-/cf:onboard               # Slash command: AI-guided setup — walks you through everything conversationally
+/cf:onboard               # Slash command: AI-guided setup — registers the project, then hands off to `cf build`
 ```
 
-That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` can take a new user from zero to their first concept discussion.
+That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` sets up the project, then runs `cf build` and follows the prompt it returns. It needs ai-project-guide v0.22.2 or newer; on an older install `cf build` warns and `cf guides update` fixes it.
 
 <details>
 <summary>MCP server config (Cursor, Windsurf, OpenAI Codex, etc.)</summary>
@@ -384,6 +384,7 @@ Three interfaces — use whichever fits your workflow:
 | `git.integration_branch` | personal | Long-lived branch that work branches fork from and merge into instead of `main` (e.g. `dev/erik`). Changes git topology, not just names. |
 | `workflow.review_enabled` | shared | Turn on review gating (off by default). |
 | `workflow.decision_gate_enabled` | shared | Block design validation and `cf next` on pending PM decisions (on by default). |
+| `workflow.setup_ci_offer` | shared | `cf next` offers the setup-ci skill when a project has a build manifest but no CI or release skill (on by default). Set to `false` to stop the offer. |
 | `workflow.permissiveness` | shared | How readily AI work waits on the PM: `cautious`, `standard` (default) or `autonomous`. Applied by `cf build` in Phases 4–6. |
 | `workflow.review_threshold` | shared | Verdict floor that clears a gate (`pass` \| `concerns`). |
 | `workflow.review_gate_effective_date` | shared | Grandfather work designed before `YYYYMMDD` past the gate. |
