@@ -4,10 +4,22 @@ slice: onboarding-consolidation
 project: context-forge
 lld: user/slices/260-slice.onboarding-consolidation.md
 dependencies: []
-projectState: main at 0.19.16. Three hand-written onboarding recipes (`commands/cf/onboard.md`, `commands/codex/cf-onboard/SKILL.md`, `ONBOARD_GUIDE` in `agentOnboardTool.ts`) have drifted and carry methodology plus a `/setup-ci` offer keyed on `.github/workflows/ci.yml`. Design reviewed (round 2 CONCERNS, resolved in the design).
+projectState: main at 0.19.16. Three hand-written onboarding recipes (`commands/cf/onboard.md`,
+  `commands/codex/cf-onboard/SKILL.md`, `ONBOARD_GUIDE` in `agentOnboardTool.ts`)
+  have drifted and carry methodology plus a `/setup-ci` offer keyed on `.github/workflows/ci.yml`.
+  Design reviewed (round 2 CONCERNS, resolved in the design).
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 14
+promptTokens: 683436
+cachedTokens: 619389
+cacheWriteTokens: 64023
+completionTokens: 16217
+durationSeconds: 154.7
+costUsd: 0.960781
+usageRounds: 1
+pricedRounds: 1
 ---
 
 ## Context Summary
