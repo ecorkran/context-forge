@@ -49,7 +49,7 @@ Included:
 - `detection/comprehensionAnalysis.ts`: find squadron 362's comprehension document (D5).
 - Replace 261's squadron bullet in `renderAdoptionFacts` with the probe section (D6).
 - Resolver step 6 (261 Data Flow) gathers the probe and the comprehension document beside the other render-only facts. `AdoptionSelection` gains `fileComprehension`.
-- `EnhancedContextData.fileComprehension`, a `Comprehension:` line in the Project Context section, and a `comprehension` template alias.
+- `EnhancedContextData.fileComprehension` and a `Comprehension:` line in the Project Context section.
 - A vendored copy of the probe contract's v1 JSON example as a test fixture, and the contract test against it (D8).
 
 Excluded:
@@ -73,7 +73,7 @@ Excluded:
   - `analysis_skill_installed` on `claude-code` is true only with a 366-era `sq/analysis.md` dispatcher that routes `understand`.
   - `understand_plugin_installed` means installed, not enabled.
   - Exit 0 whenever the object is built; a field it can't determine is null and gets one WARNING log line on stderr; exit 1 with an error on stderr and nothing on stdout when the probe breaks.
-  - The probe resolves the project from its working directory (`Path.cwd()` → git toplevel), so cf must run it with `cwd` set to the checkout.
+  - The probe resolves the project from its working directory (`Path.cwd()` → git toplevel), so cf must run it with `cwd` set to the checkout. For a CF project in a monorepo subdirectory, the graph facts therefore describe the repository root, not the folder. This is accepted: cf passes the JSON through, the graph is squadron's and covers the whole repository, and 265 checks it on a real repository.
 - **Squadron 362's output:** `project-documents/user/analysis/{index}-analysis.codebase-comprehension.md`, frontmatter `docType: analysis`. Each run takes a new index (lowest unused ≥ 940) and never overwrites.
 - `parseFrontmatterText` (`introspection/parsers/frontmatterParser.ts`), `ContextProfileParser` (already used by 261's guide check).
 
@@ -94,7 +94,6 @@ packages/core/src/adoption/
 packages/core/src/services/
   ContextIntegrator.ts      copies selection.fileComprehension into enhancedData
   SectionBuilder.ts         "Comprehension: …" line in Project Context
-  TemplateProcessor.ts      `comprehension` alias
   CoreServiceFactory.ts     createContextPipeline options gain squadronProbe? (default runSquadronProbe)
 packages/core/src/types/context.ts
                             EnhancedContextData.fileComprehension?: string
@@ -133,11 +132,13 @@ None. The probe outcome and the comprehension path are recomputed on every selec
 Status: decided
 - `execFile` from `node:child_process` (no shell), command `SQUADRON_PROBE_COMMAND = { file: 'sq', args: ['probe', '--json'] }`, `cwd: checkoutPath`. The checkout is where adoption runs, and the probe resolves its project from its working directory.
 - Limits, each one constant in `squadronProbe.ts`: `SQUADRON_PROBE_TIMEOUT_MS` (10 s; the probe runs a few read-only git commands) and `SQUADRON_PROBE_MAX_BUFFER_BYTES` (1 MiB).
-- The wrapper turns the call into a `ProbeRun` and nothing else:
-  - `{ kind: 'not-found' }` for ENOENT,
-  - `{ kind: 'timed-out' }` when the timeout kills it,
-  - `{ kind: 'spawn-failed', message }` for any other spawn error (EACCES, buffer overflow),
-  - `{ kind: 'exited', exitCode, stdout, stderr }`.
+- The wrapper turns the call into a `ProbeRun` and nothing else. It reads the `execFile` callback's error fields, checked in this order:
+  - `code === 'ENOENT'` → `{ kind: 'not-found' }`;
+  - `code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'` → `{ kind: 'spawn-failed', message: 'output exceeded 1 MiB' }` (Node kills the child for this too, so it's checked before `killed`);
+  - `killed === true` → `{ kind: 'timed-out' }`. With the buffer case taken, the timeout is the only remaining kill Node makes itself;
+  - `signal` set (killed from outside, e.g. OOM or an external SIGTERM) → `{ kind: 'signaled', signal }`;
+  - any other string `code` (EACCES, …) → `{ kind: 'spawn-failed', message }`;
+  - no error, or a numeric `code` → `{ kind: 'exited', exitCode, stdout, stderr }`.
 - No environment changes. Squadron's log format (text or JSON) is the user's setting, and D3 carries its lines either way.
 - Rejected: `gitExec`; it's git-specific (credential env, network hints). Rejected: a shell string; nothing here needs a shell.
 
@@ -153,11 +154,12 @@ Status: decided
   1. `not-found` → unavailable, "`sq` was not found on PATH".
   2. `timed-out` → unavailable, "`sq probe` did not finish within 10 s".
   3. `spawn-failed` → unavailable, "`sq probe` could not run: {message}".
-  4. Non-zero exit → unavailable, "`sq probe --json` exited with code {n}". A squadron older than the probe lands here (Typer's "No such command", exit 2), and its stderr line says so.
-  5. `JSON.parse(stdout.trim())` throws, or the result isn't a plain object → unavailable, "`sq probe --json` printed output that is not a JSON object".
-  6. `probe_version` isn't the number `SUPPORTED_PROBE_VERSION` (1) → unavailable, "`sq probe` reports probe_version {value}; this cf supports 1". A missing value reads as "missing".
-  7. Otherwise available, with `json` = `stdout.trim()`, unchanged.
-- `ProbeUnavailableReason` is a discriminated union (`kind` per case above, with its data), rendered to text in one place (D6), so no reason text is written twice.
+  4. `signaled` → unavailable, "`sq probe` was killed by {signal}".
+  5. Non-zero exit → unavailable, "`sq probe --json` exited with code {n}". A squadron older than the probe lands here (Typer's "No such command", exit 2), and its stderr line says so.
+  6. `JSON.parse(stdout.trim())` throws, or the result isn't a plain object → unavailable, "`sq probe --json` printed output that is not a JSON object".
+  7. `probe_version` isn't the number `SUPPORTED_PROBE_VERSION` (1) → unavailable, "`sq probe` reports probe_version {value}; this cf supports 1". A missing value reads as "missing".
+  8. Otherwise available, with `json` = `stdout.trim()`, unchanged.
+- `ProbeUnavailableReason` reuses `ProbeRun`'s four failure kinds and adds the three classification cases (non-zero exit, unreadable output, unsupported version). It's rendered to text in one place (D6), so no reason text is written twice.
 - Only `probe_version` is checked. The contract guarantees the shape for a version, squadron's own contract test (366 D11) enforces it, and the guide prompt is the only reader of the other fields. Checking more fields would duplicate squadron's test and reject the additive fields its versioning rules allow.
 - Rejected: scraping a JSON object out of noisy stdout. The contract says stdout holds exactly one object; anything else is a broken probe and is reported as such.
 
@@ -165,7 +167,7 @@ Status: decided
 Status: decided
 - The probe explains each null field in a WARNING line on stderr, and a failed probe explains itself there too. cf carries stderr into the facts with both outcomes, so a null is never left unexplained and a failure keeps squadron's own message.
 - Lines are taken verbatim: split on newlines, trailing whitespace trimmed, empty lines dropped. cf doesn't match the log format or tie a line to a field. The format depends on squadron's log settings, and matching it would break when squadron changes it.
-- `MAX_PROBE_WARNING_LINES` (20) caps the list. Past it, one line says "… {n} more stderr lines omitted". The probe writes one line per undeterminable field, so the cap is only hit by something unusual, such as a traceback.
+- No line cap: the probe writes one line per undeterminable field, and `maxBuffer` (D1) already bounds stderr.
 
 ### D4 — The probe never fails the build
 Status: decided
@@ -200,7 +202,7 @@ Status: decided
 
 ### D7 — `fileComprehension` in the prompt, not in `--embed`
 Status: decided
-- `EnhancedContextData.fileComprehension?: string`. `SectionBuilder.buildProjectInfoSection` adds `Comprehension: {path}` after `Slice Plan:` when set. `TemplateProcessor` adds the alias `comprehension`, following `concept`, `arch` and `plan`.
+- `EnhancedContextData.fileComprehension?: string`. `SectionBuilder.buildProjectInfoSection` adds `Comprehension: {path}` after `Slice Plan:` when set. No template alias: nothing consumes one, and the prompt gets the value from the Project Context line.
 - `cf build --embed` doesn't embed it. The embedder works from stored `ProjectData` fields, and brownfield adoption needs an agent that can read the repository anyway, so a model without file access can't use the brownfield prompt. Embedding would need a new path through the embedder for no real user.
 
 ### D8 — Contract test against a vendored contract example
@@ -211,7 +213,7 @@ Status: decided
   - `classifyProbeRun` on the fixture, exit 0, gives `available` with the fixture text unchanged;
   - the fixture with `probe_version` 2 gives `unavailable`.
 - The field list exists only in the test. cf's runtime reads `probe_version` alone, so a renamed field breaks this test and the guide prompt, never cf's code.
-- One live test runs the real `sq probe --json` and asserts it classifies as `available` with the same top-level keys. It runs only when `sq` is on PATH (`it.skipIf`, reported as skipped), so CI without squadron stays green and a developer machine with squadron catches drift. 265's real-repo runs are the end-to-end check.
+- No live test against an installed `sq`: it would depend on the machine. 265's real-repo runs exercise the real probe end to end.
 
 ### D9 — Probe injection for tests
 Status: decided
@@ -220,7 +222,7 @@ Status: decided
 - Rejected: putting a fake `sq` on `PATH` in tests. It mutates process environment across a test file and differs by OS.
 
 ### Patterns and Conventions
-- Constants defined once in `squadronProbe.ts`: the command, `SUPPORTED_PROBE_VERSION`, timeout, buffer, warning-line cap. The filename pattern and `docType` value are defined once in `comprehensionAnalysis.ts`.
+- Constants defined once in `squadronProbe.ts`: the command, `SUPPORTED_PROBE_VERSION`, timeout, buffer. The filename pattern and `docType` value are defined once in `comprehensionAnalysis.ts`.
 - `ProbeRun`, `ProbeOutcome` and `ProbeUnavailableReason` are discriminated unions, switched exhaustively.
 - The parsed probe value is `unknown`, narrowed to a plain object before `probe_version` is read. No `any`.
 
@@ -235,11 +237,10 @@ export type ProbeRun =
   | { kind: 'not-found' }
   | { kind: 'timed-out' }
   | { kind: 'spawn-failed'; message: string }
+  | { kind: 'signaled'; signal: string }
   | { kind: 'exited'; exitCode: number; stdout: string; stderr: string };
 export type ProbeUnavailableReason =
-  | { kind: 'not-found' }
-  | { kind: 'timed-out' }
-  | { kind: 'spawn-failed'; message: string }
+  | Exclude<ProbeRun, { kind: 'exited' }>
   | { kind: 'non-zero-exit'; exitCode: number }
   | { kind: 'unreadable-output' }
   | { kind: 'unsupported-version'; value: string };   // "missing" when absent
@@ -276,7 +277,7 @@ export type AdoptionSelection =
 ### Functional Requirements
 - On a build that selects the brownfield prompt, Adoption Facts holds exactly one of:
   - the probe JSON verbatim, with stderr warnings or "none";
-  - "Squadron: unavailable." with the right reason for each case: `sq` missing, non-zero exit, timeout, non-JSON output, a JSON non-object, `probe_version` 2 or missing. Any stderr lines are included.
+  - "Squadron: unavailable." with the right reason for each case: `sq` missing, non-zero exit, timeout, a signal kill, output over the buffer limit, non-JSON output, a JSON non-object, `probe_version` 2 or missing. Any stderr lines are included.
 - A probe that exits 0 with a null field and a WARNING line shows both the JSON and that line.
 - `fileComprehension`:
   - one comprehension document present → `Comprehension: user/analysis/{n}-analysis.codebase-comprehension.md` in Project Context;
@@ -287,8 +288,8 @@ export type AdoptionSelection =
 - CLI and MCP builds of the same fixture with the same fake probe are identical (261's parity test, extended).
 
 ### Technical Requirements
-- Unit tests: `classifyProbeRun` for every `ProbeRun` and every D2 branch; stderr handling (verbatim, blank lines dropped, cap and omitted count); `renderSquadronFacts` for both outcomes, with and without warnings, and the fence-length rule; `findComprehensionAnalysis` (match, highest index, wrong `docType` skipped, case-insensitive name, missing directory, non-ENOENT error throws `AdoptionError`); `runSquadronProbe` against a small fake executable for not-found, exit codes, stderr capture and timeout.
-- Contract test and live test (D8).
+- Unit tests: `classifyProbeRun` for every `ProbeRun` and every D2 branch; stderr handling (verbatim, blank lines dropped); `renderSquadronFacts` for both outcomes, with and without warnings, and the fence-length rule; `findComprehensionAnalysis` (match, highest index, wrong `docType` skipped, case-insensitive name, missing directory, non-ENOENT error throws `AdoptionError`); `runSquadronProbe` against a small fake executable for not-found, exit codes, stderr capture, timeout, buffer overflow and a signal kill.
+- Contract test (D8).
 - Integration tests in `pipeline-integration.test.ts` with an injected probe: available, unavailable, comprehension present and absent.
 - `pnpm -r build`, lint, typecheck and all existing tests pass. 261's tests that asserted the fixed squadron bullet are updated to the D6 text.
 
@@ -330,16 +331,16 @@ Use the local build: `alias cfl="node $PWD/packages/cli/dist/index.js"` from the
 
 ### Mitigation Strategies
 - The not-found reason names PATH, so the cause is visible in the prompt and the agent says it. 265 checks the MCP path on a real setup. If it proves common, an `sq` path setting is a follow-up, not part of this slice.
-- Squadron's own contract test (366 D11) fails on a rename against the same document, and its versioning rules forbid renaming without a version bump. cf's live test catches drift on any machine with `sq` installed.
+- Squadron's own contract test (366 D11) fails on a rename against the same document, and its versioning rules forbid renaming without a version bump. 265's real-repo runs use the real probe.
 
 ## Implementation Notes
 
 ### Development Approach
 1. `squadronProbe.ts`: types, constants, `classifyProbeRun` with unit tests; then `runSquadronProbe` with the fake-executable tests.
-2. Vendored fixture, its README, the contract test and the live test.
+2. Vendored fixture, its README and the contract test.
 3. `comprehensionAnalysis.ts` with tests.
 4. `renderSquadronFacts`; update 261's renderer tests.
-5. Resolver step 6, `SquadronProbe` injection through `createAdoptionResolver` and `createContextPipeline`, `AdoptionSelection.fileComprehension`, integrator, `SectionBuilder`, `TemplateProcessor` alias.
+5. Resolver step 6, `SquadronProbe` injection through `createAdoptionResolver` and `createContextPipeline`, `AdoptionSelection.fileComprehension`, integrator, `SectionBuilder`.
 6. Integration tests with an injected probe, the parity-test extension, then the walkthrough.
 
 Effort: 2/5.
