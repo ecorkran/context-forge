@@ -25,7 +25,7 @@ Ask the user what they'd like to name their project. If they provided a name
 with the request, use that.
 If the user declines to choose, use the current directory name.
 
-Run `cf init <name>`. This single command handles
+Run `cf init --name <name>`. This single command handles
 everything: git initialization, project registration, guide installation,
 command installation, and IDE setup.
 

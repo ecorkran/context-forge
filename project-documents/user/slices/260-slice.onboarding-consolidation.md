@@ -156,7 +156,7 @@ Status: decided
 
 The recipe keeps:
 1. **Detect registration.** `cf project list` on the CLI, or `project_list` (matching `projectPath` against the current directory) on MCP. If the project is registered, go to step 3.
-2. **Set up.** Ask for a name (the argument if one was given, else the directory name if the user declines). Run `cf init <name>`. Keep the existing warning not to infer git status from environment context. MCP fallback: `project_create` and then `guide_install`, plus the existing note that this path cannot run `git init`.
+2. **Set up.** Ask for a name (the argument if one was given, else the directory name if the user declines). Run `cf init --name <name>` (the CLI takes the name as a flag, not an argument). Keep the existing warning not to infer git status from environment context. MCP fallback: `project_create` and then `guide_install`, plus the existing note that this path cannot run `git init`.
 3. **Hand off.** Run `cf build` (or call `context_build`) and follow the prompt it returns as your working context. Do not open with questions of your own: the prompt starts the conversation. Then one line: `cf next` (or that surface's equivalent) shows what to do next at any time.
 
 The recipe drops:
@@ -346,7 +346,7 @@ All commands use the local build (`node packages/cli/dist/index.js`, written `cf
    git checkout packages/cli/commands/cf/onboard.md
    ```
 2. **Recipe content.** Open `packages/cli/commands/cf/onboard.md`. Expect three steps (registration, setup, hand off to `cf build` / `context_build`). Expect no "describe what you want to build" and no `setup-ci`. `cf-onboard/SKILL.md` has the same steps in CLI-first form.
-3. **Greenfield run (manual).** In an empty temp directory, start Claude Code and run `/cf:onboard demo`. Expect: `cf init demo` runs, then `cf build` runs, and the agent asks what you want to build. Repeat with Codex and `$cf-onboard`.
+3. **Greenfield run (manual).** In an empty temp directory, start Claude Code and run `/cf:onboard demo`. Expect: `cf init --name demo` runs, then `cf build` runs, and the agent asks what you want to build. Repeat with Codex and `$cf-onboard`.
 4. **Mid-project run (manual).** In this repository (registered, Phase 4 with slice 260 set), run `/cf:onboard`. Expect: registration is found, setup is skipped, `cf build` runs, and the agent works from its output, which is identical to running `cf build` by hand. No concept question is asked.
 5. **MCP surface.** Call `agent_onboard` with `projectName: "demo"`. Expect the `mcp-tool` rendering, ending with `**Project name provided:** demo`.
 6. **CI offer appears**

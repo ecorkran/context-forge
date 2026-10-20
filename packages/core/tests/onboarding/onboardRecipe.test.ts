@@ -36,6 +36,12 @@ describe('renderOnboardRecipe', () => {
     expect(text).toContain('cannot initialize git');
   });
 
+  it.each(SURFACES)('%s passes the project name to cf init with --name (it takes no positional argument)', (surface) => {
+    const text = renderOnboardRecipe(surface);
+    expect(text).toContain('cf init --name <name>');
+    expect(text).not.toContain('cf init <name>');
+  });
+
   it('claude-command starts with frontmatter and lists allowed-tools', () => {
     const text = renderOnboardRecipe('claude-command');
     expect(text.startsWith('---\n')).toBe(true);

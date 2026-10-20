@@ -56,7 +56,7 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     registrationCheck:
       '**MCP:** Call `project_list`. Scan results for a project whose `projectPath`\nmatches the current directory.\n**CLI:** Run `cf project list` and check the output.',
     nameProvided: 'If a project name argument\nwas provided with the command, use that.',
-    setupRun: '**Primary:** Run `cf init <name>` via the shell.',
+    setupRun: '**Primary:** Run `cf init --name <name>` via the shell.',
     setupFallback: `**MCP fallback** (if shell access is unavailable):\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
     buildHandoff: '**MCP:** Call `context_build`.\n**CLI:** Run `cf build`.',
     nextHint: '`cf next` (or `/cf:next`)',
@@ -69,7 +69,7 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     registrationCheck:
       'Run `cf project list` and check the output.',
     nameProvided: 'If they provided a name\nwith the request, use that.',
-    setupRun: 'Run `cf init <name>`.',
+    setupRun: 'Run `cf init --name <name>`.',
     setupFallback: `If the Context Forge MCP server is configured and shell access is\nunavailable, fall back to its tools:\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
     buildHandoff: 'Run `cf build`.',
     nextHint: '`cf next` (or the `cf-next` skill)',
@@ -82,7 +82,7 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     registrationCheck:
       'Call `project_list`. Scan results for a project whose `projectPath` matches\nthe current directory.',
     nameProvided: 'If a project name argument\nwas provided, use that.',
-    setupRun: 'Run `cf init <name>` via the shell.',
+    setupRun: 'Run `cf init --name <name>` via the shell.',
     setupFallback: `If shell access is unavailable, fall back to the MCP path:\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
     buildHandoff: 'Call `context_build`.',
     nextHint: '`workflow_next` (or `cf next` on the CLI)',
