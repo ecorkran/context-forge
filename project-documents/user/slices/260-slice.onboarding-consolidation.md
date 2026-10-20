@@ -10,16 +10,16 @@ interfaces:
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
-turns: 64
-promptTokens: 3838620
-cachedTokens: 3709803
-cacheWriteTokens: 128733
-completionTokens: 40700
-durationSeconds: 390.1
-costUsd: 2.586488
-usageRounds: 2
-pricedRounds: 2
-revision_number: 1
+turns: 94
+promptTokens: 5361469
+cachedTokens: 5211539
+cacheWriteTokens: 149826
+completionTokens: 50509
+durationSeconds: 473.9
+costUsd: 3.251839
+usageRounds: 3
+pricedRounds: 3
+revision_number: 2
 ---
 
 # Slice Design: onboarding-consolidation
