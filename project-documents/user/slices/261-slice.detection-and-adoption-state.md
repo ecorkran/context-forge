@@ -37,12 +37,12 @@ Today `cf build` on a fresh registration always assembles the Phase 0 concept pr
 
 When the outcome is brownfield or adoption in progress, and the build would otherwise assemble the Phase 0 concept prompt, `cf build` and `context_build` select the guide's `brownfield-adoption` profile and prompt and append an **Adoption Facts** section after the instruction prompt. A first brownfield detection persists the adoption state as `in_progress`, so the build keeps resuming the brownfield prompt after the concept and architecture exist. The user can override the outcome in both directions with one config key. If the installed guide lacks the profile or prompt, the build fails with a named error and never falls back to the concept prompt.
 
-Squadron is not probed in this slice (262 adds it). Until then, the Adoption Facts section states that no probe was run, and the guide prompt takes the CF-only path.
+Squadron is not probed in this slice (262 adds it). Until then, the Adoption Facts section states that squadron is unavailable because this cf version doesn't run the probe, and the guide prompt takes the CF-only path (D8).
 
 ## Value
 
 - **A working CF-only brownfield path.** With guide v0.22.2, `cf init` followed by `cf build` on an existing codebase produces the brownfield adoption prompt. No onboarding change is needed (slice 260 already hands off to `cf build`).
-- **One decision, many consumers.** 262–264, 266 and 267 read the report, the outcome and the state from core rather than carrying their own heuristics.
+- **One decision in core.** The outcome order (`decideOutcome`), the adoption state and the planning-artifact check live in core, so later slices reuse them rather than carry their own heuristics. 262 extends the build resolver; 264, the first consumer outside the build, shapes any read-only API it needs (D7).
 - **Greenfield and planned projects are unchanged.** An empty repo still gets the concept prompt. A project with planning artifacts (including this one) never runs the source walk.
 
 ## Technical Scope
@@ -52,7 +52,7 @@ Included:
 - Two additions to the existing `detection/` module: the source-volume walk and the history fact. Docs, ADR and rule-file facts also live there. The report reuses 260's `recognizeCi` and `hasBuildManifest` unchanged.
 - One config key, `adoption.state` (shared scope), which is both the persisted state and the user override.
 - Build integration in `ContextIntegrator` via an injected resolver, so `cf build`, `context_build` and `template_preview` share one code path. `template_preview` never writes the state.
-- A named error, `AdoptionPromptMissingError`, for a guide without the `brownfield-adoption` profile or prompt.
+- One named error, `AdoptionError`, for a guide without the `brownfield-adoption` profile or prompt, a failed state write, and a walk that can't finish (D9).
 - A `CONCEPT_PHASE` export from `projectSchema.ts` beside the existing phase constants.
 - README: one line documenting `adoption.state` and the override. Full adoption docs are 265's.
 
@@ -92,16 +92,18 @@ packages/core/src/adoption/               decisions built on the facts
   adoptionState.ts     ADOPTION_STATES, readAdoptionState, writeAdoptionState
   adoptionOutcome.ts   BROWNFIELD_MIN_SOURCE_LINES, decideOutcome(...) → AdoptionOutcome  (pure)
   adoptionFacts.ts     renderAdoptionFacts(...) → string
+  contracts.ts         BROWNFIELD_ADOPTION_INSTRUCTION, AdoptionSelection, AdoptionResolver, AdoptionError
+                       (no imports from services/)
   adoptionResolver.ts  createAdoptionResolver({ stateWrites }) → AdoptionResolver
                        the one home of the selection rule (D4) and the build's step order (D7)
   index.ts
 packages/core/src/services/
-  ContextIntegrator.ts      + AdoptionResolver type, AdoptionPromptMissingError, call before mapping
+  ContextIntegrator.ts      imports the contracts from adoption/; calls the resolver before mapping
   ContextTemplateEngine.ts  + Adoption Facts section (order 3.4)
   CoreServiceFactory.ts     createContextPipeline(projectPath, { adoptionStateWrites })
 ```
 
-`detection/` keeps 260's rule: facts only, no policy. Thresholds, outcome order and state live in `adoption/`.
+`detection/` keeps 260's rule: facts only, no policy. Thresholds, outcome order and state live in `adoption/`, which also owns the contracts the integrator consumes. `adoptionResolver.ts` uses the existing guide parsers in `services/` for the guide check (D9). `contracts.ts` imports nothing from `services/`, so the two directories don't import each other's contracts in a cycle.
 
 ### Data Flow
 
@@ -112,10 +114,11 @@ cf build / context_build / template_preview
       checkoutPath = worktree path ?? projectPath
       adoptionResolver(projectPath, checkoutPath, project.instruction)   (steps in order)
         1. instruction not eligible (D4) → { selected: false }             (no I/O)
-        2. decide: readAdoptionState → findPlanningArtifacts → measureSourceVolume,
-           each read only if the previous one didn't decide → decideOutcome(...)
+        2. decide (concept-phase instruction only; skipped for an explicit
+           'brownfield-adoption', D4): readAdoptionState → findPlanningArtifacts →
+           measureSourceVolume, each read only if the previous one didn't decide → decideOutcome(...)
         3. not selected (D4) → { selected: false }
-        4. assert profile + prompt exist in the guide, else AdoptionPromptMissingError
+        4. assert profile + prompt exist in the guide, else AdoptionError
         5. brownfield + 'persist' → writeAdoptionState(checkoutPath, 'in_progress')   (D9)
         6. gather the render-only facts (history, docs, ADRs, rule files, CI) → renderAdoptionFacts
         └─ { selected: true, instruction: 'brownfield-adoption', facts }
@@ -153,19 +156,19 @@ Status: decided
   - Shallow clones and squashed or imported repos are judged on their code, not their commit count. History is reported for the prompt (D5) but never decides.
   - The costs are lopsided (a false brownfield writes wrong artifacts), so the threshold sits well above any starter. A small real codebase under 2000 lines lands in greenfield, which only costs a conversation, and the override fixes it.
 - Not configurable. The override (D3) is the safety valve; a tunable threshold would be a second override with less clear meaning.
-- Rejected: a weighted score over manifest, history, docs and CI. Every extra signal is a way to misfire (a starter has a manifest and often CI), and a score is harder to test and explain than one threshold.
-- Rejected: `git ls-files` for the file list. It misses uncommitted code, spawns a process, and needs the same failure handling 260 rejected for CI.
+- Rejected: a weighted score over manifest, history, docs and CI; each extra signal is another way to misfire.
+- Rejected: `git ls-files`; it misses uncommitted code and spawns a process.
 
 ### D2 — Source walk rules
 Status: decided
 - `measureSourceVolume(root)` walks `root` with `fs/promises`, so it never blocks the MCP server's event loop. It stops at whichever comes first:
   - the line count reaches the threshold (`capped: true`), or
-  - `MAX_WALK_ENTRIES` (20,000 directory entries visited, one constant in `sourceVolume.ts`) is reached below the threshold. That's a large non-source tree the walk can't judge, so it throws `DetectionError` naming the count and the override, rather than guessing greenfield.
+  - `MAX_WALK_ENTRIES` (20,000 directory entries visited, one constant in `sourceVolume.ts`) is reached below the threshold. That's a large non-source tree the walk can't judge, so it throws `AdoptionError` naming the count and the override, rather than guessing greenfield.
 - Performance target: detection adds under one second to a Phase 0 build on a local disk. The two caps bound the worst case at 20,000 entries visited and at most 2000 lines' worth of files read. Tests assert the caps, not timings. The walk runs only for Phase 0 builds where the state is unset and nothing is planned (D4, D6), so once the state is written, or a plan exists, it never runs again.
-- Counted: files whose extension is in `SOURCE_EXTENSIONS` (one exported constant in `sourceVolume.ts`): `ts tsx js jsx mjs cjs vue svelte py rb go rs java kt kts scala swift m mm c h cc cpp hpp cs fs php dart ex exs erl clj lua r jl sh sql`.
+- Counted: files whose extension is in `SOURCE_EXTENSIONS`, a core list of mainstream languages in `sourceVolume.ts` (`ts tsx js jsx py rb go rs java kt swift c h cpp cs php`). The 2000-line threshold leaves wide margin, so the list doesn't need to be exhaustive. Adding a language is a one-line edit to that constant, and 265's real-repo runs are where gaps will show.
 - Skipped: any directory whose name starts with `.`; any directory in `EXCLUDED_DIRS` (`node_modules vendor dist build out target coverage __pycache__ venv project-documents`); files larger than `MAX_SOURCE_FILE_BYTES` (512 KiB, treated as generated or minified); symlinks (not followed, so no loops and no escaping the folder).
 - `project-documents` is excluded so cf's own footprint (the guide, planning docs) never counts. `cf init` therefore can't tip a repo into brownfield.
-- Errors follow 260's rule: ENOENT during the walk (a file deleted mid-walk) is "not present". Any other error throws `DetectionError`, which names the path and code and says how to skip detection (`cf config set adoption.state in_progress` or `declined`). The build fails explicitly rather than deciding on a partial count.
+- Errors follow 260's rule: ENOENT during the walk (a file deleted mid-walk) is "not present". Any other error throws `AdoptionError`, which names the path and code and says how to skip detection (`cf config set adoption.state in_progress` or `declined`). The build fails explicitly rather than deciding on a partial count.
 
 ### D3 — `adoption.state` is both the persisted state and the override
 Status: decided
@@ -173,21 +176,28 @@ Status: decided
 - One key means the two can't disagree, and the existing config surface (CLI, MCP config tools, validation, `cf config get` showing the source) applies with no new commands or flags.
 - `declined` and `complete` behave the same for the build (no adoption prompt). They differ for 264: `complete` means "adopted, point at new work"; `declined` means "treat as a fresh project". `declined` isn't in the arch; it is this slice's form of the arch's "override in both directions", and 263 and 264 must read it as "fresh project" (Integration Points).
 - The key keeps no history: a `declined` set over an auto-written `in_progress` looks the same as one set first. Nothing consumes that difference, so a second key isn't worth adding.
-- Rejected: a field in the project registry. The registry is per machine; adoption is a property of the repo that teammates and worktrees must see.
-- Rejected: a state file under `project-documents/`. A new format and parser for one enum.
-- Rejected: separate `adoption.mode` (override) and `adoption.state` keys. Combinations like mode `greenfield` with state `in_progress` would need precedence rules.
+- Rejected: a project-registry field (per machine, but the state belongs to the repo); a state file under `project-documents/` (new format for one enum); separate mode and state keys (needs precedence rules).
 
 ### D4 — Adoption applies only where the concept prompt would run
 Status: decided
 - The resolver selects the brownfield prompt only when the instruction resolves (via `resolvePhaseValue`) to `CONCEPT_PHASE`, or is literally `brownfield-adoption`. A fresh registration's instruction is `Phase 0: Concept` (`buildProjectCreationDefaults`), so this is exactly the case the slice plan targets.
 - Any other phase, stored or passed with `--phase` / `--instruction` / `--it` / MCP overrides, builds as today. A PM who moves to Phase 2 by hand during adoption gets the Phase 2 prompt; that's their choice, and no explicit-override plumbing is needed in either caller.
-- An explicit `brownfield-adoption` instruction always gets the Adoption Facts (the prompt stops without them), whatever the outcome. It never writes the state; the documented override is D3.
+- **Explicit `brownfield-adoption` instruction** (`--it brownfield-adoption`, or the MCP `instructionType`): the decide step is skipped, so no state check, planning check or source walk, and it can't throw the walk's `AdoptionError`. It never writes the state. The guide check (D9) and the render-only facts still run. The Outcome bullet reads "not evaluated (explicit brownfield-adoption instruction)", and the state bullet shows the stored value. This is the escape hatch D9 names for read-only checkouts, so it must not depend on detection.
 - The resolver short-circuits before any I/O for other instructions, so builds in Phases 1–7 pay nothing.
-- Rejected: selecting by outcome alone, ignoring the instruction. It would replace every phase's prompt while the state is `in_progress`, and until 263 the state never leaves `in_progress` on its own.
+- **Resume relies on the stored instruction staying at Phase 0, and nothing in cf changes it on its own.** Checked in the current code:
+  - The stored instruction changes only through explicit user commands. `cf set phase` / `cf project set` (`developmentPhase` or `instruction`, through `computeAutoSetFields`) and the MCP project update tool change it.
+  - `cf build --phase/--instruction/--it` and `context_build` overrides change only a working copy.
+  - `cf next` and `workflow_next` don't write the project.
+  - `workflow.auto_advance` has no reader.
+  
+  So the brownfield prompt resumes until the user moves the phase, and moving the phase is the user's explicit choice. 264 must keep this property (Integration Points).
+- Matching is on constants, not display labels: `resolvePhaseValue` normalizes the instruction before it's compared with `CONCEPT_PHASE`. `BROWNFIELD_ADOPTION_INSTRUCTION` is the same key as the guide's profile name, a contract with the guide that D9 checks on every selected build.
+- Rejected: selecting by outcome alone. It would replace every phase's prompt while the state is `in_progress`.
 
 ### D5 — Detection report contents
 Status: decided
 - The slice plan names the report's facts: source volume, history, docs, ADRs, CI and rule files. The guide prompt asks for "the detection facts" without naming any, so the report carries exactly the plan's list and nothing more. Only source volume decides (D1); the rest are gathered only when the Adoption Facts section is rendered (Data Flow step 6), never for greenfield or planned builds.
+- Root: every fact, the state read and write, and the planning check use `checkoutPath` (the worktree being worked in, else `projectPath`). CI uses it too: `recognizeCi` walks up from there to the repository root. Only the guide check uses `projectPath`, because that's the prompt file the build reads (D9).
 - Facts (paths relative to the checkout root, except CI's absolute paths):
   - `source: { files, lines, capped }` (D2)
   - `history`: `{ kind: 'known', commits, shallow }` or `{ kind: 'unknown', reason }`. Two git calls, each with a 5 s timeout (`gitExec`'s `timeoutMs`, constant `HISTORY_GIT_TIMEOUT_MS`): `git -C root rev-list --count HEAD -- .` (scoped to the folder, so a monorepo subdirectory reports its own commits) and `git -C root rev-parse --is-shallow-repository`. Not a repo, no commits, no `git`, or a timeout → `unknown` with the reason, e.g. "git timed out after 5s". History never decides the outcome (D1), so `unknown` is a stated fact, not a fallback.
@@ -212,28 +222,32 @@ Status: decided
 - `createContextPipeline(projectPath, options: { adoptionStateWrites: 'persist' | 'read-only' })` wires it. The option is required, so every caller states whether its build may write: `cf build` and `context_build` pass `persist`; `template_preview` ("without side effects") passes `read-only`; existing tests pass `read-only`. `generateContext` in `contextTools.ts` gains the same option.
 - Because both CLI and MCP go through this one resolver, their prompts are identical by construction; a test asserts it (Success Criteria).
 - The state-change notice goes inside the Adoption Facts section (D8), not on a side channel, so no caller has to plumb a new return value and both surfaces show it the same way.
-- Rejected: calling the resolver from `build.ts` and `contextTools.ts` before the pipeline. Two call sites, the drift 260 just removed elsewhere.
+- Rejected: calling the resolver from `build.ts` and `contextTools.ts`; two call sites invite drift.
 
 ### D8 — Adoption Facts section
 Status: decided
 - Rendered by `renderAdoptionFacts` only, under the heading `### Adoption Facts`, at order 3.4 in `ContextTemplateEngine` (directly after the instruction prompt, before the permissiveness fragment, outside the template). Content, as plain bullets:
-  - Outcome and why (e.g. "brownfield: 2000+ non-blank source lines (count stopped at the threshold)").
+  - Outcome and why (e.g. "brownfield: 2000+ non-blank source lines (count stopped at the threshold)"), or "not evaluated (explicit brownfield-adoption instruction)" (D4).
   - Adoption state, and when this build set it: "adoption.state was set to in_progress by this build. To treat the project as new instead: `cf config set adoption.state declined`."
   - Each report fact from D5, with "none found" written out rather than omitted.
-  - Squadron: "Squadron probe: not run. This cf version does not read squadron's capability probe, so no probe output is available." Slice 262 replaces this one bullet with the probe JSON or its "squadron unavailable" statement; the renderer keeps it in its own function for that.
+  - Squadron: "Squadron: unavailable. This cf version does not run squadron's capability probe, so no probe output is present." This is the arch's "squadron unavailable" statement, with the reason. Checked against the guide v0.22.2 prompt:
+    - it takes the squadron path only when probe output is present, the agent's surface has an entry, and `analysis_skill_installed` is true;
+    - "any other case", which includes "the section says squadron is absent or unreadable", takes the CF-only path.
+    
+    With no probe output, the squadron path can't be chosen. The Verification Walkthrough confirms it. Slice 262 replaces this one bullet with the probe JSON or its own unavailable statement; the renderer keeps it in its own function for that.
 - Facts only. The section never tells the agent which path to take; the guide prompt does.
 - The section is present on every build that selects the brownfield prompt. A selected build without facts is impossible by construction, since the resolver returns both together.
 
 ### D9 — Missing guide profile or prompt fails the build
 Status: decided
-- When the resolver selects the brownfield prompt, it checks the guide prompt file the build reads (`resolvePromptFilePath(projectPath)`) for both a `brownfield-adoption` key in `context_profiles` and a prompt matched by `getPromptForInstruction('brownfield-adoption')`. Either missing → `AdoptionPromptMissingError`: "This project is being adopted as an existing codebase, but the installed ai-project-guide has no brownfield-adoption {profile|prompt}. Run: cf guides update (needs v{MIN_GUIDE_VERSION}+). To treat the project as new instead: cf config set adoption.state declined".
+- When the resolver selects the brownfield prompt, it checks the guide prompt file the build reads (`resolvePromptFilePath(projectPath)`) for both a `brownfield-adoption` key in `context_profiles` and a prompt matched by `getPromptForInstruction('brownfield-adoption')`. Either missing → `AdoptionError`: "This project is being adopted as an existing codebase, but the installed ai-project-guide has no brownfield-adoption {profile|prompt}. Run: cf guides update (needs v{MIN_GUIDE_VERSION}+). To treat the project as new instead: cf config set adoption.state declined".
 - `generateContextFromProject` rethrows it, as it does `PermissivenessFragmentError`; every other error there still becomes the error stub. `cf build` exits non-zero through `handleError`; `context_build` returns an error result.
 - The check reads profiles directly and fails loudly, unlike `applyProfileFiltering`'s lenient load, which would fall back to `_default`.
-- `DetectionError` (D2) is rethrown the same way.
-- **State write fails** (read-only checkout, permission denied): `AdoptionStateWriteError`, rethrown, no prompt. It names `.context-forge.toml`, the error, and two ways on: `cf build --it brownfield-adoption` builds the brownfield prompt without writing (D4), and `cf config set adoption.state declined` takes the greenfield path. Rejected: building anyway with an unsaved state. The next build would re-detect, and once the agent writes an architecture the project would read as planned and silently leave adoption.
+- One error class, `AdoptionError` in `adoption/contracts.ts`, covers the three adoption failures: missing profile or prompt (above), a walk that can't finish (D2), and a failed state write (below). Each message carries its remedy.
+- **State write fails** (read-only checkout, permission denied): `AdoptionError`, rethrown, no prompt. It names `.context-forge.toml`, the error, and two ways on: `cf build --it brownfield-adoption` builds the brownfield prompt without writing (D4), and `cf config set adoption.state declined` takes the greenfield path. Rejected: building anyway unsaved; once an architecture exists, the next build would silently leave adoption.
 - **Concurrent builds:** two first builds may both write `in_progress`. `ConfigManager.set` is read-modify-write with no lock, so the last write wins. Both write the same value, so the result is correct. No lock is added.
-- **Malformed `.context-forge.toml`:** not a new failure. Every build already reads the file for `git.integration_branch`, and today that parse error becomes the error stub. `readAdoptionState` raises the same parse error, wrapped as `AdoptionStateReadError` and rethrown, so a Phase 0 build exits non-zero with the parse message instead of returning a stub. This applies only to builds where D4 makes the adoption read happen.
-- These three, plus `AdoptionPromptMissingError`, are the only errors `generateContextFromProject` newly rethrows. Every other error keeps today's error-stub behavior, on the Phase 0 path too.
+- **Malformed `.context-forge.toml`:** not a new failure. Every build already reads the file for `git.integration_branch`, and today that parse error becomes the error stub. `readAdoptionState` lets the same parse error propagate unwrapped, and it gets today's error-stub behavior.
+- `AdoptionError` is the only error `generateContextFromProject` newly rethrows. Every other error keeps today's error-stub behavior, on the Phase 0 path too.
 
 ### Patterns and Conventions
 - Facts in `detection/` are synchronous filesystem checks, except the source walk (async, D2) and `readHistory` (spawns `git`).
@@ -260,14 +274,14 @@ export type AdoptionOutcome =
   | { kind: 'brownfield'; source: SourceVolume }
   | { kind: 'greenfield'; source: SourceVolume };
 
-// services/ContextIntegrator.ts
+// adoption/contracts.ts — imported by services/ContextIntegrator.ts
 export const BROWNFIELD_ADOPTION_INSTRUCTION = 'brownfield-adoption';
 export type AdoptionSelection =
   | { selected: false }
   | { selected: true; instruction: typeof BROWNFIELD_ADOPTION_INSTRUCTION; facts: string };
 export type AdoptionResolver =
   (projectPath: string, checkoutPath: string, instruction: string) => Promise<AdoptionSelection>;
-export class AdoptionPromptMissingError extends Error {}
+export class AdoptionError extends Error {} // message carries the remedy (D9)
 ```
 
 `EnhancedContextData` gains `adoptionFacts?: string`.
@@ -316,11 +330,11 @@ Stored in `.context-forge.toml` as `[adoption] state = "in_progress"`. No existi
 - Override: `declined` on a brownfield repo gives the concept prompt; `in_progress` on an empty repo gives the brownfield prompt; `""` re-detects. Invalid values are rejected by `cf config set`.
 - `--phase 2` (or any non-concept instruction) builds that phase's prompt regardless of state. `--it brownfield-adoption` builds the brownfield prompt with facts and doesn't write state.
 - `template_preview` on a brownfield repo with unset state shows the brownfield prompt and leaves `adoption.state` unset.
-- A guide without the profile or prompt: `cf build` exits non-zero with `AdoptionPromptMissingError`'s message; `context_build` returns it as an error. The concept prompt is never produced.
+- A guide without the profile or prompt: `cf build` exits non-zero with the `AdoptionError` message; `context_build` returns it as an error. The concept prompt is never produced.
 
 ### Technical Requirements
-- Unit tests: `measureSourceVolume` (extensions, excluded and dot dirs, size cap, symlinks not followed, early exit at the line threshold, `DetectionError` at `MAX_WALK_ENTRIES`, non-ENOENT error throws); `readHistory` (repo, shallow repo, non-repo, subdirectory scoping, timeout reported as unknown); `presentPaths`; D9's write failure (`AdoptionStateWriteError`, state unchanged), malformed config (`AdoptionStateReadError`) and guide-check-before-write ordering; `findPlanningArtifacts` (each pattern, concept excluded); `decideOutcome` (every branch of the order); `renderAdoptionFacts` (every outcome, the state-set notice, "none found" facts, the squadron bullet); resolver selection table (D4) and D9's checks.
-- Integration tests in `CoreServiceFactory.test.ts` / `pipeline-integration.test.ts`: fixtures for empty, scaffold-only, brownfield, shallow clone, monorepo subdirectory, planned, concept-only, and a guide fixture without the profile.
+- Unit tests: `measureSourceVolume` (extensions, excluded and dot dirs, size cap, symlinks not followed, early exit at the line threshold, `AdoptionError` at `MAX_WALK_ENTRIES`, non-ENOENT error throws); `readHistory` (repo, shallow repo, non-repo, subdirectory scoping, timeout reported as unknown); `presentPaths`; D9's write failure (`AdoptionError`, state unchanged) and guide-check-before-write ordering; the explicit-instruction path (no decide step, no write, "not evaluated" outcome); `findPlanningArtifacts` (each pattern, concept excluded); `decideOutcome` (every branch of the order); `renderAdoptionFacts` (every outcome, the state-set notice, "none found" facts, the squadron bullet); resolver selection table (D4) and D9's checks.
+- Integration tests in `CoreServiceFactory.test.ts` / `pipeline-integration.test.ts`: fixtures for empty, scaffold-only, brownfield, shallow clone, monorepo subdirectory, planned, concept-only, resume (`in_progress` with concept and arch present), `declined` / `in_progress` overrides, `--phase 2` on an `in_progress` project, explicit `brownfield-adoption`, and a guide fixture without the profile.
 - CLI/MCP parity test: the same fixture built through `cf build`'s path and `generateContext` (MCP) produces identical prompt strings.
 - `pnpm -r build`, lint, typecheck and existing tests pass; existing `createContextPipeline` callers updated with an explicit `adoptionStateWrites`.
 
@@ -339,37 +353,26 @@ Use the local build (the global `cf` is the published package): `alias cfl="node
    cfl build > /tmp/after.md      # after the slice
    diff /tmp/before.md /tmp/after.md   # expect: no differences
    ```
-2. **Greenfield.**
-   ```bash
-   mkdir /tmp/gf && cd /tmp/gf && cfl init --name gf
-   cfl build | grep -E 'Concept|Adoption Facts'   # expect: the concept prompt, no "Adoption Facts"
-   cfl config get adoption.state                   # expect: empty, source default
-   ```
-3. **Scaffold-only stays greenfield.**
-   ```bash
-   cd /tmp && npm create vite@latest scaf -- --template react-ts && cd scaf && cfl init --name scaf
-   cfl build | grep -c 'Adoption Facts'            # expect: 0
-   ```
-4. **Brownfield detected and persisted.** Use any real codebase over 2000 lines without `project-documents/`:
+2. **Brownfield detected and persisted; squadron statement takes the CF-only path.** Use any real codebase over 2000 lines without `project-documents/`:
    ```bash
    git clone --depth 1 <some-repo> /tmp/bf && cd /tmp/bf && cfl init --name bf
    cfl build | sed -n '/### Instruction Prompt/,/### 3rd-Party/p'
    # expect: "We're adopting project bf, an existing codebase...", then "### Adoption Facts" with
    #   outcome brownfield (2000+ lines), history shallow, CI/docs/rule files, the state-set notice,
-   #   and "Squadron probe: not run"
+   #   and "Squadron: unavailable. This cf version does not run squadron's capability probe..."
    cfl config get adoption.state                   # expect: in_progress, source project
    ```
-5. **Resume after artifacts exist.** Add `project-documents/user/project-guides/000-concept.bf.md` and `project-documents/user/architecture/100-arch.bf.md`, then `cfl build` → still the brownfield prompt.
-6. **Overrides.**
+   Then run `/cf:build` in Claude Code in `/tmp/bf`. Expect the agent to state in one line that it is taking the CF-only path because squadron is unavailable, and to begin the baseline concept. It must not try a squadron step.
+3. **Overrides.**
    ```bash
    cfl config set adoption.state declined && cfl build | grep -c 'Adoption Facts'   # expect: 0
-   cd /tmp/gf && cfl config set adoption.state in_progress && cfl build | grep -c 'Adoption Facts'   # expect: 1
    cfl config set adoption.state maybe            # expect: rejected, lists the allowed values
+   cfl config set adoption.state in_progress && cfl build | grep -c 'Adoption Facts'   # expect: 1
    ```
-7. **Other phases untouched.** In `/tmp/bf`: `cfl build --phase 2` → the Phase 2 architecture prompt, no Adoption Facts.
-8. **Missing profile.** Install a guide older than v0.22.0 in a copy of `/tmp/bf` (`cfl guides` with a pinned old version, or delete the `brownfield-adoption` line from the installed prompt file), then `cfl build` → non-zero exit and the `AdoptionPromptMissingError` message naming `cf guides update` and the `declined` override.
-9. **MCP parity.** From an MCP client in `/tmp/bf`, call `context_build` and compare with `cfl build` output (expect identical prompt text); call `template_preview` on a fresh brownfield copy and confirm `adoption.state` is still unset afterward.
-10. **Monorepo.** `mkdir -p /tmp/mono/packages/app && cd /tmp/mono && git init`, put the brownfield code under `packages/other`, register `packages/app` (`cd packages/app && cfl init --name app`) → greenfield; move the code into `packages/app` and set `adoption.state ""` → brownfield.
+4. **Missing profile.** In a copy of `/tmp/bf`, delete the `brownfield-adoption` line from the installed prompt file's `context_profiles`, then `cfl build`. Expect a non-zero exit and the `AdoptionError` message naming `cf guides update` and the `declined` override. `adoption.state` is unchanged.
+5. **MCP parity.** From an MCP client in `/tmp/bf`, call `context_build` and compare it with the `cfl build` output (expect identical prompt text). Call `template_preview` on a fresh brownfield copy and confirm `adoption.state` is still unset afterward.
+
+Greenfield, scaffold-only, resume, other phases, the explicit instruction and monorepo scoping are covered by the integration fixtures (Technical Requirements), not by manual steps.
 
 ## Risk Assessment
 
@@ -387,7 +390,7 @@ Use the local build (the global `cf` is the published package): `alias cfl="node
 2. Detection facts: `sourceVolume.ts`, `presentPaths.ts`, `history.ts`, `planningArtifacts.ts`, with tests (including a shallow-clone fixture built in a temp dir).
 3. `adoptionOutcome.ts`, with tests for every outcome.
 4. `adoptionFacts.ts` renderer, with tests.
-5. `adoptionResolver.ts`, `AdoptionPromptMissingError`, `ContextIntegrator` and `ContextTemplateEngine` changes, `createContextPipeline` option and its callers (`build.ts`, `contextTools.ts` incl. `template_preview`, tests).
+5. `adoption/contracts.ts`, `adoptionResolver.ts`, `ContextIntegrator` and `ContextTemplateEngine` changes, `createContextPipeline` option and its callers (`build.ts`, `contextTools.ts` incl. `template_preview`, tests).
 6. Integration fixtures, the parity test, README line. Run the walkthrough.
 
 ### Special Considerations
