@@ -34,7 +34,7 @@ Context Forge has three hand-written copies of one onboarding recipe:
 
 Their wording has already drifted. All three also contain methodology: they open the concept conversation themselves ("Begin by asking the user to describe what they want to build"), carry a "later phase" note, and offer `/setup-ci`.
 
-This slice replaces the three copies with one cf-owned source in core that is rendered to each surface. The recipe shrinks to setup followed by a handoff to `cf build` (or `context_build`). The guide's concept prompt now opens the conversation itself (the opener shipped in v0.22.0, and the initiative's minimum is v0.22.1). The `/setup-ci` offer moves to `cf next`. CI recognition stops keying on the single filename `.github/workflows/ci.yml`.
+This slice replaces the three copies with one cf-owned source in core that is rendered to each surface. The recipe shrinks to setup followed by a handoff to `cf build` (or `context_build`). The guide's concept prompt now opens the conversation itself (the opener shipped in v0.22.0, and the initiative's minimum is v0.22.2). The `/setup-ci` offer moves to `cf next`. CI recognition stops keying on the single filename `.github/workflows/ci.yml`.
 
 ## Value
 
@@ -67,7 +67,7 @@ This slice replaces the three copies with one cf-owned source in core that is re
 
 ### Prerequisites
 - None in this repo.
-- **ai-project-guide ≥ v0.22.1,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. A new `cf init` installs the current guide, so only existing projects with an older installed guide are affected. For those, `cf build` / `context_build` warn explicitly and name `cf guides update` (D8). The regression is never silent. The README's onboarding section also states the minimum.
+- **ai-project-guide ≥ v0.22.2,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. A new `cf init` installs the current guide, so only existing projects with an older installed guide are affected. For those, `cf build` / `context_build` warn explicitly and name `cf guides update` (D8). The regression is never silent. The README's onboarding section also states the minimum.
 
 ### Interfaces Required
 - `cf build` / `context_build`, unchanged. In a fresh project they build the Phase 0 concept prompt, because `cf init` sets `developmentPhase` to `Phase 0: Concept` (`project-defaults.ts`).
@@ -219,7 +219,7 @@ Status: decided
 
 ### D8 — A minimum-guide-version warning replaces the silent greenfield regression
 Status: decided
-- `packages/core/src/guides/guideMinimum.ts` exports `MIN_GUIDE_VERSION = '0.22.1'`, the initiative's minimum and the one place it is written. It also exports `checkGuideMinimum(projectPath): Promise<string | null>`. The function reads the installed version with `GuideDetector.detectLocal`, the existing local, no-network detection path, and compares it with `isNewerVersion`.
+- `packages/core/src/guides/guideMinimum.ts` exports `MIN_GUIDE_VERSION = '0.22.2'`, the initiative's minimum and the one place it is written. It also exports `checkGuideMinimum(projectPath): Promise<string | null>`. The function reads the installed version with `GuideDetector.detectLocal`, the existing local, no-network detection path, and compares it with `isNewerVersion`.
 - Results:
   - installed version at or above the minimum → `null`
   - below the minimum → "Installed ai-project-guide is v{installed}; context-forge needs v{MIN} or newer. Run: cf guides update"
@@ -249,7 +249,7 @@ Status: decided
 
 **Behavior verification:**
 - Paths and names are unchanged, so `cf install-commands` / `cf init` install the same entries, and nothing is pruned.
-- Greenfield: `cf init` sets Phase 0. `cf build` emits the concept prompt, which with guide ≥ v0.22.1 opens by asking what the PM wants to build. The user sees the same sequence as today: setup, then the concept question.
+- Greenfield: `cf init` sets Phase 0. `cf build` emits the concept prompt, which with guide ≥ v0.22.2 opens by asking what the PM wants to build. The user sees the same sequence as today: setup, then the concept question.
 - A registered project in a later phase: the recipe goes to step 3, and `cf build` emits whatever it emits for the project's current settings (walkthrough step 4). Previously the agent was told to "suggest `cf next`". `cf next` is still named in step 3.
 - No user data or stored format changes. The new config key has a default, so existing projects need nothing.
 
@@ -266,7 +266,7 @@ function recognizeCi(projectPath: string): CiRecognition;
 const BUILD_MANIFESTS: readonly string[];
 function hasBuildManifest(projectPath: string): boolean;
 
-const MIN_GUIDE_VERSION = '0.22.1';
+const MIN_GUIDE_VERSION = '0.22.2';
 function checkGuideMinimum(projectPath: string): Promise<string | null>;  // warning text or null
 ```
 
@@ -297,7 +297,7 @@ Offer:     No CI detected for this project. The setup-ci skill can add CI and a 
 
 ### Consumes from Other Slices
 - Nothing from 261–267.
-- From the guide: the concept-prompt opener, at the declared minimum v0.22.1 (Prerequisites gives the mechanism).
+- From the guide: the concept-prompt opener, at the declared minimum v0.22.2 (Prerequisites gives the mechanism).
 
 ## Success Criteria
 
@@ -326,7 +326,7 @@ Offer:     No CI detected for this project. The setup-ci skill can add CI and a 
 - A navigator test confirms `offers` is attached on a gate-blocked result as well as a normal one.
 - A test confirms `agent_onboard` returns the `mcp-tool` rendering plus the project-name line.
 - Format, lint and typecheck pass. New files stay within the ~300-line guideline.
-- The root `README.md`'s onboarding section describes setup plus handoff and states the guide minimum (v0.22.1) with `cf guides update`. One line documents `workflow.setup_ci_offer`.
+- The root `README.md`'s onboarding section describes setup plus handoff and states the guide minimum (v0.22.2) with `cf guides update`. One line documents `workflow.setup_ci_offer`.
 
 ### Integration Requirements
 - `cf install-commands` (Claude and agents targets) installs the rendered files with no stale-entry removals.

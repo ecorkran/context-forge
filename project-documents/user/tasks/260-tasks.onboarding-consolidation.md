@@ -27,7 +27,7 @@ revision_number: 2
 
 - Slice 260 is the first slice of the 260 brownfield-adoption initiative. It replaces the three onboarding copies with one renderer in core, cuts the recipe to setup plus a `cf build` / `context_build` handoff, moves the `setup-ci` offer to `cf next` / `workflow_next`, and adds a minimum-guide-version warning (D8).
 - The design's Technical Decisions D1–D8, API Contracts, Success Criteria and Verification Walkthrough are the spec. Do not re-derive them, and do not widen scope (Excluded list: no detection report, no prompt changes, no installer changes).
-- Dependencies: none in this repo. The guide minimum is ai-project-guide v0.22.1 (concept prompt opens the conversation).
+- Dependencies: none in this repo. The guide minimum is ai-project-guide v0.22.2 (concept prompt opens the conversation).
 - Core export split: `packages/core/src/index.ts` is browser-safe (no `fs`); `packages/core/src/node.ts` holds fs-dependent exports. The renderer and the offer id/types go in `index.ts`; `detection/`, `setupCiOffer.ts` and `guideMinimum.ts` go in `node.ts`.
 - Existing patterns to copy: `isDecisionGateEnabled` in `schema/decisionGate.ts` (boolean config guard), `COMMAND_TARGETS` (typed `Record` table), `GuideDetector.detectLocal` + `isNewerVersion` in `guides/GuideDetector.ts`.
 - Missing-file rule used by every detection check (Patterns and Conventions, D6): `ENOENT` on the queried path means "not present"; every other error throws. `existsSync` hides errors, so do not use it in `detection/`. An entry that `lstat` finds but whose `stat` fails is a broken symlink and is an error, not "not present".
@@ -168,6 +168,7 @@ revision_number: 2
     1. Contains the registration check, `cf init` (or `project_create` + `guide_install` for the fallback), and the build handoff for that surface.
     2. Does not contain `describe what you want to build`, `setup-ci`, or `later phase` (case-insensitive).
   - [ ] `claude-command` output starts with `---` and includes `allowed-tools`; `agent-skill` includes `name: cf-onboard`; `mcp-tool` has no frontmatter and no generated comment.
+  - [ ] `claude-command` and `agent-skill` outputs carry the D2 generated-file comment directly after the closing frontmatter `---`.
   - [ ] Success: all pass.
 
 - [ ] **Task 9C: Commit** — `feat(core): add single-source onboarding recipe renderer`
@@ -176,7 +177,7 @@ revision_number: 2
   - [ ] Create `packages/cli/scripts/render-onboard.mjs`: imports `renderOnboardRecipe` from `@context-forge/core`, writes `commands/cf/onboard.md` (`claude-command`) and `commands/codex/cf-onboard/SKILL.md` (`agent-skill`), paths resolved from the script's own location, and prints each path written.
   - [ ] Add `"render:onboard": "node scripts/render-onboard.mjs"` to `packages/cli/package.json` scripts. Do not add it to `build`, and do not add `scripts` to `files`.
   - [ ] Run `pnpm -r build`, then `pnpm --filter @context-forge/cli render:onboard`. Review the `git diff` of both assets against D3.
-  - [ ] Success: rerunning the script leaves `git status --short packages/cli/commands` empty.
+  - [ ] Success: a second run of the script leaves `git diff packages/cli/commands` unchanged from after the first run.
 
 - [ ] **Task 10T: Drift test** (effort: 2)
   - [ ] Create `packages/cli/tests/onboardRender.test.ts`: for each CLI surface, render and compare byte-for-byte to the committed file.
@@ -201,7 +202,7 @@ revision_number: 2
 ### Guide minimum warning (Development Approach step 7)
 
 - [ ] **Task 12: Guide minimum check** (effort: 2)
-  - [ ] Create `packages/core/src/guides/guideMinimum.ts` exporting `MIN_GUIDE_VERSION = '0.22.1'` and `checkGuideMinimum(projectPath)`, per D8.
+  - [ ] Create `packages/core/src/guides/guideMinimum.ts` exporting `MIN_GUIDE_VERSION = '0.22.2'` and `checkGuideMinimum(projectPath)`, per D8.
   - [ ] Use `new GuideDetector().detectLocal(projectPath)`. Not installed → `null`. Installed with `version` `null` → the unknown-version message. Below the minimum (`isNewerVersion(installed, MIN_GUIDE_VERSION)`) → the below-minimum message. Otherwise `null`. Message texts verbatim from D8, built from the constant.
   - [ ] `LOCAL_VERSION_MARKER` (`local`, a local-archive install) is not a release version: treat it as unknown, before calling `isNewerVersion` (which reports `local` as older than anything).
   - [ ] Export from `packages/core/src/guides/index.ts` (already re-exported by `node.ts`).
@@ -229,7 +230,7 @@ revision_number: 2
 ### Docs and verification (Development Approach step 8)
 
 - [ ] **Task 15: README** (effort: 1)
-  - [ ] In the root `README.md` Get Started step 3 and the paragraph after it (around line 70): describe `/cf:onboard` as setup followed by a `cf build` handoff, state the guide minimum (ai-project-guide v0.22.1) and `cf guides update` for older installs.
+  - [ ] In the root `README.md` Get Started step 3 and the paragraph after it (around line 70): describe `/cf:onboard` as setup followed by a `cf build` handoff, state the guide minimum (ai-project-guide v0.22.2) and `cf guides update` for older installs.
   - [ ] Add one row for `workflow.setup_ci_offer` (shared) to the config key table next to `workflow.decision_gate_enabled`.
   - [ ] Success: no other README sections change.
 
