@@ -51,12 +51,14 @@ This slice replaces the three copies with one cf-owned source in core that is re
 - `agent_onboard` returns the rendered MCP text from core. Its inline `ONBOARD_GUIDE` constant is deleted.
 - The new recipe content: a registration check, then `cf init` (or the MCP `project_create`/`guide_install` fallback), then a handoff to `cf build` / `context_build`.
 - A core CI recognizer covering several providers and any GitHub workflow filename.
+- An exported core build-manifest check (`BUILD_MANIFESTS`, `hasBuildManifest`) that 261 reuses as its manifest signal.
 - A `setup-ci` offer on `cf next` and `workflow_next`, with a stable id, and a config key that suppresses it.
+- A minimum-guide-version check: one core constant and a warning from `cf build` / `context_build` when the installed guide is older than the minimum or its version is unknown (D8).
 - In the root `README.md`: one updated onboarding section (setup plus handoff, the guide minimum, `cf guides update`) and one line documenting the new config key.
 
 **Excluded:**
 - Detection of brownfield, greenfield or already-planned projects, adoption state, and profile selection (slice 261).
-- Any change to `cf build` / `context_build` output.
+- Any change to the prompt `cf build` / `context_build` assembles. D8 adds a warning beside it, never inside it.
 - Any change to the command installer's copy/prune logic. Rendered files are ordinary bundled assets.
 - Rendering other commands (`next`, `build`, ...) from a shared source. Only onboarding has three hand-written copies.
 - Changes to the guide's `setup-ci` skill.
@@ -65,7 +67,7 @@ This slice replaces the three copies with one cf-owned source in core that is re
 
 ### Prerequisites
 - None in this repo.
-- **ai-project-guide ≥ v0.22.1,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. cf has no runtime minimum-guide check, and this slice doesn't add one. The minimum is declared in the README's onboarding section, together with the update command, `cf guides update`. A new `cf init` installs the current guide, so only existing projects with an older installed guide need it. With an older guide, onboarding still reaches the concept prompt, but nobody asks the opening question until the user speaks.
+- **ai-project-guide ≥ v0.22.1,** the initiative's minimum (arch, Dependencies). Since v0.22.0 the concept prompt opens by asking the PM what they want to build. With the opener removed from onboarding, this is what keeps the greenfield conversation unchanged. A new `cf init` installs the current guide, so only existing projects with an older installed guide are affected. For those, `cf build` / `context_build` warn explicitly and name `cf guides update` (D8). The regression is never silent. The README's onboarding section also states the minimum.
 
 ### Interfaces Required
 - `cf build` / `context_build`, unchanged. In a fresh project they build the Phase 0 concept prompt, because `cf init` sets `developmentPhase` to `Phase 0: Concept` (`project-defaults.ts`).
@@ -80,7 +82,13 @@ packages/core/src/onboarding/
   onboardRecipe.ts        recipe steps + ONBOARD_SURFACES table + renderOnboardRecipe(surface)
 packages/core/src/detection/
   ciDetection.ts          recognizeCi(projectPath) → CiRecognition   (sync)
-  setupCiOffer.ts         evaluateSetupCiOffer(projectPath, config) → Promise<NextOffer | null>
+  buildManifest.ts        BUILD_MANIFESTS + hasBuildManifest(projectPath) → boolean   (sync)
+packages/core/src/introspection/
+  setupCiOffer.ts         evaluateSetupCiOffer(projectPath, config) → Promise<OfferEvaluation>
+packages/core/src/guides/
+  guideMinimum.ts         MIN_GUIDE_VERSION + checkGuideMinimum(projectPath) → Promise<string | null>
+packages/cli/src/commands/build.ts                    writes the D8 warning to stderr
+packages/mcp-server/src/tools/contextTools.ts         adds the D8 warning as a second text item
 
 packages/cli/scripts/render-onboard.mjs   writes the two CLI assets from the renderer
 packages/cli/commands/cf/onboard.md                 (rendered, committed)
@@ -90,7 +98,7 @@ packages/core/src/introspection/WorkflowNavigator.ts  getNext attaches offers
 packages/cli/src/commands/next.ts                     prints offers
 ```
 
-`detection/` is new. Slice 261 adds its detection report there and reuses `recognizeCi`.
+`detection/` is new and holds facts only. Slice 261 adds its detection report there and reuses `recognizeCi` and `hasBuildManifest`. Policy built on those facts, such as the CI offer, lives in `introspection/` beside the navigator.
 
 ### Data Flow
 
@@ -116,6 +124,7 @@ cf next / workflow_next
             ├─ recognizeCi(projectPath) ──────── recognized → no offer
             └─ release skill present ─────────── yes → no offer
           → NextAction.offers = [{ id: 'setup-ci', ... }]
+          → I/O error in any check → NextAction.warnings += path + error, no offer
 ```
 
 ### State Management
@@ -178,7 +187,7 @@ Status: decided
 
 ### D5 — "A stack is detected" means any build manifest exists
 Status: decided
-- The slice plan gates the offer on a detected stack. cf reads that as "the project has a build manifest", not "the project uses a language the guide supports". A private `hasBuildManifest(projectPath)` in `setupCiOffer.ts` checks one constant, `BUILD_MANIFESTS`: `package.json`, `pyproject.toml`, `setup.py`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`. The check is scoped to `projectPath`, because the manifest belongs to the project folder.
+- The slice plan gates the offer on a detected stack. cf reads that as "the project has a build manifest", not "the project uses a language the guide supports". An exported `hasBuildManifest(projectPath)` in `detection/buildManifest.ts` checks one exported constant, `BUILD_MANIFESTS`. It is core's single "has a build manifest" fact, owned by `detection/`. Slice 261 reuses it rather than defining its own, as it does `recognizeCi`. The manifests: `package.json`, `pyproject.toml`, `setup.py`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`. The check is scoped to `projectPath`, because the manifest belongs to the project folder.
 - This is cf's own definition of "has code", not a copy of the guide's list of supported languages. Whether the `setup-ci` skill has a baseline for the stack is still the skill's decision: for a stack it doesn't support, it says so and stops. The user can then stop the offer with the decline key (D7). When the guide adds a baseline, cf needs no change.
 - The offer message names no stack, so a project with several manifests needs no special case.
 - Rejected: mirroring the skill's python/typescript table. That copies guide content into cf, with nothing to catch drift.
@@ -187,11 +196,11 @@ Status: decided
 ### D6 — The offer is an additive `offers` field on NextAction with a stable id
 Status: decided
 - `NextAction` gains `offers?: NextOffer[]`, where `NextOffer` is `{ id: string; message: string }`. The only id is the constant `SETUP_CI_OFFER_ID = 'setup-ci'`. Consumers key on `id`, never on `message`. This follows the rule already applied to `pendingDecisions`.
-- `WorkflowNavigator.getNext` becomes a thin wrapper. Today's body moves unchanged into a private `computeNext`. `getNext` calls it, then `evaluateSetupCiOffer`, and sets `offers` when the result has an offer. Every return path, including gates and blocks, gets the offer, and no early return is touched. The offer logic itself lives in `detection/setupCiOffer.ts`, because `WorkflowNavigator.ts` is already over 1000 lines.
-- Sync/async shape: `getNext` is already `async getNext(project): Promise<NextAction>`, so its signature and its callers (`next.ts`, `workflow_next`) don't change. `evaluateSetupCiOffer(projectPath, config): Promise<NextOffer | null>` is async only because `ConfigManager.get` is. The filesystem checks inside it (`recognizeCi`, `hasBuildManifest`, the release-skill check) are synchronous.
+- `WorkflowNavigator.getNext` becomes a thin wrapper. Today's body moves unchanged into a private `computeNext`. `getNext` calls it, then `evaluateSetupCiOffer`, and sets `offers` when the result has an offer. Every return path, including gates and blocks, gets the offer, and no early return is touched. The offer logic itself lives in `introspection/setupCiOffer.ts`, beside the navigator but outside it, because `WorkflowNavigator.ts` is already over 1000 lines.
+- Sync/async shape: `getNext` is already `async getNext(project): Promise<NextAction>`, so its signature and its callers (`next.ts`, `workflow_next`) don't change. `evaluateSetupCiOffer(projectPath, config): Promise<OfferEvaluation>`, where `OfferEvaluation` is `{ offer: NextOffer | null; warning: string | null }`, is async only because `ConfigManager.get` is. The filesystem checks inside it (`recognizeCi`, `hasBuildManifest`, the release-skill check) are synchronous.
 - The offer is evaluated only when the navigator has a `ConfigManager` (both `cf next` and `workflow_next` pass one) and `project.projectPath` is set. Without either, the suppression key or the project files can't be read. The constructor parameter is already optional, so existing navigator tests that construct it without config compile unchanged and see no `offers`.
 - Conditions, all required: `workflow.setup_ci_offer` is `true`; `hasBuildManifest` is true; `recognizeCi` is not recognized; and no release skill exists at `.claude/skills/release/SKILL.md` or `.agents/skills/release/SKILL.md` under `projectPath`. The release-skill condition keeps today's rule that the offer is made only when neither exists.
-- Failures: one rule. A missing file means "not present". Any other error propagates, as it does for the files `cf next` already reads. There is no separate failure channel for the offer.
+- Failures: the offer is advisory, so its errors never fail `cf next` or `workflow_next`. A missing file means "not present". Any other filesystem error from the offer's checks is caught by `evaluateSetupCiOffer` and returned as a warning: the ancestor `.git` walk, the repository-root CI scan, the manifest check and the release-skill check. Examples are permission denied on an ancestor, `ENOTDIR` when `.github/workflows` is a file, a broken symlink, or an unreadable `.git` entry. The warning names the path and the error, and no offer is made. `evaluateSetupCiOffer` returns `{ offer: NextOffer | null; warning: string | null }`, and `getNext` appends a non-null warning to `NextAction.warnings`. It's explicit, never silent, and never displaces the recommendation. A non-boolean config value (D7) is still an error, because it's a configuration problem, not an I/O one.
 - `message`: "No CI detected for this project. The setup-ci skill can add CI and a release skill. Not wanted? Run: cf config set workflow.setup_ci_offer false"
 - CLI rendering in `next.ts`: after the `Run:` line, `Offer:     {message}`. JSON output carries the field as is.
 - `workflow_next`'s description adds `offers?` to its response shape.
@@ -205,6 +214,19 @@ Status: decided
 - The navigator reads it with the same type guard as `isDecisionGateEnabled`. A non-boolean value is an error, never treated as `true`. `cf config set` already rejects one, so the guard only matters for hand-edited config, and it gets no test of its own.
 - Rejected: offering on every run with no way to stop it. `cf next` runs constantly, and the old recipe's "offer once; if declined, don't ask again" would be lost.
 - Rejected: leaving "once" to the agent. Agents don't keep memory across sessions.
+
+### D8 — A minimum-guide-version warning replaces the silent greenfield regression
+Status: decided
+- `packages/core/src/guides/guideMinimum.ts` exports `MIN_GUIDE_VERSION = '0.22.1'`, the initiative's minimum and the one place it is written. It also exports `checkGuideMinimum(projectPath): Promise<string | null>`. The function reads the installed version with `GuideDetector.detectLocal`, the existing local, no-network detection path, and compares it with `isNewerVersion`.
+- Results:
+  - installed version at or above the minimum → `null`
+  - below the minimum → "Installed ai-project-guide is v{installed}; context-forge needs v{MIN} or newer. Run: cf guides update"
+  - version unknown (`null` from detection) → "Installed ai-project-guide version is unknown; context-forge needs v{MIN} or newer. Run: cf guides update"
+  - no guide installed: no warning from this check. The build's existing missing-guide error already covers it.
+- Delivery, beside the prompt and never inside it. `cf build` writes `Warning: {message}` to stderr, the same channel as its existing warnings, so stdout stays clean for piping. `context_build` returns the warning as a second text content item after the prompt. The build still succeeds: an old guide degrades the conversation but doesn't break it.
+- It runs on every build, in every phase, because the minimum covers the whole initiative, not just Phase 0. Slice 261 reuses `MIN_GUIDE_VERSION` and raises it if its own guide needs change.
+- Why not the reviewer's suggested fallback line in the recipe ("if the prompt doesn't open, ask what they want to build")? That puts a methodology instruction back into onboarding, which the arch's setup-plus-handoff decision removes. It would also only cover onboarding runs, not every `cf build`.
+- Rejected: failing the build. The opener is a conversation nicety, not correctness. A hard stop on every phase would be out of proportion.
 
 ### Patterns and Conventions
 - Comparison values are defined once: `OnboardSurface`, `CI_SIGNATURES`, `BUILD_MANIFESTS`, the `'setup-ci'` offer id and the config key name are each constants, referenced everywhere.
@@ -237,6 +259,12 @@ function renderOnboardRecipe(surface: OnboardSurface): string;
 
 interface CiRecognition { recognized: boolean; matches: string[] }  // absolute paths
 function recognizeCi(projectPath: string): CiRecognition;
+
+const BUILD_MANIFESTS: readonly string[];
+function hasBuildManifest(projectPath: string): boolean;
+
+const MIN_GUIDE_VERSION = '0.22.1';
+function checkGuideMinimum(projectPath: string): Promise<string | null>;  // warning text or null
 ```
 
 **`NextAction` addition** (`introspection/types.ts`):
@@ -259,7 +287,9 @@ Offer:     No CI detected for this project. The setup-ci skill can add CI and a 
 ### Provides to Other Slices
 - **261:** `recognizeCi` and `CI_SIGNATURES` for the detection report's CI fact, and the `detection/` module as the home for the rest of the report.
   - `recognizeCi` owns the repository-root exception to project-folder scoping (D4). 261 consumes it and doesn't re-implement CI detection. The exception is also recorded in the arch's detection section.
-  - 261 owns "has code". When its report lands, it takes over `BUILD_MANIFESTS` as its manifest signal, or replaces it with its own. The offer then reads the report, and the private `hasBuildManifest` in `setupCiOffer.ts` is deleted. Only one definition remains in core. The onboarding recipe needs no changes for 261, because profile selection happens inside `cf build`.
+  - `hasBuildManifest` / `BUILD_MANIFESTS` are core's one manifest fact, owned by `detection/`. 261's report uses them as its manifest signal and adds its other code signals around them, rather than defining a second manifest check. If 261 extends the list, it edits that one constant, and the offer picks the change up automatically.
+  - `MIN_GUIDE_VERSION` is the initiative's single minimum; 261 raises it if its guide needs change.
+  - The onboarding recipe needs no changes for 261, because profile selection happens inside `cf build`.
 - **265:** the documented onboarding flow and config key, which the end-to-end runs and docs build on.
 
 ### Consumes from Other Slices
@@ -285,7 +315,11 @@ Offer:     No CI detected for this project. The setup-ci skill can add CI and a 
   - `projectPath` equal to the repository root, checked once
   - a `.git` file (worktree) as the repository marker
   - no repository
-- Unit tests for `evaluateSetupCiOffer`: each condition on and off, and each `BUILD_MANIFESTS` entry.
+- Unit tests for `hasBuildManifest`: each `BUILD_MANIFESTS` entry, and none.
+- Unit tests for `evaluateSetupCiOffer`: each condition on and off. Each I/O failure class returns a warning naming the path, with no offer and no throw: an unreadable ancestor, `.github/workflows` as a file (`ENOTDIR`), a broken symlink, and an unreadable `.git` entry.
+- A navigator test confirms that an offer I/O error reaches `NextAction.warnings` while the recommendation is unchanged.
+- Unit tests for `checkGuideMinimum`: at the minimum, above it, below it, unknown version, and no guide.
+- A `cf build` test confirms the warning goes to stderr and stdout is the unchanged prompt. A `context_build` test confirms the warning is a second content item.
 - A navigator test confirms `offers` is attached on a gate-blocked result as well as a normal one.
 - A test confirms `agent_onboard` returns the `mcp-tool` rendering plus the project-name line.
 - Format, lint and typecheck pass. New files stay within the ~300-line guideline.
@@ -338,16 +372,25 @@ All commands use the local build (`node packages/cli/dist/index.js`, written `cf
 ## Implementation Notes
 
 ### Development Approach
-1. `detection/ciDetection.ts`, with tests.
-2. Config key and `setupCiOffer.ts`, with tests.
+1. `detection/ciDetection.ts` and `detection/buildManifest.ts`, with tests.
+2. The config key and `introspection/setupCiOffer.ts`, including I/O-error warnings, with tests.
 3. The `NextAction.offers` type, the `getNext` → `computeNext` wrapper, `next.ts` rendering, and the `workflow_next` description, with the navigator test.
 4. `onboarding/onboardRecipe.ts` with the three profiles. Render and review each output against D3.
 5. The render script, the committed rendered files and the drift test.
 6. Switch `agentOnboardTool.ts` to the renderer, with its test.
-7. README updates.
+7. `guides/guideMinimum.ts` and the warning in `cf build` / `context_build`, with tests.
+8. README updates.
 
-Each step leaves the build green. Steps 1–3 and 4–6 are independent.
+Each step leaves the build green. Steps 1–3, 4–6 and 7 are independent.
 
 ### Special Considerations
 - The rendered recipes are prompts. Keep the wording close to the current recipes wherever a step survives, and don't put an example value next to an instruction to read one (for example, the project name).
 - Run `cf install-commands` after rendering to confirm that the installed `/cf:onboard` is the new text. The installer overwrites existing files.
+
+## Review Resolution
+
+Slice review `260-review.slice.onboarding-consolidation.md` (round 2, CONCERNS) was resolved in this revision:
+- **F001**: offer I/O errors become `NextAction.warnings` entries and never fail `cf next` / `workflow_next` (D6, tests).
+- **F002**: `hasBuildManifest` / `BUILD_MANIFESTS` are exported from `detection/buildManifest.ts` as core's one manifest fact, reused by 261 (D5, Integration Points).
+- **F003**: a minimum-guide-version warning from `cf build` / `context_build` replaces the silent regression (D8). This deliberately differs from the reviewer's suggested recipe fallback line, for the reasons given in D8.
+- **F004**: `setupCiOffer.ts` moved to `introspection/`, so `detection/` holds facts only.
