@@ -14,50 +14,56 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: 5f5589b7e3ad2ef0cc3c757df1e021019aaa0c93
+reviewedSha: 68134c88b145a834b9867e66edaaedec8d68d395
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 6
-turns: 7
-promptTokens: 261239
-cachedTokens: 168566
-cacheWriteTokens: 92665
-completionTokens: 8521
-durationSeconds: 67.8
-costUsd: 0.473474
+toolCallsMade: 3
+turns: 4
+promptTokens: 175402
+cachedTokens: 89230
+cacheWriteTokens: 86166
+completionTokens: 3339
+durationSeconds: 30.1
+costUsd: 0.38772
 costBasis: provider
 runId: run-20261020-slices-plan-a67cc35b
 squadronVersion: 0.23.5
 findings:
   - id: F001
     severity: concern
-    category: design-correctness
-    summary: "`plan-new-work` ignores the current phase and can repeat indefinitely"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md:191"
+    category: proportionality
+    summary: "Design is heavier than the slice requires"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Technical Scope"
   - id: F002
     severity: concern
-    category: scope
-    summary: "Scope statement understates the changes to the 261/263 `adoption/` code"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md:53"
+    category: architectural-alignment
+    summary: "Departure from the architecture's detection principle weakens the stated unset-repo behavior"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#D2 — `cf next` doesn't run brownfield detection"
   - id: F003
-    severity: note
-    category: dependency-direction
-    summary: "Reverse dependency between `introspection/` and `adoption/` is guarded only by a prose rule"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md:337"
+    severity: concern
+    category: error-handling
+    summary: "Failure modes of the new read paths are not enumerated"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Patterns and Conventions"
   - id: F004
-    severity: note
-    category: architecture-alignment
-    summary: "D2 departs from the architecture's listing of `cf next` as a detection consumer"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md:142"
+    severity: concern
+    category: dependencies
+    summary: "Heavy dependence on unbuilt 261/263 interfaces with a \"adapt to code as built\" escape hatch"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Interfaces Required"
   - id: F005
-    severity: pass
-    category: architecture-alignment
-    summary: "Navigation behavior matches the architecture and the slice plan entry"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Overview"
+    severity: note
+    category: layering
+    summary: "Module placement and dependency direction"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Component Structure"
   - id: F006
     severity: pass
-    category: error-handling
-    summary: "Layering, read-only discipline and failure handling are explicit"
-    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Patterns and Conventions"
+    category: architectural-alignment
+    summary: "Alignment with the architecture's navigation and responsibility split"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Technical Decisions"
+  - id: F007
+    severity: pass
+    category: scope
+    summary: "Scope matches the slice plan entry and NFRs"
+    location: "project-documents/user/slices/264-slice.brownfield-aware-cf-next.md#Success Criteria"
 ---
 
 # Review: slice — slice 264
@@ -67,62 +73,61 @@ findings:
 
 ## Findings
 
-### [CONCERN] `plan-new-work` ignores the current phase and can repeat indefinitely
+### [CONCERN] Design is heavier than the slice requires
 
-D6 row 3 is chosen from the registered plan's contents alone. Its command is `cf set phase 'Phase 3: Slice Planning'`, followed by `cf build`. Unlike D4, it never checks `isConceptInstruction` or the current instruction.
+The slice plan entry asks for three outcomes: an in-progress step, a post-adoption pointer at new work, and unchanged navigation for greenfield and planned projects. The design delivers those, and also adds the following.
+- **Structured `adoptionStep` field.** The field has a seven-value `ADOPTION_NAV_STEP` enum, which is public API surface on `NextAction` and on the MCP output. Nothing in this slice or in the architecture consumes it. 265 is the only named consumer, and it could assert on `suggestedCommand` and recommendation text. The guide consumer is explicitly "no change required". The CLAUDE.md rule about not keying on labels doesn't force a new public field when no consumer exists yet. The field could be deferred, or limited to the steps that need it.
+- **Three-way refactor of 261/263 code.** The slice changes `findPlanningArtifacts` to return a different type and updates its callers in 261 and 263. It also splits `completeAdoptionIfPlanRecorded` and extracts `isConceptInstruction`. The `isConceptInstruction` and `findExistingStatePlan` extractions are justified by DRY. The return-type change exists only so the navigator can find an `architecture` entry, and a narrower helper would do.
+- **Extra mechanisms.**
+  - The `plan-missing`, `register-plan`, and two-variant `plan-new-work` steps.
+  - A `SLICE_PLANNING_PHASE` export.
+  - A `gateBlockAction` helper extraction.
+  - An import-boundary test that scans source files.
 
-After the user follows the advice and moves to Phase 3, they are still in state `complete` and the plan still has no open entry. The next `cf next` therefore returns `plan-new-work` again and tells them to set the phase they are already in. This continues until they add a new entry. The Success Criteria and walkthrough step 6 test only the first call, so the loop would not be caught.
+Name what to cut or defer: `adoptionStep` and its enum (or most of its values); the `findPlanningArtifacts` retyping, replaced by a single `findArchitectureArtifact` helper; and the import-boundary test, replaced by a code-review note. Each is separable.
 
-Make the step phase-aware. Once the instruction is already at slice planning, recommend `cf build` only, with no phase change. Add a fixture for that case. Because the step carries the same `adoptionStep` value in both situations, the `adoptionStep` consumers (265) can't tell them apart unless the phase-aware variant is distinguished by command or by a second step value.
+### [CONCERN] Departure from the architecture's detection principle weakens the stated unset-repo behavior
 
-### [CONCERN] Scope statement understates the changes to the 261/263 `adoption/` code
+The architecture's principle is "One detection, many consumers", and it lists `cf next` as a consumer. D2 records the departure honestly. Its justification is that detection can throw and that onboarding hands off to `cf build`. The consequence is that on an unset brownfield repo, `cf next` gives today's navigation, which the slice's own Overview calls the wrong recommendation ("Advance to Phase 1" on Phase 0 with a concept). The arch's own "Navigation" section says only that `cf next` reads the adoption state, so reading only `adoption.state` is arguably consistent. The D2 text claims the unset case "recommends `cf build`, which is correct". That holds only for Phase 0 without a concept. With a concept present and state `""`, today's flow says "Advance to Phase 1", which is the exact derailment this slice exists to prevent.
 
-Technical Scope promises "two small changes ... both extractions with no behavior change". Interfaces Required (lines 69–73) and Development Approach step 1 (line 329) list three:
-- `isConceptInstruction`
-- kinded `findPlanningArtifacts`
-- splitting `findExistingStatePlan` out of `completeAdoptionIfPlanRecorded`
+The slice should do one of two things. It could state which unset-state fixtures still produce a recommendation other than `cf build`, and say that this is accepted. Or it could handle the concept-present, state-`""` Phase 0 case with `cf build`. Both options need to be weighed against D2's rejection of a detection resolver.
 
-The kinded return type is not a pure extraction. It changes a 261 return type from `string[]` to typed entries and requires "updating its callers". That touches the build resolver and 263's completion code.
+### [CONCERN] Failure modes of the new read paths are not enumerated
 
-This slice therefore edits two unbuilt slices' interfaces in addition to the navigator work. The cost is out of line with the plan's Low risk and 2/5 effort. Two options:
-- Correct the scope statement to name all three changes and the caller updates.
-- Ask 261 and 263 to ship these shapes in their own designs, which would shrink this slice to the navigator work.
+The only failure handling is the sentence "Errors from `readAdoptionState`, `findPlanningArtifacts` and `findExistingStatePlan` propagate, so `cf next` fails explicitly." The slice adds new I/O to a query command that today fails rarely, and it leaves these cases open.
+- **Malformed `adoption.state` value.** It isn't stated whether `readAdoptionState` throws or normalizes the value.
+- **Registered slice plan fails to parse.** `findExistingStatePlan` and `findFirstNotCompleteEntry` read the plan. A plan parse error would take down `cf next`, and with it the only path toward the user's next step. Propagation is defensible, but the doc should say the error surfaces with the file name, and should say what the user does next.
+- **`workflow_next` over MCP.** It isn't stated whether a thrown error maps to the same failure shape as `cf next`. The parity criterion covers only successful fixtures.
+- **Concurrent edits between reads.** Between the state read, the artifact scan and the plan read, a file can change (a build running in another terminal). The result is stale but harmless. It's worth a one-line note, since D3 depends on `cf next` never writing.
 
-The second is cleaner. It removes the "if 261/263 deviate, this slice adapts" hedge in Prerequisites, which is a hidden dependency on code that doesn't exist yet.
+Add a short failure-mode table covering these cases, or point to the 261/263 behavior it inherits.
 
-### [NOTE] Reverse dependency between `introspection/` and `adoption/` is guarded only by a prose rule
+### [CONCERN] Heavy dependence on unbuilt 261/263 interfaces with a "adapt to code as built" escape hatch
 
-263 already makes `adoption/` import from `introspection/parsers/`. This slice adds `introspection/` importing from `adoption/index.ts`, so the two directories now depend on each other. The slice correctly notes there is no file-level cycle today. The guard is a sentence ("must import only from `adoption/index.ts` and never the other way round"), and the barrel also exports the build resolver and source walk. If any `adoption/` file later imports from the navigator or a sibling in `introspection/`, a real cycle appears.
+Three required interfaces (`isConceptInstruction`, kinded `findPlanningArtifacts`, `findExistingStatePlan`) don't exist in the designs of 261 and 263. The doc says to extract or retype them if they're missing, and that "this slice adapts to the code as built". The slice plan lists 264 as consuming the adoption state and the retroactive marker, not as reshaping the adoption module's API. Modifying another slice's exported types and the callers in the same change is a hidden cross-slice dependency. Recommend feeding these three interface requirements back into the 261 and 263 designs as additions, so 264 only consumes them. If that isn't possible before 264 is implemented, narrow 264's own change to additive helpers, so no 261/263 callers change.
 
-The slice already requires lint and typecheck to pass. Consider a mechanical import-boundary check, if the repo has an existing mechanism for it. Otherwise a short test is enough.
+### [NOTE] Module placement and dependency direction
 
-### [NOTE] D2 departs from the architecture's listing of `cf next` as a detection consumer
+Introspection now imports from `adoption/`, and `adoption/` already imports `introspection/parsers/`. The doc correctly observes that these are different files, so there's no cycle, and the import-boundary rule is explicit. The direction is acceptable: the navigator consumes adoption facts, and adoption consumes only the parsers. A new module keeps the 1049-line `WorkflowNavigator.ts` from growing, which matches the existing `setupCiOffer.ts` pattern.
 
-The architecture's "One detection, many consumers" principle lists `cf next` among the surfaces that consume detection. D2 has `cf next` read only the persisted state and never run detection. This satisfies the principle's intent, since there is no second heuristic and detection stays owned by core and the build. It also matches 261 D7 and the architecture's rule that onboarding hands off to `cf build`.
+### [PASS] Alignment with the architecture's navigation and responsibility split
 
-The residual gap is stated honestly: an unset brownfield repo that runs `cf next` first gets today's navigation, which points at `cf build`. This is acceptable. It is recorded so the departure is explicit, and so 265's real-repo runs include a "`cf next` before the first `cf build`" case.
+The design matches the arch's "Navigation" section and responsibility row (g).
+- **`cf next` is read-only.** D3 leaves the `in_progress` to `complete` transition to the build, so state has a single writer.
+- **Retroactive entries aren't treated as reviewed.** The design reuses 263's behavior in which retroactive entries count as complete in `findFirstNotCompleteEntry`.
+- **Derived architecture is gated.** D4 runs the `preSlicePlan` gate on it, so adoption can't skip the review gate.
+- **Existing-flow fall-through is reused.** D1 and D6 use the existing "pick your first slice" path and add no new selection logic.
+- **Boundaries held.** It doesn't touch the guide prompt or add hard-coded guide wording, and the slice gives a concrete performance statement for unaffected projects (one config read).
 
-### [PASS] Navigation behavior matches the architecture and the slice plan entry
+### [PASS] Scope matches the slice plan entry and NFRs
 
-The three behaviors the architecture's Navigation section and the slice plan entry require are all designed:
-- **In progress:** points at the next adoption step.
-- **Complete:** points at the first new work item rather than Phase 0.
-- **Unset or `declined`:** today's behavior, so planned and greenfield projects are unchanged.
-
-`declined` is treated as a fresh project, as 261 requires. The `isConceptInstruction` check keeps the instruction at Phase 0 during adoption, as 261 D4 requires. The phase move that 263 left to this slice is delivered through the `adopted` fall-through and `plan-new-work`, subject to the first finding.
-
-### [PASS] Layering, read-only discipline and failure handling are explicit
-
-- **Layering:** adoption logic gets its own module, split into a pure decision function and an I/O gatherer. `cf next` stays read-only (D3), which avoids a second writer of `adoption.state`. The decision is a discriminated union switched exhaustively. The `adoptionStep` values are defined once as a constant, in line with the project's rule against label-based logic.
-- **Failures:** the only I/O is local filesystem and config reads, so there are no hang or timeout paths. Read errors propagate rather than being turned into warnings. A hand-set `complete` with no plan gets an explicit `plan-missing` result instead of a silent fallback.
-- **Parity:** `cf next` and `workflow_next` share `getNext`, and a parity test is required.
-- **NFRs:** the parent architecture states no latency NFR for `cf next`. The one added config read on the no-active-slice path is noted in Special Considerations.
+All three plan outcomes are covered: in-progress, complete, and greenfield. "Navigation for already-planned projects is unchanged" is also covered, including the same-output check against this repo. The `workflow_next` parity requirement from the plan appears as a testable criterion. The parent architecture states no latency or throughput NFR for this path, so none needs restating. The walkthrough exercises each decision end to end.
 
 ### Run Digest
 
-- Response length: 6561 chars
+- Response length: 8043 chars
 - Response is newline-free: no
-- Tool calls made: 6
+- Tool calls made: 3
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -130,13 +135,13 @@ The three behaviors the architecture's Navigation section and the slice plan ent
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 7
-- Tokens — prompt / cached / cache write / completion / reasoning: 261239 / 168566 / 92665 / 8521 / not computed
-- Duration: 67.8 s
-- Cost: $0.47 (provider)
+- Turns: 4
+- Tokens — prompt / cached / cache write / completion / reasoning: 175402 / 89230 / 86166 / 3339 / not computed
+- Duration: 30.1 s
+- Cost: $0.39 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 6
+- Finding-shaped matches — whole response: 7
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 6
-- Finding-shaped matches — surviving validation: 6
+- Finding-shaped matches — in findings section: 7
+- Finding-shaped matches — surviving validation: 7
