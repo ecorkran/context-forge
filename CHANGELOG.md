@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Choose how readily AI work waits on you.** A new shared setting, `workflow.permissiveness` (`cautious` | `standard` | `autonomous`, default `standard`), makes `cf build` and the MCP `context_build` tool add the guide's matching wording (`project-guides/rules/permissiveness/<level>.md`, guide v0.21.9 or later) right after the instruction prompt in Phases 4–6. `autonomous` tells the AI not to invent confirmation steps and to use a `BLOCKED:` line for real stops; `cautious` waits readily. `standard` changes nothing. A change applies at the next build, with no `cf setup-ide` step. If the configured level's file is missing or empty the build fails and names the path; run `cf guides update` (#122)
+
 ## [0.19.15] - 20261018
 
 ### Fixed

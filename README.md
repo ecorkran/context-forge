@@ -384,12 +384,25 @@ Three interfaces — use whichever fits your workflow:
 | `git.integration_branch` | personal | Long-lived branch that work branches fork from and merge into instead of `main` (e.g. `dev/erik`). Changes git topology, not just names. |
 | `workflow.review_enabled` | shared | Turn on review gating (off by default). |
 | `workflow.decision_gate_enabled` | shared | Block design validation and `cf next` on pending PM decisions (on by default). |
+| `workflow.permissiveness` | shared | How readily AI work waits on the PM: `cautious`, `standard` (default) or `autonomous`. Applied by `cf build` in Phases 4–6. |
 | `workflow.review_threshold` | shared | Verdict floor that clears a gate (`pass` \| `concerns`). |
 | `workflow.review_gate_effective_date` | shared | Grandfather work designed before `YYYYMMDD` past the gate. |
 | `workflow.auto_advance` | shared | Auto-advance to the next slice when the current one completes. |
 | `guide.auto_update` | shared | Auto-update the AI project guide. |
 
 Full key reference and precedence rules: [Review Gating](docs/REVIEW-GATING.md) and `cf config --help`.
+
+##### Permissiveness
+
+`workflow.permissiveness` sets how readily AI work waits on the Project Manager:
+
+- `cautious` — wait readily, including at phase boundaries.
+- `standard` (default) — the guide's baseline behavior. Adds nothing.
+- `autonomous` — don't wait; LLM spend, pipeline runs and live tests are pre-authorized. Real stops use a `BLOCKED:` line.
+
+`cf build` and the MCP `context_build` tool add the level's wording right after the instruction prompt, in Phases 4, 5 and 6 only. A change applies at the next build; there is nothing to reinstall and no `cf setup-ide` step. Sessions that don't go through `cf build` (or `/cf:build`) don't get the setting.
+
+The wording comes from the installed AI project guide, one file per level at `project-guides/rules/permissiveness/<level>.md` (guide v0.21.9 or later). If the file for the configured level is missing or empty, the build fails and names the path; `cf guides update` fixes it. cf does not read or enforce `BLOCKED:` lines; they are a convention for the AI and the PM.
 
 ### Slash Commands & Agent Skills
 
