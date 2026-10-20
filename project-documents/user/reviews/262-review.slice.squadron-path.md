@@ -14,61 +14,56 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: 7301d784f17bc2cf5a7cf3baa65dc2141dd9b78f
-revision_number: 1
+reviewedSha: 84fe9ef96a4ac0447831857a7ff212a3320985c5
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 2
-turns: 3
-promptTokens: 95608
-cachedTokens: 11266
-cacheWriteTokens: 84338
-completionTokens: 3624
-durationSeconds: 30.8
-costUsd: 0.375457
+toolCallsMade: 5
+turns: 6
+promptTokens: 256224
+cachedTokens: 168484
+cacheWriteTokens: 87732
+completionTokens: 4502
+durationSeconds: 36.8
+costUsd: 0.413543
 costBasis: provider
 runId: run-20261020-slices-plan-a67cc35b
 squadronVersion: 0.23.5
 findings:
   - id: F001
-    severity: pass
-    category: architecture-alignment
-    summary: "Facts-in-core boundary and probe handling match the architecture"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#Technical Decisions"
+    severity: concern
+    category: under-specification
+    summary: "`runSquadronProbe` test approach is under-specified and contradicts D9"
+    location: "project-documents/user/slices/262-slice.squadron-path.md:280"
   - id: F002
     severity: pass
-    category: architecture-alignment
-    summary: "`fileComprehension` follows the guide prompt contract"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#D5"
+    category: architectural-alignment
+    summary: "Probe handling matches the architecture's facts-versus-judgement split"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#D2 — Classification and the version check"
   - id: F003
     severity: pass
     category: error-handling
-    summary: "Failure modes for the new process-spawn path are enumerated"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#D1"
+    summary: "Failure modes for the new process I/O path are enumerated"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#D1 — Running the probe"
   - id: F004
-    severity: concern
-    category: proportionality
-    summary: "Failure taxonomy is heavier than the single behavior it feeds"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#D1"
+    severity: pass
+    category: integration
+    summary: "Contract field-name test matches the architecture's cross-repo requirement"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#D8 — Contract test against a vendored contract example"
   - id: F005
-    severity: concern
-    category: proportionality
-    summary: "Sections restate other documents or cover cases cf does not act on"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#Dependencies"
+    severity: pass
+    category: architectural-alignment
+    summary: "`fileComprehension` resolution matches the guide-prompt contract"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#D5 — Resolving `fileComprehension`"
   - id: F006
     severity: note
-    category: error-handling
-    summary: "Timeout may not bound a hang caused by orphaned grandchildren"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#D1"
+    category: proportionality
+    summary: "Proportionality is acceptable"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#Implementation Notes"
   - id: F007
     severity: note
-    category: dependencies
-    summary: "Prerequisite ordering deviates from the architecture's dependency statement, with adequate mitigation"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#Prerequisites"
-  - id: F008
-    severity: note
-    category: architecture-alignment
-    summary: "Parity with the architecture on monorepo scoping is accepted but weakens one stated principle"
-    location: "project-documents/user/slices/262-slice.squadron-path.md#Interfaces Required"
+    category: risk
+    summary: "MCP PATH risk is acknowledged with a deferred mitigation"
+    location: "project-documents/user/slices/262-slice.squadron-path.md#Risk Assessment"
 ---
 
 # Review: slice — slice 262
@@ -78,43 +73,57 @@ findings:
 
 ## Findings
 
-### [PASS] Facts-in-core boundary and probe handling match the architecture
+### [CONCERN] `runSquadronProbe` test approach is under-specified and contradicts D9
 
-cf reads only `probe_version` (D2), passes the probe JSON through verbatim (D6), and never interprets `surfaces`, `graph`, or null fields. The architecture's "Facts in core, judgement in the prompt" and "Use squadron by capability" principles require this. Neither the surface nor the graph staleness is decided in cf, as the guide-prompt contract in the architecture specifies. An unknown version or unreadable output becomes a stated "Squadron: unavailable" with a reason, never a silent skip or a build failure (D4). That satisfies the architecture's Squadron contract stability item.
+Technical Requirements say `runSquadronProbe` is tested "against a small fake executable for not-found, exit codes, stderr capture and a timeout." Two things in the design make that impossible as written.
+- **Injection:** D1 fixes the command as the constant `SQUADRON_PROBE_COMMAND = { file: 'sq', … }`, and `runSquadronProbe(checkoutPath)` takes no command argument. The test can therefore only reach a fake by putting it on `PATH`. D9 (lines 209–213) rejects exactly that: "putting a fake `sq` on `PATH` in tests. It mutates process environment across a test file and differs by OS."
+- **Timeout:** the 10 s limit is a module constant with no override. A timeout test either waits 10 s or has to inject a smaller limit, and the design names no such parameter.
 
-### [PASS] `fileComprehension` follows the guide prompt contract
+Fix by giving the wrapper an internal seam, such as an optional command/limits argument or a `runProbeProcess(command, cwd, limits)` core that `runSquadronProbe` calls with the constants. State in D1 that the fake-executable tests use this seam, and say how the fake script is made portable. Otherwise cut the spawn-level tests to the pure `classifyProbeRun` cases and rely on 265's real-repo runs for the process wrapper. The architecture needs only the contract test and the stated-unavailable behavior, not spawn tests.
 
-The variable is resolved by filename and `docType`, gated on the guide profile listing it, and left undefined with no placeholder when nothing matches. It is derived on each build and never stored. This matches the architecture's statement that `fileComprehension` is optional and that cf "passes nothing (never a placeholder)". It also keeps the guide as the owner of profile content.
+### [PASS] Probe handling matches the architecture's facts-versus-judgement split
 
-### [PASS] Failure modes for the new process-spawn path are enumerated
+cf reads only `probe_version`. It carries the JSON verbatim and does not interpret `surfaces`, `graph` or `baseline`. This follows the principles "Facts in core, judgement in the prompt" and "Use squadron by capability, never by assumption." cf never touches squadron install paths. The "squadron unavailable" statement with a stated reason covers a missing `sq`, an unknown version and unreadable output, and the build never fails or silently skips. The design also keeps the guide prompt's "Do not run the probe yourself" rule satisfiable.
 
-Not-found, timeout (10 s), buffer overflow, external signal kill, spawn errors, non-zero exit, non-JSON or non-object output, and unsupported version each have a classification and a rendered reason. The timeout and buffer limits are single constants.
+### [PASS] Failure modes for the new process I/O path are enumerated
 
-### [CONCERN] Failure taxonomy is heavier than the single behavior it feeds
+D1 and D2 map each failure to an explicit outcome:
+- ENOENT
+- timeout
+- output over `maxBuffer`
+- signal kill
+- EACCES
+- non-zero exit
+- non-JSON or non-object stdout
+- unsupported or missing `probe_version`
 
-Five `ProbeRun` kinds and seven `ProbeUnavailableReason` kinds all lead to the same behavior: a one-line "unavailable" statement. `spawn-failed` (which also covers buffer overflow), `signaled`, and `timed-out` could collapse into one "could not run: {message}" kind. `timed-out` could stay separate if the reason text needs the limit. That would remove the ordered `execFile` error-field decision tree, which depends on Node internals (`killed` vs `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`). It would also remove the fake-executable tests for signal kill and buffer overflow, which are platform-sensitive and the most expensive tests in the slice. Keep `not-found`, because it carries the PATH message, and keep the non-zero-exit and unsupported-version cases. Fold the rest into the generic kind.
+Stderr is carried verbatim on the exited outcomes. The comprehension lookup handles a missing directory as `undefined` and other read errors as `AdoptionError`. No peer or connection semantics apply. The design also notes that a git child holding the pipe could delay the 10 s timeout, and accepts that.
 
-### [CONCERN] Sections restate other documents or cover cases cf does not act on
+### [PASS] Contract field-name test matches the architecture's cross-repo requirement
 
-"Interfaces Required" lists four readings from squadron 366's design (`graph.path` null rules, `analysis_skill_installed` semantics, "installed, not enabled", exit-code behavior). The slice itself says "cf doesn't act on any of them". These belong in the probe contract and the walkthrough fixture notes, not in this design. Cut them, or reduce them to a pointer to the contract. The monorepo-root caveat is the only item here that affects cf's behavior (the `cwd` choice), so keep that one. The same applies to the "Risk Assessment" restatement of contract-drift handling, which duplicates D8.
+The architecture says "CF tests check the field names as a cross-repo contract." D8 does this with a vendored fixture and its provenance README. The field list lives only in the test, so cf's runtime still reads `probe_version` alone. The surface names are not asserted, which respects the architecture's rule that neither the design nor the tests fix the `surfaces` contents.
 
-### [NOTE] Timeout may not bound a hang caused by orphaned grandchildren
+### [PASS] `fileComprehension` resolution matches the guide-prompt contract
 
-`execFile` with `timeout` sends SIGTERM to `sq` only. Its callback fires when the stdio pipes close, so a git subprocess that `sq probe` has spawned and that still holds the pipe could delay the callback past 10 s. This is unlikely for a read-only probe. If it needs a guarantee, the wrapper could add its own hard deadline, but that would add mechanism. The risk is probably acceptable as stated, but the "at most 10 s" claim in Special Considerations is slightly stronger than the mechanism supports.
+It resolves by filename pattern and `docType`, and a wrong-`docType` file at the highest index falls through to the next. It passes nothing, with no placeholder, when nothing matches. It is a derived value outside `PROJECT_FIELDS`, so it can't be set by hand or go stale. It is gated on the guide profile listing `fileComprehension`, which keeps the guide as the content owner. The exclusion of `--embed` is justified and does not drop any scope the plan assigns.
 
-### [NOTE] Prerequisite ordering deviates from the architecture's dependency statement, with adequate mitigation
+### [NOTE] Proportionality is acceptable
 
-The architecture says the probe and squadron 366 "must land before CF's squadron-path slice". This design builds against an unreleased probe. It uses a vendored contract fixture and an injectable probe (D8, D9), so builds and tests don't need squadron. Users without it get a stated "unavailable". The deviation is reasonable and explicitly justified. Only the end-to-end walkthrough, steps 2–4, depends on the branch install.
+The effort estimate of 2/5 fits. Two mechanisms are slightly beyond the minimum, but each has a stated reason, so neither needs cutting:
+- the dynamic backtick fence in D6
+- the monorepo caveat, which is documented as accepted and left to 265
 
-### [NOTE] Parity with the architecture on monorepo scoping is accepted but weakens one stated principle
+Only the spawn-level tests flagged in the CONCERN above are candidates for trimming.
 
-The architecture scopes detection to the project's own folder. The probe necessarily resolves to the git toplevel, so in a monorepo the graph facts describe the repository root. The slice acknowledges this and defers verification to 265. That is a reasonable boundary because the graph is squadron's, but 265 should confirm the prompt copes with it.
+### [NOTE] MCP PATH risk is acknowledged with a deferred mitigation
+
+The not-found reason names PATH, so the cause is stated in the prompt. An `sq` path setting is deferred until 265's real-setup check shows it is needed. That avoids configuration nothing uses yet.
 
 ### Run Digest
 
-- Response length: 5659 chars
+- Response length: 5425 chars
 - Response is newline-free: no
-- Tool calls made: 2
+- Tool calls made: 5
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -122,13 +131,13 @@ The architecture scopes detection to the project's own folder. The probe necessa
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 95608 / 11266 / 84338 / 3624 / not computed
-- Duration: 30.8 s
-- Cost: $0.38 (provider)
+- Turns: 6
+- Tokens — prompt / cached / cache write / completion / reasoning: 256224 / 168484 / 87732 / 4502 / not computed
+- Duration: 36.8 s
+- Cost: $0.41 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 8
+- Finding-shaped matches — whole response: 7
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 8
-- Finding-shaped matches — surviving validation: 8
+- Finding-shaped matches — in findings section: 7
+- Finding-shaped matches — surviving validation: 7
