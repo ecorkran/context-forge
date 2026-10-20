@@ -10,6 +10,15 @@ interfaces:
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 35
+promptTokens: 2385221
+cachedTokens: 2277623
+cacheWriteTokens: 107534
+completionTokens: 28563
+durationSeconds: 321.6
+costUsd: 2.72247
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: retroactive-marker-and-existing-state-slice-plan
