@@ -72,7 +72,7 @@ The adoption state is a persisted project value owned by core, readable by `cf b
 
 When the probe reports squadron available, the brownfield prompt (which carries the probe facts) has the agent:
 
-1. Run the `understand-anything` plugin's `/understand` if the knowledge graph is missing or stale.
+1. Run the `understand-anything` plugin's `/understand` if the knowledge graph is missing or stale. It's a paid multi-agent run, so the agent first says so and asks the PM once to go ahead (PM ruling 20261020: a client repo isn't covered by the project's own pre-authorized spend). This is the only step that asks.
 2. Run `/sq:analysis understand` for squadron 362's comprehension analysis (layers, hotspots, dependencies).
 3. Run squadron's concept flow (363) to write `000-concept` from the graph and README, unless a concept already exists. The PM confirms or corrects it.
 4. Re-run `cf build`. The adoption state resumes the brownfield prompt, now with `fileComprehension` and `fileConcept` resolved. The agent writes the architecture and the existing-state slice plan, using the graph's `layers[]` for retroactive slice boundaries.
