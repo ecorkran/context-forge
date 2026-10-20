@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf next` offers CI setup.** When a project has a build manifest (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and others) but no recognized CI and no release skill, `cf next` and `workflow_next` add an `offers` entry (id `setup-ci`) pointing at the setup-ci skill. CI is recognized under GitHub Actions (any workflow file), GitLab, CircleCI, Azure Pipelines, Bitbucket, Jenkins, Travis and Buildkite, in the project folder or its repository root. Stop the offer with `cf config set workflow.setup_ci_offer false`.
+- **Old-guide warning.** `cf build` (stderr) and `context_build` (a second text item) now warn when the installed ai-project-guide is older than v0.22.2 or its version is unknown, and name `cf guides update`. The build still succeeds.
+
+### Changed
+
+- **One onboarding recipe.** `/cf:onboard`, the `cf-onboard` Codex skill and the `agent_onboard` MCP tool now render from a single source. Onboarding is setup, then a handoff to `cf build` / `context_build`; the guide's concept prompt starts the conversation, and the CI offer moved to `cf next`.
+
+### Fixed
+
+- **Onboarding named the project wrongly.** The recipe told agents to run `cf init <name>`, but `cf init` takes `--name <name>`; it now says so.
+
 ## [0.19.16] - 20261019
 
 ### Added

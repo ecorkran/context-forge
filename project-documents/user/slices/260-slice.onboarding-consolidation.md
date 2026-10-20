@@ -342,8 +342,8 @@ All commands use the local build (`node packages/cli/dist/index.js`, written `cf
    pnpm --filter @context-forge/cli render:onboard
    git status --short packages/cli/commands     # expect: no changes (committed files match)
    echo "drift" >> packages/cli/commands/cf/onboard.md
-   pnpm --filter @context-forge/cli test -- onboardRender   # expect: FAIL naming onboard.md and the render command
-   git checkout packages/cli/commands/cf/onboard.md
+   pnpm --filter @context-forge/cli exec vitest run tests/onboardRender.test.ts   # expect: FAIL: "...onboard.md has drifted from the core renderer. Edit onboardRecipe.ts, then run: pnpm --filter @context-forge/cli render:onboard"
+   pnpm --filter @context-forge/cli render:onboard   # restore (or git checkout once the file is committed)
    ```
 2. **Recipe content.** Open `packages/cli/commands/cf/onboard.md`. Expect three steps (registration, setup, hand off to `cf build` / `context_build`). Expect no "describe what you want to build" and no `setup-ci`. `cf-onboard/SKILL.md` has the same steps in CLI-first form.
 3. **Greenfield run (manual).** In an empty temp directory, start Claude Code and run `/cf:onboard demo`. Expect: `cf init --name demo` runs, then `cf build` runs, and the agent asks what you want to build. Repeat with Codex and `$cf-onboard`.
@@ -351,8 +351,9 @@ All commands use the local build (`node packages/cli/dist/index.js`, written `cf
 5. **MCP surface.** Call `agent_onboard` with `projectName: "demo"`. Expect the `mcp-tool` rendering, ending with `**Project name provided:** demo`.
 6. **CI offer appears**
    ```bash
-   mkdir /tmp/cf260 && cd /tmp/cf260 && git init -q
-   cf init cf260
+   export CONTEXT_FORGE_DATA_DIR=$(mktemp -d)   # keep the test project out of your real store
+   W=$(mktemp -d) && cd $W && git init -q
+   cf init --name cf260
    cf next            # expect: no Offer line (no build manifest yet)
    touch pyproject.toml
    cf next            # expect: Offer: No CI detected for this project... + decline line
@@ -371,6 +372,16 @@ All commands use the local build (`node packages/cli/dist/index.js`, written `cf
    cf next            # expect: no Offer line
    ```
 9. **Monorepo subdirectory.** In a repository with `.github/workflows/ci.yml` at the root and a CF project registered at `packages/app/` (with `pyproject.toml`), run `cf next` from `packages/app/`. Expect no Offer line.
+   ```bash
+   M=$(mktemp -d) && cd $M && git init -q && mkdir -p .github/workflows packages/app
+   touch .github/workflows/ci.yml packages/app/pyproject.toml
+   cd packages/app && cf init --lite --name app
+   rm -rf .git      # caveat: cf init creates a nested .git here, which makes packages/app its own repository root
+   cf next          # expect: no Offer line
+   rm -rf $M/.github && cf next   # expect: the Offer line (control)
+   ```
+
+**Caveats found while running it.** `cf init` takes `--name <name>`, not a positional name (the recipe was wrong and is fixed). `cf init` run by a *global published* `cf` re-installs that version's bundled commands over a local `install-commands`; re-run `node packages/cli/dist/index.js install-commands` (and `--ide agents`) before a live run. Steps 3 and 4 were run headless with `claude -p` (greenfield: setup, `cf build`, then "What do you want to build?"; mid-project: registration found, `context_build`, no concept question). The Codex half of step 3 could not run on the reference machine: its configured model was rejected for a ChatGPT account.
 
 ## Implementation Notes
 
