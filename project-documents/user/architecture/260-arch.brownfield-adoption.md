@@ -79,6 +79,8 @@ When the probe reports squadron available, the brownfield prompt (which carries 
 
 Only two squadron steps are *offered*, because they're optional: the 400 adoption baseline (a metrics and tech-debt snapshot in squadron's own store, which CF doesn't consume) and 364 initiative candidates (forward work, after the slice plan exists).
 
+The squadron path runs only on surfaces the probe lists (today Claude Code only: squadron's flows are Claude Code skills and `understand-anything` is a Claude Code plugin). On any other surface, such as Codex, CF takes its own path even when squadron is installed.
+
 If squadron is present but the `understand-anything` plugin is not, the agent stops and tells the PM how to install it, or offers the CF-only path. That's a real choice, so the PM makes it. If squadron is absent, or the probe can't be read, the agent says so and takes the CF-only path.
 
 ### The CF-only path (fallback)
