@@ -65,7 +65,7 @@ Adoption is a branch inside onboarding, not a separate product.
 
 Each step leaves standard artifacts behind, so a user can stop after any of them and resume with `cf next`.
 
-## Responsibility Split with Squadron (proposed 20261020, pending PM sign-off)
+## Responsibility Split with Squadron (PM approved 20261020)
 
 Agreed in discussion between the CF and squadron agents. Squadron initiative 440 shrinks to the items marked squadron.
 
