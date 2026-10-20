@@ -16,6 +16,13 @@ export interface ConfigKeyDefinition {
   validate?: (value: string | boolean | number) => string | null;
 }
 
+export const PERMISSIVENESS_LEVELS = ['cautious', 'standard', 'autonomous'] as const;
+
+export type PermissivenessLevel = (typeof PERMISSIVENESS_LEVELS)[number];
+
+// The default level, and the one level with no guide fragment (adds nothing to the build).
+export const STANDARD_PERMISSIVENESS: PermissivenessLevel = PERMISSIVENESS_LEVELS[1];
+
 export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
   'guide.auto_update': {
     type: 'boolean',
@@ -79,6 +86,14 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     default: true,
     description:
       'When true, a pending PM decision in a slice design fails `cf validate design` and blocks `cf next` from Phase 5 and 6. When false, the parser never runs.',
+    scope: ConfigScope.Shared,
+  },
+  'workflow.permissiveness': {
+    type: 'string',
+    default: STANDARD_PERMISSIVENESS,
+    description:
+      'How readily AI work waits on the Project Manager. `cf build` adds the guide\'s rules/permissiveness/<level>.md after the instruction prompt in Phases 4-6; "standard" adds nothing.',
+    enum: [...PERMISSIVENESS_LEVELS],
     scope: ConfigScope.Shared,
   },
   'workflow.review_threshold': {

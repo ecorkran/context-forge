@@ -11,7 +11,7 @@ projectState: 'Slice 245 (workflow.decision_gate_enabled) is merged. ai-project-
   #122).'
 dateCreated: 20261019
 dateUpdated: 20261019
-status: not_started
+status: in_progress
 turns: 39
 promptTokens: 2471586
 cachedTokens: 2379171
@@ -52,11 +52,11 @@ revision_number: 1
 
 ## Task 0: Pre-flight
 
-- [ ] Read the target: `node packages/cli/dist/index.js config get git.integration_branch`. Empty means the target is `main`.
-- [ ] Confirm a clean working tree (`git status --short`).
-- [ ] Create the slice branch from the target: `git checkout -b 246-slice.permissiveness-setting {target}`. If the branch already exists, switch to it instead.
-- [ ] Run `pnpm -r build` and `pnpm --filter @context-forge/core test` once, to record a green baseline.
-  - [ ] Success: you are on `246-slice.permissiveness-setting` and the baseline build and tests pass. If the baseline fails, stop and report it. Do not fix unrelated failures in this slice.
+- [x] Read the target: `node packages/cli/dist/index.js config get git.integration_branch`. Empty means the target is `main`.
+- [x] Confirm a clean working tree (`git status --short`).
+- [x] Create the slice branch from the target: `git checkout -b 246-slice.permissiveness-setting {target}`. If the branch already exists, switch to it instead.
+- [x] Run `pnpm -r build` and `pnpm --filter @context-forge/core test` once, to record a green baseline.
+  - [x] Success: you are on `246-slice.permissiveness-setting` and the baseline build and tests pass. If the baseline fails, stop and report it. Do not fix unrelated failures in this slice.
 - **Effort:** 1/5
 
 ---

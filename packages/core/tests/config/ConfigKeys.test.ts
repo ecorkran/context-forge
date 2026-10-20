@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import { CONFIG_KEYS, parseRulesExclude } from '../../src/config/ConfigKeys.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import {
+  CONFIG_KEYS,
+  PERMISSIVENESS_LEVELS,
+  STANDARD_PERMISSIVENESS,
+  parseRulesExclude,
+} from '../../src/config/ConfigKeys.js';
+import { ConfigManager } from '../../src/config/ConfigManager.js';
 
 describe('CONFIG_KEYS', () => {
   it('every entry has a valid scope', () => {
@@ -24,6 +33,53 @@ describe('workflow.decision_gate_enabled', () => {
     expect(def.type).toBe('boolean');
     expect(def.scope).toBe('shared');
     expect(def.default).toBe(true);
+  });
+});
+
+describe('workflow.permissiveness', () => {
+  const def = CONFIG_KEYS['workflow.permissiveness'];
+  let dataDir: string;
+  let projectDir: string;
+  let originalEnv: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), 'cf-perm-data-'));
+    projectDir = await mkdtemp(join(tmpdir(), 'cf-perm-project-'));
+    originalEnv = process.env.CONTEXT_FORGE_DATA_DIR;
+    process.env.CONTEXT_FORGE_DATA_DIR = dataDir;
+  });
+
+  afterEach(async () => {
+    if (originalEnv === undefined) {
+      delete process.env.CONTEXT_FORGE_DATA_DIR;
+    } else {
+      process.env.CONTEXT_FORGE_DATA_DIR = originalEnv;
+    }
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(projectDir, { recursive: true, force: true });
+  });
+
+  it('is a shared string defaulting to standard, enum = PERMISSIVENESS_LEVELS', () => {
+    expect(def.type).toBe('string');
+    expect(def.scope).toBe('shared');
+    expect(def.default).toBe('standard');
+    expect(def.default).toBe(STANDARD_PERMISSIVENESS);
+    expect(def.enum).toEqual([...PERMISSIVENESS_LEVELS]);
+  });
+
+  it.each(PERMISSIVENESS_LEVELS)('accepts %s', async (level) => {
+    const cm = new ConfigManager(projectDir);
+    await cm.set('workflow.permissiveness', level, 'project');
+    expect((await cm.get('workflow.permissiveness')).value).toBe(level);
+  });
+
+  it('rejects an unknown level and names every valid level', async () => {
+    const cm = new ConfigManager(projectDir);
+    const attempt = cm.set('workflow.permissiveness', 'bogus', 'project');
+    await expect(attempt).rejects.toThrow(/must be one of/);
+    for (const level of PERMISSIVENESS_LEVELS) {
+      await expect(attempt).rejects.toThrow(level);
+    }
   });
 });
 
