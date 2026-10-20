@@ -3,11 +3,22 @@ docType: slice-design
 slice: squadron-path
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
-dependencies: [261]
-interfaces: [265]
+dependencies:
+- 261
+interfaces:
+- 265
 dateCreated: 20261020
 dateUpdated: 20261020
 status: not_started
+turns: 36
+promptTokens: 2393178
+cachedTokens: 2285740
+cacheWriteTokens: 107378
+completionTokens: 26325
+durationSeconds: 249.4
+costUsd: 1.843236
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: squadron-path
