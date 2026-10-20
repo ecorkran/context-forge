@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { FileProjectStore, createContextPipeline, embedReferencedFiles } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, embedReferencedFiles, checkGuideMinimum } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
@@ -83,6 +83,10 @@ export function registerBuildCommand(program: Command): void {
 
         const { integrator } = createContextPipeline(workingCopy.projectPath!);
         let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
+
+        // Guide-version warning goes beside the prompt (stderr), never inside it (slice 260, D8).
+        const guideWarning = await checkGuideMinimum(workingCopy.projectPath!);
+        if (guideWarning) process.stderr.write(`Warning: ${guideWarning}\n`);
 
         if (opts.additional) {
           contextString = `${contextString}\n\n${opts.additional}`;

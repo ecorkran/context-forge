@@ -14,6 +14,7 @@ const mockGenerateContextFromProject = vi.fn<(project: ProjectData) => Promise<s
 const mockGetAllPrompts = vi.fn();
 
 const mockEnsureCheckout = vi.fn().mockResolvedValue({ action: 'none' });
+const mockCheckGuideMinimum = vi.fn().mockResolvedValue(null);
 const mockConfigGet = vi.fn();
 const mockWtGetWorktree = vi.fn();
 const mockWtGetWorktreeByName = vi.fn();
@@ -34,6 +35,7 @@ vi.mock('@context-forge/core/node', () => ({
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: mockConfigGet,
   })),
+  checkGuideMinimum: (...args: unknown[]) => mockCheckGuideMinimum(...args),
   // context_build and the prompt tools ready the guide checkout before
   // reading guide content. Default: nothing to do.
   GuideManager: vi.fn().mockImplementation(() => ({
@@ -154,6 +156,30 @@ describe('context_build', () => {
 
   afterEach(async () => {
     await cleanup();
+  });
+
+  it('returns the guide-minimum warning as a second text item after an unchanged prompt', async () => {
+    const WARNING = 'Installed ai-project-guide is v0.21.0; context-forge needs v0.22.2 or newer. Run: cf guides update';
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+    mockCheckGuideMinimum.mockResolvedValueOnce(WARNING);
+
+    const result = await client.callTool({ name: 'context_build', arguments: { projectId: MOCK_PROJECT.id } });
+
+    const content = result.content as { type: string; text: string }[];
+    expect(content).toHaveLength(2);
+    expect(content[0].text).toBe(GENERATED_CONTEXT);
+    expect(content[1].text).toContain(WARNING);
+  });
+
+  it('returns a single content item when the guide meets the minimum', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+    mockCheckGuideMinimum.mockResolvedValueOnce(null);
+
+    const result = await client.callTool({ name: 'context_build', arguments: { projectId: MOCK_PROJECT.id } });
+
+    expect(result.content as unknown[]).toHaveLength(1);
   });
 
   it('returns assembled context string for valid project (plain text)', async () => {

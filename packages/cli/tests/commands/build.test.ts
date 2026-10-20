@@ -5,6 +5,7 @@ import { registerBuildCommand } from '../../src/commands/build.js';
 const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGenerateContextFromProject = vi.fn();
+const mockCheckGuideMinimum = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
   FileProjectStore: vi.fn().mockImplementation(() => ({
@@ -17,6 +18,7 @@ vi.mock('@context-forge/core/node', () => ({
     ensureCheckout: vi.fn().mockResolvedValue({ action: 'none' }),
   })),
 
+  checkGuideMinimum: (...args: unknown[]) => mockCheckGuideMinimum(...args),
   createContextPipeline: vi.fn().mockImplementation(() => ({
     integrator: { generateContextFromProject: mockGenerateContextFromProject },
   })),
@@ -48,6 +50,7 @@ describe('cf build', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue([sampleProject]);
+    mockCheckGuideMinimum.mockResolvedValue(null);
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -70,6 +73,34 @@ describe('cf build', () => {
     expect(stderrOutput).toContain('Context built for');
     expect(stderrOutput).toContain('/cf:build');
     expect(stderrOutput).toContain('cf build --json');
+  });
+
+  describe('guide minimum warning', () => {
+    const WARNING = 'Installed ai-project-guide is v0.21.0; context-forge needs v0.22.2 or newer. Run: cf guides update';
+
+    async function runJson(): Promise<{ stdout: string; stderr: string }> {
+      mockGetById.mockResolvedValue(sampleProject);
+      mockGenerateContextFromProject.mockResolvedValue('Generated context output');
+      await createProgram().parseAsync(['node', 'cf', 'build', '--project', 'proj_001', '--json']);
+      return {
+        stdout: vi.mocked(process.stdout.write).mock.calls.map((c) => c[0]).join(''),
+        stderr: vi.mocked(process.stderr.write).mock.calls.map((c) => c[0]).join(''),
+      };
+    }
+
+    it('writes the warning to stderr and leaves stdout as the unchanged prompt', async () => {
+      mockCheckGuideMinimum.mockResolvedValue(WARNING);
+      const { stdout, stderr } = await runJson();
+      expect(stderr).toContain(`Warning: ${WARNING}`);
+      expect(JSON.parse(stdout).context).toBe('Generated context output');
+      expect(stdout).not.toContain('Warning');
+    });
+
+    it('writes no warning when the check returns null', async () => {
+      mockCheckGuideMinimum.mockResolvedValue(null);
+      const { stderr } = await runJson();
+      expect(stderr).not.toContain('ai-project-guide');
+    });
   });
 
   it('--json writes context as JSON to stdout', async () => {

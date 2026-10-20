@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, ConfigManager, GuideManager } from '@context-forge/core/node';
+import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, ConfigManager, GuideManager, checkGuideMinimum } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
@@ -59,7 +59,7 @@ export async function generateContext(
   overrides?: Partial<ProjectData>,
   additionalInstructions?: string,
   worktreeId?: string,
-): Promise<{ contextString: string; notices: string[] }> {
+): Promise<{ contextString: string; notices: string[]; guideWarning: string | null }> {
   const store = new FileProjectStore();
   const project = await store.getById(projectId);
 
@@ -96,7 +96,10 @@ export async function generateContext(
     contextString = `${contextString}\n\n${additionalInstructions}`;
   }
 
-  return { contextString, notices };
+  // Reported beside the prompt by context_build, never inside it (slice 260, D8).
+  const guideWarning = await checkGuideMinimum(workingCopy.projectPath!);
+
+  return { contextString, notices, guideWarning };
 }
 
 /** Zod schema for optional project parameter overrides */
@@ -194,13 +197,16 @@ export function registerContextTools(server: McpServer): void {
           ...explicitOverrides,
         };
 
-        const { contextString, notices } = await generateContext(
+        const { contextString, notices, guideWarning } = await generateContext(
           resolvedId,
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWorktreeId,
         );
-        return withNotices(textResult(contextString), notices);
+        const result = withNotices(textResult(contextString), notices);
+        // The build still succeeds on an old guide; the warning is a second item after the prompt.
+        if (guideWarning) result.content.push({ type: 'text', text: `Warning: ${guideWarning}` });
+        return result;
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return errorResult(message);

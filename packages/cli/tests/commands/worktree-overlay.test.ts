@@ -13,6 +13,7 @@ const mockParseSlicePlan = vi.fn();
 const mockResolveArtifactPath = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
+  checkGuideMinimum: vi.fn().mockResolvedValue(null),
   upstreamLag: vi.fn().mockResolvedValue(null),
   formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({
