@@ -2,11 +2,12 @@
 // rule and of the build's step order; decideOutcome and the renderer only consume
 // what is gathered here.
 import { readFile } from 'fs/promises';
+import { relative, resolve } from 'path';
 import type { AdoptionState } from '../config/ConfigKeys.js';
 import { findPlanningArtifacts } from '../detection/planningArtifacts.js';
 import { readHistory } from '../detection/history.js';
 import { ADR_DIRS, DOC_PATHS, RULE_FILE_PATHS, presentPaths } from '../detection/presentPaths.js';
-import { recognizeCi } from '../detection/ciDetection.js';
+import { recognizeCi, type CiRecognition } from '../detection/ciDetection.js';
 import { measureSourceVolume } from '../detection/sourceVolume.js';
 import { MIN_GUIDE_VERSION } from '../guides/guideMinimum.js';
 import { CONCEPT_PHASE, resolvePhaseValue } from '../schema/projectSchema.js';
@@ -96,6 +97,13 @@ async function persistInProgress(checkoutPath: string): Promise<void> {
   }
 }
 
+/** CI files relative to the checkout, like the other path facts (a repository-root file reads ../..). */
+function relativeCi(checkoutPath: string): CiRecognition {
+  const ci = recognizeCi(checkoutPath);
+  const base = resolve(checkoutPath);
+  return { ...ci, matches: ci.matches.map((match) => relative(base, match)) };
+}
+
 /** Step 6: the render-only facts, gathered only for a selected build. */
 async function renderFacts(
   checkoutPath: string,
@@ -110,7 +118,7 @@ async function renderFacts(
     docs: presentPaths(checkoutPath, DOC_PATHS),
     adrs: presentPaths(checkoutPath, ADR_DIRS),
     ruleFiles: presentPaths(checkoutPath, RULE_FILE_PATHS),
-    ci: recognizeCi(checkoutPath),
+    ci: relativeCi(checkoutPath),
   });
 }
 

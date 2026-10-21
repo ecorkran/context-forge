@@ -155,7 +155,8 @@ describe('adoption through the build pipeline', () => {
     it('code in the project folder counts → brownfield, facts list the root CI file', async () => {
       const output = await build(await monorepo(100, 3000));
       expectBrownfield(output);
-      expect(output).toContain(join(root, '.github/workflows/ci.yml'));
+      // Relative to the project folder, like the other path facts; the file is at the repository root.
+      expect(output).toContain(`- CI: ${join('..', '..', '.github/workflows/ci.yml')}`);
     });
   });
 

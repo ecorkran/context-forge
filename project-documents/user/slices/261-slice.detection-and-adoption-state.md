@@ -361,7 +361,7 @@ Verified 20261021 on the slice branch with the local build. The global `cf` is t
    # expect: "We're adopting project bf, an existing codebase...", then "### Adoption Facts" with
    #   "Outcome: brownfield: 2246+ non-blank source lines (threshold 2000; count stopped at the threshold)",
    #   the state-set notice, "History: N commits (shallow clone: history is truncated)", docs, rule files and CI
-   #   files (absolute paths), and "Squadron: unavailable. This cf version does not run squadron's capability probe..."
+   #   files (relative to the project folder), and "Squadron: unavailable. This cf version does not run squadron's capability probe..."
    cfl config get adoption.state   # expect: Value: in_progress, Source: project
    ```
    Live run (reset the state first with `cfl config set adoption.state ''`). The `/cf:build` command calls `cf` from PATH, so put a `cf` shim for the local build first on PATH (`printf '#!/bin/sh\nexec node <repo>/packages/cli/dist/index.js "$@"\n' > /tmp/cfshim/cf; chmod +x /tmp/cfshim/cf; export PATH=/tmp/cfshim:$PATH`), then `claude -p "/cf:build" --max-turns 6 --output-format stream-json --verbose`. Verified: the agent replied "Context loaded: bf | Phase 0: Concept (brownfield adoption, Architect role) | no slice", then "CF-only path: the Adoption Facts say squadron is unavailable ... I'll work from the repo alone", and went on to read the repo and the guide's concept and naming guides. It tried no squadron step.
