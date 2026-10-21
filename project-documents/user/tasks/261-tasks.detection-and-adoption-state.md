@@ -3,14 +3,25 @@ docType: tasks
 slice: detection-and-adoption-state
 project: context-forge
 lld: user/slices/261-slice.detection-and-adoption-state.md
-dependencies: [260]
+dependencies:
+- 260
 projectState: main after slice 260 (complete). `detection/` holds `pathPresent`/`isEnoent`,
-  `recognizeCi` and `hasBuildManifest`; `MIN_GUIDE_VERSION` is 0.22.2. `cf build` on a fresh
-  registration always assembles the Phase 0 concept prompt. Design reviewed (round 2 CONCERNS;
-  F002 addressed by the 260 arch amendment in 93587cdd, the rest accepted as written).
+  `recognizeCi` and `hasBuildManifest`; `MIN_GUIDE_VERSION` is 0.22.2. `cf build`
+  on a fresh registration always assembles the Phase 0 concept prompt. Design reviewed
+  (round 2 CONCERNS; F002 addressed by the 260 arch amendment in 93587cdd, the rest
+  accepted as written).
 dateCreated: 20261021
 dateUpdated: 20261021
 status: not_started
+turns: 30
+promptTokens: 2334598
+cachedTokens: 2229139
+cacheWriteTokens: 105403
+completionTokens: 28814
+durationSeconds: 323.3
+costUsd: 1.866065
+usageRounds: 1
+pricedRounds: 1
 ---
 
 ## Context Summary
