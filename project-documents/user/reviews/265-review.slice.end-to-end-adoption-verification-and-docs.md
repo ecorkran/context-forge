@@ -14,56 +14,56 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: a3da69f86a7148040ed2d5cef22d6f8b170a7da2
-revision_number: 1
+reviewedSha: 220332dd1dfbc5eecb615b8e2763e6fabdba6290
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 3
 turns: 4
-promptTokens: 170864
-cachedTokens: 87323
-cacheWriteTokens: 83535
-completionTokens: 2491
-durationSeconds: 24.0
-costUsd: 0.261811
+promptTokens: 207330
+cachedTokens: 174438
+cacheWriteTokens: 32886
+completionTokens: 2360
+durationSeconds: 20.9
+costUsd: 0.144053
 costBasis: provider
 runId: run-20261020-slices-plan-a67cc35b
 squadronVersion: 0.23.5
 findings:
   - id: F001
-    severity: concern
-    category: proportionality
-    summary: "Run-driving procedure is heavier than a verification slice needs"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D2 — How a run is driven"
+    severity: pass
+    category: alignment
+    summary: "Scope matches the slice plan entry and the architecture's goal"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#Technical Scope"
   - id: F002
-    severity: concern
-    category: proportionality
-    summary: "Run report schema and spot-check inventory exceed what the success criteria require"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D7 — The run report"
+    severity: pass
+    category: integration
+    summary: "Architectural boundaries and the squadron contract are preserved"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D4 — Pass checks per run"
   - id: F003
     severity: concern
-    category: dependency-integration
-    summary: "Dependence on a guide release that does not yet exist is only partly bounded"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#Dependencies"
+    category: proportionality
+    summary: "Run report format is heavier than the verification need"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D7 — The run report"
   - id: F004
     severity: concern
-    category: integration
-    summary: "MCP PATH check can only produce a finding, with no pass condition"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D4 — Squadron run, additionally (MCP PATH)"
+    category: proportionality
+    summary: "Docs section duplicates the CLI reference and existing README config rows"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D8 — Documentation"
   - id: F005
-    severity: pass
-    category: architecture-alignment
-    summary: "Layer boundaries and ownership preserved"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D5 — What gets fixed here, and what gets filed"
+    severity: concern
+    category: error-handling
+    summary: "Failure modes for the live-run I/O paths are only partly enumerated"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#D2 — How a run is driven"
   - id: F006
-    severity: pass
-    category: scope
-    summary: "Scope coverage matches the slice plan entry"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#Technical Scope"
+    severity: concern
+    category: under-specification
+    summary: "Prerequisite confirmation against 264 is deferred, leaving the check names unverified"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#Consumes from Other Slices"
   - id: F007
     severity: note
-    category: documentation
-    summary: "Dependency list includes 260 as both the architecture and a slice"
-    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md:6-11"
+    category: dependencies
+    summary: "Effort and gating of completion on external releases"
+    location: "project-documents/user/slices/265-slice.end-to-end-adoption-verification-and-docs.md#Prerequisites"
 ---
 
 # Review: slice — slice 265
@@ -73,50 +73,37 @@ findings:
 
 ## Findings
 
-### [CONCERN] Run-driving procedure is heavier than a verification slice needs
+### [PASS] Scope matches the slice plan entry and the architecture's goal
 
-The plan entry rates this slice Risk Low and Effort 2/5. D2 specifies stall timeouts (30 minutes, resume once, second stall is a defect). It adds separate handling for early session end, `/understand` failure and probe failure, and it adds headless-versus-interactive driving rules. Risk Assessment then restates the same cases. This is operator procedure for a one-off manual run, not design. Cut it to the rules that decide a run's outcome:
-- A manual edit means the run fails.
-- `/understand` never falls back to the CF-only path.
-- A broken probe is never a pass.
-- A resumed session counts as part of the proof.
+The plan entry assigns three runs (squadron, CF-only, greenfield), fixes for what they expose, and docs for the flow, the override, the adoption state and Adoption Facts. The design delivers all of that. It excludes new features (D5), guide and squadron fixes, 266/267, and the CHANGELOG. It adds no component. Dependencies run 260–264 into 265, as the plan states. The architecture's rule that "guide owns content, cf owns logic" is respected: D5 files guide-prompt defects as issues in ai-project-guide and does not work around them in cf code.
 
-Drop the 30-minute stall rule, the "no retry limit" rule and the restated Risk Assessment bullets. Keep the PM-role rule, because it carries the "never fabricate intent" goal.
+### [PASS] Architectural boundaries and the squadron contract are preserved
 
-### [CONCERN] Run report schema and spot-check inventory exceed what the success criteria require
+The squadron run checks that the probe's `surfaces` has an entry for the session's surface instead of naming one, as the architecture requires. A broken probe is never counted as a pass, and an unreadable probe is stated as "Squadron: unavailable". The MCP PATH check follows the architecture's "state unavailability, never hide it" principle. An `sq` path setting is deferred as a new option.
 
-D7 lists about ten per-run record fields, including artifact frontmatter, `cf next` sequence tables and verbatim PM Q&A. D4 adds five spot checks per brownfield run (`cloc`/`tokei` count, `context_build` parity, `cf check` with and without review, `cf list slices`). The plan's success criteria are only that each run reaches "`cf next` points at new work" with correct artifacts, that the greenfield run matches today's flow, and that the docs describe what shipped. Keep these in the report:
-- Repository URL and commit.
-- Versions: cf, guide and `sq`.
-- The Adoption Facts section.
-- The D4 results.
-- Defect dispositions.
+### [CONCERN] Run report format is heavier than the verification need
 
-Move frontmatter capture, full `cf next` sequence capture and verbatim Q&A to "only where a defect needs it". The spot checks that duplicate fixture-covered behavior in 261/263/264 (`cf list slices` marker display, `cf check` toggle) can be dropped.
+D7 is only moderately heavy. Recording the `cf next` sequence, artifact frontmatter and PM Q&A "only where a defect needs them" is already trimmed. The remaining weight is in D4, which has about nine per-run checks plus spot checks and path-specific checks. Several restate behavior that 261–264 already cover with fixtures. Examples are the per-step `cf next` names, the Adoption Facts "every fact matches" check, and the `context_build` parity spot check. The design says the runs "don't re-verify" that behavior, yet D4 checks 2, 3 and 5 partly do. Consider reducing D4 to the composition points that fixtures can't reach: the hand-off chain, a real marker written by a real agent, the completion transition, the first new slice, and the cross-repo probe. Cut or defer the rest.
 
-### [CONCERN] Dependence on a guide release that does not yet exist is only partly bounded
+### [CONCERN] Docs section duplicates the CLI reference and existing README config rows
 
-The architecture lists the retroactive-marker rule in ai-project-guide as "still pending". Both brownfield runs, which are the slice's main deliverable, cannot complete without it. The design handles this by marking the dependent run tasks `BLOCKED:`. That is correct, but it leaves the success criteria unreachable until two external releases land (the guide marker rule and squadron's probe). Name which deliverables can finish independently: the greenfield run, and the docs for already-shipped behavior. State that the slice is not "done" until the brownfield runs pass. Otherwise a partial finish could be mistaken for completion.
+D8 spreads documentation over three files: the README section, the "Key configuration" row, `docs/REVIEW-GATING.md`, and the CLI README entries for `cf build`, `cf next` and `cf list slices`. The README section is deliberately short and links to the CLI README, which is a good split. However, the `adoption.state` row is also documented on the config key (261), and the retroactive skip is documented in the REVIEW-GATING subsection and the CLI README. State which file is the single source for each fact (state values, the marker, the gate skip) and have the others link to it. This limits drift and matches the DRY principle in the project guidelines.
 
-### [CONCERN] MCP PATH check can only produce a finding, with no pass condition
+### [CONCERN] Failure modes for the live-run I/O paths are only partly enumerated
 
-The check says that if the MCP server's PATH lacks `sq`, the result is "a finding" and a filed follow-up for a new `sq` path setting. Squadron-path adoption through the MCP surface (`context_build`, `agent_onboard`) is part of the architecture's "one detection, many consumers" principle. If the MCP server cannot find `sq`, squadron-path adoption is silently unavailable on that surface. The slice should state whether the squadron run passes when this check fails. The `context_build` result must also say "Squadron: unavailable" explicitly, which the architecture requires ("stated to the user, never silently").
+D2 handles an early session end (resume with `cf build`), a failed `/understand` (no CF-only fallback), and a broken probe (never a pass). Several paths are left implicit. Those are a hung or very slow `/understand` run, a stale or partially built graph, and the `cf build` missing-guide-profile error (the architecture's named fail-fast case) when the guide release is older than needed. The last one is the most likely to appear in practice, because the design depends on an unreleased guide. Add one line each: which condition ends a run as BLOCKED rather than a defect, and a timeout or retry bound for `/understand`.
 
-### [PASS] Layer boundaries and ownership preserved
+### [CONCERN] Prerequisite confirmation against 264 is deferred, leaving the check names unverified
 
-Guide-prompt and squadron defects become issues in their own repositories, and cf never works around them. This matches "Guide owns content, cf owns logic" and "Use squadron by capability". New options and format changes are deferred, so there is no scope creep into 266/267 or the release.
+The design says that, before task breakdown, the implementer must "confirm those names against 264's final design". D4 hard-codes step names (`concept` → `architecture` → `existing-state-plan` → `record-completion`, `register-plan`) and the `retroactive-entry` rule, `cf set arch` and `cf project rm` commands. The slice plan and the architecture do not fix these names. If any are wrong, the design's pass checks would test the wrong thing. Resolve this now by reading 264's design and either citing the names or pointing D4 at 264's section. Do not leave it as a pre-breakdown to-do.
 
-### [PASS] Scope coverage matches the slice plan entry
+### [NOTE] Effort and gating of completion on external releases
 
-The three runs (squadron on a probe-listed surface, CF-only, greenfield), fixes with regression tests, and docs for the flow, the override, the adoption state and Adoption Facts are all present. Deferring `MIN_GUIDE_VERSION` (D6) and the CHANGELOG is justified and does not drop assigned scope.
-
-### [NOTE] Dependency list includes 260 as both the architecture and a slice
-
-Frontmatter `dependencies` lists 260 through 264, and the plan's own dependency line reads "260–264". Slice 260's meaning here is the onboarding consolidation, and the design uses it that way. No change is needed. Be aware that 260 is also the architecture index, so references to "260" in the report path name (`260-analysis.…`) and in the dependencies mean different things.
+The slice cannot complete until an ai-project-guide release with the marker rule and an `sq` with the probe both exist, and neither is in this repository's control. The design handles this well: blocked tasks are marked, greenfield and docs proceed, and the slice stays `in_progress`. The architecture lists the same dependencies, so no alignment issue arises. The Effort 2/5 estimate holds only if the runs expose few defects.
 
 ### Run Digest
 
-- Response length: 5797 chars
+- Response length: 5583 chars
 - Response is newline-free: no
 - Tool calls made: 3
 - Tool calls failed: 0
@@ -127,9 +114,9 @@ Frontmatter `dependencies` lists 260 through 264, and the plan's own dependency 
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 4
-- Tokens — prompt / cached / cache write / completion / reasoning: 170864 / 87323 / 83535 / 2491 / not computed
-- Duration: 24.0 s
-- Cost: $0.26 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 207330 / 174438 / 32886 / 2360 / not computed
+- Duration: 20.9 s
+- Cost: $0.14 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
 - Finding-shaped matches — whole response: 7
