@@ -13,15 +13,16 @@ projectState: main after slice 260 (complete). `detection/` holds `pathPresent`/
 dateCreated: 20261021
 dateUpdated: 20261021
 status: not_started
-turns: 30
-promptTokens: 2334598
-cachedTokens: 2229139
-cacheWriteTokens: 105403
-completionTokens: 28814
-durationSeconds: 323.3
-costUsd: 1.866065
-usageRounds: 1
-pricedRounds: 1
+turns: 36
+promptTokens: 3064205
+cachedTokens: 2950677
+cacheWriteTokens: 113460
+completionTokens: 31508
+durationSeconds: 357.7
+costUsd: 2.128757
+usageRounds: 2
+pricedRounds: 2
+revision_number: 1
 ---
 
 ## Context Summary
