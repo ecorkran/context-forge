@@ -147,7 +147,7 @@ In expected order. The last two aren't needed for the core goal (`cf next` point
 
 - **Initiatives 160 and 200 (complete):** the workflow navigator, consistency checker, config system and onboarding flow this initiative extends.
 - **Initiative 240 (complete):** the review gate, amended for retroactive entries.
-- **ai-project-guide:** the `brownfield-adoption` profile and prompt, the concept-prompt opener, the adoption guide, the reworded concept guide and removal of the `analyze-codebase` profile all shipped in v0.22.0. v0.22.1 added the concept step from the probe's `surfaces.<s>.concept`. cf releases that select the brownfield profile require at least **v0.22.2** (v0.22.2 fixed the squadron-path gate in the brownfield prompt). Still pending: the retroactive-marker rule, written after cf specifies the marker in slice design.
+- **ai-project-guide:** the `brownfield-adoption` profile and prompt, the concept-prompt opener, the adoption guide, the reworded concept guide and removal of the `analyze-codebase` profile all shipped in v0.22.0. v0.22.1 added the concept step from the probe's `surfaces.<s>.concept`. cf releases that select the brownfield profile require at least **v0.22.2** (v0.22.2 fixed the squadron-path gate in the brownfield prompt). Still pending, both written after cf specifies them in slice design: the retroactive-marker rule, and the naming-conventions entry for the docs map file (`050-docs-map.{project}.md`, slice 267). The docs map entry does not block a cf release.
 - **Squadron (initiative 440):** the capability probe and slice 366 must land before CF's squadron-path slice. The CF-only path doesn't depend on them.
 
 ## Related Work
