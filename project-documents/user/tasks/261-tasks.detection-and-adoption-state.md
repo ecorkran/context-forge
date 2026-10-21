@@ -35,6 +35,7 @@ pricedRounds: 1
 - Missing-file rule (260, D2, D6): `ENOENT` means "not present"; every other filesystem error throws. Never use `existsSync` in `detection/`. Use `isEnoent` / `pathPresent` from `detection/pathPresent.ts`.
 - `resolveInitiativePlanPath` swallows every `readdir` error, which conflicts with D6 ("other read errors throw"). Task 6 extracts its filename pattern as a constant and reads the directory with the ENOENT-only rule, so there is one pattern definition and no swallowed error. `resolveInitiativePlanPath`'s own behavior is unchanged.
 - `ContextIntegrator.ts` is already 377 lines. Add only the resolver field, the call and the rethrow there; all adoption logic lives in `adoption/`.
+- Performance (D2): the sub-second detection target is verified by the cap tests in Task 3T (early exit at the line threshold, `AdoptionError` at `MAX_WALK_ENTRIES`), which bound the worst case. D2 says tests assert the caps, not timings, so there is no timing or load test. The `tests/load/` tier is a rule in `rules/python.md` and does not apply to this TypeScript repo.
 - Permission tests (`chmod 000`) can't fail as root and don't apply on Windows: skip with `it.skipIf`, as the 260 detection tests do.
 - Use the local build (`node packages/cli/dist/index.js`, alias `cfl`); the global `cf` is the published package. Run `pnpm -r build` before tests that import `@context-forge/core` from `dist`.
 - Next planned slice: 262 (squadron path), which replaces the squadron bullet and runs the probe in the resolver.
@@ -150,7 +151,7 @@ pricedRounds: 1
 
 - [ ] **Task 7: Outcome decision** (effort: 2)
   - [ ] In `packages/core/src/adoption/adoptionOutcome.ts` (holds `BROWNFIELD_MIN_SOURCE_LINES` from Task 3), add `AdoptionOutcome` (the union from the API Contracts) and pure `decideOutcome(input)`.
-  - [ ] Input: `{ state: AdoptionState; artifacts?: string[]; source?: SourceVolume }`, so the resolver can read each fact only when needed. Order (D1): `in_progress` → `adoption-in-progress`; `complete`/`declined` → `adoption-closed`; non-empty `artifacts` → `already-planned`; `source.lines >= BROWNFIELD_MIN_SOURCE_LINES` → `brownfield`; else `greenfield`.
+  - [ ] Input: `{ state: AdoptionState; artifacts?: string[]; source?: SourceVolume }` (import `SourceVolume` with `import type`, so `adoptionOutcome.ts` and `sourceVolume.ts` don't form a runtime import cycle), so the resolver can read each fact only when needed. Order (D1): `in_progress` → `adoption-in-progress`; `complete`/`declined` → `adoption-closed`; non-empty `artifacts` → `already-planned`; `source.lines >= BROWNFIELD_MIN_SOURCE_LINES` → `brownfield`; else `greenfield`.
   - [ ] A missing input that the order needs (state `''` and `artifacts` undefined; or no artifacts and `source` undefined) throws an `Error` naming the missing input. That is a programming error, not a default.
   - [ ] Export from `adoption/index.ts`.
   - [ ] Success: build passes.
@@ -236,10 +237,11 @@ pricedRounds: 1
     6. Concept only + 2000 lines → brownfield.
     7. Planned (an `nnn-arch` file) + 5000 lines → concept prompt.
     8. Resume: state `in_progress`, concept and arch present → brownfield prompt.
-    9. Overrides: `declined` + 5000 lines → concept prompt; `in_progress` on an empty repo → brownfield.
+    9. Overrides: `declined` + 5000 lines → concept prompt; `in_progress` on an empty repo → brownfield. Re-detect: set `declined` on a 2000+ line repo, then `""`, then build → brownfield, and the state becomes `in_progress`.
     10. `Phase 2: Architecture` with state `in_progress` → the Phase 2 prompt, no facts.
     11. Explicit `brownfield-adoption` on an empty repo → brownfield prompt, "not evaluated", state `''`.
     12. Brownfield repo with the `test-project` guide (no profile) → rejects with `AdoptionError`; state `''`.
+    13. `template_preview` path: brownfield repo with state `''` through `createContextPipeline(dir, { adoptionStateWrites: 'read-only' })` → brownfield prompt and facts; state still `''` afterward.
   - [ ] Success: all pass.
 
 - [ ] **Task 13: CLI/MCP parity test** (effort: 2)
