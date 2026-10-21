@@ -3,11 +3,21 @@ docType: slice-design
 slice: conventions-reconciliation
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
-dependencies: [261]
+dependencies:
+- 261
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261020
+dateUpdated: 20261021
 status: not_started
+turns: 19
+promptTokens: 1095628
+cachedTokens: 1011383
+cacheWriteTokens: 84209
+completionTokens: 26094
+durationSeconds: 301.6
+costUsd: 1.3983
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: conventions-reconciliation
