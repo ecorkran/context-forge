@@ -81,7 +81,7 @@ export function registerBuildCommand(program: Command): void {
         // clone leaves the submodule uninitialized (#80).
         await ensureGuideReady(workingCopy.projectPath!, resolveOperationPath(project, worktreeId));
 
-        const { integrator } = createContextPipeline(workingCopy.projectPath!);
+        const { integrator } = createContextPipeline(workingCopy.projectPath!, { adoptionStateWrites: 'persist' });
         let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
         // Guide-version warning goes beside the prompt (stderr), never inside it (slice 260, D8).

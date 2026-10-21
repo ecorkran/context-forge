@@ -9,6 +9,7 @@ import { resolveTaskFilesForPrompt } from './taskFilesResolver.js';
 import { resolveIntegrationBranchForPrompt } from './integrationBranchResolver.js';
 import { resolvePermissivenessForPrompt } from './permissivenessResolver.js';
 import { resolvePromptFilePath } from './promptFilePath.js';
+import { createAdoptionResolver, type AdoptionStateWrites } from '../adoption/adoptionResolver.js';
 
 // Defined in its own module so resolvers can use it without importing this factory.
 export { resolvePromptFilePath };
@@ -21,9 +22,14 @@ export { resolvePromptFilePath };
  * Throws if the guide is not installed.
  *
  * @param projectPath Absolute path to the project root
+ * @param options.adoptionStateWrites Whether a first brownfield detection may persist adoption.state
+ *   (`persist`) or must not (`read-only`, for previews). Required so every caller decides.
  * @returns { engine, integrator } ready for context generation
  */
-export function createContextPipeline(projectPath: string): {
+export function createContextPipeline(
+  projectPath: string,
+  options: { adoptionStateWrites: AdoptionStateWrites },
+): {
   engine: ContextTemplateEngine;
   integrator: ContextIntegrator;
 } {
@@ -42,6 +48,7 @@ export function createContextPipeline(projectPath: string): {
     resolveTaskFilesForPrompt,
     resolveIntegrationBranchForPrompt,
     resolvePermissivenessForPrompt,
+    createAdoptionResolver({ stateWrites: options.adoptionStateWrites }),
   );
 
   return { engine, integrator };

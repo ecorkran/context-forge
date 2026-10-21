@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, ConfigManager, GuideManager, checkGuideMinimum } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
+import type { AdoptionStateWrites } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
 
 // --- Shared helpers ---
@@ -56,6 +57,7 @@ export async function ensureGuideForProject(projectPath: string): Promise<string
  */
 export async function generateContext(
   projectId: string,
+  adoptionStateWrites: AdoptionStateWrites,
   overrides?: Partial<ProjectData>,
   additionalInstructions?: string,
   worktreeId?: string,
@@ -89,7 +91,7 @@ export async function generateContext(
   // leaves the submodule uninitialized (#80).
   const notices = await ensureGuideForProject(workingCopy.projectPath!);
 
-  const { integrator } = createContextPipeline(workingCopy.projectPath!);
+  const { integrator } = createContextPipeline(workingCopy.projectPath!, { adoptionStateWrites });
   let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
   if (additionalInstructions) {
@@ -199,6 +201,7 @@ export function registerContextTools(server: McpServer): void {
 
         const { contextString, notices, guideWarning } = await generateContext(
           resolvedId,
+          'persist',
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWorktreeId,
@@ -263,6 +266,8 @@ export function registerContextTools(server: McpServer): void {
 
         const { contextString, notices } = await generateContext(
           resolvedId,
+          // template_preview is "without side effects": it must not write adoption.state.
+          'read-only',
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWtId,

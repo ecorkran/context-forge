@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createContextPipeline } from '@context-forge/core/node';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -170,6 +171,15 @@ describe('context_build', () => {
     expect(content).toHaveLength(2);
     expect(content[0].text).toBe(GENERATED_CONTEXT);
     expect(content[1].text).toContain(WARNING);
+  });
+
+  it('lets the build persist adoption state (slice 261)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    await client.callTool({ name: 'context_build', arguments: { projectId: MOCK_PROJECT.id } });
+
+    expect(createContextPipeline).toHaveBeenCalledWith(expect.any(String), { adoptionStateWrites: 'persist' });
   });
 
   it('returns a single content item when the guide meets the minimum', async () => {
@@ -356,6 +366,15 @@ describe('template_preview', () => {
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toBe(GENERATED_CONTEXT);
+  });
+
+  it('never writes adoption state (slice 261)', async () => {
+    mockGetById.mockResolvedValue(MOCK_PROJECT);
+    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
+
+    await client.callTool({ name: 'template_preview', arguments: { projectId: MOCK_PROJECT.id } });
+
+    expect(createContextPipeline).toHaveBeenCalledWith(expect.any(String), { adoptionStateWrites: 'read-only' });
   });
 
   it('returns isError for non-existent project', async () => {

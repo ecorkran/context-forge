@@ -54,7 +54,7 @@ describe('Context Pipeline Integration (no Electron)', () => {
     expect(loaded!.name).toBe('test-project');
 
     // 3. Wire up context pipeline with fixture path
-    const { integrator } = createContextPipeline(fixtureProjectPath);
+    const { integrator } = createContextPipeline(fixtureProjectPath, { adoptionStateWrites: 'read-only' });
 
     // 4. Generate context from the project
     const context = await integrator.generateContextFromProject(loaded!);

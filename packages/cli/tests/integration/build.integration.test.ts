@@ -39,7 +39,7 @@ const fixtureProject: ProjectData = {
 
 describe('cf build integration — core pipeline parity', () => {
   it('generates context via same createContextPipeline as MCP', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_ROOT);
+    const { integrator } = createContextPipeline(FIXTURE_ROOT, { adoptionStateWrites: 'read-only' });
     const context = await integrator.generateContextFromProject(fixtureProject);
 
     expect(context).toBeTruthy();
@@ -48,21 +48,21 @@ describe('cf build integration — core pipeline parity', () => {
   });
 
   it('context contains project name from fixture', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_ROOT);
+    const { integrator } = createContextPipeline(FIXTURE_ROOT, { adoptionStateWrites: 'read-only' });
     const context = await integrator.generateContextFromProject(fixtureProject);
 
     expect(context).toContain('integration-test-project');
   });
 
   it('context contains slice name from fixture', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_ROOT);
+    const { integrator } = createContextPipeline(FIXTURE_ROOT, { adoptionStateWrites: 'read-only' });
     const context = await integrator.generateContextFromProject(fixtureProject);
 
     expect(context).toContain('100-slice.auth');
   });
 
   it('override changes output', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_ROOT);
+    const { integrator } = createContextPipeline(FIXTURE_ROOT, { adoptionStateWrites: 'read-only' });
     const overridden: ProjectData = {
       ...fixtureProject,
       instruction: 'design',

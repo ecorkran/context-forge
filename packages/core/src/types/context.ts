@@ -35,6 +35,8 @@ export interface ContextData {
   targetBranch?: string;
   /** Guide fragment for workflow.permissiveness; empty or undefined when none applies. */
   permissivenessFragment?: string;
+  /** Rendered Adoption Facts section (with its own heading); set only when the brownfield prompt is selected. */
+  adoptionFacts?: string;
 }
 
 /**

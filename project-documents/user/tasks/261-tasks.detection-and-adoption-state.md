@@ -131,76 +131,76 @@ revision_number: 1
 
 - [x] **Task 5C: Commit** — `feat(core): add present-path and history detection facts`
 
-- [ ] **Task 6: Planning-artifact check** (effort: 2)
-  - [ ] In `packages/core/src/introspection/ArtifactIntrospector.ts`, extract the initiative-plan regex into an exported `INITIATIVE_PLAN_FILE_PATTERN` used by `resolveInitiativePlanPath`. No behavior change.
-  - [ ] Create `packages/core/src/detection/planningArtifacts.ts` exporting async `findPlanningArtifacts(root)`, per D6. Read `project-documents/user/project-guides/` and `project-documents/user/architecture/` once each with `readdir`; ENOENT → no entries; any other error throws `AdoptionError` naming the directory and the overrides.
-  - [ ] Match, case-insensitive: `INITIATIVE_PLAN_FILE_PATTERN` (project-guides only), and `^\d{3}-(arch|hld|slices)\..+\.md$` in both directories. Define the second pattern once as a constant. `000-concept.*` never matches.
-  - [ ] Return absolute paths, sorted. Export from `detection/index.ts`.
-  - [ ] Success: build passes; existing `ArtifactIntrospector` tests pass unchanged.
+- [x] **Task 6: Planning-artifact check** (effort: 2)
+  - [x] In `packages/core/src/introspection/ArtifactIntrospector.ts`, extract the initiative-plan regex into an exported `INITIATIVE_PLAN_FILE_PATTERN` used by `resolveInitiativePlanPath`. No behavior change.
+  - [x] Create `packages/core/src/detection/planningArtifacts.ts` exporting async `findPlanningArtifacts(root)`, per D6. Read `project-documents/user/project-guides/` and `project-documents/user/architecture/` once each with `readdir`; ENOENT → no entries; any other error throws `AdoptionError` naming the directory and the overrides.
+  - [x] Match, case-insensitive: `INITIATIVE_PLAN_FILE_PATTERN` (project-guides only), and `^\d{3}-(arch|hld|slices)\..+\.md$` in both directories. Define the second pattern once as a constant. `000-concept.*` never matches.
+  - [x] Return absolute paths, sorted. Export from `detection/index.ts`.
+  - [x] Success: build passes; existing `ArtifactIntrospector` tests pass unchanged.
 
-- [ ] **Task 6T: Planning-artifact tests** (effort: 2)
-  - [ ] Create `packages/core/tests/detection/planningArtifacts.test.ts` with temp directories.
-  - [ ] No `project-documents/` → `[]`. Concept only (`000-concept.x.md`) → `[]`.
-  - [ ] Each pattern alone found: `001-initiative-plan.x.md` in project-guides; `260-arch.x.md`, `050-hld.x.md`, `140-slices.x.md` in architecture; `100-arch.x.md` in project-guides. Upper-case `260-ARCH.x.MD` found.
-  - [ ] Non-matching names (`260-slice.x.md`, `260-arch.x.txt`) → `[]`.
-  - [ ] `project-documents/user/architecture` as a regular file (`ENOTDIR`) → throws `AdoptionError`.
-  - [ ] Success: all pass.
+- [x] **Task 6T: Planning-artifact tests** (effort: 2)
+  - [x] Create `packages/core/tests/detection/planningArtifacts.test.ts` with temp directories.
+  - [x] No `project-documents/` → `[]`. Concept only (`000-concept.x.md`) → `[]`.
+  - [x] Each pattern alone found: `001-initiative-plan.x.md` in project-guides; `260-arch.x.md`, `050-hld.x.md`, `140-slices.x.md` in architecture; `100-arch.x.md` in project-guides. Upper-case `260-ARCH.x.MD` found.
+  - [x] Non-matching names (`260-slice.x.md`, `260-arch.x.txt`) → `[]`.
+  - [x] `project-documents/user/architecture` as a regular file (`ENOTDIR`) → throws `AdoptionError`.
+  - [x] Success: all pass.
 
-- [ ] **Task 6C: Commit** — `feat(core): add planning-artifact detection`
+- [x] **Task 6C: Commit** — `feat(core): add planning-artifact detection`
 
 ### Outcome and facts (Development Approach steps 3–4)
 
-- [ ] **Task 7: Outcome decision** (effort: 2)
-  - [ ] In `packages/core/src/adoption/adoptionOutcome.ts` (holds `BROWNFIELD_MIN_SOURCE_LINES` from Task 3), add `AdoptionOutcome` (the union from the API Contracts) and pure `decideOutcome(input)`.
-  - [ ] Input: `{ state: AdoptionState; artifacts?: string[]; source?: SourceVolume }` (import `SourceVolume` with `import type`, so `adoptionOutcome.ts` and `sourceVolume.ts` don't form a runtime import cycle), so the resolver can read each fact only when needed. Order (D1): `in_progress` → `adoption-in-progress`; `complete`/`declined` → `adoption-closed`; non-empty `artifacts` → `already-planned`; `source.lines >= BROWNFIELD_MIN_SOURCE_LINES` → `brownfield`; else `greenfield`.
-  - [ ] A missing input that the order needs (state `''` and `artifacts` undefined; or no artifacts and `source` undefined) throws an `Error` naming the missing input. That is a programming error, not a default.
-  - [ ] Export from `adoption/index.ts`.
-  - [ ] Success: build passes.
+- [x] **Task 7: Outcome decision** (effort: 2)
+  - [x] In `packages/core/src/adoption/adoptionOutcome.ts` (holds `BROWNFIELD_MIN_SOURCE_LINES` from Task 3), add `AdoptionOutcome` (the union from the API Contracts) and pure `decideOutcome(input)`.
+  - [x] Input: `{ state: AdoptionState; artifacts?: string[]; source?: SourceVolume }` (import `SourceVolume` with `import type`, so `adoptionOutcome.ts` and `sourceVolume.ts` don't form a runtime import cycle), so the resolver can read each fact only when needed. Order (D1): `in_progress` → `adoption-in-progress`; `complete`/`declined` → `adoption-closed`; non-empty `artifacts` → `already-planned`; `source.lines >= BROWNFIELD_MIN_SOURCE_LINES` → `brownfield`; else `greenfield`.
+  - [x] A missing input that the order needs (state `''` and `artifacts` undefined; or no artifacts and `source` undefined) throws an `Error` naming the missing input. That is a programming error, not a default.
+  - [x] Export from `adoption/index.ts`.
+  - [x] Success: build passes.
 
-- [ ] **Task 7T: Outcome tests** (effort: 1)
-  - [ ] Create `packages/core/tests/adoption/adoptionOutcome.test.ts`: one case per branch; `in_progress` with artifacts and 0 lines → `adoption-in-progress` (state wins); `declined` with 5000 lines → `adoption-closed`; artifacts with 5000 lines → `already-planned`; exactly 2000 lines → brownfield; 1999 → greenfield; each missing-input case throws.
-  - [ ] Success: all pass.
+- [x] **Task 7T: Outcome tests** (effort: 1)
+  - [x] Create `packages/core/tests/adoption/adoptionOutcome.test.ts`: one case per branch; `in_progress` with artifacts and 0 lines → `adoption-in-progress` (state wins); `declined` with 5000 lines → `adoption-closed`; artifacts with 5000 lines → `already-planned`; exactly 2000 lines → brownfield; 1999 → greenfield; each missing-input case throws.
+  - [x] Success: all pass.
 
-- [ ] **Task 8: Adoption Facts renderer** (effort: 2)
-  - [ ] Create `packages/core/src/adoption/adoptionFacts.ts` exporting `renderAdoptionFacts(input)` and `NOT_EVALUATED` (`{ kind: 'not-evaluated' }`, used for the explicit-instruction path, D4).
-  - [ ] Input: `{ outcome: AdoptionOutcome | typeof NOT_EVALUATED; state; stateSetByBuild: boolean; history; docs; adrs; ruleFiles; ci }`.
-  - [ ] Output per D8: heading `### Adoption Facts`, then plain bullets in this order: outcome and reason; adoption state (plus, when `stateSetByBuild`, the D8 notice verbatim); source volume (when the outcome carries it; "count stopped at the threshold" when `capped`); history (commits and shallow, or "unknown: {reason}"); docs; ADRs; rule files; CI (its matches); squadron.
-  - [ ] Empty lists render "none found". State `''` renders as unset.
-  - [ ] Switch on `outcome.kind` exhaustively (a `never` check), so 263's new kind fails to compile until handled.
-  - [ ] The squadron bullet comes from its own exported function `renderSquadronFact()` returning the D8 text verbatim (262 replaces it).
-  - [ ] No guidance text: facts only (D8).
-  - [ ] Success: build passes.
+- [x] **Task 8: Adoption Facts renderer** (effort: 2)
+  - [x] Create `packages/core/src/adoption/adoptionFacts.ts` exporting `renderAdoptionFacts(input)` and `NOT_EVALUATED` (`{ kind: 'not-evaluated' }`, used for the explicit-instruction path, D4).
+  - [x] Input: `{ outcome: AdoptionOutcome | typeof NOT_EVALUATED; state; stateSetByBuild: boolean; history; docs; adrs; ruleFiles; ci }`.
+  - [x] Output per D8: heading `### Adoption Facts`, then plain bullets in this order: outcome and reason; adoption state (plus, when `stateSetByBuild`, the D8 notice verbatim); source volume (when the outcome carries it; "count stopped at the threshold" when `capped`); history (commits and shallow, or "unknown: {reason}"); docs; ADRs; rule files; CI (its matches); squadron.
+  - [x] Empty lists render "none found". State `''` renders as unset.
+  - [x] Switch on `outcome.kind` exhaustively (a `never` check), so 263's new kind fails to compile until handled.
+  - [x] The squadron bullet comes from its own exported function `renderSquadronFact()` returning the D8 text verbatim (262 replaces it).
+  - [x] No guidance text: facts only (D8).
+  - [x] Success: build passes.
 
-- [ ] **Task 8T: Renderer tests** (effort: 2)
-  - [ ] Create `packages/core/tests/adoption/adoptionFacts.test.ts`: brownfield (capped) → outcome bullet contains `2000+` and the threshold note; adoption-in-progress; `NOT_EVALUATED` → "not evaluated (explicit brownfield-adoption instruction)"; `stateSetByBuild` true → the notice with `cf config set adoption.state declined`, false → no notice; empty docs/ADRs/rule files/CI → each "none found"; history unknown → the reason; the squadron bullet equals `renderSquadronFact()`.
-  - [ ] Output starts with `### Adoption Facts`.
-  - [ ] Success: all pass.
+- [x] **Task 8T: Renderer tests** (effort: 2)
+  - [x] Create `packages/core/tests/adoption/adoptionFacts.test.ts`: brownfield (capped) → outcome bullet contains `2000+` and the threshold note; adoption-in-progress; `NOT_EVALUATED` → "not evaluated (explicit brownfield-adoption instruction)"; `stateSetByBuild` true → the notice with `cf config set adoption.state declined`, false → no notice; empty docs/ADRs/rule files/CI → each "none found"; history unknown → the reason; the squadron bullet equals `renderSquadronFact()`.
+  - [x] Output starts with `### Adoption Facts`.
+  - [x] Success: all pass.
 
-- [ ] **Task 8C: Commit** — `feat(core): add adoption outcome decision and facts renderer`
+- [x] **Task 8C: Commit** — `feat(core): add adoption outcome decision and facts renderer`
 
 ### Resolver and build integration (Development Approach step 5)
 
-- [ ] **Task 9: Adoption resolver** (effort: 3)
-  - [ ] Create `packages/core/src/adoption/adoptionResolver.ts` exporting `AdoptionStateWrites` (`'persist' | 'read-only'`) and `createAdoptionResolver({ stateWrites })` returning an `AdoptionResolver`. This is the only file holding the selection rule (D4) and step order (D7, Data Flow steps 1–6).
-  - [ ] Step 1: eligible only when `resolvePhaseValue(instruction) === CONCEPT_PHASE` or `instruction === BROWNFIELD_ADOPTION_INSTRUCTION`. Otherwise return `{ selected: false }` before any I/O.
-  - [ ] Step 2 (concept phase only): `readAdoptionState(checkoutPath)`; if `''`, `findPlanningArtifacts(checkoutPath)`; if none, `measureSourceVolume(checkoutPath)`; then `decideOutcome`. Explicit instruction: skip, outcome `NOT_EVALUATED`, still read the state for the state bullet.
-  - [ ] Step 3: selected iff outcome is `brownfield` or `adoption-in-progress`, or the instruction is explicit. Switch exhaustively on `kind`.
-  - [ ] Step 4 (D9): read `resolvePromptFilePath(projectPath)`; require a `brownfield-adoption` key in `ContextProfileParser.parseProfiles(content)` and a non-null `new SystemPromptParser(path).getPromptForInstruction(BROWNFIELD_ADOPTION_INSTRUCTION)`. Missing either → `AdoptionError` with the D9 message verbatim (`profile` or `prompt`, built from `MIN_GUIDE_VERSION`).
-  - [ ] Step 5: outcome `brownfield` and `stateWrites === 'persist'` → `writeAdoptionState(checkoutPath, 'in_progress')`. A failure → `AdoptionError` naming `.context-forge.toml`, the error, `cf build --it brownfield-adoption` and `cf config set adoption.state declined`, with `cause`.
-  - [ ] Step 6: gather `readHistory`, `presentPaths` (the three lists), `recognizeCi(checkoutPath)`, then `renderAdoptionFacts` with `stateSetByBuild` true only when step 5 wrote. Return `{ selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION, facts }`.
-  - [ ] Split each step into its own function so each stays under ~50 lines. Export from `adoption/index.ts`.
-  - [ ] Success: build passes.
+- [x] **Task 9: Adoption resolver** (effort: 3)
+  - [x] Create `packages/core/src/adoption/adoptionResolver.ts` exporting `AdoptionStateWrites` (`'persist' | 'read-only'`) and `createAdoptionResolver({ stateWrites })` returning an `AdoptionResolver`. This is the only file holding the selection rule (D4) and step order (D7, Data Flow steps 1–6).
+  - [x] Step 1: eligible only when `resolvePhaseValue(instruction) === CONCEPT_PHASE` or `instruction === BROWNFIELD_ADOPTION_INSTRUCTION`. Otherwise return `{ selected: false }` before any I/O.
+  - [x] Step 2 (concept phase only): `readAdoptionState(checkoutPath)`; if `''`, `findPlanningArtifacts(checkoutPath)`; if none, `measureSourceVolume(checkoutPath)`; then `decideOutcome`. Explicit instruction: skip, outcome `NOT_EVALUATED`, still read the state for the state bullet.
+  - [x] Step 3: selected iff outcome is `brownfield` or `adoption-in-progress`, or the instruction is explicit. Switch exhaustively on `kind`.
+  - [x] Step 4 (D9): read `resolvePromptFilePath(projectPath)`; require a `brownfield-adoption` key in `ContextProfileParser.parseProfiles(content)` and a non-null `new SystemPromptParser(path).getPromptForInstruction(BROWNFIELD_ADOPTION_INSTRUCTION)`. Missing either → `AdoptionError` with the D9 message verbatim (`profile` or `prompt`, built from `MIN_GUIDE_VERSION`).
+  - [x] Step 5: outcome `brownfield` and `stateWrites === 'persist'` → `writeAdoptionState(checkoutPath, 'in_progress')`. A failure → `AdoptionError` naming `.context-forge.toml`, the error, `cf build --it brownfield-adoption` and `cf config set adoption.state declined`, with `cause`.
+  - [x] Step 6: gather `readHistory`, `presentPaths` (the three lists), `recognizeCi(checkoutPath)`, then `renderAdoptionFacts` with `stateSetByBuild` true only when step 5 wrote. Return `{ selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION, facts }`.
+  - [x] Split each step into its own function so each stays under ~50 lines. Export from `adoption/index.ts`.
+  - [x] Success: build passes.
 
-- [ ] **Task 9T: Resolver tests** (effort: 3)
-  - [ ] Create a guide fixture `packages/core/tests/fixtures/brownfield-guide/`: a copy of the `test-project` fixture's `prompt.ai-project.system.md` with a `brownfield-adoption: [fileConcept, fileArch, fileSlicePlan, fileComprehension]` profile line and a short `##### Brownfield Adoption` prompt section added. The existing `test-project` fixture serves as the guide without the profile. Tests copy the prompt file into temp project dirs at `PROMPT_FILE_RELATIVE_PATH`.
-  - [ ] Create `packages/core/tests/adoption/adoptionResolver.test.ts`. Selection table (D4), one case each: `Phase 2: Architecture` on an `in_progress` project → not selected and no fs access (spy or a non-existent `checkoutPath`); concept + empty repo → not selected, state unchanged; concept + 2000 lines → selected, state `in_progress`, facts contain the notice; concept + `in_progress` + arch present → selected, no write, no notice; concept + `declined` + 5000 lines → not selected; concept + planned + 5000 lines → not selected and the walk never runs (spy on `measureSourceVolume`).
-  - [ ] Explicit `brownfield-adoption` on an empty repo with state `''`: selected, "not evaluated" in facts, state still `''`, no walk.
-  - [ ] `read-only` + brownfield → selected, state still `''`, no notice.
-  - [ ] Guide without the profile (and, separately, with the profile but no prompt) → `AdoptionError` naming `profile` / `prompt`, and state still `''` (check before write).
-  - [ ] Write failure: `.context-forge.toml` as a read-only file (`chmod 444`, skip as root/Windows) → `AdoptionError` naming `.context-forge.toml` and `--it brownfield-adoption`.
-  - [ ] Success: all pass.
+- [x] **Task 9T: Resolver tests** (effort: 3)
+  - [x] Create a guide fixture `packages/core/tests/fixtures/brownfield-guide/`: a copy of the `test-project` fixture's `prompt.ai-project.system.md` with a `brownfield-adoption: [fileConcept, fileArch, fileSlicePlan, fileComprehension]` profile line and a short `##### Brownfield Adoption` prompt section added. The existing `test-project` fixture serves as the guide without the profile. Tests copy the prompt file into temp project dirs at `PROMPT_FILE_RELATIVE_PATH`.
+  - [x] Create `packages/core/tests/adoption/adoptionResolver.test.ts`. Selection table (D4), one case each: `Phase 2: Architecture` on an `in_progress` project → not selected and no fs access (spy or a non-existent `checkoutPath`); concept + empty repo → not selected, state unchanged; concept + 2000 lines → selected, state `in_progress`, facts contain the notice; concept + `in_progress` + arch present → selected, no write, no notice; concept + `declined` + 5000 lines → not selected; concept + planned + 5000 lines → not selected and the walk never runs (spy on `measureSourceVolume`).
+  - [x] Explicit `brownfield-adoption` on an empty repo with state `''`: selected, "not evaluated" in facts, state still `''`, no walk.
+  - [x] `read-only` + brownfield → selected, state still `''`, no notice.
+  - [x] Guide without the profile (and, separately, with the profile but no prompt) → `AdoptionError` naming `profile` / `prompt`, and state still `''` (check before write).
+  - [x] Write failure: `.context-forge.toml` as a read-only file (`chmod 444`, skip as root/Windows) → `AdoptionError` naming `.context-forge.toml` and `--it brownfield-adoption`.
+  - [x] Success: all pass.
 
-- [ ] **Task 9C: Commit** — `feat(core): add build-time adoption resolver`
+- [x] **Task 9C: Commit** — `feat(core): add build-time adoption resolver`
 
 - [ ] **Task 10: Integrator and template engine** (effort: 2)
   - [ ] In `ContextIntegrator.ts`, import `AdoptionResolver` and `AdoptionError` from `../adoption/contracts.js`. Add a seventh optional constructor parameter `resolveAdoptionFn: AdoptionResolver | null = null` and its JSDoc line.

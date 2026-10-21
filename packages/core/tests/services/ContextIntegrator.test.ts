@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ContextIntegrator, PermissivenessFragmentError } from '../../src/services/ContextIntegrator.js';
 import type { PermissivenessResolver } from '../../src/services/ContextIntegrator.js';
+import { AdoptionError, BROWNFIELD_ADOPTION_INSTRUCTION } from '../../src/adoption/contracts.js';
+import type { AdoptionResolver } from '../../src/adoption/contracts.js';
 import { ContextTemplateEngine } from '../../src/services/ContextTemplateEngine.js';
 import type { IPromptService, IStatementService } from '../../src/services/interfaces.js';
 import { createTestProjectData } from '../helpers/testData.js';
@@ -357,6 +359,79 @@ describe('ContextIntegrator', () => {
       const { integrator, project, generateSpy } = build(null);
       await integrator.generateContextFromProject(project);
       expect(generateSpy.mock.calls[0][0].permissivenessFragment).toBeUndefined();
+    });
+  });
+
+  describe('adoption data flow (slice 261)', () => {
+    const FACTS = '### Adoption Facts\n\n- Outcome: brownfield';
+    const PROFILES = `## Prompts
+\`\`\`yaml
+context_profiles:
+  concept-phase-0: []
+  brownfield-adoption: [fileArch]
+  _default: [fileArch, fileSlicePlan, fileSlice, fileTasks]
+\`\`\`
+`;
+    const selected: AdoptionResolver = async () => ({
+      selected: true,
+      instruction: BROWNFIELD_ADOPTION_INSTRUCTION,
+      facts: FACTS,
+    });
+
+    function build(resolver: AdoptionResolver | null) {
+      const engine = createMockEngine();
+      const generateSpy = vi.spyOn(engine, 'generateContext');
+      const integrator = new ContextIntegrator(engine, true, () => PROFILES, null, null, null, resolver);
+      const project = createTestProjectData({
+        projectPath: '/tmp/test',
+        instruction: 'Phase 0: Concept',
+        fileArch: '100-arch.x',
+        fileSlicePlan: '100-slices.x',
+      });
+      return { integrator, project, generateSpy };
+    }
+
+    it('selected: swaps the instruction, sets adoptionFacts and filters by the brownfield profile', async () => {
+      const { integrator, project, generateSpy } = build(selected);
+      await integrator.generateContextFromProject(project);
+      const data = generateSpy.mock.calls[0][0];
+      expect(data.instruction).toBe(BROWNFIELD_ADOPTION_INSTRUCTION);
+      expect(data.adoptionFacts).toBe(FACTS);
+      expect(data.fileArch).toBe('100-arch.x');
+      expect(data.fileSlicePlan).toBe('');
+    });
+
+    it('passes project root, checkout path and the instruction value to the resolver', async () => {
+      const resolver = vi.fn<AdoptionResolver>(async () => ({ selected: false }));
+      const { integrator, project } = build(resolver);
+      await integrator.generateContextFromProject(project);
+      expect(resolver).toHaveBeenCalledWith('/tmp/test', '/tmp/test', 'Phase 0: Concept');
+    });
+
+    it('not selected: data is identical to an integrator without a resolver', async () => {
+      const withResolver = build(async () => ({ selected: false }));
+      const without = build(null);
+      await withResolver.integrator.generateContextFromProject(withResolver.project);
+      await without.integrator.generateContextFromProject(without.project);
+      const a = withResolver.generateSpy.mock.calls[0][0];
+      const b = without.generateSpy.mock.calls[0][0];
+      expect(a.adoptionFacts).toBeUndefined();
+      expect({ ...a, dateProject: '' }).toEqual({ ...b, dateProject: '' });
+    });
+
+    it('rejects when the resolver throws AdoptionError (no silent fallback)', async () => {
+      const { integrator, project } = build(async () => {
+        throw new AdoptionError('guide has no profile');
+      });
+      await expect(integrator.generateContextFromProject(project)).rejects.toThrow('guide has no profile');
+    });
+
+    it('keeps the error-stub behavior for any other resolver error', async () => {
+      const { integrator, project } = build(async () => {
+        throw new Error('unrelated failure');
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(integrator.generateContextFromProject(project)).resolves.toContain('Error generating context');
     });
   });
 
