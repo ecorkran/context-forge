@@ -18,6 +18,7 @@ export interface SourceVolume {
 /** Extensions (lowercase, no dot) counted as source. Adding a language is a one-line edit. */
 export const SOURCE_EXTENSIONS: readonly string[] = [
   'ts', 'tsx', 'js', 'jsx', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'c', 'h', 'cpp', 'cs', 'php',
+  'sh', 'dart', 'vue', 'svelte', 'scala', 'lua', 'ex',
 ];
 
 /** Directories never walked, besides any directory whose name starts with a dot. */
