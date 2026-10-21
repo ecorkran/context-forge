@@ -12,7 +12,7 @@ projectState: main after slice 260 (complete). `detection/` holds `pathPresent`/
   accepted as written).
 dateCreated: 20261021
 dateUpdated: 20261021
-status: not_started
+status: in_progress
 turns: 36
 promptTokens: 3064205
 cachedTokens: 2950677
@@ -43,40 +43,40 @@ revision_number: 1
 
 ## Tasks
 
-- [ ] **Task 0: Slice branch** (effort: 1)
-  - [ ] Read `cf config get git.integration_branch`; empty means the target is `main`.
-  - [ ] Create `261-slice.detection-and-adoption-state` from the target if it does not exist, otherwise switch to it.
-  - [ ] Success: `git branch --show-current` prints the slice branch.
+- [x] **Task 0: Slice branch** (effort: 1)
+  - [x] Read `cf config get git.integration_branch`; empty means the target is `main`.
+  - [x] Create `261-slice.detection-and-adoption-state` from the target if it does not exist, otherwise switch to it.
+  - [x] Success: `git branch --show-current` prints the slice branch.
 
 ### State and contracts (Development Approach step 1)
 
-- [ ] **Task 1: `CONCEPT_PHASE` and the `adoption.state` key** (effort: 1)
-  - [ ] In `packages/core/src/schema/projectSchema.ts`, add `CONCEPT_PHASE` (`PHASE_STRINGS[0]`) beside `ARCHITECTURE_PHASE`, typed the same way. Confirm it is exported from `packages/core/src/index.ts` the way `ARCHITECTURE_PHASE` is.
-  - [ ] In `packages/core/src/config/ConfigKeys.ts`, add `ADOPTION_STATES` (`['', 'in_progress', 'complete', 'declined'] as const`) and `AdoptionState`, beside `PERMISSIVENESS_LEVELS`.
-  - [ ] Add the `adoption.state` key exactly as in the design's Database / Storage Schema (string, default `''`, `enum: [...ADOPTION_STATES]`, `ConfigScope.Shared`, the description verbatim).
-  - [ ] Success: `pnpm -r build` passes; `cfl config get adoption.state` prints an empty value with source `default`.
+- [x] **Task 1: `CONCEPT_PHASE` and the `adoption.state` key** (effort: 1)
+  - [x] In `packages/core/src/schema/projectSchema.ts`, add `CONCEPT_PHASE` (`PHASE_STRINGS[0]`) beside `ARCHITECTURE_PHASE`, typed the same way. Confirm it is exported from `packages/core/src/index.ts` the way `ARCHITECTURE_PHASE` is.
+  - [x] In `packages/core/src/config/ConfigKeys.ts`, add `ADOPTION_STATES` (`['', 'in_progress', 'complete', 'declined'] as const`) and `AdoptionState`, beside `PERMISSIVENESS_LEVELS`.
+  - [x] Add the `adoption.state` key exactly as in the design's Database / Storage Schema (string, default `''`, `enum: [...ADOPTION_STATES]`, `ConfigScope.Shared`, the description verbatim).
+  - [x] Success: `pnpm -r build` passes; `cfl config get adoption.state` prints an empty value with source `default`.
 
-- [ ] **Task 1T: Key and constant tests** (effort: 1)
-  - [ ] In `packages/core/tests/config/ConfigKeys.test.ts`, add a `describe('adoption.state')` following the `workflow.permissiveness` block: registered, default `''`, shared scope, enum equals `ADOPTION_STATES`.
-  - [ ] Add cases there (or in `ConfigManager.test.ts`, following the permissiveness `set` case): each `ADOPTION_STATES` value is accepted by `set(..., 'project')` and lands in `.context-forge.toml` (not the personal file); `maybe` is rejected and the error lists the allowed values.
-  - [ ] Add one assertion in `packages/core/tests/schema/` that `resolvePhaseValue('Phase 0: Concept')`, `resolvePhaseValue('0')` and `resolvePhaseValue('phase 1: concept')` (legacy) all equal `CONCEPT_PHASE`.
-  - [ ] Success: all pass.
+- [x] **Task 1T: Key and constant tests** (effort: 1)
+  - [x] In `packages/core/tests/config/ConfigKeys.test.ts`, add a `describe('adoption.state')` following the `workflow.permissiveness` block: registered, default `''`, shared scope, enum equals `ADOPTION_STATES`.
+  - [x] Add cases there (or in `ConfigManager.test.ts`, following the permissiveness `set` case): each `ADOPTION_STATES` value is accepted by `set(..., 'project')` and lands in `.context-forge.toml` (not the personal file); `maybe` is rejected and the error lists the allowed values.
+  - [x] Add one assertion in `packages/core/tests/schema/` that `resolvePhaseValue('Phase 0: Concept')`, `resolvePhaseValue('0')` and `resolvePhaseValue('phase 1: concept')` (legacy) all equal `CONCEPT_PHASE`.
+  - [x] Success: all pass.
 
-- [ ] **Task 2: Adoption contracts and state helpers** (effort: 2)
-  - [ ] Create `packages/core/src/adoption/contracts.ts` per the API Contracts: `BROWNFIELD_ADOPTION_INSTRUCTION`, `AdoptionSelection`, `AdoptionResolver`, and `AdoptionError extends Error` (sets `name`, accepts `ErrorOptions` for `cause`, like `PermissivenessFragmentError`). No imports.
-  - [ ] Create `packages/core/src/adoption/adoptionState.ts`: re-export `ADOPTION_STATES` and `AdoptionState`; `readAdoptionState(root)` reads `adoption.state` through `new ConfigManager(root).get`; `writeAdoptionState(root, state)` calls `set('adoption.state', state, 'project')`.
-  - [ ] `readAdoptionState`: a value not in `ADOPTION_STATES` (hand-edited file) throws `AdoptionError` naming the value, the allowed values and `.context-forge.toml`. A TOML parse error propagates unwrapped (D9, malformed file).
-  - [ ] `writeAdoptionState` does not catch: the resolver owns the D9 write-failure message (Task 9).
-  - [ ] Create `packages/core/src/adoption/index.ts` re-exporting both files, and re-export it from `packages/core/src/node.ts`.
-  - [ ] Success: `pnpm -r build` and `pnpm -r typecheck` pass.
+- [x] **Task 2: Adoption contracts and state helpers** (effort: 2)
+  - [x] Create `packages/core/src/adoption/contracts.ts` per the API Contracts: `BROWNFIELD_ADOPTION_INSTRUCTION`, `AdoptionSelection`, `AdoptionResolver`, and `AdoptionError extends Error` (sets `name`, accepts `ErrorOptions` for `cause`, like `PermissivenessFragmentError`). No imports.
+  - [x] Create `packages/core/src/adoption/adoptionState.ts`: re-export `ADOPTION_STATES` and `AdoptionState`; `readAdoptionState(root)` reads `adoption.state` through `new ConfigManager(root).get`; `writeAdoptionState(root, state)` calls `set('adoption.state', state, 'project')`.
+  - [x] `readAdoptionState`: a value not in `ADOPTION_STATES` (hand-edited file) throws `AdoptionError` naming the value, the allowed values and `.context-forge.toml`. A TOML parse error propagates unwrapped (D9, malformed file).
+  - [x] `writeAdoptionState` does not catch: the resolver owns the D9 write-failure message (Task 9).
+  - [x] Create `packages/core/src/adoption/index.ts` re-exporting both files, and re-export it from `packages/core/src/node.ts`.
+  - [x] Success: `pnpm -r build` and `pnpm -r typecheck` pass.
 
-- [ ] **Task 2T: State helper tests** (effort: 1)
-  - [ ] Create `packages/core/tests/adoption/adoptionState.test.ts` with temp directories.
-  - [ ] No `.context-forge.toml` → `''`. Write then read each state → round-trips; the file contains `[adoption]` and `state = "in_progress"`.
-  - [ ] Hand-written invalid value → `AdoptionError`. Malformed TOML → rejects with the parser's error, not `AdoptionError`.
-  - [ ] Success: all pass.
+- [x] **Task 2T: State helper tests** (effort: 1)
+  - [x] Create `packages/core/tests/adoption/adoptionState.test.ts` with temp directories.
+  - [x] No `.context-forge.toml` → `''`. Write then read each state → round-trips; the file contains `[adoption]` and `state = "in_progress"`.
+  - [x] Hand-written invalid value → `AdoptionError`. Malformed TOML → rejects with the parser's error, not `AdoptionError`.
+  - [x] Success: all pass.
 
-- [ ] **Task 2C: Commit** — `feat(core): add adoption.state config key and state helpers`
+- [x] **Task 2C: Commit** — `feat(core): add adoption.state config key and state helpers`
 
 ### Detection facts (Development Approach step 2)
 
