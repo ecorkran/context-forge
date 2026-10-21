@@ -7,8 +7,17 @@ dependencies:
 - 261
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261020
+dateUpdated: 20261021
 status: not_started
+turns: 39
+promptTokens: 2773522
+cachedTokens: 2670385
+cacheWriteTokens: 103063
+completionTokens: 29174
+durationSeconds: 313.5
+costUsd: 1.942686
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: docs-and-adr-mapping
