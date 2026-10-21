@@ -202,28 +202,28 @@ revision_number: 1
 
 - [x] **Task 9C: Commit** — `feat(core): add build-time adoption resolver`
 
-- [ ] **Task 10: Integrator and template engine** (effort: 2)
-  - [ ] In `ContextIntegrator.ts`, import `AdoptionResolver` and `AdoptionError` from `../adoption/contracts.js`. Add a seventh optional constructor parameter `resolveAdoptionFn: AdoptionResolver | null = null` and its JSDoc line.
-  - [ ] In `generateWithTemplateEngine`, compute `checkoutPath` before `mapProjectToEnhancedContext` (move the existing two lines up). When the resolver and `project.projectPath` are set, call it with `(project.projectPath, checkoutPath, instruction)`, where `instruction` is the value mapping already uses (`project.instruction || 'implementation'`, held in one local). When selected, map `{ ...project, instruction: selection.instruction }` and set `enhancedData.adoptionFacts = selection.facts`.
-  - [ ] In `generateContextFromProject`, rethrow `AdoptionError` beside `PermissivenessFragmentError`, with a one-line comment.
-  - [ ] Add `adoptionFacts?: string` to `EnhancedContextData`.
-  - [ ] In `ContextTemplateEngine.ts`, add an order 3.4 section (key `adoptionFacts`) when `adoptionFacts?.trim()`, following the 3.5 permissiveness block. The facts carry their own heading.
-  - [ ] Success: build passes; existing integrator and engine tests pass unchanged.
+- [x] **Task 10: Integrator and template engine** (effort: 2)
+  - [x] In `ContextIntegrator.ts`, import `AdoptionResolver` and `AdoptionError` from `../adoption/contracts.js`. Add a seventh optional constructor parameter `resolveAdoptionFn: AdoptionResolver | null = null` and its JSDoc line.
+  - [x] In `generateWithTemplateEngine`, compute `checkoutPath` before `mapProjectToEnhancedContext` (move the existing two lines up). When the resolver and `project.projectPath` are set, call it with `(project.projectPath, checkoutPath, instruction)`, where `instruction` is the value mapping already uses (`project.instruction || 'implementation'`, held in one local). When selected, map `{ ...project, instruction: selection.instruction }` and set `enhancedData.adoptionFacts = selection.facts`.
+  - [x] In `generateContextFromProject`, rethrow `AdoptionError` beside `PermissivenessFragmentError`, with a one-line comment.
+  - [x] Add `adoptionFacts?: string` to `EnhancedContextData`.
+  - [x] In `ContextTemplateEngine.ts`, add an order 3.4 section (key `adoptionFacts`) when `adoptionFacts?.trim()`, following the 3.5 permissiveness block. The facts carry their own heading.
+  - [x] Success: build passes; existing integrator and engine tests pass unchanged.
 
-- [ ] **Task 10T: Integrator and engine tests** (effort: 2)
-  - [ ] In `packages/core/tests/services/ContextIntegrator.test.ts`, with a stub resolver: selected → the brownfield prompt is used, `adoptionFacts` set, profile filtering uses `brownfield-adoption`; not selected → output identical to an integrator built without a resolver; stub throws `AdoptionError` → rejects; stub throws a plain `Error` → error stub returned, as today.
-  - [ ] In `ContextTemplateEngine.test.ts`: facts appear after the instruction prompt and before the permissiveness fragment; absent facts → no section.
-  - [ ] Success: all pass.
+- [x] **Task 10T: Integrator and engine tests** (effort: 2)
+  - [x] In `packages/core/tests/services/ContextIntegrator.test.ts`, with a stub resolver: selected → the brownfield prompt is used, `adoptionFacts` set, profile filtering uses `brownfield-adoption`; not selected → output identical to an integrator built without a resolver; stub throws `AdoptionError` → rejects; stub throws a plain `Error` → error stub returned, as today.
+  - [x] In `ContextTemplateEngine.test.ts`: facts appear after the instruction prompt and before the permissiveness fragment; absent facts → no section.
+  - [x] Success: all pass.
 
-- [ ] **Task 11: Pipeline option and callers** (effort: 2)
-  - [ ] Change `createContextPipeline(projectPath, options: { adoptionStateWrites: AdoptionStateWrites })` (required) and pass `createAdoptionResolver({ stateWrites })` as the seventh integrator argument.
-  - [ ] `packages/cli/src/commands/build.ts` → `persist`.
-  - [ ] `packages/mcp-server/src/tools/contextTools.ts`: `generateContext` gains a required `adoptionStateWrites` parameter passed to the pipeline; `context_build` passes `persist`, `template_preview` passes `read-only`.
-  - [ ] Update every test caller found by `grep -rn "createContextPipeline(" packages/*/tests` to pass `{ adoptionStateWrites: 'read-only' }`. Update `build.test.ts`'s `toHaveBeenCalledWith('/tmp/test')` to expect `persist`. Do not touch `packages/electron/out/` (Special Considerations).
-  - [ ] Add `contextTools.test.ts` assertions that `context_build` passes `persist` and `template_preview` passes `read-only` to the mocked pipeline.
-  - [ ] Success: `pnpm -r build`, `pnpm -r typecheck` and `pnpm -r test` pass.
+- [x] **Task 11: Pipeline option and callers** (effort: 2)
+  - [x] Change `createContextPipeline(projectPath, options: { adoptionStateWrites: AdoptionStateWrites })` (required) and pass `createAdoptionResolver({ stateWrites })` as the seventh integrator argument.
+  - [x] `packages/cli/src/commands/build.ts` → `persist`.
+  - [x] `packages/mcp-server/src/tools/contextTools.ts`: `generateContext` gains a required `adoptionStateWrites` parameter passed to the pipeline; `context_build` passes `persist`, `template_preview` passes `read-only`.
+  - [x] Update every test caller found by `grep -rn "createContextPipeline(" packages/*/tests` to pass `{ adoptionStateWrites: 'read-only' }`. Update `build.test.ts`'s `toHaveBeenCalledWith('/tmp/test')` to expect `persist`. Do not touch `packages/electron/out/` (Special Considerations).
+  - [x] Add `contextTools.test.ts` assertions that `context_build` passes `persist` and `template_preview` passes `read-only` to the mocked pipeline.
+  - [x] Success: `pnpm -r build`, `pnpm -r typecheck` and `pnpm -r test` pass.
 
-- [ ] **Task 11C: Commit** — `feat: select brownfield-adoption prompt in cf build and context_build`
+- [x] **Task 11C: Commit** — `feat: select brownfield-adoption prompt in cf build and context_build`
 
 ### Integration, parity and docs (Development Approach step 6)
 
