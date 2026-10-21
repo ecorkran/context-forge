@@ -3,11 +3,25 @@ docType: slice-design
 slice: end-to-end-adoption-verification-and-docs
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
-dependencies: [260, 261, 262, 263, 264]
+dependencies:
+- 260
+- 261
+- 262
+- 263
+- 264
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261020
+dateUpdated: 20261021
 status: not_started
+turns: 23
+promptTokens: 1857972
+cachedTokens: 1738677
+cacheWriteTokens: 119253
+completionTokens: 22377
+durationSeconds: 230.6
+costUsd: 1.668508
+usageRounds: 1
+pricedRounds: 1
 ---
 
 # Slice Design: end-to-end-adoption-verification-and-docs
