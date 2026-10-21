@@ -5,9 +5,9 @@ project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
 dependencies:
 - 261
-interfaces: []
+interfaces: [retroactive-marker-and-existing-state-slice-plan, end-to-end-adoption-verification-and-docs]
 dateCreated: 20261020
-dateUpdated: 20261021
+dateUpdated: 20261020
 status: not_started
 turns: 39
 promptTokens: 2773522
@@ -39,13 +39,14 @@ This slice adds a **docs map**: one cf-generated index file inside `project-docu
 Included:
 - `docs-map/` core module: discovery, rendering and the write (D1–D4).
 - `cf docs map` CLI command (D5).
-- One managed-block locator in core, used by both the docs map and setup-ide's `managedState` (D7).
 - A regression test that `cf check` reports nothing for out-of-tree links (D6).
 - Making 261's `DOC_PATHS`, `ADR_DIRS` and `EXCLUDED_DIRS` core-internal exports, so "where docs and ADRs live" has one definition (D2).
 - README: one short entry for `cf docs map`. Full adoption docs are 265's.
 
 Excluded:
+- Any change to setup-ide code, including a shared managed-block locator. The docs map keeps its own private locator; extracting a shared one stays with #128 (D7).
 - Reading docs or ADRs for meaning: no ADR status, no summaries, no mapping of ADRs to components. That's agent work (arch: facts in core, judgement in the prompt).
+- Title sources beyond the first level-1 heading: no frontmatter `title:`, no read limit (D3).
 - Running the mapping during `cf build` or adoption automatically (D5).
 - An MCP tool. Like 266, this is CLI-first. The logic is in core so an MCP tool can be added later without moving code.
 - A build variable (`fileDocsMap`) or profile change. That needs guide work and no consumer asks for it yet.
@@ -57,12 +58,13 @@ Excluded:
 
 ### Prerequisites
 - **Slice 261 (Detection and Adoption State):** the `detection/` module with `presentPaths`, `DOC_PATHS`, `ADR_DIRS` and `EXCLUDED_DIRS`, and 261's checkout-root rule (D5 there). 267 doesn't need the adoption state or outcome: a map is useful in any project with existing docs.
+- **No ordering with 266 or #123.** 267 touches no setup-ide file (D7), so it can land before, after or alongside either without merge or behavior conflicts.
 - No external services or new packages. The guide-side items in Integration Points are follow-ups and don't block the slice or its release.
 
 ### Interfaces Required
 - From 261: `DOC_PATHS`, `ADR_DIRS`, `EXCLUDED_DIRS` and `presentPaths(root, candidates)` from `packages/core/src/detection/`. 261 keeps them out of the package exports. 267 imports them inside core, the same way 266 takes `RULE_FILE_PATHS`.
 - From 260: `pathPresent` / `isEnoent` (the missing-file rule).
-- Existing: `ConsistencyChecker.checkAll` (unchanged; used by the regression test), `parseFrontmatter`, setup-ide's `managedState` (D7), the CLI project resolution `cf build` uses.
+- Existing: `ConsistencyChecker.checkAll` (unchanged; used by the regression test), the CLI project resolution `cf build` uses.
 
 ## Architecture
 
@@ -72,21 +74,17 @@ Excluded:
 packages/core/src/detection/
   presentPaths.ts       (261) DOC_PATHS, ADR_DIRS exported inside core (not from the package)
   sourceVolume.ts       (261) EXCLUDED_DIRS exported inside core
-packages/core/src/utils/
-  managedBlock.ts       locateManagedBlock(lines, begin, end) → absent | managed | broken   (pure, D7)
 packages/core/src/docs-map/
-  discoverDocs.ts       discoverMappedDocs(root) → Promise<Discovery>; title extraction   (D2, D3)
-  renderDocsMap.ts      renderManagedBlock(docs, mapDir, root) → string                   (pure, D3)
-  docsMapFile.ts        markers, name constants, DocsMapError;
-                        findDocsMap(root) → string | null; writeDocsMap(root, project) → DocsMapResult  (D1, D4)
+  discoverDocs.ts       discoverMappedDocs(root) → Promise<Discovery>; H1 title read     (D2, D3)
+  renderDocsMap.ts      renderManagedBlock(docs, mapDir, root) → string                  (pure, D3)
+  docsMapFile.ts        markers, name constants, DocsMapError, private block locator;
+                        docsMapPath(root, project) → string; writeDocsMap(root, project) → DocsMapResult  (D1, D4)
   index.ts
 packages/cli/src/commands/
   docs.ts               `cf docs map` (D5)
-packages/cli/src/ideInstall/
-  managedSection.ts     managedState calls locateManagedBlock for the pair check (D7)
 ```
 
-`docs-map/` writes exactly one file, the map. It reads candidate docs only for their title (D3). Nothing in `introspection/` or `schema/` changes.
+`docs-map/` writes exactly one file, the map. It reads candidate docs only for their first H1 (D3). Nothing in `introspection/`, `schema/` or `ideInstall/` changes.
 
 ### Data Flow
 
@@ -94,29 +92,29 @@ packages/cli/src/ideInstall/
 cf docs map
   → resolve project (as cf build does); root = checkout path (worktree path ?? projectPath)
   → writeDocsMap(root, project.name)
-      1. findDocsMap(root)        existing map path, or null; more than one → DocsMapError
+      1. docsMapPath(root, name)  user/architecture/050-docs-map.{name}.md
       2. discoverMappedDocs(root) present ADR_DIRS → *.md (kind adr)
                                   present DOC_PATHS → README files and *.md under docs dirs (kind doc),
                                   minus files already listed as ADRs; symlinks skipped and collected
       3. renderManagedBlock(...)  grouped, sorted entries with links relative to the map's directory
       4a. no map → new file: frontmatter + heading + managed block
-      4b. map exists → locateManagedBlock; broken or absent → DocsMapError, nothing written;
-          managed → replace the block only
-      5. content unchanged → no write; changed → temp file + rename
-  → print path, entry counts and "created" | "updated" | "unchanged";
-    one warning line on stderr if any symlinks were skipped
+      4b. map exists → locate block; broken or absent → DocsMapError, nothing written;
+          managed → replace the block's lines only
+      5. content unchanged → no write; changed → write the file
+  → print path, entry counts, skipped symlinks (if any) and "created" | "updated" | "unchanged"
 ```
 
 ### State Management
 
-The map file is the only state. It's a project document, committed with the project like any other artifact. There's no config key and no cache. The managed block is regenerated wholesale from the filesystem on each run. Everything outside the block (hand entries, notes) belongs to the project, and cf preserves it byte for byte. The one exception is the frontmatter `dateUpdated` field, which cf sets when the block changes (D4).
+The map file is the only state. It's a project document, committed with the project like any other artifact. There's no config key and no cache. The managed block is regenerated wholesale from the filesystem on each run. Everything outside the block, frontmatter included, belongs to the project once the file exists, and cf preserves it byte for byte (D4).
 
 ## Technical Decisions
 
 ### D1 — One generated index file in an existing docType
 Status: decided
 - The map is `project-documents/user/architecture/050-docs-map.{project}.md`. `{project}` is the registered project name, as in `000-concept.{project}.md`.
-- Frontmatter `docType: reference`. `reference` is already in the guide's valid docType list (`file-naming-conventions.md`) and in squadron's `DocType` enum, so no new docType is introduced and cf's frontmatter schema doesn't change. cf has no `reference` schema, so the validator passes it as it does today. The map is still found by name, not by docType alone: `findDocsMap(root)` matches `^\d+-docs-map\..*\.md$` (case-insensitive) in `user/architecture/` and requires `docType: reference`. Matching any index rather than exactly `050` means a renumbered or renamed-project map is still found and never duplicated. Two matches is a `DocsMapError`.
+- Frontmatter `docType: reference`. `reference` is already in the guide's valid docType list (`file-naming-conventions.md`) and in squadron's `DocType` enum, so no new docType is introduced and cf's frontmatter schema doesn't change. cf has no `reference` schema, so the validator passes it as it does today.
+- The map is found by its canonical filename only (`docsMapPath`). There's no pattern search and no duplicate check. If the project is renamed, the next run creates a new map under the new name; the PM deletes the old one. That case is rare and visible in `git status`, so it doesn't justify a search.
 - **cf specifies the filename; the guide documents it afterwards.** This follows the arch's precedent for 263's retroactive marker: cf defines it in slice design, and the guide writes its rule from that. The guide's naming conventions guide agents. No cf code or guide check reads them, so cf can write the file before the guide documents it, and nothing breaks in between. The release doesn't wait on the guide, and no guide minimum changes. The pending guide entry is listed in the arch's Dependencies and in the slice plan's entry for 267, so the coupling is visible at the parent level.
 - Index 050 is the project-level architecture and governance band, the same base as the project HLD (`050-arch.hld-{project}.md`). The map describes the project as a whole, and ADRs are governance records.
 - Rejected: an existing indexed pattern such as `nnn-arch.{name}.md`. Every arch scanner and 261's planning-artifact check would read the map as an architecture document, and the project would count as "already planned".
@@ -132,16 +130,16 @@ Status: decided
   - **Docs:** each present file entry of `DOC_PATHS` (`README.md`, `README`), and every `*.md` file under each present directory entry (`docs`, `doc`), recursively. Files already listed as ADRs are skipped, so `docs/adr/` files appear once, as ADRs.
   - Extensions are matched case-insensitively (`.md`, `.MD`). Only Markdown is mapped. Other formats (`.rst`, `.adoc`) are a one-line extension list change if 265's real-repo runs show a need.
 - Skipped while walking: directories whose name starts with `.`, and directories in `EXCLUDED_DIRS` (this includes `project-documents`, so cf's own documents never map themselves).
-- Symlinks are not followed, so the walk stays inside the root with no loops. Anything skipped this way is named in one stderr warning: `Warning: skipped symlinks (not followed): docs/vendor-docs`. That way the omission isn't silent, and the PM can add a hand entry.
+- Symlinks are not followed, so the walk stays inside the root with no loops. The skipped paths are returned in the result and listed in the command's summary, so the omission isn't silent and the PM can add a hand entry.
 - Errors follow 260's rule: ENOENT mid-walk is "not present"; any other error throws `DocsMapError` with the path and code.
 - An empty result is valid. The block then holds one line, "No existing docs or ADRs were found.", so the file never reads as broken.
 
 ### D3 — Entry contents are structure, never interpretation
 Status: decided
 - Each entry has: the kind (`adr` or `doc`), the link target (relative from the map's directory, POSIX separators, spaces percent-encoded), the root-relative path shown as code, and a title.
-- Title, in order: the frontmatter `title:` value; else the first ATX level-1 heading (`# ...`, after any frontmatter, leading whitespace tolerated, trailing `#`s stripped); else the filename. Only the first 64 KiB of a file is read for this. Nothing else in the file is read.
-- Title bytes are decoded as UTF-8 with invalid sequences replaced by U+FFFD. The title is display text only, and the exact path is printed beside it, so nothing is lost.
-- A file the walk listed but that's gone by the title read (ENOENT) is dropped, the same as if the walk hadn't seen it (260's rule). Any other read error (permissions, I/O) is a `DocsMapError` naming the file, and nothing is written.
+- Title: the first ATX level-1 heading (`# ...`, leading whitespace tolerated, trailing `#`s stripped), else the filename. Lines inside a leading frontmatter block are skipped so a `#` comment there isn't taken as the heading. The file is read with Node's default UTF-8 decoding.
+- **Why this doesn't break "core never parses prose for meaning":** the heading is copied verbatim as link text. Nothing branches on it, nothing is inferred from it, and the exact path is printed beside it. This is the only file content core reads in this slice, and it's kept to one line-level pattern on purpose. Richer title sources (frontmatter `title:`, ADR status lines) are excluded.
+- A read error follows 260's rule: ENOENT (the file vanished after the walk) drops the entry; anything else is a `DocsMapError` naming the file, and nothing is written.
 - No ADR status, date or supersession. Those live in prose formats that vary (MADR, Nygard, custom), and judging them is agent work.
 - Rendered layout, sorted by path within each group (ADR filenames carry their numbers, so path order is ADR order):
 
@@ -160,10 +158,11 @@ Status: decided
 
 ### D4 — Managed block; everything else is the project's
 Status: decided
-- Markers are whole lines: `<!-- BEGIN:cf-docs-map -->` and `<!-- END:cf-docs-map -->`. They're deliberately distinct from setup-ide's `<!-- BEGIN:context-forge -->`, so neither tool can mistake the other's file for its own. The block is located with the shared `locateManagedBlock` (D7).
-- New file: frontmatter (`docType: reference`, `project`, `dateCreated`, `dateUpdated`), a `# Docs Map: {project}` heading, one sentence saying the block is regenerated by `cf docs map` and entries outside it are kept, the block, then an empty `## Additional Material` section for hand entries.
+- Markers are whole lines: `<!-- BEGIN:cf-docs-map -->` and `<!-- END:cf-docs-map -->`. They're deliberately distinct from setup-ide's `<!-- BEGIN:context-forge -->`, so neither tool can mistake the other's file for its own. The block is located by `docs-map/`'s private locator (D7): exactly one BEGIN line before exactly one END line.
+- New file: frontmatter (`docType: reference`, `project`, `dateCreated`, `dateUpdated`, both set to today), a `# Docs Map: {project}` heading, one sentence saying the block is regenerated by `cf docs map` and entries outside it are kept, the block, then an empty `## Additional Material` section for hand entries.
 - Existing file: only the lines between the markers are replaced. A broken block (unpaired, duplicated, out of order) or a docs map with no block is a `DocsMapError` naming the file and the problem; nothing is written. cf never guesses where a block should go.
-- Unchanged block → no write, and `dateUpdated` stays as it is. Changed → `dateUpdated` is set to today, and the file is written to a temp file in the same directory and renamed into place. A failed write or rename is a `DocsMapError` naming the path and system error code. The command is run by hand and the map can be regenerated, so the last writer wins.
+- **`dateUpdated` is written only at creation.** On an existing map cf never edits the frontmatter, so a missing `dateUpdated`, a hand-edited value or malformed frontmatter is never cf's concern and can't fail a run. The field tracks edits to the document's hand-owned part; the generated list's freshness is whatever the filesystem says on the next run.
+- Unchanged block → no write. Changed → a plain write of the whole file. A failed write is a `DocsMapError` naming the path and system error code. The command is run by hand and the map can be regenerated, so no temp-file-and-rename step.
 - Line endings and bytes outside the block are preserved (read and written as latin1, as setup-ide's merge does).
 
 ### D5 — Mapping is an explicit command, CLI-only for now
@@ -187,17 +186,18 @@ Status: decided
 - Rejected: `user/analysis/` with `docType: analysis`. Squadron's tech-debt audit takes the newest `*-analysis.*.md` written during its run as the audit result (`metrology/audit.py`, `_AUDIT_FILE_GLOBS`). A docs map refreshed mid-run would be read as the audit.
 - Validating the map's own links (a deleted ADR) is deferred: #127.
 
-### D7 — One managed-block locator, shared with setup-ide
+### D7 — The block locator stays private; no setup-ide change
 Status: decided
-- Both files use the same rule: exactly one BEGIN line before exactly one END line, matched as whole lines. Unpaired, duplicated or out-of-order markers are "broken". The docs map and setup-ide's `managedState` both need it, so the semantics are identical and it lives once. A pure `locateManagedBlock(lines, begin, end)` in `core/src/utils/managedBlock.ts` returns `absent`, `managed` (with the two line indices) or `broken`, taking the markers as arguments.
-- cli's `managedState` calls it for the pair check. It keeps its own `legacy`/`unmanaged` handling (a single legacy marker that the docs map doesn't have), its backups and its IO. Its behavior is unchanged, and its existing tests are the proof. The change is one function extraction, so it doesn't reshape the setup-ide code that #123 and 266 also touch. 266's reconciliation reuses the same managed blocks and gets the same locator.
-- This replaces the private copy and the deferral the previous revision recorded in #128. #128 is closed as done in this slice.
+- `docs-map/` has its own small locator (a private function in `docsMapFile.ts`): exactly one BEGIN line before exactly one END line, matched as whole lines, returning absent, managed (with the two line indices) or broken.
+- setup-ide's `managedState` is not touched. Setup-ide code is shared ground with #123 and 266 (arch: `setup-ide` composition), and the slice plan assigns none of it to 267. Leaving it alone means 267 has no ordering or merge coupling with either, and needs no extra `managedState` test coverage.
+- 266 doesn't need this locator: it reads composite managed blocks through setup-ide's existing `managedState`.
+- The duplication is one short pure function with different markers and no legacy case. Extracting a shared locator for setup-ide, the docs map and anything later stays tracked by #128, which remains open and is not closed by this slice.
 
 ### Technology Choices
 - Node `fs/promises` for the walk and reads; no new dependencies. No Markdown library: the heading pattern is line-level and the tests cover each variant.
 
 ### Patterns and Conventions
-- Every compared value is one constant: the markers, the `050` index used for new files, the `docs-map` filename segment, the title read limit, the Markdown extension list. They live at the top of the `docs-map/` file that uses them. The candidate lists stay 261's.
+- Every compared value is one constant: the markers, the `050` index, the `docs-map` filename segment, the Markdown extension list. They live at the top of the `docs-map/` file that uses them. The candidate lists stay 261's.
 - Errors: `DocsMapError` carries the path and reason and is printed by the CLI with a non-zero exit, like 261's `AdoptionError`. No error is swallowed; ENOENT during the walk or title read is the only "not present" case, per 260.
 
 ## Implementation Details
@@ -210,10 +210,11 @@ Status: decided
 $ cf docs map
 Docs map: project-documents/user/architecture/050-docs-map.acme.md (created)
   ADRs: 12   Docs: 7
+  Skipped symlinks (not followed): docs/vendor-docs
 ```
 
-- Status word is `created`, `updated` or `unchanged`. Skipped symlinks add one `Warning:` line on stderr (D2).
-- Exit 0 on success. Exit 1 with `Error: <DocsMapError message>` when the project isn't registered, the map's block is broken or missing, there's more than one map, or a read or write fails.
+- Status word is `created`, `updated` or `unchanged`. The symlink line appears only when symlinks were skipped (D2).
+- Exit 0 on success. Exit 1 with `Error: <DocsMapError message>` when the project isn't registered, the map's block is broken or missing, or a read or write fails.
 - Options: none beyond the global project selection `cf build` already accepts.
 
 Core:
@@ -225,7 +226,7 @@ interface DocsMapResult {
   adrs: number; docs: number; skippedSymlinks: string[];
 }
 writeDocsMap(root: string, projectName: string): Promise<DocsMapResult>
-findDocsMap(root: string): Promise<string | null>
+docsMapPath(root: string, projectName: string): string
 ```
 
 ### Database / Storage Schema
@@ -256,8 +257,7 @@ No existing format changes, so there's nothing to migrate.
 ## Integration Points
 
 ### Provides to Other Slices
-- **The docs map file and `findDocsMap`:** a stable place for the derived architecture (263's provenance-marked arch) and later designs to link existing material.
-- **`locateManagedBlock`:** shared by setup-ide, the docs map and 266's reconciliation (D7).
+- **263 (derived architecture):** the docs map file at a fixed path (`docsMapPath`), so the provenance-marked derived architecture and later designs can link existing material instead of copying it. The link itself is written by the guide's brownfield prompt, not by 263's code.
 - **265 (end-to-end runs):** not a dependency of 265. If 267 lands first, 265's real-repo runs can include `cf docs map`; otherwise it's verified on its own (Verification Walkthrough).
 - **Guide-side follow-ups (ai-project-guide, non-blocking):**
   - `file-naming-conventions.md` documents the `050-docs-map.{project}.md` file with `docType: reference` (D1). Also listed in the arch's Dependencies and the slice plan's entry for 267.
@@ -272,9 +272,9 @@ No existing format changes, so there's nothing to migrate.
 
 ### Functional Requirements
 - `cf docs map` in a project with a README, `docs/` and `docs/adr/` creates `050-docs-map.{project}.md` listing every Markdown doc and ADR, ADRs once, with working relative links and titles per D3.
-- A second run with no changes reports `unchanged` and leaves the file's bytes and mtime unchanged. After adding an ADR it reports `updated`, adds the entry, and keeps hand entries outside the block byte for byte.
+- A second run with no changes reports `unchanged` and leaves the file's bytes and mtime unchanged. After adding an ADR it reports `updated`, adds the entry, and keeps everything outside the block, frontmatter included, byte for byte.
 - No candidate file is moved or modified: a test hashes every file under the fixture root, excluding the map, before and after the command and finds them identical.
-- A broken or missing block, two map files, and a non-ENOENT read error each fail with a named `DocsMapError` and leave the existing map unchanged.
+- A broken or missing block and a non-ENOENT read error each fail with a named `DocsMapError` and leave the existing map unchanged.
 - In a monorepo subdirectory project, only that folder's docs are mapped.
 - `cf check` on a project whose docs map and architecture doc link outside `project-documents/` reports no findings.
 - Writing a map doesn't change 261's outcome: a brownfield fixture is still brownfield, not "already planned".
@@ -282,12 +282,11 @@ No existing format changes, so there's nothing to migrate.
 ### Technical Requirements
 - Unit tests:
   - `discoverMappedDocs`: each `ADR_DIRS` and `DOC_PATHS` entry, recursion, ADR de-duplication, dot and excluded dirs, symlinks not followed and collected, extension case, non-ENOENT error.
-  - Title extraction: frontmatter title, H1 after frontmatter, trailing hashes, no heading, read limit, invalid UTF-8, file vanished before the read (dropped), unreadable file (error).
+  - Title read: H1, H1 after frontmatter, trailing hashes, no heading (filename), file vanished before the read (dropped), unreadable file (error).
   - `renderManagedBlock`: grouping, sorting, empty case, spaces in paths, link relativity.
-  - `locateManagedBlock`: all three states.
-  - `writeDocsMap`: create, update, unchanged, broken block, missing block, duplicate maps, latin1 round trip outside the block.
+  - `writeDocsMap`: create, update, unchanged, broken block (each locator state), missing block, frontmatter untouched on update, latin1 round trip outside the block.
   - The out-of-tree regression fixture (D6).
-- cli `managedState` tests pass unchanged after D7.
+- No file under `packages/cli/src/ideInstall/` changes.
 - Format, lint and typecheck clean across the workspace.
 - README: a `cf docs map` entry.
 
@@ -346,16 +345,15 @@ Uses the local build (the global `cf` is the published npm package): `alias cfl=
 ## Implementation Notes
 
 ### Development Approach
-1. `locateManagedBlock` in core; switch cli's `managedState` to it; cli tests green.
-2. Export 261's lists inside core.
-3. `discoverMappedDocs` and title extraction, with tests.
-4. `renderManagedBlock`, then `findDocsMap` / `writeDocsMap`, with tests.
-5. `cf docs map` command and README entry.
-6. The out-of-tree regression fixture.
-7. Walk through the Verification Walkthrough on the local build.
+1. Export 261's lists inside core.
+2. `discoverMappedDocs` and the title read, with tests.
+3. `renderManagedBlock`, then the block locator and `writeDocsMap`, with tests.
+4. `cf docs map` command and README entry.
+5. The out-of-tree regression fixture.
+6. Walk through the Verification Walkthrough on the local build.
 
-If 261 isn't merged when this starts, step 2 waits for it.
+If 261 isn't merged when this starts, step 1 waits for it.
 
 ### Special Considerations
 - Fixtures must use the real formats the code meets in production: ADR files in Nygard and MADR style (with and without frontmatter), and a README whose first line isn't the heading.
-- The command reads only what the walk lists inside the root, and writes only the map and its temp file. It never follows symlinks, and it names each one it skips.
+- The command reads only what the walk lists inside the root, and writes only the map. It never follows symlinks, and it names each one it skips.

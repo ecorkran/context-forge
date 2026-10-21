@@ -33,44 +33,44 @@ pricedRounds: 1
 
 This slice makes the navigator read `adoption.state` (261) and the retroactive marker (263):
 
-- **`in_progress`:** recommend the next adoption step (concept → architecture → existing-state slice plan → record completion). Every step's command is `cf build`, so the instruction stays at Phase 0.
+- **`in_progress`:** recommend the next adoption step. Every step's command is `cf build`, so the instruction stays at Phase 0.
 - **`complete`:** skip first-run logic and point at the first new (non-retroactive) entry in the existing-state slice plan. If the plan isn't registered yet, register it first. If it holds no new work, recommend planning some.
-- **`""` and `declined`:** today's navigation, unchanged.
+- **`""`:** today's navigation, plus one warning in the single case where today's advice would skip detection on an existing codebase (D2).
+- **`declined`:** today's navigation, unchanged.
 
 ## Value
 
 - **The initiative's goal.** After adoption, `cf next` names the first piece of new work, not Phase 0.
 - **Adoption can't be derailed by the navigator.** During adoption, `cf next` keeps the user on `cf build` and the brownfield prompt, and tells them which artifact comes next.
-- **Planned and greenfield projects are untouched.** Their state is `""` (or `declined`), and the only added cost is one config read on the no-active-slice path.
+- **Planned and greenfield projects are untouched**, apart from the D2 warning, which `declined` silences.
 
 ## Technical Scope
 
 Included:
-- A new module `packages/core/src/introspection/adoptionNavigation.ts`: gathers the adoption inputs and decides the adoption recommendation (D1–D7).
+- A new module `packages/core/src/introspection/adoptionNavigation.ts`: gathers the adoption inputs and decides the adoption recommendation (D1–D6).
 - `WorkflowNavigator.computeNext`: one call in the no-active-slice guard, after the existing arch gate. Its result can return an action, add a warning, or skip first-run logic (D1).
-- Extraction of the existing `preSlicePlan` gate → `NextAction` mapping into one helper, used by the existing arch gate and by the adoption step that writes the existing-state plan (D4).
-- Three additive helpers in `adoption/` (Interfaces Required). No exported signature of 261 or 263 changes, and no caller outside the helpers' own files changes.
-- A `SLICE_PLANNING_PHASE` export in `projectSchema.ts`, beside the existing phase constants (D6).
+- Extraction of the existing `preSlicePlan` gate → `NextAction` mapping into one navigator helper, `gateBlockAction`, used by the existing arch gate and by the adoption arch gate (D4). Internal to `WorkflowNavigator.ts`.
+- `findExistingStatePlan` in `introspection/parsers/` (D8), and one additive export beside 261's `findPlanningArtifacts` (Interfaces Required).
+- An import-boundary rule in `eslint.config.mjs` (D8).
 
 Excluded:
-- Running brownfield detection (the source walk) in `cf next`. Detection stays in the build (D2).
+- Running brownfield detection (the source walk) in `cf next` (D2).
 - Any write by `cf next`: no state transition, no pointer or phase change (D3).
 - `cf status` / `workflow_status` output. `getStatus` is unchanged.
 - `agent_onboard`. Slice 260 made it setup plus a handoff to `cf build`, so it has nothing to branch on.
-- Changes to the brownfield guide prompt.
+- Changes to the brownfield guide prompt, and any change to an exported signature of 261 or 263.
 
 ## Dependencies
 
 ### Prerequisites
 - **Slice 261 (designed, not built):** `readAdoptionState`, `ADOPTION_STATES`, `findPlanningArtifacts`, `CONCEPT_PHASE`, the build's Phase 0 eligibility rule (D4 of 261).
-- **Slice 263 (designed, not built):** `SlicePlanEntry.retroactive`, retroactive entries parsed as complete, `evaluateEntryGate`, and `completeAdoptionIfPlanRecorded`, which writes `complete`.
-- 264 is implemented after both land (slice plan order). It consumes their exported interfaces as designed and reshapes none of them.
+- **Slice 263 (designed, not built):** `SlicePlanEntry.retroactive`, retroactive entries parsed as complete, and the build writing `complete` through `completeAdoptionIfPlanRecorded`.
+- 264 is implemented after both land (slice plan order). It consumes their exported interfaces as designed and changes none of them.
 
 ### Interfaces Required
-This slice adds three helpers to `adoption/`. Each one is new, and none changes the signature of an existing export or the callers of one.
-- **`isConceptInstruction(instruction): boolean`** in `adoption/`. It's the rule 261's resolver applies (`resolvePhaseValue(instruction) === CONCEPT_PHASE`). The resolver's inline check is replaced by a call to it. That's an internal edit with no change to the resolver's signature or behavior, and it means the build and the navigator can't disagree about what "Phase 0" means.
-- **`findArchitectureArtifacts(root): Promise<string[]>`** in `detection/planningArtifacts.ts`, beside `findPlanningArtifacts`. It uses the same `nnn-arch` / `nnn-hld` filename constants, so no pattern is duplicated, and returns the matches sorted by index. `findPlanningArtifacts` is unchanged.
-- **`findExistingStatePlan(checkoutPath): Promise<string | null>`** in `adoption/adoptionCompletion.ts`: the first slice plan, by index, with at least one retroactive entry. It's the read-only half of 263's `completeAdoptionIfPlanRecorded`, which then calls it internally, with no change to its signature or behavior. The rule for "the existing-state plan has been written" stays in one place.
+- **Phase 0 test:** `resolvePhaseValue(project.instruction) === CONCEPT_PHASE`, the exact comparison 261's resolver makes, built from the same two exports. No new helper and no edit to 261's resolver.
+- **`findArchitectureArtifacts(root): Promise<string[]>`**, additive in `detection/planningArtifacts.ts` beside `findPlanningArtifacts`. It uses the same `nnn-arch` / `nnn-hld` filename constants, so no pattern is duplicated, and returns matches sorted by index. `findPlanningArtifacts` is unchanged.
+- **`findExistingStatePlan(checkoutPath): Promise<string | null>`**, new in `introspection/parsers/` (D8). After it lands, 263's `completeAdoptionIfPlanRecorded` calls it instead of its inline scan, with no change to that function's signature or behavior, so the "existing-state plan" rule lives in one place. This is the only edit to another slice's code.
 - Existing: `conceptDocExists`, `findFirstNotCompleteEntry`, `evaluateGate`, `resolveArtifactPath`, `extractSliceIndex` in the navigator.
 
 ## Architecture
@@ -79,15 +79,17 @@ This slice adds three helpers to `adoption/`. Each one is new, and none changes 
 
 ```
 packages/core/src/introspection/
-  adoptionNavigation.ts    new
+  adoptionNavigation.ts         new
     gatherAdoptionInputs(project, status) → Promise<AdoptionNavInputs>     (I/O)
     decideAdoptionNav(inputs) → AdoptionNav                                (pure)
-  WorkflowNavigator.ts     computeNext: call in the no-active-slice guard; gateBlockAction(...) helper
-packages/core/src/adoption/
-  index.ts                 exports isConceptInstruction, findExistingStatePlan, findArchitectureArtifacts (additive)
+  parsers/existingStatePlan.ts  new: findExistingStatePlan                 (D8)
+  WorkflowNavigator.ts          computeNext: call in the no-active-slice guard; gateBlockAction helper
+packages/core/src/detection/
+  planningArtifacts.ts          + findArchitectureArtifacts (additive)
+eslint.config.mjs               + import-boundary rule (D8)
 ```
 
-`WorkflowNavigator.ts` is already 1049 lines, so the adoption logic gets its own module, as `setupCiOffer.ts` did. The navigator only calls it and routes the result.
+`WorkflowNavigator.ts` is already over 1000 lines, so the adoption logic gets its own module, as `setupCiOffer.ts` did. The navigator only calls it and routes the result.
 
 ### Data Flow
 
@@ -100,15 +102,15 @@ cf next / workflow_next → nav.getNext(project)       (project.projectPath is t
       existing arch gate (project.fileArch)           unchanged; now via gateBlockAction
       gatherAdoptionInputs(project, status)
         readAdoptionState(projectPath)
-        state '' or 'declined' → stop (no further reads)
-        conceptDocExists, findArchitectureArtifacts, findExistingStatePlan
-        registered plan: resolveArtifactPath('fileSlicePlan', …) and whether it is the existing-state plan
-        open new entry: findFirstNotCompleteEntry(status.slicePlan.entries) when the registered plan is that plan
+        'declined' → stop
+        ''         → Phase 0 test, conceptDocExists, findPlanningArtifacts (D2), then stop
+        in_progress / complete → conceptDocExists, findArchitectureArtifacts, findExistingStatePlan,
+                                 registered plan (resolveArtifactPath('fileSlicePlan', …)) and its open entry
       decideAdoptionNav(inputs) → AdoptionNav
         not-adopting → today's flow
+        warn         → push warning; today's flow
         recommend    → step 'existing-state-plan' first runs the derived arch's preSlicePlan gate (D4);
                        return the action (or the gate's action)
-        paused       → push warning; today's flow
         adopted      → skip detectFirstRunContext; today's fall-through ("pick your first slice")
     active-slice lifecycle                            unchanged
   getNext: setup-ci offer attached                    unchanged
@@ -118,73 +120,70 @@ cf next / workflow_next → nav.getNext(project)       (project.projectPath is t
 
 ### State Management
 
-No new state. The navigator reads `adoption.state` and the filesystem, and writes nothing (D3). The transitions remain 261's and 263's: the build writes `in_progress` on detection and `complete` once an existing-state plan exists.
+No new state. The navigator reads `adoption.state` and the filesystem, and writes nothing (D3). The transitions remain 261's and 263's.
 
 ## Technical Decisions
 
 ### D1 — Where adoption routing sits in `computeNext`
 Status: decided
 - Only in the no-active-slice guard, after the existing `fileArch` gate and before `detectFirstRunContext`. That guard is where first-run logic lives, and both failure modes in the Overview happen there.
-- With an active slice, navigation is unchanged in every state. Adoption doesn't set a slice. A user who sets one has moved to slice work, and 263 already makes a retroactive active slice complete.
+- With an active slice, navigation is unchanged in every state. Adoption doesn't set a slice, and 263 already makes a retroactive active slice complete.
 - The decision is a discriminated union, switched exhaustively in the navigator:
 
 ```ts
 type AdoptionNav =
-  | { kind: 'not-adopting' }                     // '' or 'declined': today's navigation
+  | { kind: 'not-adopting' }                     // declined, or '' with no warning: today's navigation
+  | { kind: 'warn'; warning: string }            // today's navigation plus one warning (D2, D5, D6)
   | { kind: 'recommend'; step: AdoptionNavStep } // navigator builds the action for the step
-  | { kind: 'paused'; warning: string }          // in_progress, instruction not Phase 0 (D5)
   | { kind: 'adopted' };                         // complete, plan registered with new work
 
-// Internal to adoptionNavigation.ts; not exposed on NextAction (no consumer needs it).
+// Internal to adoptionNavigation.ts; not exposed on NextAction.
 type AdoptionNavStep =
   | 'concept' | 'architecture' | 'existing-state-plan' | 'record-completion'   // D4
-  | 'plan-missing' | 'register-plan' | 'plan-new-work';                        // D6
+  | 'register-plan' | 'plan-new-work';                                         // D6
 ```
 
-- `adopted` only suppresses `detectFirstRunContext`. The existing fall-through then reaches "You have a slice plan but no active slice", which already picks the first not-complete entry. Retroactive entries are checked, so that's the first new entry, with no new code. Its rationale already says to run `cf set phase 4` after selecting the slice, which moves the instruction off Phase 0. 263 left that move to this slice; this is where it happens.
-- Rejected: adding adoption branches inside `detectFirstRunContext`. It's a synchronous function over six positional arguments, and adoption needs async reads it doesn't have.
+- `adopted` only suppresses `detectFirstRunContext`. The existing fall-through then reaches "You have a slice plan but no active slice", which already picks the first not-complete entry. Retroactive entries are checked, so that's the first new entry, with no new code. Its rationale already says to run `cf set phase 4`, which moves the instruction off Phase 0, the move 263 left to this slice.
+- Rejected: adding adoption branches inside `detectFirstRunContext`. It's synchronous over six positional arguments, and adoption needs async reads.
 
-### D2 — `cf next` doesn't run brownfield detection
+### D2 — `cf next` doesn't run brownfield detection; it warns where today's advice would skip it
 Status: decided
-- With `adoption.state` at `""`, `cf next` behaves as today. It doesn't walk the source tree to guess whether the project is brownfield.
-- Why: detection has one owner, the build (261), and it can throw `AdoptionError` on a tree it can't judge. `cf next` would then either fail on a question it doesn't need answered, or swallow the error. Onboarding hands off to `cf build`, never to `cf next` (260), so the first brownfield build sets `in_progress` before `cf next` matters.
-- **Unset brownfield repo, `cf next` before the first `cf build`, accepted:**
-  - Phase 0, no concept: `cf build`. That's correct, because the build detects brownfield and selects the brownfield prompt.
-  - Phase 0, concept present: "Advance to Phase 1". On a brownfield repo that's the derailment this slice prevents for `in_progress`. Following it moves the instruction off Phase 0, so no build runs detection (261 D4).
-  - Phases 1–3: today's recommendation for the phase, which is the user's own choice.
-- The concept-present case is accepted, not handled. It needs a concept written before any `cf build`, and no CF flow writes one: onboarding hands off to `cf build`, and both the squadron and CF-only paths write the concept from inside the brownfield prompt. Handling it would mean running detection in `cf next`, which this decision rejects. Recovery: `cf config set adoption.state in_progress`, then `cf set phase 'Phase 0: Concept'` and `cf build`.
-- `declined` is a fresh project (261 D3) and gets today's navigation.
-- **Departure from the arch, recorded.** The arch's "One detection, many consumers" principle lists `cf next` as a consumer of detection. Here `cf next` consumes only detection's persisted result, `adoption.state`. That keeps the principle's intent: no second heuristic, and core owns detection. The gap it leaves is the accepted case above. 265's real-repo runs include `cf next` before the first `cf build` (Integration Points).
-- Rejected: a read-only detection resolver for `cf next`. It's another caller of the source walk that has nothing to do with its result except change wording.
+- `cf next` never walks the source tree. Detection has one owner, the build (261), and can throw `AdoptionError` on a tree it can't judge; `cf next` would then fail on a question it doesn't need answered, or swallow the error.
+- **The gap, stated correctly.** With `adoption.state` at `""`, a Phase 0 project that already has a concept gets "Advance to Phase 1". Following it moves the instruction off Phase 0, so no build ever runs detection (261 D4). This is not hypothetical: per the arch's Current State, earlier releases' onboarding ran the greenfield concept conversation without inspecting code, so projects onboarded before this initiative can hold a concept on an existing codebase with the state unset. The arch's "Already planned" rule ("a concept on its own does not count") covers exactly these repos, and sends them to code-signal detection on the next Phase 0 build.
+- **Handling.** When the state is `""`, the instruction passes the Phase 0 test, a concept exists, and `findPlanningArtifacts` finds nothing, the result is `warn`. Today's recommendation is kept, with the warning: "adoption.state is unset. If this is an existing codebase, run cf build before advancing the phase: at Phase 0 the build checks for existing code and starts adoption. Advancing skips that check. To mark the project as new and silence this: cf config set adoption.state declined". The `cf build` advice is correct for both outcomes: brownfield starts adoption, greenfield rebuilds the concept prompt and leaves the state unset.
+- These are the same conditions under which 261's resolver would run detection, so the warning appears exactly where detection is still pending and nowhere else. With planning artifacts present, the project is "already planned" and detection would not run, so no warning.
+- Other unset cases (Phase 0 without a concept → `cf build`, which detects; Phases 1–3) are today's navigation.
+- `declined` is a fresh project (261 D3): today's navigation, no warning.
+- Rejected: a read-only detection resolver for `cf next`. It's a second caller of the source walk, only to choose wording, and it brings the walk's failure modes into a query command.
 
 ### D3 — `cf next` stays read-only; the build records completion
 Status: decided
 - When the state is `in_progress` and an existing-state plan already exists, `cf next` recommends `cf build` (step `record-completion`). It doesn't call `completeAdoptionIfPlanRecorded`.
-- Why: `cf next` and `workflow_next` write nothing today (261 D4 relies on that), and the navigator is documented as stateless. A write would also have to be suppressed for read-only callers, which would mean adding 261's `persist`/`read-only` option to the navigator. The completing build already shows the completion notice and says to run `cf next` (263 D5), so it costs one extra command, and only once.
-- Rejected: completing adoption in `cf next`. It's one fewer command, at the price of a second writer of `adoption.state` and a side effect on a query command.
+- Why: `cf next` and `workflow_next` write nothing today (261 D4 relies on that). The completing build already shows the completion notice and says to run `cf next` (263 D5), so it costs one extra command, once.
+- Rejected: completing adoption in `cf next`. A second writer of `adoption.state` and a side effect on a query command.
 
 ### D4 — Adoption steps while `in_progress`
 Status: decided
-Applies when the state is `in_progress` and `isConceptInstruction(project.instruction)` holds. The first condition that matches decides:
+Applies when the state is `in_progress` and the instruction passes the Phase 0 test. The first condition that matches decides:
 
 | # | Condition | Step | Recommendation | Command |
 |---|---|---|---|---|
-| 1 | an existing-state plan exists (`findExistingStatePlan`) | `record-completion` | "The existing-state slice plan is written. Run cf build to record adoption as complete." | `cf build` |
-| 2 | no concept (`conceptDocExists`) | `concept` | "Adoption step 1 of 3: baseline concept." | `cf build` |
-| 3 | no `architecture` artifact | `architecture` | "Adoption step 2 of 3: architecture derived from the code." | `cf build` |
-| 4 | otherwise | `existing-state-plan` | "Adoption step 3 of 3: existing-state slice plan." | `cf build` |
+| 1 | an existing-state plan exists | `record-completion` | "The existing-state slice plan is written. Run cf build to record adoption as complete." | `cf build` |
+| 2 | no concept | `concept` | "Next adoption step: baseline concept." | `cf build` |
+| 3 | no architecture artifact | `architecture` | "Next adoption step: architecture derived from the code." | `cf build` |
+| 4 | otherwise | `existing-state-plan` | "Next adoption step: existing-state slice plan." | `cf build` |
 
-- Each rationale says that `cf build` assembles the brownfield adoption prompt, which resumes from the artifacts that exist, and names the artifact this step produces. It also gives the exit: `cf config set adoption.state declined`.
-- The steps mirror the guide prompt's order (arch: concept → architecture → existing-state slice plan). cf names the step, and the prompt does the work. cf hard-codes no guide wording.
-- The `phase` field is omitted, and no step suggests `cf set phase`. The brownfield prompt runs only at Phase 0 (261 D4), so every step keeps the instruction there.
-- **Arch gate before step 4.** The derived architecture is gated like any other (263 D7). Before returning step 4, the navigator evaluates `preSlicePlan` for the architecture artifact's index. If that gate blocks, it returns the gate's action instead, through the same `gateBlockAction` helper the existing `fileArch` gate uses. The derived arch is usually not registered as `fileArch` during adoption, so the existing gate wouldn't catch it. If the arch is registered, the existing gate runs first, and this check repeats a clearing result at no extra cost.
-- An architecture artifact is any file `findArchitectureArtifacts` returns (`nnn-arch` or `nnn-hld`). An adopted project starts with no planning artifacts (261 D6), so any architecture present was written during adoption. More than one: the gate uses the lowest index, matching 263 D6's base-100 rule.
+- Each rationale says that `cf build` assembles the brownfield adoption prompt, which resumes from the artifacts that exist, and gives the exit: `cf config set adoption.state declined`.
+- The order is the arch's guide-prompt contract (concept → architecture → existing-state slice plan). Steps name the artifact, not a position ("step N of 3"), so cf carries no step count and no guide wording. A unit test pins the three artifact steps to that order.
+- No step sets `phase` or suggests `cf set phase`. The brownfield prompt runs only at Phase 0 (261 D4).
+- **Arch gate before step 4.** The derived architecture is gated like any other (263 D7). Before returning step 4, the navigator evaluates `preSlicePlan` for the lowest-index architecture artifact (263 D6's base-100 rule) and returns the gate's action if it blocks, through `gateBlockAction`. The derived arch is usually not registered as `fileArch` during adoption, so the existing gate wouldn't catch it.
+- An adopted project starts with no planning artifacts (261 D6), so any architecture present was written during adoption.
 
-### D5 — `in_progress` outside Phase 0 is paused, not overridden
+### D5 — `in_progress` outside Phase 0 is a warning, not an override
 Status: decided
-- If the instruction isn't the concept phase (the user moved the phase by hand), the result is `paused`. Navigation proceeds as today, with one warning: "adoption.state is in_progress, but the instruction is '{instruction}'. The brownfield adoption prompt runs only in Phase 0. To resume adoption: cf set phase 'Phase 0: Concept'. To stop adopting: cf config set adoption.state declined".
-- Why: 261 D4 treats moving the phase as the user's explicit choice and builds that phase's prompt. Recommending `cf build` here would build the wrong prompt, and forcing the phase back would override the user. A warning keeps the choice visible without taking it away.
-- The phase check uses `isConceptInstruction` on `project.instruction`, the field the build reads, not `developmentPhase` prefix matching. `computeAutoSetFields` keeps the two fields in sync when the phase is set, and reading the build's field rules out drift between the two checks.
+- If the instruction fails the Phase 0 test (the user moved the phase by hand), the result is `warn`: today's navigation plus "adoption.state is in_progress, but the instruction is '{instruction}'. The brownfield adoption prompt runs only in Phase 0. To resume adoption: cf set phase 'Phase 0: Concept'. To stop adopting: cf config set adoption.state declined".
+- Why: 261 D4 treats moving the phase as the user's explicit choice. Recommending `cf build` here would build the wrong prompt, and forcing the phase back would override the user.
+- The test reads `project.instruction`, the field the build reads, so the two checks can't drift.
 
 ### D6 — After adoption (`complete`)
 Status: decided
@@ -192,34 +191,44 @@ The first condition that matches decides:
 
 | # | Condition | Result |
 |---|---|---|
-| 1 | no existing-state plan | `recommend`, step `plan-missing` |
+| 1 | no existing-state plan | `warn`: "adoption.state is complete, but no slice plan with retroactive entries was found. To write it: cf config set adoption.state in_progress, then cf build. To treat the project as new: cf config set adoption.state declined" |
 | 2 | `fileSlicePlan` unset, or its file doesn't exist | `recommend`, step `register-plan` |
 | 3 | the registered plan is the existing-state plan and has no not-complete entry | `recommend`, step `plan-new-work` |
 | 4 | otherwise | `adopted` |
 
-- **`plan-missing`:** the state says complete, but no slice plan has a retroactive entry. This happens when the PM set `complete` by hand. Recommendation: "adoption.state is complete, but no existing-state slice plan (a slice plan with retroactive entries) was found." The rationale gives both ways on: `cf config set adoption.state in_progress`, then `cf build`, to write it; or `declined` to treat the project as new. No command is suggested, because cf can't tell which the PM wants. Navigating as if the project were fresh would be a silent fallback.
-- **`register-plan`:** "Adoption is complete. Register the derived architecture and existing-state slice plan." The command is `cf set arch {archStem}` when an architecture artifact shares the plan's index (263 D6 puts both at 100). `computeAutoSetFields` then sets `fileSlicePlan` from it, so one command registers both. With no same-index architecture, the command is `cf set plan {planStem}`. Stems come from the found paths.
-- **`plan-new-work`:** the plan records only history. "Adoption is complete. Every entry in {planStem} is recorded history. Plan the first new work as entries after the retroactive ones." The command depends on the current phase. If the instruction doesn't resolve to `SLICE_PLANNING_PHASE`, it's `cf set phase 'Phase 3: Slice Planning'`, then `cf build`. Once it does, it's `cf build` alone, so the advice doesn't repeat a phase change that has already been made. The step stays `plan-new-work` in both cases, because the work is the same and only the command differs. The step ends when an entry that isn't retroactive is added and condition 3 no longer holds. This is the one adoption recommendation that moves the phase, because new work starts at slice planning against the derived architecture. 263 D6 puts new work in the same plan, after the retroactive entries.
-- **`adopted`:** D1's fall-through. It recommends `cf set slice {first new index}`, then `cf set phase 4`.
-- A registered plan that isn't the existing-state plan (the PM moved on to another plan) goes to `adopted` (condition 4). The user's pointer is respected, and normal navigation runs on it.
-- With an active slice, none of this applies (D1).
+- Row 1 only arises from a hand-set state; it gets a warning on today's navigation rather than its own step.
+- **`register-plan`:** "Adoption is complete. Register the derived architecture and existing-state slice plan." The command is `cf set arch {archStem}` when an architecture artifact shares the plan's index (263 D6 puts both at 100); `computeAutoSetFields` then sets `fileSlicePlan` too. Otherwise `cf set plan {planStem}`. Stems come from the found paths.
+- **`plan-new-work`:** "Adoption is complete. Every entry in {planStem} is recorded history. Plan the first new work as entries after the retroactive ones." One command, `cf set phase 'Phase 3: Slice Planning'`; the rationale says to run `cf build` next, or `cf build` alone if the phase is already Phase 3. 263 D6 puts new work in the same plan, after the retroactive entries.
+- **`adopted`:** D1's fall-through: `cf set slice {first new index}`, then `cf set phase 4`.
+- A registered plan that isn't the existing-state plan (the PM moved on) goes to `adopted` (row 4), and normal navigation runs on it.
 
 ### D7 — Failure modes of the new reads
 Status: decided
-The adoption decision isn't advisory: it chooses the recommendation. Unlike the setup-ci offer, a read error is never turned into a warning that quietly changes the answer.
+The adoption decision chooses the recommendation, so a read error is never turned into a warning that quietly changes the answer.
 
 | Case | Behavior | What the user does |
 |---|---|---|
 | `.context-forge.toml` malformed | 261's parse error propagates (261 D9) | Fix the file |
-| `adoption.state` holds a value outside `ADOPTION_STATES` (hand-edited) | Configuration error naming the key, the value and the allowed values. It is never read as `""`. | `cf config set adoption.state <value>` |
-| Architecture or slice plan directory unreadable (not ENOENT) | Error names the path and code, following 261 D6 | Fix permissions |
-| A slice plan file can't be read | Inherited from `parseSlicePlan`, which never throws and returns no entries. That plan has no retroactive entry, so it isn't the existing-state plan: `in_progress` reports step 4, `complete` reports `plan-missing`. The registered plan also produces `getStatus`'s existing per-plan warning (#62). | Fix the plan file |
-| Files change between reads (a build in another terminal) | The result may be stale for that one call. `cf next` writes nothing (D3), so the next call sees the new state. | Re-run `cf next` |
+| `adoption.state` outside `ADOPTION_STATES` (hand-edited) | Configuration error naming the key, the value and the allowed values; never read as `""` | `cf config set adoption.state <value>` |
+| Architecture or slice plan directory unreadable (not ENOENT) | Error names the path and code (261 D6) | Fix permissions |
+| A slice plan file can't be read | `parseSlicePlan` returns no entries, so that plan isn't the existing-state plan; the registered plan also gets `getStatus`'s per-plan warning (#62) | Fix the plan file |
+| Files change between reads | The result may be stale for that one call; `cf next` writes nothing (D3) | Re-run `cf next` |
 
-- `cf next` reports a thrown error through `handleError` (non-zero exit). `workflow_next` returns it through its existing catch as `errorResult("Error: {message}")`. The message is the same on both surfaces.
+- `cf next` reports a thrown error through `handleError` (non-zero exit); `workflow_next` through its existing catch as `errorResult("Error: {message}")`. Same message on both surfaces.
+
+### D8 — Dependency direction, enforced by lint
+Status: decided
+- Layers, lowest first: `introspection/parsers/` → `adoption/` → the rest of `introspection/` (navigator, checker). `adoption/` already imports `introspection/parsers/` (263), and the navigator imports `adoption/`. Every import runs one way across these layers, so there's no package-level cycle.
+- `findExistingStatePlan` goes in `introspection/parsers/`, the bottom layer, because both 263's completion function and this navigator need it. Placing it in `adoption/` would make the parsers layer's callers reach up.
+- **Mechanical guard:** a `no-restricted-imports` block in `eslint.config.mjs`:
+  - files `packages/core/src/adoption/**`: forbid `**/introspection/*` except `**/introspection/parsers/**` and `**/introspection/types*`.
+  - files `packages/core/src/introspection/parsers/**`: forbid `**/adoption/**`.
+  
+  Lint runs in pre-commit and CI, so a later upward import fails the build rather than relying on review.
+- Rejected: injecting an adoption port into `WorkflowNavigator`. It removes the import, but changes the constructor at every call site (CLI, MCP and over 60 test constructions) for a direction the lint rule already guarantees.
 
 ### Patterns and Conventions
-- The step values, the paused warning and the recommendation texts are each defined once, in `adoptionNavigation.ts`.
+- The step values, the warning texts and the recommendation texts are each defined once, in `adoptionNavigation.ts`.
 
 ## Implementation Details
 
@@ -229,37 +238,43 @@ The adoption decision isn't advisory: it chooses the recommendation. Unlike the 
 // introspection/adoptionNavigation.ts
 export interface AdoptionNavInputs {
   state: AdoptionState;
-  conceptInstruction: boolean;            // isConceptInstruction(project.instruction)
-  instruction: string;                    // for the paused warning
+  conceptInstruction: boolean;            // resolvePhaseValue(project.instruction) === CONCEPT_PHASE
+  instruction: string;                    // for the D5 warning
   conceptExists: boolean;
-  architecturePaths: string[];            // kind 'architecture', ascending index
-  existingStatePlanPath: string | null;   // findExistingStatePlan
+  planningArtifactsExist: boolean;        // '' only (D2)
+  architecturePaths: string[];            // ascending index
+  existingStatePlanPath: string | null;
   registeredPlanPath: string | null;      // fileSlicePlan resolved, file present
   registeredPlanHasOpenEntry: boolean;    // only meaningful when registered === existing-state plan
-  slicePlanningInstruction: boolean;      // resolvePhaseValue(project.instruction) === SLICE_PLANNING_PHASE (D6)
 }
 export function gatherAdoptionInputs(project: ResolvedProject, status: WorkflowStatus): Promise<AdoptionNavInputs>;
 export function decideAdoptionNav(inputs: AdoptionNavInputs): AdoptionNav;
+
+// introspection/parsers/existingStatePlan.ts
+// The first slice plan, by index, with at least one retroactive entry.
+export function findExistingStatePlan(checkoutPath: string): Promise<string | null>;
 ```
 
-For `""` and `declined`, `gatherAdoptionInputs` stops after the state read and returns the other fields empty. `decideAdoptionNav` reads only `state` for those values.
-
-`NextAction` keeps its current shape, so `workflow_next` needs no tool change.
+`gatherAdoptionInputs` reads only what the state needs (Data Flow) and leaves the other fields empty. `NextAction` keeps its current shape, so `workflow_next` needs no tool change.
 
 ## Integration Points
 
 ### Provides to Other Slices
-- **265 (end-to-end verification):** the "`cf next` points at new work" end state its real-repo runs check, asserted on `recommendation` and `suggestedCommand`. Its runs include `cf next` before the first `cf build` on an unset brownfield repo (D2).
+- **265 (end-to-end verification):** the "`cf next` points at new work" end state, asserted on `recommendation` and `suggestedCommand`. Its real-repo runs include `cf next` before the first `cf build` on an unset brownfield repo with a concept (D2 warning).
 
 ### Consumes from Other Slices
-- **261:** `readAdoptionState`, `ADOPTION_STATES`, `CONCEPT_PHASE`, and `planningArtifacts.ts`'s filename constants. `declined` = fresh project.
-- **263:** `retroactive` entries parsed as complete (so `findFirstNotCompleteEntry` skips them unchanged), `completeAdoptionIfPlanRecorded`'s retroactive-plan rule, and the build writing `complete`.
-- If 263's guide rule hasn't shipped, the brownfield prompt can't write the marker (263, Special Considerations). Adoption then stays at step 4 (`existing-state-plan`) even after a plan is written. That's the correct report: no plan with retroactive entries exists.
+- **261:** `readAdoptionState`, `ADOPTION_STATES`, `CONCEPT_PHASE`, `findPlanningArtifacts` and its filename constants. `declined` = fresh project.
+- **263:** `retroactive` entries parsed as complete (so `findFirstNotCompleteEntry` skips them unchanged), and the build writing `complete`. 263's `completeAdoptionIfPlanRecorded` switches to `findExistingStatePlan` (Interfaces Required).
+- If 263's guide rule hasn't shipped, the brownfield prompt can't write the marker. Adoption then stays at step `existing-state-plan`, which is the correct report.
+
+### Architecture note (for the PM)
+- The arch's "One detection, many consumers" principle lists `cf next` as a consumer of detection. This slice has `cf next` consume detection's persisted result (`adoption.state`) and, while it's unset, point at `cf build` (D2) instead of detecting. Suggested amendment to that bullet: "`cf next` reads the persisted adoption state; it does not run detection." The arch is not edited here.
 
 ## Success Criteria
 
 ### Functional Requirements
-- **Unset or declined:** `cf next` output is identical to today's for every first-run fixture (no phase, Phase 0 with and without concept, Phases 1–3).
+- **Declined:** `cf next` output is identical to today's for every first-run fixture (no phase, Phase 0 with and without concept, Phases 1–3).
+- **Unset:** identical to today's for the same fixtures, except Phase 0 with a concept and no planning artifact, which adds the D2 warning to today's recommendation. With a planning artifact present, no warning.
 - **`in_progress` at Phase 0:**
   - no concept → step `concept`, command `cf build`
   - concept, no architecture → step `architecture`
@@ -267,25 +282,24 @@ For `""` and `declined`, `gatherAdoptionInputs` stops after the state read and r
   - with `workflow.review_enabled = true` and the derived arch unreviewed → the preSlicePlan "Review required before creating the slice plan" action instead of step `existing-state-plan`
   - an existing-state plan present → step `record-completion`
   - no step suggests `cf set phase` or sets `phase`
-- **`in_progress` outside Phase 0:** today's recommendation for that phase, plus the paused warning naming the instruction and both commands.
+- **`in_progress` outside Phase 0:** today's recommendation for that phase, plus the D5 warning.
 - **`complete`:**
-  - no existing-state plan → step `plan-missing`, no suggested command
-  - plan not registered, same-index arch present → step `register-plan`, `cf set arch 100-arch.{name}`. After running it, `fileSlicePlan` is set and the next `cf next` recommends `cf set slice` for the first non-retroactive entry.
-  - plan registered with new entries → "Pick slice {first new index}". No "Advance to Phase 1" recommendation in any complete-state fixture.
-  - plan registered, all entries retroactive, instruction not Phase 3 → step `plan-new-work`, command `cf set phase 'Phase 3: Slice Planning'`
-  - the same plan with the instruction already at Phase 3 → step `plan-new-work`, command `cf build`, no phase change
+  - no existing-state plan → today's navigation plus the D6 row 1 warning
+  - plan not registered, same-index arch present → step `register-plan`, `cf set arch 100-arch.{name}`. After running it, the next `cf next` recommends `cf set slice` for the first non-retroactive entry.
+  - plan registered with new entries → "Pick slice {first new index}". No "Advance to Phase 1" in any complete-state fixture.
+  - plan registered, all entries retroactive → step `plan-new-work`, command `cf set phase 'Phase 3: Slice Planning'`
   - a different plan registered → normal navigation on that plan
-- **Active slice set:** recommendations are unchanged in every adoption state.
-- **Parity:** `workflow_next` returns the same `recommendation` and `suggestedCommand` as `cf next --json` for every adoption fixture. It returns the same error message for the out-of-enum `adoption.state` fixture (D7).
-- Steps named above are `decideAdoptionNav` results. Navigator tests assert the recommendation and command each step produces.
+- **Active slice set:** recommendations unchanged in every adoption state.
+- **Parity:** `workflow_next` returns the same `recommendation`, `suggestedCommand` and warnings as `cf next --json` for every adoption fixture, and the same error message for the out-of-enum `adoption.state` fixture (D7).
 - **Read-only:** `adoption.state` and the project record are unchanged after `cf next` in every fixture.
 
 ### Technical Requirements
-- Unit tests for `decideAdoptionNav`: every row of D4 and D6 (both `plan-new-work` commands), `paused`, and `not-adopting` for `""` and `declined`.
+- Unit tests for `decideAdoptionNav`: every row of D4 and D6, the D4 order pin, the D2 and D5 warnings, and `not-adopting` for `declined` and for `""` without the D2 conditions.
+- Unit tests for `findExistingStatePlan` (no plan, plan without marker, plan with marker, lowest index wins), with a plan line written exactly as 263's Marker Specification gives it. 263's `completeAdoptionIfPlanRecorded` tests still pass after it delegates.
 - Failure-mode tests for D7: an out-of-enum `adoption.state`, and an unreadable plan file.
-- Navigator tests (fixtures in temp dirs): each Functional Requirements bullet, including the gate-before-step-4 case and the active-slice case.
-- A real-format fixture: an existing-state plan line written exactly as 263's Marker Specification gives it.
-- This repo's `cf next` and `cf next --json` output is unchanged (state `""`).
+- Navigator tests (fixtures in temp dirs): each Functional Requirements bullet.
+- The D8 lint rule is in `eslint.config.mjs`, and `pnpm lint` passes.
+- This repo's `cf next` and `cf next --json` output is unchanged (it has planning artifacts, so no D2 warning).
 - `pnpm -r build`, lint, typecheck and existing tests pass.
 
 ### Integration Requirements
@@ -301,39 +315,33 @@ Use the local build (the global `cf` is the published package): `alias cfl="node
    cfl next --json > /tmp/next-after.json    # after the slice
    diff /tmp/next-before.json /tmp/next-after.json   # expect: no differences
    ```
-2. **Adoption steps.** Make a brownfield scratch project as in 261's walkthrough step 2 (`/tmp/bf`, state becomes `in_progress` after the first `cfl build`).
-   ```bash
-   cd /tmp/bf
-   cfl next --json | jq '{recommendation, suggestedCommand}'
-   # expect: "Adoption step 1 of 3: baseline concept.", suggestedCommand "cf build"
-   ```
-   Add `project-documents/user/project-guides/000-concept.bf.md` (any content with valid frontmatter), then run `cfl next` again. Expect "Adoption step 2 of 3", not "Advance to Phase 1". Add `project-documents/user/architecture/100-arch.existing.md` with `provenance: derived`. Expect "Adoption step 3 of 3".
-3. **Arch gate during adoption.** `cfl config set workflow.review_enabled true && cfl next`. Expect "Review required before creating the slice plan" for architecture 100. Set it back to `false`.
-4. **Record completion.** Add `100-slices.existing.md` with the three entries from 263's walkthrough step 1 (100 and 101 retroactive, 102 new).
+2. **Unset state, concept present (D2).** Make a brownfield scratch project as in 261's walkthrough step 2 (`/tmp/bf`), but before any `cfl build` add `project-documents/user/project-guides/000-concept.bf.md` (valid frontmatter). `cfl next`: expect "Advance to Phase 1" plus the D2 warning. `cfl build > /dev/null && cfl config get adoption.state`: expect `in_progress`.
+3. **Adoption steps.** `cfl next --json | jq '{recommendation, suggestedCommand}'`: expect "Next adoption step: architecture derived from the code.", `cf build`. Add `project-documents/user/architecture/100-arch.existing.md` with `provenance: derived`; expect "Next adoption step: existing-state slice plan." Remove the concept and re-run to see the `concept` step, then restore it.
+4. **Arch gate during adoption.** `cfl config set workflow.review_enabled true && cfl next`. Expect "Review required before creating the slice plan" for architecture 100. Set it back to `false`.
+5. **Record completion.** Add `100-slices.existing.md` with the three entries from 263's walkthrough step 1 (100 and 101 retroactive, 102 new).
    ```bash
    cfl next                                      # expect: "The existing-state slice plan is written...", cf build
    cfl config get adoption.state                 # expect: in_progress (cf next wrote nothing)
    cfl build > /dev/null && cfl config get adoption.state   # expect: complete
    ```
-5. **Points at new work.**
+6. **Points at new work.**
    ```bash
    cfl next                     # expect: register-plan, "cf set arch 100-arch.existing"
    cfl set arch 100-arch.existing
    cfl next                     # expect: "Pick slice 102: Export to CSV", cf set slice 102
    ```
    This is the initiative's end state: the first piece of new work, not Phase 0.
-6. **No new work.** Check entry 102 (`[x]`) and mark it retroactive, then `cfl next`. Expect step `plan-new-work` and `cf set phase 'Phase 3: Slice Planning'`. Run `cfl set phase 'Phase 3: Slice Planning' && cfl next`. Expect step `plan-new-work` again, now with `cf build` and no phase change. Undo the edit, and restore with `cfl set phase 'Phase 0: Concept'`.
-7. **Paused.** `cfl config set adoption.state in_progress && cfl set phase 'Phase 2: Architecture' && cfl next`. Expect the Phase 2 recommendation plus the paused warning. Restore with `cfl set phase 'Phase 0: Concept'`.
-8. **MCP parity.** From an MCP client in `/tmp/bf`, call `workflow_next` at steps 2 and 5 and compare `recommendation` and `suggestedCommand` with `cfl next --json`. Expect them to match.
+7. **No new work.** Check entry 102 (`[x]`) and mark it retroactive, then `cfl next`. Expect step `plan-new-work` and `cf set phase 'Phase 3: Slice Planning'`. Undo the edit.
+8. **Paused.** `cfl config set adoption.state in_progress && cfl set phase 'Phase 2: Architecture' && cfl next`. Expect the Phase 2 recommendation plus the D5 warning. Restore with `cfl set phase 'Phase 0: Concept'` and `cfl config set adoption.state complete`.
+9. **MCP parity.** From an MCP client in `/tmp/bf`, call `workflow_next` at steps 3 and 6 and compare with `cfl next --json`. Expect them to match.
 
 ## Implementation Notes
 
 ### Development Approach
-1. The three additive helpers: `isConceptInstruction`, `findArchitectureArtifacts`, `findExistingStatePlan`, plus `SLICE_PLANNING_PHASE`. The existing 261/263 tests must still pass.
+1. `findExistingStatePlan` in `introspection/parsers/`, switch 263's `completeAdoptionIfPlanRecorded` to it; `findArchitectureArtifacts`; the D8 lint rule. Existing 261/263 tests must still pass.
 2. `decideAdoptionNav`, with unit tests for every row.
 3. `gatherAdoptionInputs`; extract `gateBlockAction` from the existing arch gate; wire `computeNext` (D1, D4 gate).
 4. Navigator fixtures, the failure-mode tests, the parity test, the read-only assertions. Run the walkthrough.
 
 ### Special Considerations
-- Performance: planned and greenfield projects add one `ConfigManager.get` on the no-active-slice path. The adoption reads (`readdir`, one slice plan parse) run only for `in_progress` or `complete`.
-- `adoption/` already imports from `introspection/parsers/` (263), and this slice makes `introspection/` import from `adoption/`. Those are different files, so there's no module cycle. The direction is a code-review check: `introspection/` imports `adoption/` only through `adoption/index.js`, and `adoption/` imports nothing from `introspection/` except `introspection/parsers/`.
+- Performance: `declined` and planned projects add one `ConfigManager.get` on the no-active-slice path. With the state unset, the Phase 0 test is in memory; only at Phase 0 with a concept does `findPlanningArtifacts` run (two directory reads). The other adoption reads run only for `in_progress` or `complete`.

@@ -11,7 +11,7 @@ dependencies:
 - 264
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261021
+dateUpdated: 20261020
 status: not_started
 turns: 23
 promptTokens: 1857972
@@ -36,7 +36,7 @@ This slice runs adoption end to end three times:
 2. **Squadron run:** a real codebase with squadron's probe installed, on a surface the probe lists.
 3. **Greenfield regression run:** a scaffold-only project, which must still get the concept prompt with no adoption.
 
-It fixes the defects those runs expose in the initiative's code, records each run in one analysis document, and documents the shipped flow (adoption, the override, the adoption state, the Adoption Facts section, the retroactive marker) in the README and the CLI and MCP references.
+It fixes the defects those runs expose in the initiative's code, records each run in one short analysis document, and documents the shipped flow, linking to one source per fact rather than restating it (D8).
 
 Several earlier designs left checks for this slice. They are collected in D4 so none is lost:
 - 261: whether `BROWNFIELD_MIN_SOURCE_LINES`, `SOURCE_EXTENSIONS` and `EXCLUDED_DIRS` misfire on real code.
@@ -47,7 +47,7 @@ Several earlier designs left checks for this slice. They are collected in D4 so 
 
 - **Proof on real input.** The initiative's goal ("after adoption, `cf next` points at new work") is shown on real repositories, through a real agent session, not only through fixtures.
 - **Defects found before users find them.** Threshold misfires, prompt and cf disagreements, and cross-repo contract gaps surface here, with a regression test for each cf fix.
-- **Users can find the feature.** Today the README describes only the greenfield flow. After this slice, a user adopting cf on an existing codebase can read what will happen, how to override detection, and what the adoption artifacts mean.
+- **Users can find the feature.** Today the README describes only the greenfield flow. After this slice, a user adopting cf on an existing codebase can read what will happen and where the details live.
 
 ## Technical Scope
 
@@ -55,7 +55,7 @@ Included:
 - Three end-to-end runs (D1–D3) with the pass checks in D4.
 - Fixes in the initiative's cf code (slices 260–264) for defects the runs expose, each with a regression test (D5).
 - The run report `user/analysis/260-analysis.adoption-verification-runs.md` (D7).
-- Documentation (D8): `README.md`, `docs/REVIEW-GATING.md`, `packages/cli/README.md`.
+- Documentation (D8): a new `README.md` section, and additions to `docs/REVIEW-GATING.md` and `packages/cli/README.md`.
 
 Excluded:
 - New features, options or formats, even when a run suggests one. They are filed as issues (D5).
@@ -63,22 +63,23 @@ Excluded:
 - Conventions reconciliation (266) and docs/ADR mapping (267).
 - CHANGELOG and version bump. Those belong to the release.
 - Raising `MIN_GUIDE_VERSION` (D6, deferred to #124).
-- Committing anything from the scratch repositories. Only the run report and its excerpts are kept.
+- Re-verifying on real input what 261–264's fixtures already cover (D4).
+- Committing anything from the scratch repositories. Only the run report is kept.
 
 ## Dependencies
 
 ### Prerequisites
 - **Slices 260–264, merged to the target.** The runs exercise the integrated code, not a slice branch.
-- **ai-project-guide release with the retroactive-marker rule.** 263 hands the Marker Specification to the guide (briefing item 6). Guide v0.22.2's adoption guide says the marker is "not yet specified in this guide; do not invent one", so with it the agent can't write the marker and adoption never completes (264, Consumes from Other Slices). The CF-only and squadron runs need that release. The greenfield run doesn't.
+- **ai-project-guide release with the retroactive-marker rule.** 263 hands the Marker Specification to the guide (briefing item 6). Guide v0.22.2's adoption guide says the marker is "not yet specified in this guide; do not invent one", so with it the agent can't write the marker and adoption stays at 264's `existing-state-plan` step (264, Consumes from Other Slices). The CF-only and squadron runs need that release. The greenfield run doesn't.
 - **Squadron with the capability probe (squadron slice 366).** The squadron run needs an `sq` whose `sq probe --json` prints `probe_version` 1, with squadron's analysis pack installed for the run's surface and the `understand-anything` plugin available. As of this design, the installed `sq` (0.23.5) has no `probe` command. An install from squadron's 366 branch is acceptable; the run report records the exact version or commit.
-- If a prerequisite is missing when its run is due, the task gets a `BLOCKED:` line naming it. The other runs proceed.
-- **What can finish without the external releases:** the greenfield run, and the docs for behavior already shipped in 260–264. **The slice is not complete until both brownfield runs pass.** A slice with only those parts done stays `in_progress`, with its blocked tasks unchecked.
+- If a prerequisite is missing when its run is due, the task gets a `BLOCKED:` line naming it. The other runs proceed. D2 lists which run-time failures count as a missing prerequisite.
+- **What can finish without the external releases:** the greenfield run, and the docs for behavior already shipped in 260–264. **The slice is not complete until both brownfield runs pass.** A slice with only those parts done stays `in_progress`, with its blocked tasks unchecked. The slice's calendar time is set by the two external releases, not by cf work.
 
 ### Interfaces Required
 - **261:** `cf build` / `context_build` adoption selection, `adoption.state`, the Adoption Facts section, `AdoptionError`, the source-walk constants.
 - **262:** the probe section of Adoption Facts, the `Comprehension:` line.
 - **263:** the retroactive marker, `provenance: derived`, the `retroactive-entry` rule, the gate skip, automatic `complete`.
-- **264:** `cf next` adoption steps, `register-plan`, the hand-off to the first new entry.
+- **264:** the adoption steps of 264 D4 (`concept`, `architecture`, `existing-state-plan`, `record-completion`) and D6 (`register-plan`, then `adopted`), with the step values defined once in `adoptionNavigation.ts`. D4 below refers to those sections, not to recommendation text.
 - **260:** `/cf:onboard` as setup followed by "run `cf build` and follow it".
 
 ## Architecture
@@ -104,18 +105,18 @@ One brownfield run, as the user meets it:
 
 ```
 /cf:onboard  → cf init (registration, guide, IDE setup) → "run cf build and follow it"   (260)
-cf next      → recorded before the first build (264 D2)
+cf next      → recommends cf build before the first build (264 D2)
 cf build     → detection → brownfield → adoption.state = in_progress → brownfield prompt
                + Adoption Facts (facts, probe JSON or "Squadron: unavailable")          (261, 262)
 agent        → [squadron path: one /understand ask, /sq:analysis understand, concept step]
              → 000-concept (PM confirms) → cf build → 100-arch (provenance: derived)
              → cf build → 100-slices with `retroactive` entries, then new work          (guide prompt)
-cf next      → at each step: concept / architecture / existing-state-plan / record-completion   (264)
+cf next      → the adoption steps of 264 D4                                             (264)
 cf build     → retroactive entry found → adoption.state = complete, completion notice   (263)
-cf next      → register-plan → cf set arch 100-arch.{name} → "Pick slice {first new index}"   (264)
+cf next      → the post-adoption steps of 264 D6, ending on the first new slice         (264)
 ```
 
-Each arrow is a check in D4. Evidence from each run goes into the run report (D7). Real output excerpts from the report become the documentation examples (D8).
+The composition points D4 checks are the hand-offs between these lines, not each line's internals.
 
 ### State Management
 
@@ -142,6 +143,18 @@ Status: decided
   - A session that ends early resumes in a new session with `cf build`. `adoption.state` and the artifacts persist, so the resume counts as part of the proof.
   - A failed `/understand` never falls back to the CF-only path to finish the squadron run.
   - A broken probe (non-zero exit or unreadable output) is never a pass for the squadron run, even though Adoption Facts correctly says "Squadron: unavailable".
+- **Live-run failure modes.** Each one ends as exactly one of: *retry* (repeat the step, no record), *BLOCKED* (a prerequisite is missing; `BLOCKED:` line on the run's task, no defect), or *defect* (D5 disposition, recorded in the report).
+
+| Failure | Outcome |
+|---|---|
+| Clone, scaffolder or network failure | Retry once. If it fails again, pick another repository that meets D1. |
+| `cf build` raises `AdoptionError` for a missing `brownfield-adoption` profile or prompt (261 D9) | BLOCKED if the installed guide is older than `MIN_GUIDE_VERSION` (run `cf guides update` and resume). A defect if the guide meets it. |
+| The agent writes the plan but no valid marker, and `cf next` stays at `existing-state-plan` | BLOCKED if the installed guide lacks the retroactive-marker rule. A guide-prompt defect if it has the rule. |
+| `cf build` raises `AdoptionError` for a state write or a walk that can't finish | Defect, unless the cause is the scratch environment (permissions, disk), which is fixed and retried. |
+| `sq` missing, or `sq probe` absent or not `probe_version` 1 | BLOCKED (squadron prerequisite). Squadron run only. |
+| `/understand` fails, or makes no progress for 30 minutes | Retry once in a new session. A second failure is BLOCKED with an issue in the plugin's or squadron's repository. Never a CF-only fallback. |
+| Graph stale or partial after `/understand` (`graph.commits_behind` non-zero, or `/sq:analysis understand` reports missing graph content) | The prompt's single `/understand` ask covers staleness (arch), so the agent's handling is checked, not cf. A partial graph after a completed `/understand` is a squadron or plugin defect, filed there. |
+| The agent misbehaves on correct inputs | Repeat once (Mitigation). Twice is a guide-prompt defect. |
 
 ### D3 — Run order and greenfield check
 Status: decided
@@ -151,28 +164,27 @@ Status: decided
 
 ### D4 — Pass checks per run
 Status: decided
-The runs prove that the parts compose. They don't re-verify behavior that 261–264 already cover with fixtures. A run passes when every composed check for its path holds, and each one is recorded in the report as pass or as a defect with its disposition (D5).
+The runs check only the composition points that fixtures can't reach. Per-step behavior that 261–264 cover with fixtures (each Adoption Facts field, each `cf next` step's text, `context_build` parity) is not re-checked; a run that happens to show it wrong still yields a defect under D5. A run passes when every check for its path holds.
+
+Step names are 264's (D4 and D6), as defined in `adoptionNavigation.ts`. Implementation step 1 confirms them against the merged code before the first run.
 
 **All brownfield runs (CF-only and squadron):**
-1. `cf next` before the first `cf build` (unset state, Phase 0, no concept) recommends `cf build` (264 D2).
-2. First `cf build`: brownfield prompt selected; Adoption Facts outcome is brownfield with the line count; every fact matches the repository (the README, the CI workflow, the rule files and the history are listed as they really are); `adoption.state` is `in_progress`.
-3. `cf next` at each adoption step reports the matching step (`concept` → `architecture` → `existing-state-plan` → `record-completion`) and never recommends advancing to Phase 1.
-4. Artifacts: `000-concept.*` confirmed by the PM, with unknowns marked rather than invented; `100-arch.*` with `provenance: derived`; `100-slices.*` whose retroactive entries follow the Marker Specification exactly (263) and precede at least one new entry.
-5. `cf build` after the plan is written: `adoption.state` becomes `complete`, and Adoption Facts carries the completion notice.
-6. `cf next` gives `register-plan`. After running the command it suggests, `cf next` recommends the first new slice.
+1. **Hand-off chain.** `/cf:onboard` hands off to `cf build`; `cf next` before the first build recommends `cf build` (264 D2); the first build selects the brownfield prompt, sets `adoption.state` to `in_progress`, and Adoption Facts states the outcome as brownfield.
+2. **No escape to Phase 1.** Through the adoption, `cf next` reports only 264 D4 steps (or, with `workflow.review_enabled`, the gate action 264 D4 puts before `existing-state-plan`) and never recommends a phase change.
+3. **Real marker.** The agent writes `100-arch.*` with `provenance: derived` and a `100-slices.*` whose retroactive entries `cf check` accepts under the `retroactive-entry` rule (263), followed by at least one new entry. Unknowns in the concept are marked, not invented.
+4. **Completion.** The next `cf build` sets `adoption.state` to `complete` and shows the completion notice.
+5. **First new slice.** `cf next` gives `register-plan`. After its suggested command, `cf next` recommends the first new slice (264 D6, `adopted`).
 
-**Spot checks.** Run each once per brownfield run, and record it in the report only if it fails: the source count against `cloc` or `tokei` (whether 261's constants misfire on real code), and `context_build` parity with `cf build`. A failure is a defect under D5.
+**Source count (261's constants).** Once per brownfield run, compare cf's line count in Adoption Facts with `cloc` or `tokei`. Record the two numbers. A gap that changes the outcome is a defect under D5's constant-tuning rule.
 
 **CF-only run, additionally:**
-- With `sq` hidden from PATH, Adoption Facts says "Squadron: unavailable. `sq` was not found on PATH." The agent states in one line that it's taking the CF-only path and never attempts a squadron step.
+- With `sq` hidden from PATH, Adoption Facts says squadron is unavailable, and the agent takes the CF-only path without attempting a squadron step.
 
-**Squadron run, additionally:**
-- The Adoption Facts JSON equals `sq probe --json` run in the same folder, and the probe's stderr warnings appear verbatim.
-- The agent takes the squadron path, asks the `/understand` question exactly once, then runs `entry` and `concept` as the probe lists them for its surface.
-- After `/sq:analysis understand`, `cf build`'s Project Context has `Comprehension: user/analysis/{n}-analysis.codebase-comprehension.md` with the highest index.
-- The agent asks the PM to confirm the squadron-written concept (363 provenance) before building on it.
-- **Monorepo:** the agent copes with graph facts that describe the repository root while the cf project is a subdirectory. It neither stalls nor writes the architecture for the whole monorepo. If it does either, that's a guide-prompt defect (D5).
-- **MCP PATH (262 Risk):** `context_build` from the MCP client either reports the same probe as `cf build`, or states "Squadron: unavailable. `sq` was not found on PATH." in Adoption Facts. Either result passes this check, because the surface states the unavailability rather than hiding it (arch). A silent omission, or any other difference from `cf build`, fails the check and the squadron run. The squadron path itself is proven through `cf build`. If the MCP server's PATH lacks `sq`, file the follow-up 262 named (an `sq` path setting), since that is a new option (D5).
+**Squadron run, additionally (the cross-repo probe):**
+- The Adoption Facts JSON equals `sq probe --json` run in the same folder.
+- The agent takes the squadron path, asks the `/understand` question exactly once, and runs the steps the probe lists for its surface. After `/sq:analysis understand`, `cf build`'s Project Context has the `Comprehension:` line, and the agent has the PM confirm the squadron-written concept before building on it.
+- **Monorepo:** with graph facts describing the repository root and the cf project in a subdirectory, the agent neither stalls nor writes the architecture for the whole monorepo. Either is a guide-prompt defect (D5).
+- **MCP PATH (262 Risk):** `context_build` from the MCP client either reports the same probe as `cf build` or states in Adoption Facts that squadron is unavailable. Either passes, because the surface states the unavailability rather than hiding it (arch). A silent omission fails the check. If the MCP server's PATH lacks `sq`, file the `sq` path setting 262 named as a new option (D5).
 
 **Greenfield run:** D3's greenfield check, plus `/cf:onboard` handing off to `cf build` and the session opening the concept conversation.
 
@@ -194,32 +206,44 @@ Status: decided
 ### D7 — The run report
 Status: decided
 - One document, `project-documents/user/analysis/260-analysis.adoption-verification-runs.md` (`docType: analysis`, `topic: adoption-verification-runs`). It sits under the initiative's base index, as the naming conventions prefer for analysis serving an initiative, and claims no slice index.
-- Per run: repository URL and commit; cf, guide and `sq` versions (or "not on PATH"); the Adoption Facts section from the first build; each D4 check as pass or defect; each defect's disposition (fix commit or issue link). Artifact frontmatter, the `cf next` sequence and PM questions and answers are recorded only where a defect needs them as evidence.
-- Paths under the operator's home directory are written as `~`. Probe JSON is kept verbatim otherwise.
-- Not included: full transcripts and the generated artifacts' bodies. The scratch repositories are disposable, and the report keeps what a later reader needs to judge the run.
+- Per run, three parts only:
+  - **Setup line:** repository URL and commit; cf, guide and `sq` versions (or "not on PATH").
+  - **Checks:** one row per D4 check, pass or defect. The source-count row carries its two numbers.
+  - **Defects:** one line each, with its disposition (fix commit or issue link) and the excerpt that proves it.
+- One verbatim Adoption Facts section, from the CF-only run's first build, kept as the source for D8's example. Paths under the operator's home directory are written as `~`.
+- Nothing else: no transcripts, artifact bodies, `cf next` sequences or PM Q&A unless a defect line needs them as its excerpt.
 
 ### D8 — Documentation
 Status: decided
-Every example output in the docs is copied from the run report, never written from the designs. A doc statement with no run evidence behind it is checked against the code before it ships.
-- **`README.md`:**
-  - New section **Adopting an Existing Codebase**, after "How It Works". It is short and user-facing: the flow (`cf init` or `/cf:onboard`, then `cf build`, `cf next` through the adoption steps to the first new slice); what the Adoption Facts section is for, in one sentence; the override in both directions; and a link to `packages/cli/README.md` for the details.
-  - "Key configuration" table: the `adoption.state` row 261 added, checked against the shipped values. Exact values live here and in the CLI reference, not in the new section.
-- **`docs/REVIEW-GATING.md`:** the retroactive skip as its own subsection, distinct from Escape Hatches (it isn't one), plus the `review-gate` info and `retroactive-entry` errors in "`cf check` Findings". This document is the gate's reference, so 263's amendment of the 240 rule must appear here.
-- **`packages/cli/README.md`:** in the Commands Reference, `cf build` (adoption selection), `cf next` (adoption steps), `cf list slices` (`✓ retroactive`). The `/cf:onboard` line matches the root README.
-- Not changed: CLI `--help` text (261 put the state's description on the config key, which `cf config --help` shows). CHANGELOG belongs to the release.
+Each fact has one home. Other files link to it rather than restating it.
+
+| Fact | Single source |
+|---|---|
+| The adoption flow, for a new user | `README.md`, new section |
+| `adoption.state` values and the override | the config key's description (261), shown by `cf config --help` |
+| `cf build` adoption selection, `cf next` adoption steps, `cf list slices` `✓ retroactive` | `packages/cli/README.md`, Commands Reference |
+| The retroactive gate skip and the `retroactive-entry` / `review-gate` findings | `docs/REVIEW-GATING.md` |
+| The marker format | ai-project-guide (263 hands it there); cf docs link to it |
+
+- **`README.md`:** a short section **Adopting an Existing Codebase**, after "How It Works": the flow (`cf init` or `/cf:onboard`, then `cf build`, `cf next` through the adoption steps to the first new slice); one sentence on what Adoption Facts is for; that detection can be overridden with `adoption.state`; then links to the CLI README and `REVIEW-GATING.md`. No state values, step names or marker syntax. The "Key configuration" table is not changed.
+- **`docs/REVIEW-GATING.md`:** the retroactive skip as its own subsection, distinct from Escape Hatches (it isn't one), plus the new findings in "`cf check` Findings". 263's amendment of the 240 rule belongs here because this document is the gate's reference.
+- **`packages/cli/README.md`:** the three command entries above. The `/cf:onboard` line matches the root README. The `cf list slices` entry links to `REVIEW-GATING.md` for what the marker exempts.
+- The README's example output is the Adoption Facts excerpt from the report (D7). Every other statement is checked against the code before it ships.
+- Not changed: CLI `--help` text, and CHANGELOG (the release's).
 
 ### Technology Choices
-- No new dependencies. `cloc` or `tokei`, if installed, is an operator tool for the D4 source-count spot check only. It isn't added to the project.
+- No new dependencies. `cloc` or `tokei`, if installed, is an operator tool for the D4 source count only. It isn't added to the project.
 
 ## Integration Points
 
 ### Provides to Other Slices
 - **Release:** the run report as evidence for the initiative's release notes, and the guide version used, for #124.
-- **266, 267:** real adopted projects' rule files, docs and ADR layouts, recorded in the report, as input to their designs.
+- **266, 267:** the adopted repositories' URLs and commits, so their designs can look at real rule files, docs and ADR layouts.
 - **ai-project-guide, squadron:** issues with run evidence for any defect on their side.
 
 ### Consumes from Other Slices
-- Everything 260–264 provides, as built. Where the code differs from a design, the code and the run decide, and a real defect follows D5. D4 names 264's steps and commands rather than quoting its recommendation text. Before task breakdown, confirm those names against 264's final design.
+- Everything 260–264 provides, as built. Where the code differs from a design, the code and the run decide, and a real defect follows D5.
+- **264's step names.** D4 points at 264 D4 and D6 rather than restating them. Implementation step 1 reads the step values in `adoptionNavigation.ts` on the merged target and confirms they match those sections. If 264 shipped different names or an extra step, D4 is updated before the first run; a step that 264's design doesn't have is a D5 question, not a silent edit.
 - A missing external prerequisite blocks only the run that needs it (Prerequisites).
 
 ## Success Criteria
@@ -235,8 +259,8 @@ Every example output in the docs is copied from the run report, never written fr
 - This repository's own `cf build` and `cf next --json` are unchanged by the slice's fixes (it's a planned project).
 
 ### Integration Requirements
-- The docs (D8) describe the shipped behavior. Each example output appears in the run report, and each documented command exists with the documented arguments.
-- The run report exists with all three runs and passes `cf check` frontmatter validation.
+- The docs (D8) describe the shipped behavior, each fact in its one home, and each documented command exists with the documented arguments.
+- The run report exists with all three runs in D7's format and passes `cf check` frontmatter validation.
 
 ### Verification Walkthrough
 
@@ -250,37 +274,40 @@ Use the local build from the repo root after `pnpm -r build`: `alias cfl="node $
    Then `/cf:onboard` in Claude Code in a fresh copy: expect setup, the hand-off to `cf build`, and the concept conversation's opening question.
 2. **CF-only adoption.** Clone the D1 repository with `--depth 1`. Start Claude Code with `sq` removed from PATH and run `/cf:onboard`, then follow the session to the end (D2). In a second terminal with the same PATH, at each step:
    ```bash
-   cfl next --json | jq '{recommendation, suggestedCommand}'   # D4 checks 1, 3, 6
+   cfl next --json | jq '{recommendation, suggestedCommand}'   # D4 checks 1, 2, 5
    cfl config get adoption.state                                # in_progress after the first build; complete after the completing build
+   cfl check                                                    # D4 check 3: no retroactive-entry errors
    ```
-   From the first build's output, copy the Adoption Facts section (from its heading up to the next section heading) into the report. Check it against D4 check 2 and the "Squadron: unavailable" statement.
+   Copy the first build's Adoption Facts section into the report (D7).
 3. **Squadron adoption.** Clone the D1 monorepo and work in the chosen package's folder.
    ```bash
    sq probe --json | jq '.probe_version, (.surfaces | keys)'   # expect: 1, a list that includes the session's surface
    ```
-   Start Claude Code, run `/cf:onboard`, and approve `/understand` once. After `/sq:analysis understand`, `cfl build | grep '^Comprehension:'` shows the comprehension path. Then do step 2's `cf next` and state checks, and the squadron checks in D4, including `context_build` from an MCP client for the PATH check.
-4. **Report and docs.** Open `260-analysis.adoption-verification-runs.md`: every D4 check has a result, every defect a disposition. Read the README's "Adopting an Existing Codebase" section and follow it on a new scratch clone. The commands and outputs it shows should match what you get.
+   Start Claude Code, run `/cf:onboard`, and approve `/understand` once. After `/sq:analysis understand`, `cfl build | grep '^Comprehension:'` shows the comprehension path. Then do step 2's checks, and the squadron checks in D4, including `context_build` from an MCP client for the PATH check.
+4. **Report and docs.** Open `260-analysis.adoption-verification-runs.md`: every D4 check has a result, every defect a disposition. Read the README's "Adopting an Existing Codebase" section and follow its links: each fact appears in the file D8 assigns it, and nowhere else.
 
 ## Risk Assessment
 
 ### Technical Risks
 - **External prerequisites.** The squadron run waits on squadron's probe, and both brownfield runs wait on the guide's marker rule. Neither is in this repository's control.
 - **Live-agent variance.** An agent session can behave differently from run to run, so one clean run doesn't prove the prompt is robust.
+- **Defect volume.** The effort estimate assumes the runs expose few cf defects.
 ### Mitigation Strategies
-- Runs are independent, and a missing prerequisite blocks only its own run (Prerequisites). The greenfield run and the docs for shipped behavior don't wait.
+- Runs are independent, and a missing prerequisite blocks only its own run (Prerequisites, D2). The greenfield run and the docs for shipped behavior don't wait.
 - A run that fails because of agent behavior on correct inputs is repeated once before the defect is filed against the guide, and both attempts go in the report. cf code fixes need a deterministic test, so agent variance never drives a cf change by itself.
+- Defects outside 260–264's designs are filed, not fixed here (D5), which bounds the cf work.
 
 ## Implementation Notes
 
 ### Development Approach
-1. Prerequisite check: 260–264 merged, the guide release with the marker rule, `sq probe`. Record versions in the report skeleton.
+1. Prerequisite check: 260–264 merged, the guide release with the marker rule, `sq probe`. Confirm 264's step values in `adoptionNavigation.ts` against D4 (Consumes from Other Slices). Record versions in the report skeleton.
 2. Greenfield run (D3).
 3. CF-only run (D4); fixes per D5 as they surface, each with its test; re-run the affected checks.
 4. Squadron run (D4); fixes per D5.
-5. Docs (D8) from the report's evidence.
+5. Docs (D8), using the report's Adoption Facts excerpt.
 6. Full build, lint, typecheck and tests. Confirm this repository's `cf build` / `cf next --json` are unchanged.
 
-Effort: 2/5 in cf code; most of the work is run time and documentation.
+Effort: 2/5 in cf code, if the runs expose few defects; most of the work is run time and documentation. Completion is gated on the two external releases (Prerequisites).
 
 ### Special Considerations
 - Scratch registrations are removed with `cf project rm` after each run. Scratch directories are deleted after the report is written.
