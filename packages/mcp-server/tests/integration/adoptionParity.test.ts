@@ -45,7 +45,8 @@ afterAll(async () => {
 });
 
 afterEach(() => {
-  fs.rmSync(checkout, { recursive: true, force: true });
+  // Unset when the test failed before creating the checkout; don't mask that failure.
+  if (checkout) fs.rmSync(checkout, { recursive: true, force: true });
 });
 
 function createBrownfieldCheckout(): string {
