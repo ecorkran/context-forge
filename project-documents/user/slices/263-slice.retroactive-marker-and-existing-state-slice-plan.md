@@ -114,7 +114,7 @@ caller has entry → evaluateEntryGate(projectPath, entry, boundary, config)
 ```
 readAdoptionState(checkoutPath) === 'in_progress'
   → completeAdoptionIfPlanRecorded(checkoutPath)
-      findPlanningArtifacts → slice plans → parseSlicePlan → any entry.retroactive?
+      findExistingStatePlan (264 D8, introspection/parsers/) → plan path with a retroactive entry, or null
       yes → writeAdoptionState(checkoutPath, 'complete') → { completed: true, planPath }
   completed → outcome { kind: 'adoption-completed', planPath }; the brownfield prompt is selected
               one last time, and the Adoption Facts section carries the completion notice
@@ -164,7 +164,7 @@ Adoption state is not checked here. A project whose `adoption.state` was later c
 ### D5 — Adoption completes when a slice plan with a retroactive entry exists
 Status: decided
 - **Event:** a slice plan in the checkout (any `nnn-slices.*.md` that `findPlanningArtifacts` returns) contains at least one parsed retroactive entry. That is the observable fact that the existing-state plan has been written. A plan with no retroactive entries doesn't count: an adoption that recorded nothing built isn't an existing-state plan.
-- **Mechanism:** `completeAdoptionIfPlanRecorded(checkoutPath)` in `adoption/adoptionCompletion.ts` is the one place the rule lives. 261's resolver calls it in its decide step when the state is `in_progress` and writes are `persist`. Errors follow 261 D9: a failed write throws `AdoptionError` naming `.context-forge.toml` and the remedy (`cf config set adoption.state complete`).
+- **Mechanism:** `completeAdoptionIfPlanRecorded(checkoutPath)` in `adoption/adoptionCompletion.ts` is the entry point 261's resolver calls. The rule itself ("a slice plan with a retroactive entry exists") lives in 264's `findExistingStatePlan` in `introspection/parsers/` (264 D8), which this function delegates to, so `cf next` and the build share one definition. 261's resolver calls it in its decide step when the state is `in_progress` and writes are `persist`. Errors follow 261 D9: a failed write throws `AdoptionError` naming `.context-forge.toml` and the remedy (`cf config set adoption.state complete`).
 - **The completing build:** it still selects the brownfield prompt, with outcome `adoption-completed` and the notice "adoption.state was set to complete by this build: existing-state slice plan found at {planPath}. Adoption is finished; run `cf next` for the next step." The agent may still be adding new work in step 3 of the prompt, so the build gives it the same prompt with one new fact rather than switching prompts mid-step. Later builds follow 261 (`complete` doesn't select the brownfield prompt).
 - **Why the build:** it is the only writer 261 already has, and the brownfield prompt re-runs `cf build` between steps. `cf next` (264) may call the same function; that's 264's choice, and the function is exported for it.
 - Rejected: `cf check --fix`. `fixAction` only edits checkboxes and frontmatter, so it would need a new config-write action for one transition.
