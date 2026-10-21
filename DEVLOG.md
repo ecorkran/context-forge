@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-21
+
+### Release 0.19.17
+
+- **Contents:** slice 261 (brownfield detection and `adoption.state`), `cf next` CI-setup offer, old-guide warning, single onboarding recipe, `cf init --name` fix in onboarding
+
+Tags: @context-forge/core@0.19.17, @context-forge/cli@0.19.17, @context-forge/mcp@0.19.17, @context-forge/context-forge@0.19.17
+
 ## 2026-10-19
 
 ### Release 0.19.16

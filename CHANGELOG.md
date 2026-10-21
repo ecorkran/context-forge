@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.17] - 20261021
+
 ### Added
 
 - **`cf build` recognizes an existing codebase.** On a Phase 0 build, a project with at least 2000 non-blank source lines and no initiative plan, architecture, HLD or slice plan gets the guide's brownfield-adoption prompt, followed by an `### Adoption Facts` section (source volume, history, docs, ADRs, rule files, CI). The first detection records `adoption.state = in_progress`, so later builds keep resuming the brownfield prompt. Override with `cf config set adoption.state in_progress` (force), `declined` (treat as new) or `""` (re-detect). `template_preview` never writes the state. A guide without the brownfield profile or prompt fails the build with a named error instead of falling back to the concept prompt. Needs ai-project-guide v0.22.2+.

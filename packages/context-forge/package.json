@@ -1,6 +1,6 @@
 {
   "name": "@context-forge/context-forge",
-  "version": "0.19.16",
+  "version": "0.19.17",
   "description": "Context Forge — AI project context generation. Installs both the CLI and MCP server.",
   "keywords": [
     "cli",
