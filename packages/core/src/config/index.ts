@@ -2,6 +2,8 @@ export {
   ConfigKeyDefinition,
   ConfigScope,
   CONFIG_KEYS,
+  ADOPTION_STATES,
+  AdoptionState,
   PERMISSIVENESS_LEVELS,
   PermissivenessLevel,
   STANDARD_PERMISSIVENESS,

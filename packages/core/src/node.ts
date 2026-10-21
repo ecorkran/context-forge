@@ -57,6 +57,9 @@ export { updateCheckbox, updateFrontmatterField } from './introspection/writers/
 // Detection — project-folder facts (CI, build manifests); fs dependent
 export * from './detection/index.js';
 
+// Adoption — brownfield adoption state, outcome and build resolver; fs dependent
+export * from './adoption/index.js';
+
 // Project defaults — fs-dependent auto-set rules (uses resolveFileByIndex)
 export { computeAutoSetFields } from './project-autoset.js';
 

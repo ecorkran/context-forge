@@ -29,6 +29,9 @@ const PHASE_STRINGS = [
   'Phase 7: Integration',
 ] as const;
 
+/** Canonical concept-phase display string — single source of truth for callers that need it. */
+export const CONCEPT_PHASE: (typeof PHASE_STRINGS)[0] = PHASE_STRINGS[0];
+
 /** Canonical architecture-phase display string — single source of truth for callers that need it. */
 export const ARCHITECTURE_PHASE: (typeof PHASE_STRINGS)[2] = PHASE_STRINGS[2];
 

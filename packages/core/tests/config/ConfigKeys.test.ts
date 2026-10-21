@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
+  ADOPTION_STATES,
   CONFIG_KEYS,
   PERMISSIVENESS_LEVELS,
   STANDARD_PERMISSIVENESS,
@@ -88,6 +89,59 @@ describe('workflow.permissiveness', () => {
     await expect(attempt).rejects.toThrow(/must be one of/);
     for (const level of PERMISSIVENESS_LEVELS) {
       await expect(attempt).rejects.toThrow(level);
+    }
+  });
+});
+
+describe('adoption.state', () => {
+  const def = CONFIG_KEYS['adoption.state'];
+  let dataDir: string;
+  let projectDir: string;
+  let originalEnv: string | undefined;
+
+  beforeEach(async () => {
+    dataDir = await mkdtemp(join(tmpdir(), 'cf-adopt-data-'));
+    projectDir = await mkdtemp(join(tmpdir(), 'cf-adopt-project-'));
+    originalEnv = process.env.CONTEXT_FORGE_DATA_DIR;
+    process.env.CONTEXT_FORGE_DATA_DIR = dataDir;
+  });
+
+  afterEach(async () => {
+    if (originalEnv === undefined) {
+      delete process.env.CONTEXT_FORGE_DATA_DIR;
+    } else {
+      process.env.CONTEXT_FORGE_DATA_DIR = originalEnv;
+    }
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(projectDir, { recursive: true, force: true });
+  });
+
+  it('is a shared string defaulting to empty, enum = ADOPTION_STATES', () => {
+    expect(def).toBeDefined();
+    expect(def.type).toBe('string');
+    expect(def.scope).toBe('shared');
+    expect(def.default).toBe('');
+    expect(def.enum).toEqual([...ADOPTION_STATES]);
+  });
+
+  it.each(ADOPTION_STATES)('accepts %j and stores it in the shared project file', async (state) => {
+    const cm = new ConfigManager(projectDir);
+    await cm.set('adoption.state', state, 'project');
+    expect((await cm.get('adoption.state')).value).toBe(state);
+    const shared = await readFile(join(projectDir, '.context-forge.toml'), 'utf-8');
+    expect(shared).toContain('[adoption]');
+    expect(shared).toContain(`state = "${state}"`);
+    await expect(
+      readFile(join(projectDir, '.context-forge.personal.toml'), 'utf-8'),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('rejects an unknown state and names every allowed value', async () => {
+    const cm = new ConfigManager(projectDir);
+    const attempt = cm.set('adoption.state', 'maybe', 'project');
+    await expect(attempt).rejects.toThrow(/must be one of/);
+    for (const state of ADOPTION_STATES.filter((s) => s !== '')) {
+      await expect(attempt).rejects.toThrow(state);
     }
   });
 });

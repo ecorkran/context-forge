@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CONCEPT_PHASE,
   resolveFieldName,
   resolvePhaseValue,
   validateFieldValue,
@@ -42,6 +43,12 @@ describe('projectSchema', () => {
       expect(resolveFieldName('foobar')).toBeUndefined();
       expect(resolveFieldName('')).toBeUndefined();
       expect(resolveFieldName('xyz')).toBeUndefined();
+    });
+  });
+
+  describe('CONCEPT_PHASE', () => {
+    it.each(['Phase 0: Concept', '0', 'phase 1: concept'])('%s resolves to it', (input) => {
+      expect(resolvePhaseValue(input)).toBe(CONCEPT_PHASE);
     });
   });
 

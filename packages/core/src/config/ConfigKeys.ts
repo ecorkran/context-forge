@@ -23,6 +23,12 @@ export type PermissivenessLevel = (typeof PERMISSIVENESS_LEVELS)[number];
 // The default level, and the one level with no guide fragment (adds nothing to the build).
 export const STANDARD_PERMISSIVENESS: PermissivenessLevel = PERMISSIVENESS_LEVELS[1];
 
+// Defined here, not in adoption/, because adoption/adoptionState.ts imports ConfigManager,
+// which imports this file. adoptionState.ts re-exports them.
+export const ADOPTION_STATES = ['', 'in_progress', 'complete', 'declined'] as const;
+
+export type AdoptionState = (typeof ADOPTION_STATES)[number];
+
 export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
   'guide.auto_update': {
     type: 'boolean',
@@ -102,6 +108,16 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       'How readily AI work waits on the Project Manager. `cf build` adds the guide\'s rules/permissiveness/<level>.md after the instruction prompt in Phases 4-6; "standard" adds nothing.',
     enum: [...PERMISSIVENESS_LEVELS],
     scope: ConfigScope.Shared,
+  },
+  'adoption.state': {
+    type: 'string',
+    default: '',
+    enum: [...ADOPTION_STATES],
+    scope: ConfigScope.Shared,
+    description:
+      'Brownfield adoption state. Empty: cf build detects whether the project is an existing codebase. ' +
+      'in_progress: cf build uses the brownfield-adoption prompt in Phase 0 (set automatically on detection, or by hand to force it). ' +
+      'complete: adoption finished. declined: treat the project as new.',
   },
   'workflow.review_threshold': {
     type: 'string',
