@@ -14,61 +14,61 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261020
 dateUpdated: 20261020
-reviewedSha: e7eb456ca613f743c86046bde90d1e75298b3951
-revision_number: 1
+reviewedSha: 4ed01995a00b13b778722535de1d0943dc2cf722
+revision_number: 2
 toolsGiven: [read_file, list_files, grep]
-toolCallsMade: 3
-turns: 4
-promptTokens: 175359
-cachedTokens: 89303
-cacheWriteTokens: 86050
-completionTokens: 2692
-durationSeconds: 25.3
-costUsd: 0.380794
+toolCallsMade: 2
+turns: 3
+promptTokens: 96019
+cachedTokens: 11266
+cacheWriteTokens: 84749
+completionTokens: 4132
+durationSeconds: 36.3
+costUsd: 0.382182
 costBasis: provider
 runId: run-20261021-slices-plan-c34863dc
 squadronVersion: 0.23.5
 findings:
   - id: F001
     severity: pass
-    category: architecture-alignment
-    summary: "Facts-in-core / judgement-in-prompt boundary respected"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#Overview"
+    category: alignment
+    summary: "Judgement/fact split and identity keying match the architecture"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#Technical Decisions"
   - id: F002
-    severity: pass
-    category: architecture-alignment
-    summary: "Additive and reversible; resolution identity matches arch"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D2"
+    severity: concern
+    category: layer-boundaries
+    summary: "Rule-source enumeration is placed in cli, though the arch says core enumerates"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D7 — The format lives in core, inventory and rendering in cli"
   - id: F003
     severity: concern
-    category: proportionality
-    summary: "Design is heavier than the slice plan's three success criteria require"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D5"
+    category: hidden-dependency
+    summary: "Dependency on 261 is labelled \"sequencing only\" but is a code and contract dependency"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md:65"
   - id: F004
     severity: concern
-    category: scope
-    summary: "Copilot target extends scope beyond the arch's named files"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#Technical Scope"
+    category: error-handling
+    summary: "Stale-identity handling covers only the guide side of the pair"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D5 — Stale identities warn and malformed files fail"
   - id: F005
     severity: concern
     category: proportionality
-    summary: "Inventory command duplicates data the agent already receives from 261 and the prompt can derive"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D6"
+    summary: "Design is heavier than the slice needs; name what to cut"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md"
   - id: F006
-    severity: concern
-    category: dependencies
-    summary: "Release coupling to an unpublished guide prompt has no tracked acceptance gate"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#Dependencies"
+    severity: note
+    category: scope
+    summary: "Copilot composite is scope beyond the arch, and is justified"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md:48"
   - id: F007
     severity: note
-    category: error-handling
-    summary: "Failure modes for the new I/O paths are enumerated"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#State Management"
+    category: alignment
+    summary: "Precedence is advisory, which only partly meets \"doesn't re-introduce\""
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#Risk Assessment"
   - id: F008
-    severity: note
-    category: architecture-alignment
-    summary: "Dependency direction is correct"
-    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#D7"
+    severity: pass
+    category: error-handling
+    summary: "I/O failure modes are enumerated"
+    location: "project-documents/user/slices/266-slice.conventions-reconciliation.md#State Management"
 ---
 
 # Review: slice — slice 266
@@ -78,49 +78,49 @@ findings:
 
 ## Findings
 
-### [PASS] Facts-in-core / judgement-in-prompt boundary respected
+### [PASS] Judgement/fact split and identity keying match the architecture
 
-cf enumerates sources, stores the PM's decision, and renders it. The agent decides whether two rules contradict. cf never reads a statement for meaning (D3). This matches the arch principle "Facts in core, judgement in the prompt" and its "Reconciliation is judgement" consideration. The guide owns the prompt wording, and a missing prompt fails with the existing error and has no fallback. That matches "Guide owns content, cf owns logic".
+The comparison of two rules is left to the guide prompt, and cf only inventories, stores and renders (Overview, Data Flow). D2 keys resolutions by `guideRule` plus `projectSource`, never by heading text. This matches the arch's "Facts in core, judgement in the prompt" and "keyed by rule file identity". D4 leaves the output byte-identical when no resolutions exist, and project text is never rewritten. That matches "Additive and reversible". D1 handles the #123 sequencing by isolating the audience question in a single `delivered()` predicate.
 
-### [PASS] Additive and reversible; resolution identity matches arch
+### [CONCERN] Rule-source enumeration is placed in cli, though the arch says core enumerates
 
-The key is guide rule basename plus project source path, with no heading text or hash. This meets the arch statement "keyed by rule file identity, never heading text". The slice writes only inside the managed block. With no resolutions file the output is byte-identical to today's. D1 handles the #123 coordination with a single `delivered(rule, target)` predicate and a recorded identity constraint. The arch said "Sequenced with #123", and the slice doesn't depend on #123 landing first.
+The arch says "Core enumerates rule sources and applies stored resolutions deterministically inside `setup-ide`" and "One detection, many consumers". D7 puts only the persisted format in core. `ruleInventory.ts` (guide rules, project sources, managed-block ranges) lives in `packages/cli/src/ideInstall/`. The design defers MCP parity, so the enumeration cannot be reused by a second surface without a later move. The reason given, that the inventory needs manifests and the marker constants, explains the placement but does not reconcile it with the arch wording. Either state in D7 that this is a deliberate deviation from the arch's "core enumerates" and say how a later MCP surface would reach the inventory, or split the pure parts (marker-range scan, candidate expansion) into core. The slice also reaches into core for `RULE_FILE_PATHS`, so the boundary is already mixed.
 
-### [CONCERN] Design is heavier than the slice plan's three success criteria require
+### [CONCERN] Dependency on 261 is labelled "sequencing only" but is a code and contract dependency
 
-The plan asks for three things: conflicts listed for PM decision, resolutions that persist across `setup-ide` re-runs, and resilience to guide wording changes. The slice adds mechanism beyond that. Each of these can be cut or deferred:
-- **`cf rules remove`.** It adds a command and the id-reuse and duplicate-id-after-merge handling. `remove` is not needed to meet the criteria. The PM can edit the JSON, and the design already treats a hand-edit as the stale-identity remedy in walkthrough step 7.
-- **Sequential ids.** A file-pair key plus a statement would do. The ids exist only for `remove` and for output. They bring max+1 reuse, duplicate-id failure after a git merge, and a manual renumbering step, all of which the Concurrency paragraph has to explain.
-- **Per-target filtered rendering.** `delivered()` is computed per target, and `--json` lists `targets` per rule. The slice itself says `delivered()` reduces to "alwaysApply reaches every composite" plus scoped-rule exclusion. A simpler first cut renders every non-excluded resolution in every composite.
-- **Stale-source warning for a missing `projectSource`.** Its only purpose is to warn about a case that still renders correctly.
+Dependencies calls 261 "sequencing only". The same bullet, and D6, say 266 consumes 261's `RULE_FILE_PATHS`, promotes it to a core export, and adds `.github/instructions`. That changes what 261's Adoption Facts report, which is an interface 261 owns and the brownfield prompt consumes. The design does not say what happens if 261 has already shipped its rule-file list. It also does not say whether the Adoption Facts change needs a guide-prompt update or 261 test updates. Move this into Interfaces Required, name 261's list as a modified interface, and state the effect on 261's tests and facts output.
 
-I recommend dropping `remove` and the ids (or deferring them to #125 alongside `dismissed`), which also shrinks D5. Keep the rest of the validation, since the marker-injection checks protect `managedState`.
+### [CONCERN] Stale-identity handling covers only the guide side of the pair
 
-### [CONCERN] Copilot target extends scope beyond the arch's named files
+D2 makes the file pair the identity, but D5 and `warnStaleResolutions` check only that `guideRule` still exists in the guide. If `projectSource` is later renamed or deleted, the resolution keeps rendering a precedence statement over a file that no longer exists. The statement also stays in agent context with no warning. This matches the arch goal that the user sees disagreements. The reverse failure goes unseen: a resolution that no longer applies. Add a warning (still exit 0, and still rendering or not, per a stated choice) when `projectSource` is absent from the checkout. Add it to the walkthrough and tests.
 
-The arch's current-state section frames the problem as CLAUDE.md and AGENTS.md. The slice adds `.github/copilot-instructions.md` as a third composite. The reasoning is sound, because the same always-on rules compile there. It is still a widening of the scope the arch names. The design says it costs no extra code, but it does add a third target to the per-target tests, to the `delivered()` predicate and to the walkthrough. Either note the extension against the arch or record it as a deliberate scope clarification. It should not remain an inline justification only.
+### [CONCERN] Design is heavier than the slice needs; name what to cut
 
-### [CONCERN] Inventory command duplicates data the agent already receives from 261 and the prompt can derive
+The slice delivers one persisted file, two commands, and one rendered section. The document carries more than that:
+- Binary-file handling (latin1) for rule candidates (State Management), a case the slice does not have since rule sources are text.
+- The #123 constraint text and "post to issue" guidance (D1), plus a Future Work list and the `dismissed` discussion in D3. These restate or defer other work and belong in issues #123, #125 and #126 and the slice plan.
+- A nine-step walkthrough where steps 5–9 repeat what the unit tests in Technical Requirements already assert (stale warning, malformed file, marker injection).
+- The Release-coupling and Tracking bullets in Dependencies, which restate arch Dependencies content.
+- The `decision` enum (`project` / `guide`). It only selects the label in "(project rule applies)", while `statement` already carries the full meaning. Consider dropping it unless a consumer needs it as structured data.
+Cutting these loses no requirement the slice plan assigns to 266.
 
-The arch says detection reports "rule files present" once, in core ("One detection, many consumers"). D6 and the Prerequisites section deliberately build a second, independent candidate list (`ruleInventory.ts`) and state that there is no shared constant and no consistency test. Two lists can disagree. The agent could then be routed by 261's facts to reconciliation and be handed an inventory that omits a file 261 reported, or the reverse. The justification that "drift can't break either slice" is true for the code. It is not true for the user-visible result. The cheaper option is for 266 to derive its candidates from 261's list and add only the composite block range. If separate lists are kept, add a single test asserting that every 261 path is in 266's list, which is a one-line check.
+### [NOTE] Copilot composite is scope beyond the arch, and is justified
 
-### [CONCERN] Release coupling to an unpublished guide prompt has no tracked acceptance gate
+The arch frames the problem as CLAUDE.md and AGENTS.md composition. The design adds `.github/copilot-instructions.md`, since `compileAlwaysOnRules` writes the same rules there, and it records the cost as one more render test. This is acceptable. The arch's Anticipated Slices entry for reconciliation could be updated to name it.
 
-The arch's Dependencies section records a minimum guide version for each cf release. Its listing of pending guide work covers only the retroactive-marker rule and does not name the reconciliation prompt. The slice says the minimum version is recorded "once ai-project-guide publishes it". The Integration Requirement "the guide's prompt can drive the whole loop" cannot be verified until that happens. State where this lands in the arch's Dependencies list, and mark that success criterion as verified at integration. The walkthrough already covers the interim path by running `resolve` by hand.
+### [NOTE] Precedence is advisory, which only partly meets "doesn't re-introduce"
 
-### [NOTE] Failure modes for the new I/O paths are enumerated
+The arch wording is that re-running `setup-ide` shouldn't re-introduce conflicts. The design keeps the contradicting guide text and adds a precedence statement beside it. The risk section acknowledges this and names per-rule suppression as the fallback. This is acceptable given the "Surface conflicts" goal, but the arch should note that "resolved" means "annotated".
 
-Write/rename failure, unreadable candidate, binary files, concurrent writes, malformed JSON, and recorded-but-not-applied are each given explicit handling. The lock-free concurrency is acknowledged as unsupported, with the duplicate-id merge case spelled out. No arch NFR applies to this path, so no restatement is needed.
+### [PASS] I/O failure modes are enumerated
 
-### [NOTE] Dependency direction is correct
-
-Core owns the persisted format. The cli's `ideInstall` owns inventory and rendering, because that is where manifests and compilers live. Nothing in core depends on cli. The MCP exclusion is stated and left as future work.
+Write or rename failure, unreadable candidates, a malformed file, concurrent writes, and a resolution recorded but not applied each have an explicit strategy. Missing guide prompts and an older installed guide are handled too. The arch states no NFR on this path, so none needs restating.
 
 ### Run Digest
 
-- Response length: 6768 chars
+- Response length: 6702 chars
 - Response is newline-free: no
-- Tool calls made: 3
+- Tool calls made: 2
 - Tool calls failed: 0
 - Stop reason: end_turn
 - Output budget: backend default
@@ -128,9 +128,9 @@ Core owns the persisted format. The cli's `ideInstall` owns inventory and render
 - Settings sources: project
 - Reasoning characters: 0
 - Effort: backend default
-- Turns: 4
-- Tokens — prompt / cached / cache write / completion / reasoning: 175359 / 89303 / 86050 / 2692 / not computed
-- Duration: 25.3 s
+- Turns: 3
+- Tokens — prompt / cached / cache write / completion / reasoning: 96019 / 11266 / 84749 / 4132 / not computed
+- Duration: 36.3 s
 - Cost: $0.38 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
