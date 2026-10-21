@@ -12,8 +12,8 @@ interfaces:
 - 266
 - 267
 dateCreated: 20261020
-dateUpdated: 20261020
-status: not_started
+dateUpdated: 20261021
+status: complete
 turns: 33
 promptTokens: 2512810
 cachedTokens: 2393045
@@ -345,32 +345,34 @@ Stored in `.context-forge.toml` as `[adoption] state = "in_progress"`. No existi
 
 ### Verification Walkthrough
 
-Use the local build (the global `cf` is the published package): `alias cfl="node $PWD/packages/cli/dist/index.js"` from the repo root after `pnpm -r build`. Guide installs need ai-project-guide ≥ v0.22.2.
+Verified 20261021 on the slice branch with the local build. The global `cf` is the published package and lacks this slice, so use the local build: `pnpm -r build`, then `cfl() { node "$PWD/packages/cli/dist/index.js" "$@"; }` from the repo root (a shell function, because zsh does not word-split an alias variable). Guide installs need ai-project-guide ≥ v0.22.2. `cf build` prints only a summary; the prompt itself is the `context` field of `cfl build --json`. Set `CONTEXT_FORGE_DATA_DIR` to a scratch directory (`mkdir /tmp/bf-data && echo '[]' > /tmp/bf-data/projects.json`) for steps 2-5, so the clone is not added to your real project list.
 
-1. **Planned project unchanged.**
+1. **Planned project unchanged.** Build the prompt from `main` and from the slice branch, and diff them. `main` is built in a temporary `git worktree add /tmp/cf-main-wt main` (`pnpm install --frozen-lockfile && pnpm -r build` there), then removed.
    ```bash
-   cfl build > /tmp/before.md     # in this repo, on main before the slice
-   cfl build > /tmp/after.md      # after the slice
-   diff /tmp/before.md /tmp/after.md   # expect: no differences
+   node /tmp/cf-main-wt/packages/cli/dist/index.js build --json > /tmp/before.json   # run from this repo's root
+   cfl build --json > /tmp/after.json
+   diff /tmp/before.json /tmp/after.json   # expect: no output (verified: 6200 bytes each, identical)
    ```
-2. **Brownfield detected and persisted; squadron statement takes the CF-only path.** Use any real codebase over 2000 lines without `project-documents/`:
+2. **Brownfield detected and persisted; squadron statement takes the CF-only path.** Any real codebase over 2000 source lines without `project-documents/` (verified with `expressjs/express`, 2246+ counted lines):
    ```bash
-   git clone --depth 1 <some-repo> /tmp/bf && cd /tmp/bf && cfl init --name bf
-   cfl build | sed -n '/### Instruction Prompt/,/### 3rd-Party/p'
+   export CONTEXT_FORGE_DATA_DIR=/tmp/bf-data
+   git clone --depth 1 https://github.com/expressjs/express.git /tmp/bf && cd /tmp/bf && cfl init --name bf
+   cfl build --json | python3 -c "import json,sys; c=json.load(sys.stdin)['context']; print(c[c.index('### Instruction Prompt'):])"
    # expect: "We're adopting project bf, an existing codebase...", then "### Adoption Facts" with
-   #   outcome brownfield (2000+ lines), history shallow, CI/docs/rule files, the state-set notice,
-   #   and "Squadron: unavailable. This cf version does not run squadron's capability probe..."
-   cfl config get adoption.state                   # expect: in_progress, source project
+   #   "Outcome: brownfield: 2246+ non-blank source lines (threshold 2000; count stopped at the threshold)",
+   #   the state-set notice, "History: N commits (shallow clone: history is truncated)", docs, rule files and CI
+   #   files (absolute paths), and "Squadron: unavailable. This cf version does not run squadron's capability probe..."
+   cfl config get adoption.state   # expect: Value: in_progress, Source: project
    ```
-   Then run `/cf:build` in Claude Code in `/tmp/bf`. Expect the agent to state in one line that it is taking the CF-only path because squadron is unavailable, and to begin the baseline concept. It must not try a squadron step.
+   Live run (reset the state first with `cfl config set adoption.state ''`). The `/cf:build` command calls `cf` from PATH, so put a `cf` shim for the local build first on PATH (`printf '#!/bin/sh\nexec node <repo>/packages/cli/dist/index.js "$@"\n' > /tmp/cfshim/cf; chmod +x /tmp/cfshim/cf; export PATH=/tmp/cfshim:$PATH`), then `claude -p "/cf:build" --max-turns 6 --output-format stream-json --verbose`. Verified: the agent replied "Context loaded: bf | Phase 0: Concept (brownfield adoption, Architect role) | no slice", then "CF-only path: the Adoption Facts say squadron is unavailable ... I'll work from the repo alone", and went on to read the repo and the guide's concept and naming guides. It tried no squadron step.
 3. **Overrides.**
    ```bash
-   cfl config set adoption.state declined && cfl build | grep -c 'Adoption Facts'   # expect: 0
-   cfl config set adoption.state maybe            # expect: rejected, lists the allowed values
-   cfl config set adoption.state in_progress && cfl build | grep -c 'Adoption Facts'   # expect: 1
+   cfl config set adoption.state declined && cfl build --json | grep -o 'Adoption Facts' | wc -l   # expect: 0
+   cfl config set adoption.state maybe   # expect: exit 1, 'must be one of ["", "in_progress", "complete", "declined"]'
+   cfl config set adoption.state in_progress && cfl build --json | grep -o 'Adoption Facts' | wc -l   # expect: 1
    ```
-4. **Missing profile.** In a copy of `/tmp/bf`, delete the `brownfield-adoption` line from the installed prompt file's `context_profiles`, then `cfl build`. Expect a non-zero exit and the `AdoptionError` message naming `cf guides update` and the `declined` override. `adoption.state` is unchanged.
-5. **MCP parity.** From an MCP client in `/tmp/bf`, call `context_build` and compare it with the `cfl build` output (expect identical prompt text). Call `template_preview` on a fresh brownfield copy and confirm `adoption.state` is still unset afterward.
+4. **Missing profile.** Reset the state (`cfl config set adoption.state ''`), then delete the `  brownfield-adoption:` line from `project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md` in `/tmp/bf` (verified in place, with a backup restored afterward) and run `cfl build`. Expect exit 1 and: `This project is being adopted as an existing codebase, but the installed ai-project-guide has no brownfield-adoption profile. Run: cf guides update (needs v0.22.2+). To treat the project as new instead: cf config set adoption.state declined`. `cfl config get adoption.state` is still empty (verified).
+5. **MCP parity.** From a headless MCP client (the SDK's stdio client spawning `packages/mcp-server/dist/index.js` with cwd `/tmp/bf`): with the state empty, `template_preview` returns the brownfield prompt with Adoption Facts and leaves `adoption.state` empty (verified). `context_build` then sets it to `in_progress`; after resetting it to empty, the `context_build` text equals `cfl build --json`'s `context` exactly (verified, 8180 characters each). `packages/mcp-server/tests/integration/adoptionParity.test.ts` covers the same equality in CI.
 
 Greenfield, scaffold-only, resume, other phases, the explicit instruction and monorepo scoping are covered by the integration fixtures (Technical Requirements), not by manual steps.
 

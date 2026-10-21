@@ -12,7 +12,7 @@ projectState: main after slice 260 (complete). `detection/` holds `pathPresent`/
   accepted as written).
 dateCreated: 20261021
 dateUpdated: 20261021
-status: in_progress
+status: complete
 turns: 36
 promptTokens: 3064205
 cachedTokens: 2950677
@@ -227,9 +227,9 @@ revision_number: 1
 
 ### Integration, parity and docs (Development Approach step 6)
 
-- [ ] **Task 12: Integration fixtures** (effort: 3)
-  - [ ] In `packages/core/tests/services/CoreServiceFactory.test.ts` (or `pipeline-integration.test.ts`), build each fixture in a temp dir with the brownfield guide fixture, through `createContextPipeline(dir, { adoptionStateWrites: 'persist' })` and instruction `Phase 0: Concept` unless stated. Write a small helper to create N lines of `.ts` source.
-  - [ ] Expectations (Success Criteria, Functional Requirements):
+- [x] **Task 12: Integration fixtures** (effort: 3)
+  - [x] In `packages/core/tests/services/CoreServiceFactory.test.ts` (or `pipeline-integration.test.ts`), build each fixture in a temp dir with the brownfield guide fixture, through `createContextPipeline(dir, { adoptionStateWrites: 'persist' })` and instruction `Phase 0: Concept` unless stated. Write a small helper to create N lines of `.ts` source.
+  - [x] Expectations (Success Criteria, Functional Requirements):
     1. Empty → concept prompt, no `### Adoption Facts`, state `''`.
     2. Scaffold-only (≈200 source lines, `package.json`, a lockfile, README, LICENSE) → same as empty.
     3. Brownfield (2000+ lines, no planning docs) → brownfield prompt and facts; state `in_progress`.
@@ -243,28 +243,36 @@ revision_number: 1
     11. Explicit `brownfield-adoption` on an empty repo → brownfield prompt, "not evaluated", state `''`.
     12. Brownfield repo with the `test-project` guide (no profile) → rejects with `AdoptionError`; state `''`.
     13. `template_preview` path: brownfield repo with state `''` through `createContextPipeline(dir, { adoptionStateWrites: 'read-only' })` → brownfield prompt and facts; state still `''` afterward.
-  - [ ] Success: all pass.
+  - [x] Success: all pass.
 
-- [ ] **Task 13: CLI/MCP parity test** (effort: 2)
-  - [ ] In `packages/mcp-server/tests/integration/` (MCP depends on core, so it can call both paths), build a brownfield temp fixture twice from identical copies: once through `createContextPipeline(dir, { adoptionStateWrites: 'persist' })` + `generateContextFromProject` (the `cf build` path), once through `generateContext(..., 'persist')` with a registered project (follow how `mcpIntegration.test.ts` registers projects). Assert identical prompt strings.
-  - [ ] Success: passes.
+- [x] **Task 13: CLI/MCP parity test** (effort: 2)
+  - [x] In `packages/mcp-server/tests/integration/` (MCP depends on core, so it can call both paths), build a brownfield temp fixture twice from identical copies: once through `createContextPipeline(dir, { adoptionStateWrites: 'persist' })` + `generateContextFromProject` (the `cf build` path), once through `generateContext(..., 'persist')` with a registered project (follow how `mcpIntegration.test.ts` registers projects). Assert identical prompt strings.
+  - [x] Success: passes.
 
-- [ ] **Task 13C: Commit** — `test: add adoption integration fixtures and CLI/MCP parity test`
+- [x] **Task 13C: Commit** — `test: add adoption integration fixtures and CLI/MCP parity test`
 
-- [ ] **Task 14: README** (effort: 1)
-  - [ ] Add one row for `adoption.state` (shared) to the config key table near `workflow.permissiveness`: what it does, set automatically on first brownfield detection, `declined` / `in_progress` to override, `""` to re-detect.
-  - [ ] Success: no other README sections change.
+- [x] **Task 14: README** (effort: 1)
+  - [x] Add one row for `adoption.state` (shared) to the config key table near `workflow.permissiveness`: what it does, set automatically on first brownfield detection, `declined` / `in_progress` to override, `""` to re-detect.
+  - [x] Success: no other README sections change.
 
-- [ ] **Task 14C: Commit** — `docs: document adoption.state in README`
+- [x] **Task 14C: Commit** — `docs: document adoption.state in README`
 
-- [ ] **Task 15: Full verification and walkthrough** (effort: 3)
-  - [ ] Run format, lint, `pnpm -r typecheck`, `pnpm -r build`, `pnpm -r test`. All pass.
-  - [ ] Every new source file is under ~300 lines (`wc -l`); `ContextIntegrator.ts` grew only by the resolver wiring.
-  - [ ] Walkthrough step 1 (planned project unchanged): build `/tmp/before.md` from `main` (a temporary `git worktree add` of `main`, built there) and `/tmp/after.md` from the slice branch; `diff` shows no differences. Remove the temporary worktree afterward.
-  - [ ] Walkthrough steps 2–4 with the local build against a real public codebase over 2000 lines, cloned `--depth 1` to `/tmp/bf`, with guide v0.22.2+ installed by `cfl init`. Each matches its expected output.
-  - [ ] Step 2 live run (pre-authorized): `claude -p "/cf:build"` in `/tmp/bf`. Record whether the agent states it is taking the CF-only path and begins the baseline concept without a squadron step.
-  - [ ] Step 5: `context_build` output vs `cfl build` and `template_preview` leaving the state unset, through an MCP client (`claude -p` with the local MCP server configured). If no client can run headless, write a `BLOCKED:` line naming it; Task 13 covers parity.
-  - [ ] Record each step's outcome under this task. Any defect is fixed in its own commit typed by what it is (`fix:`, `feat:`, `test:`).
-  - [ ] Success: all automated checks pass and each walkthrough step's outcome or `BLOCKED:` line is recorded.
+- [x] **Task 15: Full verification and walkthrough** (effort: 3)
+  - [x] Run format, lint, `pnpm -r typecheck`, `pnpm -r build`, `pnpm -r test`. All pass.
+  - [x] Every new source file is under ~300 lines (`wc -l`); `ContextIntegrator.ts` grew only by the resolver wiring.
+  - [x] Walkthrough step 1 (planned project unchanged): build `/tmp/before.md` from `main` (a temporary `git worktree add` of `main`, built there) and `/tmp/after.md` from the slice branch; `diff` shows no differences. Remove the temporary worktree afterward.
+  - [x] Walkthrough steps 2–4 with the local build against a real public codebase over 2000 lines, cloned `--depth 1` to `/tmp/bf`, with guide v0.22.2+ installed by `cfl init`. Each matches its expected output.
+  - [x] Step 2 live run (pre-authorized): `claude -p "/cf:build"` in `/tmp/bf`. Record whether the agent states it is taking the CF-only path and begins the baseline concept without a squadron step.
+  - [x] Step 5: `context_build` output vs `cfl build` and `template_preview` leaving the state unset, through an MCP client (`claude -p` with the local MCP server configured). If no client can run headless, write a `BLOCKED:` line naming it; Task 13 covers parity.
+  - [x] Record each step's outcome under this task. Any defect is fixed in its own commit typed by what it is (`fix:`, `feat:`, `test:`).
+  - Outcomes (20261021, local build; the walkthrough in the slice design carries the exact commands):
+    - Automated: `pnpm lint`, `pnpm -r typecheck`, `pnpm -r build` and `pnpm -r test` pass (core 1959, mcp-server 240, cli 866). New source files are 5-137 lines; `ContextIntegrator.ts` grew 377 → 397 (resolver wiring only).
+    - Step 1: `build --json` from `main` (temporary worktree, removed) and from the slice branch are byte-identical (6200 bytes). Plain `cf build` prints only a summary, so the comparison uses `--json`; the walkthrough now says so.
+    - Steps 2-3: `expressjs/express` (depth 1) → brownfield, 2246+ lines, state `in_progress` (source `project`), facts as expected. `declined` → 0 Adoption Facts; `maybe` rejected with the allowed values; `in_progress` → 1.
+    - Step 2 live run: `claude -p "/cf:build"` in `/tmp/bf` with a `cf` shim for the local build on PATH (the global `cf` is the published package). The agent stated "CF-only path", began reading the repo for the baseline concept, and tried no squadron step.
+    - Step 4: removing the `brownfield-adoption` profile line → exit 1 with the D9 message; state still empty.
+    - Step 5: a headless MCP SDK client: `template_preview` leaves the state empty; `context_build` text equals `cf build --json` exactly (8180 characters). Not BLOCKED.
+    - No defects found. Deviations from the plan: the Task 12 fixtures are in `tests/adoption/adoptionBuild.integration.test.ts` rather than `CoreServiceFactory.test.ts`; the Task 13 parity test builds on one checkout and resets the state between runs, because the history fact embeds the checkout path.
+  - [x] Success: all automated checks pass and each walkthrough step's outcome or `BLOCKED:` line is recorded.
 
-- [ ] **Task 15C: Commit** — `docs: record slice 261 verification walkthrough`
+- [x] **Task 15C: Commit** — `docs: record slice 261 verification walkthrough`

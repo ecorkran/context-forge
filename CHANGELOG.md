@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`cf build` recognizes an existing codebase.** On a Phase 0 build, a project with at least 2000 non-blank source lines and no initiative plan, architecture, HLD or slice plan gets the guide's brownfield-adoption prompt, followed by an `### Adoption Facts` section (source volume, history, docs, ADRs, rule files, CI). The first detection records `adoption.state = in_progress`, so later builds keep resuming the brownfield prompt. Override with `cf config set adoption.state in_progress` (force), `declined` (treat as new) or `""` (re-detect). `template_preview` never writes the state. A guide without the brownfield profile or prompt fails the build with a named error instead of falling back to the concept prompt. Needs ai-project-guide v0.22.2+.
+
 - **`cf next` offers CI setup.** When a project has a build manifest (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and others) but no recognized CI and no release skill, `cf next` and `workflow_next` add an `offers` entry (id `setup-ci`) pointing at the setup-ci skill. CI is recognized under GitHub Actions (any workflow file), GitLab, CircleCI, Azure Pipelines, Bitbucket, Jenkins, Travis and Buildkite, in the project folder or its repository root. Stop the offer with `cf config set workflow.setup_ci_offer false`.
 - **Old-guide warning.** `cf build` (stderr) and `context_build` (a second text item) now warn when the installed ai-project-guide is older than v0.22.2 or its version is unknown, and name `cf guides update`. The build still succeeds.
 
