@@ -125,13 +125,12 @@ export function createAdoptionResolver(options: { stateWrites: AdoptionStateWrit
 
     await assertGuideSupportsAdoption(projectPath);
 
+    // Gather the facts before writing: a probe failure must not leave in_progress persisted
+    // for a build that produced no prompt.
     const stateSetByBuild = decision.outcome.kind === 'brownfield' && options.stateWrites === 'persist';
+    const facts = await renderFacts(checkoutPath, decision, stateSetByBuild);
     if (stateSetByBuild) await persistInProgress(checkoutPath);
 
-    return {
-      selected: true,
-      instruction: BROWNFIELD_ADOPTION_INSTRUCTION,
-      facts: await renderFacts(checkoutPath, decision, stateSetByBuild),
-    };
+    return { selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION, facts };
   };
 }

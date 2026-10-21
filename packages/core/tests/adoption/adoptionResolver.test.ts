@@ -125,6 +125,14 @@ describe('createAdoptionResolver', () => {
     });
   });
 
+  it('a facts probe failure leaves the state unwritten', async () => {
+    await writeSource(2000);
+    // A regular file named docs makes the docs/adr probe fail with ENOTDIR.
+    await writeFile(join(project, 'docs'), 'not a directory');
+    await expect(resolve(CONCEPT)).rejects.toThrow(/ENOTDIR/);
+    expect(await readAdoptionState(project)).toBe('');
+  });
+
   describe('guide check (D9)', () => {
     it('rejects a guide without the profile, before writing', async () => {
       await installGuide(PLAIN_GUIDE);
