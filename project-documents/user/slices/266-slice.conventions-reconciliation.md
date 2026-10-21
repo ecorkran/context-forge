@@ -44,7 +44,9 @@ This slice adds reconciliation in three parts:
 - A core module for the persisted resolution format: schema, validation, read, and write with sequential ids.
 - `cf rules` command group: `inventory`, `resolve`, `remove`.
 - A rule-source inventory: the guide rules each target delivers, and the project's own rule sources with cf-installed files filtered out.
-- The `setup-ide` change: render resolutions into every composite block (CLAUDE.md, AGENTS.md, `.github/copilot-instructions.md`), filtered per target to the rules that target delivers. Covers the root checkout and each worktree, and dry runs.
+- The `setup-ide` change: render resolutions into every composite block (CLAUDE.md, AGENTS.md, `.github/copilot-instructions.md`), filtered per target to the rules that target delivers.
+  - **Why copilot is included:** `compileAlwaysOnRules` already compiles the same always-on rules into `copilot-instructions.md` that it compiles into AGENTS.md. Leaving copilot out would leave the very contradiction this slice resolves in that file. The renderer is the same, so including it costs no extra code.
+  - **Worktrees and dry runs need no new code.** Both already go through `installCheckout`, which reads the resolutions file per checkout root.
 - Explicit diagnostics: a malformed file fails the run, and a stale identity produces a warning.
 - The contract for the guide-side prompt (below), and README/CLI reference text for the commands.
 
@@ -60,8 +62,10 @@ This slice adds reconciliation in three parts:
 ## Dependencies
 
 ### Prerequisites
-- **Slice 261 (Detection and Adoption State):** sequencing only. 261's Adoption Facts already list the rule files present. The guide's brownfield prompt uses that list to send an adopted project to reconciliation. 266 reads no 261 API at run time.
-- **ai-project-guide:** a `conventions-reconciliation` prompt section and profile (`conventions-reconciliation: []`) in `prompt.ai-project.system.md`, plus a closing step in the brownfield adoption prompt that points to it when rule files are present. The cf side builds and tests without them. The walkthrough's agent step needs them.
+- **Slice 261 (Detection and Adoption State):** sequencing only. 261's Adoption Facts already list the rule files present. The guide's brownfield prompt uses that list to send an adopted project to reconciliation. 266 reads no 261 API at run time. 261's `RULE_FILE_PATHS` and 266's candidate list (D6) stay separate on purpose: 261 records presence for the prompt and 266 builds the comparison inventory. Drift between the two lists can't break either slice, so there is no shared constant and no consistency test.
+- **ai-project-guide:** a `conventions-reconciliation` prompt section in `prompt.ai-project.system.md`, plus a closing step in the brownfield adoption prompt that points to it when rule files are present. No context profile is needed: `cf prompt get` fetches a prompt by key, and neither `cf build` nor `cf next` selects this prompt.
+  - **Release coupling:** the prompt isn't in any guide release yet. The cf release that ships 266 names that guide release as its minimum, in the arch's Dependencies and the CHANGELOG, once ai-project-guide publishes it.
+  - **If cf ships first, or the installed guide is older:** `cf prompt get conventions-reconciliation` fails with the existing "No prompt found for 'conventions-reconciliation'" error, and there is no fallback prompt. Nothing else changes, because `cf build`, `cf next` and `setup-ide` never reference the prompt. `cf rules` and `setup-ide`'s rendering work without it. Without the brownfield routing step, nothing points an adopted project to reconciliation, so the user runs it by hand (walkthrough step 3).
 
 ### Interfaces Required
 - The `ideInstall` targets (`claude`, `agents`, `cursor`, `copilot`) and the two compilers in `ideInstall/rules.ts`. Both compilers append a trailing generated section.
@@ -75,7 +79,7 @@ This slice adds reconciliation in three parts:
 
 ```
 packages/core/src/ruleResolutions/
-  schema.ts        RULE_DECISIONS, RuleResolution, RuleResolutionsFile (version 1)
+  schema.ts        RULE_DECISIONS, RuleResolution, RuleResolutionsFile (version 1), statement validation
   store.ts         readRuleResolutions(root) / addRuleResolution / removeRuleResolution
                    (validate on read; throws RuleResolutionsError naming file + problem)
 
@@ -96,19 +100,25 @@ packages/cli/src/commands/rules.ts   cf rules inventory | resolve | remove
 **Reconciliation (agent-driven, once per adoption or after rule changes)**
 1. The agent runs `cf prompt get conventions-reconciliation` (guide prompt).
 2. The prompt has the agent run `cf rules inventory --json`, which returns delivered guide rules, project sources and existing resolutions.
-3. The agent reads the files and compares them. It reads only the project-owned part of a composite file, outside `managedBlock`. It also re-checks existing resolutions and skips any conflict that already has one.
+3. The agent reads the files and compares them. It reads only the project-owned part of a composite file, outside `managedBlock`. It skips any file pair that already has a resolution.
 4. For each conflict, the PM decides, and the agent records the decision with `cf rules resolve <guideRule> <projectSource> --decision <d> --statement "<text>"`. cf validates it and prints the assigned id.
 5. The agent runs `cf setup-ide <target>` to apply.
 
 **Application (every `setup-ide` run, deterministic)**
 1. `installCheckout` reads `rule-resolutions.json` for the checkout root, next to `rules.exclude`. A missing file means no resolutions. A malformed file throws before anything is written.
-2. Each composite emitter builds `trailing` = (existing trailing, e.g. the AGENTS.md scoped index) + `renderResolutions(resolutions, deliveredRules(target))`.
+2. Each composite emitter builds `trailing` from the existing trailing content (for example the AGENTS.md scoped index) followed by `renderResolutions(resolutions, deliveredRules(target))`.
 3. `writeManagedSection` merges as it does today. Text outside the block is untouched.
 4. `warnStaleResolutions` reports on stderr any resolution whose guide rule is not in the guide, or whose project source no longer exists.
 
 ### State Management
 - **Persisted:** `.context-forge/rule-resolutions.json` in the checkout root. It sits next to the install manifests, which are committed, so resolutions reach teammates and propagate to worktrees through git. Each worktree reads its own copy, the same way `rules.exclude` is read per checkout.
-- **Writes:** only `cf rules resolve` and `cf rules remove` write the file. `setup-ide` only reads it. A write goes to a temp file and is then renamed, the same pattern as `writeManagedSection`.
+- **Writes:** only `cf rules resolve` and `cf rules remove` write the file. `setup-ide` only reads it. A write goes to a temp file and is then renamed, the same pattern as `writeManagedSection`. If `.context-forge/` is missing, the write creates it.
+- **I/O failures:**
+  - **Write or rename fails:** the error propagates as a failure naming the file, with no retry. The rename is atomic, so the stored file is either the old version or the new one. A leftover temp file is overwritten by the next write.
+  - **A candidate can't be read during inventory:** the inventory fails naming the file. It never skips the file.
+  - **Binary files:** read as bytes (latin1, as in `managedSection.ts`) and matched only for marker lines, so a binary candidate is listed like any other.
+- **Concurrency:** writes take no lock. Running two `cf rules` writes in one checkout at the same time isn't supported, and a lost update is possible. Branches or worktrees that each add a resolution can produce the same id. After a git merge, that duplicate is a malformed file (D5): the run fails naming the id, and the PM renumbers by hand. The next id is max+1, so an id freed by `remove` can be reused. Ids identify records only within the current file.
+- **Recorded but not applied:** if `setup-ide` doesn't run after `resolve`, or the process stops in between, the resolution waits in the file and the next `setup-ide` applies it. This is accepted, and `resolve` prints the apply command.
 - **No in-memory or session state.** Each run reads the file fresh.
 
 ## Technical Decisions
@@ -127,27 +137,34 @@ Status: decided
 
 ### D3 — Decisions and how they render
 Status: decided
-- `RULE_DECISIONS = ['project', 'guide', 'dismissed']`, defined once in core.
+- `RULE_DECISIONS = ['project', 'guide']`, defined once in core.
   - `project`: the project's rule applies where the two disagree.
   - `guide`: the guide's rule applies where the two disagree.
-  - `dismissed`: the PM ruled it isn't a conflict. Stored so the prompt doesn't raise it again, and never rendered.
-- `statement` is required for `project` and `guide`. It is one line of PM-approved text saying what applies. cf stores it verbatim and renders it verbatim, and never reads it for meaning. It is optional for `dismissed`.
+- `statement` is required. It is one line of PM-approved text saying what applies. cf stores it verbatim and renders it verbatim, and never reads it for meaning. Validation is in D5.
+- Each part is kept only because the plan requires it. Recording a decision is needed for "conflicts are listed for PM decision". The stored file plus rendering is needed for "resolutions persist and survive `setup-ide` re-runs". The file-pair key is needed for "a guide wording change doesn't break a stored resolution".
+- **Deferred:** a `dismissed` ("not a conflict") decision. On a re-run, the prompt skips only pairs that already have a resolution, so a pair the PM judged compatible can come up again. That's issue #125.
 - **Rendering:** both precedence directions render as a statement, so `guide` doesn't depend on anyone editing the project's text, which cf can't do.
 - **Rejected:** excluding the guide rule on `project`. Exclusion is whole-file and isn't allowed for alwaysApply rules (`exclusions.ts`), and dropping all of `git.md` over one conflict loses everything else in it.
 
 ### D4 — One section at the end of each composite block
 Status: decided
 - `renderResolutions` emits a `## Project Rule Resolutions` section as the last thing in the managed block: a one-line precedence sentence, then one bullet per resolution in id order. The format is in API Contracts.
+- **Why `compileClaudeRules` gains `trailing`:** the section has to be inside the BEGIN/END pair. The compiler assembles the block content and hands it to `writeManagedSection` in one call, so an emitter has no point after that call where it could append inside the block. `compileAlwaysOnRules` already takes `trailing`, which carries the AGENTS.md scoped index, and the Claude compiler gets the same parameter. No other compiler change.
 - **Why the block, not next to each rule:** scoped rules are installed as separate files (`.claude/rules/`, `.cursor/rules/*.mdc`, `.github/instructions/`) tracked by manifest hash. Patching them would change wholesale-copied files and the manifest logic. The composite block is always loaded, so the precedence statement is in context whenever the scoped rule is.
-- Nothing to render gives an empty string: no heading, and the block is byte-identical to today's. So projects without resolutions see no change.
+- No resolutions gives an empty string: no heading, and the block is byte-identical to today's. So projects without resolutions see no change.
 - The section heading and the precedence sentence are cf structure, like the existing `# Project Guidelines for Claude` H1. They are constants in `resolutions.ts`.
 
 ### D5 — Stale identities warn and malformed files fail
 Status: decided
-- **Malformed file** (bad JSON, unknown `version`, unknown decision, missing or multi-line statement, duplicate id): `setup-ide` and `cf rules` fail with `RuleResolutionsError` naming the file and the problem. Nothing is written. There is no silent fallback to "no resolutions".
+- **Malformed file:** `setup-ide` and `cf rules` fail with `RuleResolutionsError` naming the file and the problem. Nothing is written. There is no silent fallback to "no resolutions". These checks run on read and on `resolve`:
+  - the file is not valid JSON, or `version` is unknown
+  - a decision is unknown
+  - an id is duplicated
+  - a statement is missing, contains a newline, or contains any string from `MANAGED_MARKERS` or `GENERATED_MARKER`. A marker inside the block would make `managedState` report the file as broken, or make the inventory treat it as cf output.
+  - `guideRule` or `projectSource` contains a backtick. The renderer wraps both in backticks, so values are rejected rather than escaped.
 - **`guideRule` not in the guide:** the resolution isn't rendered, and stderr warns: `⚠️  resolution 3 names git-old.md, which the guide no longer has; re-run reconciliation or cf rules remove 3`. Without the rule its delivery can't be known.
 - **`projectSource` missing:** the resolution still renders, because the statement stands on its own, and stderr warns that the source is gone.
-- **Rule not delivered to this target** (excluded, or out of audience after #123): not rendered, with an info line. The resolution is expected to be absent there, so it isn't a warning.
+- **Rule not delivered to this target** (excluded, or out of audience after #123): not rendered, and nothing is printed. That is the expected result.
 - The exit code stays 0 for warnings. This matches `rules.exclude`'s unmatched-pattern warnings.
 
 ### D6 — Project-source inventory is deterministic and excludes cf output
@@ -180,7 +197,7 @@ Status: decided
 
 ### API Contracts
 
-**`cf rules inventory [--json] [--project <id>]`** (read-only)
+**`cf rules inventory --json [--project <id>]`** (read-only)
 
 ```json
 {
@@ -198,13 +215,13 @@ Status: decided
 }
 ```
 - `targets` comes from `delivered()`. A scoped rule counts as delivered to `agents` because AGENTS.md indexes it, and the agent reads the rule from there. An excluded scoped rule is delivered to no target.
-- Without `--json` it prints a human table with the same content.
+- JSON is the only output. The prompt is the consumer, so there is no human table.
 
-**`cf rules resolve <guideRule> <projectSource> --decision <project|guide|dismissed> [--statement <text>]`**
-- Validates that `guideRule` exists in the installed guide and that `projectSource` is in the current inventory. Either failing is a `UserError` that lists the valid names. Then it applies D3's statement rules, appends the record, and prints `Recorded resolution <id>. Run cf setup-ide <target> to apply.`
+**`cf rules resolve <guideRule> <projectSource> --decision <project|guide> --statement <text>`**
+- Validates that `guideRule` exists in the installed guide and that `projectSource` is in the current inventory. Either failing is a `UserError` that lists the valid names. Then it applies D5's validation, appends the record, and prints `Recorded resolution <id>. Run cf setup-ide <target> to apply.`
 - It doesn't run `setup-ide` itself. Install stays one explicit command.
 
-**`cf rules remove <id>`**: deletes one record. An unknown id is a `UserError`. Ids are never reused: the next id is max+1, using `nextId`.
+**`cf rules remove <id>`**: deletes one record. An unknown id is a `UserError`.
 
 **Rendered section** (inside the managed block, last):
 
@@ -223,11 +240,9 @@ Where a rule above conflicts with the project's own rules, the resolution below 
 ```json
 {
   "version": 1,
-  "nextId": 3,
   "resolutions": [
     { "id": 1, "guideRule": "git.md", "projectSource": "CLAUDE.md",
-      "decision": "project", "statement": "Slice work merges only through a reviewed PR; never merge locally." },
-    { "id": 2, "guideRule": "general.md", "projectSource": "AGENTS.md", "decision": "dismissed" }
+      "decision": "project", "statement": "Slice work merges only through a reviewed PR; never merge locally." }
   ]
 }
 ```
@@ -249,16 +264,16 @@ Where a rule above conflicts with the project's own rules, the resolution below 
 
 ### Functional Requirements
 - `cf rules inventory` lists delivered guide rules per target, and project sources with cf-installed files, generated-marker files and backups excluded. For composites it gives the managed block's line range, and it reports broken markers.
-- `cf rules resolve` records a valid resolution with a new id and rejects an unknown guide rule, an unknown source, an unknown decision, and a missing or multi-line statement.
-- `cf rules remove` deletes by id, and ids are never reused.
-- `setup-ide` for each target renders non-dismissed resolutions for delivered rules into every composite block it writes. Re-running it gives byte-identical files.
+- `cf rules resolve` records a valid resolution with a new id. It rejects an unknown guide rule, an unknown source, an unknown decision, a missing or multi-line statement, a statement containing a managed or generated marker, and a name containing a backtick.
+- `cf rules remove` deletes by id.
+- `setup-ide` for each target renders the resolutions for delivered rules into every composite block it writes. Re-running it gives byte-identical files.
 - With no resolutions file, `setup-ide` output is byte-identical to today's for every target.
 - After a guide rule file's contents change but its basename stays, its resolutions still render unchanged.
-- A missing guide rule warns and doesn't render. A missing project source warns and renders. A malformed file fails before any write.
+- A missing guide rule warns and doesn't render. A missing project source warns and renders. A malformed file, including a duplicate id, fails before any write.
 - Worktree installs render each worktree's own resolutions file. A dry run previews the section.
 
 ### Technical Requirements
-- Core store: unit tests for validation, nextId and atomic write. CLI: tests per subcommand. ideInstall: tests per target covering render, filter, stale warnings and the no-file byte-identity regression.
+- Core store: unit tests for validation (marker strings, backticks, duplicate ids), id assignment, `.context-forge/` creation and atomic write. CLI: tests per subcommand. ideInstall: tests per target covering render, filter, stale warnings and the no-file byte-identity regression.
 - The test fixture for the inventory uses a real CLAUDE.md layout: project text above a managed block written by the current `writeManagedSection`.
 - Format, lint and typecheck pass. New files stay under about 300 lines.
 - README and CLI reference document `cf rules` and the resolutions file.
@@ -278,7 +293,7 @@ Run in a scratch brownfield project with a hand-written CLAUDE.md containing a r
    ```
 2. **Inventory.**
    ```bash
-   cf rules inventory
+   cf rules inventory --json
    ```
    Expect: guide rules (`general.md`, `git.md`, `fixes.md` as alwaysApply, plus scoped rules), and `CLAUDE.md` as a composite with its managed-block line range. Files under `.claude/rules/` that cf installed are absent.
 3. **Agent reconciliation** (needs the guide prompt). Run `cf prompt get conventions-reconciliation` and give the output to the agent. It should report the commit-to-main conflict between `git.md` and `CLAUDE.md` and ask the PM to decide. On "project wins", it runs:
@@ -298,7 +313,7 @@ Run in a scratch brownfield project with a hand-written CLAUDE.md containing a r
 6. **Other targets.** `cf setup-ide agents --yes`, then confirm the same section at the end of AGENTS.md's block.
 7. **Stale identity.** Hand-edit the JSON so `guideRule` is `git-old.md`, then run `cf setup-ide claude --yes`. Expect the stderr warning naming id 1, no section, and exit 0. Run `cf rules remove 1`, and the warning is gone.
 8. **Malformed file.** Set `"version": 2`, then run `cf setup-ide claude`. Expect the run to fail naming the file and the version. CLAUDE.md is unchanged.
-9. **Dismissed.** `cf rules resolve general.md CLAUDE.md --decision dismissed` records the decision. `cf rules inventory` shows it, and `setup-ide` doesn't render it.
+9. **Marker injection rejected.** Pass a statement containing the managed END marker text to `cf rules resolve`. It fails naming the marker, and the file is unchanged.
 
 ## Risk Assessment
 
@@ -320,7 +335,7 @@ Run in a scratch brownfield project with a hand-written CLAUDE.md containing a r
 5. Docs: README, CLI reference, and the guide-side prompt contract handed to ai-project-guide.
 
 ### Special Considerations
-- Statements are PM-approved text placed in agent instructions. cf renders them as one markdown list item and rejects newlines, so a statement can't open a new heading or break out of the block's markers.
+- Statements are PM-approved text placed in agent instructions. cf renders each one as a single markdown list item. Under D5's validation, a statement can't open a new heading, can't contain a line that breaks the block's markers, and can't make the file look like cf-generated output.
 - **Future work** (add to the slice plan's Future Work when tasks are created):
   - a `cf next` recommendation to reconcile when adoption is complete and project rule sources exist but no resolutions file does;
   - MCP tools for inventory and resolve;
