@@ -72,6 +72,7 @@ Excluded:
 - **ai-project-guide release with the retroactive-marker rule.** 263 hands the Marker Specification to the guide (briefing item 6). Guide v0.22.2's adoption guide says the marker is "not yet specified in this guide; do not invent one", so with it the agent can't write the marker and adoption never completes (264, Consumes from Other Slices). The CF-only and squadron runs need that release. The greenfield run doesn't.
 - **Squadron with the capability probe (squadron slice 366).** The squadron run needs an `sq` whose `sq probe --json` prints `probe_version` 1, with squadron's analysis pack installed for the run's surface and the `understand-anything` plugin available. As of this design, the installed `sq` (0.23.5) has no `probe` command. An install from squadron's 366 branch is acceptable; the run report records the exact version or commit.
 - If a prerequisite is missing when its run is due, the task gets a `BLOCKED:` line naming it. The other runs proceed.
+- **What can finish without the external releases:** the greenfield run, and the docs for behavior already shipped in 260–264. **The slice is not complete until both brownfield runs pass.** A slice with only those parts done stays `in_progress`, with its blocked tasks unchecked.
 
 ### Interfaces Required
 - **261:** `cf build` / `context_build` adoption selection, `adoption.state`, the Adoption Facts section, `AdoptionError`, the source-walk constants.
@@ -136,13 +137,11 @@ Status: decided
 - Each run is a real agent session on Claude Code, started with `/cf:onboard` in the scratch directory, so 260's hand-off is part of the chain. Claude Code is the surface because squadron's probe lists it and cf's slash commands install there. The squadron run checks that the probe's `surfaces` has an entry for it rather than assuming one.
 - Use the local build, not the published `cf` (memory: the global binary is the npm install). The scratch session must resolve `cf` to the local build (for example via `cf install-commands --local` plus a PATH entry or shell alias pointing at `packages/cli/dist/index.js`). The report records which `cf --version` the session saw.
 - **The PM role.** The brownfield prompt asks the PM to confirm or correct the concept, to answer what no artifact holds, and (squadron path) to approve `/understand` once. The operator running the session answers. Answers come from the repository's own prose; anything else is answered "unknown", which the prompt must then record as unknown (arch: never fabricate intent). Spend on public scratch repositories is covered by the project's pre-authorization, so the `/understand` ask is answered "yes".
-- A session may be driven interactively or headless (`claude -p`, with `--continue` for each PM answer). Either way, the report keeps each PM question and answer verbatim.
-- Every answer, approval and step happens inside the session as the prompt directs. The operator doesn't write artifacts by hand. A run that needs a manual edit to proceed is a defect (D5), not a pass.
-- **When a session fails mid-run.** `adoption.state` and the artifacts persist, so a run resumes in a new session with `cf build`, and that resume is itself part of what the run proves. The report records every interruption and restart.
-  - Stall: a step that produces no new output or artifact for 30 minutes is stopped and resumed once in a new session. A second stall on the same step is a defect (D5).
-  - Session ends early (context or token limit, crash): resume in a new session. No retry limit, since the cause is outside cf and the prompt.
-  - `/understand` times out or fails partway: re-run it once. A second failure is a squadron defect (D5), and the squadron run doesn't pass. It never falls back to the CF-only path to finish the run.
-  - Probe exits non-zero or prints unreadable output on the squadron run: Adoption Facts correctly says "Squadron: unavailable", but the squadron run doesn't pass. Record it as a missing prerequisite or a squadron defect, never as a pass.
+- Rules that decide a run's outcome:
+  - Every step happens inside the session as the prompt directs. A run that needs a manual artifact edit to proceed fails, and the edit is a defect (D5).
+  - A session that ends early resumes in a new session with `cf build`. `adoption.state` and the artifacts persist, so the resume counts as part of the proof.
+  - A failed `/understand` never falls back to the CF-only path to finish the squadron run.
+  - A broken probe (non-zero exit or unreadable output) is never a pass for the squadron run, even though Adoption Facts correctly says "Squadron: unavailable".
 
 ### D3 — Run order and greenfield check
 Status: decided
@@ -162,7 +161,7 @@ The runs prove that the parts compose. They don't re-verify behavior that 261–
 5. `cf build` after the plan is written: `adoption.state` becomes `complete`, and Adoption Facts carries the completion notice.
 6. `cf next` gives `register-plan`. After running the command it suggests, `cf next` recommends the first new slice.
 
-**Spot checks.** Run each once per brownfield run, and record it in the report only if it fails: the source count against `cloc` or `tokei` (whether 261's constants misfire on real code), `context_build` parity with `cf build`, `cf check` with and without `workflow.review_enabled`, and `cf list slices` showing `✓ retroactive`. A failure is a defect under D5.
+**Spot checks.** Run each once per brownfield run, and record it in the report only if it fails: the source count against `cloc` or `tokei` (whether 261's constants misfire on real code), and `context_build` parity with `cf build`. A failure is a defect under D5.
 
 **CF-only run, additionally:**
 - With `sq` hidden from PATH, Adoption Facts says "Squadron: unavailable. `sq` was not found on PATH." The agent states in one line that it's taking the CF-only path and never attempts a squadron step.
@@ -173,7 +172,7 @@ The runs prove that the parts compose. They don't re-verify behavior that 261–
 - After `/sq:analysis understand`, `cf build`'s Project Context has `Comprehension: user/analysis/{n}-analysis.codebase-comprehension.md` with the highest index.
 - The agent asks the PM to confirm the squadron-written concept (363 provenance) before building on it.
 - **Monorepo:** the agent copes with graph facts that describe the repository root while the cf project is a subdirectory. It neither stalls nor writes the architecture for the whole monorepo. If it does either, that's a guide-prompt defect (D5).
-- **MCP PATH (262 Risk):** `context_build` from the MCP client reports the probe the same way `cf build` does. If the MCP server's PATH lacks `sq`, record that as a finding and file the follow-up 262 named (an `sq` path setting), since that is a new option (D5).
+- **MCP PATH (262 Risk):** `context_build` from the MCP client either reports the same probe as `cf build`, or states "Squadron: unavailable. `sq` was not found on PATH." in Adoption Facts. Either result passes this check, because the surface states the unavailability rather than hiding it (arch). A silent omission, or any other difference from `cf build`, fails the check and the squadron run. The squadron path itself is proven through `cf build`. If the MCP server's PATH lacks `sq`, file the follow-up 262 named (an `sq` path setting), since that is a new option (D5).
 
 **Greenfield run:** D3's greenfield check, plus `/cf:onboard` handing off to `cf build` and the session opening the concept conversation.
 
@@ -195,7 +194,7 @@ Status: decided
 ### D7 — The run report
 Status: decided
 - One document, `project-documents/user/analysis/260-analysis.adoption-verification-runs.md` (`docType: analysis`, `topic: adoption-verification-runs`). It sits under the initiative's base index, as the naming conventions prefer for analysis serving an initiative, and claims no slice index.
-- Per run: repository URL and commit, clone depth, project folder; cf commit and `cf --version`; guide version; `sq --version` (or "not on PATH"); the Adoption Facts section from the first build; the `cf next` sequence (step, recommendation, command); artifact paths with their frontmatter; PM questions and answers verbatim; each D4 check as pass or defect; each defect's disposition (fix commit or issue link).
+- Per run: repository URL and commit; cf, guide and `sq` versions (or "not on PATH"); the Adoption Facts section from the first build; each D4 check as pass or defect; each defect's disposition (fix commit or issue link). Artifact frontmatter, the `cf next` sequence and PM questions and answers are recorded only where a defect needs them as evidence.
 - Paths under the operator's home directory are written as `~`. Probe JSON is kept verbatim otherwise.
 - Not included: full transcripts and the generated artifacts' bodies. The scratch repositories are disposable, and the report keeps what a later reader needs to judge the run.
 
@@ -267,8 +266,6 @@ Use the local build from the repo root after `pnpm -r build`: `alias cfl="node $
 ### Technical Risks
 - **External prerequisites.** The squadron run waits on squadron's probe, and both brownfield runs wait on the guide's marker rule. Neither is in this repository's control.
 - **Live-agent variance.** An agent session can behave differently from run to run, so one clean run doesn't prove the prompt is robust.
-- **Session failures mid-run.** Stalls, early session ends, a failed `/understand` and a broken probe are each handled in D2 ("When a session fails mid-run").
-
 ### Mitigation Strategies
 - Runs are independent, and a missing prerequisite blocks only its own run (Prerequisites). The greenfield run and the docs for shipped behavior don't wait.
 - A run that fails because of agent behavior on correct inputs is repeated once before the defect is filed against the guide, and both attempts go in the report. cf code fixes need a deterministic test, so agent variance never drives a cf change by itself.
