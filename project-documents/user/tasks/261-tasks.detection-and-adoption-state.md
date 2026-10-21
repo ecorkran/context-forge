@@ -80,56 +80,56 @@ revision_number: 1
 
 ### Detection facts (Development Approach step 2)
 
-- [ ] **Task 3: Source-volume walk** (effort: 3)
-  - [ ] Create `packages/core/src/detection/sourceVolume.ts` exporting `SourceVolume` (`{ files; lines; capped }`) and async `measureSourceVolume(root)`, per D2. Use `fs/promises` only.
-  - [ ] Constants, each defined once in this file: `SOURCE_EXTENSIONS`, `EXCLUDED_DIRS` (lists verbatim from D2), `MAX_SOURCE_FILE_BYTES` (512 KiB), `MAX_WALK_ENTRIES` (20,000).
-  - [ ] Create `packages/core/src/adoption/adoptionOutcome.ts` now holding only `BROWNFIELD_MIN_SOURCE_LINES = 2000` (Task 7 adds the rest), and import it here as the stop threshold. It is written nowhere else (D1).
-  - [ ] Skip directories whose name starts with `.` and directories in `EXCLUDED_DIRS`; skip files over `MAX_SOURCE_FILE_BYTES`; do not follow symlinks (use `readdir` with `withFileTypes` and `lstat`; a symlink is neither walked nor counted).
-  - [ ] Count non-blank lines (trimmed length > 0) in files whose extension (lowercased, without the dot) is in `SOURCE_EXTENSIONS`. Stop as soon as `lines >= BROWNFIELD_MIN_SOURCE_LINES` → `capped: true`.
-  - [ ] Count every directory entry visited. Reaching `MAX_WALK_ENTRIES` below the threshold throws `AdoptionError` naming the count and both overrides (`cf config set adoption.state in_progress` / `declined`).
-  - [ ] ENOENT on any entry (deleted mid-walk) → skip it. Any other error → `AdoptionError` naming the path, the error code and the overrides, with the original error as `cause`.
-  - [ ] Keep functions under ~50 lines: split directory listing, per-file counting and the walk loop.
-  - [ ] Success: build passes.
+- [x] **Task 3: Source-volume walk** (effort: 3)
+  - [x] Create `packages/core/src/detection/sourceVolume.ts` exporting `SourceVolume` (`{ files; lines; capped }`) and async `measureSourceVolume(root)`, per D2. Use `fs/promises` only.
+  - [x] Constants, each defined once in this file: `SOURCE_EXTENSIONS`, `EXCLUDED_DIRS` (lists verbatim from D2), `MAX_SOURCE_FILE_BYTES` (512 KiB), `MAX_WALK_ENTRIES` (20,000).
+  - [x] Create `packages/core/src/adoption/adoptionOutcome.ts` now holding only `BROWNFIELD_MIN_SOURCE_LINES = 2000` (Task 7 adds the rest), and import it here as the stop threshold. It is written nowhere else (D1).
+  - [x] Skip directories whose name starts with `.` and directories in `EXCLUDED_DIRS`; skip files over `MAX_SOURCE_FILE_BYTES`; do not follow symlinks (use `readdir` with `withFileTypes` and `lstat`; a symlink is neither walked nor counted).
+  - [x] Count non-blank lines (trimmed length > 0) in files whose extension (lowercased, without the dot) is in `SOURCE_EXTENSIONS`. Stop as soon as `lines >= BROWNFIELD_MIN_SOURCE_LINES` → `capped: true`.
+  - [x] Count every directory entry visited. Reaching `MAX_WALK_ENTRIES` below the threshold throws `AdoptionError` naming the count and both overrides (`cf config set adoption.state in_progress` / `declined`).
+  - [x] ENOENT on any entry (deleted mid-walk) → skip it. Any other error → `AdoptionError` naming the path, the error code and the overrides, with the original error as `cause`.
+  - [x] Keep functions under ~50 lines: split directory listing, per-file counting and the walk loop.
+  - [x] Success: build passes.
 
-- [ ] **Task 3T: Source-volume tests** (effort: 3)
-  - [ ] Create `packages/core/tests/detection/sourceVolume.test.ts` with temp directories.
-  - [ ] Extensions: one file per `SOURCE_EXTENSIONS` entry counted (`it.each` over the constant); `.md`, `.json`, `.lock` and `LICENSE` not counted; blank and whitespace-only lines not counted.
-  - [ ] Exclusions: lines under each `EXCLUDED_DIRS` entry (`it.each`) and under `.git/` and `.hidden/` not counted. `project-documents/` with source files not counted.
-  - [ ] Size cap: a `.ts` file just over `MAX_SOURCE_FILE_BYTES` not counted.
-  - [ ] Symlinks: a symlinked directory and a symlinked file pointing at 3000 source lines outside `root` → not counted.
-  - [ ] Early exit: ten `.ts` files of 1000 lines each → `capped: true`, `files === 2`, `lines === 2000`.
-  - [ ] Below threshold: three files totalling 900 lines → `{ files: 3, lines: 900, capped: false }`.
-  - [ ] Entry cap: `MAX_WALK_ENTRIES + 1` empty `.txt` files spread over a few subdirectories → `AdoptionError` whose message names the count and `declined`.
-  - [ ] Non-ENOENT error: a `chmod 000` subdirectory → `AdoptionError` naming that path and `EACCES` (skip as root/Windows; restore the mode in `afterEach`).
-  - [ ] Success: all pass.
+- [x] **Task 3T: Source-volume tests** (effort: 3)
+  - [x] Create `packages/core/tests/detection/sourceVolume.test.ts` with temp directories.
+  - [x] Extensions: one file per `SOURCE_EXTENSIONS` entry counted (`it.each` over the constant); `.md`, `.json`, `.lock` and `LICENSE` not counted; blank and whitespace-only lines not counted.
+  - [x] Exclusions: lines under each `EXCLUDED_DIRS` entry (`it.each`) and under `.git/` and `.hidden/` not counted. `project-documents/` with source files not counted.
+  - [x] Size cap: a `.ts` file just over `MAX_SOURCE_FILE_BYTES` not counted.
+  - [x] Symlinks: a symlinked directory and a symlinked file pointing at 3000 source lines outside `root` → not counted.
+  - [x] Early exit: ten `.ts` files of 1000 lines each → `capped: true`, `files === 2`, `lines === 2000`.
+  - [x] Below threshold: three files totalling 900 lines → `{ files: 3, lines: 900, capped: false }`.
+  - [x] Entry cap: `MAX_WALK_ENTRIES + 1` empty `.txt` files spread over a few subdirectories → `AdoptionError` whose message names the count and `declined`.
+  - [x] Non-ENOENT error: a `chmod 000` subdirectory → `AdoptionError` naming that path and `EACCES` (skip as root/Windows; restore the mode in `afterEach`).
+  - [x] Success: all pass.
 
-- [ ] **Task 3C: Commit** — `feat(core): add bounded source-volume walk`
+- [x] **Task 3C: Commit** — `feat(core): add bounded source-volume walk`
 
-- [ ] **Task 4: Present-path facts** (effort: 1)
-  - [ ] Create `packages/core/src/detection/presentPaths.ts` exporting sync `presentPaths(root, candidates)` (returns the candidates present, in candidate order, via `pathPresent`) and the three lists from D5: `DOC_PATHS`, `ADR_DIRS`, `RULE_FILE_PATHS`, verbatim. Do not add them to the `detection/index.ts` barrel (D5: not exported from the package).
-  - [ ] Success: build passes.
+- [x] **Task 4: Present-path facts** (effort: 1)
+  - [x] Create `packages/core/src/detection/presentPaths.ts` exporting sync `presentPaths(root, candidates)` (returns the candidates present, in candidate order, via `pathPresent`) and the three lists from D5: `DOC_PATHS`, `ADR_DIRS`, `RULE_FILE_PATHS`, verbatim. Do not add them to the `detection/index.ts` barrel (D5: not exported from the package).
+  - [x] Success: build passes.
 
-- [ ] **Task 4T: Present-path tests** (effort: 1)
-  - [ ] Create `packages/core/tests/detection/presentPaths.test.ts`: none present → `[]`; a file and a directory candidate both present → both, in candidate order; each entry of each list is found when created (`it.each`); a path under a regular file (`ENOTDIR`) throws.
-  - [ ] Success: all pass.
+- [x] **Task 4T: Present-path tests** (effort: 1)
+  - [x] Create `packages/core/tests/detection/presentPaths.test.ts`: none present → `[]`; a file and a directory candidate both present → both, in candidate order; each entry of each list is found when created (`it.each`); a path under a regular file (`ENOTDIR`) throws.
+  - [x] Success: all pass.
 
-- [ ] **Task 5: History fact** (effort: 2)
-  - [ ] Create `packages/core/src/detection/history.ts` exporting `HistoryFact` (`{ kind: 'known'; commits; shallow } | { kind: 'unknown'; reason }`), `HISTORY_GIT_TIMEOUT_MS` (5000) and async `readHistory(root)`, per D5.
-  - [ ] Two calls through `gitExec` with `{ timeoutMs: HISTORY_GIT_TIMEOUT_MS }`: `rev-list --count HEAD -- .` and `rev-parse --is-shallow-repository`, both run with `root` as the git working directory (check `gitExec`'s signature for how it takes the directory).
-  - [ ] Any failure of either call (not a repo, no commits, no `git`, timeout) → `{ kind: 'unknown', reason }` where `reason` is the error message (gitExec's timeout message already reads "timed out after 5s"). This catch is a stated fact, not a fallback (D5): add a comment saying so.
-  - [ ] Export `readHistory`, `HistoryFact`, `measureSourceVolume` and `SourceVolume` from `detection/index.ts`.
-  - [ ] Success: build passes.
+- [x] **Task 5: History fact** (effort: 2)
+  - [x] Create `packages/core/src/detection/history.ts` exporting `HistoryFact` (`{ kind: 'known'; commits; shallow } | { kind: 'unknown'; reason }`), `HISTORY_GIT_TIMEOUT_MS` (5000) and async `readHistory(root)`, per D5.
+  - [x] Two calls through `gitExec` with `{ timeoutMs: HISTORY_GIT_TIMEOUT_MS }`: `rev-list --count HEAD -- .` and `rev-parse --is-shallow-repository`, both run with `root` as the git working directory (check `gitExec`'s signature for how it takes the directory).
+  - [x] Any failure of either call (not a repo, no commits, no `git`, timeout) → `{ kind: 'unknown', reason }` where `reason` is the error message (gitExec's timeout message already reads "timed out after 5s"). This catch is a stated fact, not a fallback (D5): add a comment saying so.
+  - [x] Export `readHistory`, `HistoryFact`, `measureSourceVolume` and `SourceVolume` from `detection/index.ts`.
+  - [x] Success: build passes.
 
-- [ ] **Task 5T: History tests** (effort: 2)
-  - [ ] Create `packages/core/tests/detection/history.test.ts` with temp repos built by `spawnSync('git', ...)` (set `user.name`/`user.email` locally in each repo).
-  - [ ] Repo with 3 commits → `{ kind: 'known', commits: 3, shallow: false }`.
-  - [ ] Shallow clone: `git clone --depth 1 file://<source>` (the `file://` form is required for `--depth`) → `shallow: true`, `commits: 1`.
-  - [ ] Subdirectory scoping: commits touching `packages/app` and others touching `packages/lib`; `readHistory('<repo>/packages/app')` counts only the first set.
-  - [ ] Non-repo temp dir (assert no `.git` ancestor first) → `unknown` with a non-empty reason. Repo with no commits → `unknown`.
-  - [ ] Timeout: `vi.mock` the gitExec module so the call rejects with an error whose message is `timed out after 5s` → `unknown`, reason contains `timed out`.
-  - [ ] Success: all pass.
+- [x] **Task 5T: History tests** (effort: 2)
+  - [x] Create `packages/core/tests/detection/history.test.ts` with temp repos built by `spawnSync('git', ...)` (set `user.name`/`user.email` locally in each repo).
+  - [x] Repo with 3 commits → `{ kind: 'known', commits: 3, shallow: false }`.
+  - [x] Shallow clone: `git clone --depth 1 file://<source>` (the `file://` form is required for `--depth`) → `shallow: true`, `commits: 1`.
+  - [x] Subdirectory scoping: commits touching `packages/app` and others touching `packages/lib`; `readHistory('<repo>/packages/app')` counts only the first set.
+  - [x] Non-repo temp dir (assert no `.git` ancestor first) → `unknown` with a non-empty reason. Repo with no commits → `unknown`.
+  - [x] Timeout: `vi.mock` the gitExec module so the call rejects with an error whose message is `timed out after 5s` → `unknown`, reason contains `timed out`.
+  - [x] Success: all pass.
 
-- [ ] **Task 5C: Commit** — `feat(core): add present-path and history detection facts`
+- [x] **Task 5C: Commit** — `feat(core): add present-path and history detection facts`
 
 - [ ] **Task 6: Planning-artifact check** (effort: 2)
   - [ ] In `packages/core/src/introspection/ArtifactIntrospector.ts`, extract the initiative-plan regex into an exported `INITIATIVE_PLAN_FILE_PATTERN` used by `resolveInitiativePlanPath`. No behavior change.

@@ -30,13 +30,16 @@ async function findProjectGuideFile(projectPath: string, pattern: RegExp): Promi
   }
 }
 
+/** Filename of an initiative plan: 001-initiative-plan.*.md (case-insensitive). */
+export const INITIATIVE_PLAN_FILE_PATTERN = /^001-initiative-plan\..*\.md$/i;
+
 /**
  * Locate the initiative plan file for a project.
  * Convention: project-documents/user/project-guides/001-initiative-plan.*.md
  * Returns the full path, or null if not found.
  */
 export function resolveInitiativePlanPath(projectPath: string): Promise<string | null> {
-  return findProjectGuideFile(projectPath, /^001-initiative-plan\..*\.md$/i);
+  return findProjectGuideFile(projectPath, INITIATIVE_PLAN_FILE_PATTERN);
 }
 
 /**
