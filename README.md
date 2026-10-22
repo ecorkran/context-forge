@@ -450,6 +450,8 @@ Comprehensive test coverage across all packages. TypeScript, strict mode, no `an
 
 **[Review Gating](docs/REVIEW-GATING.md)** — Config-key reference, decision matrix, workflow states, and escape hatches for the optional review-gate feature.
 
+**[Quick reference](docs/CHEATSHEET.html)** — One printable page of everyday `cf` commands. Download it and open it in a browser.
+
 ## Published Packages
 
 - [`@context-forge/context-forge`](https://www.npmjs.com/package/@context-forge/context-forge) — meta-package (installs cli + mcp)
