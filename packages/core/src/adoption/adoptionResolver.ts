@@ -4,6 +4,7 @@
 import { readFile } from 'fs/promises';
 import { relative, resolve } from 'path';
 import type { AdoptionState } from '../config/ConfigKeys.js';
+import { COMPREHENSION_PROFILE_VARIABLE, findComprehensionAnalysis } from '../detection/comprehensionAnalysis.js';
 import { findPlanningArtifacts } from '../detection/planningArtifacts.js';
 import { readHistory } from '../detection/history.js';
 import { ADR_DIRS, DOC_PATHS, RULE_FILE_PATHS, presentPaths } from '../detection/presentPaths.js';
@@ -72,16 +73,18 @@ function missingGuidePart(part: 'profile' | 'prompt'): AdoptionError {
   );
 }
 
-/** Step 4 (D9): the guide the build reads must carry both the profile and the prompt. */
-async function assertGuideSupportsAdoption(projectPath: string): Promise<void> {
+/** Step 4 (D9): the guide the build reads must carry both the profile and the prompt. Returns the profile's variables. */
+async function assertGuideSupportsAdoption(projectPath: string): Promise<string[]> {
   const promptFile = resolvePromptFilePath(projectPath);
   const profiles = new ContextProfileParser().parseProfiles(await readFile(promptFile, 'utf-8'));
-  if (!(BROWNFIELD_ADOPTION_INSTRUCTION in profiles)) throw missingGuidePart('profile');
+  const profileVariables = profiles[BROWNFIELD_ADOPTION_INSTRUCTION];
+  if (profileVariables === undefined) throw missingGuidePart('profile');
 
   const prompt = await new SystemPromptParser(promptFile).getPromptForInstruction(
     BROWNFIELD_ADOPTION_INSTRUCTION,
   );
   if (prompt === null) throw missingGuidePart('prompt');
+  return profileVariables;
 }
 
 /** Step 5 (D9): a failed write stops the build; building anyway would lose adoption on the next build. */
@@ -105,15 +108,21 @@ function relativeCi(checkoutPath: string): CiRecognition {
   return { ...ci, matches: ci.matches.map((match) => relative(base, match)) };
 }
 
-/** Step 6: the render-only facts, gathered only for a selected build. */
+/** Step 6: the render-only facts and the comprehension pointer, gathered only for a selected build. */
 async function renderFacts(
   checkoutPath: string,
   decision: Decision,
   stateSetByBuild: boolean,
-  squadronProbe: SquadronProbe,
-): Promise<string> {
-  const [history, probe] = await Promise.all([readHistory(checkoutPath), squadronProbe(checkoutPath)]);
-  return renderAdoptionFacts({
+  options: { squadronProbe: SquadronProbe; profileVariables: readonly string[] },
+): Promise<{ facts: string; fileComprehension: string | undefined }> {
+  // The comprehension document is resolved only when the guide's profile carries it (D5).
+  const wantsComprehension = options.profileVariables.includes(COMPREHENSION_PROFILE_VARIABLE);
+  const [history, probe, fileComprehension] = await Promise.all([
+    readHistory(checkoutPath),
+    options.squadronProbe(checkoutPath),
+    wantsComprehension ? findComprehensionAnalysis(checkoutPath) : undefined,
+  ]);
+  const facts = renderAdoptionFacts({
     outcome: decision.outcome,
     state: stateSetByBuild ? 'in_progress' : decision.state,
     stateSetByBuild,
@@ -124,6 +133,7 @@ async function renderFacts(
     ruleFiles: presentPaths(checkoutPath, RULE_FILE_PATHS),
     ci: relativeCi(checkoutPath),
   });
+  return { facts, fileComprehension };
 }
 
 export function createAdoptionResolver(options: {
@@ -138,14 +148,22 @@ export function createAdoptionResolver(options: {
     const decision = await decide(checkoutPath, explicit);
     if (!isSelected(decision.outcome)) return { selected: false };
 
-    await assertGuideSupportsAdoption(projectPath);
+    const profileVariables = await assertGuideSupportsAdoption(projectPath);
 
     // Gather the facts before writing: a probe failure must not leave in_progress persisted
     // for a build that produced no prompt.
     const stateSetByBuild = decision.outcome.kind === 'brownfield' && options.stateWrites === 'persist';
-    const facts = await renderFacts(checkoutPath, decision, stateSetByBuild, options.squadronProbe);
+    const { facts, fileComprehension } = await renderFacts(checkoutPath, decision, stateSetByBuild, {
+      squadronProbe: options.squadronProbe,
+      profileVariables,
+    });
     if (stateSetByBuild) await persistInProgress(checkoutPath);
 
-    return { selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION, facts };
+    return {
+      selected: true,
+      instruction: BROWNFIELD_ADOPTION_INSTRUCTION,
+      facts,
+      ...(fileComprehension === undefined ? {} : { fileComprehension }),
+    };
   };
 }

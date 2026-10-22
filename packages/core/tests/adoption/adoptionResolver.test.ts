@@ -165,6 +165,43 @@ describe('createAdoptionResolver', () => {
       expect(probe.calls).toEqual([]);
     });
 
+    describe('comprehension document (D5)', () => {
+      const DOC = 'user/analysis/944-analysis.codebase-comprehension.md';
+
+      async function writeComprehension(): Promise<void> {
+        const dir = join(project, 'project-documents/user/analysis');
+        await mkdir(dir, { recursive: true });
+        await writeFile(
+          join(dir, '944-analysis.codebase-comprehension.md'),
+          '---\ndocType: analysis\nproject: sample\n---\n# Comprehension\n',
+        );
+      }
+
+      it('profile lists fileComprehension and the document exists → fileComprehension is set', async () => {
+        await writeSource(2000);
+        await writeComprehension();
+        expect(await resolve(CONCEPT)).toMatchObject({ selected: true, fileComprehension: DOC });
+      });
+
+      it('profile omits fileComprehension → no fileComprehension key', async () => {
+        const text = await readFile(BROWNFIELD_GUIDE, 'utf-8');
+        await writeFile(
+          join(project, PROMPT_FILE_RELATIVE_PATH),
+          text.replace('fileSlicePlan, fileComprehension]', 'fileSlicePlan]'),
+        );
+        await writeSource(2000);
+        await writeComprehension();
+        const result = await resolve(CONCEPT);
+        expect(result.selected).toBe(true);
+        expect(result).not.toHaveProperty('fileComprehension');
+      });
+
+      it('no document → no fileComprehension key', async () => {
+        await writeSource(2000);
+        expect(await resolve(CONCEPT)).not.toHaveProperty('fileComprehension');
+      });
+    });
+
     it('an unavailable probe still selects the build', async () => {
       probe = fakeProbe({ kind: 'unavailable', reason: { kind: 'not-found' }, warnings: [] });
       await writeSource(2000);

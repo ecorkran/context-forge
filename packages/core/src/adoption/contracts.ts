@@ -11,7 +11,13 @@ export type SquadronProbe = (checkoutPath: string) => Promise<ProbeOutcome>;
 
 export type AdoptionSelection =
   | { selected: false }
-  | { selected: true; instruction: typeof BROWNFIELD_ADOPTION_INSTRUCTION; facts: string };
+  | {
+      selected: true;
+      instruction: typeof BROWNFIELD_ADOPTION_INSTRUCTION;
+      facts: string;
+      /** Newest squadron comprehension document, relative to project-documents/. Absent when none. */
+      fileComprehension?: string;
+    };
 
 export type AdoptionResolver = (
   projectPath: string,
