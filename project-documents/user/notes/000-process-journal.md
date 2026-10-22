@@ -5,7 +5,7 @@ project: context-forge
 audience: [human, ai]
 description: Append-only log of process decisions and design reasoning that has no home in other document types
 dateCreated: 20260705
-dateUpdated: 20260809
+dateUpdated: 20261022
 status: in_progress
 ---
 
@@ -19,6 +19,16 @@ that drift. When the file exceeds the standard size limit, split per
 file-naming-conventions (`-1`, `-2`, …).
 
 # Entries
+
+## 20261022 — cf calling sq is accepted for 262 but is a boundary concern; onboarding should live in one tool
+
+**Context:** Slice 262 has `cf build` run `sq probe --json` on brownfield builds and render the result in Adoption Facts. Until now `cf` has been a state engine: it reads and writes artifacts and config and renders prompts. `sq` already depends on `cf` (its config and projects), so the probe makes the dependency run both ways, and `cf` becomes responsible for spawning a process, classifying its failures and tracking its output format.
+
+**Decision:** Slice 262 proceeds as designed. The coupling is confined to one function (`runSquadronProbe`) behind an injectable seam, so it can be replaced without touching callers. It is recorded as a known boundary concern, not a settled architecture. Two directions are open for later: (1) `cf` reads a file that `sq` writes instead of running `sq`, which keeps `cf` a reader of state; (2) brownfield onboarding moves to `sq`, since the graph, analysis skills and comprehension document all live there, while `cf` keeps `adoption.state`, phases, profiles and prompts.
+
+**Rationale:** Onboarding must live behind a single user-facing command. `cf onboard` and `sq onboard` side by side is not acceptable: two command surfaces are already confusing for new users. The work may be split internally between the tools, but the user sees one entry point, either `cf onboard` or `sq onboard`.
+
+**Follow-ups:** Revisit after 262 ships. Decide which command is the single onboarding entry point, and whether `cf` consumes probe facts by file instead of by process. Relates to the guide-scope ruling (guide = prompts and conventions, not engine logic).
 
 ## 20260809 — A gate cannot reject one alias and accept its siblings
 
