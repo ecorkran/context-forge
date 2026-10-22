@@ -1,5 +1,7 @@
-// Squadron capability probe (slice 262 D1-D3): constants, result types and the pure
-// classifier. cf reads `probe_version` only; every other field is for the guide prompt.
+// Squadron capability probe (slice 262 D1-D3): constants, result types, the process
+// wrapper and the pure classifier. cf reads `probe_version` only; every other field is
+// for the guide prompt.
+import { execFile } from 'node:child_process';
 
 export const SQUADRON_PROBE_COMMAND = { file: 'sq', args: ['probe', '--json'] } as const;
 export const SUPPORTED_PROBE_VERSION = 1;
@@ -86,4 +88,50 @@ export function classifyProbeRun(run: ProbeRun): ProbeOutcome {
       throw new Error(`Unhandled probe run: ${JSON.stringify(unreachable)}`);
     }
   }
+}
+
+export interface ProbeLimits {
+  timeoutMs: number;
+  maxBufferBytes: number;
+}
+
+/**
+ * D1/R1: the only code that spawns a process. No shell, no env changes. Resolves, never
+ * rejects: every failure is a `ProbeRun`. Exported for tests (they pass a fake executable).
+ */
+export function runProbeProcess(
+  command: { readonly file: string; readonly args: readonly string[] },
+  cwd: string,
+  limits: ProbeLimits,
+): Promise<ProbeRun> {
+  return new Promise((resolve) => {
+    execFile(
+      command.file,
+      [...command.args],
+      { cwd, timeout: limits.timeoutMs, maxBuffer: limits.maxBufferBytes, encoding: 'utf8' },
+      (error, stdout, stderr) => {
+        if (error === null) {
+          resolve({ kind: 'exited', exitCode: 0, stdout, stderr });
+        } else if (error.code === 'ENOENT') {
+          resolve({ kind: 'not-found' });
+        } else if (typeof error.code === 'number') {
+          resolve({ kind: 'exited', exitCode: error.code, stdout, stderr });
+        } else {
+          // Timeout, output over the buffer, a signal kill, EACCES: one statement (D1).
+          const detail =
+            typeof error.code === 'string' ? error.code : (error.signal ?? error.message);
+          resolve({ kind: 'could-not-run', detail });
+        }
+      },
+    );
+  });
+}
+
+/** Run `sq probe --json` in the checkout and classify the result. */
+export async function runSquadronProbe(checkoutPath: string): Promise<ProbeOutcome> {
+  const run = await runProbeProcess(SQUADRON_PROBE_COMMAND, checkoutPath, {
+    timeoutMs: SQUADRON_PROBE_TIMEOUT_MS,
+    maxBufferBytes: SQUADRON_PROBE_MAX_BUFFER_BYTES,
+  });
+  return classifyProbeRun(run);
 }
