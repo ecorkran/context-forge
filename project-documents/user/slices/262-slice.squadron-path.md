@@ -211,6 +211,7 @@ Status: decided
 - `SquadronProbe = (checkoutPath: string) => Promise<ProbeOutcome>` in `adoption/contracts.ts`. `createAdoptionResolver({ stateWrites, squadronProbe })` takes it, and `createContextPipeline` options gain `squadronProbe?: SquadronProbe`, defaulting to `runSquadronProbe`.
 - Without this, every build test that selects the brownfield prompt would run whatever `sq` the machine has, and its output would depend on that machine's installs and graph. Integration tests pass a fake; `cf build` and `context_build` use the default.
 - Rejected: putting a fake `sq` on `PATH` in tests. It mutates process environment across a test file and differs by OS.
+- MCP side (task breakdown R2, PM-approved): the MCP path builds its own pipeline, so `registerContextTools(server, options?: { squadronProbe? })` passes the option through `generateContext` to `createContextPipeline`. This is how the parity test hands the CLI and MCP paths the same fake. Production callers pass nothing.
 
 ### Patterns and Conventions
 - Constants defined once in `squadronProbe.ts`: the command, `SUPPORTED_PROBE_VERSION`, timeout, buffer. The filename pattern and `docType` value are defined once in `comprehensionAnalysis.ts`.
