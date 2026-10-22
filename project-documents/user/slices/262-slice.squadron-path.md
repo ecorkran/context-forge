@@ -8,8 +8,8 @@ dependencies:
 interfaces:
 - 265
 dateCreated: 20261020
-dateUpdated: 20261020
-status: not_started
+dateUpdated: 20261022
+status: complete
 turns: 36
 promptTokens: 2393178
 cachedTokens: 2285740
@@ -134,6 +134,7 @@ Status: decided
   - any other error (timeout, output over the buffer, a signal kill, EACCES) → `{ kind: 'could-not-run', detail }`, where `detail` is the error's string `code` or else its `signal`. These all lead to the same statement, so cf doesn't tell them apart.
 - No environment changes. Squadron's log format (text or JSON) is the user's setting, and D3 carries its lines either way.
 - Rejected: `gitExec`; it's git-specific (credential env, network hints). Rejected: a shell string; nothing here needs a shell.
+- Implementation note (R1): `runProbeProcess(command, cwd, limits)` is the only code that calls `execFile`; `runSquadronProbe` calls it with the constants above and then `classifyProbeRun`. Fake-executable tests call `runProbeProcess` with `process.execPath` and a script, so they need no `PATH` change and no 10 s wait. It is exported for tests, not re-exported from `detection/index.ts`.
 
 ### D2 — Classification and the version check
 Status: decided
@@ -203,6 +204,7 @@ Status: decided
   - the fixture has exactly these keys at every level, for every surface entry (surface names aren't checked; the contract says so);
   - `classifyProbeRun` on the fixture, exit 0, gives `available` with the fixture text unchanged;
   - the fixture with `probe_version` 2 gives `unavailable`.
+- Implementation note (R3): the fixture lives in `packages/core/tests/fixtures/squadron-probe/` (`v1.json` plus `README.md`), where this repo keeps test fixtures, not in a `src/` `__fixtures__` directory.
 - The field list exists only in the test. cf's runtime reads `probe_version` alone, so a renamed field breaks this test and the guide prompt, never cf's code.
 - No live test against an installed `sq`: it would depend on the machine. 265's real-repo runs exercise the real probe end to end.
 
@@ -211,6 +213,7 @@ Status: decided
 - `SquadronProbe = (checkoutPath: string) => Promise<ProbeOutcome>` in `adoption/contracts.ts`. `createAdoptionResolver({ stateWrites, squadronProbe })` takes it, and `createContextPipeline` options gain `squadronProbe?: SquadronProbe`, defaulting to `runSquadronProbe`.
 - Without this, every build test that selects the brownfield prompt would run whatever `sq` the machine has, and its output would depend on that machine's installs and graph. Integration tests pass a fake; `cf build` and `context_build` use the default.
 - Rejected: putting a fake `sq` on `PATH` in tests. It mutates process environment across a test file and differs by OS.
+- Implementation note (R4): once the brownfield prompt calls the probe, any test that selects it would run the machine's `sq`; 261's resolver tests, `adoptionBuild.integration.test.ts` and the parity test inject a fake probe.
 - MCP side (task breakdown R2, PM-approved): the MCP path builds its own pipeline, so `registerContextTools(server, options?: { squadronProbe? })` passes the option through `generateContext` to `createContextPipeline`. This is how the parity test hands the CLI and MCP paths the same fake. Production callers pass nothing.
 
 ### Patterns and Conventions
