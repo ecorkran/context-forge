@@ -1,14 +1,20 @@
 /**
- * Slice 261: `cf build` and `context_build` must assemble the same brownfield
+ * Slices 261-262: `cf build` and `context_build` must assemble the same brownfield
  * prompt. Both go through createContextPipeline, so this runs the CLI path
- * (pipeline + integrator, as build.ts does) and the MCP tool on one checkout.
+ * (pipeline + integrator, as build.ts does) and the MCP tool on one checkout,
+ * with one fake squadron probe handed to both (never the machine's `sq`).
  */
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { ConfigManager, FileProjectStore, createContextPipeline } from '@context-forge/core/node';
+import {
+  ConfigManager,
+  FileProjectStore,
+  createContextPipeline,
+  type SquadronProbe,
+} from '@context-forge/core/node';
 import { CONCEPT_PHASE, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import {
   createIntegrationClient,
@@ -27,6 +33,15 @@ const BROWNFIELD_GUIDE = path.resolve(
 const PROJECT_PATH_PLACEHOLDER = '__FIXTURE_PROJECT_PATH__';
 const BROWNFIELD_PROMPT = 'We are adopting an existing codebase.';
 const SOURCE_LINES = 2100;
+const PROBE_JSON = '{"probe_version":1,"graph":{"commits_behind":null}}';
+const PROBE_WARNING = 'WARNING graph.commits_behind could not be determined';
+const COMPREHENSION_DOC = 'user/analysis/944-analysis.codebase-comprehension.md';
+
+const fakeProbe: SquadronProbe = async () => ({
+  kind: 'available',
+  json: PROBE_JSON,
+  warnings: [PROBE_WARNING],
+});
 
 let fixtureEnv: FixtureEnv;
 let ctx: IntegrationClient;
@@ -35,7 +50,7 @@ let checkout: string;
 
 beforeAll(async () => {
   fixtureEnv = await setupFixtureEnv();
-  ctx = await createIntegrationClient();
+  ctx = await createIntegrationClient({ squadronProbe: fakeProbe });
   client = ctx.client;
 });
 
@@ -56,6 +71,12 @@ function createBrownfieldCheckout(): string {
   const source = Array.from({ length: SOURCE_LINES }, (_, i) => `export const v${i} = ${i};`).join('\n');
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'big.ts'), source);
+  const analysisDir = path.join(dir, 'project-documents', 'user', 'analysis');
+  fs.mkdirSync(analysisDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(analysisDir, '944-analysis.codebase-comprehension.md'),
+    '---\ndocType: analysis\nproject: sample\n---\n# Comprehension\n',
+  );
 
   const projectsJson = fs
     .readFileSync(path.join(FIXTURE_DIR, 'projects.json'), 'utf-8')
@@ -64,7 +85,7 @@ function createBrownfieldCheckout(): string {
   return dir;
 }
 
-describe('cf build / context_build parity (slice 261)', () => {
+describe('cf build / context_build parity (slices 261-262)', () => {
   it('produces identical brownfield prompts', async () => {
     checkout = createBrownfieldCheckout();
 
@@ -85,9 +106,15 @@ describe('cf build / context_build parity (slice 261)', () => {
     const project = await new FileProjectStore().getById(FIXTURE_PROJECT_ID);
     expect(project).toBeDefined();
     const workingCopy = { ...project!, instruction: CONCEPT_PHASE };
-    const { integrator } = createContextPipeline(workingCopy.projectPath!, { adoptionStateWrites: 'persist' });
+    const { integrator } = createContextPipeline(workingCopy.projectPath!, {
+      adoptionStateWrites: 'persist',
+      squadronProbe: fakeProbe,
+    });
     const cliPrompt = await integrator.generateContextFromProject(workingCopy);
 
     expect(cliPrompt).toBe(mcpPrompt);
+    for (const text of [PROBE_JSON, PROBE_WARNING, `Comprehension: ${COMPREHENSION_DOC}`]) {
+      expect(mcpPrompt).toContain(text);
+    }
   });
 });
