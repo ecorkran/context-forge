@@ -157,6 +157,7 @@ export class ContextIntegrator {
       worktreeId,
     );
     if (adoption?.selected) enhancedData.adoptionFacts = adoption.facts;
+    if (adoption?.selected && adoption.fileComprehension) enhancedData.fileComprehension = adoption.fileComprehension;
 
     // Resolve the slice's real task file(s)
     if (this.resolveTaskFilesFn && project.fileSlice && checkoutPath) {

@@ -164,6 +164,25 @@ describe('SectionBuilder', () => {
       expect(result).toContain('Slice Plan: 160-slices.project-workflow-system');
     });
 
+    it('puts Comprehension right after Slice Plan when fileComprehension is set', async () => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({
+        fileSlicePlan: '160-slices.project-workflow-system',
+        fileComprehension: 'user/analysis/944-analysis.codebase-comprehension.md',
+      });
+
+      const lines = (await builder.buildProjectInfoSection(data)).split('\n');
+      const slicePlan = lines.findIndex((line) => line.startsWith('Slice Plan:'));
+      expect(lines[slicePlan + 1]).toBe('Comprehension: user/analysis/944-analysis.codebase-comprehension.md');
+    });
+
+    it.each([undefined, '', '   '])('omits Comprehension when fileComprehension is %j', async (value) => {
+      const builder = createBuilder();
+      const data = createTestEnhancedContextData({ fileComprehension: value });
+
+      expect(await builder.buildProjectInfoSection(data)).not.toContain('Comprehension:');
+    });
+
     it('omits Architecture when fileArch is empty', async () => {
       const builder = createBuilder();
       const data = createTestEnhancedContextData({ fileArch: '' });

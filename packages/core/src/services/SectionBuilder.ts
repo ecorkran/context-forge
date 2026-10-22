@@ -157,6 +157,10 @@ export class SectionBuilder {
         lines.push(`Slice Plan: ${data.fileSlicePlan}`);
       }
 
+      if (data.fileComprehension && data.fileComprehension.trim()) {
+        lines.push(`Comprehension: ${data.fileComprehension}`);
+      }
+
       if (data.fileHLD && data.fileHLD.trim()) {
         lines.push(`HLD: ${data.fileHLD}`);
       }

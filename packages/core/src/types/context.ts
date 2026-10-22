@@ -37,6 +37,8 @@ export interface ContextData {
   permissivenessFragment?: string;
   /** Rendered Adoption Facts section (with its own heading); set only when the brownfield prompt is selected. */
   adoptionFacts?: string;
+  /** Newest squadron comprehension document, relative to project-documents/. Derived per build, never stored. */
+  fileComprehension?: string;
 }
 
 /**
