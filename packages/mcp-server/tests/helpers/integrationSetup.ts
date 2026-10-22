@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { registerProjectTools } from '../../src/tools/projectTools.js';
-import { registerContextTools } from '../../src/tools/contextTools.js';
+import { registerContextTools, type ContextToolOptions } from '../../src/tools/contextTools.js';
 import { registerStateTools } from '../../src/tools/stateTools.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,11 +33,12 @@ export interface IntegrationClient {
 /**
  * Creates an MCP server with all 3 tool groups registered and connects an
  * in-process client via InMemoryTransport — mirrors the real server setup.
+ * `options.squadronProbe` injects a fake probe for brownfield builds.
  */
-export async function createIntegrationClient(): Promise<IntegrationClient> {
+export async function createIntegrationClient(options?: ContextToolOptions): Promise<IntegrationClient> {
   const server = new McpServer({ name: 'integration-test', version: '0.1.0' });
   registerProjectTools(server);
-  registerContextTools(server);
+  registerContextTools(server, options);
   registerStateTools(server);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
