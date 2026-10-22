@@ -1,0 +1,10 @@
+{
+  "probe_version": 1,
+  "sq_version": "string",
+  "surfaces": {
+    "claude-code": {"analysis_skill_installed": true, "entry": "/sq:analysis understand", "concept": "/sq:analysis understand concept", "understand_plugin_installed": true, "graph_build": "/understand"},
+    "codex": {"analysis_skill_installed": true, "entry": "analysis-understand", "concept": "analysis-understand concept", "understand_plugin_installed": false, "graph_build": "understand"}
+  },
+  "graph": {"present": true, "path": "string or null", "commit": "string or null", "commits_behind": 0},
+  "baseline": {"available": false}
+}
