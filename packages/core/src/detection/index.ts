@@ -3,6 +3,7 @@ export { hasBuildManifest, BUILD_MANIFESTS } from './buildManifest.js';
 export { measureSourceVolume, type SourceVolume } from './sourceVolume.js';
 export { readHistory, type HistoryFact } from './history.js';
 export { findPlanningArtifacts } from './planningArtifacts.js';
+export { findComprehensionAnalysis, COMPREHENSION_PROFILE_VARIABLE } from './comprehensionAnalysis.js';
 export {
   runSquadronProbe,
   classifyProbeRun,
