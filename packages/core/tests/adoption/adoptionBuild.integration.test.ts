@@ -10,6 +10,7 @@ import { PROMPT_FILE_RELATIVE_PATH } from '../../src/services/constants.js';
 import { AdoptionError } from '../../src/adoption/contracts.js';
 import { readAdoptionState, writeAdoptionState } from '../../src/adoption/adoptionState.js';
 import type { AdoptionStateWrites } from '../../src/adoption/adoptionResolver.js';
+import type { SquadronProbe } from '../../src/adoption/contracts.js';
 import { createTestProjectData } from '../helpers/testData.js';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
@@ -23,6 +24,13 @@ const ARCHITECTURE_PROMPT = 'Design the architecture.';
 const FACTS_HEADING = '### Adoption Facts';
 
 const CONCEPT = 'Phase 0: Concept';
+
+// Every build here selects the brownfield prompt at most through a fake probe, never the machine's `sq`.
+const fakeProbe: SquadronProbe = async () => ({
+  kind: 'unavailable',
+  reason: { kind: 'not-found' },
+  warnings: [],
+});
 
 function git(cwd: string, ...args: string[]): void {
   const result = spawnSync('git', ['-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf-8' });
@@ -57,7 +65,7 @@ describe('adoption through the build pipeline', () => {
     instruction = CONCEPT,
     stateWrites: AdoptionStateWrites = 'persist',
   ): Promise<string> {
-    const { integrator } = createContextPipeline(dir, { adoptionStateWrites: stateWrites });
+    const { integrator } = createContextPipeline(dir, { adoptionStateWrites: stateWrites, squadronProbe: fakeProbe });
     const project = createTestProjectData({ projectPath: dir, instruction });
     const output = await integrator.generateContextFromProject(project);
     // generateContextFromProject turns non-adoption errors into a stub; none is expected here.

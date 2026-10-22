@@ -4,6 +4,13 @@ import type { AdoptionState } from '../config/ConfigKeys.js';
 import type { CiRecognition } from '../detection/ciDetection.js';
 import type { HistoryFact } from '../detection/history.js';
 import type { SourceVolume } from '../detection/sourceVolume.js';
+import {
+  SQUADRON_PROBE_MAX_BUFFER_BYTES,
+  SQUADRON_PROBE_TIMEOUT_MS,
+  SUPPORTED_PROBE_VERSION,
+  type ProbeOutcome,
+  type ProbeUnavailableReason,
+} from '../detection/squadronProbe.js';
 import { BROWNFIELD_MIN_SOURCE_LINES, type AdoptionOutcome } from './adoptionOutcome.js';
 import { BROWNFIELD_ADOPTION_INSTRUCTION } from './contracts.js';
 
@@ -20,13 +27,66 @@ export interface AdoptionFactsInput {
   adrs: readonly string[];
   ruleFiles: readonly string[];
   ci: CiRecognition;
+  probe: ProbeOutcome;
 }
 
 const NONE_FOUND = 'none found';
 
-/** Slice 262 replaces this bullet with the probe output or its own unavailable statement. */
-export function renderSquadronFact(): string {
-  return "Squadron: unavailable. This cf version does not run squadron's capability probe, so no probe output is present.";
+const MILLIS_PER_SECOND = 1000;
+const BYTES_PER_MIB = 1024 * 1024;
+const MIN_FENCE_LENGTH = 3;
+const JSON_INDENT = '  ';
+
+/** D2: the one place a probe failure becomes text. */
+function describeUnavailableReason(reason: ProbeUnavailableReason): string {
+  switch (reason.kind) {
+    case 'not-found':
+      return '`sq` was not found on PATH';
+    case 'could-not-run':
+      return (
+        '`sq probe` could not run or did not finish within ' +
+        `${SQUADRON_PROBE_TIMEOUT_MS / MILLIS_PER_SECOND} s with at most ` +
+        `${SQUADRON_PROBE_MAX_BUFFER_BYTES / BYTES_PER_MIB} MiB of output (${reason.detail})`
+      );
+    case 'non-zero-exit':
+      return `\`sq probe --json\` exited with code ${reason.exitCode}`;
+    case 'unreadable-output':
+      return '`sq probe --json` printed output that is not a JSON object';
+    case 'unsupported-version':
+      return `\`sq probe\` reports probe_version ${reason.value}; this cf supports ${SUPPORTED_PROBE_VERSION}`;
+    default: {
+      const unhandled: never = reason;
+      throw new Error(`Unhandled probe reason: ${JSON.stringify(unhandled)}`);
+    }
+  }
+}
+
+/** A fence one backtick longer than the longest backtick run in the text, so it cannot close early. */
+function fenceFor(text: string): string {
+  const longestRun = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  return '`'.repeat(Math.max(MIN_FENCE_LENGTH, longestRun + 1));
+}
+
+function renderProbeWarnings(warnings: readonly string[]): string[] {
+  const label = '- Probe warnings (stderr, verbatim):';
+  if (warnings.length === 0) return [`${label} none`];
+  return [label, ...warnings.map((line) => `${JSON_INDENT}- ${line}`)];
+}
+
+/** D6: the squadron part of the section, as ready-made bullet lines. */
+export function renderSquadronFacts(outcome: ProbeOutcome): string[] {
+  if (outcome.kind === 'unavailable') {
+    const lines = [`- Squadron: unavailable. ${describeUnavailableReason(outcome.reason)}.`];
+    return outcome.warnings.length > 0 ? [...lines, ...renderProbeWarnings(outcome.warnings)] : lines;
+  }
+  const fence = fenceFor(outcome.json);
+  return [
+    '- Squadron probe (`sq probe --json`), verbatim:',
+    `${JSON_INDENT}${fence}json`,
+    ...outcome.json.split('\n').map((line) => `${JSON_INDENT}${line}`),
+    `${JSON_INDENT}${fence}`,
+    ...renderProbeWarnings(outcome.warnings),
+  ];
 }
 
 function describeSource(source: SourceVolume): string {
@@ -105,7 +165,11 @@ export function renderAdoptionFacts(input: AdoptionFactsInput): string {
     `ADRs: ${listOrNone(input.adrs)}`,
     `Rule files: ${listOrNone(input.ruleFiles)}`,
     `CI: ${listOrNone(input.ci.matches)}`,
-    renderSquadronFact(),
   ];
-  return ['### Adoption Facts', '', ...bullets.map((bullet) => `- ${bullet}`)].join('\n');
+  return [
+    '### Adoption Facts',
+    '',
+    ...bullets.map((bullet) => `- ${bullet}`),
+    ...renderSquadronFacts(input.probe),
+  ].join('\n');
 }

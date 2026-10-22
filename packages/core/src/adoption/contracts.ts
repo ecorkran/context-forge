@@ -1,9 +1,13 @@
 // Contracts shared between the build integrator and the adoption module.
-// This file imports nothing, so services/ContextIntegrator.ts can depend on it
-// without pulling the rest of adoption/ into its import graph.
+// This file imports types only (`import type`), so services/ContextIntegrator.ts can
+// depend on it without pulling the rest of adoption/ into its import graph.
+import type { ProbeOutcome } from '../detection/squadronProbe.js';
 
 /** The context profile / prompt instruction selected for a brownfield build. */
 export const BROWNFIELD_ADOPTION_INSTRUCTION = 'brownfield-adoption';
+
+/** Runs the squadron capability probe in a checkout; injected so tests never spawn `sq`. */
+export type SquadronProbe = (checkoutPath: string) => Promise<ProbeOutcome>;
 
 export type AdoptionSelection =
   | { selected: false }

@@ -21,6 +21,7 @@ import {
   AdoptionError,
   BROWNFIELD_ADOPTION_INSTRUCTION,
   type AdoptionResolver,
+  type SquadronProbe,
 } from './contracts.js';
 
 /** `persist`: a first brownfield detection writes `in_progress`. `read-only`: it never writes. */
@@ -109,12 +110,15 @@ async function renderFacts(
   checkoutPath: string,
   decision: Decision,
   stateSetByBuild: boolean,
+  squadronProbe: SquadronProbe,
 ): Promise<string> {
+  const [history, probe] = await Promise.all([readHistory(checkoutPath), squadronProbe(checkoutPath)]);
   return renderAdoptionFacts({
     outcome: decision.outcome,
     state: stateSetByBuild ? 'in_progress' : decision.state,
     stateSetByBuild,
-    history: await readHistory(checkoutPath),
+    history,
+    probe,
     docs: presentPaths(checkoutPath, DOC_PATHS),
     adrs: presentPaths(checkoutPath, ADR_DIRS),
     ruleFiles: presentPaths(checkoutPath, RULE_FILE_PATHS),
@@ -122,7 +126,10 @@ async function renderFacts(
   });
 }
 
-export function createAdoptionResolver(options: { stateWrites: AdoptionStateWrites }): AdoptionResolver {
+export function createAdoptionResolver(options: {
+  stateWrites: AdoptionStateWrites;
+  squadronProbe: SquadronProbe;
+}): AdoptionResolver {
   return async (projectPath, checkoutPath, instruction) => {
     // Step 1: eligible only where the concept prompt would run (D4); no I/O otherwise.
     const explicit = instruction === BROWNFIELD_ADOPTION_INSTRUCTION;
@@ -136,7 +143,7 @@ export function createAdoptionResolver(options: { stateWrites: AdoptionStateWrit
     // Gather the facts before writing: a probe failure must not leave in_progress persisted
     // for a build that produced no prompt.
     const stateSetByBuild = decision.outcome.kind === 'brownfield' && options.stateWrites === 'persist';
-    const facts = await renderFacts(checkoutPath, decision, stateSetByBuild);
+    const facts = await renderFacts(checkoutPath, decision, stateSetByBuild, options.squadronProbe);
     if (stateSetByBuild) await persistInProgress(checkoutPath);
 
     return { selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION, facts };

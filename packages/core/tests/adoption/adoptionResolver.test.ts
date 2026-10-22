@@ -8,6 +8,8 @@ import { AdoptionError, BROWNFIELD_ADOPTION_INSTRUCTION } from '../../src/adopti
 import { readAdoptionState, writeAdoptionState } from '../../src/adoption/adoptionState.js';
 import { PROMPT_FILE_RELATIVE_PATH } from '../../src/services/constants.js';
 import * as sourceVolume from '../../src/detection/sourceVolume.js';
+import type { ProbeOutcome } from '../../src/detection/squadronProbe.js';
+import type { SquadronProbe } from '../../src/adoption/contracts.js';
 
 vi.mock('../../src/detection/sourceVolume.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/detection/sourceVolume.js')>();
@@ -21,11 +23,28 @@ const CONCEPT = 'Phase 0: Concept';
 const NOTICE = 'adoption.state was set to in_progress by this build';
 const canChmod = process.platform !== 'win32' && !(typeof process.getuid === 'function' && process.getuid() === 0);
 
+const FAKE_OUTCOME: ProbeOutcome = {
+  kind: 'available',
+  json: '{"probe_version":1,"fake":true}',
+  warnings: [],
+};
+
+/** A probe that records the checkouts it was asked about and returns a fixed outcome. */
+function fakeProbe(outcome: ProbeOutcome = FAKE_OUTCOME): SquadronProbe & { calls: string[] } {
+  const calls: string[] = [];
+  const probe = async (checkoutPath: string): Promise<ProbeOutcome> => {
+    calls.push(checkoutPath);
+    return outcome;
+  };
+  return Object.assign(probe, { calls });
+}
+
 describe('createAdoptionResolver', () => {
   let dataDir: string;
   let project: string;
   let originalEnv: string | undefined;
-  const persist = () => createAdoptionResolver({ stateWrites: 'persist' });
+  let probe: ReturnType<typeof fakeProbe>;
+  const persist = () => createAdoptionResolver({ stateWrites: 'persist', squadronProbe: probe });
   const resolve = (instruction: string, resolver = persist()) => resolver(project, project, instruction);
 
   async function installGuide(source: string): Promise<void> {
@@ -52,6 +71,7 @@ describe('createAdoptionResolver', () => {
     originalEnv = process.env.CONTEXT_FORGE_DATA_DIR;
     process.env.CONTEXT_FORGE_DATA_DIR = dataDir;
     vi.mocked(sourceVolume.measureSourceVolume).mockClear();
+    probe = fakeProbe();
     await installGuide(BROWNFIELD_GUIDE);
   });
 
@@ -64,7 +84,7 @@ describe('createAdoptionResolver', () => {
 
   describe('selection (D4)', () => {
     it('does nothing and touches no filesystem for Phase 2', async () => {
-      const result = await createAdoptionResolver({ stateWrites: 'persist' })(
+      const result = await persist()(
         '/no/such/project',
         '/no/such/checkout',
         'Phase 2: Architecture',
@@ -118,10 +138,39 @@ describe('createAdoptionResolver', () => {
 
     it('read-only + brownfield → selected, state still unset, no notice', async () => {
       await writeSource(2000);
-      const result = await resolve(CONCEPT, createAdoptionResolver({ stateWrites: 'read-only' }));
+      const result = await resolve(CONCEPT, createAdoptionResolver({ stateWrites: 'read-only', squadronProbe: probe }));
       expect(result.selected).toBe(true);
       if (result.selected) expect(result.facts).not.toContain(NOTICE);
       expect(await readAdoptionState(project)).toBe('');
+    });
+  });
+
+  describe('squadron probe (262)', () => {
+    it('selected build: the probe runs once on the checkout and its rendering is in the facts', async () => {
+      await writeSource(2000);
+      const result = await resolve(CONCEPT);
+      expect(probe.calls).toEqual([project]);
+      if (!result.selected) throw new Error('expected a selected build');
+      expect(result.facts).toContain('{"probe_version":1,"fake":true}');
+    });
+
+    it.each([
+      ['greenfield', async () => undefined, CONCEPT],
+      ['already planned', async () => { await writePlan(); await writeSource(2000); }, CONCEPT],
+      ['adoption closed', async () => { await writeAdoptionState(project, 'declined'); await writeSource(2000); }, CONCEPT],
+      ['Phase 2', async () => { await writeSource(2000); }, 'Phase 2: Architecture'],
+    ])('%s: the probe is never called', async (_name, arrange, instruction) => {
+      await arrange();
+      expect(await resolve(instruction)).toEqual({ selected: false });
+      expect(probe.calls).toEqual([]);
+    });
+
+    it('an unavailable probe still selects the build', async () => {
+      probe = fakeProbe({ kind: 'unavailable', reason: { kind: 'not-found' }, warnings: [] });
+      await writeSource(2000);
+      const result = await resolve(CONCEPT);
+      expect(result.selected).toBe(true);
+      if (result.selected) expect(result.facts).toContain('- Squadron: unavailable. `sq` was not found on PATH.');
     });
   });
 
