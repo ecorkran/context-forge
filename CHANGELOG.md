@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Retroactive slice plan entries.** A slice plan entry written `N. [x] **(NNN) Title** `retroactive` — description` records work that predates adoption. It counts as complete, the review gate skips it (reported as one info per plan, never as reviewed or exempt), and it is never offered as the next slice. `cf list slices` shows `✓ retroactive`, `cf list slices --json` and the active-slice status carry `retroactive`. A new `retroactive-entry` check flags a marked entry that has a slice design or task file, is unchecked, or is indexed after new work. Architecture documents accept `provenance: derived`.
+- **Adoption completes itself.** When an in-progress adoption's project has a slice plan with a retroactive entry, the next persisting `cf build` records `adoption.state = complete` and shows a notice naming the plan. `template_preview` and an explicit `brownfield-adoption` instruction never complete it.
+
 ## [0.19.17] - 20261021
 
 ### Added
