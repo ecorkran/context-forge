@@ -52,6 +52,7 @@ function makeIntrospectorWithPlanEntry(entry: Partial<SlicePlanEntry> & { index:
     isChecked: true,
     lineIndex: 0,
     indexSource: 'explicit',
+    retroactive: false,
     ...entry,
   };
   const planResult: SlicePlanResult = {

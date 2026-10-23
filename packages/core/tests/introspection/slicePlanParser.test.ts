@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseSlicePlan } from '../../src/introspection/parsers/slicePlanParser.js';
 
@@ -16,6 +18,7 @@ describe('parseSlicePlan', () => {
       isChecked: true,
       lineIndex: 15,
       indexSource: 'explicit',
+      retroactive: false,
       description: 'Initialize data models and core types.',
     });
 
@@ -26,6 +29,7 @@ describe('parseSlicePlan', () => {
       isChecked: false,
       lineIndex: 21,
       indexSource: 'explicit',
+      retroactive: false,
       description: 'First feature implementation.',
     });
   });
@@ -40,6 +44,7 @@ describe('parseSlicePlan', () => {
       isChecked: false,
       lineIndex: 27,
       indexSource: 'explicit',
+      retroactive: false,
       description: 'descoped, superseded by native tooling.',
     });
   });
@@ -139,6 +144,7 @@ describe('parseSlicePlan', () => {
       isChecked: false,
       lineIndex: 12,
       indexSource: 'fallback',
+      retroactive: false,
       description: 'Python project setup, FastAPI skeleton.',
     });
 
@@ -149,6 +155,7 @@ describe('parseSlicePlan', () => {
       isChecked: false,
       lineIndex: 20,
       indexSource: 'fallback',
+      retroactive: false,
       description: 'Minimal web UI for chat.',
     });
 
@@ -166,6 +173,7 @@ describe('parseSlicePlan', () => {
       isChecked: false,
       lineIndex: 24,
       indexSource: 'fallback',
+      retroactive: false,
       description: 'cut for scope, superseded by native tooling.',
     });
   });
@@ -243,5 +251,88 @@ describe('parseSlicePlan', () => {
       [122, 'Another Slice', 'explicit'],
       [123, 'Plain Slice', 'explicit'],
     ]);
+  });
+});
+
+describe('parseSlicePlan retroactive marker (slice 263 D1/D2)', () => {
+  const tempDirs: string[] = [];
+  const MARKER = '`retroactive`';
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  });
+
+  /** Parse a one-line plan and return its only entry. */
+  async function parseLine(line: string) {
+    const dir = await mkdtemp(join(tmpdir(), 'slice-plan-retro-'));
+    tempDirs.push(dir);
+    const file = join(dir, '100-slices.test.md');
+    await writeFile(file, `# Slices\n\n${line}\n`);
+    const { entries } = await parseSlicePlan(file);
+    expect(entries).toHaveLength(1);
+    return entries[0];
+  }
+
+  it('parses the real-format line: retroactive, complete, marker stripped from the description', async () => {
+    const entry = await parseLine(`1. [x] **(100) Existing System** ${MARKER} — the system as built at adoption.`);
+    expect(entry).toMatchObject({
+      index: 100,
+      name: 'Existing System',
+      status: 'complete',
+      isChecked: true,
+      retroactive: true,
+      description: 'the system as built at adoption.',
+    });
+  });
+
+  it.each([
+    ['upper case', '`RETROACTIVE`'],
+    ['mixed case', '`Retroactive`'],
+    ['padded inside the backticks', '`  retroactive  `'],
+  ])('matches %s', async (_label, token) => {
+    expect((await parseLine(`1. [x] **(100) Existing System** ${token} — done.`)).retroactive).toBe(true);
+  });
+
+  it.each([
+    ['no space before the marker', `1. [x] **(100) Existing System**${MARKER} — done.`],
+    ['several spaces around the marker', `1. [x] **(100) Existing System**    ${MARKER}    — done.`],
+  ])('matches with %s', async (_label, line) => {
+    const entry = await parseLine(line);
+    expect(entry.retroactive).toBe(true);
+    expect(entry.description).toBe('done.');
+  });
+
+  it('does not match the bare word without backticks and leaves the description alone', async () => {
+    const entry = await parseLine('1. [x] **(100) Existing System** — retroactive history of the system.');
+    expect(entry.retroactive).toBe(false);
+    expect(entry.description).toBe('retroactive history of the system.');
+  });
+
+  it('never marks an unindexed entry retroactive and leaves its text untouched', async () => {
+    const entry = await parseLine(`1. [x] **Existing System** ${MARKER} — done.`);
+    expect(entry.indexSource).toBe('fallback');
+    expect(entry.retroactive).toBe(false);
+    expect(entry.description).toContain('retroactive');
+  });
+
+  it('finds the marker on an entry with a bold prefix before the index (#117 form)', async () => {
+    const entry = await parseLine(`1. [x] **DEPRECATED (20261011)** **(100) Existing System** ${MARKER} — done.`);
+    expect(entry.index).toBe(100);
+    expect(entry.retroactive).toBe(true);
+  });
+
+  it('reports an unmarked indexed entry as not retroactive', async () => {
+    expect((await parseLine('1. [x] **(100) Existing System** — done.')).retroactive).toBe(false);
+  });
+
+  it('keeps an unchecked retroactive entry not_started: the marker does not imply done', async () => {
+    const entry = await parseLine(`1. [ ] **(100) Existing System** ${MARKER} — done.`);
+    expect(entry).toMatchObject({ retroactive: true, status: 'not_started', isChecked: false });
+  });
+
+  it('leaves no description when the marker is all that follows the title', async () => {
+    const entry = await parseLine(`1. [x] **(100) Existing System** ${MARKER}`);
+    expect(entry.retroactive).toBe(true);
+    expect(entry.description).toBeUndefined();
   });
 });

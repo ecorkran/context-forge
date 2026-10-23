@@ -15,6 +15,13 @@ const PLAN_INDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}])
 /** Matches `N. [ ] **Slice Name** — description` — unindexed format (no parenthesized index) */
 const PLAN_UNINDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}])\\]\\s+\\*\\*([^(].*?)\\*\\*\\s*(.*)`);
 
+/**
+ * D1: the retroactive marker, a backticked `retroactive` at the start of the text after
+ * the entry title's closing `**`. Lenient on letter case and whitespace; the backticks
+ * are required, so a description that merely starts with the word does not match.
+ */
+const RETROACTIVE_MARKER_RE = /^\s*`\s*retroactive\s*`\s*/i;
+
 /** Maps a plan-line checkbox character to its resulting entry status/isChecked pair. */
 function parseCheckboxStatus(checkboxChar: string): { status: NormalizedStatus; isChecked: boolean } {
   if (checkboxChar === DEPRECATED_MARKER) {
@@ -70,7 +77,8 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       const indexed = PLAN_INDEXED_RE.exec(stripped);
       if (indexed) {
         const { status, isChecked } = parseCheckboxStatus(indexed[2]);
-        const description = parseDescription(indexed[5]);
+        const retroactive = RETROACTIVE_MARKER_RE.test(indexed[5]);
+        const description = parseDescription(indexed[5].replace(RETROACTIVE_MARKER_RE, ''));
         entries.push({
           index: parseInt(indexed[3], 10),
           name: indexed[4].trim(),
@@ -78,6 +86,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           isChecked,
           lineIndex: i,
           indexSource: 'explicit',
+          retroactive,
           ...(description && { description }),
         });
         continue;
@@ -96,6 +105,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
           isChecked,
           lineIndex: i,
           indexSource: 'fallback',
+          retroactive: false,
           ...(description && { description }),
         });
       }

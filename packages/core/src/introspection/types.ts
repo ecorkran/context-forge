@@ -37,6 +37,12 @@ export interface SlicePlanEntry {
    * aggregation (see ConsistencyChecker.checkAll()).
    */
   indexSource: 'explicit' | 'fallback';
+  /**
+   * True when an indexed entry carries the backticked `retroactive` marker: work that
+   * predates adoption, recorded as history (D1). Never set on 'fallback' entries.
+   * The marker says nothing about completion; the checkbox does (D2).
+   */
+  retroactive: boolean;
 }
 
 /** Result of parsing a slice plan document */
