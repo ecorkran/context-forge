@@ -6,7 +6,8 @@ import {
   outsideConceptPhaseWarning,
 } from '../../src/introspection/adoptionNavigation.js';
 import type { NextAction } from '../../src/introspection/types.js';
-import { GATE_DISABLED_CONFIG } from '../helpers/workflowNavigatorFixtures.js';
+import { GATE_DISABLED_CONFIG, GATE_ENABLED_DEFAULTS } from '../helpers/workflowNavigatorFixtures.js';
+import { makeStubConfig } from '../helpers/stubConfig.js';
 import {
   ALL_RETROACTIVE_ENTRIES,
   MIXED_ENTRIES,
@@ -87,6 +88,17 @@ describe('WorkflowNavigator adoption: in_progress at Phase 0', () => {
     expect(next.suggestedCommand).toBe('cf build');
     expect(next.phase).toBeUndefined();
     expect(JSON.stringify(next)).not.toContain('cf set phase');
+  });
+});
+
+describe('WorkflowNavigator adoption: derived architecture gate (D4)', () => {
+  it('blocks the existing-state-plan step on an unreviewed derived architecture', async () => {
+    const fixture = createAdoptionFixture({ state: 'in_progress', concept: true, arch: true });
+    const next = await new WorkflowNavigator(makeStubConfig(GATE_ENABLED_DEFAULTS)).getNext(
+      fixture.project({ instruction: CONCEPT_INSTRUCTION }),
+    );
+    expect(next.recommendation).toBe('Review required before creating the slice plan');
+    expect(next.summary).toContain('Architecture 100');
   });
 });
 

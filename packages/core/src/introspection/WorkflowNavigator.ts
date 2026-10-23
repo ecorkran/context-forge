@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
 import type { ProjectData, ResolvedProject } from '../types/index.js';
 import type {
@@ -33,6 +33,7 @@ import {
   buildAdoptionStepAction,
   decideAdoptionNav,
   gatherAdoptionInputs,
+  type AdoptionNavInputs,
 } from './adoptionNavigation.js';
 import type { PendingDecision } from '../schema/pendingDecisions.js';
 import {
@@ -921,8 +922,12 @@ export class WorkflowNavigator {
       case 'warn':
         navWarnings.push(nav.warning);
         return { skipFirstRun: false };
-      case 'recommend':
-        return { action: buildAdoptionStepAction(nav.step, inputs), skipFirstRun: false };
+      case 'recommend': {
+        // D4: the derived architecture is gated like any other, but it is usually not
+        // registered as fileArch during adoption, so the project's own arch gate misses it.
+        const blocked = nav.step === 'existing-state-plan' ? await this.gateDerivedArchitecture(project, inputs) : null;
+        return { action: blocked ?? buildAdoptionStepAction(nav.step, inputs), skipFirstRun: false };
+      }
       case 'adopted':
         return { skipFirstRun: true };
       default: {
@@ -930,6 +935,18 @@ export class WorkflowNavigator {
         throw new Error(`Unhandled adoption navigation: ${JSON.stringify(unhandled)}`);
       }
     }
+  }
+
+  /** The blocking preSlicePlan action for the lowest-index architecture artifact, or null. */
+  private async gateDerivedArchitecture(
+    project: ResolvedProject,
+    inputs: AdoptionNavInputs,
+  ): Promise<NextAction | null> {
+    const archPath = inputs.architecturePaths[0];
+    const archIndex = archPath ? extractSliceIndex(basename(archPath)) : null;
+    if (!project.projectPath || archIndex === null) return null;
+    const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
+    return this.gateBlockAction(gate, archIndex);
   }
 
   /**
