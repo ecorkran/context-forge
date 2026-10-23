@@ -10,11 +10,20 @@ projectState: main after slices 261, 262 and 263 (built). `adoption/` has `readA
   (throws `AdoptionError` on an out-of-enum value), the resolver, and `adoptionCompletion.ts`
   with `findRecordedPlan` (inline slice plan scan), `persistAdoptionComplete` and
   `completeAdoptionIfPlanRecorded`. `detection/planningArtifacts.ts` has `findPlanningArtifacts`
-  and one combined `ARCH_FILE_PATTERN` (arch|hld|slices). `WorkflowNavigator.ts` (1065 lines)
-  has no adoption awareness. No import-boundary lint rule exists.
+  and one combined `ARCH_FILE_PATTERN` (arch|hld|slices). `WorkflowNavigator.ts` (1065
+  lines) has no adoption awareness. No import-boundary lint rule exists.
 dateCreated: 20261023
 dateUpdated: 20261023
 status: not_started
+turns: 17
+promptTokens: 974322
+cachedTokens: 889754
+cacheWriteTokens: 84538
+completionTokens: 21409
+durationSeconds: 189.5
+costUsd: 1.28284
+usageRounds: 1
+pricedRounds: 1
 ---
 
 ## Context Summary
