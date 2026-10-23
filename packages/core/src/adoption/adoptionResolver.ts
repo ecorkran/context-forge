@@ -15,6 +15,7 @@ import { CONCEPT_PHASE, resolvePhaseValue } from '../schema/projectSchema.js';
 import { ContextProfileParser } from '../services/ContextProfileParser.js';
 import { resolvePromptFilePath } from '../services/promptFilePath.js';
 import { SystemPromptParser } from '../services/SystemPromptParser.js';
+import { findRecordedPlan, persistAdoptionComplete } from './adoptionCompletion.js';
 import { NOT_EVALUATED, renderAdoptionFacts } from './adoptionFacts.js';
 import { decideOutcome, type AdoptionOutcome } from './adoptionOutcome.js';
 import { readAdoptionState, writeAdoptionState } from './adoptionState.js';
@@ -36,9 +37,22 @@ interface Decision {
 }
 
 /** Step 2: each fact is read only if the previous one did not decide. */
-async function decide(checkoutPath: string, explicit: boolean): Promise<Decision> {
+async function decide(
+  checkoutPath: string,
+  explicit: boolean,
+  stateWrites: AdoptionStateWrites,
+): Promise<Decision> {
   const state = await readAdoptionState(checkoutPath);
   if (explicit) return { state, outcome: NOT_EVALUATED };
+
+  // 263 D5: an in-progress adoption completes when the existing-state slice plan has been recorded.
+  // Read-only builds (template_preview) never complete. The write happens after the facts render (R1).
+  if (state === 'in_progress' && stateWrites === 'persist') {
+    const planPath = await findRecordedPlan(checkoutPath);
+    if (planPath !== null) {
+      return { state, outcome: { kind: 'adoption-completed', planPath: relative(resolve(checkoutPath), planPath) } };
+    }
+  }
   if (state !== '') return { state, outcome: decideOutcome({ state }) };
 
   const artifacts = await findPlanningArtifacts(checkoutPath);
@@ -53,6 +67,7 @@ function isSelected(outcome: Decision['outcome']): boolean {
   switch (outcome.kind) {
     case 'brownfield':
     case 'adoption-in-progress':
+    case 'adoption-completed':
     case 'not-evaluated':
       return true;
     case 'adoption-closed':
@@ -108,6 +123,12 @@ function relativeCi(checkoutPath: string): CiRecognition {
   return { ...ci, matches: ci.matches.map((match) => relative(base, match)) };
 }
 
+/** The state the facts show: what this build is about to write, else what is persisted (R5). */
+function stateShownFor(decision: Decision, stateSetByBuild: boolean): AdoptionState {
+  if (decision.outcome.kind === 'adoption-completed') return 'complete';
+  return stateSetByBuild ? 'in_progress' : decision.state;
+}
+
 /** Step 6: the render-only facts and the comprehension pointer, gathered only for a selected build. */
 async function renderFacts(
   checkoutPath: string,
@@ -124,7 +145,7 @@ async function renderFacts(
   ]);
   const facts = renderAdoptionFacts({
     outcome: decision.outcome,
-    state: stateSetByBuild ? 'in_progress' : decision.state,
+    state: stateShownFor(decision, stateSetByBuild),
     stateSetByBuild,
     history,
     probe,
@@ -145,7 +166,7 @@ export function createAdoptionResolver(options: {
     const explicit = instruction === BROWNFIELD_ADOPTION_INSTRUCTION;
     if (!explicit && resolvePhaseValue(instruction) !== CONCEPT_PHASE) return { selected: false };
 
-    const decision = await decide(checkoutPath, explicit);
+    const decision = await decide(checkoutPath, explicit, options.stateWrites);
     if (!isSelected(decision.outcome)) return { selected: false };
 
     const profileVariables = await assertGuideSupportsAdoption(projectPath);
@@ -158,6 +179,7 @@ export function createAdoptionResolver(options: {
       profileVariables,
     });
     if (stateSetByBuild) await persistInProgress(checkoutPath);
+    if (decision.outcome.kind === 'adoption-completed') await persistAdoptionComplete(checkoutPath);
 
     return {
       selected: true,

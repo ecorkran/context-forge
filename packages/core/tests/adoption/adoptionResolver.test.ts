@@ -255,4 +255,70 @@ describe('createAdoptionResolver', () => {
       await chmod(file, 0o644);
     }
   });
+
+  describe('completion (slice 263 D5, R1, R5)', () => {
+    const COMPLETION_NOTICE = 'adoption.state was set to complete by this build';
+    const PLAN_RELATIVE = 'project-documents/user/architecture/100-slices.existing.md';
+
+    async function writeExistingStatePlan(line: string): Promise<void> {
+      const dir = join(project, 'project-documents/user/architecture');
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(project, PLAN_RELATIVE), `---\ndocType: slice-plan\nproject: scratch\n---\n\n# Plan\n\n${line}\n`);
+    }
+
+    const RETROACTIVE = '1. [x] **(100) Existing System** `retroactive` — the system as built at adoption.';
+
+    beforeEach(async () => {
+      await writeAdoptionState(project, 'in_progress');
+    });
+
+    it('in_progress + persisting + a plan with a retroactive entry → selected, notice in facts, state complete', async () => {
+      await writeExistingStatePlan(RETROACTIVE);
+      const result = await resolve(CONCEPT);
+      expect(result).toMatchObject({ selected: true, instruction: BROWNFIELD_ADOPTION_INSTRUCTION });
+      if (result.selected) {
+        expect(result.facts).toContain(COMPLETION_NOTICE);
+        expect(result.facts).toContain(`existing-state slice plan found at ${PLAN_RELATIVE}`);
+      }
+      expect(await readAdoptionState(project)).toBe('complete');
+    });
+
+    it('read-only builds never complete: 261 in-progress flow, state stays in_progress', async () => {
+      await writeExistingStatePlan(RETROACTIVE);
+      const readOnly = createAdoptionResolver({ stateWrites: 'read-only', squadronProbe: probe });
+      const result = await resolve(CONCEPT, readOnly);
+      expect(result).toMatchObject({ selected: true });
+      if (result.selected) expect(result.facts).not.toContain(COMPLETION_NOTICE);
+      expect(await readAdoptionState(project)).toBe('in_progress');
+    });
+
+    it('a plan without retroactive entries leaves the state in_progress', async () => {
+      await writeExistingStatePlan('1. [ ] **(100) New Work** — not started.');
+      const result = await resolve(CONCEPT);
+      expect(result).toMatchObject({ selected: true });
+      if (result.selected) expect(result.facts).not.toContain(COMPLETION_NOTICE);
+      expect(await readAdoptionState(project)).toBe('in_progress');
+    });
+
+    it('the build after completion is not selected', async () => {
+      await writeExistingStatePlan(RETROACTIVE);
+      await resolve(CONCEPT);
+      expect(await resolve(CONCEPT)).toEqual({ selected: false });
+    });
+
+    it('a guide without the brownfield profile throws and the state is still in_progress', async () => {
+      await installGuide(PLAIN_GUIDE);
+      await writeExistingStatePlan(RETROACTIVE);
+      await expect(resolve(CONCEPT)).rejects.toBeInstanceOf(AdoptionError);
+      expect(await readAdoptionState(project)).toBe('in_progress');
+    });
+
+    it('an explicit brownfield-adoption instruction does not complete', async () => {
+      await writeExistingStatePlan(RETROACTIVE);
+      const result = await resolve(BROWNFIELD_ADOPTION_INSTRUCTION);
+      expect(result).toMatchObject({ selected: true });
+      if (result.selected) expect(result.facts).not.toContain(COMPLETION_NOTICE);
+      expect(await readAdoptionState(project)).toBe('in_progress');
+    });
+  });
 });

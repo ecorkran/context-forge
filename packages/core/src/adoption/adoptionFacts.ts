@@ -106,6 +106,8 @@ function describeOutcome(outcome: AdoptionFactsInput['outcome']): string {
       return `not evaluated (explicit ${BROWNFIELD_ADOPTION_INSTRUCTION} instruction)`;
     case 'adoption-in-progress':
       return 'adoption in progress (adoption.state is in_progress)';
+    case 'adoption-completed':
+      return 'adoption completed by this build';
     case 'adoption-closed':
       return `adoption closed (adoption.state is ${outcome.state})`;
     case 'already-planned':
@@ -130,6 +132,7 @@ function describeSourceVolume(outcome: AdoptionFactsInput['outcome']): string | 
       return describeSource(outcome.source);
     case 'not-evaluated':
     case 'adoption-in-progress':
+    case 'adoption-completed':
     case 'adoption-closed':
     case 'already-planned':
       return null;
@@ -149,8 +152,19 @@ function listOrNone(items: readonly string[]): string {
   return items.length > 0 ? items.join(', ') : NONE_FOUND;
 }
 
-function describeState(state: AdoptionState, stateSetByBuild: boolean): string {
+function describeState(
+  state: AdoptionState,
+  stateSetByBuild: boolean,
+  outcome: AdoptionFactsInput['outcome'],
+): string {
   const shown = state === '' ? 'unset' : state;
+  if (outcome.kind === 'adoption-completed') {
+    return (
+      `adoption.state: ${shown}. adoption.state was set to ${shown} by this build: ` +
+      `existing-state slice plan found at ${outcome.planPath}. ` +
+      'Adoption is finished; run `cf next` for the next step.'
+    );
+  }
   if (!stateSetByBuild) return `adoption.state: ${shown}`;
   return (
     `adoption.state: ${shown}. adoption.state was set to in_progress by this build. ` +
@@ -162,7 +176,7 @@ export function renderAdoptionFacts(input: AdoptionFactsInput): string {
   const sourceVolume = describeSourceVolume(input.outcome);
   const bullets = [
     `Outcome: ${describeOutcome(input.outcome)}`,
-    describeState(input.state, input.stateSetByBuild),
+    describeState(input.state, input.stateSetByBuild, input.outcome),
     ...(sourceVolume === null ? [] : [`Source volume: ${sourceVolume}`]),
     `History: ${describeHistory(input.history)}`,
     `Docs: ${listOrNone(input.docs)}`,

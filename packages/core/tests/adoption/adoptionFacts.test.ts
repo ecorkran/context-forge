@@ -54,6 +54,22 @@ describe('renderAdoptionFacts', () => {
     expect(render({ stateSetByBuild: false })).not.toContain('set to in_progress by this build');
   });
 
+  it('adoption completed: states complete, names the plan path, omits source volume, keeps the squadron lines', () => {
+    const planPath = 'project-documents/user/architecture/100-slices.existing.md';
+    const out = render({
+      outcome: { kind: 'adoption-completed', planPath },
+      state: 'complete',
+      stateSetByBuild: true,
+    });
+    expect(out).toContain('- Outcome: adoption completed by this build');
+    expect(out).toContain(
+      `- adoption.state: complete. adoption.state was set to complete by this build: existing-state slice plan found at ${planPath}. Adoption is finished; run \`cf next\` for the next step.`,
+    );
+    expect(out).not.toContain('Source volume');
+    expect(out).not.toContain('set to in_progress');
+    expect(out).toContain('- Squadron probe (`sq probe --json`), verbatim:');
+  });
+
   it('renders an empty state as unset', () => {
     expect(render({ state: '' })).toContain('adoption.state: unset');
   });
