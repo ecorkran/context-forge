@@ -738,7 +738,7 @@ export class WorkflowNavigator {
   private async deriveSliceStatus(
     project: ProjectData,
     projectPath: string,
-    planEntry: Pick<SlicePlanEntry, 'retroactive'> | undefined,
+    planEntry: Pick<SlicePlanEntry, 'retroactive' | 'isChecked'> | undefined,
   ): Promise<SliceStatus> {
     if (!project.fileSlice) {
       return { name: '', index: null, status: 'no-active-slice' };
@@ -754,7 +754,9 @@ export class WorkflowNavigator {
 
     // Retroactive (R3): recorded history has no design or task file, so it would read
     // needs-design. It is complete whether or not gating is on; no gate is evaluated.
-    if (planEntry?.retroactive) {
+    // Only a checked entry: the marker says nothing about completion (D2), so an unchecked
+    // one falls through to the normal derivation, which agrees with cf list slices.
+    if (planEntry?.retroactive && planEntry.isChecked) {
       return { ...base, status: STATUS.Complete, retroactive: true };
     }
 

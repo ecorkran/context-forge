@@ -12,13 +12,13 @@ const MARKER = '`retroactive`';
 
 describe('WorkflowNavigator — retroactive active slice (slice 263 R3)', () => {
   /** A project whose plan holds two retroactive entries (100, 101) and one unchecked entry (102), none with design or task files. */
-  function makeAdoptedProject(activeSlice: string): ProjectData {
+  function makeAdoptedProject(activeSlice: string, firstBox = 'x'): ProjectData {
     const root = mkdtempSync(join(tmpdir(), 'cf-nav-263-'));
     mkdirSync(join(root, 'project-documents', 'user', 'architecture'), { recursive: true });
     writeFileSync(
       join(root, 'project-documents', 'user', 'architecture', '800-slices.scratch-plan.md'),
       `---\ndocType: slice-plan\nproject: scratch-project\n---\n\n# Slice Plan: Scratch\n\n` +
-        `1. [x] **(100) Existing System** ${MARKER} — built before adoption.\n` +
+        `1. [${firstBox}] **(100) Existing System** ${MARKER} — built before adoption.\n` +
         `2. [x] **(101) Existing Tooling** ${MARKER} — built before adoption.\n` +
         `3. [ ] **(102) New Work** — not started.\n`,
     );
@@ -54,6 +54,14 @@ describe('WorkflowNavigator — retroactive active slice (slice 263 R3)', () => 
     const next = await new WorkflowNavigator(config).getNext(makeAdoptedProject('100-slice.existing-system.md'));
     expect(next.suggestedCommand).toBe('cf set slice 102');
     expect(next.rationale).toContain(RETROACTIVE_NOTE);
+  });
+
+  it('does not shortcut an unchecked retroactive active slice: it agrees with the plan entry (D2)', async () => {
+    const config = makeStubConfig(GATE_ENABLED_DEFAULTS);
+    const status = await new WorkflowNavigator(config).getStatus(makeAdoptedProject('100-slice.existing-system.md', ' '));
+    expect(status.activeSlice).toMatchObject({ index: 100, status: 'needs-design' });
+    expect(status.activeSlice?.retroactive).toBeUndefined();
+    expect(status.slicePlan?.entries.find((e) => e.index === 100)?.status).toBe('not_started');
   });
 
   it('leaves a non-retroactive slice with no design at needs-design', async () => {

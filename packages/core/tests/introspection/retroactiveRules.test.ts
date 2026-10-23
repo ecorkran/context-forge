@@ -26,7 +26,9 @@ function writePlan(root: string, name: string, lines: string[], status?: string)
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${name}.md`);
   const statusLine = status ? `status: ${status}\n` : '';
-  writeFileSync(file, `---\ndocType: slice-plan\nproject: scratch-project\n${statusLine}---\n\n# Slice Plan\n\n${lines.join('\n')}\n`);
+  // Number the list items 1., 2., 3. like a real plan; the helpers above all emit "1."
+  const numbered = lines.map((line, i) => line.replace(/^\d+\./, `${i + 1}.`));
+  writeFileSync(file, `---\ndocType: slice-plan\nproject: scratch-project\n${statusLine}---\n\n# Slice Plan\n\n${numbered.join('\n')}\n`);
   return file;
 }
 
