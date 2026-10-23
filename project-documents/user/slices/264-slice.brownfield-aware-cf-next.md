@@ -10,7 +10,7 @@ interfaces:
 - 265
 dateCreated: 20261020
 dateUpdated: 20261023
-status: not_started
+status: complete
 turns: 21
 promptTokens: 1513735
 cachedTokens: 1400510
@@ -328,33 +328,48 @@ export function findExistingStatePlan(checkoutPath: string): Promise<string | nu
 
 ### Verification Walkthrough
 
-Use the local build (the global `cf` is the published package): `alias cfl="node $PWD/packages/cli/dist/index.js"` from the repo root after `pnpm -r build`. Slices 261 and 263 must be implemented, with guide ≥ v0.22.2.
+Verified 20261023 on the slice branch with the local build. The global `cf` is the published package and lacks this slice, so use the local build: `pnpm -r build` from the repo root, then a wrapper that runs `node <repo>/packages/cli/dist/index.js "$@"` (below, `cfl`). Slices 261 and 263 must be implemented, with guide ≥ v0.22.2. Set `CONTEXT_FORGE_DATA_DIR` to a scratch directory (`mkdir /tmp/bf-data && echo '[]' > /tmp/bf-data/projects.json`) for steps 2-8, so the scratch project is not added to your real project list. Expected output below is what the verification run printed.
 
-1. **Planned project unchanged.**
+1. **Planned project unchanged.** In this repo, capture `cfl next --json` and `cfl next` on `main` before the slice and on the slice branch after it, and diff them.
    ```bash
-   cfl next --json > /tmp/next-before.json   # in this repo, on main before the slice
+   cfl next --json > /tmp/next-before.json   # before the slice
    cfl next --json > /tmp/next-after.json    # after the slice
-   diff /tmp/next-before.json /tmp/next-after.json   # expect: no differences
+   diff /tmp/next-before.json /tmp/next-after.json
    ```
-2. **Unset state, concept present (D2).** Make a brownfield scratch project as in 261's walkthrough step 2 (`/tmp/bf`), but before any `cfl build` add `project-documents/user/project-guides/000-concept.bf.md` (valid frontmatter). `cfl next`: expect "Advance to Phase 1" plus the D2 warning. `cfl build > /dev/null && cfl config get adoption.state`: expect `in_progress`.
-3. **Adoption steps.** `cfl next --json | jq '{recommendation, suggestedCommand}'`: expect "Next adoption step: architecture derived from the code.", `cf build`. Add `project-documents/user/architecture/100-arch.existing.md` with `provenance: derived`; expect "Next adoption step: existing-state slice plan." Remove the concept and re-run to see the `concept` step, then restore it.
-4. **Arch gate during adoption.** `cfl config set workflow.review_enabled true && cfl next`. Expect "Review required before creating the slice plan" for architecture 100. Set it back to `false`.
-5. **Record completion.** Add `100-slices.existing.md` with the three entries from 263's walkthrough step 1 (100 and 101 retroactive, 102 new).
+   Expect no differences except the live task count of the slice in progress (verified: only the `recommendation`, `rationale` and `summary` lines differ, by "89 tasks remaining" vs "6 tasks remaining"; the wording and format are identical). Run on `main` after merge, the diff is empty.
+2. **Unset state, concept present (D2).** Any directory with over 2000 source lines works; verified with a generated one:
    ```bash
-   cfl next                                      # expect: "The existing-state slice plan is written...", cf build
+   export CONTEXT_FORGE_DATA_DIR=/tmp/bf-data
+   mkdir -p /tmp/bf/src && cd /tmp/bf && git init -q
+   node -e "let s='';for(let i=0;i<2600;i++)s+='export const v'+i+' = '+i+';\n';require('fs').writeFileSync('src/big.js',s)"
+   git add -A && git commit -qm init && cfl init --name bf
+   # write project-documents/user/project-guides/000-concept.bf.md with docType: concept frontmatter
+   cfl next
+   ```
+   Expect `Warning:   adoption.state is unset. If this is an existing codebase, run cf build before advancing the phase: ...` and `Next:      Concept document exists. Advance to Phase 1 (Initiative Plan).` `cfl config get adoption.state` is still empty (`cf next` wrote nothing). Then `cfl build > /dev/null && cfl config get adoption.state` prints `in_progress`.
+3. **Adoption steps.** `cfl next --json | jq '{recommendation, suggestedCommand}'` → "Next adoption step: architecture derived from the code." with `cf build`. Add `project-documents/user/architecture/100-arch.existing.md` with `docType: architecture` and `provenance: derived` frontmatter → "Next adoption step: existing-state slice plan." Move the concept file away → "Next adoption step: baseline concept."; move it back.
+4. **Arch gate during adoption.** `cfl config set workflow.review_enabled true && cfl next` → `Next:      Review required before creating the slice plan`, rationale naming slice 100 (the "requires a arch review" wording is the existing gate text). Set it back with `cfl config set workflow.review_enabled false`.
+5. **Record completion.** Add `project-documents/user/architecture/100-slices.existing.md` (`docType: slice-plan` frontmatter) with:
+   ```
+   1. [x] **(100) Existing System** `retroactive` — the code as adopted.
+   2. [x] **(101) Existing Tooling** `retroactive` — build and test setup as adopted.
+   3. [ ] **(102) Export to CSV** — first new work.
+   ```
+   ```bash
+   cfl next                                      # expect: "The existing-state slice plan is written. Run cf build to record adoption as complete.", Run: cf build
    cfl config get adoption.state                 # expect: in_progress (cf next wrote nothing)
    cfl build > /dev/null && cfl config get adoption.state   # expect: complete
    ```
 6. **Points at new work.**
    ```bash
-   cfl next                     # expect: register-plan, "cf set arch 100-arch.existing"
-   cfl set arch 100-arch.existing
-   cfl next                     # expect: "Pick slice 102: Export to CSV", cf set slice 102
+   cfl next                     # expect: "Adoption is complete. Register the derived architecture and existing-state slice plan.", Run: cf set arch 100-arch.existing
+   cfl set arch 100-arch.existing   # prints "Updated fileSlicePlan = 100-slices.existing (auto-set from fileArch)"
+   cfl next --json | jq -r '.summary, .suggestedCommand'   # expect: "Pick slice 102: Export to CSV — then cf set phase 4", then "cf set slice 102"
    ```
-   This is the initiative's end state: the first piece of new work, not Phase 0.
-7. **No new work.** Check entry 102 (`[x]`) and mark it retroactive, then `cfl next`. Expect step `plan-new-work` and `cf set phase 'Phase 3: Slice Planning'`. Undo the edit.
-8. **Paused.** `cfl config set adoption.state in_progress && cfl set phase 'Phase 2: Architecture' && cfl next`. Expect the Phase 2 recommendation plus the D5 warning. Restore with `cfl set phase 'Phase 0: Concept'` and `cfl config set adoption.state complete`.
-9. **MCP parity.** From an MCP client in `/tmp/bf`, call `workflow_next` at steps 3 and 6 and compare with `cfl next --json`. Expect them to match.
+   This is the initiative's end state: the first piece of new work, not Phase 0. The plain output shows the recommendation "You have a slice plan but no active slice. Pick your first slice to begin." (existing wording); the slice name is in `summary`.
+7. **No new work.** Mark entry 102 `[x]` with the `` `retroactive` `` token, then `cfl next`. Expect "Adoption is complete. Every entry in 100-slices.existing is recorded history. Plan the first new work as entries after the retroactive ones." and `Run:       cf set phase 'Phase 3: Slice Planning'`. Undo the edit.
+8. **Paused.** `cfl config set adoption.state in_progress && cfl set phase 'Phase 2: Architecture' && cfl next`. Expect `Warning:   adoption.state is in_progress, but the instruction is 'Phase 2: Architecture'. ... To resume adoption: cf set phase 'Phase 0: Concept'. ...` followed by today's recommendation for that project state. In this scratch project the plan is registered, so that recommendation is "You have a slice plan but no active slice" (a project with no plan would show the Phase 2 architecture recommendation). Restore with `cfl set phase 'Phase 0: Concept'` and `cfl config set adoption.state complete`.
+9. **MCP parity.** Covered by the automated `workflow_next` table in `packages/mcp-server/tests/workflowNextAdoption.test.ts` (real navigator, every adoption state and step, plus the out-of-enum error), not by a live MCP client. The CLI surface is covered by `packages/cli/tests/commands/next.adoption.test.ts`.
 
 ## Implementation Notes
 

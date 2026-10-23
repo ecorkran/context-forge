@@ -41,7 +41,7 @@ status: not_started
    - **Dependencies:** 261.
    - **Interfaces:** provides the marker spec. ai-project-guide writes its rule from it (briefing item 6), and squadron's pipeline gates and 364 "candidates adopt" consume it.
    - **Risk:** Medium (touches the gate and the plan parser). **Effort:** 3/5
-5. [ ] **(264) Brownfield-Aware cf next** — The workflow navigator reads the adoption state. While adoption is in progress, it recommends the next adoption step. Once adoption is complete, it recommends the first new work item instead of Phase 0, and first-run logic tells an adopted project from a fresh one.
+5. [x] **(264) Brownfield-Aware cf next** — The workflow navigator reads the adoption state. While adoption is in progress, it recommends the next adoption step. Once adoption is complete, it recommends the first new work item instead of Phase 0, and first-run logic tells an adopted project from a fresh one.
    - **Value:** the initiative's goal: after adoption, `cf next` points at new work.
    - **Success criteria:** in-progress, complete and greenfield projects each get the correct recommendation, and `workflow_next` matches it. Navigation for already-planned projects is unchanged.
    - **Dependencies:** 261, 263.

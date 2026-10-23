@@ -14,7 +14,7 @@ projectState: main after slices 261, 262 and 263 (built). `adoption/` has `readA
   lines) has no adoption awareness. No import-boundary lint rule exists.
 dateCreated: 20261023
 dateUpdated: 20261023
-status: not_started
+status: complete
 turns: 32
 promptTokens: 2561596
 cachedTokens: 2430091
@@ -192,7 +192,7 @@ revision_number: 2
 - [x] **Task 9: Arch gate before `existing-state-plan` (D4)** (effort: 2)
   - [x] In the `recommend` branch from Task 8, for step `existing-state-plan` only: evaluate `preSlicePlan` for the index of `architecturePaths[0]` (`extractSliceIndex` on its stem) and return `gateBlockAction`'s action if it blocks; otherwise continue as in Task 8.
   - [x] Success: `pnpm typecheck` passes; Task 8T tests still pass; `WorkflowNavigator.ts` grows by no more than ~40 lines across Tasks 8 and 9.
-    - Note: `WorkflowNavigator.ts` grew by about 60 lines (net) across Tasks 8 and 9, after Task 6's removal of the moved method.
+    - Note: the size clause was missed, not met. `WorkflowNavigator.ts` grew by about 60 lines (net) across Tasks 8 and 9, after Task 6's removal of the moved method. The typecheck and test clauses pass. The extra lines are the warning wrapper on the early returns, `routeAdoption` and `gateDerivedArchitecture`; PM to accept or ask for a split.
 
 - [x] **Task 9T: Arch gate test** (effort: 1)
   - [x] In `WorkflowNavigator.adoption.test.ts`: `in_progress` at Phase 0 with concept and `100-arch.existing.md`, review gating on (`makeStubConfig(GATE_ENABLED_DEFAULTS)`), no arch review → "Review required before creating the slice plan" naming architecture 100.
@@ -201,17 +201,18 @@ revision_number: 2
 
 ### Surfaces and verification (Development Approach step 4)
 
-- [ ] **Task 10: MCP and CLI parity tests** (effort: 3)
-  - [ ] Run `pnpm -r build`.
-  - [ ] Build fixtures with Task 7's helper, imported by relative path as `workflowCheckRouting.test.ts` imports `../../core/tests/helpers/gitWorktreeFixture.js`.
-  - [ ] In `packages/mcp-server/tests/workflowTools.test.ts`, add one table-driven test over every adoption fixture from Tasks 8T and 9T (each state and step, including the warning cases): `workflow_next`'s `recommendation`, `suggestedCommand` and `warnings` equal `WorkflowNavigator.getNext` on the same project. For out-of-enum `adoption.state`: `errorResult` text is `Error: {readAdoptionState message}`.
-  - [ ] In `packages/cli/tests/commands/next.test.ts`: `next --json` on one adoption fixture matches `getNext`; out-of-enum state exits non-zero with the same message. Both surfaces print `getNext`'s result, so this plus the MCP table covers every fixture.
-  - [ ] Success: the new tests pass. These tests cover the design's walkthrough step 9 (MCP parity).
-  - [ ] Commit: `test: add workflow_next and cf next adoption parity tests`
+- [x] **Task 10: MCP and CLI parity tests** (effort: 3)
+  - [x] Run `pnpm -r build`.
+  - [x] Build fixtures with Task 7's helper, imported by relative path as `workflowCheckRouting.test.ts` imports `../../core/tests/helpers/gitWorktreeFixture.js`.
+  - [x] In `packages/mcp-server/tests/workflowTools.test.ts`, add one table-driven test over every adoption fixture from Tasks 8T and 9T (each state and step, including the warning cases): `workflow_next`'s `recommendation`, `suggestedCommand` and `warnings` equal `WorkflowNavigator.getNext` on the same project. For out-of-enum `adoption.state`: `errorResult` text is `Error: {readAdoptionState message}`.
+  - [x] In `packages/cli/tests/commands/next.test.ts`: `next --json` on one adoption fixture matches `getNext`; out-of-enum state exits non-zero with the same message. Both surfaces print `getNext`'s result, so this plus the MCP table covers every fixture.
+  - [x] Success: the new tests pass. These tests cover the design's walkthrough step 9 (MCP parity).
+  - [x] Commit: `test: add workflow_next and cf next adoption parity tests`
+  - Deviation: `workflowTools.test.ts` mocks the navigator, so the MCP parity table is in `packages/mcp-server/tests/workflowNextAdoption.test.ts` (real navigator), and the CLI cases are in `packages/cli/tests/commands/next.adoption.test.ts`, for the same reason.
 
-- [ ] **Task 11: Full validation and walkthrough** (effort: 2)
-  - [ ] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
-  - [ ] In the repo root: `node packages/cli/dist/index.js next --json` and `node packages/cli/dist/index.js next` diffed against Task 0B's baselines show no differences (walkthrough step 1).
-  - [ ] Run the design's Verification Walkthrough steps 2–8 against a scratch project in `/tmp/bf`, using `node <repo>/packages/cli/dist/index.js` for `cfl`. Step 9 is covered by Task 10. Record each step's result in the slice design's walkthrough notes (as slices 262 and 263 did).
-  - [ ] Success: all checks pass; steps 1–8 each show their expected output.
-  - [ ] Commit: `docs: record slice 264 walkthrough results`
+- [x] **Task 11: Full validation and walkthrough** (effort: 2)
+  - [x] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
+  - [x] In the repo root: `node packages/cli/dist/index.js next --json` and `node packages/cli/dist/index.js next` diffed against Task 0B's baselines show no differences (walkthrough step 1).
+  - [x] Run the design's Verification Walkthrough steps 2–8 against a scratch project in `/tmp/bf`, using `node <repo>/packages/cli/dist/index.js` for `cfl`. Step 9 is covered by Task 10. Record each step's result in the slice design's walkthrough notes (as slices 262 and 263 did).
+  - [x] Success: all checks pass; steps 1–8 each show their expected output.
+  - [x] Commit: `docs: record slice 264 walkthrough results`
