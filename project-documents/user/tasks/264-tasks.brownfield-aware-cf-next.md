@@ -15,15 +15,16 @@ projectState: main after slices 261, 262 and 263 (built). `adoption/` has `readA
 dateCreated: 20261023
 dateUpdated: 20261023
 status: not_started
-turns: 17
-promptTokens: 974322
-cachedTokens: 889754
-cacheWriteTokens: 84538
-completionTokens: 21409
-durationSeconds: 189.5
-costUsd: 1.28284
-usageRounds: 1
-pricedRounds: 1
+turns: 25
+promptTokens: 1760651
+cachedTokens: 1648397
+cacheWriteTokens: 112210
+completionTokens: 36816
+durationSeconds: 309.6
+costUsd: 1.964141
+usageRounds: 2
+pricedRounds: 2
+revision_number: 1
 ---
 
 ## Context Summary

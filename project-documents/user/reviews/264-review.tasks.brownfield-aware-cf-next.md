@@ -14,16 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261023
 dateUpdated: 20261023
-reviewedSha: ccbc1f70489ba33cad469b234386c966739e9ac9
+reviewedSha: a07a47146e23d93f4f9d602c4c33656a4db0273d
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
 turns: 3
-promptTokens: 98194
-cachedTokens: 8843
-cacheWriteTokens: 89347
-completionTokens: 6660
-durationSeconds: 57.5
-costUsd: 0.425615
+promptTokens: 98725
+cachedTokens: 11222
+cacheWriteTokens: 87499
+completionTokens: 4043
+durationSeconds: 38.2
+costUsd: 0.39229
 costBasis: provider
 runId: run-20261023-p5-ad1e6a4a
 squadronVersion: 0.23.7
@@ -31,48 +32,33 @@ findings:
   - id: F001
     severity: pass
     category: coverage
-    summary: "Success criteria coverage is complete"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:67-227"
+    summary: "Success-criteria coverage is complete"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
   - id: F002
-    severity: concern
-    category: process
-    summary: "Task 0A amends a planning artifact on the slice branch"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:52-65"
+    severity: pass
+    category: sequencing
+    summary: "Sequencing and test-with pattern are sound"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
   - id: F003
     severity: concern
-    category: commit-checkpoints
-    summary: "Commits are batched across many tasks, against the per-task commit rule"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:111, 209"
+    category: test-coverage
+    summary: "Task 10 commits `gatherAdoptionInputs` with no tests"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
   - id: F004
     severity: concern
-    category: sequencing
-    summary: "Task 12 doesn't say where the MCP and CLI fixtures come from"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:213-217"
+    category: coverage
+    summary: "Task 13 parity coverage is narrower than the success criterion"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
   - id: F005
     severity: concern
-    category: task-sizing
-    summary: "Task 11 is large and bundles three separate changes"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:188-195"
-  - id: F006
-    severity: concern
     category: proportionality
-    summary: "Some test tasks exceed what the success criteria need"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:165-186"
-  - id: F007
-    severity: concern
-    category: verification
-    summary: "Walkthrough step 9 and the `cfl` alias are unworkable for an automated implementer"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:222-224"
-  - id: F008
+    summary: "Task granularity is heavy for a single-module navigator change"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
+  - id: F006
     severity: note
-    category: consistency
-    summary: "Context Summary says 261/263 edits are all behavior-preserving, but R3 changes ordering"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:33, 44"
-  - id: F009
-    severity: note
-    category: risk
-    summary: "Lint rule may flag existing `adoption/` imports"
-    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md:104-109"
+    category: clarity
+    summary: "Task 14 has a hedged format step"
+    location: "project-documents/user/tasks/264-tasks.brownfield-aware-cf-next.md"
 ---
 
 # Review: tasks — slice 264
@@ -82,74 +68,55 @@ findings:
 
 ## Findings
 
-### [PASS] Success criteria coverage is complete
+### [PASS] Success-criteria coverage is complete
 
-Each slice criterion maps to a task:
-- **Declined/unset/D2:** 11T.1.
-- **`in_progress` steps and arch gate:** 11T.2–3.
-- **`in_progress` outside Phase 0:** 11T.4.
-- **`complete` rows:** 11T.5.
-- **Active slice:** 11T.6.
-- **Read-only:** 11T.7.
-- **Out-of-enum state:** 10T.5, 11T.8 and Task 12.
-- **`decideAdoptionNav` rows and the order pin:** 5T.
-- **`findExistingStatePlan`, including the marker format and the unreadable plan:** 2T.
-- **D8 lint rule:** Task 4.
-- **Unchanged output in this repo:** Task 13.
-- **Parity:** Task 12.
+Each Functional Requirement in the slice design maps to a task:
+- **Declined, unset and D2 warning:** Task 11T item 1.
+- **`in_progress` at Phase 0:** Task 11T item 2.
+- **`in_progress` outside Phase 0 (D5):** Task 11T item 3.
+- **`complete` branches:** Task 11T item 4.
+- **Active slice unchanged:** Task 11T item 5.
+- **Read-only:** Task 11T item 6.
+- **Out-of-enum state (D7):** Task 11T item 7.
+- **Arch gate during adoption:** Task 12T.
+- **Parity:** Task 13.
 
-I found no tasks outside the slice scope. Dependencies run in order: Task 7 before 10, Task 8 before 11, and Task 5 before 6, 10 and 11. The NFR load-test criteria don't apply, because the slice restates no NFR.
+The Technical Requirements are covered too:
+- **`decideAdoptionNav` rows and D4 order pin:** Task 5T.
+- **`findExistingStatePlan` cases, including the unreadable-plan case:** Task 2T.
+- **D8 lint rule, with a check that it fires:** Task 4.
+- **This repo's `cf next` output unchanged:** Tasks 0B and 14.
 
-### [CONCERN] Task 0A amends a planning artifact on the slice branch
+Every task traces to a design item or to an approved resolution (R1–R7). I found no scope creep.
 
-Task 0 creates `264-slice.*` first. Tasks 0A and 0C then edit the slice design and commit it with `docs:`. The Git Rules say planning artifacts (Phases 0–5, including slice design and task breakdown) commit directly to the target and never to a work branch. The task file itself is also still uncommitted on `main`, per git status. Do 0A and 0C on the target, before the branch is created. Then Task 0 only branches and takes the baseline. Better still, fold the same commit into the one that lands this task file.
+### [PASS] Sequencing and test-with pattern are sound
 
-### [CONCERN] Commits are batched across many tasks, against the per-task commit rule
+- **Dependencies:** Task 1 → 2 → 3 → 4 follows the shared-reads-first order. Task 7 (`findFirstNotCompleteEntry`) and Task 9 (fixture helper) come before Task 10 and Task 11T, which use them. Task 8 (`gateBlockAction`) comes before Task 12. I found no circular dependencies.
+- **Test placement:** Test tasks follow their implementation tasks, and commits fall at the end of each test task (1T, 2T, 3, 4, 5T, 6T, 7, 8, 9, 10, 11T, 12T, 13, 14).
 
-The project rule is to commit at least once per task. Commit 4C covers Tasks 1, 1T, 2, 2T, 3 and 4. Commit 11C covers Tasks 9, 10, 10T, 11 and 11T. Commit 6C covers 5, 5T, 6 and 6T. These spans mix a `feat:` message with `refactor:` and `test:` work. They also leave a long stretch where a failure is hard to bisect, especially in Tasks 3 and 11, which edit existing 263 and navigator code. Add commits after at least these points:
-- Task 1T.
-- Task 2T.
-- Task 3. This is a behavior-preserving swap, so it deserves its own `refactor:` commit.
-- Task 4.
-- Task 10T.
-- Task 11 or 11T.
+### [CONCERN] Task 10 commits `gatherAdoptionInputs` with no tests
 
-### [CONCERN] Task 12 doesn't say where the MCP and CLI fixtures come from
+Task 10 is the I/O-heavy reader and holds the ENOENT handling, the registered-plan resolution and the open-entry logic. It is committed as `feat:` on its own, and its tests only arrive in Task 11T, two tasks later. This weakens the test-with pattern, and the commit sits on the slice branch with no coverage. Either fold Task 10 into Task 11, with one commit at the end of 11T, or state that Task 10's commit is intentionally untested. Folding is cleaner because no code is exercised before it is wired.
 
-Task 9's helper lives in `packages/core/tests/helpers/adoptionFixtures.ts`. Task 12 needs the same fixtures in `packages/mcp-server/tests` and `packages/cli/tests`. Test helpers aren't shipped in the core `dist`, so a junior implementer has no stated way to reuse them. They would either guess an import path or duplicate the fixture code. Name the mechanism. Options are to build the fixtures inline from a small shared writer, to have core export the helper through a test-only entry point, or to copy a minimal fixture into each package. This is a real ambiguity, because the three packages must agree on the marker format.
+### [CONCERN] Task 13 parity coverage is narrower than the success criterion
 
-### [CONCERN] Task 11 is large and bundles three separate changes
+The design's Parity bullet says `workflow_next` matches `cf next --json` "for every adoption fixture", including warnings. Task 13 checks three fixtures on the MCP side (`in_progress` `architecture` step, `complete` `register-plan`, `complete` adopted) and only one on the CLI side. None of them is a `warn` case, so `warnings` parity is never tested on a fixture that actually carries a warning. Add the D2 warn fixture (unset, Phase 0, concept present, no planning artifact), or limit the stated claim to the fixtures that are tested.
 
-Task 11 combines four things:
-- The four-way exhaustive switch.
-- The D4 arch gate for the `existing-state-plan` step.
-- The change that attaches `navWarnings` to every first-run return, which edits existing output paths.
-- A line-growth cap of about 40.
+### [CONCERN] Task granularity is heavy for a single-module navigator change
 
-Task 11T then covers eight requirement groups in one test file. Split Task 11 into two parts. The first is the call, the switch and the `warn` and `adopted` routing, which includes the warning plumbing. The second is the `recommend` branch with its arch gate. Put each part's tests right after it. This also gives natural commit points.
+There are 15 implementation tasks and 9 test tasks (24 in total, counting 0 and 0B). Several are very small and could be merged:
+- **Tasks 12 and 12T:** a handful of lines and one test. Merge them into Tasks 11 and 11T. Task 12's success check ("no more than ~40 lines across Tasks 11 and 12") is an arbitrary budget that doesn't trace to a success criterion. Drop it.
+- **Tasks 5/5T and 6/6T:** both pairs edit the same new module. Merging them into one task with one test file would remove a task pair and a commit without losing coverage.
+- **Tasks 7 and 8:** two tiny `refactor:` extractions with unchanged tests. They could share one task and one commit, such as `refactor: extract shared navigator helpers`.
+- **Task 1T item 6 and Task 2T item 6:** each adds a `chmod 000` filesystem test that skips on Windows and root. The D7 design requires only one unreadable-directory test and one unreadable-plan test, so these are within the criteria. Keep exactly one of each and don't add more.
 
-### [CONCERN] Some test tasks exceed what the success criteria need
+### [NOTE] Task 14 has a hedged format step
 
-The criteria require D7 failure-mode tests, but not separate input-reading tests for `gatherAdoptionInputs`.
-- **10T.1–4** duplicate behavior that 11T checks end to end: declined, `""`, `in_progress` and `complete` fixtures. Keep 10T.5–6, which are the D7 cases, and drop or fold in 10T.1–4. 10T.2's "not read when not Phase 0" can be asserted in 11T.1.
-- **11T.8 and the out-of-enum assertion in Task 12** repeat 10T.5. Keep one core test plus the surface-parity assertion in Task 12.
-- **Task 9's "smoke test builds each option"** is a test of a test helper. Skip it, because 10T and 11T exercise the helper immediately.
-
-### [CONCERN] Walkthrough step 9 and the `cfl` alias are unworkable for an automated implementer
-
-Task 13 runs walkthrough steps 2–9. Step 9 requires an "MCP client in `/tmp/bf`". No such client is available to the implementer, and Task 12 already tests the same parity programmatically. Restrict Task 13 to steps 2–8 and cite Task 12 for step 9. The tasks also rely on `alias cfl=...`, and shell aliases don't persist across separate non-interactive shell invocations. Say to define a shell function or a script, or to invoke `node packages/cli/dist/index.js` directly, in every command block that uses `cfl`.
-
-### [NOTE] Context Summary says 261/263 edits are all behavior-preserving, but R3 changes ordering
-
-Line 33 calls the edits to 261/263 code "both behavior-preserving". R3 on line 44 admits that `findRecordedPlan` changes order when plans exist in both `project-guides/` and `architecture/`. Task 3 still passes because the existing tests don't cover that case, and 2T.4 does. Reword line 33 to name the one deliberate change so the implementer isn't surprised.
-
-### [NOTE] Lint rule may flag existing `adoption/` imports
-
-Task 4 forbids `adoption/` from importing anything in `introspection/` except `parsers/` and `types*`. If any 263 or 261 file there already imports another `introspection/` module, `pnpm lint` fails on the real tree. The task's success line catches this, but it gives no instruction for that case. Add one line: stop and report the offending import rather than loosening the rule.
+"Format (if the repo has a format script)" leaves a junior implementer guessing. Check the root `package.json` scripts when writing the task and name the exact command, or remove the step if lint covers formatting.
 
 ### Run Digest
 
-- Response length: 6899 chars
+- Response length: 4846 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -160,12 +127,12 @@ Task 4 forbids `adoption/` from importing anything in `introspection/` except `p
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 98194 / 8843 / 89347 / 6660 / not computed
-- Duration: 57.5 s
-- Cost: $0.43 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 98725 / 11222 / 87499 / 4043 / not computed
+- Duration: 38.2 s
+- Cost: $0.39 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 9
+- Finding-shaped matches — whole response: 6
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 9
-- Finding-shaped matches — surviving validation: 9
+- Finding-shaped matches — in findings section: 6
+- Finding-shaped matches — surviving validation: 6
