@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { findPlanningArtifacts } from '../../src/detection/planningArtifacts.js';
+import { findArchitectureArtifacts, findPlanningArtifacts } from '../../src/detection/planningArtifacts.js';
 import { AdoptionError } from '../../src/adoption/contracts.js';
 
 describe('findPlanningArtifacts', () => {
@@ -74,6 +74,66 @@ describe('findPlanningArtifacts', () => {
     await mkdir(join(root, 'project-documents/user'), { recursive: true });
     await writeFile(arch(), 'not a directory');
     const attempt = findPlanningArtifacts(root);
+    await expect(attempt).rejects.toBeInstanceOf(AdoptionError);
+    await expect(attempt).rejects.toThrow(arch());
+  });
+
+  it('returns the same set after the arch/slices pattern split', async () => {
+    const plan = await put(guides(), '001-initiative-plan.x.md');
+    const archFile = await put(arch(), '100-arch.x.md');
+    const hld = await put(arch(), '050-hld.x.md');
+    const slices = await put(arch(), '100-slices.x.md');
+    await put(arch(), '000-concept.x.md');
+    expect(await findPlanningArtifacts(root)).toEqual([plan, archFile, hld, slices].sort());
+  });
+});
+
+describe('findArchitectureArtifacts', () => {
+  let root: string;
+  const guides = (): string => join(root, 'project-documents/user/project-guides');
+  const arch = (): string => join(root, 'project-documents/user/architecture');
+
+  async function put(dir: string, name: string): Promise<string> {
+    await mkdir(dir, { recursive: true });
+    const path = join(dir, name);
+    await writeFile(path, '# x');
+    return path;
+  }
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'cf-arch-artifacts-'));
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('returns [] when no directories exist', async () => {
+    expect(await findArchitectureArtifacts(root)).toEqual([]);
+  });
+
+  it('returns only arch files, not slice plans or concepts', async () => {
+    const path = await put(arch(), '100-arch.a.md');
+    await put(arch(), '100-slices.a.md');
+    await put(guides(), '000-concept.a.md');
+    expect(await findArchitectureArtifacts(root)).toEqual([path]);
+  });
+
+  it.each(['100-hld.x.md', '100-ARCH.x.md'])('counts %s', async (name) => {
+    const path = await put(arch(), name);
+    expect(await findArchitectureArtifacts(root)).toEqual([path]);
+  });
+
+  it('orders by file-name index across directories', async () => {
+    const later = await put(guides(), '200-arch.b.md');
+    const earlier = await put(arch(), '100-arch.a.md');
+    expect(await findArchitectureArtifacts(root)).toEqual([earlier, later]);
+  });
+
+  it('throws AdoptionError naming the path when architecture is a regular file (D7)', async () => {
+    await mkdir(join(root, 'project-documents/user'), { recursive: true });
+    await writeFile(arch(), 'not a directory');
+    const attempt = findArchitectureArtifacts(root);
     await expect(attempt).rejects.toBeInstanceOf(AdoptionError);
     await expect(attempt).rejects.toThrow(arch());
   });

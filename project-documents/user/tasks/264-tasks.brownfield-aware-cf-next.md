@@ -50,19 +50,19 @@ revision_number: 2
 
 ## Tasks
 
-- [ ] **Task 0: Amend the slice design with R1–R7, on the target** (effort: 2)
-  - [ ] Read `cf config get git.integration_branch`; empty means the target is `main`. Do this task on the target, before Task 0B creates the slice branch: it is planning work (Git Rules).
-  - [ ] In `project-documents/user/slices/264-slice.brownfield-aware-cf-next.md`, add a short "Resolutions" note under Technical Decisions naming R1–R7 as PM-approved, and edit the text they change:
+- [x] **Task 0: Amend the slice design with R1–R7, on the target** (effort: 2)
+  - [x] Read `cf config get git.integration_branch`; empty means the target is `main`. Do this task on the target, before Task 0B creates the slice branch: it is planning work (Git Rules).
+  - [x] In `project-documents/user/slices/264-slice.brownfield-aware-cf-next.md`, add a short "Resolutions" note under Technical Decisions naming R1–R7 as PM-approved, and edit the text they change:
     - Interfaces Required: the swap target is `findRecordedPlan` (R1); the filename constants are `ARCHITECTURE_FILE_PATTERN` and `SLICE_PLAN_FILE_PATTERN` (R2); index-then-path ordering (R3).
     - Component Structure and API Contracts: `gatherAdoptionInputs(project, status, conceptExists)` (R4); `buildAdoptionStepAction(step, inputs): NextAction` (R6); `findFirstNotCompleteEntry` exported from `statusDerivation.ts` (R5).
     - D8: one bullet noting the transitive import and why it is acceptable (R7).
-  - [ ] Success: the design's contracts match the resolutions; no Decision `Status` or review verdict is changed.
-  - [ ] Commit on the target: `docs: amend slice 264 design with approved task-breakdown resolutions`
+  - [x] Success: the design's contracts match the resolutions; no Decision `Status` or review verdict is changed.
+  - [x] Commit on the target: `docs: amend slice 264 design with approved task-breakdown resolutions`
 
-- [ ] **Task 0B: Slice branch and baseline** (effort: 1)
-  - [ ] Create `264-slice.brownfield-aware-cf-next` from the target if it does not exist, otherwise switch to it.
-  - [ ] Run `pnpm -r build`, then in the repo root: `node packages/cli/dist/index.js next --json > /tmp/264-next-before.json` and `node packages/cli/dist/index.js next > /tmp/264-next-before.txt`.
-  - [ ] Success: `git branch --show-current` prints the branch name; both baseline files exist and are non-empty.
+- [x] **Task 0B: Slice branch and baseline** (effort: 1)
+  - [x] Create `264-slice.brownfield-aware-cf-next` from the target if it does not exist, otherwise switch to it.
+  - [x] Run `pnpm -r build`, then in the repo root: `node packages/cli/dist/index.js next --json > /tmp/264-next-before.json` and `node packages/cli/dist/index.js next > /tmp/264-next-before.txt`.
+  - [x] Success: `git branch --show-current` prints the branch name; both baseline files exist and are non-empty.
 
 ### Shared reads and the lint boundary (Development Approach step 1)
 

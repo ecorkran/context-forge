@@ -9,8 +9,8 @@ import { writeAdoptionState } from './adoptionState.js';
 import { AdoptionError } from './contracts.js';
 
 /**
- * nnn-slices.*.md only. ARCH_FILE_PATTERN also matches arch and hld files, which can never
- * hold a slice plan entry, so it cannot be reused here.
+ * nnn-slices.*.md only. Arch and hld files can never hold a slice plan entry; the exported
+ * SLICE_PLAN_FILE_PATTERN in planningArtifacts.ts replaces this local copy when 264 lands.
  */
 const SLICE_PLAN_FILE_PATTERN = /^\d{3}-slices\..+\.md$/i;
 
