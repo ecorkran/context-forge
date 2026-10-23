@@ -35,6 +35,9 @@ export const CONCEPT_PHASE: (typeof PHASE_STRINGS)[0] = PHASE_STRINGS[0];
 /** Canonical architecture-phase display string — single source of truth for callers that need it. */
 export const ARCHITECTURE_PHASE: (typeof PHASE_STRINGS)[2] = PHASE_STRINGS[2];
 
+/** Canonical slice-planning-phase display string — single source of truth for callers that need it. */
+export const SLICE_PLANNING_PHASE: (typeof PHASE_STRINGS)[3] = PHASE_STRINGS[3];
+
 /** Canonical slice-design-phase display string — single source of truth for callers that need it. */
 export const SLICE_DESIGN_PHASE: (typeof PHASE_STRINGS)[4] = PHASE_STRINGS[4];
 

@@ -66,47 +66,47 @@ revision_number: 2
 
 ### Shared reads and the lint boundary (Development Approach step 1)
 
-- [ ] **Task 1: Split filename patterns; add `findArchitectureArtifacts`** (effort: 2)
-  - [ ] In `packages/core/src/detection/planningArtifacts.ts`, replace `ARCH_FILE_PATTERN` with exported `ARCHITECTURE_FILE_PATTERN` (`nnn-arch.*.md`, `nnn-hld.*.md`) and `SLICE_PLAN_FILE_PATTERN` (`nnn-slices.*.md`), case-insensitive like today. `findPlanningArtifacts` keeps a name if it matches the initiative plan pattern (project-guides only, as today) or either new pattern; its output is unchanged.
-  - [ ] Add exported `findArchitectureArtifacts(root): Promise<string[]>`: the same two directories and `listFileNames` helper (same error text), names matching `ARCHITECTURE_FILE_PATTERN`, absolute paths sorted by file-name index then full path (R3). Put the index-sort comparator in this file, exported, so Task 2 reuses it.
-  - [ ] Update the doc comment in `adoption/adoptionCompletion.ts` that mentions `ARCH_FILE_PATTERN`.
-  - [ ] Success: `pnpm typecheck` passes; existing `planningArtifacts.test.ts` passes unchanged.
+- [x] **Task 1: Split filename patterns; add `findArchitectureArtifacts`** (effort: 2)
+  - [x] In `packages/core/src/detection/planningArtifacts.ts`, replace `ARCH_FILE_PATTERN` with exported `ARCHITECTURE_FILE_PATTERN` (`nnn-arch.*.md`, `nnn-hld.*.md`) and `SLICE_PLAN_FILE_PATTERN` (`nnn-slices.*.md`), case-insensitive like today. `findPlanningArtifacts` keeps a name if it matches the initiative plan pattern (project-guides only, as today) or either new pattern; its output is unchanged.
+  - [x] Add exported `findArchitectureArtifacts(root): Promise<string[]>`: the same two directories and `listFileNames` helper (same error text), names matching `ARCHITECTURE_FILE_PATTERN`, absolute paths sorted by file-name index then full path (R3). Put the index-sort comparator in this file, exported, so Task 2 reuses it.
+  - [x] Update the doc comment in `adoption/adoptionCompletion.ts` that mentions `ARCH_FILE_PATTERN`.
+  - [x] Success: `pnpm typecheck` passes; existing `planningArtifacts.test.ts` passes unchanged.
 
-- [ ] **Task 1T: Pattern and `findArchitectureArtifacts` tests** (effort: 2)
-  - [ ] In `packages/core/tests/detection/planningArtifacts.test.ts` (temp dirs):
+- [x] **Task 1T: Pattern and `findArchitectureArtifacts` tests** (effort: 2)
+  - [x] In `packages/core/tests/detection/planningArtifacts.test.ts` (temp dirs):
     1. No directories → `[]`.
     2. `architecture/100-arch.a.md`, `100-slices.a.md`, `000-concept.a.md` → only the arch path.
     3. `100-hld.x.md` counts; `100-ARCH.x.md` (upper case) counts.
     4. `project-guides/200-arch.b.md` and `architecture/100-arch.a.md` → 100 first (index order across directories).
     5. Architecture directory unreadable (`chmod 000`, skip on Windows/root) → throws, message names the path (D7).
     6. `findPlanningArtifacts` on a fixture with arch, hld, slices and initiative plan files returns the same set as before the split.
-  - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: add findArchitectureArtifacts and split planning filename patterns`
+  - [x] Success: the new tests pass.
+  - [x] Commit: `feat: add findArchitectureArtifacts and split planning filename patterns`
 
-- [ ] **Task 2: `findExistingStatePlan`; `findRecordedPlan` delegates (R1)** (effort: 2)
-  - [ ] Create `packages/core/src/introspection/parsers/existingStatePlan.ts` exporting `findExistingStatePlan(checkoutPath): Promise<string | null>`: `findPlanningArtifacts`, keep names matching `SLICE_PLAN_FILE_PATTERN`, order with Task 1's comparator, `parseSlicePlan` each, return the first with an entry where `retroactive` is true, else null. Doc comment: "The first slice plan, by index, with at least one retroactive entry." Read-only. It imports nothing from `adoption/` directly (D8).
-  - [ ] In `adoption/adoptionCompletion.ts`, make `findRecordedPlan` return `findExistingStatePlan(checkoutPath)`; delete the inline loop, its local `SLICE_PLAN_FILE_PATTERN` and unused imports. Update the file header comment (it currently says "When 264 lands…").
-  - [ ] Success: `pnpm typecheck` passes; `packages/core/tests/adoption/adoptionCompletion.test.ts` and `adoptionResolver.test.ts` pass unchanged.
+- [x] **Task 2: `findExistingStatePlan`; `findRecordedPlan` delegates (R1)** (effort: 2)
+  - [x] Create `packages/core/src/introspection/parsers/existingStatePlan.ts` exporting `findExistingStatePlan(checkoutPath): Promise<string | null>`: `findPlanningArtifacts`, keep names matching `SLICE_PLAN_FILE_PATTERN`, order with Task 1's comparator, `parseSlicePlan` each, return the first with an entry where `retroactive` is true, else null. Doc comment: "The first slice plan, by index, with at least one retroactive entry." Read-only. It imports nothing from `adoption/` directly (D8).
+  - [x] In `adoption/adoptionCompletion.ts`, make `findRecordedPlan` return `findExistingStatePlan(checkoutPath)`; delete the inline loop, its local `SLICE_PLAN_FILE_PATTERN` and unused imports. Update the file header comment (it currently says "When 264 lands…").
+  - [x] Success: `pnpm typecheck` passes; `packages/core/tests/adoption/adoptionCompletion.test.ts` and `adoptionResolver.test.ts` pass unchanged.
 
-- [ ] **Task 2T: `findExistingStatePlan` tests** (effort: 2)
-  - [ ] Add `packages/core/tests/introspection/parsers/existingStatePlan.test.ts` (follow the location of existing parser tests if they live elsewhere). Plan lines use 263's Marker Specification form exactly: ``1. [x] **(100) Existing System** `retroactive` — built before adoption.``
+- [x] **Task 2T: `findExistingStatePlan` tests** (effort: 2)
+  - [x] Add `packages/core/tests/introspection/parsers/existingStatePlan.test.ts` (follow the location of existing parser tests if they live elsewhere). Plan lines use 263's Marker Specification form exactly: ``1. [x] **(100) Existing System** `retroactive` — built before adoption.``
     1. No plan → null.
     2. Plan with only ordinary entries → null.
     3. Plan with a retroactive entry → that path.
     4. Two plans with markers, `project-guides/200-slices.b.md` and `architecture/100-slices.a.md` → the 100 plan (lowest index wins).
     5. A retroactive line inside a `100-arch.*.md` → null.
     6. Plan file unreadable (`chmod 000`) and another readable marked plan → the readable one (D7: unreadable plan is not the existing-state plan).
-  - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: add findExistingStatePlan and delegate findRecordedPlan to it`
+  - [x] Success: the new tests pass.
+  - [x] Commit: `feat: add findExistingStatePlan and delegate findRecordedPlan to it`
 
-- [ ] **Task 3: D8 import-boundary lint rule** (effort: 2)
-  - [ ] In `eslint.config.mjs`, add two blocks using `no-restricted-imports` with `patterns`:
+- [x] **Task 3: D8 import-boundary lint rule** (effort: 2)
+  - [x] In `eslint.config.mjs`, add two blocks using `no-restricted-imports` with `patterns`:
     - files `packages/core/src/adoption/**/*.ts`: forbid `**/introspection/*` and deeper, except `**/introspection/parsers/**` and `**/introspection/types*`. Message names D8 and the allowed layers.
     - files `packages/core/src/introspection/parsers/**/*.ts`: forbid `**/adoption/**`.
-  - [ ] Existing imports the rule must allow: `adoption/` imports only `introspection/parsers/` (the `existingStatePlan` import from Task 2), and no parser imports `adoption/`. If `pnpm lint` flags an existing import, the pattern is wrong; fix the pattern, not the import.
-  - [ ] Check the rule bites: temporarily add `import '../introspection/WorkflowNavigator.js'` to an `adoption/` file and run `pnpm lint` (expect the D8 error), then remove it. Do the same for an `adoption/` import in a parser file.
-  - [ ] Success: `pnpm lint` passes on the real tree; both temporary imports were reported.
-  - [ ] Commit: `chore: add adoption import-boundary lint rule`
+  - [x] Existing imports the rule must allow: `adoption/` imports only `introspection/parsers/` (the `existingStatePlan` import from Task 2), and no parser imports `adoption/`. If `pnpm lint` flags an existing import, the pattern is wrong; fix the pattern, not the import.
+  - [x] Check the rule bites: temporarily add `import '../introspection/WorkflowNavigator.js'` to an `adoption/` file and run `pnpm lint` (expect the D8 error), then remove it. Do the same for an `adoption/` import in a parser file.
+  - [x] Success: `pnpm lint` passes on the real tree; both temporary imports were reported.
+  - [x] Commit: `chore: add adoption import-boundary lint rule`
 
 ### Adoption decision module (Development Approach step 2)
 

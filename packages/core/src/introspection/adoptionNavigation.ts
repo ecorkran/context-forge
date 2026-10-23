@@ -1,8 +1,9 @@
 // Adoption-aware navigation for `cf next` (slice 264). Reads adoption.state (261) and the
 // existing-state slice plan (263) and decides what the navigator recommends. Read-only (D3).
-import { resolve } from 'path';
+import { basename, resolve } from 'path';
 import type { AdoptionState } from '../config/ConfigKeys.js';
-import { CONCEPT_PHASE } from '../schema/projectSchema.js';
+import { CONCEPT_PHASE, SLICE_PLANNING_PHASE } from '../schema/projectSchema.js';
+import type { NextAction } from './types.js';
 
 /** Adoption steps the navigator can recommend (D4, D6). Internal: not exposed on NextAction. */
 export type AdoptionNavStep =
@@ -93,6 +94,81 @@ export function decideAdoptionNav(inputs: AdoptionNavInputs): AdoptionNav {
     default: {
       const unhandled: never = inputs.state;
       throw new Error(`Unhandled adoption.state: ${String(unhandled)}`);
+    }
+  }
+}
+
+const BUILD_COMMAND = 'cf build';
+
+/** Shared by the four D4 steps: every one is `cf build`, which resumes from the artifacts present. */
+const BUILD_RATIONALE =
+  'cf build assembles the brownfield adoption prompt, which resumes from the artifacts that exist. ' +
+  `To stop adopting: ${DECLINE_COMMAND}`;
+
+const BUILD_STEP_RECOMMENDATIONS = {
+  concept: 'Next adoption step: baseline concept.',
+  architecture: 'Next adoption step: architecture derived from the code.',
+  'existing-state-plan': 'Next adoption step: existing-state slice plan.',
+  'record-completion': 'The existing-state slice plan is written. Run cf build to record adoption as complete.',
+} as const;
+
+function stem(path: string): string {
+  return basename(path, '.md');
+}
+
+/** The 3-digit index of a planning file name. */
+function fileIndex(path: string): string {
+  return basename(path).slice(0, 3);
+}
+
+function buildRegisterPlanAction(inputs: AdoptionNavInputs): NextAction {
+  const plan = inputs.existingStatePlanPath;
+  if (!plan) throw new Error('register-plan requires an existing-state plan path');
+  const sameIndexArch = inputs.architecturePaths.find((path) => fileIndex(path) === fileIndex(plan));
+  const suggestedCommand = sameIndexArch ? `cf set arch ${stem(sameIndexArch)}` : `cf set plan ${stem(plan)}`;
+  return {
+    recommendation: 'Adoption is complete. Register the derived architecture and existing-state slice plan.',
+    rationale: sameIndexArch
+      ? 'Setting the architecture also sets the slice plan that shares its index.'
+      : 'No architecture shares the plan index, so register the slice plan on its own.',
+    suggestedCommand,
+    summary: 'Register the existing-state architecture and slice plan',
+  };
+}
+
+function buildPlanNewWorkAction(inputs: AdoptionNavInputs): NextAction {
+  const plan = inputs.existingStatePlanPath;
+  if (!plan) throw new Error('plan-new-work requires an existing-state plan path');
+  return {
+    recommendation:
+      `Adoption is complete. Every entry in ${stem(plan)} is recorded history. ` +
+      'Plan the first new work as entries after the retroactive ones.',
+    rationale: `Then run cf build to plan the new slices, or cf build alone if the phase is already ${SLICE_PLANNING_PHASE}.`,
+    suggestedCommand: `cf set phase '${SLICE_PLANNING_PHASE}'`,
+    summary: `Plan new work in ${stem(plan)}`,
+  };
+}
+
+/** Pure: the action for a recommended step. The navigator runs the D4 arch gate before using it (R6). */
+export function buildAdoptionStepAction(step: AdoptionNavStep, inputs: AdoptionNavInputs): NextAction {
+  switch (step) {
+    case 'concept':
+    case 'architecture':
+    case 'existing-state-plan':
+    case 'record-completion':
+      return {
+        recommendation: BUILD_STEP_RECOMMENDATIONS[step],
+        rationale: BUILD_RATIONALE,
+        suggestedCommand: BUILD_COMMAND,
+        summary: BUILD_STEP_RECOMMENDATIONS[step],
+      };
+    case 'register-plan':
+      return buildRegisterPlanAction(inputs);
+    case 'plan-new-work':
+      return buildPlanNewWorkAction(inputs);
+    default: {
+      const unhandled: never = step;
+      throw new Error(`Unhandled adoption step: ${String(unhandled)}`);
     }
   }
 }
