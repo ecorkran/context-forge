@@ -32,4 +32,29 @@ export default defineConfig(
       "no-console": ["error", { allow: ["warn", "error"] }],
     },
   },
+  {
+    // Slice 264 D8: imports run one way across the layers
+    // introspection/parsers -> adoption -> the rest of introspection.
+    files: ["packages/core/src/adoption/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          // Gitignore-style negation cannot re-allow a child of a matched directory, so use a regex.
+          regex: "(^|/)introspection/(?!parsers/|types)",
+          message: "D8: adoption/ may import only introspection/parsers/ and introspection types (layers: parsers -> adoption -> rest of introspection).",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["packages/core/src/introspection/parsers/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/adoption/**"],
+          message: "D8: introspection/parsers/ is the lowest layer and must not import adoption/.",
+        }],
+      }],
+    },
+  },
 );
