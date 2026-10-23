@@ -31,7 +31,7 @@ revision_number: 1
 
 - Slice 264 makes `cf next` / `workflow_next` read `adoption.state` and the retroactive marker. `in_progress` at Phase 0 recommends the next adoption step (`cf build`); `complete` skips first-run logic and points at the first new slice plan entry (registering the plan first if needed); `""` keeps today's navigation plus the D2 warning in one case; `declined` is unchanged.
 - The slice design's D1–D8, API Contracts, Success Criteria and Verification Walkthrough are the spec. Do not widen scope (Excluded: no detection in `cf next`, no writes by `cf next`, no `getStatus`/`cf status` change, no `agent_onboard` change, no guide prompt change).
-- Dependencies: 261 and 263 are built. The only edits to their code are the `findExistingStatePlan` swap (Task 3) and the pattern split in `planningArtifacts.ts` (Task 1). Both keep signatures; the one behavior change is R3's ordering when slice plans exist in two directories.
+- Dependencies: 261 and 263 are built. The only edits to their code are the `findExistingStatePlan` swap (Task 2) and the pattern split in `planningArtifacts.ts` (Task 1). Both keep signatures; the one behavior change is R3's ordering when slice plans exist in two directories.
 - Layering (D8): `introspection/parsers/` → `adoption/` → the rest of `introspection/`. New navigation logic lives in `introspection/adoptionNavigation.ts`; `WorkflowNavigator.ts` gets call-site edits and the `gateBlockAction` extraction only.
 - Missing-file rule (260/261): `ENOENT` means "not present"; other filesystem errors throw. Use `pathPresent`/`isEnoent` from `detection/pathPresent.ts`. No new `existsSync`.
 - Local build: the global `cf` is the published package. Run the local CLI as `node <repo>/packages/cli/dist/index.js`, with `<repo>` the absolute repo root. Shell aliases do not persist between tool calls, so write the full command wherever the design's walkthrough says `cfl`. Run `pnpm -r build` before cli/mcp-server tests, which import `@context-forge/core` from `dist`.
@@ -83,10 +83,10 @@ revision_number: 1
   - [ ] Success: the new tests pass.
   - [ ] Commit: `feat: add findArchitectureArtifacts and split planning filename patterns`
 
-- [ ] **Task 2: `findExistingStatePlan`** (effort: 2)
-  - [ ] Create `packages/core/src/introspection/parsers/existingStatePlan.ts` exporting `findExistingStatePlan(checkoutPath): Promise<string | null>`: `findPlanningArtifacts`, keep names matching `SLICE_PLAN_FILE_PATTERN`, order with Task 1's comparator, `parseSlicePlan` each, return the first with an entry where `retroactive` is true, else null. Doc comment: "The first slice plan, by index, with at least one retroactive entry." Read-only.
-  - [ ] It imports nothing from `adoption/` directly (D8).
-  - [ ] Success: `pnpm typecheck` passes.
+- [ ] **Task 2: `findExistingStatePlan`; `findRecordedPlan` delegates (R1)** (effort: 2)
+  - [ ] Create `packages/core/src/introspection/parsers/existingStatePlan.ts` exporting `findExistingStatePlan(checkoutPath): Promise<string | null>`: `findPlanningArtifacts`, keep names matching `SLICE_PLAN_FILE_PATTERN`, order with Task 1's comparator, `parseSlicePlan` each, return the first with an entry where `retroactive` is true, else null. Doc comment: "The first slice plan, by index, with at least one retroactive entry." Read-only. It imports nothing from `adoption/` directly (D8).
+  - [ ] In `adoption/adoptionCompletion.ts`, make `findRecordedPlan` return `findExistingStatePlan(checkoutPath)`; delete the inline loop, its local `SLICE_PLAN_FILE_PATTERN` and unused imports. Update the file header comment (it currently says "When 264 lands…").
+  - [ ] Success: `pnpm typecheck` passes; `packages/core/tests/adoption/adoptionCompletion.test.ts` and `adoptionResolver.test.ts` pass unchanged.
 
 - [ ] **Task 2T: `findExistingStatePlan` tests** (effort: 2)
   - [ ] Add `packages/core/tests/introspection/parsers/existingStatePlan.test.ts` (follow the location of existing parser tests if they live elsewhere). Plan lines use 263's Marker Specification form exactly: ``1. [x] **(100) Existing System** `retroactive` — built before adoption.``
@@ -97,25 +97,20 @@ revision_number: 1
     5. A retroactive line inside a `100-arch.*.md` → null.
     6. Plan file unreadable (`chmod 000`) and another readable marked plan → the readable one (D7: unreadable plan is not the existing-state plan).
   - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: add findExistingStatePlan`
+  - [ ] Commit: `feat: add findExistingStatePlan and delegate findRecordedPlan to it`
 
-- [ ] **Task 3: `findRecordedPlan` delegates (R1)** (effort: 1)
-  - [ ] In `adoption/adoptionCompletion.ts`, make `findRecordedPlan` return `findExistingStatePlan(checkoutPath)`; delete the inline loop, its local `SLICE_PLAN_FILE_PATTERN` and unused imports. Update the file header comment (it currently says "When 264 lands…").
-  - [ ] Success: `packages/core/tests/adoption/adoptionCompletion.test.ts` and `adoptionResolver.test.ts` pass unchanged.
-  - [ ] Commit: `refactor: delegate findRecordedPlan to findExistingStatePlan`
-
-- [ ] **Task 4: D8 import-boundary lint rule** (effort: 2)
+- [ ] **Task 3: D8 import-boundary lint rule** (effort: 2)
   - [ ] In `eslint.config.mjs`, add two blocks using `no-restricted-imports` with `patterns`:
     - files `packages/core/src/adoption/**/*.ts`: forbid `**/introspection/*` and deeper, except `**/introspection/parsers/**` and `**/introspection/types*`. Message names D8 and the allowed layers.
     - files `packages/core/src/introspection/parsers/**/*.ts`: forbid `**/adoption/**`.
-  - [ ] Existing imports the rule must allow: `adoption/` imports only `introspection/parsers/` (the `existingStatePlan` import from Task 3), and no parser imports `adoption/`. If `pnpm lint` flags an existing import, the pattern is wrong; fix the pattern, not the import.
+  - [ ] Existing imports the rule must allow: `adoption/` imports only `introspection/parsers/` (the `existingStatePlan` import from Task 2), and no parser imports `adoption/`. If `pnpm lint` flags an existing import, the pattern is wrong; fix the pattern, not the import.
   - [ ] Check the rule bites: temporarily add `import '../introspection/WorkflowNavigator.js'` to an `adoption/` file and run `pnpm lint` (expect the D8 error), then remove it. Do the same for an `adoption/` import in a parser file.
   - [ ] Success: `pnpm lint` passes on the real tree; both temporary imports were reported.
   - [ ] Commit: `chore: add adoption import-boundary lint rule`
 
 ### Adoption decision module (Development Approach step 2)
 
-- [ ] **Task 5: `adoptionNavigation.ts` types, texts and `decideAdoptionNav`** (effort: 3)
+- [ ] **Task 4: `adoptionNavigation.ts` types, texts and `decideAdoptionNav`** (effort: 3)
   - [ ] Create `packages/core/src/introspection/adoptionNavigation.ts` with `AdoptionNav`, `AdoptionNavStep` (from D1) and `AdoptionNavInputs` (API Contracts).
   - [ ] Define the D2, D5 and D6-row-1 warning texts once as constants (wording from the design; D5 interpolates the instruction).
   - [ ] Export pure `decideAdoptionNav(inputs)`:
@@ -126,7 +121,7 @@ revision_number: 1
   - [ ] Switch on the state exhaustively (no default branch that hides a new state).
   - [ ] Success: `pnpm typecheck` passes; the file has no I/O imports in the decide path.
 
-- [ ] **Task 5T: `decideAdoptionNav` tests** (effort: 3)
+- [ ] **Task 4T: `decideAdoptionNav` tests** (effort: 3)
   - [ ] Add `packages/core/tests/introspection/adoptionNavigation.decide.test.ts` with an inputs factory (defaults: empty fields). One test per row:
     1. `declined` with every input set → `not-adopting`.
     2. `""`: Phase 0 + concept + no artifacts → `warn` with the D2 text; with artifacts → `not-adopting`; no concept → `not-adopting`; not Phase 0 → `not-adopting`.
@@ -137,7 +132,7 @@ revision_number: 1
   - [ ] Success: the new tests pass.
   - [ ] Commit: `feat: add the adoption navigation decision`
 
-- [ ] **Task 6: `buildAdoptionStepAction` (R6)** (effort: 2)
+- [ ] **Task 5: `buildAdoptionStepAction` (R6)** (effort: 2)
   - [ ] Export pure `buildAdoptionStepAction(step, inputs): NextAction` from `adoptionNavigation.ts`, switching exhaustively on the step:
     - D4 steps: recommendation from D4's table, `suggestedCommand: 'cf build'`, rationale says `cf build` assembles the brownfield adoption prompt, which resumes from the artifacts that exist, and gives `cf config set adoption.state declined`. No `phase` field.
     - `register-plan`: D6 text; `cf set arch {archStem}` when an architecture path shares the plan's index, else `cf set plan {planStem}`. Stems are file names without `.md`.
@@ -145,7 +140,7 @@ revision_number: 1
   - [ ] Every action carries a `summary`, like the existing actions.
   - [ ] Success: `pnpm typecheck` passes.
 
-- [ ] **Task 6T: Step action tests** (effort: 2)
+- [ ] **Task 5T: Step action tests** (effort: 2)
   - [ ] In `packages/core/tests/introspection/adoptionNavigation.actions.test.ts`:
     1. Each D4 step: exact recommendation, command `cf build`, `phase` undefined, no `cf set phase` anywhere in the action.
     2. `register-plan` with `100-arch.existing.md` and `100-slices.existing.md` → `cf set arch 100-arch.existing`; with arch 100 and plan 200 → `cf set plan 200-slices.x`.
@@ -155,42 +150,34 @@ revision_number: 1
 
 ### Gathering inputs and navigator wiring (Development Approach step 3)
 
-- [ ] **Task 7: Move `findFirstNotCompleteEntry` (R5)** (effort: 1)
-  - [ ] Move the private method from `WorkflowNavigator.ts` to an exported function in `introspection/statusDerivation.ts`, body and doc comment unchanged. Update the navigator's call sites.
-  - [ ] Success: `pnpm typecheck` passes; all `WorkflowNavigator.*.test.ts` pass unchanged.
-  - [ ] Commit: `refactor: share findFirstNotCompleteEntry`
-
-- [ ] **Task 8: Extract `gateBlockAction`** (effort: 2)
+- [ ] **Task 6: Navigator refactors: share `findFirstNotCompleteEntry` (R5), extract `gateBlockAction`** (effort: 2)
+  - [ ] Move the private `findFirstNotCompleteEntry` from `WorkflowNavigator.ts` to an exported function in `introspection/statusDerivation.ts`, body and doc comment unchanged. Update the navigator's call sites.
   - [ ] In `WorkflowNavigator.ts`, extract the existing arch gate's `GateResult` → `NextAction` mapping (the `pending-review` and `review-failed` returns in the no-active-slice guard) into a private `gateBlockAction(gate, archIndex): NextAction | null` (null when `isBlockingGate` is false). The existing arch gate calls it; text unchanged.
-  - [ ] Success: `WorkflowNavigator.reviewGate*.test.ts` and all other navigator tests pass unchanged.
-  - [ ] Commit: `refactor: extract gateBlockAction`
+  - [ ] Success: `pnpm typecheck` passes; all `WorkflowNavigator.*.test.ts` pass unchanged.
+  - [ ] Commit: `refactor: share findFirstNotCompleteEntry and extract gateBlockAction`
 
-- [ ] **Task 9: Adoption fixture helper** (effort: 2)
+- [ ] **Task 7: Adoption fixture helper** (effort: 2)
   - [ ] Add `packages/core/tests/helpers/adoptionFixtures.ts`: creates a temp checkout with `.context-forge.toml` holding a given `adoption.state` (or none), and options to add `000-concept.*.md`, a `100-arch.existing.md` (`provenance: derived`), a `100-slices.existing.md` (entries given as retroactive/new, real marker format) and an unrelated plan. Returns the path and a `ProjectData` builder taking `instruction`, `developmentPhase`, `fileArch`, `fileSlicePlan`, `fileSlice`.
   - [ ] Valid frontmatter on every written document (copy the shape from `WorkflowNavigator.retroactive.test.ts`).
-  - [ ] Success: `pnpm typecheck` passes; Tasks 11T, 12T and 13 use this helper.
+  - [ ] Success: `pnpm typecheck` passes; Tasks 8T, 9T and 10 use this helper.
   - [ ] Commit: `test: add adoption fixture helper`
 
-- [ ] **Task 10: `gatherAdoptionInputs` (R4)** (effort: 3)
+- [ ] **Task 8: `gatherAdoptionInputs` (R4) and `computeNext` routing (D1)** (effort: 4)
   - [ ] Export `gatherAdoptionInputs(project, status, conceptExists): Promise<AdoptionNavInputs>` from `adoptionNavigation.ts`, reading only what the state needs (Data Flow):
     - Always: `readAdoptionState(projectPath)` (errors propagate, D7); `instruction` and `conceptInstruction` (`resolvePhaseValue(project.instruction) === CONCEPT_PHASE`).
     - `declined`: nothing more.
     - `""`: `findPlanningArtifacts` only when `conceptInstruction && conceptExists`.
     - `in_progress` / `complete`: `findArchitectureArtifacts`, `findExistingStatePlan`; `registeredPlanPath` from `resolveArtifactPath('fileSlicePlan', …)` joined to the checkout, null if unset or `pathPresent` is false; `registeredPlanHasOpenEntry` from `findFirstNotCompleteEntry(status.slicePlan?.entries ?? [])` when the registered plan is the existing-state plan.
-  - [ ] Success: `pnpm typecheck` and `pnpm lint` pass (navigator layer may import `adoption/`). Its behavior is tested through the navigator in Task 11T.
-  - [ ] Commit: `feat: add gatherAdoptionInputs`
-
-- [ ] **Task 11: Route `computeNext` through the adoption decision (D1)** (effort: 3)
-  - [ ] In the no-active-slice guard, after the existing arch gate and before `detectFirstRunContext`, call `gatherAdoptionInputs(project, status, conceptExists)` and `decideAdoptionNav`, then switch exhaustively:
+  - [ ] In `computeNext`'s no-active-slice guard, after the existing arch gate and before `detectFirstRunContext`, call `gatherAdoptionInputs(project, status, conceptExists)` and `decideAdoptionNav`, then switch exhaustively:
     - `not-adopting` → today's flow.
     - `warn` → push the warning onto `navWarnings`; today's flow. Make sure the warning reaches every first-run return (today only the final fall-through attaches `navWarnings`; attach them where the first-run action is returned too, without changing output when `navWarnings` is empty).
-    - `recommend` → return `buildAdoptionStepAction(step, inputs)` with `navWarnings` attached when non-empty. (Task 12 adds the arch gate for `existing-state-plan`.)
+    - `recommend` → return `buildAdoptionStepAction(step, inputs)` with `navWarnings` attached when non-empty. (Task 9 adds the arch gate for `existing-state-plan`.)
     - `adopted` → skip `detectFirstRunContext`; continue to the existing fall-through.
   - [ ] No write anywhere in this path (D3).
   - [ ] Success: `pnpm typecheck` and `pnpm lint` pass; all existing navigator tests pass unchanged.
 
-- [ ] **Task 11T: Navigator adoption tests** (effort: 4)
-  - [ ] Add `packages/core/tests/introspection/WorkflowNavigator.adoption.test.ts` using Task 9's helper, one test per Functional Requirements bullet:
+- [ ] **Task 8T: Navigator adoption tests** (effort: 4)
+  - [ ] Add `packages/core/tests/introspection/WorkflowNavigator.adoption.test.ts` using Task 7's helper, one test per Functional Requirements bullet. These tests cover `gatherAdoptionInputs` through the navigator:
     1. Declined and unset: for no phase, Phase 0 with and without concept, Phases 1–3, `getNext` equals the same fixture with no `[adoption]` section, except unset + Phase 0 + concept + no planning artifact, which adds exactly the D2 warning; with a planning artifact, no warning.
     2. `in_progress` at Phase 0 (gating off): steps `concept`, `architecture`, `existing-state-plan`, `record-completion` from their fixtures; no action has `phase` set or mentions `cf set phase`.
     3. `in_progress` at Phase 2 → today's Phase 2 recommendation plus the D5 warning.
@@ -198,31 +185,32 @@ revision_number: 1
     5. Active slice set: in each state, `getNext` equals the no-adoption fixture's.
     6. Read-only: `.context-forge.toml` bytes and the `ProjectData` object are unchanged after `getNext` in every fixture above.
     7. Out-of-enum `adoption.state` → `getNext` rejects with the `readAdoptionState` message (D7).
+    8. `complete` with `fileSlicePlan` set to a missing file → `register-plan` (registered plan treated as absent).
   - [ ] Success: the new tests pass.
   - [ ] Commit: `feat: route cf next through adoption navigation`
 
-- [ ] **Task 12: Arch gate before `existing-state-plan` (D4)** (effort: 2)
-  - [ ] In the `recommend` branch from Task 11, for step `existing-state-plan` only: evaluate `preSlicePlan` for the index of `architecturePaths[0]` (`extractSliceIndex` on its stem) and return `gateBlockAction`'s action if it blocks; otherwise continue as in Task 11.
-  - [ ] Success: `pnpm typecheck` passes; Task 11T tests still pass; `WorkflowNavigator.ts` grows by no more than ~40 lines across Tasks 11 and 12.
+- [ ] **Task 9: Arch gate before `existing-state-plan` (D4)** (effort: 2)
+  - [ ] In the `recommend` branch from Task 8, for step `existing-state-plan` only: evaluate `preSlicePlan` for the index of `architecturePaths[0]` (`extractSliceIndex` on its stem) and return `gateBlockAction`'s action if it blocks; otherwise continue as in Task 8.
+  - [ ] Success: `pnpm typecheck` passes; Task 8T tests still pass; `WorkflowNavigator.ts` grows by no more than ~40 lines across Tasks 8 and 9.
 
-- [ ] **Task 12T: Arch gate test** (effort: 1)
+- [ ] **Task 9T: Arch gate test** (effort: 1)
   - [ ] In `WorkflowNavigator.adoption.test.ts`: `in_progress` at Phase 0 with concept and `100-arch.existing.md`, review gating on (`makeStubConfig(GATE_ENABLED_DEFAULTS)`), no arch review → "Review required before creating the slice plan" naming architecture 100.
   - [ ] Success: the new test passes.
   - [ ] Commit: `feat: gate the existing-state-plan step on the derived architecture review`
 
 ### Surfaces and verification (Development Approach step 4)
 
-- [ ] **Task 13: MCP and CLI parity tests** (effort: 3)
+- [ ] **Task 10: MCP and CLI parity tests** (effort: 3)
   - [ ] Run `pnpm -r build`.
-  - [ ] Build fixtures with Task 9's helper, imported by relative path as `workflowCheckRouting.test.ts` imports `../../core/tests/helpers/gitWorktreeFixture.js`.
-  - [ ] In `packages/mcp-server/tests/workflowTools.test.ts`, for the `in_progress` (`architecture` step), `complete` register-plan and `complete` adopted fixtures: `workflow_next`'s `recommendation`, `suggestedCommand` and `warnings` equal `WorkflowNavigator.getNext` on the same project. For out-of-enum `adoption.state`: `errorResult` text is `Error: {readAdoptionState message}`.
-  - [ ] In `packages/cli/tests/commands/next.test.ts`: `next --json` on one adoption fixture matches `getNext`; out-of-enum state exits non-zero with the same message.
+  - [ ] Build fixtures with Task 7's helper, imported by relative path as `workflowCheckRouting.test.ts` imports `../../core/tests/helpers/gitWorktreeFixture.js`.
+  - [ ] In `packages/mcp-server/tests/workflowTools.test.ts`, add one table-driven test over every adoption fixture from Tasks 8T and 9T (each state and step, including the warning cases): `workflow_next`'s `recommendation`, `suggestedCommand` and `warnings` equal `WorkflowNavigator.getNext` on the same project. For out-of-enum `adoption.state`: `errorResult` text is `Error: {readAdoptionState message}`.
+  - [ ] In `packages/cli/tests/commands/next.test.ts`: `next --json` on one adoption fixture matches `getNext`; out-of-enum state exits non-zero with the same message. Both surfaces print `getNext`'s result, so this plus the MCP table covers every fixture.
   - [ ] Success: the new tests pass. These tests cover the design's walkthrough step 9 (MCP parity).
   - [ ] Commit: `test: add workflow_next and cf next adoption parity tests`
 
-- [ ] **Task 14: Full validation and walkthrough** (effort: 2)
-  - [ ] Run `pnpm -r build`, then format (if the repo has a format script), `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
+- [ ] **Task 11: Full validation and walkthrough** (effort: 2)
+  - [ ] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
   - [ ] In the repo root: `node packages/cli/dist/index.js next --json` and `node packages/cli/dist/index.js next` diffed against Task 0B's baselines show no differences (walkthrough step 1).
-  - [ ] Run the design's Verification Walkthrough steps 2–8 against a scratch project in `/tmp/bf`, using `node <repo>/packages/cli/dist/index.js` for `cfl`. Step 9 is covered by Task 13. Record each step's result in the slice design's walkthrough notes (as slices 262 and 263 did).
+  - [ ] Run the design's Verification Walkthrough steps 2–8 against a scratch project in `/tmp/bf`, using `node <repo>/packages/cli/dist/index.js` for `cfl`. Step 9 is covered by Task 10. Record each step's result in the slice design's walkthrough notes (as slices 262 and 263 did).
   - [ ] Success: all checks pass; steps 1–8 each show their expected output.
   - [ ] Commit: `docs: record slice 264 walkthrough results`
