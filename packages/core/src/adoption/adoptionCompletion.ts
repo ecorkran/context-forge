@@ -1,34 +1,22 @@
 // Adoption completion (slice 263, D5): adoption is finished once a slice plan with a
 // retroactive entry exists, because that is the observable sign that the existing-state plan
 // has been written. Split into find and persist so the resolver can write after it renders
-// the facts (R1). When 264 lands, `findRecordedPlan` delegates to its `findExistingStatePlan`.
-import { basename } from 'path';
-import { findPlanningArtifacts } from '../detection/planningArtifacts.js';
-import { parseSlicePlan } from '../introspection/parsers/slicePlanParser.js';
+// the facts (R1). `findRecordedPlan` delegates to `findExistingStatePlan` (264), the one
+// definition of "a slice plan with a retroactive entry exists".
+import { findExistingStatePlan } from '../introspection/parsers/existingStatePlan.js';
 import { writeAdoptionState } from './adoptionState.js';
 import { AdoptionError } from './contracts.js';
-
-/**
- * nnn-slices.*.md only. Arch and hld files can never hold a slice plan entry; the exported
- * SLICE_PLAN_FILE_PATTERN in planningArtifacts.ts replaces this local copy when 264 lands.
- */
-const SLICE_PLAN_FILE_PATTERN = /^\d{3}-slices\..+\.md$/i;
 
 /** The remedy a failed write names, so the person can finish the transition by hand. */
 const COMPLETE_REMEDY = 'cf config set adoption.state complete';
 
 /**
- * Absolute path of the first slice plan (sorted order) that holds a retroactive entry, or null.
- * A plan without one does not count: an adoption that recorded nothing built is not an
- * existing-state plan. Read-only.
+ * Absolute path of the existing-state slice plan, or null. A plan without a retroactive entry
+ * does not count: an adoption that recorded nothing built is not an existing-state plan.
+ * Read-only.
  */
-export async function findRecordedPlan(checkoutPath: string): Promise<string | null> {
-  const artifacts = await findPlanningArtifacts(checkoutPath);
-  for (const path of artifacts.filter((artifact) => SLICE_PLAN_FILE_PATTERN.test(basename(artifact)))) {
-    const plan = await parseSlicePlan(path);
-    if (plan.entries.some((entry) => entry.retroactive)) return path;
-  }
-  return null;
+export function findRecordedPlan(checkoutPath: string): Promise<string | null> {
+  return findExistingStatePlan(checkoutPath);
 }
 
 /** Writes `adoption.state: complete`. A failed write throws with the manual remedy (261 D9). */
