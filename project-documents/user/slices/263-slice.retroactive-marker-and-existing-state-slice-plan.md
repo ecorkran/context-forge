@@ -8,7 +8,7 @@ dependencies:
 interfaces:
 - 264
 dateCreated: 20261020
-dateUpdated: 20261020
+dateUpdated: 20261023
 status: not_started
 turns: 35
 promptTokens: 2385221
@@ -128,6 +128,9 @@ readAdoptionState(checkoutPath) === 'in_progress'
 
 ## Technical Decisions
 
+### Resolutions from the task breakdown (PM-approved)
+The task breakdown (`263-tasks.*.md`) resolved five gaps in this design; the decisions below and the API Contracts already reflect them. R1: completion is split into find, persist and composed functions so the write follows the facts render (D5). R2: `evaluateEntryGate` takes the same trailing parameters as `evaluateReviewGate` and may return null (D3). R3: the navigator tests `entry.retroactive` directly instead of calling the gate, which adds `SliceStatus.retroactive` (D3). R4: `SlicePlanEntry.retroactive` is required. R5: the completing build renders state `complete` and the resolver builds the `adoption-completed` outcome itself (D5). The task file has the full text of each.
+
 ### D1 — Marker format: a backticked token after the entry title
 Status: decided
 - Format: `N. [x] **(NNN) Title** `retroactive` — description`. The token `` `retroactive` `` comes immediately after the closing `**` of the title, before the description separator.
@@ -148,7 +151,7 @@ Status: decided
 ### D3 — The gate skips retroactive entries with a distinct result
 Status: decided
 - New result kind in `reviewGate.ts`: `GateSkip { status: 'skipped'; reason: 'retroactive'; rationale }`. It isn't `clears` (nothing was reviewed), it isn't `exempt` (that's the PM-only `review: none` and grandfathering), and it isn't blocking (`isBlockingGate` is false).
-- One entry point: `evaluateEntryGate(projectPath, entry, boundary, config)`. It returns `GateSkip` for a retroactive entry at every slice-scoped boundary (`preTasks`, `preImplementation`, `preAdvance`), and otherwise delegates to `evaluateReviewGate` unchanged. The navigator and `ruleReviewGate` both call it, so the skip rule is written once. `preSlicePlan` is architecture-scoped, takes no entry, and is unaffected (D7).
+- One gate entry point: `evaluateEntryGate(projectPath, entry, boundary, config, resolved?)`. It returns `GateSkip` for a retroactive entry at every slice-scoped boundary (`preTasks`, `preImplementation`, `preAdvance`), null when gating is off for a non-retroactive entry, and otherwise delegates to `evaluateReviewGate` unchanged. Only the checker (`ruleReviewGate`) calls it (resolution R2). The navigator does not: a retroactive slice has no design file, so it would report `needs-design` whether or not gating is on. `deriveSliceStatus` therefore tests `entry.retroactive` directly and returns `complete` regardless of gating, with no gate evaluated (resolution R3). The skip meaning is one fact, `entry.retroactive`, read in two places. `preSlicePlan` is architecture-scoped, takes no entry, and is unaffected (D7).
 - Reporting in `cf check`: when gating is enabled, one `info` finding per plan under rule `review-gate`: "Slices 100–104 are retroactive: recorded history, not reviewed. The review gate skips them." One finding per plan, not per entry, so a 20-entry baseline is one line. Unlike the `review: none` info, it is emitted whether or not the entries are checked, because a retroactive entry is never in flight.
 - Rejected: reusing `evaluateExemption`. The arch forbids treating the marker as the review exemption, and the exemption's text and `gateExempt` status would report it as one.
 
@@ -164,8 +167,8 @@ Adoption state is not checked here. A project whose `adoption.state` was later c
 ### D5 — Adoption completes when a slice plan with a retroactive entry exists
 Status: decided
 - **Event:** a slice plan in the checkout (any `nnn-slices.*.md` that `findPlanningArtifacts` returns) contains at least one parsed retroactive entry. That is the observable fact that the existing-state plan has been written. A plan with no retroactive entries doesn't count: an adoption that recorded nothing built isn't an existing-state plan.
-- **Mechanism:** `completeAdoptionIfPlanRecorded(checkoutPath)` in `adoption/adoptionCompletion.ts` is the entry point 261's resolver calls. The rule itself ("a slice plan with a retroactive entry exists") lives in 264's `findExistingStatePlan` in `introspection/parsers/` (264 D8), which this function delegates to, so `cf next` and the build share one definition. 261's resolver calls it in its decide step when the state is `in_progress` and writes are `persist`. Errors follow 261 D9: a failed write throws `AdoptionError` naming `.context-forge.toml` and the remedy (`cf config set adoption.state complete`).
-- **The completing build:** it still selects the brownfield prompt, with outcome `adoption-completed` and the notice "adoption.state was set to complete by this build: existing-state slice plan found at {planPath}. Adoption is finished; run `cf next` for the next step." The agent may still be adding new work in step 3 of the prompt, so the build gives it the same prompt with one new fact rather than switching prompts mid-step. Later builds follow 261 (`complete` doesn't select the brownfield prompt).
+- **Mechanism:** `adoption/adoptionCompletion.ts` exports three functions (resolution R1). `findRecordedPlan(checkoutPath)` is the read-only scan. `persistAdoptionComplete(checkoutPath)` is the write. `completeAdoptionIfPlanRecorded(checkoutPath)` is the composed contract (find, then persist), kept exported for 264. The rule itself ("a slice plan with a retroactive entry exists") lives in 264's `findExistingStatePlan` in `introspection/parsers/` (264 D8), which `findRecordedPlan` delegates to once 264 lands, so `cf next` and the build share one definition. 261's resolver gathers facts before it writes, so a failure after the write cannot leave state persisted for a build that produced no prompt. Its decide step therefore calls `findRecordedPlan` when the state is `in_progress` and writes are `persist`, and `persistAdoptionComplete` runs after the facts render, mirroring `persistInProgress`. Errors follow 261 D9: a failed write throws `AdoptionError` naming `.context-forge.toml` and the remedy (`cf config set adoption.state complete`).
+- **The completing build:** it still selects the brownfield prompt, with outcome `adoption-completed` (built by the resolver, since it needs the plan path; `decideOutcome` is unchanged) and state `complete` rendered in the facts (resolution R5). The notice "adoption.state was set to complete by this build: existing-state slice plan found at {planPath}. Adoption is finished; run `cf next` for the next step." The agent may still be adding new work in step 3 of the prompt, so the build gives it the same prompt with one new fact rather than switching prompts mid-step. Later builds follow 261 (`complete` doesn't select the brownfield prompt).
 - **Why the build:** it is the only writer 261 already has, and the brownfield prompt re-runs `cf build` between steps. `cf next` (264) may call the same function; that's 264's choice, and the function is exported for it.
 - Rejected: `cf check --fix`. `fixAction` only edits checkboxes and frontmatter, so it would need a new config-write action for one transition.
 - Rejected: a new `cf adoption complete` command. That's a new user-facing command for a step the system can observe.
@@ -186,7 +189,7 @@ Status: decided
 
 ### D8 — Display and JSON
 Status: decided
-- `SlicePlanEntry.retroactive` flows into `cf list slices --json` with no extra code, since entries are serialized as parsed. Squadron's `SliceEntry` can read it; `status` stays `complete`.
+- `SlicePlanEntry.retroactive` reaches `cf list slices --json` only through explicit code: the command builds each entry field by field, so the field is carried through the entries and added to the JSON mapping. Squadron's `SliceEntry` can read it; `status` stays `complete`.
 - Text output: `entryStatusDisplay` shows `✓ retroactive` for a checked retroactive entry, so the list doesn't present recorded history as reviewed work.
 
 ### Patterns and Conventions
@@ -206,16 +209,23 @@ Status: decided
 
 ```ts
 // introspection/types.ts
+// retroactive is required (R4): existing literals take `retroactive: false`.
 interface SlicePlanEntry { /* existing fields */ retroactive: boolean; }
+// Set only when true; serialized in workflow_status / workflow_next as activeSlice.retroactive (R3).
+interface SliceStatus { /* existing fields */ retroactive?: boolean; }
 
 // introspection/reviewGate.ts
 export interface GateSkip { status: 'skipped'; reason: 'retroactive'; rationale: string; }
 export type GateResult = GateClearance | GateExemption | GateEvaluation | GateSkip;
+// null when gating is off and the entry is not retroactive (R2).
 export function evaluateEntryGate(
-  projectPath: string, entry: SlicePlanEntry, boundary: SliceBoundary, config: ResolvedGate,
-): Promise<GateResult>;
+  projectPath: string, entry: SlicePlanEntry, boundary: SliceBoundary,
+  config: ConfigManager, resolved?: ResolvedGate,
+): Promise<GateResult | null>;
 
-// adoption/adoptionCompletion.ts
+// adoption/adoptionCompletion.ts (R1)
+export function findRecordedPlan(checkoutPath: string): Promise<string | null>;
+export function persistAdoptionComplete(checkoutPath: string): Promise<void>;
 export function completeAdoptionIfPlanRecorded(checkoutPath: string):
   Promise<{ completed: false } | { completed: true; planPath: string }>;
 
