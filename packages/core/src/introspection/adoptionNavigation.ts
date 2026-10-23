@@ -1,9 +1,16 @@
 // Adoption-aware navigation for `cf next` (slice 264). Reads adoption.state (261) and the
 // existing-state slice plan (263) and decides what the navigator recommends. Read-only (D3).
-import { basename, resolve } from 'path';
+import { basename, join, resolve } from 'path';
+import { readAdoptionState } from '../adoption/adoptionState.js';
 import type { AdoptionState } from '../config/ConfigKeys.js';
-import { CONCEPT_PHASE, SLICE_PLANNING_PHASE } from '../schema/projectSchema.js';
-import type { NextAction } from './types.js';
+import { pathPresent } from '../detection/pathPresent.js';
+import { findArchitectureArtifacts, findPlanningArtifacts } from '../detection/planningArtifacts.js';
+import { CONCEPT_PHASE, SLICE_PLANNING_PHASE, resolvePhaseValue } from '../schema/projectSchema.js';
+import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
+import type { ResolvedProject } from '../types/index.js';
+import { findExistingStatePlan } from './parsers/existingStatePlan.js';
+import { findFirstNotCompleteEntry } from './statusDerivation.js';
+import type { NextAction, WorkflowStatus } from './types.js';
 
 /** Adoption steps the navigator can recommend (D4, D6). Internal: not exposed on NextAction. */
 export type AdoptionNavStep =
@@ -169,6 +176,69 @@ export function buildAdoptionStepAction(step: AdoptionNavStep, inputs: AdoptionN
     default: {
       const unhandled: never = step;
       throw new Error(`Unhandled adoption step: ${String(unhandled)}`);
+    }
+  }
+}
+
+/** The registered slice plan as an absolute path, or null when unset or its file is missing. */
+function resolveRegisteredPlan(project: ResolvedProject, projectPath: string): string | null {
+  if (!project.fileSlicePlan) return null;
+  const relative = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
+  if (relative === null) return null;
+  const absolute = join(projectPath, relative);
+  return pathPresent(absolute) ? absolute : null;
+}
+
+/**
+ * Reads what the adoption state needs and leaves the other fields empty (Data Flow).
+ * `conceptExists` is the value computeNext already has (R4). A read error propagates (D7).
+ */
+export async function gatherAdoptionInputs(
+  project: ResolvedProject,
+  status: WorkflowStatus,
+  conceptExists: boolean,
+): Promise<AdoptionNavInputs> {
+  const projectPath = project.projectPath;
+  if (!projectPath) throw new Error('gatherAdoptionInputs requires project.projectPath');
+
+  const instruction = project.instruction ?? '';
+  const inputs: AdoptionNavInputs = {
+    state: await readAdoptionState(projectPath),
+    conceptInstruction: resolvePhaseValue(instruction) === CONCEPT_PHASE,
+    instruction,
+    conceptExists,
+    planningArtifactsExist: false,
+    architecturePaths: [],
+    existingStatePlanPath: null,
+    registeredPlanPath: null,
+    registeredPlanHasOpenEntry: false,
+  };
+
+  switch (inputs.state) {
+    case 'declined':
+      return inputs;
+    case '':
+      if (inputs.conceptInstruction && conceptExists) {
+        inputs.planningArtifactsExist = (await findPlanningArtifacts(projectPath)).length > 0;
+      }
+      return inputs;
+    case 'in_progress':
+    case 'complete': {
+      inputs.architecturePaths = await findArchitectureArtifacts(projectPath);
+      inputs.existingStatePlanPath = await findExistingStatePlan(projectPath);
+      inputs.registeredPlanPath = resolveRegisteredPlan(project, projectPath);
+      const registeredIsExistingState =
+        inputs.registeredPlanPath !== null &&
+        inputs.existingStatePlanPath !== null &&
+        resolve(inputs.registeredPlanPath) === resolve(inputs.existingStatePlanPath);
+      if (registeredIsExistingState) {
+        inputs.registeredPlanHasOpenEntry = findFirstNotCompleteEntry(status.slicePlan?.entries ?? []) !== undefined;
+      }
+      return inputs;
+    }
+    default: {
+      const unhandled: never = inputs.state;
+      throw new Error(`Unhandled adoption.state: ${String(unhandled)}`);
     }
   }
 }

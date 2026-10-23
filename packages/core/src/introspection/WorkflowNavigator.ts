@@ -29,6 +29,11 @@ import { resolveConceptPath, resolveInitiativePlanPath } from './ArtifactIntrosp
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
 import { evaluateSetupCiOffer } from './setupCiOffer.js';
+import {
+  buildAdoptionStepAction,
+  decideAdoptionNav,
+  gatherAdoptionInputs,
+} from './adoptionNavigation.js';
 import type { PendingDecision } from '../schema/pendingDecisions.js';
 import {
   evaluateReviewGate,
@@ -96,6 +101,18 @@ function isReviewType(value: string): value is ReviewType {
 
 /** User-facing label of the decision-gate action; consumers must key on `pendingDecisions`, not this text. */
 const DECISION_GATE_RECOMMENDATION = 'Blocked: design has pending PM decisions';
+
+/** Attaches the navigation warnings to an action; an empty list leaves the action untouched. */
+function withNavWarnings(action: NextAction, navWarnings: string[]): NextAction {
+  return navWarnings.length > 0 ? { ...action, warnings: navWarnings } : action;
+}
+
+/** What adoption routing decided for the no-active-slice guard (slice 264 D1). */
+interface AdoptionRoute {
+  /** A recommendation that replaces first-run guidance; absent when navigation continues. */
+  action?: NextAction;
+  skipFirstRun: boolean;
+}
 
 export class WorkflowNavigator {
   /** Maps a review gate's reviewType to the phase a stale developmentPhase should be corrected to. */
@@ -241,54 +258,70 @@ export class WorkflowNavigator {
         }
       }
 
+      // Adoption routing (slice 264 D1): a recommended step returns here; a warning joins
+      // navWarnings; an adopted project skips first-run logic. Read-only (D3).
+      const adoption = await this.routeAdoption(project, status, conceptExists, navWarnings);
+      if (adoption.action) return withNavWarnings(adoption.action, navWarnings);
+
       // First-run guidance: enriched recommendations for sparse/fresh project states (FR-1–FR-4)
-      const firstRunAction = this.detectFirstRunContext(
-        project,
-        archFileExists,
-        initiativePlanExists,
-        conceptExists,
-        await this.findNextInitiative(project.projectPath),
-        status,
-      );
+      const firstRunAction = adoption.skipFirstRun
+        ? null
+        : this.detectFirstRunContext(
+            project,
+            archFileExists,
+            initiativePlanExists,
+            conceptExists,
+            await this.findNextInitiative(project.projectPath),
+            status,
+          );
       if (firstRunAction !== null) {
-        return firstRunAction;
+        return withNavWarnings(firstRunAction, navWarnings);
       }
 
       // No architecture (or arch set but file not yet created) → recommend creating architecture first
       if (!archFileExists && !status.slicePlan) {
-        return {
-          recommendation: 'Create architecture document',
-          rationale: project.fileArch
-            ? `Architecture is set to '${project.fileArch}' but the file does not exist yet. Create the architecture document before planning slices.`
-            : 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
-          suggestedCommand: project.fileArch
-            ? `cf set phase '${ARCHITECTURE_PHASE}'`
-            : 'cf set arch <index>',
-          ...(project.fileArch ? { phase: ARCHITECTURE_PHASE } : {}),
-          summary: 'Create an architecture document to define project structure',
-        };
+        return withNavWarnings(
+          {
+            recommendation: 'Create architecture document',
+            rationale: project.fileArch
+              ? `Architecture is set to '${project.fileArch}' but the file does not exist yet. Create the architecture document before planning slices.`
+              : 'No architecture document or slice plan is configured. Architecture defines the high-level structure before slicing into deliverable increments.',
+            suggestedCommand: project.fileArch
+              ? `cf set phase '${ARCHITECTURE_PHASE}'`
+              : 'cf set arch <index>',
+            ...(project.fileArch ? { phase: ARCHITECTURE_PHASE } : {}),
+            summary: 'Create an architecture document to define project structure',
+          },
+          navWarnings,
+        );
       }
       // Architecture exists but no slice plan
       if (!status.slicePlan) {
         if (project.fileSlicePlan) {
           const currentPhaseNoSlice = project.developmentPhase?.trim() ?? '';
           const inPhase3 = currentPhaseNoSlice.startsWith('Phase 3');
-          return {
-            recommendation: 'Create the slice plan document',
-            rationale: inPhase3
-              ? `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document to define deliverable increments.`
-              : `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Switch to Phase 3 (Slice Planning) first, then run cf build to create the slice plan.`,
-            suggestedCommand: inPhase3 ? 'cf build' : "cf set phase 'Phase 3: Slice Planning'",
-            phase: 'Phase 3: Slice Planning',
-            summary: inPhase3 ? 'Create the slice plan document' : 'Switch to Phase 3 then create the slice plan document',
-          };
+          return withNavWarnings(
+            {
+              recommendation: 'Create the slice plan document',
+              rationale: inPhase3
+                ? `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Create the slice plan document to define deliverable increments.`
+                : `Slice plan is set to '${project.fileSlicePlan}' but the file does not exist yet. Switch to Phase 3 (Slice Planning) first, then run cf build to create the slice plan.`,
+              suggestedCommand: inPhase3 ? 'cf build' : "cf set phase 'Phase 3: Slice Planning'",
+              phase: 'Phase 3: Slice Planning',
+              summary: inPhase3 ? 'Create the slice plan document' : 'Switch to Phase 3 then create the slice plan document',
+            },
+            navWarnings,
+          );
         }
-        return {
-          recommendation: 'Create or assign a slice plan',
-          rationale: 'Architecture is set but no slice plan is configured. A slice plan breaks the architecture into deliverable increments.',
-          suggestedCommand: 'cf set plan <stem>',
-          summary: 'Create a slice plan from the architecture',
-        };
+        return withNavWarnings(
+          {
+            recommendation: 'Create or assign a slice plan',
+            rationale: 'Architecture is set but no slice plan is configured. A slice plan breaks the architecture into deliverable increments.',
+            suggestedCommand: 'cf set plan <stem>',
+            summary: 'Create a slice plan from the architecture',
+          },
+          navWarnings,
+        );
       }
       // Slice plan exists but no active slice — suggest first not-yet-complete entry
       const firstResult = findFirstNotCompleteEntry(status.slicePlan.entries);
@@ -868,6 +901,35 @@ export class WorkflowNavigator {
   ): Promise<GateResult | null> {
     if (!this.config) return null;
     return evaluateReviewGate(projectPath, index, boundary, this.config);
+  }
+
+  /**
+   * Adoption routing for the no-active-slice guard (slice 264 D1). Writes nothing (D3): a
+   * warning is pushed onto `navWarnings`, a recommended step comes back as `action`.
+   */
+  private async routeAdoption(
+    project: ResolvedProject,
+    status: WorkflowStatus,
+    conceptExists: boolean,
+    navWarnings: string[],
+  ): Promise<AdoptionRoute> {
+    const inputs = await gatherAdoptionInputs(project, status, conceptExists);
+    const nav = decideAdoptionNav(inputs);
+    switch (nav.kind) {
+      case 'not-adopting':
+        return { skipFirstRun: false };
+      case 'warn':
+        navWarnings.push(nav.warning);
+        return { skipFirstRun: false };
+      case 'recommend':
+        return { action: buildAdoptionStepAction(nav.step, inputs), skipFirstRun: false };
+      case 'adopted':
+        return { skipFirstRun: true };
+      default: {
+        const unhandled: never = nav;
+        throw new Error(`Unhandled adoption navigation: ${JSON.stringify(unhandled)}`);
+      }
+    }
   }
 
   /**

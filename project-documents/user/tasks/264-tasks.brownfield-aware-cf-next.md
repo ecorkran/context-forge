@@ -110,51 +110,51 @@ revision_number: 2
 
 ### Adoption decision module (Development Approach step 2)
 
-- [ ] **Task 4: `adoptionNavigation.ts` types, texts and `decideAdoptionNav`** (effort: 3)
-  - [ ] Create `packages/core/src/introspection/adoptionNavigation.ts` with `AdoptionNav`, `AdoptionNavStep` (from D1) and `AdoptionNavInputs` (API Contracts).
-  - [ ] Define the D2, D5 and D6-row-1 warning texts once as constants (wording from the design; D5 interpolates the instruction).
-  - [ ] Export pure `decideAdoptionNav(inputs)`:
+- [x] **Task 4: `adoptionNavigation.ts` types, texts and `decideAdoptionNav`** (effort: 3)
+  - [x] Create `packages/core/src/introspection/adoptionNavigation.ts` with `AdoptionNav`, `AdoptionNavStep` (from D1) and `AdoptionNavInputs` (API Contracts).
+  - [x] Define the D2, D5 and D6-row-1 warning texts once as constants (wording from the design; D5 interpolates the instruction).
+  - [x] Export pure `decideAdoptionNav(inputs)`:
     - `declined` → `not-adopting`.
     - `""` → `warn` (D2) when `conceptInstruction && conceptExists && !planningArtifactsExist`; else `not-adopting`.
     - `in_progress` → `warn` (D5) when not `conceptInstruction`; otherwise D4's table in order: existing-state plan → `record-completion`; no concept → `concept`; no architecture → `architecture`; else `existing-state-plan`.
     - `complete` → D6's table in order: no existing-state plan → `warn`; no registered plan → `register-plan`; registered plan is the existing-state plan (compare resolved absolute paths) and no open entry → `plan-new-work`; else `adopted`.
-  - [ ] Switch on the state exhaustively (no default branch that hides a new state).
-  - [ ] Success: `pnpm typecheck` passes; the file has no I/O imports in the decide path.
+  - [x] Switch on the state exhaustively (no default branch that hides a new state).
+  - [x] Success: `pnpm typecheck` passes; the file has no I/O imports in the decide path.
 
-- [ ] **Task 4T: `decideAdoptionNav` tests** (effort: 3)
-  - [ ] Add `packages/core/tests/introspection/adoptionNavigation.decide.test.ts` with an inputs factory (defaults: empty fields). One test per row:
+- [x] **Task 4T: `decideAdoptionNav` tests** (effort: 3)
+  - [x] Add `packages/core/tests/introspection/adoptionNavigation.decide.test.ts` with an inputs factory (defaults: empty fields). One test per row:
     1. `declined` with every input set → `not-adopting`.
     2. `""`: Phase 0 + concept + no artifacts → `warn` with the D2 text; with artifacts → `not-adopting`; no concept → `not-adopting`; not Phase 0 → `not-adopting`.
     3. `in_progress` at Phase 0: each D4 row, including plan present with no concept → `record-completion` (row 1 wins).
     4. D4 order pin: the three artifact steps in sequence are `concept`, `architecture`, `existing-state-plan` as artifacts are added one by one.
     5. `in_progress` not Phase 0 → `warn` containing the instruction and `cf set phase 'Phase 0: Concept'`.
     6. `complete`: each D6 row, plus a registered plan different from the existing-state plan with no open entry → `adopted`.
-  - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: add the adoption navigation decision`
+  - [x] Success: the new tests pass.
+  - [x] Commit: `feat: add the adoption navigation decision`
 
-- [ ] **Task 5: `buildAdoptionStepAction` (R6)** (effort: 2)
-  - [ ] Export pure `buildAdoptionStepAction(step, inputs): NextAction` from `adoptionNavigation.ts`, switching exhaustively on the step:
+- [x] **Task 5: `buildAdoptionStepAction` (R6)** (effort: 2)
+  - [x] Export pure `buildAdoptionStepAction(step, inputs): NextAction` from `adoptionNavigation.ts`, switching exhaustively on the step:
     - D4 steps: recommendation from D4's table, `suggestedCommand: 'cf build'`, rationale says `cf build` assembles the brownfield adoption prompt, which resumes from the artifacts that exist, and gives `cf config set adoption.state declined`. No `phase` field.
     - `register-plan`: D6 text; `cf set arch {archStem}` when an architecture path shares the plan's index, else `cf set plan {planStem}`. Stems are file names without `.md`.
     - `plan-new-work`: D6 text with `{planStem}`, `suggestedCommand: "cf set phase 'Phase 3: Slice Planning'"`, rationale per D6.
-  - [ ] Every action carries a `summary`, like the existing actions.
-  - [ ] Success: `pnpm typecheck` passes.
+  - [x] Every action carries a `summary`, like the existing actions.
+  - [x] Success: `pnpm typecheck` passes.
 
-- [ ] **Task 5T: Step action tests** (effort: 2)
-  - [ ] In `packages/core/tests/introspection/adoptionNavigation.actions.test.ts`:
+- [x] **Task 5T: Step action tests** (effort: 2)
+  - [x] In `packages/core/tests/introspection/adoptionNavigation.actions.test.ts`:
     1. Each D4 step: exact recommendation, command `cf build`, `phase` undefined, no `cf set phase` anywhere in the action.
     2. `register-plan` with `100-arch.existing.md` and `100-slices.existing.md` → `cf set arch 100-arch.existing`; with arch 100 and plan 200 → `cf set plan 200-slices.x`.
     3. `plan-new-work` → command `cf set phase 'Phase 3: Slice Planning'`, recommendation names the plan stem.
-  - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: add adoption step actions`
+  - [x] Success: the new tests pass.
+  - [x] Commit: `feat: add adoption step actions`
 
 ### Gathering inputs and navigator wiring (Development Approach step 3)
 
-- [ ] **Task 6: Navigator refactors: share `findFirstNotCompleteEntry` (R5), extract `gateBlockAction`** (effort: 2)
-  - [ ] Move the private `findFirstNotCompleteEntry` from `WorkflowNavigator.ts` to an exported function in `introspection/statusDerivation.ts`, body and doc comment unchanged. Update the navigator's call sites.
-  - [ ] In `WorkflowNavigator.ts`, extract the existing arch gate's `GateResult` → `NextAction` mapping (the `pending-review` and `review-failed` returns in the no-active-slice guard) into a private `gateBlockAction(gate, archIndex): NextAction | null` (null when `isBlockingGate` is false). The existing arch gate calls it; text unchanged.
-  - [ ] Success: `pnpm typecheck` passes; all `WorkflowNavigator.*.test.ts` pass unchanged.
-  - [ ] Commit: `refactor: share findFirstNotCompleteEntry and extract gateBlockAction`
+- [x] **Task 6: Navigator refactors: share `findFirstNotCompleteEntry` (R5), extract `gateBlockAction`** (effort: 2)
+  - [x] Move the private `findFirstNotCompleteEntry` from `WorkflowNavigator.ts` to an exported function in `introspection/statusDerivation.ts`, body and doc comment unchanged. Update the navigator's call sites.
+  - [x] In `WorkflowNavigator.ts`, extract the existing arch gate's `GateResult` → `NextAction` mapping (the `pending-review` and `review-failed` returns in the no-active-slice guard) into a private `gateBlockAction(gate, archIndex): NextAction | null` (null when `isBlockingGate` is false). The existing arch gate calls it; text unchanged.
+  - [x] Success: `pnpm typecheck` passes; all `WorkflowNavigator.*.test.ts` pass unchanged.
+  - [x] Commit: `refactor: share findFirstNotCompleteEntry and extract gateBlockAction`
 
 - [ ] **Task 7: Adoption fixture helper** (effort: 2)
   - [ ] Add `packages/core/tests/helpers/adoptionFixtures.ts`: creates a temp checkout with `.context-forge.toml` holding a given `adoption.state` (or none), and options to add `000-concept.*.md`, a `100-arch.existing.md` (`provenance: derived`), a `100-slices.existing.md` (entries given as retroactive/new, real marker format) and an unrelated plan. Returns the path and a `ProjectData` builder taking `instruction`, `developmentPhase`, `fileArch`, `fileSlicePlan`, `fileSlice`.
