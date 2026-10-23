@@ -87,7 +87,7 @@ export function createAdoptionFixture(options: AdoptionFixtureOptions = {}): Ado
   return {
     root,
     project: (overrides = {}) => ({
-      id: 'adoption-1',
+      id: 'project_adoption',
       name: 'scratch-project',
       template: 'default',
       instruction: 'Phase 0: Concept',

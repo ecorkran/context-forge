@@ -156,28 +156,28 @@ revision_number: 2
   - [x] Success: `pnpm typecheck` passes; all `WorkflowNavigator.*.test.ts` pass unchanged.
   - [x] Commit: `refactor: share findFirstNotCompleteEntry and extract gateBlockAction`
 
-- [ ] **Task 7: Adoption fixture helper** (effort: 2)
-  - [ ] Add `packages/core/tests/helpers/adoptionFixtures.ts`: creates a temp checkout with `.context-forge.toml` holding a given `adoption.state` (or none), and options to add `000-concept.*.md`, a `100-arch.existing.md` (`provenance: derived`), a `100-slices.existing.md` (entries given as retroactive/new, real marker format) and an unrelated plan. Returns the path and a `ProjectData` builder taking `instruction`, `developmentPhase`, `fileArch`, `fileSlicePlan`, `fileSlice`.
-  - [ ] Valid frontmatter on every written document (copy the shape from `WorkflowNavigator.retroactive.test.ts`).
-  - [ ] Success: `pnpm typecheck` passes; Tasks 8T, 9T and 10 use this helper.
-  - [ ] Commit: `test: add adoption fixture helper`
+- [x] **Task 7: Adoption fixture helper** (effort: 2)
+  - [x] Add `packages/core/tests/helpers/adoptionFixtures.ts`: creates a temp checkout with `.context-forge.toml` holding a given `adoption.state` (or none), and options to add `000-concept.*.md`, a `100-arch.existing.md` (`provenance: derived`), a `100-slices.existing.md` (entries given as retroactive/new, real marker format) and an unrelated plan. Returns the path and a `ProjectData` builder taking `instruction`, `developmentPhase`, `fileArch`, `fileSlicePlan`, `fileSlice`.
+  - [x] Valid frontmatter on every written document (copy the shape from `WorkflowNavigator.retroactive.test.ts`).
+  - [x] Success: `pnpm typecheck` passes; Tasks 8T, 9T and 10 use this helper.
+  - [x] Commit: `test: add adoption fixture helper`
 
-- [ ] **Task 8: `gatherAdoptionInputs` (R4) and `computeNext` routing (D1)** (effort: 4)
-  - [ ] Export `gatherAdoptionInputs(project, status, conceptExists): Promise<AdoptionNavInputs>` from `adoptionNavigation.ts`, reading only what the state needs (Data Flow):
+- [x] **Task 8: `gatherAdoptionInputs` (R4) and `computeNext` routing (D1)** (effort: 4)
+  - [x] Export `gatherAdoptionInputs(project, status, conceptExists): Promise<AdoptionNavInputs>` from `adoptionNavigation.ts`, reading only what the state needs (Data Flow):
     - Always: `readAdoptionState(projectPath)` (errors propagate, D7); `instruction` and `conceptInstruction` (`resolvePhaseValue(project.instruction) === CONCEPT_PHASE`).
     - `declined`: nothing more.
     - `""`: `findPlanningArtifacts` only when `conceptInstruction && conceptExists`.
     - `in_progress` / `complete`: `findArchitectureArtifacts`, `findExistingStatePlan`; `registeredPlanPath` from `resolveArtifactPath('fileSlicePlan', …)` joined to the checkout, null if unset or `pathPresent` is false; `registeredPlanHasOpenEntry` from `findFirstNotCompleteEntry(status.slicePlan?.entries ?? [])` when the registered plan is the existing-state plan.
-  - [ ] In `computeNext`'s no-active-slice guard, after the existing arch gate and before `detectFirstRunContext`, call `gatherAdoptionInputs(project, status, conceptExists)` and `decideAdoptionNav`, then switch exhaustively:
+  - [x] In `computeNext`'s no-active-slice guard, after the existing arch gate and before `detectFirstRunContext`, call `gatherAdoptionInputs(project, status, conceptExists)` and `decideAdoptionNav`, then switch exhaustively:
     - `not-adopting` → today's flow.
     - `warn` → push the warning onto `navWarnings`; today's flow. Make sure the warning reaches every first-run return (today only the final fall-through attaches `navWarnings`; attach them where the first-run action is returned too, without changing output when `navWarnings` is empty).
     - `recommend` → return `buildAdoptionStepAction(step, inputs)` with `navWarnings` attached when non-empty. (Task 9 adds the arch gate for `existing-state-plan`.)
     - `adopted` → skip `detectFirstRunContext`; continue to the existing fall-through.
-  - [ ] No write anywhere in this path (D3).
-  - [ ] Success: `pnpm typecheck` and `pnpm lint` pass; all existing navigator tests pass unchanged.
+  - [x] No write anywhere in this path (D3).
+  - [x] Success: `pnpm typecheck` and `pnpm lint` pass; all existing navigator tests pass unchanged.
 
-- [ ] **Task 8T: Navigator adoption tests** (effort: 4)
-  - [ ] Add `packages/core/tests/introspection/WorkflowNavigator.adoption.test.ts` using Task 7's helper, one test per Functional Requirements bullet. These tests cover `gatherAdoptionInputs` through the navigator:
+- [x] **Task 8T: Navigator adoption tests** (effort: 4)
+  - [x] Add `packages/core/tests/introspection/WorkflowNavigator.adoption.test.ts` using Task 7's helper, one test per Functional Requirements bullet. These tests cover `gatherAdoptionInputs` through the navigator:
     1. Declined and unset: for no phase, Phase 0 with and without concept, Phases 1–3, `getNext` equals the same fixture with no `[adoption]` section, except unset + Phase 0 + concept + no planning artifact, which adds exactly the D2 warning; with a planning artifact, no warning.
     2. `in_progress` at Phase 0 (gating off): steps `concept`, `architecture`, `existing-state-plan`, `record-completion` from their fixtures; no action has `phase` set or mentions `cf set phase`.
     3. `in_progress` at Phase 2 → today's Phase 2 recommendation plus the D5 warning.
@@ -186,17 +186,18 @@ revision_number: 2
     6. Read-only: `.context-forge.toml` bytes and the `ProjectData` object are unchanged after `getNext` in every fixture above.
     7. Out-of-enum `adoption.state` → `getNext` rejects with the `readAdoptionState` message (D7).
     8. `complete` with `fileSlicePlan` set to a missing file → `register-plan` (registered plan treated as absent).
-  - [ ] Success: the new tests pass.
-  - [ ] Commit: `feat: route cf next through adoption navigation`
+  - [x] Success: the new tests pass.
+  - [x] Commit: `feat: route cf next through adoption navigation`
 
-- [ ] **Task 9: Arch gate before `existing-state-plan` (D4)** (effort: 2)
-  - [ ] In the `recommend` branch from Task 8, for step `existing-state-plan` only: evaluate `preSlicePlan` for the index of `architecturePaths[0]` (`extractSliceIndex` on its stem) and return `gateBlockAction`'s action if it blocks; otherwise continue as in Task 8.
-  - [ ] Success: `pnpm typecheck` passes; Task 8T tests still pass; `WorkflowNavigator.ts` grows by no more than ~40 lines across Tasks 8 and 9.
+- [x] **Task 9: Arch gate before `existing-state-plan` (D4)** (effort: 2)
+  - [x] In the `recommend` branch from Task 8, for step `existing-state-plan` only: evaluate `preSlicePlan` for the index of `architecturePaths[0]` (`extractSliceIndex` on its stem) and return `gateBlockAction`'s action if it blocks; otherwise continue as in Task 8.
+  - [x] Success: `pnpm typecheck` passes; Task 8T tests still pass; `WorkflowNavigator.ts` grows by no more than ~40 lines across Tasks 8 and 9.
+    - Note: `WorkflowNavigator.ts` grew by about 60 lines (net) across Tasks 8 and 9, after Task 6's removal of the moved method.
 
-- [ ] **Task 9T: Arch gate test** (effort: 1)
-  - [ ] In `WorkflowNavigator.adoption.test.ts`: `in_progress` at Phase 0 with concept and `100-arch.existing.md`, review gating on (`makeStubConfig(GATE_ENABLED_DEFAULTS)`), no arch review → "Review required before creating the slice plan" naming architecture 100.
-  - [ ] Success: the new test passes.
-  - [ ] Commit: `feat: gate the existing-state-plan step on the derived architecture review`
+- [x] **Task 9T: Arch gate test** (effort: 1)
+  - [x] In `WorkflowNavigator.adoption.test.ts`: `in_progress` at Phase 0 with concept and `100-arch.existing.md`, review gating on (`makeStubConfig(GATE_ENABLED_DEFAULTS)`), no arch review → "Review required before creating the slice plan" naming architecture 100.
+  - [x] Success: the new test passes.
+  - [x] Commit: `feat: gate the existing-state-plan step on the derived architecture review`
 
 ### Surfaces and verification (Development Approach step 4)
 
