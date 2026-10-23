@@ -36,6 +36,8 @@ const MILLIS_PER_SECOND = 1000;
 const BYTES_PER_MIB = 1024 * 1024;
 const MIN_FENCE_LENGTH = 3;
 const JSON_INDENT = '  ';
+/** Nested bullets must indent at least the width of the parent `- ` marker. */
+const LIST_INDENT = '  ';
 
 /** D2: the one place a probe failure becomes text. */
 function describeUnavailableReason(reason: ProbeUnavailableReason): string {
@@ -63,14 +65,16 @@ function describeUnavailableReason(reason: ProbeUnavailableReason): string {
 
 /** A fence one backtick longer than the longest backtick run in the text, so it cannot close early. */
 function fenceFor(text: string): string {
-  const longestRun = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  // A loop, not Math.max(...runs): spreading one argument per run overflows the call stack on large input.
+  let longestRun = 0;
+  for (const run of text.match(/`+/g) ?? []) longestRun = Math.max(longestRun, run.length);
   return '`'.repeat(Math.max(MIN_FENCE_LENGTH, longestRun + 1));
 }
 
 function renderProbeWarnings(warnings: readonly string[]): string[] {
   const label = '- Probe warnings (stderr, verbatim):';
   if (warnings.length === 0) return [`${label} none`];
-  return [label, ...warnings.map((line) => `${JSON_INDENT}- ${line}`)];
+  return [label, ...warnings.map((line) => `${LIST_INDENT}- ${line}`)];
 }
 
 /** D6: the squadron part of the section, as ready-made bullet lines. */

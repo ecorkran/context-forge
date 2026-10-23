@@ -155,4 +155,10 @@ describe('renderSquadronFacts', () => {
     const four = renderSquadronFacts({ kind: 'available', json: '{"a":"````"}', warnings: [] });
     expect(four[1]).toBe('  `````json');
   });
+
+  it('fences JSON with hundreds of thousands of backtick runs without overflowing the stack', () => {
+    const json = `{"a":"${'` '.repeat(300_000)}"}`;
+    const lines = renderSquadronFacts({ kind: 'available', json, warnings: [] });
+    expect(lines[1]).toBe('  ```json');
+  });
 });
