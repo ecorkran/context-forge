@@ -251,3 +251,31 @@ describe('cf list arch — derived status display (slice 911)', () => {
     expect(parsed[0].status).toBe('degraded');
   });
 });
+
+describe('cf list slices — retroactive entries (slice 263 D8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  it('--json carries retroactive: true for a marked entry and false for an ordinary one', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cf-list-slices-retro-'));
+    writeSlicePlan(
+      root,
+      '800-slices.scratch.md',
+      '1. [x] **(100) Existing System** `retroactive` — built before adoption.\n2. [ ] **(101) New Work** — not started.',
+    );
+    mockGetById.mockResolvedValue(makeProject(root, { fileSlicePlan: '800-slices.scratch' }));
+
+    await sliceListAction({ json: true });
+
+    const parsed = JSON.parse(vi.mocked(process.stdout.write).mock.calls[0]?.[0] as string);
+    expect(parsed.entries.map((e: { index: number; retroactive: boolean }) => [e.index, e.retroactive])).toEqual([
+      [100, true],
+      [101, false],
+    ]);
+    expect(parsed.entries[0].status).toBe('complete');
+  });
+});

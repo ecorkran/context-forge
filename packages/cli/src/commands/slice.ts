@@ -172,6 +172,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
         index: e.index,
         name: e.name,
         isChecked: e.isChecked,
+        retroactive: e.retroactive,
         designFile: e.designFile,
         status: e.derivedStatus,
         isActive: e.isActive,
@@ -185,7 +186,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
   console.log(label(`\nSlice Plan: ${planName}`));
 
   const rows = entries.map((e) => {
-    const status = renderEntryStatus(e.derivedStatus, e.isChecked);
+    const status = renderEntryStatus(e.derivedStatus, e.isChecked, e.retroactive);
     const file = e.designFile
       ? dim(e.designFile.split('/').pop() ?? e.designFile)
       : dim('—');

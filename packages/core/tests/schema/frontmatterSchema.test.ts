@@ -545,3 +545,31 @@ describe('validateFrontmatter — review field (#57, slice 911; renamed from cod
     expect(findings[0].description).toContain('Invalid value');
   });
 });
+
+describe('validateFrontmatter — architecture provenance field (slice 263 D7)', () => {
+  const baseArchitecture = {
+    docType: 'architecture',
+    project: 'test',
+    status: 'complete',
+    archIndex: '100',
+    component: 'existing-system',
+    dateCreated: '20261023',
+    dateUpdated: '20261023',
+  };
+
+  it('provenance: derived validates', () => {
+    expect(validateFrontmatter('/test.md', { ...baseArchitecture, provenance: 'derived' })).toHaveLength(0);
+  });
+
+  it('an unrecognized provenance value yields an invalid-value finding naming provenance', () => {
+    const findings = validateFrontmatter('/test.md', { ...baseArchitecture, provenance: 'guessed' });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].rule).toBe('frontmatter-schema');
+    expect(findings[0].description).toContain('provenance');
+    expect(findings[0].description).toContain("'guessed'");
+  });
+
+  it('an architecture without provenance validates', () => {
+    expect(validateFrontmatter('/test.md', baseArchitecture)).toHaveLength(0);
+  });
+});

@@ -11,8 +11,10 @@ export type DisplayStatus = NormalizedStatus | 'degraded';
  * derived-complete-but-unchecked one (tasks done, awaiting sign-off) — this
  * is presentation only; callers must branch on the underlying NormalizedStatus,
  * never on this rendered label (CLAUDE.md: labels are not logical structure).
+ * A checked retroactive entry (slice 263 D8) reads `✓ retroactive`, so the list does not
+ * present recorded history as reviewed work.
  */
-export function renderEntryStatus(status: DisplayStatus, isChecked: boolean): string {
+export function renderEntryStatus(status: DisplayStatus, isChecked: boolean, retroactive = false): string {
   if (status === 'degraded') return warn('⚠ unreadable');
   switch (status) {
     case STATUS.Deprecated:
@@ -20,7 +22,8 @@ export function renderEntryStatus(status: DisplayStatus, isChecked: boolean): st
     case STATUS.Deferred:
       return dim('⏸ deferred');
     case STATUS.Complete:
-      return isChecked ? success('✓ complete') : success('● tasks done');
+      if (!isChecked) return success('● tasks done');
+      return success(retroactive ? '✓ retroactive' : '✓ complete');
     case STATUS.InProgress:
       return warn('◐ in progress');
     case STATUS.NotStarted:

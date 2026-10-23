@@ -60,6 +60,9 @@ export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
       component: { required: true },
       dateCreated: { required: true },
       dateUpdated: { required: true },
+      // Marks an architecture derived from an existing system (slice 263 D7).
+      // Informational only: no behavior branches on it; this entry just rejects misspellings.
+      provenance: { required: false, values: ['derived'] },
     },
   },
   'slice-plan': {
