@@ -9,7 +9,7 @@ dependencies:
 interfaces:
 - 265
 dateCreated: 20261020
-dateUpdated: 20261020
+dateUpdated: 20261023
 status: not_started
 turns: 21
 promptTokens: 1513735
@@ -69,9 +69,9 @@ Excluded:
 
 ### Interfaces Required
 - **Phase 0 test:** `resolvePhaseValue(project.instruction) === CONCEPT_PHASE`, the exact comparison 261's resolver makes, built from the same two exports. No new helper and no edit to 261's resolver.
-- **`findArchitectureArtifacts(root): Promise<string[]>`**, additive in `detection/planningArtifacts.ts` beside `findPlanningArtifacts`. It uses the same `nnn-arch` / `nnn-hld` filename constants, so no pattern is duplicated, and returns matches sorted by index. `findPlanningArtifacts` is unchanged.
-- **`findExistingStatePlan(checkoutPath): Promise<string | null>`**, new in `introspection/parsers/` (D8). After it lands, 263's `completeAdoptionIfPlanRecorded` calls it instead of its inline scan, with no change to that function's signature or behavior, so the "existing-state plan" rule lives in one place. This is the only edit to another slice's code.
-- Existing: `conceptDocExists`, `findFirstNotCompleteEntry`, `evaluateGate`, `resolveArtifactPath`, `extractSliceIndex` in the navigator.
+- **`findArchitectureArtifacts(root): Promise<string[]>`**, additive in `detection/planningArtifacts.ts` beside `findPlanningArtifacts`. The one combined `ARCH_FILE_PATTERN` is split into exported `ARCHITECTURE_FILE_PATTERN` (arch, hld) and `SLICE_PLAN_FILE_PATTERN` (slices), so no pattern is duplicated (R2). It returns matches sorted by file-name index, then full path (R3). `findPlanningArtifacts` results are unchanged.
+- **`findExistingStatePlan(checkoutPath): Promise<string | null>`**, new in `introspection/parsers/` (D8). 263's `findRecordedPlan` (the function `completeAdoptionIfPlanRecorded` and the resolver both call) delegates to it instead of its inline scan, with no change to either 263 export's signature, so the "existing-state plan" rule lives in one place (R1). This is the only edit to another slice's code, besides the pattern split above.
+- Existing: `conceptDocExists`, `evaluateGate`, `resolveArtifactPath`, `extractSliceIndex` in the navigator. `findFirstNotCompleteEntry` moves from a private navigator method to an exported function in `statusDerivation.ts`, unchanged (R5).
 
 ## Architecture
 
@@ -80,8 +80,9 @@ Excluded:
 ```
 packages/core/src/introspection/
   adoptionNavigation.ts         new
-    gatherAdoptionInputs(project, status) → Promise<AdoptionNavInputs>     (I/O)
-    decideAdoptionNav(inputs) → AdoptionNav                                (pure)
+    gatherAdoptionInputs(project, status, conceptExists) → Promise<AdoptionNavInputs>   (I/O)
+    decideAdoptionNav(inputs) → AdoptionNav                                             (pure)
+    buildAdoptionStepAction(step, inputs) → NextAction                                  (pure)
   parsers/existingStatePlan.ts  new: findExistingStatePlan                 (D8)
   WorkflowNavigator.ts          computeNext: call in the no-active-slice guard; gateBlockAction helper
 packages/core/src/detection/
@@ -100,7 +101,7 @@ cf next / workflow_next → nav.getNext(project)       (project.projectPath is t
     getStatus                                         unchanged
     GUARD no-active-slice
       existing arch gate (project.fileArch)           unchanged; now via gateBlockAction
-      gatherAdoptionInputs(project, status)
+      gatherAdoptionInputs(project, status, conceptExists)
         readAdoptionState(projectPath)
         'declined' → stop
         ''         → Phase 0 test, conceptDocExists, findPlanningArtifacts (D2), then stop
@@ -123,6 +124,16 @@ cf next / workflow_next → nav.getNext(project)       (project.projectPath is t
 No new state. The navigator reads `adoption.state` and the filesystem, and writes nothing (D3). The transitions remain 261's and 263's.
 
 ## Technical Decisions
+
+### Resolutions (task breakdown)
+PM-approved with the task breakdown (`264-tasks.brownfield-aware-cf-next.md`). They close gaps between this design and the code as built by 261 and 263; they do not change any Decision below.
+- **R1:** the swap point is 263's `findRecordedPlan`, which delegates to `findExistingStatePlan`.
+- **R2:** `ARCH_FILE_PATTERN` is split into `ARCHITECTURE_FILE_PATTERN` and `SLICE_PLAN_FILE_PATTERN`.
+- **R3:** `findArchitectureArtifacts` and `findExistingStatePlan` order by file-name index, then path.
+- **R4:** `gatherAdoptionInputs` takes `conceptExists` from the navigator.
+- **R5:** `findFirstNotCompleteEntry` becomes an exported function in `statusDerivation.ts`.
+- **R6:** `buildAdoptionStepAction` lives in `adoptionNavigation.ts`; the navigator runs the D4 arch gate.
+- **R7:** the transitive parsers → `adoption/contracts.ts` import is accepted (see D8).
 
 ### D1 — Where adoption routing sits in `computeNext`
 Status: decided
@@ -225,6 +236,7 @@ Status: decided
   - files `packages/core/src/introspection/parsers/**`: forbid `**/adoption/**`.
   
   Lint runs in pre-commit and CI, so a later upward import fails the build rather than relying on review.
+- **Transitive import (R7).** `parsers/existingStatePlan.ts` imports `detection/planningArtifacts.ts`, which imports `adoption/contracts.ts` (a type-only leaf plus `AdoptionError`). There is no runtime cycle, and the lint rule checks direct imports only, so this passes. It is accepted rather than worked around.
 - Rejected: injecting an adoption port into `WorkflowNavigator`. It removes the import, but changes the constructor at every call site (CLI, MCP and over 60 test constructions) for a direction the lint rule already guarantees.
 
 ### Patterns and Conventions
@@ -247,8 +259,17 @@ export interface AdoptionNavInputs {
   registeredPlanPath: string | null;      // fileSlicePlan resolved, file present
   registeredPlanHasOpenEntry: boolean;    // only meaningful when registered === existing-state plan
 }
-export function gatherAdoptionInputs(project: ResolvedProject, status: WorkflowStatus): Promise<AdoptionNavInputs>;
+// conceptExists is the value computeNext already has from conceptDocExists (R4).
+export function gatherAdoptionInputs(project: ResolvedProject, status: WorkflowStatus, conceptExists: boolean): Promise<AdoptionNavInputs>;
 export function decideAdoptionNav(inputs: AdoptionNavInputs): AdoptionNav;
+// Pure: step texts and their assembly live here; the navigator runs the D4 arch gate itself (R6).
+export function buildAdoptionStepAction(step: AdoptionNavStep, inputs: AdoptionNavInputs): NextAction;
+
+// introspection/statusDerivation.ts
+// Moved unchanged from a private WorkflowNavigator method; shared with gatherAdoptionInputs (R5).
+export function findFirstNotCompleteEntry(
+  entries: ResolvedSlicePlanEntry[],
+): { entry: ResolvedSlicePlanEntry; status: DisplayStatus } | undefined;
 
 // introspection/parsers/existingStatePlan.ts
 // The first slice plan, by index, with at least one retroactive entry.
