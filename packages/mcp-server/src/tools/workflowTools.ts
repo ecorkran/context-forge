@@ -125,7 +125,7 @@ export function registerWorkflowTools(server: McpServer): void {
       description:
         'Get the current workflow status for a project. Returns project phase, active slice status ' +
         '(needs-design, needs-tasks, in-implementation, complete), task progress, and slice plan overview. ' +
-        'Response shape: { project, phase, activeSlice: { name, index, status, taskProgress? }, slicePlan?, summary }.',
+        'Response shape: { project, phase, activeSlice: { name, index, status, taskProgress?, retroactive? }, slicePlan?, summary }.',
       inputSchema: {
         projectId: z
           .string()

@@ -8,9 +8,12 @@ import {
   evaluateVerdict,
   resolveGateConfig,
   evaluateReviewGate,
+  evaluateEntryGate,
   evaluateExemption,
   isBlockingGate,
   EXEMPT_REASON,
+  RETROACTIVE_NOTE,
+  RETROACTIVE_SKIP_REASON,
   type Boundary,
   type GateEvaluation,
   type GateResult,
@@ -19,6 +22,7 @@ import {
   type StandInPolicy,
 } from '../../src/introspection/reviewGate.js';
 import type { ConfigManager } from '../../src/config/ConfigManager.js';
+import type { SlicePlanEntry } from '../../src/introspection/types.js';
 import { makeStubConfig } from '../helpers/stubConfig.js';
 
 const PROJECT_ROOT = join(__dirname, '..', 'fixtures', 'introspection', 'project');
@@ -401,5 +405,73 @@ describe('isBlockingGate', () => {
     expect(isBlockingGate({ status: 'exempt', reason: EXEMPT_REASON.ReviewNone, rationale: '' })).toBe(false);
     expect(isBlockingGate({ status: 'pending-review', reviewType: 'code', rationale: '' })).toBe(true);
     expect(isBlockingGate({ status: 'review-failed', reviewType: 'code', rationale: '' })).toBe(true);
+  });
+});
+
+describe('evaluateEntryGate (slice 263 D3)', () => {
+  const SLICE_SCOPED: Boundary[] = ['preTasks', 'preImplementation', 'preAdvance'];
+
+  function entryFor(index: number, retroactive: boolean): SlicePlanEntry {
+    return {
+      index,
+      name: 'entry',
+      status: 'complete',
+      isChecked: true,
+      lineIndex: 0,
+      indexSource: 'explicit',
+      retroactive,
+    };
+  }
+
+  it('skips a retroactive entry at every slice-scoped boundary: not clears, not exempt, not blocking', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    for (const boundary of SLICE_SCOPED) {
+      const result = await evaluateEntryGate(PROJECT_ROOT, entryFor(300, true), boundary, config);
+      expect(result).toMatchObject({ status: 'skipped', reason: RETROACTIVE_SKIP_REASON });
+      expect(result?.status).not.toBe('clears');
+      expect(result?.status).not.toBe('exempt');
+      expect(isBlockingGate(result)).toBe(false);
+    }
+  });
+
+  it('returns null for a retroactive entry when gating is off', async () => {
+    const config = makeStubConfig({ ...BASE_VALUES, 'workflow.review_enabled': false });
+    expect(await evaluateEntryGate(PROJECT_ROOT, entryFor(300, true), 'preAdvance', config)).toBeNull();
+  });
+
+  it('delegates a retroactive entry at preSlicePlan: the architecture gate still applies', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const result = asBlocking(await evaluateEntryGate(PROJECT_ROOT, entryFor(300, true), 'preSlicePlan', config));
+    expect(result.status).toBe('pending-review');
+    expect(result.reviewType).toBe('arch');
+  });
+
+  it.each([
+    ['pending', 300],
+    ['failed', 400],
+    ['clears', 401],
+  ])('gives a non-retroactive entry the evaluateReviewGate result (%s fixture)', async (_label, index) => {
+    const config = makeStubConfig(BASE_VALUES);
+    const viaEntry = await evaluateEntryGate(PROJECT_ROOT, entryFor(index, false), 'preAdvance', config);
+    const direct = await evaluateReviewGate(PROJECT_ROOT, index, 'preAdvance', config);
+    expect(viaEntry).toEqual(direct);
+  });
+
+  it('names the note and the entry index in the skipped rationale', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const result = await evaluateEntryGate(PROJECT_ROOT, entryFor(300, true), 'preTasks', config);
+    expect(result).toMatchObject({ status: 'skipped' });
+    const rationale = (result as { rationale: string }).rationale;
+    expect(rationale).toContain(RETROACTIVE_NOTE);
+    expect(rationale).toContain('300');
+  });
+
+  it('uses a pre-resolved gate without re-reading config', async () => {
+    const config = makeStubConfig(BASE_VALUES);
+    const resolved = await resolveGateConfig(config);
+    vi.mocked(config.get).mockClear();
+    const result = await evaluateEntryGate(PROJECT_ROOT, entryFor(300, true), 'preAdvance', config, resolved!);
+    expect(result?.status).toBe('skipped');
+    expect(config.get).not.toHaveBeenCalled();
   });
 });

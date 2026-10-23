@@ -37,6 +37,7 @@ import {
   isBlockingGate,
   resolveGateConfig,
   EXEMPT_NOTE,
+  RETROACTIVE_NOTE,
   EXEMPT_REASON,
   type Boundary,
   type ExemptReason,
@@ -137,13 +138,16 @@ export class WorkflowNavigator {
       return status;
     }
 
-    // Derive active slice status
-    status.activeSlice = await this.deriveSliceStatus(project, projectPath);
-
     // Parse slice plan if set. Per-entry resolution failures (TD-2a) are
     // collected here rather than thrown — #62: cf status must keep running.
+    // Parsed before the active slice is derived: a retroactive entry decides that status (R3).
     const warnings: string[] = [];
     status.slicePlan = await this.parseSlicePlanSafe(project, projectPath, warnings);
+
+    // Derive active slice status
+    const activeIndex = project.fileSlice ? extractSliceIndex(project.fileSlice) : null;
+    const planEntry = status.slicePlan?.entries.find((e) => e.index === activeIndex);
+    status.activeSlice = await this.deriveSliceStatus(project, projectPath, planEntry);
     this.dropInactiveSlice(status, warnings);
     if (warnings.length > 0) {
       status.warnings = warnings;
@@ -354,6 +358,9 @@ export class WorkflowNavigator {
       }
       if (slice.gateExempt) {
         result.rationale = `${result.rationale} (${EXEMPT_NOTE[slice.gateExempt]})`;
+      }
+      if (slice.retroactive) {
+        result.rationale = `${result.rationale} (${RETROACTIVE_NOTE})`;
       }
       return result;
     };
@@ -731,6 +738,7 @@ export class WorkflowNavigator {
   private async deriveSliceStatus(
     project: ProjectData,
     projectPath: string,
+    planEntry: Pick<SlicePlanEntry, 'retroactive'> | undefined,
   ): Promise<SliceStatus> {
     if (!project.fileSlice) {
       return { name: '', index: null, status: 'no-active-slice' };
@@ -742,6 +750,12 @@ export class WorkflowNavigator {
 
     if (index === null) {
       return base;
+    }
+
+    // Retroactive (R3): recorded history has no design or task file, so it would read
+    // needs-design. It is complete whether or not gating is on; no gate is evaluated.
+    if (planEntry?.retroactive) {
+      return { ...base, status: STATUS.Complete, retroactive: true };
     }
 
     // Note: no outer try/catch swallowing here. detectDocuments and

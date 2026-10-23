@@ -3,6 +3,7 @@ import type { ConfigManager } from '../config/ConfigManager.js';
 import { detectDocuments } from './parsers/documentDetector.js';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { classifyEvidence, describeWeakEvidence } from './reviewProvenance.js';
+import type { SlicePlanEntry } from './types.js';
 
 /** Frontmatter verdict vocabulary (uppercase, untrusted external data) */
 export type Verdict = 'PASS' | 'CONCERNS' | 'FAIL' | 'UNKNOWN';
@@ -204,6 +205,23 @@ export interface GateExemption {
   rationale: string;
 }
 
+/** Skip reason for a retroactive slice plan entry (D3). Single source of this token. */
+export const RETROACTIVE_SKIP_REASON = 'retroactive';
+
+/** Display text for the retroactive skip. The only place this text exists. */
+export const RETROACTIVE_NOTE = 'retroactive: recorded history, not reviewed';
+
+/**
+ * The gate skipped a retroactive entry: the work predates adoption and was never reviewed.
+ * Distinct from `clears` (nothing was reviewed) and `exempt` (the PM-only `review: none` and
+ * grandfathering). Not blocking.
+ */
+export interface GateSkip {
+  status: 'skipped';
+  reason: typeof RETROACTIVE_SKIP_REASON;
+  rationale: string;
+}
+
 /** A review part that cleared on weak provenance. */
 export interface WeakPart {
   /** Relative path (from projectPath) to the review part */
@@ -219,7 +237,7 @@ export interface GateClearance {
 }
 
 /** Outcome of evaluating one boundary while gating is on. */
-export type GateResult = GateClearance | GateExemption | GateEvaluation;
+export type GateResult = GateClearance | GateExemption | GateEvaluation | GateSkip;
 
 /** True when the result blocks progress (pending-review or review-failed). */
 export function isBlockingGate(result: GateResult | null): result is GateEvaluation {
@@ -336,4 +354,31 @@ export async function evaluateReviewGate(
     };
   }
   return { status: 'clears', weakParts };
+}
+
+/**
+ * Gate evaluation for a slice plan entry (D3). A retroactive entry is skipped at every
+ * slice-scoped boundary without reading any file; `preSlicePlan` gates the architecture,
+ * not an entry, so it always delegates. Everything else delegates to evaluateReviewGate
+ * unchanged. Returns null when gating is off. Called by the checker; the navigator tests
+ * `entry.retroactive` directly because a retroactive slice has no design file (R3).
+ */
+export async function evaluateEntryGate(
+  projectPath: string,
+  entry: SlicePlanEntry,
+  boundary: Boundary,
+  config: ConfigManager,
+  resolved?: ResolvedGate,
+): Promise<GateResult | null> {
+  const gate = resolved ?? (await resolveGateConfig(config));
+  if (gate === null) return null;
+
+  if (entry.retroactive && boundary !== 'preSlicePlan') {
+    return {
+      status: 'skipped',
+      reason: RETROACTIVE_SKIP_REASON,
+      rationale: `Slice ${entry.index} is ${RETROACTIVE_NOTE}.`,
+    };
+  }
+  return evaluateReviewGate(projectPath, entry.index, boundary, config, gate);
 }

@@ -369,6 +369,8 @@ export interface SliceStatus {
   pendingDecisions?: PendingDecision[];
   /** Set when gating is on and the slice is exempt from review (review-none only); getNext() appends its EXEMPT_NOTE to the rationale. */
   gateExempt?: ExemptReason;
+  /** Set (only when true) when the active slice is a retroactive plan entry: recorded history, complete, never gated. */
+  retroactive?: boolean;
   /** Set when status is 'pending-review' or 'review-failed'; carries the gate's rationale for getNext() to route without recomputing the gate. */
   gateInfo?: {
     reviewType: string;
