@@ -243,20 +243,21 @@ describe('ConsistencyChecker — widened review-gate coverage (slice 912 TD-3/TD
   });
 
   describe('error isolation (TD-5)', () => {
-    it('a throwing evaluateReviewGate() degrades to one error finding for that boundary, siblings still evaluate', async () => {
-      // evaluateReviewGate() never throws in practice today (parseFrontmatter/detectDocuments
+    it('a throwing gate evaluation degrades to one error finding for that boundary, siblings still evaluate', async () => {
+      // The gate never throws in practice today (parseFrontmatter/detectDocuments
       // are both lenient-by-design), so TD-5's isolation is exercised by forcing a throw at
       // the reviewGate module boundary — proving the safeEvaluateGate() wrapper holds even
-      // though nothing in the current codebase can trigger it organically.
-      const { evaluateReviewGate: real } = await vi.importActual<typeof import('../../src/introspection/reviewGate.js')>(
+      // though nothing in the current codebase can trigger it organically. Slice boundaries
+      // evaluate through evaluateEntryGate (slice 263), so that is the function forced to throw.
+      const { evaluateEntryGate: real } = await vi.importActual<typeof import('../../src/introspection/reviewGate.js')>(
         '../../src/introspection/reviewGate.js',
       );
-      const spy = vi.spyOn(await import('../../src/introspection/reviewGate.js'), 'evaluateReviewGate');
-      spy.mockImplementation(async (projectPath, index, boundary, config, resolved) => {
+      const spy = vi.spyOn(await import('../../src/introspection/reviewGate.js'), 'evaluateEntryGate');
+      spy.mockImplementation(async (projectPath, entry, boundary, config, resolved) => {
         if (boundary === 'preTasks') {
           throw new Error('simulated malformed review-gate frontmatter');
         }
-        return real(projectPath, index, boundary, config, resolved);
+        return real(projectPath, entry, boundary, config, resolved);
       });
 
       try {
