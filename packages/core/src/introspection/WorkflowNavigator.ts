@@ -8,7 +8,6 @@ import type {
   SlicePlanResult,
   TaskFileResult,
   SlicePlanEntry,
-  ResolvedSlicePlanEntry,
   NormalizedStatus,
   DisplayStatus,
 } from './types.js';
@@ -18,7 +17,7 @@ import { parseTaskFile } from './parsers/taskFileParser.js';
 import { detectDocuments } from './parsers/documentDetector.js';
 import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { normalizeStatus } from './parsers/statusNormalizer.js';
-import { deriveEntryStatus } from './statusDerivation.js';
+import { deriveEntryStatus, findFirstNotCompleteEntry } from './statusDerivation.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import {
   ARCHITECTURE_PHASE,
@@ -237,19 +236,8 @@ export class WorkflowNavigator {
         const archIndex = extractSliceIndex(project.fileArch);
         if (archIndex !== null) {
           const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
-          if (isBlockingGate(gate)) {
-            return gate.status === 'pending-review'
-              ? {
-                  recommendation: 'Review required before creating the slice plan',
-                  rationale: gate.rationale,
-                  summary: `Architecture ${archIndex} needs an ${gate.reviewType} review before the slice plan can be created`,
-                }
-              : {
-                  recommendation: `Blocked: review verdict does not clear threshold`,
-                  rationale: gate.rationale,
-                  summary: `Architecture ${archIndex} review does not clear — blocked before slice plan creation`,
-                };
-          }
+          const blocked = this.gateBlockAction(gate, archIndex);
+          if (blocked) return blocked;
         }
       }
 
@@ -303,7 +291,7 @@ export class WorkflowNavigator {
         };
       }
       // Slice plan exists but no active slice — suggest first not-yet-complete entry
-      const firstResult = this.findFirstNotCompleteEntry(status.slicePlan.entries);
+      const firstResult = findFirstNotCompleteEntry(status.slicePlan.entries);
       const firstEntry = firstResult?.entry;
       const sliceCmd = firstEntry ? `cf set slice ${firstEntry.index}` : 'cf set slice <index>';
       const sliceLabel = firstEntry ? `slice ${firstEntry.index}: ${firstEntry.name}` : 'your first slice';
@@ -443,7 +431,7 @@ export class WorkflowNavigator {
 
     // LIFECYCLE: complete-advance — slice complete → recommend next slice (not a phase)
     if (slice.status === 'complete' && status.slicePlan) {
-      const nextResult = this.findFirstNotCompleteEntry(status.slicePlan.entries);
+      const nextResult = findFirstNotCompleteEntry(status.slicePlan.entries);
       const nextEntry = nextResult?.entry;
       if (nextEntry) {
         const nextDerived = nextResult.status;
@@ -883,6 +871,25 @@ export class WorkflowNavigator {
   }
 
   /**
+   * The action for a blocking preSlicePlan gate on architecture `archIndex`, or null when the
+   * gate does not block. Shared by the project's arch gate and the adoption arch gate (264 D4).
+   */
+  private gateBlockAction(gate: GateResult | null, archIndex: number): NextAction | null {
+    if (!isBlockingGate(gate)) return null;
+    return gate.status === 'pending-review'
+      ? {
+          recommendation: 'Review required before creating the slice plan',
+          rationale: gate.rationale,
+          summary: `Architecture ${archIndex} needs an ${gate.reviewType} review before the slice plan can be created`,
+        }
+      : {
+          recommendation: `Blocked: review verdict does not clear threshold`,
+          rationale: gate.rationale,
+          summary: `Architecture ${archIndex} review does not clear — blocked before slice plan creation`,
+        };
+  }
+
+  /**
    * Parses a task file, returning null only when the file is genuinely
    * absent. A resolution failure (permission denied, EISDIR, etc.) is not
    * "absent" (TD-2a) and propagates rather than being coerced to null.
@@ -963,35 +970,6 @@ export class WorkflowNavigator {
       warnings.push(message);
       return 'degraded';
     }
-  }
-
-  /**
-   * Find the first plan entry whose derived status is not complete/deprecated/deferred.
-   * Replaces the old `entries.find((e) => !e.isChecked)` — the direct #56 fix:
-   * a slice with all tasks complete but an unchecked plan checkbox is no
-   * longer selected as "next unstarted". A degraded entry (TD-2a) counts as
-   * not-complete so it surfaces rather than being silently skipped. A deferred
-   * entry is a "not now" declaration, same as deprecated is a "not ever" one —
-   * neither should be offered as the next slice to work on.
-   *
-   * Reads the already-resolved `entry.status` (computed once by getStatus's
-   * parseSlicePlanSafe) rather than re-deriving via a second filesystem pass —
-   * avoids redundant I/O and, for a degraded entry, avoids pushing the same
-   * TD-2a warning into the caller's warnings list twice (#62).
-   */
-  private findFirstNotCompleteEntry(
-    entries: ResolvedSlicePlanEntry[],
-  ): { entry: ResolvedSlicePlanEntry; status: DisplayStatus } | undefined {
-    for (const entry of entries) {
-      if (
-        entry.status !== STATUS.Complete &&
-        entry.status !== STATUS.Deprecated &&
-        entry.status !== STATUS.Deferred
-      ) {
-        return { entry, status: entry.status };
-      }
-    }
-    return undefined;
   }
 
   private async parseSlicePlanSafe(

@@ -1,4 +1,4 @@
-import { STATUS, type NormalizedStatus } from './types.js';
+import { STATUS, type DisplayStatus, type NormalizedStatus, type ResolvedSlicePlanEntry } from './types.js';
 
 /**
  * Already-resolved signals for a single slice-plan entry. The caller is
@@ -43,4 +43,33 @@ export function deriveEntryStatus(signals: EntryStatusSignals): NormalizedStatus
     return signals.frontmatterStatus;
   }
   return signals.isChecked ? STATUS.Complete : STATUS.NotStarted;
+}
+
+/**
+ * Find the first plan entry whose derived status is not complete/deprecated/deferred.
+ * Replaces the old `entries.find((e) => !e.isChecked)` — the direct #56 fix:
+ * a slice with all tasks complete but an unchecked plan checkbox is no
+ * longer selected as "next unstarted". A degraded entry (TD-2a) counts as
+ * not-complete so it surfaces rather than being silently skipped. A deferred
+ * entry is a "not now" declaration, same as deprecated is a "not ever" one —
+ * neither should be offered as the next slice to work on.
+ *
+ * Reads the already-resolved `entry.status` (computed once by getStatus's
+ * parseSlicePlanSafe) rather than re-deriving via a second filesystem pass —
+ * avoids redundant I/O and, for a degraded entry, avoids pushing the same
+ * TD-2a warning into the caller's warnings list twice (#62).
+ */
+export function findFirstNotCompleteEntry(
+  entries: ResolvedSlicePlanEntry[],
+): { entry: ResolvedSlicePlanEntry; status: DisplayStatus } | undefined {
+  for (const entry of entries) {
+    if (
+      entry.status !== STATUS.Complete &&
+      entry.status !== STATUS.Deprecated &&
+      entry.status !== STATUS.Deferred
+    ) {
+      return { entry, status: entry.status };
+    }
+  }
+  return undefined;
 }
