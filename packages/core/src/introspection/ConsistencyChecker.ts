@@ -41,7 +41,7 @@ import {
   WEAK_PASS_KEY,
   type ResolvedGate,
 } from './reviewGate.js';
-import { retroactiveSkipFindings } from './retroactiveRules.js';
+import { retroactiveSkipFindings, ruleRetroactiveEntries } from './retroactiveRules.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -146,9 +146,12 @@ export class ConsistencyChecker {
     }
 
     // Retroactive entries are skipped by the gate; say so once per plan (D3)
+    const plansParsed = [...parsedPlans.values()];
     if (resolvedGate !== null) {
-      allFindings.push(...retroactiveSkipFindings([...parsedPlans.values()]));
+      allFindings.push(...retroactiveSkipFindings(plansParsed));
     }
+    // The marker's structural rules apply whether or not gating is on (D4)
+    allFindings.push(...await ruleRetroactiveEntries(projectPath, plansParsed));
 
     // Run aggregate rules (6-9) across all discovered slice plans
     for (const [planPath, planResult] of parsedPlans) {
