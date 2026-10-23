@@ -273,34 +273,40 @@ Every `switch` over `GateResult` and `AdoptionOutcome` stays exhaustive. Adding 
 
 ### Verification Walkthrough
 
-Use the local build: `alias cfl="node $PWD/packages/cli/dist/index.js"` from the repo root after `pnpm -r build`. Slice 261 must be implemented.
+Use the local build: `alias cfl="node $PWD/packages/cli/dist/index.js"` from the repo root after `pnpm -r build`. Slice 261 must be implemented. Verified 20261023 on a scratch git repository (2100 source lines, `cfl init --name walk263 --no-ide`, isolated `CONTEXT_FORGE_DATA_DIR`); outputs below are from that run.
 
-1. **Set up an adopted fixture.** In a scratch copy of a brownfield project at `adoption.state = in_progress` (261's walkthrough step 2 produces one), add `project-documents/user/architecture/100-arch.existing.md` with `provenance: derived`, and `100-slices.existing.md` with:
+1. **Set up an adopted fixture.** In the scratch project run `cfl config set adoption.state in_progress`, then add `project-documents/user/architecture/100-arch.existing.md` (frontmatter `docType: architecture`, `archIndex: 100`, `component: existing`, `provenance: derived`, plus `project`, `status`, `dateCreated`, `dateUpdated`) and `project-documents/user/architecture/100-slices.existing.md` with:
    ```markdown
    1. [x] **(100) Core Library** `retroactive` — parsing and storage as built.
    2. [x] **(101) CLI** `retroactive` — command surface as built.
    3. [ ] **(102) Export to CSV** — first new work.
    ```
-   Point the project at the plan with `cfl set plan project-documents/user/architecture/100-slices.existing.md`.
-2. **Adoption completes.**
+   Point the project at the plan with `cfl set plan project-documents/user/architecture/100-slices.existing.md` (cf normalizes it to `100-slices.existing`).
+2. **Adoption completes.** `cfl build` prints the context to stdout and the facts live inside it, so read them from the JSON form:
    ```bash
-   cfl build | sed -n '/### Adoption Facts/,/^### /p'
-   # expect: "adoption.state was set to complete by this build: existing-state slice plan found at ..."
-   cfl config get adoption.state      # expect: complete
+   cfl build --json | python3 -c "import sys,json; c=json.load(sys.stdin)['context']; i=c.index('### Adoption Facts'); print(c[i:i+700])"
+   cfl config get adoption.state
    ```
+   Expected facts: `- Outcome: adoption completed by this build` and `- adoption.state: complete. adoption.state was set to complete by this build: existing-state slice plan found at project-documents/user/architecture/100-slices.existing.md. Adoption is finished; run `cf next` for the next step.` Expected state: `Value:   complete`. A second `cfl build --json` has no `Adoption Facts` section.
 3. **Done checks and display.**
    ```bash
-   cfl list slices                    # expect: 100 and 101 "✓ retroactive", 102 next
-   cfl list slices --json | jq '.[] | {index, status, retroactive}'   # 100, 101: complete, true
+   cfl list slices
+   cfl list slices --json
    ```
-   (Adjust the `jq` path to the command's actual JSON envelope.)
+   Expected table: 100 and 101 `✓ retroactive`, 102 `○ not started` with `← next`. The JSON envelope is an object, not an array: `entries[]` carries `retroactive: true`, `status: "complete"` for 100 and 101, and `retroactive: false`, `status: "not_started"` for 102.
 4. **Gate skips, never reviews.**
    ```bash
    cfl config set workflow.review_enabled true
-   cfl check   # expect: one review-gate info "Slices 100–101 are retroactive ... not reviewed"; no pending-review for 100/101
+   cfl check
    ```
-5. **Loophole closed.** Create `project-documents/user/slices/101-slice.cli.md` and run `cfl check`. Expect a `retroactive-entry` error for slice 101 and a non-zero exit. Delete the file. Then append `4. [x] **(103) Later Work** `retroactive` — …` after the new entry 102 and run `cfl check`. Expect a `retroactive-entry` ordering error for 103. Remove the line.
-6. **Active retroactive slice.** `cfl set slice 100 && cfl next`. Expect a complete status with the retroactive note, and a recommendation to move on to 102.
+   Expected: one info, `Slices 100–101 are retroactive: recorded history, not reviewed. The review gate skips them.`, and no `pending-review` for 100 or 101. The output also has an architecture-gate warning (`Slice 100 requires a arch review before proceeding`) and, in this fixture, an architecture status warning. The derived architecture is ordinary process work (D7), so the architecture warning is expected.
+5. **Loophole closed.** `cf check` never sets a process exit code, so the signal is the error line and the summary count, not the exit status. Create `project-documents/user/slices/101-slice.cli.md` (any valid slice-design frontmatter) and run `cfl check`: expect `✗ Slice 101 is marked retroactive but has a slice design / task file (project-documents/user/slices/101-slice.cli.md)...` and a summary of `1 error`. Delete the file. Then append `4. [x] **(103) Later Work** `retroactive` — later.` after entry 102 and run `cfl check`: expect `✗ Slice 103 is marked retroactive but is indexed after new work (slice 102)`. Remove the line.
+6. **Active retroactive slice.** `cfl set slice 100 && cfl next`. Expected:
+   ```
+   Next:      Advance to slice 102: Export to CSV
+   Rationale: Current slice is complete. The next unstarted slice in the plan is 102: Export to CSV. (retroactive: recorded history, not reviewed)
+   Run:       cf set slice 102
+   ```
 
 ## Risk Assessment
 
