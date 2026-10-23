@@ -28,6 +28,7 @@ import { getProjectConfigPath, getProjectPersonalConfigPath } from '../config/co
 import {
   resolveGateConfig,
   evaluateReviewGate,
+  evaluateEntryGate,
   positionToReviewType,
   type Boundary,
   type GateEvaluation,
@@ -40,6 +41,7 @@ import {
   WEAK_PASS_KEY,
   type ResolvedGate,
 } from './reviewGate.js';
+import { retroactiveSkipFindings } from './retroactiveRules.js';
 
 /**
  * Extract numeric slice index from a fileSlice value like "165-slice.workflow-navigator".
@@ -141,6 +143,11 @@ export class ConsistencyChecker {
         finding.description = `[${entry.index}] ${finding.description}`;
       }
       allFindings.push(...sliceFindings);
+    }
+
+    // Retroactive entries are skipped by the gate; say so once per plan (D3)
+    if (resolvedGate !== null) {
+      allFindings.push(...retroactiveSkipFindings([...parsedPlans.values()]));
     }
 
     // Run aggregate rules (6-9) across all discovered slice plans
@@ -640,11 +647,13 @@ export class ConsistencyChecker {
     boundary: Boundary,
     resolvedGate: ResolvedGate,
     fallbackLocation: string,
+    planEntry: SlicePlanEntry | null = null,
   ): Promise<{ gate: GateResult | null; errorFinding: ConsistencyFinding | null }> {
     try {
-      const gate = await evaluateReviewGate(
-        projectPath, index, boundary, this.config!, resolvedGate,
-      );
+      // A plan entry may be retroactive (skipped, D3); an architecture has no entry.
+      const gate = planEntry
+        ? await evaluateEntryGate(projectPath, planEntry, boundary, this.config!, resolvedGate)
+        : await evaluateReviewGate(projectPath, index, boundary, this.config!, resolvedGate);
       return { gate, errorFinding: null };
     } catch (err) {
       const reviewType = positionToReviewType(boundary);
@@ -730,7 +739,7 @@ export class ConsistencyChecker {
       if (!guard) continue;
 
       const { gate: result, errorFinding } = await this.safeEvaluateGate(
-        projectPath, sliceIndex, boundary, resolvedGate, slicePlanPath,
+        projectPath, sliceIndex, boundary, resolvedGate, slicePlanPath, planEntry,
       );
       if (errorFinding) {
         findings.push(errorFinding);
