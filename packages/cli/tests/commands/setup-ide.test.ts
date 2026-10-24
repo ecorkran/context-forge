@@ -41,6 +41,7 @@ vi.mock('@context-forge/core/node', async (importOriginal) => {
     MANAGED_END_MARKER: actual.MANAGED_END_MARKER,
     GENERATED_MARKER: actual.GENERATED_MARKER,
     PREMANAGED_BACKUP_SUFFIX: actual.PREMANAGED_BACKUP_SUFFIX,
+    readRuleResolutions: vi.fn().mockReturnValue([]),
     FileProjectStore: vi.fn().mockImplementation(() => ({
       getAll: mockGetAll,
       getById: mockGetById,

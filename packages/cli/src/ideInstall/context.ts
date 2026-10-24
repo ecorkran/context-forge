@@ -20,6 +20,11 @@ export interface InstallContext {
   out: Printer;
   /** Shared across a dry run's sandbox install, so warnings see every match. */
   exclusions: RuleExclusions;
+  /**
+   * The rendered `## Project Rule Resolutions` section (slice 266), rendered once
+   * per run; `''` when there is no resolutions file or no live resolution.
+   */
+  resolutionsSection: string;
   manifest: InstallManifest;
 }
 

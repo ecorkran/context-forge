@@ -6,6 +6,7 @@ import type { ProjectData } from '@context-forge/core';
 import {
   ConfigManager,
   parseRulesExclude,
+  readRuleResolutions,
 } from '@context-forge/core/node';
 import { resolvePathedProject } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
@@ -93,6 +94,8 @@ async function installCheckout(guideDir: string, root: string, target: Target, f
     writeLint: flags.writeLint,
     force: flags.force,
     rulesExclude: await readRulesExclude(root),
+    // Read (and validated) before installIde runs, so a malformed file writes nothing.
+    ruleResolutions: readRuleResolutions(root),
     out: PROCESS_OUTPUT,
   });
   return exitCode;

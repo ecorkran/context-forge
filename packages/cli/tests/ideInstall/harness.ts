@@ -9,6 +9,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect } from 'vitest';
+import type { RuleResolution } from '@context-forge/core/node';
 import { normalizeTarget } from '../../src/commands/ideTargets.js';
 import { INSTALL_PATHS } from '../../src/ideInstall/dryRun.js';
 import { installIde } from '../../src/ideInstall/installer.js';
@@ -74,6 +75,8 @@ export function writeFiles(root: string, files: Record<string, FileContent>): vo
 export interface RunOptions {
   /** The rules.exclude patterns cf would pass. */
   rulesExclude?: readonly string[];
+  /** The stored rule resolutions cf would pass. */
+  ruleResolutions?: readonly RuleResolution[];
 }
 
 /**
@@ -102,6 +105,7 @@ export function run(
     writeLint: args.includes('--write-lint'),
     force: args.includes('--force'),
     rulesExclude: options.rulesExclude ?? [],
+    ruleResolutions: options.ruleResolutions ?? [],
     out: { stdout: (text) => (stdout += text), stderr: (text) => (stderr += text) },
   });
   return { args, code: result.exitCode, stdout, stderr, guide };

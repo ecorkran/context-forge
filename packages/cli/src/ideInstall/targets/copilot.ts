@@ -99,7 +99,7 @@ export function setupCopilot(ctx: InstallContext): void {
     outFile: path.join(ctx.targetRoot, '.github', INSTRUCTIONS_LABEL),
     label: INSTRUCTIONS_LABEL,
     h1: '',
-    trailing: '',
+    trailing: ctx.resolutionsSection,
     out,
   });
   if (!compiled) throw new InstallAbort(`${INSTRUCTIONS_LABEL} could not be compiled`);

@@ -15,11 +15,8 @@ const mockInstallCommandsAction = vi.fn();
 vi.mock('@context-forge/core/node', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@context-forge/core/node')>();
   return {
-    // Marker literals are re-exported from core by the cli modules.
-    MANAGED_BEGIN_MARKER: actual.MANAGED_BEGIN_MARKER,
-    MANAGED_END_MARKER: actual.MANAGED_END_MARKER,
-    GENERATED_MARKER: actual.GENERATED_MARKER,
-    PREMANAGED_BACKUP_SUFFIX: actual.PREMANAGED_BACKUP_SUFFIX,
+    // The cli modules import constants and helpers from core at load time.
+    ...actual,
     FileProjectStore: vi.fn().mockImplementation(() => ({
       getAll: mockGetAll,
       create: mockCreate,

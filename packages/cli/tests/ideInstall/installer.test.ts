@@ -45,6 +45,7 @@ describe('installIde error boundary', () => {
         writeLint: false,
         force: false,
         rulesExclude: [],
+        ruleResolutions: [],
         out: { stdout: bug, stderr: bug },
       });
     expect(install).toThrow('a bug');

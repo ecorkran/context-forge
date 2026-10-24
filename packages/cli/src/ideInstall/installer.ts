@@ -3,14 +3,23 @@
  * setup-ide and setup-ide-lint.sh (main, run_target_setup, install_target).
  */
 import * as path from 'node:path';
+import type { RuleResolution } from '@context-forge/core/node';
 import type { Target } from '../commands/ideTargets.js';
 import { InstallAbort, type InstallContext } from './context.js';
 import { dryRunInstall } from './dryRun.js';
 import { RuleExclusions } from './exclusions.js';
+import { isDirectory } from './fsChecks.js';
+import { guideRuleEntries } from './guideRules.js';
 import { checkLintConfigs } from './lint.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
+import {
+  classifyResolutions,
+  renderResolutions,
+  warnStaleResolutions,
+  type ResolutionClassification,
+} from './resolutions.js';
 import { setupAgents } from './targets/agents.js';
 import { setupClaude } from './targets/claude.js';
 import { setupCopilot } from './targets/copilot.js';
@@ -29,6 +38,8 @@ export interface InstallOptions {
   force: boolean;
   /** Patterns from `rules.exclude`, already split. Empty = install everything. */
   rulesExclude: readonly string[];
+  /** Stored rule resolutions for this checkout (slice 266), read by the caller before any write. */
+  ruleResolutions: readonly RuleResolution[];
   out: OutputSink;
 }
 
@@ -63,6 +74,21 @@ function isFilesystemError(err: unknown): err is Error & { code: string } {
 }
 
 /**
+ * Classify the stored resolutions against the guide and the checkout, and set
+ * `base.resolutionsSection` from the live ones. Returns null when there is
+ * nothing to classify. With no rules directory the target's own
+ * `requireRulesDir` aborts the install before anything is written, so no
+ * resolution is silently dropped.
+ */
+function classifyForInstall(options: InstallOptions, base: InstallBase): ResolutionClassification | null {
+  if (options.ruleResolutions.length === 0 || !isDirectory(base.guide.rules)) return null;
+  const entries = guideRuleEntries(options.guideDir, base.projectRoot, base.exclusions);
+  const classification = classifyResolutions(options.ruleResolutions, entries, base.projectRoot);
+  base.resolutionsSection = renderResolutions(classification.live);
+  return classification;
+}
+
+/**
  * Install IDE files for one target. Install failures (the bash exit-1 paths
  * and filesystem errors) are reported and return exit 1; anything else is a
  * bug and propagates.
@@ -79,15 +105,18 @@ export function installIde(options: InstallOptions): InstallResult {
     force: options.force,
     out,
     exclusions: new RuleExclusions(options.rulesExclude),
+    resolutionsSection: '',
   };
 
   try {
     out.status('blue', `📍 Project root detected: ${projectRoot}`);
     out.status('blue', `📍 IDE directories will be created in: ${targetRoot}`);
     out.line();
+    const stale = classifyForInstall(options, base);
     if (options.dryRun) dryRunInstall(options.target, base, installTarget);
     else installTarget(options.target, base);
     base.exclusions.warnUnmatched(base.guide.rules, out);
+    if (stale !== null) warnStaleResolutions(stale, out);
     return { exitCode: 0 };
   } catch (err) {
     if (err instanceof InstallAbort) return { exitCode: 1 };

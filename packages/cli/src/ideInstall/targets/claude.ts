@@ -37,7 +37,7 @@ export function setupClaude(ctx: InstallContext): void {
   out.line();
   requireRulesDir(ctx);
 
-  if (!compileClaudeRules(guide.rules, path.join(targetRoot, 'CLAUDE.md'), '', out)) {
+  if (!compileClaudeRules(guide.rules, path.join(targetRoot, 'CLAUDE.md'), ctx.resolutionsSection, out)) {
     out.status('red', '❌ Failed to compile CLAUDE.md');
     throw new InstallAbort('CLAUDE.md could not be compiled');
   }

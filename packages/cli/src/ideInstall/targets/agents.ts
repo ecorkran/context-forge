@@ -58,7 +58,7 @@ export function emitAgentsMd(ctx: InstallContext, includeScopedIndex: boolean): 
     outFile: path.join(ctx.targetRoot, AGENTS_FILE),
     label: AGENTS_FILE,
     h1: AGENTS_H1,
-    trailing: index.text,
+    trailing: index.text + ctx.resolutionsSection,
     out: ctx.out,
   });
   if (!compiled) throw new InstallAbort(`${AGENTS_FILE} could not be compiled`);
