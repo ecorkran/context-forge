@@ -45,20 +45,20 @@ revision_number: 2
 
 ## Tasks
 
-- [ ] **Task 0: Slice branch and baseline** (effort: 1)
-  - [ ] Read `cf config get git.integration_branch`; empty means the target is `main`. Verify you are on the target (or the expected slice branch).
-  - [ ] Create `265-slice.end-to-end-adoption-verification-and-docs` from the target if it does not exist, otherwise switch to it.
-  - [ ] Run `pnpm -r build`. In the repo root save baselines: `node packages/cli/dist/index.js next --json > /tmp/265-next-before.json`, `node packages/cli/dist/index.js next > /tmp/265-next-before.txt` and `node packages/cli/dist/index.js build > /tmp/265-build-before.txt`.
-  - [ ] Success: `git branch --show-current` prints the branch name; all three baseline files exist and are non-empty.
+- [x] **Task 0: Slice branch and baseline** (effort: 1)
+  - [x] Read `cf config get git.integration_branch`; empty means the target is `main`. Verify you are on the target (or the expected slice branch).
+  - [x] Create `265-slice.end-to-end-adoption-verification-and-docs` from the target if it does not exist, otherwise switch to it.
+  - [x] Run `pnpm -r build`. In the repo root save baselines: `node packages/cli/dist/index.js next --json > /tmp/265-next-before.json`, `node packages/cli/dist/index.js next > /tmp/265-next-before.txt` and `node packages/cli/dist/index.js build --json 2>/dev/null > /tmp/265-build-before.json` (plain `cf build` prints no prompt to stdout; the prompt text is the JSON `context` field, read with `jq -r .context`).
+  - [x] Success: `git branch --show-current` prints the branch name; all three baseline files exist and are non-empty.
 
-- [ ] **Task 1: Prerequisite check and report skeleton** (effort: 2)
-  - [ ] Confirm the six step values in `packages/core/src/introspection/adoptionNavigation.ts` match slice 264 D4 and D6 (`concept`, `architecture`, `existing-state-plan`, `record-completion`, `register-plan`, `adopted`). If the code differs or has an extra step, update the slice design's D4 text before any run and tell the PM; do not edit silently.
-  - [ ] Record versions: `node packages/cli/dist/index.js --version`; installed guide version (`cfl guides info`); `sq --version`; `sq probe --json | jq .probe_version`.
-  - [ ] Check the installed guide's `guide.ai-project.brownfield-adoption.md` for the retroactive Marker Specification (the 263 hand-off). If absent, run `cfl guides update` once and re-check. If still absent, add a `BLOCKED:` line (guide release with the retroactive-marker rule) under Tasks 5 and 6 and continue with the other tasks.
-  - [ ] Confirm the squadron prerequisites for Task 6: the probe's `surfaces` has a `claude-code` entry with `analysis_skill_installed` and `understand_plugin_installed` true. If not, add a `BLOCKED:` line under Task 6 naming what is missing.
-  - [ ] Create `project-documents/user/analysis/260-analysis.adoption-verification-runs.md` with frontmatter (`docType: analysis`, `topic: adoption-verification-runs`, `project`, dates, `status: in_progress`; follow `file-naming-conventions.md`) and one empty section per run (setup line, checks table with one row per D4 check for that path, defects list). Add a "Prerequisites" line with the versions recorded above.
-  - [ ] Success: `cfl check` reports no frontmatter errors for the new file; the skeleton lists every D4 check for each run.
-  - [ ] Commit: `docs: add adoption verification run report skeleton`
+- [x] **Task 1: Prerequisite check and report skeleton** (effort: 2)
+  - [x] Confirm the six step values in `packages/core/src/introspection/adoptionNavigation.ts` match slice 264 D4 and D6 (`concept`, `architecture`, `existing-state-plan`, `record-completion`, `register-plan`, `adopted`). If the code differs or has an extra step, update the slice design's D4 text before any run and tell the PM; do not edit silently.
+  - [x] Record versions: `node packages/cli/dist/index.js --version`; installed guide version (`cfl guides info`); `sq --version`; `sq probe --json | jq .probe_version`.
+  - [x] Check the installed guide's `guide.ai-project.brownfield-adoption.md` for the retroactive Marker Specification (the 263 hand-off). If absent, run `cfl guides update` once and re-check. If still absent, add a `BLOCKED:` line (guide release with the retroactive-marker rule) under Tasks 5 and 6 and continue with the other tasks.
+  - [x] Confirm the squadron prerequisites for Task 6: the probe's `surfaces` has a `claude-code` entry with `analysis_skill_installed` and `understand_plugin_installed` true. If not, add a `BLOCKED:` line under Task 6 naming what is missing.
+  - [x] Create `project-documents/user/analysis/260-analysis.adoption-verification-runs.md` with frontmatter (`docType: analysis`, `topic: adoption-verification-runs`, `project`, dates, `status: in_progress`; follow `file-naming-conventions.md`) and one empty section per run (setup line, checks table with one row per D4 check for that path, defects list). Add a "Prerequisites" line with the versions recorded above.
+  - [x] Success: `cfl check` reports no frontmatter errors for the new file; the skeleton lists every D4 check for each run.
+  - [x] Commit: `docs: add adoption verification run report skeleton`
 
 ### Greenfield run (design D3, Development Approach step 2)
 
@@ -69,7 +69,7 @@ revision_number: 2
   - [ ] Success: both directories have the git commit; only the original has `.context-forge.toml`; the starter's name and version are noted for the report.
 
 - [ ] **Task 3: Greenfield run and report** (effort: 2)
-  - [ ] Walkthrough step 1: in the scratch project, `cfl build | grep -c '### Adoption Facts'` prints 0; `cfl config get adoption.state` shows an empty value with source default.
+  - [ ] Walkthrough step 1: in the scratch project, `cfl build --json 2>/dev/null | jq -r .context | grep -c '### Adoption Facts'` prints 0; `cfl config get adoption.state` shows an empty value with source default.
   - [ ] Start Claude Code in `/tmp/cf-265/greenfield-fresh` (Task 2's copy), run `/cf:onboard`, and confirm: setup, hand-off to `cf build`, and the concept conversation's opening question. Stop after that opening turn (D3).
   - [ ] Fill the greenfield section of the report: setup line (starter, version, `cf` version), rows for the D3 greenfield check plus the `/cf:onboard` hand-off and concept opener.
   - [ ] If any check fails, follow Task 4's fix loop before continuing. Per D3, if a difference other than the three checks shows, compare against a build from before slice 261.
@@ -92,7 +92,7 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
   - [ ] Make `cf` resolve to the local build in the session (`cf install-commands --local` plus a PATH entry or alias to `packages/cli/dist/index.js`) and hide `sq` from PATH. Record `cf --version` as the session sees it.
   - [ ] Before the first build, `cfl next --json | jq '{recommendation, suggestedCommand}'` recommends `cf build` (D4 check 1).
   - [ ] Start Claude Code in the clone, run `/cf:onboard`, and drive the session to the end per D2: answer as the PM from the repository's own prose, "unknown" otherwise; no manual artifact edits; a session that ends early resumes with `cf build`.
-  - [ ] As soon as the session's first `cf build` has run, and before the agent writes any artifact, save `cfl build > /tmp/cf-265/cf-only-first-build.txt` from a second terminal with the same PATH. Task 5R copies the Adoption Facts section from this file.
+  - [ ] As soon as the session's first `cf build` has run, and before the agent writes any artifact, save `cfl build --json 2>/dev/null | jq -r .context > /tmp/cf-265/cf-only-first-build.txt` from a second terminal with the same PATH. Task 5R copies the Adoption Facts section from this file.
   - [ ] In a second terminal with the same PATH, at each step: `cfl next --json | jq '{recommendation, suggestedCommand}'`, `cfl config get adoption.state`, `cfl check`. Verify D4 checks 1-5 and the CF-only check (Adoption Facts says squadron unavailable; the agent attempts no squadron step).
   - [ ] Handle each failure per the D2 table (retry, BLOCKED or defect); apply Task 4 to every defect.
   - [ ] Success: all D4 checks for the CF-only path pass and the run ends with `cf next` recommending the first new slice of the existing-state plan; or the run's blocked reason is on a `BLOCKED:` line under this task.
@@ -112,14 +112,14 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
   - [ ] Verify `sq probe --json | jq '.probe_version, (.surfaces | keys)'` prints 1 and a list including `claude-code` (D4). A missing `sq`, absent probe, or other `probe_version` is `BLOCKED:` (squadron prerequisite), never a pass.
   - [ ] Run as in Task 5 with `sq` on PATH. The operator approves `/understand` exactly once. A failed `/understand` is retried once in a new session; a second failure is BLOCKED with an issue in the plugin or squadron repository. Never fall back to the CF-only path.
   - [ ] Verify D4 checks 1-5 as in Task 5, including saving the first build to `/tmp/cf-265/squadron-first-build.txt`; Task 6R compares the source count from it.
-  - [ ] Squadron checks (D4): Adoption Facts JSON in that file equals `sq probe --json` run in the same folder; the agent asks the `/understand` question once and runs the steps the probe lists for its surface; after `/sq:analysis understand`, `cfl build | grep '^Comprehension:'` shows the comprehension line and the agent has the PM confirm the squadron-written concept before building on it.
+  - [ ] Squadron checks (D4): Adoption Facts JSON in that file equals `sq probe --json` run in the same folder; the agent asks the `/understand` question once and runs the steps the probe lists for its surface; after `/sq:analysis understand`, `cfl build --json 2>/dev/null | jq -r .context | grep '^Comprehension:'` shows the comprehension line and the agent has the PM confirm the squadron-written concept before building on it.
   - [ ] Monorepo check: with graph facts describing the repository root and the cf project in a subdirectory, the agent neither stalls nor writes the architecture for the whole monorepo. Either is a guide-prompt defect (Task 4).
   - [ ] Apply Task 4 to every defect.
   - [ ] Success: all D4 checks for the squadron path (including the monorepo check) pass and the run ends with `cf next` recommending the first new slice; or a `BLOCKED:` line names the missing prerequisite.
 
 - [ ] **Task 6M: MCP PATH check (squadron run)** (effort: 2)
   - [ ] Use the Task 6 project while it is still registered. Method: get the project ID from `cfl project list`. Call `context_build` with that `projectId` against the local server `node <repo>/packages/mcp-server/dist/index.js` over stdio, using the MCP Inspector CLI (`npx @modelcontextprotocol/inspector --cli <server command> --method tools/call --tool-name context_build --tool-arg projectId=<id>`; confirm the flags with `--help`). Run it twice: once with `sq`'s directory on the server's `PATH`, once with it removed (`env PATH=...`). Save each output's Adoption Facts section.
-    - [ ] With `sq` on PATH, the probe JSON equals `cfl build`'s. With `sq` off PATH, Adoption Facts states that squadron is unavailable; a silent omission fails the check.
+    - [ ] With `sq` on PATH, the probe JSON equals `cfl build --json`'s (its `context` field). With `sq` off PATH, Adoption Facts states that squadron is unavailable; a silent omission fails the check.
     - [ ] If the first call shows `sq` missing even though the server's environment has it on PATH, file the `sq` path setting named in slice 262 as a new-option issue (D5).
   - [ ] Apply Task 4 to any defect.
   - [ ] Success: both MCP calls are checked as above and saved; or a `BLOCKED:` line names the missing prerequisite.
@@ -166,7 +166,7 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
 
 - [ ] **Task 11: Full validation** (effort: 2)
   - [ ] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
-  - [ ] In the repo root, re-run the three Task 0 commands to `/tmp/265-*-after.*` and `diff` each against its baseline. Any difference is a regression from a slice fix, except lines that quote this slice's own state (for example its task or commit counts); explain each such line in the walkthrough notes. If `git diff {target} --stat -- packages` is empty, with `{target}` read from `cf config get git.integration_branch` (`main` when empty) (no code fixes were made), the diff must be empty.
+  - [ ] In the repo root, re-run the three Task 0 commands to `/tmp/265-*-after.*` (build with `--json`, as in Task 0) and `diff` each against its baseline. Any difference is a regression from a slice fix, except lines that quote this slice's own state (for example its task or commit counts); explain each such line in the walkthrough notes. If `git diff {target} --stat -- packages` is empty, with `{target}` read from `cf config get git.integration_branch` (`main` when empty) (no code fixes were made), the diff must be empty.
   - [ ] Walkthrough step 4: the README section's links lead to each fact in the file D8 assigns it, and the fact appears nowhere else.
   - [ ] Set the slice design's walkthrough notes with each step's result (as slices 262-264 did).
   - [ ] Success: all checks pass. If Task 5 or 6 carries a `BLOCKED:` line, say so in the notes and leave those tasks unchecked; the slice then stays `in_progress`.
