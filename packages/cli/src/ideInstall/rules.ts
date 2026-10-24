@@ -109,8 +109,16 @@ function alwaysOnRules(rulesDir: string): { file: string; text: string }[] {
     .filter(({ text }) => hasAlwaysApply(text));
 }
 
-/** `compile_claude_rules`: alwaysApply rules into CLAUDE.md's block. False on failure. */
-export function compileClaudeRules(rulesDir: string, targetFile: string, out: Printer): boolean {
+/**
+ * `compile_claude_rules`: alwaysApply rules into CLAUDE.md's block, followed by
+ * `trailing` (generated sections, inside the block). False on failure.
+ */
+export function compileClaudeRules(
+  rulesDir: string,
+  targetFile: string,
+  trailing: string,
+  out: Printer,
+): boolean {
   if (!isDirectory(rulesDir)) {
     out.status('red', sourceDirMissing(rulesDir));
     return false;
@@ -125,6 +133,7 @@ export function compileClaudeRules(rulesDir: string, targetFile: string, out: Pr
     content += ruleBody(text, 'keep-after-frontmatter') + '\n';
     out.status('green', `✅ Embedded ${stem(file)} rules in CLAUDE.md`);
   }
+  content += trailing;
 
   if (!writeManagedSection(targetFile, content, 'CLAUDE.md', out)) return false;
   out.status('blue', `📋 Embedded ${rules.length} alwaysApply rules in CLAUDE.md`);

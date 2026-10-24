@@ -9,6 +9,7 @@ import {
   alwaysOnFallbackTitle,
   claudeFallbackTitle,
   compileAlwaysOnRules,
+  compileClaudeRules,
   ruleBody,
   sectionTitle,
 } from '../../src/ideInstall/rules.js';
@@ -156,5 +157,30 @@ describe('RuleExclusions', () => {
   it('says nothing when there are no patterns', () => {
     new RuleExclusions([]).warnUnmatched(tmp, printer);
     expect(stderr).toBe('');
+  });
+});
+
+describe('compileClaudeRules trailing', () => {
+  const compile = (trailing: string): string => {
+    writeFiles(tmp, { 'rules/a.md': ALWAYS('## A\nbody a\n'), 'rules/b.md': ALWAYS('## B\nbody b\n') });
+    const target = path.join(tmp, 'CLAUDE.md');
+    expect(compileClaudeRules(path.join(tmp, 'rules'), target, trailing, printer)).toBe(true);
+    return fs.readFileSync(target, 'utf-8');
+  };
+
+  it('empty trailing adds nothing after the last rule (existing snapshots cover the full output)', () => {
+    expect(compile('').endsWith('body b\n\n<!-- END:context-forge -->\n')).toBe(true);
+  });
+
+  it('non-empty trailing lands inside the BEGIN/END pair, after the last rule', () => {
+    const text = compile('## Extra\nline\n');
+    const lines = text.split('\n');
+    const begin = lines.indexOf('<!-- BEGIN:context-forge -->');
+    const end = lines.indexOf('<!-- END:context-forge -->');
+    const extra = lines.indexOf('## Extra');
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(extra).toBeGreaterThan(lines.lastIndexOf('body b'));
+    expect(extra).toBeLessThan(end);
+    expect(lines.slice(begin, end).join('\n')).toContain('line');
   });
 });
