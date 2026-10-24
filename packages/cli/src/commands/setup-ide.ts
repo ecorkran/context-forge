@@ -6,15 +6,12 @@ import type { ProjectData } from '@context-forge/core';
 import {
   ConfigManager,
   FileProjectStore,
-  GuideDetector,
-  GUIDE_RELATIVE_PATH,
-  GUIDE_OFFLINE_REMEDIATION,
   parseRulesExclude,
 } from '@context-forge/core/node';
 import { resolveProjectId } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
-import { ensureGuideReady } from '../utils/guideReady.js';
+import { requireGuideDir } from '../utils/guideReady.js';
 
 import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS, type Target } from './ideTargets.js';
 import { installCommandsForTarget } from './commandInstaller.js';
@@ -72,7 +69,7 @@ const PROCESS_OUTPUT: OutputSink = {
 };
 
 /** `rules.exclude` as configured for the checkout at root (a worktree can carry its own). */
-async function readRulesExclude(root: string): Promise<string[]> {
+export async function readRulesExclude(root: string): Promise<string[]> {
   const { value } = await new ConfigManager(root).get('rules.exclude');
   if (typeof value !== 'string') {
     throw new Error(`rules.exclude resolved to a ${typeof value}, expected a string`);
@@ -125,23 +122,7 @@ export async function setupIdeAction(
     throw new UserError(invalidTargetMessage(target));
   }
 
-  // Check guide installation. Auto-init first: an uninitialized submodule
-  // reports as installed but has no content (#80).
-  await ensureGuideReady(projectPath);
-
-  const detector = new GuideDetector();
-  const guideInfo = await detector.detect(projectPath);
-
-  if (!guideInfo.installed) {
-    // setup-ide fails before any network call — guides are simply absent from
-    // disk, so we cannot know why an earlier install failed. Point at the fix
-    // and, since a failed install is the common cause, at the offline path (#78).
-    throw new UserError(
-      "Guides are not installed. Run 'cf guides install' first.\n" +
-        `  If that install fails to reach the guide repo: ${GUIDE_OFFLINE_REMEDIATION}`,
-    );
-  }
-  const guideDir = path.join(projectPath, GUIDE_RELATIVE_PATH);
+  const guideDir = await requireGuideDir(projectPath);
 
   // Safety check — descriptor-driven, identical shape for every target. The
   // installer itself backs up a file it has never managed, to

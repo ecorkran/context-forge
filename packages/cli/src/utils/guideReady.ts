@@ -1,6 +1,14 @@
-import { ConfigManager, GuideManager } from '@context-forge/core/node';
+import * as path from 'node:path';
+import {
+  ConfigManager,
+  GuideDetector,
+  GuideManager,
+  GUIDE_OFFLINE_REMEDIATION,
+  GUIDE_RELATIVE_PATH,
+} from '@context-forge/core/node';
 import type { EnsureCheckoutResult } from '@context-forge/core';
 import { warn, dim } from '../output/styles.js';
+import { UserError } from './errors.js';
 
 /**
  * Make the guide readable before a command consumes it, and report what
@@ -30,4 +38,21 @@ export async function ensureGuideReady(
   }
 
   return result;
+}
+
+/**
+ * The project's installed guide directory. Auto-inits an uninitialized checkout
+ * first (#80), then fails before any network call when the guide is absent from
+ * disk, pointing at the fix and at the offline path (#78).
+ */
+export async function requireGuideDir(projectPath: string): Promise<string> {
+  await ensureGuideReady(projectPath);
+  const guideInfo = await new GuideDetector().detect(projectPath);
+  if (!guideInfo.installed) {
+    throw new UserError(
+      "Guides are not installed. Run 'cf guides install' first.\n" +
+        `  If that install fails to reach the guide repo: ${GUIDE_OFFLINE_REMEDIATION}`,
+    );
+  }
+  return path.join(projectPath, GUIDE_RELATIVE_PATH);
 }
