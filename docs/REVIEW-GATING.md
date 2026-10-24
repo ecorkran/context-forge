@@ -116,7 +116,10 @@ With gating on, `cf check` (no `--slice` flag — i.e. `checkAll()`) surfaces a 
 - Review present but verdict fails the threshold → **`error`**.
 - Slice still open (plan entry unchecked) and a review cleared on weak provenance → **`info`**, one per review part, naming the review and why its PASS is weak. This shows at the default `review_weak_pass_as: pass`, so you see a rebuilt or recovered PASS without having to block on it.
 - Slice still open and declared `review: none` → one **`info`** per slice (see [Exemption visibility](#exemption-visibility)).
+- Plan has retroactive entries (gating on) → one **`info`** per plan, for example `Slices 100–107 are retroactive: recorded history, not reviewed. The review gate skips them.` See [Retroactive Slices](#retroactive-slices).
 - **Never auto-fixable.** `cf check --fix` cannot resolve a `review-gate` finding — a human has to actually write or complete the review. (Contrast with other checker rules like stale-checkbox findings, which `--fix` can correct automatically.)
+
+A separate **`retroactive-entry`** rule (reported with gating on or off) puts an **`error`** on a retroactive entry that has a slice design or task file, is not checked, or is indexed after new work. It is never auto-fixable.
 
 ## Escape Hatches
 
@@ -150,6 +153,17 @@ A `review: none` slice is never silently waved through while gating is on:
 - **`cf check`** reports one `info` finding per exempt slice while its plan entry is unchecked. Complete slices stay quiet, so history doesn't fill up with noise.
 
 Grandfathered work isn't flagged in either place. The effective date is a deliberate, project-wide cutoff.
+
+## Retroactive Slices
+
+A project adopted from an existing codebase records the work that was already built as **retroactive** slice plan entries (the marker format is in the [brownfield adoption guide](https://github.com/ecorkran/ai-project-guide/blob/main/project-guides/guide.ai-project.brownfield-adoption.md), not repeated here). That work predates the process and was never reviewed, so the gate does not ask for reviews of it.
+
+This is a **skip**, not an escape hatch. It does not clear the entry, does not report it as reviewed, and is not the Project Manager-only `review: none` waiver: the gate returns its own result, `skipped`, with the display text `retroactive: recorded history, not reviewed`. This amends the original gate rule, which had no skip outcome.
+
+- **Where it applies:** the three slice-scoped boundaries (`slice`, `tasks`, `code`). A retroactive entry has no slice design and no task file, so the status of an active retroactive slice is `complete` regardless of whether gating is on, and `cf next` appends the display text to its rationale.
+- **Where it does not apply:** the `arch` boundary. The derived architecture is ordinary process work, and its `arch` review gate applies unchanged.
+- **What bounds it:** the marker cannot be used to skip review of new work. `cf check` reports an error for any retroactive entry that has a slice design or task file, is unchecked, or is indexed after new work (the `retroactive-entry` rule, under [`cf check` Findings](#cf-check-findings)).
+- **Where you see it:** `cf list slices` shows `✓ retroactive` for these entries, and `cf check` reports one `info` finding per plan while gating is on.
 
 ## Worked Example
 
