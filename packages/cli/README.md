@@ -107,6 +107,8 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf future` | `cf future [--status <filter>] [--json]` | Consolidated future work |
 | `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
 | `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates |
+| `cf rules inventory` | `cf rules inventory --json` | List the guide's rule files, the project's own rule sources and the stored resolutions as JSON. Read-only |
+| `cf rules resolve` | `cf rules resolve <guideRule> <projectSource> --statement "<text>"` | Record the decision about a conflict between a guide rule and a project rule source. Run `cf setup-ide <target>` afterwards to apply it |
 | `cf version` | `cf version [--json]` | Show version (JSON includes breaking changes) |
 | `cf help` | `cf help [--json]` | Show help (JSON outputs command catalog) |
 
@@ -120,6 +122,30 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf backup` | Create versioned backup of project data |
 | `cf install-commands` | Install Claude Code slash commands |
 | `cf setup-ide claude` | Configure IDE integration |
+
+## Rule Resolutions
+
+An adopted project keeps its own rules (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...) beside the guide's. `cf rules inventory` lists both sides; for a composite file such as `CLAUDE.md` it gives the line range of the managed block, so only the project-owned text outside it is compared. The comparison is the agent's job (guide prompt `conventions-reconciliation`); cf never judges whether two rules conflict. Each decision is recorded with `cf rules resolve`.
+
+Resolutions are stored in `.context-forge/rule-resolutions.json`, which is committed to git:
+
+```json
+{
+  "version": 1,
+  "resolutions": [
+    { "guideRule": "git.md", "projectSource": "CLAUDE.md",
+      "statement": "Every change goes through a PR; never commit directly to main." }
+  ]
+}
+```
+
+- A resolution is identified by the file pair (`guideRule` is the rule's file name in the guide, `projectSource` a checkout-relative path), never by rule text, so rewording a guide rule leaves it in force.
+- `statement` is one line, stored and rendered verbatim. It may not contain a line break, a backtick in either name, or any context-forge marker comment. A malformed file fails `setup-ide` before anything is written.
+- Every `setup-ide` run renders the live resolutions as a `## Project Rule Resolutions` section at the end of each managed block (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`). Re-running gives identical files. Without a resolutions file the output is unchanged.
+- Resolutions on a scoped guide rule excluded by `rules.exclude` are skipped without comment.
+- If a resolution names a guide rule the guide no longer has, or a project file that no longer exists, `setup-ide` warns on stderr (exit code 0) and does not render it.
+- To remove a resolution, edit the JSON file by hand.
+- Precedence is advisory. The conflicting guide text stays in the block and in installed scoped rule files; the section tells the agent which rule wins.
 
 ## Common Options
 

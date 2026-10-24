@@ -279,6 +279,8 @@ The build includes an *Adoption Facts* section, so the assistant works from what
 - Squadron: unavailable. `sq` was not found on PATH.
 ```
 
+When the project already has rule files (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...), `cf setup-ide` keeps your text and appends the guide's rules below it. To settle any contradictions between the two, fetch the reconciliation prompt with `cf prompt get conventions-reconciliation` and give it to your assistant. It lists the conflicts, asks you to decide each one, and records the decisions with `cf rules resolve`. Run `cf setup-ide <target>` again to apply them. The prompt comes from the ai-project-guide release that carries it; if your installed guide lacks it, the command fails with "No prompt found" and you record decisions by hand with `cf rules resolve <guideRule> <projectSource> --statement "<text>"` (see `cf rules inventory --json` for the valid names).
+
 If detection gets it wrong, you can override it with the `adoption.state` setting; `cf config get adoption.state` describes the values. Commands are in the [CLI reference](packages/cli/README.md), and [Review Gating](docs/REVIEW-GATING.md) explains how the review gate treats the recorded history.
 
 ## Consistency Checks and `--fix`
