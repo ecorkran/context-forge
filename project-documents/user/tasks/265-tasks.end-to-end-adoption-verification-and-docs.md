@@ -17,8 +17,8 @@ projectState: main after slices 260-264 (built and merged; 264's code-review fix
   yet. README.md has no adoption section. Global `cf` is 0.19.17 (the published package,
   not the local build).
 dateCreated: 20261023
-dateUpdated: 20261024
-status: not_started
+dateUpdated: 20261023
+status: complete
 turns: 37
 promptTokens: 1469687
 cachedTokens: 1388421
@@ -103,7 +103,7 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
   - [x] Fill the CF-only section of the report: setup line, one row per check, defect lines.
   - [x] Unregister the project with `cf project rm`.
   - [x] Success: every CF-only row has a result and every defect a disposition.
-  - [ ] Commit: `docs: record CF-only adoption verification run`
+  - [x] Commit: `docs: record CF-only adoption verification run`
 
 ### Squadron run (design D4, Development Approach step 4)
 
@@ -133,41 +133,41 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
 
 ### Documentation (design D8, Development Approach step 5)
 
-- [ ] **Task 7: README "Adopting an Existing Codebase" section** (effort: 2)
-  - [ ] The example needs the Adoption Facts excerpt from Task 5R. If Task 5R is not done, write a `BLOCKED:` line under this task naming it, do Tasks 8 and 9 first, and do not invent example output.
-  - [ ] In `README.md`, add the section after "How It Works": the flow (`cf init` or `/cf:onboard`, then `cf build`, then `cf next` through the adoption steps to the first new slice); one sentence on what Adoption Facts is for; that detection can be overridden with `adoption.state`; links to `packages/cli/README.md` and `docs/REVIEW-GATING.md`. Include the Adoption Facts excerpt from the report as the example output (D8 sanctions it).
-  - [ ] The prose around the example names no `adoption.state` values, step names or marker syntax (the verbatim excerpt is exempt); do not change the "Key configuration" table.
-  - [ ] Check every statement against the code (for example `cf config --help` for `adoption.state`, `cfl next` for the flow).
-  - [ ] Success: each link in the section resolves to an existing file; the section contains none of the facts D8 assigns to another file.
-  - [ ] Commit: `docs: add adopting an existing codebase section to README`
+- [x] **Task 7: README "Adopting an Existing Codebase" section** (effort: 2)
+  - [x] The example needs the Adoption Facts excerpt from Task 5R. If Task 5R is not done, write a `BLOCKED:` line under this task naming it, do Tasks 8 and 9 first, and do not invent example output.
+  - [x] In `README.md`, add the section after "How It Works": the flow (`cf init` or `/cf:onboard`, then `cf build`, then `cf next` through the adoption steps to the first new slice); one sentence on what Adoption Facts is for; that detection can be overridden with `adoption.state`; links to `packages/cli/README.md` and `docs/REVIEW-GATING.md`. Include the Adoption Facts excerpt from the report as the example output (D8 sanctions it).
+  - [x] The prose around the example names no `adoption.state` values, step names or marker syntax (the verbatim excerpt is exempt); do not change the "Key configuration" table.
+  - [x] Check every statement against the code (for example `cf config --help` for `adoption.state`, `cfl next` for the flow).
+  - [x] Success: each link in the section resolves to an existing file; the section contains none of the facts D8 assigns to another file.
+  - [x] Commit: `docs: add adopting an existing codebase section to README`
 
-- [ ] **Task 8: REVIEW-GATING.md retroactive skip** (effort: 2)
-  - [ ] In `docs/REVIEW-GATING.md`, add a subsection for the retroactive gate skip, separate from Escape Hatches (it is not one), including 263's amendment of the 240 rule. Read slice 263's design and `cf check`'s retroactive code first, and describe what the code does.
-  - [ ] Add the `retroactive-entry` and `review-gate` retroactive findings to the "`cf check` Findings" section. Link to ai-project-guide for the marker format; do not restate it.
-  - [ ] Success: each rule id and message named exists in the code (`grep` the rule id in `packages/core/src`); no marker syntax is repeated.
-  - [ ] Commit: `docs: document the retroactive gate skip in REVIEW-GATING`
+- [x] **Task 8: REVIEW-GATING.md retroactive skip** (effort: 2)
+  - [x] In `docs/REVIEW-GATING.md`, add a subsection for the retroactive gate skip, separate from Escape Hatches (it is not one), including 263's amendment of the 240 rule. Read slice 263's design and `cf check`'s retroactive code first, and describe what the code does.
+  - [x] Add the `retroactive-entry` and `review-gate` retroactive findings to the "`cf check` Findings" section. Link to ai-project-guide for the marker format; do not restate it.
+  - [x] Success: each rule id and message named exists in the code (`grep` the rule id in `packages/core/src`); no marker syntax is repeated.
+  - [x] Commit: `docs: document the retroactive gate skip in REVIEW-GATING`
 
-- [ ] **Task 9: CLI README command entries** (effort: 2)
-  - [ ] In `packages/cli/README.md` Commands Reference, add or extend three entries: `cf build` adoption selection, `cf next` adoption steps, `cf list slices` `✓ retroactive`. The `cf list slices` entry links to `docs/REVIEW-GATING.md` for what the marker exempts. Do not change CLI `--help` text.
-  - [ ] Align the `/cf:onboard` line with the root README (Task 7).
-  - [ ] Verify each documented command and argument by running it with `--help` using the local build.
-  - [ ] Success: every documented command exists with the documented arguments; facts D8 assigns to the config key description are linked, not restated.
-  - [ ] Commit: `docs: document adoption in the CLI README`
+- [x] **Task 9: CLI README command entries** (effort: 2)
+  - [x] In `packages/cli/README.md` Commands Reference, add or extend three entries: `cf build` adoption selection, `cf next` adoption steps, `cf list slices` `✓ retroactive`. The `cf list slices` entry links to `docs/REVIEW-GATING.md` for what the marker exempts. Do not change CLI `--help` text.
+  - [x] Align the `/cf:onboard` line with the root README (Task 7).
+  - [x] Verify each documented command and argument by running it with `--help` using the local build.
+  - [x] Success: every documented command exists with the documented arguments; facts D8 assigns to the config key description are linked, not restated.
+  - [x] Commit: `docs: document adoption in the CLI README`
 
 ### Wrap-up (design D7, Development Approach step 6)
 
-- [ ] **Task 10: Finalize the report** (effort: 1)
-  - [ ] Confirm every D4 check row has a result and every defect a disposition. Confirm the guide version used by each brownfield run is recorded (input to #124).
-  - [ ] Set the report's `status` to `complete` only if all three runs passed; otherwise leave `in_progress` and list the blocked runs in one line at the top.
-  - [ ] Run `cfl check` and fix any frontmatter findings on the report.
-  - [ ] Delete scratch directories under `/tmp/cf-265/` and confirm `cfl project list` shows no scratch projects.
-  - [ ] Success: `cfl check` reports no errors for the report; no scratch directories remain.
-  - [ ] Commit: `docs: finalize adoption verification run report`
+- [x] **Task 10: Finalize the report** (effort: 1)
+  - [x] Confirm every D4 check row has a result and every defect a disposition. Confirm the guide version used by each brownfield run is recorded (input to #124).
+  - [x] Set the report's `status` to `complete` only if all three runs passed; otherwise leave `in_progress` and list the blocked runs in one line at the top.
+  - [x] Run `cfl check` and fix any frontmatter findings on the report.
+  - [x] Delete scratch directories under `/tmp/cf-265/` and confirm `cfl project list` shows no scratch projects.
+  - [x] Success: `cfl check` reports no errors for the report; no scratch directories remain.
+  - [x] Commit: `docs: finalize adoption verification run report`
 
-- [ ] **Task 11: Full validation** (effort: 2)
-  - [ ] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
-  - [ ] In the repo root, re-run the three Task 0 commands to `/tmp/265-*-after.*` (build with `--json`, as in Task 0) and `diff` each against its baseline. Any difference is a regression from a slice fix, except lines that quote this slice's own state (for example its task or commit counts); explain each such line in the walkthrough notes. If `git diff {target} --stat -- packages` is empty, with `{target}` read from `cf config get git.integration_branch` (`main` when empty) (no code fixes were made), the diff must be empty.
-  - [ ] Walkthrough step 4: the README section's links lead to each fact in the file D8 assigns it, and the fact appears nowhere else.
-  - [ ] Set the slice design's walkthrough notes with each step's result (as slices 262-264 did).
-  - [ ] Success: all checks pass. If Task 5 or 6 carries a `BLOCKED:` line, say so in the notes and leave those tasks unchecked; the slice then stays `in_progress`.
-  - [ ] Commit: `docs: record slice 265 walkthrough results`
+- [x] **Task 11: Full validation** (effort: 2)
+  - [x] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
+  - [x] In the repo root, re-run the three Task 0 commands to `/tmp/265-*-after.*` (build with `--json`, as in Task 0) and `diff` each against its baseline. Any difference is a regression from a slice fix, except lines that quote this slice's own state (for example its task or commit counts); explain each such line in the walkthrough notes. If `git diff {target} --stat -- packages` is empty, with `{target}` read from `cf config get git.integration_branch` (`main` when empty) (no code fixes were made), the diff must be empty.
+  - [x] Walkthrough step 4: the README section's links lead to each fact in the file D8 assigns it, and the fact appears nowhere else.
+  - [x] Set the slice design's walkthrough notes with each step's result (as slices 262-264 did).
+  - [x] Success: all checks pass. If Task 5 or 6 carries a `BLOCKED:` line, say so in the notes and leave those tasks unchecked; the slice then stays `in_progress`.
+  - [x] Commit: `docs: record slice 265 walkthrough results`

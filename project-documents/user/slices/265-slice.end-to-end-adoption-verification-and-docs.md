@@ -11,8 +11,8 @@ dependencies:
 - 264
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261020
-status: not_started
+dateUpdated: 20261024
+status: complete
 turns: 23
 promptTokens: 1857972
 cachedTokens: 1738677
@@ -268,7 +268,7 @@ Use the local build from the repo root after `pnpm -r build`: `alias cfl="node $
 
 1. **Greenfield regression.** Generate a starter with its framework's official scaffolder (D1), `git init` and commit it, then `cfl init`.
    ```bash
-   cfl build | grep -c '### Adoption Facts'     # expect: 0; the prompt is the concept prompt
+   cfl build --json 2>/dev/null | jq -r .context | grep -c '### Adoption Facts'   # expect: 0; the prompt is the concept prompt
    cfl config get adoption.state                # expect: empty, source default
    ```
    Then `/cf:onboard` in Claude Code in a fresh copy: expect setup, the hand-off to `cf build`, and the concept conversation's opening question.
@@ -278,13 +278,21 @@ Use the local build from the repo root after `pnpm -r build`: `alias cfl="node $
    cfl config get adoption.state                                # in_progress after the first build; complete after the completing build
    cfl check                                                    # D4 check 3: no retroactive-entry errors
    ```
-   Copy the first build's Adoption Facts section into the report (D7).
+   Copy the first build's Adoption Facts section into the report (D7). `cf build` prints no prompt to stdout, so capture it with `cfl build --json 2>/dev/null | jq -r .context`; the session's own first build changes state, so capture the first build from a copy of the clone taken before `cf init`.
 3. **Squadron adoption.** Clone the D1 monorepo and work in the chosen package's folder.
    ```bash
    sq probe --json | jq '.probe_version, (.surfaces | keys)'   # expect: 1, a list that includes the session's surface
    ```
-   Start Claude Code, run `/cf:onboard`, and approve `/understand` once. After `/sq:analysis understand`, `cfl build | grep '^Comprehension:'` shows the comprehension path. Then do step 2's checks, and the squadron checks in D4, including `context_build` from an MCP client for the PATH check.
+   Start Claude Code, run `/cf:onboard`, and approve `/understand` once. After `/sq:analysis understand`, `cfl build --json 2>/dev/null | jq -r .context | grep '^Comprehension:'` shows the comprehension path. Then do step 2's checks, and the squadron checks in D4, including `context_build` from an MCP client for the PATH check.
 4. **Report and docs.** Open `260-analysis.adoption-verification-runs.md`: every D4 check has a result, every defect a disposition. Read the README's "Adopting an Existing Codebase" section and follow its links: each fact appears in the file D8 assigns it, and nowhere else.
+
+**Walkthrough results (slice 265 implementation, 20261024).**
+1. Greenfield: pass. Starter create-vite 9.3.1 (`react-ts`): 0 Adoption Facts sections, `adoption.state` empty with source default, `/cf:onboard` (driven with `claude -p`) registered the project, built the context and opened with "What do you want to build?".
+2. CF-only (`pallets/click`, Python, `--depth 1`): pass. `cf next` before the first build gave `cf build`; the first build set `in_progress` and said brownfield (2341+ lines, count capped at the threshold); the agent wrote a derived architecture and eight retroactive entries plus two new ones, `cf check` raised no `retroactive-entry` errors, the next build set `complete`, and `cf set arch` led to `cf set slice 108`. Caveat: with `workflow.review_enabled` on, `cf next` stops at the derived-architecture review gate with no suggested command (#132).
+3. Squadron (`tokio-rs/axum`, Rust, package folder `axum/`): pass. `sq probe` 1 with `claude-code`; Adoption Facts probe JSON equals `sq probe --json`; `/understand` asked once; `Comprehension:` line present; architecture scoped to the package; MCP `context_build` with `sq` on PATH equals the probe, with it removed states unavailable. Defects filed: #133 (`cf init` creates a nested repo in a package folder; worked around by deleting it), squadron#264 (probe looks for the graph at the git root while `/understand` writes it in the package folder), #132 again. Same review-gate caveat as step 2.
+4. Report and docs: pass. Every check row has a result and every defect a disposition. The README section links resolve; adoption facts appear once: flow and example in README, step names and `✓ retroactive` in the CLI README, the gate skip and findings in REVIEW-GATING, state values in the config description.
+
+Baseline diff: `next --json`, `next` and `build --json` (context) differ from the Task 0 baselines only in this slice's own task counts (95 vs 14 remaining); no cf code changed.
 
 ## Risk Assessment
 

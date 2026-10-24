@@ -49,7 +49,7 @@ status: not_started
    - **Risk:** Low. **Effort:** 2/5
 
 ## Integration Work
-6. [ ] **(265) End-to-End Adoption Verification and Docs** — Run adoption on real repositories: one with squadron on a surface the probe lists, one CF-only, and a greenfield regression run. Fix what those runs expose. Document the adoption flow, the override, the adoption state and the Adoption Facts section in the README and CLI references.
+6. [x] **(265) End-to-End Adoption Verification and Docs** — Run adoption on real repositories: one with squadron on a surface the probe lists, one CF-only, and a greenfield regression run. Fix what those runs expose. Document the adoption flow, the override, the adoption state and the Adoption Facts section in the README and CLI references.
    - **Value:** proof that the parts compose on real input rather than fixtures.
    - **Success criteria:** each run reaches "`cf next` points at new work" with correct artifacts. The greenfield run matches today's flow. The docs describe what shipped.
    - **Dependencies:** 260–264.

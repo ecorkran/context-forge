@@ -163,7 +163,7 @@ This is a **skip**, not an escape hatch. It does not clear the entry, does not r
 - **Where it applies:** the three slice-scoped boundaries (`slice`, `tasks`, `code`). A retroactive entry has no slice design and no task file, so the status of an active retroactive slice is `complete` regardless of whether gating is on, and `cf next` appends the display text to its rationale.
 - **Where it does not apply:** the `arch` boundary. The derived architecture is ordinary process work, and its `arch` review gate applies unchanged.
 - **What bounds it:** the marker cannot be used to skip review of new work. `cf check` reports an error for any retroactive entry that has a slice design or task file, is unchecked, or is indexed after new work (the `retroactive-entry` rule, under [`cf check` Findings](#cf-check-findings)).
-- **Where you see it:** `cf list slices` shows `✓ retroactive` for these entries, and `cf check` reports one `info` finding per plan while gating is on.
+- **Where you see it:** `cf check` reports one `info` finding per plan while gating is on, and the slice list marks the entries (see the [CLI reference](../packages/cli/README.md)).
 
 ## Worked Example
 

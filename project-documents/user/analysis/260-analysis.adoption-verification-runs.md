@@ -4,13 +4,15 @@ docType: analysis
 topic: adoption-verification-runs
 project: context-forge
 dateCreated: 20261023
-dateUpdated: 20261023
-status: in_progress
+dateUpdated: 20261024
+status: complete
 ---
 
 # Adoption Verification Runs — context-forge
 
 End-to-end runs of the adoption flow (slices 260–264) on real repositories, recorded by slice 265. Home-directory paths are written as `~`.
+
+**Result:** all three runs passed. Check 5 (first new slice) passes with `workflow.review_enabled` off; with it on, the decided derived-architecture gate stops `cf next` first (#132). Filed: #132, #133 (cf), ecorkran/squadron#264. Guide v0.22.5 was used for both brownfield runs (input to #124).
 
 ## Prerequisites
 
