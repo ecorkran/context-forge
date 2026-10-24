@@ -290,7 +290,7 @@ Where a rule above conflicts with the project's own rules, the resolution below 
 - Core: unit tests for store validation (markers, backticks), `.context-forge/` creation and atomic write; `projectRuleSources` (installed paths, generated marker, backups, directory expansion, broken markers); `managedBlockRange`. CLI: tests per subcommand. ideInstall: render tests for each composite (CLAUDE.md, AGENTS.md, copilot-instructions.md) covering the excluded-rule skip, both stale-identity warnings and the no-file byte-identity regression.
 - 261's `presentPaths` and `renderAdoptionFacts` tests gain a `.github/instructions` case; `managedState` tests still pass unchanged.
 - The test fixture for the inventory uses a real CLAUDE.md layout: project text above a managed block written by the current `writeManagedSection`.
-- Format, lint and typecheck pass. New files stay under about 300 lines.
+- Lint and typecheck pass (the repo has no separate format step). New files stay under about 300 lines.
 - README and CLI reference document `cf rules` and the resolutions file.
 
 ### Integration Requirements
