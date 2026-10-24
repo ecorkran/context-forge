@@ -28,6 +28,16 @@ export const RULE_FILE_PATHS: readonly string[] = [
   '.claude/rules',
 ];
 
+/**
+ * The rule files `setup-ide` writes a managed block into: the project's own text
+ * sits outside the block. Every other `RULE_FILE_PATHS` entry is project-owned whole.
+ */
+export const COMPOSITE_RULE_FILES: readonly string[] = [
+  'CLAUDE.md',
+  'AGENTS.md',
+  '.github/copilot-instructions.md',
+];
+
 /** The candidates (relative to root) that exist, in candidate order. Non-ENOENT errors throw. */
 export function presentPaths(root: string, candidates: readonly string[]): string[] {
   return candidates.filter((candidate) => pathPresent(join(root, candidate)));
