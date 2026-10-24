@@ -176,3 +176,27 @@ export async function findWorktreeByNameOrId(
   const lower = nameOrId.toLowerCase();
   return worktrees.find((wt) => wt.name.toLowerCase() === lower);
 }
+
+/** A registered project known to have a path on disk. */
+export type PathedProject = ProjectData & { projectPath: string };
+
+/**
+ * Resolve the project for a path-bound command (`--project`, else the current
+ * directory) and require that it has a configured project path.
+ */
+export async function resolvePathedProject(explicit: string | undefined): Promise<PathedProject> {
+  const store = new FileProjectStore();
+  const { id } = await resolveProjectId(explicit, store);
+  const project = await store.getById(id);
+
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'.`);
+  }
+  if (!project.projectPath) {
+    throw new UserError(
+      `Project '${project.name}' has no configured project path.\n` +
+        '  Run cf init in the project directory to set the path.',
+    );
+  }
+  return { ...project, projectPath: project.projectPath };
+}

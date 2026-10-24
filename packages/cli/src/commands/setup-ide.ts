@@ -5,10 +5,9 @@ import { Command } from 'commander';
 import type { ProjectData } from '@context-forge/core';
 import {
   ConfigManager,
-  FileProjectStore,
   parseRulesExclude,
 } from '@context-forge/core/node';
-import { resolveProjectId } from '../utils/project.js';
+import { resolvePathedProject } from '../utils/project.js';
 import { withProjectOption, withYesOption } from '../options.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { requireGuideDir } from '../utils/guideReady.js';
@@ -207,20 +206,7 @@ export function registerSetupIdeCommand(program: Command): void {
           throw new UserError(invalidTargetMessage(target));
         }
 
-        // Resolve project
-        const store = new FileProjectStore();
-        const { id } = await resolveProjectId(opts.project, store);
-        const project = await store.getById(id);
-
-        if (!project) {
-          throw new UserError(`Project not found: '${id}'.`);
-        }
-        if (!project.projectPath) {
-          throw new UserError(
-            `Project '${project.name}' has no configured project path.\n` +
-              '  Run cf init in the project directory to set the path.',
-          );
-        }
+        const project = await resolvePathedProject(opts.project);
 
         const run = await setupIdeAction(project.projectPath, normalizedTarget, {
           yes: opts.yes,
