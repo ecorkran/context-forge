@@ -6,6 +6,10 @@
  * own leaf module so setup-ide, commandInstaller, and worktreePropagation stay
  * acyclic; it imports from none of them.
  */
+import { MANAGED_BEGIN_MARKER } from '@context-forge/core/node';
+
+// The current-form markers are defined in core (shared with rule reconciliation).
+export { MANAGED_BEGIN_MARKER, MANAGED_END_MARKER, GENERATED_MARKER } from '@context-forge/core/node';
 
 export type Target = 'claude' | 'copilot' | 'cursor' | 'agents';
 
@@ -79,15 +83,6 @@ export const TARGETS: Record<Target, TargetDescriptor> = {
 export const MANAGED_MARKER = '[//]: # (context-forge:managed)';
 
 /**
- * Current managed marker, opening a BEGIN/END pair. Matched as a substring:
- * the line may be indented or carry trailing content.
- */
-export const MANAGED_BEGIN_MARKER = '<!-- BEGIN:context-forge -->';
-
-/** Closes the BEGIN/END pair. The installer matches both as whole lines. */
-export const MANAGED_END_MARKER = '<!-- END:context-forge -->';
-
-/**
  * Never emitted, but projects hand-added it after the legacy marker to put
  * their own content after the generated span. Detection only: everything after
  * it survives legacy migration.
@@ -98,16 +93,12 @@ export const MANAGED_MARKER_END = '[//]: # (context-forge:managed end)';
  * Every form that marks a file as context-forge-managed.
  *
  * cf's installer (ideInstall/) writes the BEGIN/END pair; the legacy form is
- * only detected and migrated. Every marker literal lives in this module so it
- * appears in exactly one place: they are a contract with files in users' projects.
+ * only detected and migrated. The legacy markers live in this module; the
+ * current-form markers live in core (`ruleReconciliation/markers.ts`). Each
+ * literal appears in exactly one place: they are a contract with files in users' projects.
  */
 export const MANAGED_MARKERS = [
   { marker: MANAGED_MARKER, match: 'exact-line' },
   { marker: MANAGED_BEGIN_MARKER, match: 'contains' },
 ] as const;
 
-/**
- * Tags a file generated wholesale from one source: `.github/instructions/*.instructions.md`
- * now, and legacy `.github/prompts/*.prompt.md`, which the copilot install removes.
- */
-export const GENERATED_MARKER = '<!-- context-forge:generated -->';

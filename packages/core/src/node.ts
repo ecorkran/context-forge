@@ -60,6 +60,9 @@ export * from './detection/index.js';
 // Adoption — brownfield adoption state, outcome and build resolver; fs dependent
 export * from './adoption/index.js';
 
+// Rule reconciliation — rule resolutions, project rule sources, managed markers; fs dependent
+export * from './ruleReconciliation/index.js';
+
 // Project defaults — fs-dependent auto-set rules (uses resolveFileByIndex)
 export { computeAutoSetFields } from './project-autoset.js';
 

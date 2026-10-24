@@ -36,6 +36,11 @@ vi.mock('@context-forge/core/node', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@context-forge/core/node')>();
   return {
     parseRulesExclude: actual.parseRulesExclude,
+    // Marker literals are re-exported from core by the cli modules.
+    MANAGED_BEGIN_MARKER: actual.MANAGED_BEGIN_MARKER,
+    MANAGED_END_MARKER: actual.MANAGED_END_MARKER,
+    GENERATED_MARKER: actual.GENERATED_MARKER,
+    PREMANAGED_BACKUP_SUFFIX: actual.PREMANAGED_BACKUP_SUFFIX,
     FileProjectStore: vi.fn().mockImplementation(() => ({
       getAll: mockGetAll,
       getById: mockGetById,

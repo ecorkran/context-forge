@@ -25,8 +25,8 @@ export function guidePaths(guideDir: string): GuidePaths {
   };
 }
 
-/** Suffix of the one-time backup taken before first touching an unmanaged file. */
-export const PREMANAGED_BACKUP_SUFFIX = '.pre-context-forge';
+// Defined in core (shared with rule reconciliation).
+export { PREMANAGED_BACKUP_SUFFIX } from '@context-forge/core/node';
 
 /** Claude Code keeps git worktrees here: whole checkouts, never install output. */
 export const DRY_RUN_SKIP_PATH = '.claude/worktrees';
