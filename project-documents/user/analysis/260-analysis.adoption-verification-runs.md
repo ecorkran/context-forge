@@ -33,21 +33,37 @@ End-to-end runs of the adoption flow (slices 260–264) on real repositories, re
 
 ## CF-only brownfield run
 
-**Setup:** _pending_
+**Setup:** `pallets/click` (Python, https://github.com/pallets/click) at `2247b35ea1c47c727d7a06e51fa280e12a863ff6`, cloned `--depth 1`; README, six CI workflows. `cf init --name cf-only-265 --no-ide` and `cf install-commands --local`; `cf` shimmed to the local build (`cf --version` 0.19.17); `sq` hidden from PATH (both `~/.local/bin` and the Python framework `bin` carry one). The session was driven headless with `claude -p` and resumed twice, answering as PM from the repo's own prose (`CHANGES.md` supplied the new work, everything else "unknown"). Guide v0.22.5. `cf init` ran before the session so check 1 could be observed; `/cf:onboard` then skipped to its hand-off step. `workflow.review_enabled` was `true` from this machine's user config.
 
 | Check | Result |
 |---|---|
-| 1. Hand-off chain: `cf next` before first build recommends `cf build`; first build selects the brownfield prompt, sets `adoption.state` to `in_progress`, Adoption Facts states brownfield | _pending_ |
-| 2. No escape to Phase 1 | _pending_ |
-| 3. Real marker: `100-arch.*` derived, `100-slices.*` accepted by `retroactive-entry`, at least one new entry, unknowns marked | _pending_ |
-| 4. Completion: next `cf build` sets `adoption.state` to `complete` and shows the notice | _pending_ |
-| 5. First new slice: `register-plan`, then `cf next` recommends the first new slice | _pending_ |
-| Source count: Adoption Facts vs `cloc` | _pending_ |
-| CF-only: Adoption Facts says squadron unavailable; no squadron step attempted | _pending_ |
+| 1. Hand-off chain | pass: `cf next --json` before the first build gave `cf build`; the first build selected the brownfield prompt, set `adoption.state` to `in_progress`, Adoption Facts states brownfield |
+| 2. No escape to Phase 1 | pass for the states observed: `record-completion` (after turn 1) and the post-completion state; neither recommended a phase change. The agent wrote architecture and plan in one turn, so the `architecture` and `existing-state-plan` steps (and the gate before the latter) were not observed live |
+| 3. Real marker | pass: `100-arch.cf-only-265.md` has `provenance: derived`; `100-slices.cf-only-265.md` has eight `` `retroactive` `` entries (100-107) accepted by `cf check` (info "Slices 100-107 are retroactive", no `retroactive-entry` finding) plus new entries 108-109; unknowns marked in the concept |
+| 4. Completion | pass: the agent's `cf build` recorded completion; `adoption.state` is `complete` |
+| 5. First new slice | pass with `workflow.review_enabled=false` (`cf next` gives `cf set slice 108` after `cf set arch 100-arch.cf-only-265`). With it `true` (this machine's setting) `cf next` gives "Review required before creating the slice plan" with no suggested command: decided 263 D7 behavior, filed as #132 |
+| Source count | cf: 2341+ non-blank source lines in 18 files (count stopped at the 2000 threshold); `cloc` of `src/`: 6923 code lines in 17 Python files. The capped count cannot exceed the threshold by design; outcome (brownfield) is the same, so no constant-tuning defect |
+| CF-only: Adoption Facts says squadron unavailable; no squadron step attempted | pass: Squadron line says unavailable; the session transcript has no `sq` or `/understand` tool call |
 
-**Adoption Facts (verbatim, first build):** _pending_
+**Adoption Facts (verbatim, first build):** the build in the session raced the capture, so this is the first build of a second clone at the same commit with the same PATH, run once right after `cf init`.
 
-**Defects:** _pending_
+```
+### Adoption Facts
+
+- Outcome: brownfield: 2341+ non-blank source lines (threshold 2000; count stopped at the threshold)
+- adoption.state: in_progress. adoption.state was set to in_progress by this build. To treat the project as new instead: `cf config set adoption.state declined`.
+- Source volume: 2341+ non-blank source lines (count stopped at the threshold) in 18 source files
+- History: 2 commits (shallow clone: history is truncated)
+- Docs: README.md, docs
+- ADRs: none found
+- Rule files: none found
+- CI: .github/workflows/lock.yaml, .github/workflows/nightly.yaml, .github/workflows/pre-commit.yaml, .github/workflows/publish.yaml, .github/workflows/tests.yaml, .github/workflows/zizmor.yaml
+- Squadron: unavailable. `sq` was not found on PATH.
+```
+
+**Defects:**
+- Disposition: issue #132 (design interaction, no code change). With `workflow.review_enabled` on, the derived-arch gate (263 D7) blocks the "Pick slice" end state after adoption; for a CF-only user the gate has no suggested command. Evidence: `{"recommendation":"Review required before creating the slice plan","suggestedCommand":null}`.
+- Harness note (not a cf defect): `cf build` prints no prompt to stdout, so captures use `cf build --json | jq -r .context`; the task file was corrected.
 
 ## Squadron brownfield run
 

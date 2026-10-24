@@ -62,20 +62,20 @@ revision_number: 2
 
 ### Greenfield run (design D3, Development Approach step 2)
 
-- [ ] **Task 2: Create the greenfield scratch projects** (effort: 1)
-  - [ ] Create `/tmp/cf-265/greenfield`, generate a framework starter with its official scaffolder (for example `npm create vite@latest`), `git init`, make one commit. On clone or scaffolder failure, retry once, then pick another starter (D2 table).
-  - [ ] Before any cf command touches it, copy it: `cp -R /tmp/cf-265/greenfield /tmp/cf-265/greenfield-fresh`. The copy is for the `/cf:onboard` session in Task 3.
-  - [ ] Register the original: `cfl init` in `/tmp/cf-265/greenfield` (non-interactive flags as `cfl init --help` shows).
-  - [ ] Success: both directories have the git commit; only the original has `.context-forge.toml`; the starter's name and version are noted for the report.
+- [x] **Task 2: Create the greenfield scratch projects** (effort: 1)
+  - [x] Create `/tmp/cf-265/greenfield`, generate a framework starter with its official scaffolder (for example `npm create vite@latest`), `git init`, make one commit. On clone or scaffolder failure, retry once, then pick another starter (D2 table).
+  - [x] Before any cf command touches it, copy it: `cp -R /tmp/cf-265/greenfield /tmp/cf-265/greenfield-fresh`. The copy is for the `/cf:onboard` session in Task 3.
+  - [x] Register the original: `cfl init` in `/tmp/cf-265/greenfield` (non-interactive flags as `cfl init --help` shows).
+  - [x] Success: both directories have the git commit; only the original has `.context-forge.toml`; the starter's name and version are noted for the report.
 
-- [ ] **Task 3: Greenfield run and report** (effort: 2)
-  - [ ] Walkthrough step 1: in the scratch project, `cfl build --json 2>/dev/null | jq -r .context | grep -c '### Adoption Facts'` prints 0; `cfl config get adoption.state` shows an empty value with source default.
-  - [ ] Start Claude Code in `/tmp/cf-265/greenfield-fresh` (Task 2's copy), run `/cf:onboard`, and confirm: setup, hand-off to `cf build`, and the concept conversation's opening question. Stop after that opening turn (D3).
-  - [ ] Fill the greenfield section of the report: setup line (starter, version, `cf` version), rows for the D3 greenfield check plus the `/cf:onboard` hand-off and concept opener.
-  - [ ] If any check fails, follow Task 4's fix loop before continuing. Per D3, if a difference other than the three checks shows, compare against a build from before slice 261.
-  - [ ] Run `cfl project rm` for both scratch projects (the original and the one `/cf:onboard` registered; confirm exact usage with `--help`).
-  - [ ] Success: every greenfield row in the report is pass, or has a defect line with a disposition.
-  - [ ] Commit: `docs: record greenfield adoption verification run`
+- [x] **Task 3: Greenfield run and report** (effort: 2)
+  - [x] Walkthrough step 1: in the scratch project, `cfl build --json 2>/dev/null | jq -r .context | grep -c '### Adoption Facts'` prints 0; `cfl config get adoption.state` shows an empty value with source default.
+  - [x] Start Claude Code in `/tmp/cf-265/greenfield-fresh` (Task 2's copy), run `/cf:onboard`, and confirm: setup, hand-off to `cf build`, and the concept conversation's opening question. Stop after that opening turn (D3).
+  - [x] Fill the greenfield section of the report: setup line (starter, version, `cf` version), rows for the D3 greenfield check plus the `/cf:onboard` hand-off and concept opener.
+  - [x] If any check fails, follow Task 4's fix loop before continuing. Per D3, if a difference other than the three checks shows, compare against a build from before slice 261.
+  - [x] Run `cfl project rm` for both scratch projects (the original and the one `/cf:onboard` registered; confirm exact usage with `--help`).
+  - [x] Success: every greenfield row in the report is pass, or has a defect line with a disposition.
+  - [x] Commit: `docs: record greenfield adoption verification run`
 
 #### Task 4 (reference, not a checklist task): defect procedure
 
@@ -87,22 +87,22 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
 
 ### CF-only run (design D4, Development Approach step 3)
 
-- [ ] **Task 5: CF-only brownfield run** (effort: 4)
-  - [ ] Select the repository per D1: public, single package, well over 2000 non-blank source lines, a language other than TypeScript, with a README, a CI workflow and some history. Clone into `/tmp/cf-265/cf-only` with `--depth 1`. Record URL and commit.
-  - [ ] Make `cf` resolve to the local build in the session (`cf install-commands --local` plus a PATH entry or alias to `packages/cli/dist/index.js`) and hide `sq` from PATH. Record `cf --version` as the session sees it.
-  - [ ] Before the first build, `cfl next --json | jq '{recommendation, suggestedCommand}'` recommends `cf build` (D4 check 1).
-  - [ ] Start Claude Code in the clone, run `/cf:onboard`, and drive the session to the end per D2: answer as the PM from the repository's own prose, "unknown" otherwise; no manual artifact edits; a session that ends early resumes with `cf build`.
-  - [ ] As soon as the session's first `cf build` has run, and before the agent writes any artifact, save `cfl build --json 2>/dev/null | jq -r .context > /tmp/cf-265/cf-only-first-build.txt` from a second terminal with the same PATH. Task 5R copies the Adoption Facts section from this file.
-  - [ ] In a second terminal with the same PATH, at each step: `cfl next --json | jq '{recommendation, suggestedCommand}'`, `cfl config get adoption.state`, `cfl check`. Verify D4 checks 1-5 and the CF-only check (Adoption Facts says squadron unavailable; the agent attempts no squadron step).
-  - [ ] Handle each failure per the D2 table (retry, BLOCKED or defect); apply Task 4 to every defect.
-  - [ ] Success: all D4 checks for the CF-only path pass and the run ends with `cf next` recommending the first new slice of the existing-state plan; or the run's blocked reason is on a `BLOCKED:` line under this task.
+- [x] **Task 5: CF-only brownfield run** (effort: 4)
+  - [x] Select the repository per D1: public, single package, well over 2000 non-blank source lines, a language other than TypeScript, with a README, a CI workflow and some history. Clone into `/tmp/cf-265/cf-only` with `--depth 1`. Record URL and commit.
+  - [x] Make `cf` resolve to the local build in the session (`cf install-commands --local` plus a PATH entry or alias to `packages/cli/dist/index.js`) and hide `sq` from PATH. Record `cf --version` as the session sees it.
+  - [x] Before the first build, `cfl next --json | jq '{recommendation, suggestedCommand}'` recommends `cf build` (D4 check 1).
+  - [x] Start Claude Code in the clone, run `/cf:onboard`, and drive the session to the end per D2: answer as the PM from the repository's own prose, "unknown" otherwise; no manual artifact edits; a session that ends early resumes with `cf build`.
+  - [x] As soon as the session's first `cf build` has run, and before the agent writes any artifact, save `cfl build --json 2>/dev/null | jq -r .context > /tmp/cf-265/cf-only-first-build.txt` from a second terminal with the same PATH. Task 5R copies the Adoption Facts section from this file.
+  - [x] In a second terminal with the same PATH, at each step: `cfl next --json | jq '{recommendation, suggestedCommand}'`, `cfl config get adoption.state`, `cfl check`. Verify D4 checks 1-5 and the CF-only check (Adoption Facts says squadron unavailable; the agent attempts no squadron step).
+  - [x] Handle each failure per the D2 table (retry, BLOCKED or defect); apply Task 4 to every defect.
+  - [x] Success: all D4 checks for the CF-only path pass and the run ends with `cf next` recommending the first new slice of the existing-state plan; or the run's blocked reason is on a `BLOCKED:` line under this task.
 
-- [ ] **Task 5R: Record the CF-only run** (effort: 2)
-  - [ ] Source count: run `cloc` on the clone, compare with the line count in Adoption Facts, record both numbers in the report. A gap that changes the outcome is a constant-tuning defect (Task 4).
-  - [ ] Copy the Adoption Facts section of `/tmp/cf-265/cf-only-first-build.txt` verbatim into the report (D7), with home-directory paths replaced by `~`.
-  - [ ] Fill the CF-only section of the report: setup line, one row per check, defect lines.
-  - [ ] Unregister the project with `cf project rm`.
-  - [ ] Success: every CF-only row has a result and every defect a disposition.
+- [x] **Task 5R: Record the CF-only run** (effort: 2)
+  - [x] Source count: run `cloc` on the clone, compare with the line count in Adoption Facts, record both numbers in the report. A gap that changes the outcome is a constant-tuning defect (Task 4).
+  - [x] Copy the Adoption Facts section of `/tmp/cf-265/cf-only-first-build.txt` verbatim into the report (D7), with home-directory paths replaced by `~`.
+  - [x] Fill the CF-only section of the report: setup line, one row per check, defect lines.
+  - [x] Unregister the project with `cf project rm`.
+  - [x] Success: every CF-only row has a result and every defect a disposition.
   - [ ] Commit: `docs: record CF-only adoption verification run`
 
 ### Squadron run (design D4, Development Approach step 4)
