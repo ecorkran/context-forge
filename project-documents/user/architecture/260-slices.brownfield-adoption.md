@@ -58,7 +58,7 @@ status: not_started
 ## Later Feature Slices
 These aren't needed for the core goal and follow the integration slice.
 
-7. [ ] **(266) Conventions Reconciliation** — Enumerate where the project's existing rules (CLAUDE.md, AGENTS.md, rule files) disagree with the guide's rules; the comparison is agent work driven by a guide prompt. Record the PM's resolution for each conflict, keyed by rule file identity and never by heading text. `setup-ide` applies stored resolutions deterministically, so a re-run doesn't re-introduce them. Must work with issue #123's CLAUDE.md/AGENTS.md audience split; the slice design settles whether #123 lands first or is folded in.
+7. [x] **(266) Conventions Reconciliation** — Enumerate where the project's existing rules (CLAUDE.md, AGENTS.md, rule files) disagree with the guide's rules; the comparison is agent work driven by a guide prompt. Record the PM's resolution for each conflict, keyed by rule file identity and never by heading text. `setup-ide` applies stored resolutions deterministically, so a re-run doesn't re-introduce them. Must work with issue #123's CLAUDE.md/AGENTS.md audience split; the slice design settles whether #123 lands first or is folded in.
    - **Value:** adoption no longer silently merges contradictory instructions into one file.
    - **Success criteria:** conflicts are listed for PM decision. Resolutions persist and survive `setup-ide` re-runs. A guide wording change doesn't break a stored resolution.
    - **Dependencies:** 261. Coordinated with #123.
@@ -78,3 +78,10 @@ These aren't needed for the core goal and follow the integration slice.
 
 ## Future Work
 Items to be added here as they arise during slice design, task breakdown, or implementation.
+
+- **From slice 266 (conventions reconciliation):**
+  - A `cf next` recommendation to run reconciliation when rule files are present and no resolutions are recorded.
+  - MCP tools for `rules inventory` and `rules resolve` (a later MCP surface would move `delivered()` and its exclusion input to core).
+  - A "not a conflict" record, so the agent stops re-raising a pair the PM judged compatible (#125).
+  - A command to remove a resolution; today it is a hand edit of the JSON file (#126).
+  - Issue #123's audience split: extend the single `delivered()` predicate with a target parameter.

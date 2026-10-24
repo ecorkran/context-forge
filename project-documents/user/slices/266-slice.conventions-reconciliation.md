@@ -7,8 +7,8 @@ dependencies:
 - 261
 interfaces: []
 dateCreated: 20261020
-dateUpdated: 20261020
-status: not_started
+dateUpdated: 20261024
+status: complete
 turns: 19
 promptTokens: 1095628
 cachedTokens: 1011383
@@ -301,16 +301,28 @@ Where a rule above conflicts with the project's own rules, the resolution below 
 
 Run in a scratch brownfield project with a hand-written CLAUDE.md containing a rule that contradicts the guide, e.g. "Never commit directly to main; every change goes through a PR." Malformed files, marker injection and guide rewording are covered by unit tests, not repeated here.
 
+**Setup used for the recorded run (isolated, so the real project registry and home directory are untouched):**
+```bash
+S=$(mktemp -d); mkdir -p $S/home $S/data $S/proj && cd $S/proj && git init -q -b main
+printf '# Team rules\n\nNever commit directly to main; every change goes through a PR.\n' > CLAUDE.md
+mkdir -p project-documents && cp -R <a checkout of ai-project-guide> project-documents/ai-project-guide   # no network needed
+export HOME=$S/home CONTEXT_FORGE_DATA_DIR=$S/data       # setup-ide also installs slash commands into $HOME
+cf() { node <repo>/packages/cli/dist/index.js "$@"; }    # the local build; the global cf is the published package
+cf init --lite --name scratch
+```
+
 1. **Baseline install.**
    ```bash
    cf init --ide claude          # or cf setup-ide claude on a registered project
-   grep -n "Project Rule Resolutions" CLAUDE.md   # → no match
+   grep -n "Project Rule Resolutions" CLAUDE.md   # → no match (grep exits 1)
    ```
+   (Recorded run used `cf setup-ide claude --yes`, since the project was registered with `cf init --lite`.)
 2. **Inventory.**
    ```bash
    cf rules inventory --json
    ```
-   Expect: guide rules (`general.md`, `git.md`, `fixes.md` as alwaysApply, plus scoped rules), and `CLAUDE.md` as a composite with its managed-block line range. Files under `.claude/rules/` that cf installed are absent.
+   Expect: guide rules (`general.md`, `git.md`, `fixes.md` as alwaysApply, plus scoped rules), `projectSources` holding only `CLAUDE.md` as a composite with its managed-block line range, and `resolutions: []`. Files under `.claude/rules/` that cf installed are absent.
+   Recorded run: `"projectSources": [{"path": "CLAUDE.md", "kind": "composite", "managedBlock": {"beginLine": 5, "endLine": 192}}]`; the lines match `grep -n "context-forge -->" CLAUDE.md`.
 3. **Agent reconciliation** (needs the guide prompt). Run `cf prompt get conventions-reconciliation` and give the output to the agent. It should report the commit-to-main conflict between `git.md` and `CLAUDE.md` and ask the PM to decide. On "project wins", it runs:
    ```bash
    cf rules resolve git.md CLAUDE.md \
@@ -321,11 +333,13 @@ Run in a scratch brownfield project with a hand-written CLAUDE.md containing a r
 4. **Apply and re-run.**
    ```bash
    cf setup-ide claude --yes
-   sed -n '/Project Rule Resolutions/,/END/p' CLAUDE.md   # → section with the git.md resolution
+   sed -n '/Project Rule Resolutions/,/END/p' CLAUDE.md   # → section with the git.md resolution, ending at the END marker line
    cp CLAUDE.md /tmp/a && cf setup-ide claude --yes && cmp CLAUDE.md /tmp/a   # → identical
    ```
-5. **Other targets.** `cf setup-ide agents --yes`, then confirm the same section at the end of AGENTS.md's block.
+   The `cmp` prints nothing when the files are identical.
+5. **Other targets.** `cf setup-ide agents --yes`, then confirm the same section at the end of AGENTS.md's block (`sed -n '/Project Rule Resolutions/,/END/p' AGENTS.md`).
 6. **Stale identity, both sides.** Hand-edit the JSON so `guideRule` is `git-old.md`, run `cf setup-ide claude --yes`: expect the guide-side warning naming `git-old.md vs CLAUDE.md`, no section, exit 0. Restore it, then change `projectSource` to `team-rules.md` (absent) and re-run: expect the project-side warning, no section, exit 0. Restore it, re-run, and the section is back with no warning.
+   Stale warnings go to stderr (`cf setup-ide claude --yes 2>&1 >/dev/null | grep resolution`). The recorded run printed exactly the two messages in D5 and the section count was 0, 0, 1 across the three runs.
 
 ## Risk Assessment
 
