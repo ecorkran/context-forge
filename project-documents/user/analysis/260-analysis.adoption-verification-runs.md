@@ -20,16 +20,16 @@ End-to-end runs of the adoption flow (slices 260–264) on real repositories, re
 
 ## Greenfield run
 
-**Setup:** _pending_
+**Setup:** `npm create vite@latest` (create-vite 9.3.1, `react-ts` template, project `greenfield` v0.0.0), `git init`, one commit, `cf init --name greenfield-265 --no-ide`. A pre-`cf` copy was used for the `/cf:onboard` session, driven headless with `claude -p` and `cf` shimmed to the local build (`cf --version` 0.19.17). Scratch state lives in the global project registry; this `cf` writes no `.context-forge.toml` into the project.
 
 | Check | Result |
 |---|---|
-| `cf build` selects the concept prompt, no Adoption Facts section | _pending_ |
-| `adoption.state` stays unset | _pending_ |
-| `/cf:onboard` hands off to `cf build` | _pending_ |
-| Session opens the concept conversation | _pending_ |
+| `cf build` selects the concept prompt, no Adoption Facts section | pass: `grep -c '### Adoption Facts'` printed 0; prompt is "Phase 0: Concept" |
+| `adoption.state` stays unset | pass: empty, source default (also after the `/cf:onboard` session) |
+| `/cf:onboard` hands off to `cf build` | pass: project registered, context built, agent followed the concept prompt |
+| Session opens the concept conversation | pass: agent asked "What do you want to build?" and stopped |
 
-**Defects:** _pending_
+**Defects:** none.
 
 ## CF-only brownfield run
 
