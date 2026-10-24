@@ -38,6 +38,12 @@ describe('presentPaths', () => {
     });
   });
 
+  it('finds .github/instructions as a directory and keeps RULE_FILE_PATHS order', async () => {
+    await mkdir(join(root, '.github/instructions'), { recursive: true });
+    await writeFile(join(root, 'CLAUDE.md'), 'x');
+    expect(presentPaths(root, RULE_FILE_PATHS)).toEqual(['CLAUDE.md', '.github/instructions']);
+  });
+
   it('throws for a path under a regular file (ENOTDIR)', async () => {
     await writeFile(join(root, 'docs'), 'not a directory');
     expect(() => presentPaths(root, ['docs/adr'])).toThrow(/ENOTDIR/);

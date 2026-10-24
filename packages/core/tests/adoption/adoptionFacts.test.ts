@@ -90,6 +90,11 @@ describe('renderAdoptionFacts', () => {
     expect(out).toContain('- CI: /r/.github/workflows/ci.yml');
   });
 
+  it('lists .github/instructions in the rule files bullet when present', () => {
+    const out = render({ ruleFiles: ['CLAUDE.md', '.github/instructions'] });
+    expect(out).toContain('Rule files: CLAUDE.md, .github/instructions');
+  });
+
   it('reports history facts, shallow and unknown', () => {
     expect(render({ history: { kind: 'known', commits: 1, shallow: true } })).toContain('1 commits (shallow');
     expect(render({ history: { kind: 'unknown', reason: 'timed out after 5s' } })).toContain(

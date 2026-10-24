@@ -15,3 +15,4 @@ export {
   type ProbeOutcome,
   type ProbeUnavailableReason,
 } from './squadronProbe.js';
+export { RULE_FILE_PATHS, presentPaths } from './presentPaths.js';

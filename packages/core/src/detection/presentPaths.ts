@@ -1,6 +1,6 @@
 // Presence-only facts for the Adoption Facts section (slice 261, D5). Core records
-// which well-known paths exist; it never reads them for meaning. Not re-exported
-// from detection/index.ts: other slices decide their own needs.
+// which well-known paths exist; it never reads them for meaning. Exported from
+// detection/index.ts: rule reconciliation (slice 266) enumerates the same list.
 import { join } from 'path';
 import { pathPresent } from './pathPresent.js';
 
@@ -24,6 +24,7 @@ export const RULE_FILE_PATHS: readonly string[] = [
   '.cursor/rules',
   '.windsurfrules',
   '.github/copilot-instructions.md',
+  '.github/instructions',
   '.claude/rules',
 ];
 
