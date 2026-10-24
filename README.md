@@ -259,6 +259,28 @@ cf guides update        # re-extracts at the same version without the excluded p
   the file is left out of the commit and cf says so.
 - Links from the remaining guide content into an excluded path will break.
 
+## Adopting an Existing Codebase
+
+Context Forge can take over a project that already has code. Run `cf init` (or `/cf:onboard` in your AI assistant) in the existing repository, then `cf build`. On the first build Context Forge looks at what is there, and if it finds a codebase it hands your assistant an adoption prompt instead of the new-project concept prompt. The assistant reads the code (and squadron's knowledge graph, when `sq` is installed), asks you to confirm what it cannot know, and writes a concept, a derived architecture and a slice plan that records the built work as completed history followed by your new work. `cf next` tells you where you are along the way; when adoption is finished it points at the first new slice.
+
+The build includes an *Adoption Facts* section, so the assistant works from what was measured and not from guesses. This is the section from a real run on a Python library (`pallets/click`, no squadron):
+
+```
+### Adoption Facts
+
+- Outcome: brownfield: 2341+ non-blank source lines (threshold 2000; count stopped at the threshold)
+- adoption.state: in_progress. adoption.state was set to in_progress by this build. To treat the project as new instead: `cf config set adoption.state declined`.
+- Source volume: 2341+ non-blank source lines (count stopped at the threshold) in 18 source files
+- History: 2 commits (shallow clone: history is truncated)
+- Docs: README.md, docs
+- ADRs: none found
+- Rule files: none found
+- CI: .github/workflows/lock.yaml, .github/workflows/nightly.yaml, .github/workflows/pre-commit.yaml, .github/workflows/publish.yaml, .github/workflows/tests.yaml, .github/workflows/zizmor.yaml
+- Squadron: unavailable. `sq` was not found on PATH.
+```
+
+If detection gets it wrong, you can override it with the `adoption.state` setting; `cf config get adoption.state` describes the values. Commands are in the [CLI reference](packages/cli/README.md), and [Review Gating](docs/REVIEW-GATING.md) explains how the review gate treats the recorded history.
+
 ## Consistency Checks and `--fix`
 
 `cf check` finds mismatches between related documents: a slice whose tasks are
