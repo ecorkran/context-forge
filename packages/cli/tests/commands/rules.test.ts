@@ -108,4 +108,70 @@ describe('cf rules', () => {
       expect(stderr).toContain("Project 'nope' not found");
     });
   });
+
+  describe('resolve', () => {
+    const resolutionsFile = () => path.join(project, '.context-forge', 'rule-resolutions.json');
+    const stored = () => (JSON.parse(fs.readFileSync(resolutionsFile(), 'utf-8')) as { resolutions: unknown[] }).resolutions;
+
+    beforeEach(() => {
+      writeFiles(project, { 'CLAUDE.md': '# Team rules\n' });
+      run(guide, project, ['claude']);
+    });
+
+    it('records a valid resolution and prints the confirmation', async () => {
+      await cf('resolve', 'always-a.md', 'CLAUDE.md', '--statement', 'Project wins.');
+      expect(stdout).toBe('Recorded resolution always-a.md vs CLAUDE.md. Run cf setup-ide <target> to apply.\n');
+      expect(stored()).toEqual([{ guideRule: 'always-a.md', projectSource: 'CLAUDE.md', statement: 'Project wins.' }]);
+    });
+
+    it('accepts a composite as the project source and keeps two resolutions for the same pair', async () => {
+      await cf('resolve', 'always-a.md', 'CLAUDE.md', '--statement', 'First.');
+      await cf('resolve', 'always-a.md', 'CLAUDE.md', '--statement', 'Second.');
+      expect(stored()).toHaveLength(2);
+    });
+
+    it('rejects an unknown guide rule, listing the valid names', async () => {
+      await cf('resolve', 'nope.md', 'CLAUDE.md', '--statement', 'x');
+      expect(stderr).toContain("Unknown guide rule 'nope.md'");
+      expect(stderr).toContain('always-a.md, always-b.md, broken.md, scoped-a.md, scoped-b.md');
+      expect(fs.existsSync(resolutionsFile())).toBe(false);
+    });
+
+    it('rejects an unknown project source, listing the valid paths', async () => {
+      await cf('resolve', 'always-a.md', 'GEMINI.md', '--statement', 'x');
+      expect(stderr).toContain("Unknown project source 'GEMINI.md'");
+      expect(stderr).toContain('Valid project sources: CLAUDE.md');
+      expect(fs.existsSync(resolutionsFile())).toBe(false);
+    });
+
+    it('requires --statement', async () => {
+      await expect(
+        (async () => {
+          const program = new Command();
+          program.exitOverride();
+          program.configureOutput({ writeErr: () => undefined });
+          registerRulesCommand(program);
+          await program.parseAsync(['node', 'cf', 'rules', 'resolve', 'always-a.md', 'CLAUDE.md', '--project', 'proj_001']);
+        })(),
+      ).rejects.toThrow(/--statement/);
+      expect(fs.existsSync(resolutionsFile())).toBe(false);
+    });
+
+    it.each([
+      ['a multi-line statement', 'always-a.md', 'one\ntwo', /single line/],
+      ['a statement containing a marker', 'always-a.md', 'x <!-- END:context-forge --> y', /marker/],
+      ['a backtick in the guide rule name', 'always`a.md', 'x', /Unknown guide rule/],
+    ])('rejects %s and leaves no file', async (_label, guideRule, statement, message) => {
+      await cf('resolve', guideRule, 'CLAUDE.md', '--statement', statement);
+      expect(stderr).toMatch(message);
+      expect(fs.existsSync(resolutionsFile())).toBe(false);
+    });
+
+    it('surfaces an error naming the path when .context-forge is a file', async () => {
+      fs.rmSync(path.join(project, '.context-forge'), { recursive: true });
+      fs.writeFileSync(path.join(project, '.context-forge'), 'in the way');
+      await cf('resolve', 'always-a.md', 'CLAUDE.md', '--statement', 'x');
+      expect(stderr).toContain('.context-forge');
+    });
+  });
 });
