@@ -105,7 +105,7 @@ const DECISION_GATE_RECOMMENDATION = 'Blocked: design has pending PM decisions';
 
 /** Attaches the navigation warnings to an action; an empty list leaves the action untouched. */
 function withNavWarnings(action: NextAction, navWarnings: string[]): NextAction {
-  return navWarnings.length > 0 ? { ...action, warnings: navWarnings } : action;
+  return navWarnings.length > 0 ? { ...action, warnings: [...(action.warnings ?? []), ...navWarnings] } : action;
 }
 
 /** What adoption routing decided for the no-active-slice guard (slice 264 D1). */

@@ -109,9 +109,7 @@ describe('workflow_next: adoption parity with the navigator (slice 264)', () => 
     const result = await callNext(project);
     const actual = JSON.parse(textOf(result)) as typeof expected;
 
-    expect(actual.recommendation).toBe(expected.recommendation);
-    expect(actual.suggestedCommand).toBe(expected.suggestedCommand);
-    expect(actual.warnings).toEqual(expected.warnings);
+    expect(actual).toEqual(JSON.parse(JSON.stringify(expected)));
   });
 
   it('reports the adoption step, not Phase 0 advice, through the tool', async () => {

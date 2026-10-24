@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import { ConfigManager, WorkflowNavigator } from '@context-forge/core/node';
 import { registerNextCommand } from '../../src/commands/next.js';
@@ -55,6 +55,10 @@ describe('cf next: adoption (slice 264)', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('--json matches getNext for a record-completion fixture', async () => {

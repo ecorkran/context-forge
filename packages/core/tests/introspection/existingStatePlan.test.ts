@@ -47,8 +47,9 @@ describe('findExistingStatePlan', () => {
   });
 
   it('returns the lowest-index plan when two carry markers', async () => {
-    await put(guides(), '200-slices.b.md', planFile(RETROACTIVE_ENTRY));
-    const lowest = await put(arch(), '100-slices.a.md', planFile(RETROACTIVE_ENTRY));
+    // The lower index sits in the directory that sorts later by full path, so only index order passes.
+    await put(arch(), '200-slices.b.md', planFile(RETROACTIVE_ENTRY));
+    const lowest = await put(guides(), '100-slices.a.md', planFile(RETROACTIVE_ENTRY));
     expect(await findExistingStatePlan(root)).toBe(lowest);
   });
 

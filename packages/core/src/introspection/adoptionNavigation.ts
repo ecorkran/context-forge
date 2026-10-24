@@ -4,7 +4,7 @@ import { basename, join, resolve } from 'path';
 import { readAdoptionState } from '../adoption/adoptionState.js';
 import type { AdoptionState } from '../config/ConfigKeys.js';
 import { pathPresent } from '../detection/pathPresent.js';
-import { findArchitectureArtifacts, findPlanningArtifacts } from '../detection/planningArtifacts.js';
+import { fileIndexOf, findArchitectureArtifacts, findPlanningArtifacts } from '../detection/planningArtifacts.js';
 import { CONCEPT_PHASE, SLICE_PLANNING_PHASE, resolvePhaseValue } from '../schema/projectSchema.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import type { ResolvedProject } from '../types/index.js';
@@ -123,15 +123,10 @@ function stem(path: string): string {
   return basename(path, '.md');
 }
 
-/** The 3-digit index of a planning file name. */
-function fileIndex(path: string): string {
-  return basename(path).slice(0, 3);
-}
-
 function buildRegisterPlanAction(inputs: AdoptionNavInputs): NextAction {
   const plan = inputs.existingStatePlanPath;
   if (!plan) throw new Error('register-plan requires an existing-state plan path');
-  const sameIndexArch = inputs.architecturePaths.find((path) => fileIndex(path) === fileIndex(plan));
+  const sameIndexArch = inputs.architecturePaths.find((path) => fileIndexOf(path) === fileIndexOf(plan));
   const suggestedCommand = sameIndexArch ? `cf set arch ${stem(sameIndexArch)}` : `cf set plan ${stem(plan)}`;
   return {
     recommendation: 'Adoption is complete. Register the derived architecture and existing-state slice plan.',

@@ -15,10 +15,15 @@ export const ARCHITECTURE_FILE_PATTERN = /^\d{3}-(arch|hld)\..+\.md$/i;
 /** nnn-slices.*.md, as ProjectModelBuilder parses them. */
 export const SLICE_PLAN_FILE_PATTERN = /^\d{3}-slices\..+\.md$/i;
 
+/** The 3-digit index prefix of a planning file name. */
+export function fileIndexOf(path: string): string {
+  return basename(path).slice(0, 3);
+}
+
 /** Orders absolute paths by the 3-digit index of the file name, then by full path. */
 export function compareByFileIndex(a: string, b: string): number {
-  const indexA = basename(a).slice(0, 3);
-  const indexB = basename(b).slice(0, 3);
+  const indexA = fileIndexOf(a);
+  const indexB = fileIndexOf(b);
   if (indexA !== indexB) return indexA < indexB ? -1 : 1;
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -43,7 +48,11 @@ async function listFileNames(dir: string): Promise<string[]> {
   }
 }
 
-/** Absolute, sorted paths of the planning artifacts under `root`. Empty means not yet planned. */
+/**
+ * Absolute paths of the planning artifacts under `root`, sorted lexically by full path (not by
+ * file-name index; callers that need index order sort with `compareByFileIndex`). Empty means
+ * not yet planned.
+ */
 export async function findPlanningArtifacts(root: string): Promise<string[]> {
   const guidesDir = join(root, PROJECT_GUIDES_DIR);
   const archDir = join(root, ARCHITECTURE_DIR);
