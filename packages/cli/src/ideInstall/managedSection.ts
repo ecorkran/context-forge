@@ -5,6 +5,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { managedBlockRange } from '@context-forge/core/node';
 import {
   MANAGED_BEGIN_MARKER,
   MANAGED_END_MARKER,
@@ -43,14 +44,9 @@ export type ManagedState = 'absent' | 'unmanaged' | 'legacy' | 'managed' | 'brok
 export function managedState(file: string): ManagedState {
   if (!isFile(file)) return 'absent';
   const lines = toRecords(readBytes(file));
-  const begins = lines.flatMap((line, i) => (line === MANAGED_BEGIN_MARKER ? [i] : []));
-  const ends = lines.flatMap((line, i) => (line === MANAGED_END_MARKER ? [i] : []));
-
-  if (begins.length === 0 && ends.length === 0) {
-    return lines.includes(MANAGED_MARKER) ? 'legacy' : 'unmanaged';
-  }
-  if (begins.length !== 1 || ends.length !== 1) return 'broken';
-  return begins[0] < ends[0] ? 'managed' : 'broken';
+  const range = managedBlockRange(lines);
+  if (range === 'none') return lines.includes(MANAGED_MARKER) ? 'legacy' : 'unmanaged';
+  return range === 'broken' ? 'broken' : 'managed';
 }
 
 /** One-time backup before first touching a file we did not write. Never overwritten. */
