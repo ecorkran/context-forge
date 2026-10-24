@@ -6,9 +6,10 @@ import {
   cksum,
   InstallManifest,
   manifestPath,
+  readInstalledPaths,
 } from '../../src/ideInstall/manifest.js';
 import { Printer } from '../../src/ideInstall/output.js';
-import { FIXTURE_DATA } from './harness.js';
+import { FIXTURE_DATA, FIXTURE_GUIDE, makeProject, makeTmpDir, run } from './harness.js';
 
 
 describe('cksum', () => {
@@ -189,5 +190,57 @@ describe('InstallManifest', () => {
     write(legacy, fs.readFileSync(path.join(FIXTURE_DATA, 'analyze-SKILL.md'), 'utf-8'));
     manifest.finish();
     expect(fs.existsSync(legacy)).toBe(false);
+  });
+});
+
+describe('readInstalledPaths', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'manifest-paths-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const writeManifest = (name: string, text: string): void => {
+    fs.mkdirSync(path.join(root, '.context-forge'), { recursive: true });
+    fs.writeFileSync(path.join(root, '.context-forge', name), text);
+  };
+
+  it('returns [] when .context-forge/ is missing', () => {
+    expect(readInstalledPaths(root)).toEqual([]);
+  });
+
+  it('parses a manifest written by a real setup-ide claude run', () => {
+    const tmp = makeTmpDir();
+    try {
+      const { project, guide } = makeProject(tmp, FIXTURE_GUIDE);
+      expect(run(guide, project, ['claude']).code).toBe(0);
+      const installed = readInstalledPaths(project);
+      expect(installed.length).toBeGreaterThan(0);
+      expect(installed).toContain('.claude/rules/scoped-a.md');
+      expect(installed).not.toContain('CLAUDE.md');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('merges several manifests and ignores other files', () => {
+    writeManifest('claude.manifest', '1 2 .claude/rules/a.md\n');
+    writeManifest('cursor.manifest', '3 4 .cursor/rules/b.mdc\n');
+    writeManifest('notes.txt', 'not a manifest');
+    expect(readInstalledPaths(root)).toEqual(['.claude/rules/a.md', '.cursor/rules/b.mdc']);
+  });
+
+  it('keeps a path containing spaces whole', () => {
+    writeManifest('claude.manifest', '1 2 .claude/rules/my rule.md\n');
+    expect(readInstalledPaths(root)).toEqual(['.claude/rules/my rule.md']);
+  });
+
+  it('throws naming the manifest for a line with fewer than three fields', () => {
+    writeManifest('claude.manifest', '1 2 ok.md\n12345 short\n');
+    expect(() => readInstalledPaths(root)).toThrow(/claude\.manifest.*malformed/);
   });
 });

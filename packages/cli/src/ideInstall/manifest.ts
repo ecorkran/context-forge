@@ -53,9 +53,35 @@ export function cksum(buffer: Buffer): number {
   return ~crc >>> 0;
 }
 
+/** File-name suffix of an install manifest. */
+const MANIFEST_SUFFIX = '.manifest';
+
 /** `<root>/.context-forge/<target>.manifest` */
 export function manifestPath(root: string, target: string): string {
-  return path.join(root, MANIFEST_DIR, `${target}.manifest`);
+  return path.join(root, MANIFEST_DIR, `${target}${MANIFEST_SUFFIX}`);
+}
+
+/**
+ * Every checkout-relative path listed by any `.context-forge/*.manifest`, in
+ * manifest-name then line order. Blank lines are skipped; a line without the
+ * three `<crc> <size> <path>` fields throws, naming its manifest. Paths may
+ * contain spaces: the path is everything after the second space.
+ */
+export function readInstalledPaths(root: string): string[] {
+  const dir = path.join(root, MANIFEST_DIR);
+  if (!isDirectory(dir)) return [];
+  const installed: string[] = [];
+  for (const name of fs.readdirSync(dir).filter((n) => n.endsWith(MANIFEST_SUFFIX)).sort(byteOrder)) {
+    const file = path.join(dir, name);
+    for (const line of toRecords(fs.readFileSync(file, 'utf-8'))) {
+      if (line.trim() === '') continue;
+      const fields = line.split(' ');
+      const rel = fields.slice(2).join(' ');
+      if (fields.length < 3 || rel === '') throw new Error(`${file}: malformed manifest line (expected "<crc> <size> <path>"): ${line}`);
+      installed.push(rel);
+    }
+  }
+  return installed;
 }
 
 // ─── Writer ──────────────────────────────────────────────────────────────────
