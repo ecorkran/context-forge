@@ -107,29 +107,29 @@ Tasks 3, 5 and 6 apply this once per defect a run exposes (D5). It has no checkb
 
 ### Squadron run (design D4, Development Approach step 4)
 
-- [ ] **Task 6: Squadron brownfield run** (effort: 4)
-  - [ ] Select the repository per D1: public monorepo with a package over 2000 source lines, full clone, a language different from Task 5's. Clone into `/tmp/cf-265/squadron`; register the cf project at that package's folder. Record URL, commit, and the `sq` version.
-  - [ ] Verify `sq probe --json | jq '.probe_version, (.surfaces | keys)'` prints 1 and a list including `claude-code` (D4). A missing `sq`, absent probe, or other `probe_version` is `BLOCKED:` (squadron prerequisite), never a pass.
-  - [ ] Run as in Task 5 with `sq` on PATH. The operator approves `/understand` exactly once. A failed `/understand` is retried once in a new session; a second failure is BLOCKED with an issue in the plugin or squadron repository. Never fall back to the CF-only path.
-  - [ ] Verify D4 checks 1-5 as in Task 5, including saving the first build to `/tmp/cf-265/squadron-first-build.txt`; Task 6R compares the source count from it.
-  - [ ] Squadron checks (D4): Adoption Facts JSON in that file equals `sq probe --json` run in the same folder; the agent asks the `/understand` question once and runs the steps the probe lists for its surface; after `/sq:analysis understand`, `cfl build --json 2>/dev/null | jq -r .context | grep '^Comprehension:'` shows the comprehension line and the agent has the PM confirm the squadron-written concept before building on it.
-  - [ ] Monorepo check: with graph facts describing the repository root and the cf project in a subdirectory, the agent neither stalls nor writes the architecture for the whole monorepo. Either is a guide-prompt defect (Task 4).
-  - [ ] Apply Task 4 to every defect.
-  - [ ] Success: all D4 checks for the squadron path (including the monorepo check) pass and the run ends with `cf next` recommending the first new slice; or a `BLOCKED:` line names the missing prerequisite.
+- [x] **Task 6: Squadron brownfield run** (effort: 4)
+  - [x] Select the repository per D1: public monorepo with a package over 2000 source lines, full clone, a language different from Task 5's. Clone into `/tmp/cf-265/squadron`; register the cf project at that package's folder. Record URL, commit, and the `sq` version.
+  - [x] Verify `sq probe --json | jq '.probe_version, (.surfaces | keys)'` prints 1 and a list including `claude-code` (D4). A missing `sq`, absent probe, or other `probe_version` is `BLOCKED:` (squadron prerequisite), never a pass.
+  - [x] Run as in Task 5 with `sq` on PATH. The operator approves `/understand` exactly once. A failed `/understand` is retried once in a new session; a second failure is BLOCKED with an issue in the plugin or squadron repository. Never fall back to the CF-only path.
+  - [x] Verify D4 checks 1-5 as in Task 5, including saving the first build to `/tmp/cf-265/squadron-first-build.txt`; Task 6R compares the source count from it.
+  - [x] Squadron checks (D4): Adoption Facts JSON in that file equals `sq probe --json` run in the same folder; the agent asks the `/understand` question once and runs the steps the probe lists for its surface; after `/sq:analysis understand`, `cfl build --json 2>/dev/null | jq -r .context | grep '^Comprehension:'` shows the comprehension line and the agent has the PM confirm the squadron-written concept before building on it.
+  - [x] Monorepo check: with graph facts describing the repository root and the cf project in a subdirectory, the agent neither stalls nor writes the architecture for the whole monorepo. Either is a guide-prompt defect (Task 4).
+  - [x] Apply Task 4 to every defect.
+  - [x] Success: all D4 checks for the squadron path (including the monorepo check) pass and the run ends with `cf next` recommending the first new slice; or a `BLOCKED:` line names the missing prerequisite.
 
-- [ ] **Task 6M: MCP PATH check (squadron run)** (effort: 2)
-  - [ ] Use the Task 6 project while it is still registered. Method: get the project ID from `cfl project list`. Call `context_build` with that `projectId` against the local server `node <repo>/packages/mcp-server/dist/index.js` over stdio, using the MCP Inspector CLI (`npx @modelcontextprotocol/inspector --cli <server command> --method tools/call --tool-name context_build --tool-arg projectId=<id>`; confirm the flags with `--help`). Run it twice: once with `sq`'s directory on the server's `PATH`, once with it removed (`env PATH=...`). Save each output's Adoption Facts section.
-    - [ ] With `sq` on PATH, the probe JSON equals `cfl build --json`'s (its `context` field). With `sq` off PATH, Adoption Facts states that squadron is unavailable; a silent omission fails the check.
-    - [ ] If the first call shows `sq` missing even though the server's environment has it on PATH, file the `sq` path setting named in slice 262 as a new-option issue (D5).
-  - [ ] Apply Task 4 to any defect.
-  - [ ] Success: both MCP calls are checked as above and saved; or a `BLOCKED:` line names the missing prerequisite.
+- [x] **Task 6M: MCP PATH check (squadron run)** (effort: 2)
+  - [x] Use the Task 6 project while it is still registered. Method: get the project ID from `cfl project list`. Call `context_build` with that `projectId` against the local server `node <repo>/packages/mcp-server/dist/index.js` over stdio, using the MCP Inspector CLI (`npx @modelcontextprotocol/inspector --cli <server command> --method tools/call --tool-name context_build --tool-arg projectId=<id>`; confirm the flags with `--help`). Run it twice: once with `sq`'s directory on the server's `PATH`, once with it removed (`env PATH=...`). Save each output's Adoption Facts section.
+    - [x] With `sq` on PATH, the probe JSON equals `cfl build --json`'s (its `context` field). With `sq` off PATH, Adoption Facts states that squadron is unavailable; a silent omission fails the check.
+    - [x] If the first call shows `sq` missing even though the server's environment has it on PATH, file the `sq` path setting named in slice 262 as a new-option issue (D5).
+  - [x] Apply Task 4 to any defect.
+  - [x] Success: both MCP calls are checked as above and saved; or a `BLOCKED:` line names the missing prerequisite.
 
-- [ ] **Task 6R: Record the squadron run** (effort: 2)
-  - [ ] Source count: run `cloc` on the package folder, compare with the line count in `/tmp/cf-265/squadron-first-build.txt`, record both numbers (a gap that changes the outcome is a Task 4 defect).
-  - [ ] Fill the squadron section of the report: setup line (including guide version), one row per check (source-count row carries both numbers), defect lines.
-  - [ ] Unregister the project with `cf project rm`.
-  - [ ] Success: every squadron row has a result and every defect a disposition.
-  - [ ] Commit: `docs: record squadron adoption verification run`
+- [x] **Task 6R: Record the squadron run** (effort: 2)
+  - [x] Source count: run `cloc` on the package folder, compare with the line count in `/tmp/cf-265/squadron-first-build.txt`, record both numbers (a gap that changes the outcome is a Task 4 defect).
+  - [x] Fill the squadron section of the report: setup line (including guide version), one row per check (source-count row carries both numbers), defect lines.
+  - [x] Unregister the project with `cf project rm`.
+  - [x] Success: every squadron row has a result and every defect a disposition.
+  - [x] Commit: `docs: record squadron adoption verification run`
 
 ### Documentation (design D8, Development Approach step 5)
 

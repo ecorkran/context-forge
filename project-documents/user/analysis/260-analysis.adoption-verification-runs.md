@@ -67,20 +67,45 @@ End-to-end runs of the adoption flow (slices 260–264) on real repositories, re
 
 ## Squadron brownfield run
 
-**Setup:** _pending_
+**Setup:** `tokio-rs/axum` (Rust, https://github.com/tokio-rs/axum) at `86aa6153e47b7862737acdcfe3a0eb3a162b939a`, full clone (2023 commits); cf project registered at the `axum/` package folder; guide v0.22.5; squadron 0.23.7 (`sq probe --json`: `probe_version` 1, surfaces `claude-code` and `codex`); local-build `cf` 0.19.17 via shim; `sq` on PATH. Driven headless with `claude -p`, six turns, PM answers from the repo's own prose (`CHANGELOG.md` supplied the new work, everything else "unknown"); `/understand` approved once. `cf init` in the package folder created a nested git repo (#133); the nested `.git` was deleted in the scratch copy before the session. `workflow.review_enabled` was `true` from this machine's user config.
 
 | Check | Result |
 |---|---|
-| 1. Hand-off chain | _pending_ |
-| 2. No escape to Phase 1 | _pending_ |
-| 3. Real marker | _pending_ |
-| 4. Completion | _pending_ |
-| 5. First new slice | _pending_ |
-| Source count: Adoption Facts vs `cloc` | _pending_ |
-| Adoption Facts JSON equals `sq probe --json` in the same folder | _pending_ |
-| `/understand` asked once; probe-listed steps run for the surface | _pending_ |
-| `Comprehension:` line present after `/sq:analysis understand`; PM confirms squadron-written concept | _pending_ |
-| Monorepo: no stall, architecture not written for the whole monorepo | _pending_ |
-| MCP PATH: `context_build` with `sq` on PATH equals `cf build`; with `sq` off PATH states unavailable | _pending_ |
+| 1. Hand-off chain | pass: `cf next --json` before the first build gave `cf build`; the first build selected the brownfield prompt, set `adoption.state` to `in_progress`, Adoption Facts states brownfield |
+| 2. No escape to Phase 1 | pass for the states observed: `concept`, `record-completion` and the post-completion state; none recommended a phase change. The `architecture` and `existing-state-plan` steps were not observed live (written in one turn) |
+| 3. Real marker | pass: `100-arch.squadron-265.md` has `provenance: derived`; `100-slices.squadron-265.md` has seven retroactive entries (100-106) accepted by `cf check`, plus new entries 107-108; gaps and inferences marked `[GAP]` / `[INFERRED]` |
+| 4. Completion | pass: the agent's second `cf build` set `adoption.state` to `complete` |
+| 5. First new slice | pass with `workflow.review_enabled=false` (`cf set arch 100-arch.squadron-265`, then `cf set slice 107`). With it `true`: gated, `suggestedCommand` null (#132) |
+| Source count | cf: 2078+ non-blank source lines in 9 files (count stopped at the threshold); `cloc` of `axum/`: 15908 Rust code lines in 61 files. Outcome (brownfield) is the same, so no constant-tuning defect |
+| Adoption Facts JSON equals `sq probe --json` in the same folder | pass: `jq -S` diff of the first build's probe block against `sq probe --json` run in `axum/` is empty |
+| `/understand` asked once; probe-listed steps run | pass: the agent asked once (turn 1, before any build of the graph), then ran `/understand` and `/sq:analysis understand` / `concept` as the probe lists for `claude-code` |
+| `Comprehension:` line, PM confirms concept | pass: `cf build` shows `Comprehension: user/analysis/940-analysis.codebase-comprehension.md`; the agent showed the derived description and waited for confirmation before writing the concept |
+| Monorepo | pass: no stall; the architecture states its scope as the `axum` crate directory and names `axum-core`, `axum-extra`, `axum-macros` as outside the analyzed files. Root CI is recognized (`CI: ../.github/workflows/CI.yml, ...`) and history counts the enclosing repo (878 commits touching the folder) |
+| MCP PATH | pass: see below |
 
-**Defects:** _pending_
+**MCP PATH:** `context_build` with `projectId` through the MCP Inspector CLI (`@modelcontextprotocol/inspector --cli -e PATH=... node packages/mcp-server/dist/index.js --method tools/call --tool-name context_build --tool-arg projectId=<id>`), with `adoption.state` set to `in_progress` before each call (the first call completes adoption because the plan exists). With `sq` on the server's PATH, the Adoption Facts probe JSON equals `sq probe --json`; with `sq` removed it states "Squadron: unavailable. `sq` was not found on PATH." No `sq` path-setting issue was needed.
+
+**Adoption Facts (verbatim, first build):** captured from a copy of the clone taken before `cf init` (same commit, same PATH), built once right after `cf init`, because the session's own first build had already changed state.
+
+```
+### Adoption Facts
+
+- Outcome: brownfield: 2078+ non-blank source lines (threshold 2000; count stopped at the threshold)
+- adoption.state: in_progress. adoption.state was set to in_progress by this build. To treat the project as new instead: `cf config set adoption.state declined`.
+- Source volume: 2078+ non-blank source lines (count stopped at the threshold) in 9 source files
+- History: 878 commits
+- Docs: README.md
+- ADRs: none found
+- Rule files: none found
+- CI: ../.github/workflows/CI.yml, ../.github/workflows/release-plz.yml
+- Squadron probe (`sq probe --json`), verbatim:
+  ```json
+  {"probe_version":1,"sq_version":"0.23.7","surfaces":{"claude-code":{"analysis_skill_installed":true,"entry":"/sq:analysis understand","concept":"/sq:analysis understand concept","understand_plugin_installed":true,"graph_build":"/understand"},"codex":{"analysis_skill_installed":true,"entry":"analysis-understand","concept":"analysis-understand concept","understand_plugin_installed":false,"graph_build":"understand"}},"graph":{"present":false,"path":null,"commit":null,"commits_behind":null},"baseline":{"available":false}}
+  ```
+- Probe warnings (stderr, verbatim): none
+```
+
+**Defects:**
+- Disposition: issue ecorkran/squadron#264 (squadron defect). `sq probe` looks for the graph at the git toplevel, while `/understand` wrote it to `axum/.understand-anything/knowledge-graph.json` (the package folder). After the graph was built, `sq probe --json` still printed `"graph":{"present":false,...}` from both folders.
+- Disposition: issue #133 (cf defect outside 260-264). `cf init` in a package folder of a git repository runs `git init` there (`git initialized`), so the nested repo's history was 1 commit and CI was "none found" until the nested `.git` was removed.
+- Disposition: issue #132 (see CF-only run), confirmed on the squadron path: `{"recommendation":"Review required before creating the slice plan","suggestedCommand":null}`.
