@@ -16,3 +16,4 @@ export {
   type ProbeUnavailableReason,
 } from './squadronProbe.js';
 export { RULE_FILE_PATHS, COMPOSITE_RULE_FILES, presentPaths } from './presentPaths.js';
+export { pathPresent } from './pathPresent.js';
