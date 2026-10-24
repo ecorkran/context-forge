@@ -75,7 +75,7 @@ When installed via `cf install-commands`, these slash commands are available dir
 | `/cf:project` | Manage projects (e.g., `/cf:project list`, `/cf:project --schema`) |
 | `/cf:next` | Show recommended next action |
 | `/cf:check` | Run consistency checks on project artifacts |
-| `/cf:onboard` | AI-guided project setup |
+| `/cf:onboard` | AI-guided project setup, then hands off to `cf build` |
 
 Each command runs `cf` under the hood — same CWD-based project resolution, same output.
 
@@ -89,7 +89,7 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf list initiatives` | Architecture initiatives with slice counts |
 | `cf list arch` | Alias for `cf list initiatives` |
 | `cf list plans` | Slice plan files with completion progress |
-| `cf list slices` | Slices from the active plan with status |
+| `cf list slices` | Slices from the active plan with status. A recorded-history entry from an adopted codebase shows `✓ retroactive`; see [what the marker exempts](../../docs/REVIEW-GATING.md#retroactive-slices) |
 | `cf list tasks` | Task files from the plan with progress |
 | `cf list items` | Individual tasks from the active task file |
 
@@ -99,8 +99,8 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 |---------|-------|-------------|
 | `cf init` | `cf init` | Register the current directory as a project |
 | `cf status` | `cf status [--json]` | Show workflow status |
-| `cf next` | `cf next [--json]` | Show recommended next action |
-| `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt |
+| `cf next` | `cf next [--json]` | Show recommended next action. During adoption of an existing codebase it reports the adoption step (`concept`, `architecture`, `existing-state-plan`, `record-completion`; each is carried out by `cf build`), then `register-plan` with the suggested `cf set arch` command, then the first new slice. It does not change the phase during adoption |
+| `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt. For an existing codebase it selects the brownfield adoption prompt instead of the concept prompt and adds an *Adoption Facts* section; the `adoption.state` setting records and overrides the outcome (`cf config get adoption.state`) |
 | `cf set` | `cf set <field> <value>` | Set a project field |
 | `cf get` | `cf get [--json]` | Show all project fields |
 | `cf check` | `cf check [--fix] [--slice <n>] [--json]` | Run consistency checks |
