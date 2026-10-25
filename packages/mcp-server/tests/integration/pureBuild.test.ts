@@ -26,6 +26,7 @@ const BROWNFIELD_GUIDE = path.resolve(
 );
 const PROJECT_PATH_PLACEHOLDER = '__FIXTURE_PROJECT_PATH__';
 const PROJECT_CONFIG_FILE = '.context-forge.toml';
+// A legacy adoption.state (slice 269): no longer used, and the build ignores it.
 const IN_PROGRESS_CONFIG = '[adoption]\nstate = "in_progress"\n';
 const BROWNFIELD_INSTRUCTION = 'brownfield-adoption';
 // Text from the brownfield-guide fixture prompt, never from the installed guide.
@@ -138,7 +139,7 @@ describe('pure build (slice 268)', () => {
     await expectPureBuild(root, () => buildViaCli(CONCEPT_PHASE));
   });
 
-  it('cf build ignores a stored in_progress state and leaves it in place', async () => {
+  it('cf build ignores a stored legacy in_progress value and leaves it in place', async () => {
     const root = createBrownfieldCheckout(IN_PROGRESS_CONFIG);
     await expectPureBuild(root, () => buildViaCli(CONCEPT_PHASE));
     expect(fs.readFileSync(path.join(root, PROJECT_CONFIG_FILE), 'utf-8')).toBe(IN_PROGRESS_CONFIG);
