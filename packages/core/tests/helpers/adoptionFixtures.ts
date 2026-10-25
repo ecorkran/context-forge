@@ -41,6 +41,8 @@ export interface AdoptionFixtureOptions {
   plan?: PlanEntrySpec[];
   /** Writes 200-slices.other.md, an ordinary plan with one new entry. */
   otherPlan?: boolean;
+  /** Writes src/big.ts with this many non-blank source lines. */
+  sourceLines?: number;
 }
 
 export interface AdoptionFixture {
@@ -82,6 +84,11 @@ export function createAdoptionFixture(options: AdoptionFixtureOptions = {}): Ado
   if (options.otherPlan) {
     const body = entryLine({ index: 200, name: 'Other Work', retroactive: false, checked: false });
     write(root, ARCH_DIR, OTHER_PLAN_FILE, frontmatter('slice-plan') + `# Slice Plan\n\n${body}`);
+  }
+
+  if (options.sourceLines !== undefined) {
+    const body = Array.from({ length: options.sourceLines }, (_, i) => `export const v${i} = ${i};`).join('\n');
+    write(root, ['src'], 'big.ts', body);
   }
 
   return {

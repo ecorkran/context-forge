@@ -1,20 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { rmSync } from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { ConfigManager, WorkflowNavigator } from '@context-forge/core/node';
+import {
+  ADOPTION_OPT_OUT,
+  BROWNFIELD_LINE,
+  BROWNFIELD_MIN_SOURCE_LINES,
+  ConfigManager,
+  INCOMPLETE_ADOPTION_LINE,
+  LEGACY_ADOPTION_STATES,
+  WorkflowNavigator,
+  legacyAdoptionStateNotice,
+  type NextAction,
+} from '@context-forge/core/node';
 import { registerWorkflowTools } from '../src/tools/workflowTools.js';
 import {
-  ALL_RETROACTIVE_ENTRIES,
   MIXED_ENTRIES,
   createAdoptionFixture,
   type AdoptionFixtureOptions,
 } from '../../core/tests/helpers/adoptionFixtures.js';
 
 /**
- * `workflow_next` parity with the navigator for every adoption fixture (slice 264 SC "Parity",
- * walkthrough step 9). Real navigator over real temp checkouts; only the project store and the
- * upstream-lag check are stubbed. workflowTools.test.ts mocks the navigator, so this lives apart.
+ * `workflow_next` adoption warnings (slice 269 D6), with parity against the navigator. Real
+ * navigator over real temp checkouts; only the project store and the upstream-lag check are
+ * stubbed. workflowTools.test.ts mocks the navigator, so this lives apart.
  */
 
 const mockGetById = vi.fn();
@@ -33,48 +43,47 @@ vi.mock('@context-forge/core/node', async () => {
 
 const CONCEPT_INSTRUCTION = 'Phase 0: Concept';
 const REGISTERED = { fileArch: '100-arch.existing', fileSlicePlan: '100-slices.existing' };
+const OUT_OF_ENUM_VALUE = 'bogus';
+const LEGACY_VALUE = LEGACY_ADOPTION_STATES[0];
+const ADOPTION_LINES = [BROWNFIELD_LINE, INCOMPLETE_ADOPTION_LINE];
 
 interface AdoptionCase {
   label: string;
   options: AdoptionFixtureOptions;
   overrides?: Record<string, string>;
+  /** The adoption lines expected among the warnings. */
+  lines: string[];
+  /** A further warning expected, such as the legacy notice. */
+  extraWarning?: string;
 }
 
 const CASES: AdoptionCase[] = [
-  { label: 'unset with a concept (D2 warning)', options: { concept: true } },
-  { label: 'declined', options: { state: 'declined', concept: true } },
-  { label: 'in_progress: concept step', options: { state: 'in_progress' } },
-  { label: 'in_progress: architecture step', options: { state: 'in_progress', concept: true } },
-  { label: 'in_progress: existing-state-plan step', options: { state: 'in_progress', concept: true, arch: true } },
+  { label: 'brownfield', options: { sourceLines: BROWNFIELD_MIN_SOURCE_LINES }, lines: [BROWNFIELD_LINE] },
+  { label: 'adoption incomplete', options: { concept: true, arch: true }, lines: [INCOMPLETE_ADOPTION_LINE] },
   {
-    label: 'in_progress: record-completion step',
-    options: { state: 'in_progress', concept: true, arch: true, plan: MIXED_ENTRIES },
+    label: 'opted out',
+    options: { state: ADOPTION_OPT_OUT, sourceLines: BROWNFIELD_MIN_SOURCE_LINES },
+    lines: [],
   },
+  { label: 'greenfield', options: { concept: true, sourceLines: BROWNFIELD_MIN_SOURCE_LINES - 1 }, lines: [] },
   {
-    label: 'in_progress outside Phase 0 (D5 warning)',
-    options: { state: 'in_progress', concept: true },
-    overrides: { instruction: 'Phase 2: Architecture' },
-  },
-  { label: 'complete without a plan (D6 warning)', options: { state: 'complete', concept: true, arch: true } },
-  {
-    label: 'complete: register-plan step',
-    options: { state: 'complete', concept: true, arch: true, plan: MIXED_ENTRIES },
-  },
-  {
-    label: 'complete: first new slice',
-    options: { state: 'complete', concept: true, arch: true, plan: MIXED_ENTRIES },
+    label: 'adopted',
+    options: { concept: true, arch: true, plan: MIXED_ENTRIES },
     overrides: REGISTERED,
+    lines: [],
   },
   {
-    label: 'complete: plan-new-work step',
-    options: { state: 'complete', concept: true, arch: true, plan: ALL_RETROACTIVE_ENTRIES },
-    overrides: REGISTERED,
+    label: 'legacy value',
+    options: { state: LEGACY_VALUE, sourceLines: BROWNFIELD_MIN_SOURCE_LINES },
+    lines: [BROWNFIELD_LINE],
+    extraWarning: legacyAdoptionStateNotice(LEGACY_VALUE),
   },
 ];
 
-describe('workflow_next: adoption parity with the navigator (slice 264)', () => {
+describe('workflow_next: adoption warnings (slice 269 D6)', () => {
   let client: Client;
   let server: McpServer;
+  const roots: string[] = [];
 
   beforeEach(async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -90,6 +99,7 @@ describe('workflow_next: adoption parity with the navigator (slice 264)', () => 
     await client.close();
     await server.close();
     vi.restoreAllMocks();
+    roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true }));
   });
 
   async function callNext(project: unknown) {
@@ -101,27 +111,22 @@ describe('workflow_next: adoption parity with the navigator (slice 264)', () => 
     return (result.content as Array<{ text: string }>)[0].text;
   }
 
-  it.each(CASES)('$label', async ({ options, overrides }) => {
+  it.each(CASES)('$label', async ({ options, overrides, lines, extraWarning }) => {
     const fixture = createAdoptionFixture(options);
+    roots.push(fixture.root);
     const project = fixture.project({ instruction: CONCEPT_INSTRUCTION, ...overrides });
     const expected = await new WorkflowNavigator(new ConfigManager(fixture.root)).getNext(project);
 
-    const result = await callNext(project);
-    const actual = JSON.parse(textOf(result)) as typeof expected;
+    const actual = JSON.parse(textOf(await callNext(project))) as NextAction;
 
     expect(actual).toEqual(JSON.parse(JSON.stringify(expected)));
+    expect((actual.warnings ?? []).filter((text) => ADOPTION_LINES.includes(text))).toEqual(lines);
+    if (extraWarning) expect(actual.warnings).toContain(extraWarning);
   });
 
-  it('reports the adoption step, not Phase 0 advice, through the tool', async () => {
-    const fixture = createAdoptionFixture({ state: 'in_progress', concept: true });
-    const result = await callNext(fixture.project({ instruction: CONCEPT_INSTRUCTION }));
-    const actual = JSON.parse(textOf(result)) as { recommendation: string; suggestedCommand: string };
-    expect(actual.recommendation).toBe('Next adoption step: architecture derived from the code.');
-    expect(actual.suggestedCommand).toBe('cf build');
-  });
-
-  it('returns the readAdoptionState message for an out-of-enum adoption.state', async () => {
-    const fixture = createAdoptionFixture({ state: 'bogus', concept: true });
+  it('returns the readAdoptionOptOut message for an out-of-enum adoption.state', async () => {
+    const fixture = createAdoptionFixture({ state: OUT_OF_ENUM_VALUE, concept: true });
+    roots.push(fixture.root);
     const project = fixture.project({ instruction: CONCEPT_INSTRUCTION });
     const failure = await new WorkflowNavigator(new ConfigManager(fixture.root)).getNext(project).catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(Error);

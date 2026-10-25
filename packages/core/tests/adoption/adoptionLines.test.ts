@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import {
   AdoptionError,
   BROWNFIELD_LINE,
@@ -17,21 +16,15 @@ import {
   type AdoptionFixtureOptions,
 } from '../helpers/adoptionFixtures.js';
 
-const SOURCE_FILE = ['src', 'big.ts'];
 const WALK_FAILURE_MESSAGE = 'Cannot measure source volume: EACCES at /x/src';
 const PLAIN_FAILURE_MESSAGE = 'unexpected bug';
 const LEGACY_VALUE = LEGACY_ADOPTION_STATES[0];
 
 const roots: string[] = [];
 
-function fixture(options: AdoptionFixtureOptions = {}, sourceLines = 0): string {
-  const { root } = createAdoptionFixture(options);
+function fixture(options: AdoptionFixtureOptions = {}, sourceLines?: number): string {
+  const { root } = createAdoptionFixture({ ...options, sourceLines });
   roots.push(root);
-  if (sourceLines > 0) {
-    mkdirSync(join(root, SOURCE_FILE[0]), { recursive: true });
-    const body = Array.from({ length: sourceLines }, (_, i) => `export const v${i} = ${i};`).join('\n');
-    writeFileSync(join(root, ...SOURCE_FILE), body);
-  }
   return root;
 }
 

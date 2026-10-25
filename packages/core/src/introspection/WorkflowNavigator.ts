@@ -1,4 +1,4 @@
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
 import type { ProjectData, ResolvedProject } from '../types/index.js';
 import type {
@@ -29,12 +29,7 @@ import { resolveConceptPath, resolveInitiativePlanPath } from './ArtifactIntrosp
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
 import { evaluateSetupCiOffer } from './setupCiOffer.js';
-import {
-  buildAdoptionStepAction,
-  decideAdoptionNav,
-  gatherAdoptionInputs,
-  type AdoptionNavInputs,
-} from './adoptionNavigation.js';
+import { adoptionNavLines } from '../adoption/adoptionLines.js';
 import type { PendingDecision } from '../schema/pendingDecisions.js';
 import {
   evaluateReviewGate,
@@ -106,13 +101,6 @@ const DECISION_GATE_RECOMMENDATION = 'Blocked: design has pending PM decisions';
 /** Attaches the navigation warnings to an action; an empty list leaves the action untouched. */
 function withNavWarnings(action: NextAction, navWarnings: string[]): NextAction {
   return navWarnings.length > 0 ? { ...action, warnings: [...(action.warnings ?? []), ...navWarnings] } : action;
-}
-
-/** What adoption routing decided for the no-active-slice guard (slice 264 D1). */
-interface AdoptionRoute {
-  /** A recommendation that replaces first-run guidance; absent when navigation continues. */
-  action?: NextAction;
-  skipFirstRun: boolean;
 }
 
 export class WorkflowNavigator {
@@ -259,10 +247,10 @@ export class WorkflowNavigator {
         }
       }
 
-      // Adoption routing (slice 264 D1): a recommended step returns here; a warning joins
-      // navWarnings; an adopted project skips first-run logic. Read-only (D3).
-      const adoption = await this.routeAdoption(project, status, conceptExists, navWarnings);
-      if (adoption.action) return withNavWarnings(adoption.action, navWarnings);
+      // Adoption (slice 269 D6): at most one warning line joins navWarnings, never an action;
+      // an adopted project skips first-run logic. Read-only.
+      const adoption = await adoptionNavLines(project.projectPath);
+      navWarnings.push(...adoption.warnings);
 
       // First-run guidance: enriched recommendations for sparse/fresh project states (FR-1–FR-4)
       const firstRunAction = adoption.skipFirstRun
@@ -905,53 +893,8 @@ export class WorkflowNavigator {
   }
 
   /**
-   * Adoption routing for the no-active-slice guard (slice 264 D1). Writes nothing (D3): a
-   * warning is pushed onto `navWarnings`, a recommended step comes back as `action`.
-   */
-  private async routeAdoption(
-    project: ResolvedProject,
-    status: WorkflowStatus,
-    conceptExists: boolean,
-    navWarnings: string[],
-  ): Promise<AdoptionRoute> {
-    const inputs = await gatherAdoptionInputs(project, status, conceptExists);
-    const nav = decideAdoptionNav(inputs);
-    switch (nav.kind) {
-      case 'not-adopting':
-        return { skipFirstRun: false };
-      case 'warn':
-        navWarnings.push(nav.warning);
-        return { skipFirstRun: false };
-      case 'recommend': {
-        // D4: the derived architecture is gated like any other, but it is usually not
-        // registered as fileArch during adoption, so the project's own arch gate misses it.
-        const blocked = nav.step === 'existing-state-plan' ? await this.gateDerivedArchitecture(project, inputs) : null;
-        return { action: blocked ?? buildAdoptionStepAction(nav.step, inputs), skipFirstRun: false };
-      }
-      case 'adopted':
-        return { skipFirstRun: true };
-      default: {
-        const unhandled: never = nav;
-        throw new Error(`Unhandled adoption navigation: ${JSON.stringify(unhandled)}`);
-      }
-    }
-  }
-
-  /** The blocking preSlicePlan action for the lowest-index architecture artifact, or null. */
-  private async gateDerivedArchitecture(
-    project: ResolvedProject,
-    inputs: AdoptionNavInputs,
-  ): Promise<NextAction | null> {
-    const archPath = inputs.architecturePaths[0];
-    const archIndex = archPath ? extractSliceIndex(basename(archPath)) : null;
-    if (!project.projectPath || archIndex === null) return null;
-    const gate = await this.evaluateGate(project.projectPath, archIndex, 'preSlicePlan');
-    return this.gateBlockAction(gate, archIndex);
-  }
-
-  /**
    * The action for a blocking preSlicePlan gate on architecture `archIndex`, or null when the
-   * gate does not block. Shared by the project's arch gate and the adoption arch gate (264 D4).
+   * gate does not block.
    */
   private gateBlockAction(gate: GateResult | null, archIndex: number): NextAction | null {
     if (!isBlockingGate(gate)) return null;

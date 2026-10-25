@@ -1,17 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
+import { rmSync } from "node:fs";
 import { WorkflowNavigator } from "../../src/introspection/WorkflowNavigator.js";
 import {
-  NO_EXISTING_STATE_PLAN_WARNING,
-  outsideConceptPhaseWarning,
-} from "../../src/introspection/adoptionNavigation.js";
+  BROWNFIELD_LINE,
+  INCOMPLETE_ADOPTION_LINE,
+} from "../../src/adoption/adoptionLines.js";
+import { BROWNFIELD_MIN_SOURCE_LINES } from "../../src/adoption/adoptionOutcome.js";
+import { legacyAdoptionStateNotice } from "../../src/adoption/adoptionState.js";
+import {
+  ADOPTION_OPT_OUT,
+  LEGACY_ADOPTION_STATES,
+} from "../../src/config/ConfigKeys.js";
 import type { NextAction } from "../../src/introspection/types.js";
+import { GATE_DISABLED_CONFIG } from "../helpers/workflowNavigatorFixtures.js";
 import {
-  GATE_DISABLED_CONFIG,
-  GATE_ENABLED_DEFAULTS,
-} from "../helpers/workflowNavigatorFixtures.js";
-import { makeStubConfig } from "../helpers/stubConfig.js";
-import {
-  ALL_RETROACTIVE_ENTRIES,
   MIXED_ENTRIES,
   createAdoptionFixture,
   type AdoptionFixtureOptions,
@@ -22,6 +24,17 @@ const REGISTERED = {
   fileArch: "100-arch.existing",
   fileSlicePlan: "100-slices.existing",
 };
+const FIRST_NEW_SLICE_COMMAND = "cf set slice 102";
+const BUILD_COMMAND = "cf build";
+const OUT_OF_ENUM_VALUE = "bogus";
+const LEGACY_VALUE = LEGACY_ADOPTION_STATES[0];
+const ADOPTION_LINES = [BROWNFIELD_LINE, INCOMPLETE_ADOPTION_LINE];
+
+const roots: string[] = [];
+
+afterEach(() => {
+  roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true }));
+});
 
 async function nextFor(
   options: AdoptionFixtureOptions,
@@ -30,260 +43,89 @@ async function nextFor(
   >[0] = {},
 ): Promise<NextAction> {
   const fixture = createAdoptionFixture(options);
+  roots.push(fixture.root);
   return new WorkflowNavigator(GATE_DISABLED_CONFIG).getNext(
-    fixture.project(overrides),
+    fixture.project({ instruction: CONCEPT_INSTRUCTION, ...overrides }),
   );
 }
 
-function withoutWarning(action: NextAction, warning: string): NextAction {
-  const remaining = (action.warnings ?? []).filter((text) => text !== warning);
-  const { warnings: _dropped, ...rest } = action;
+function adoptionLinesIn(action: NextAction): string[] {
+  return (action.warnings ?? []).filter((text) => ADOPTION_LINES.includes(text));
+}
+
+/** The action with the adoption lines removed: what navigation recommends on its own. */
+function withoutAdoptionLines(action: NextAction): NextAction {
+  const { warnings, ...rest } = action;
+  const remaining = (warnings ?? []).filter((text) => !ADOPTION_LINES.includes(text));
   return remaining.length > 0 ? { ...rest, warnings: remaining } : rest;
 }
 
-describe("WorkflowNavigator adoption: declined and unset", () => {
-  const variants: Array<{
-    label: string;
-    instruction: string;
-    options: AdoptionFixtureOptions;
-  }> = [
-    { label: "no instruction", instruction: "", options: {} },
-    {
-      label: "Phase 0 without a concept",
-      instruction: CONCEPT_INSTRUCTION,
-      options: {},
-    },
-    {
-      label: "Phase 0 with a concept",
-      instruction: CONCEPT_INSTRUCTION,
-      options: { concept: true },
-    },
-    {
-      label: "Phase 1",
-      instruction: "Phase 1: Initiative Plan",
-      options: { concept: true },
-    },
-    {
-      label: "Phase 2",
-      instruction: "Phase 2: Architecture",
-      options: { concept: true },
-    },
-    {
-      label: "Phase 3",
-      instruction: "Phase 3: Slice Planning",
-      options: { concept: true, arch: true },
-    },
-  ];
+// Phase 0 navigation may suggest cf build for the concept; adoption adds nothing of its own, so
+// the action minus the adoption line equals the opted-out action for the same files.
+async function expectNormalNavigation(action: NextAction, options: AdoptionFixtureOptions): Promise<void> {
+  const declined = await nextFor({ ...options, state: ADOPTION_OPT_OUT });
+  expect(withoutAdoptionLines(action)).toEqual(declined);
+  expect(JSON.stringify(action.warnings ?? [])).not.toContain(BUILD_COMMAND);
+}
 
-  // The unset-state warning advised cf build to start adoption, which cf build no longer does
-  // (slice 268), so unset navigation carries no adoption warning at all.
-  it.each(variants)(
-    "unset: $label navigates exactly as declined",
-    async (variant) => {
-      const declined = await nextFor(
-        { ...variant.options, state: "declined" },
-        { instruction: variant.instruction },
-      );
-      const unset = await nextFor(variant.options, {
-        instruction: variant.instruction,
-      });
-      expect(unset).toEqual(declined);
-    },
-  );
-});
+describe("WorkflowNavigator adoption warnings (slice 269 D6)", () => {
+  it("brownfield: one brownfield line on otherwise normal navigation", async () => {
+    const options = { sourceLines: BROWNFIELD_MIN_SOURCE_LINES };
+    const brownfield = await nextFor(options);
+    expect(adoptionLinesIn(brownfield)).toEqual([BROWNFIELD_LINE]);
+    await expectNormalNavigation(brownfield, options);
+  });
 
-describe("WorkflowNavigator adoption: in_progress at Phase 0", () => {
-  const steps: Array<{
-    step: string;
-    options: AdoptionFixtureOptions;
-    recommendation: string;
-  }> = [
-    {
-      step: "concept",
-      options: {},
-      recommendation: "Next adoption step: baseline concept.",
-    },
-    {
-      step: "architecture",
-      options: { concept: true },
-      recommendation: "Next adoption step: architecture derived from the code.",
-    },
-    {
-      step: "existing-state-plan",
-      options: { concept: true, arch: true },
-      recommendation: "Next adoption step: existing-state slice plan.",
-    },
-    {
-      step: "record-completion",
-      options: { concept: true, arch: true, plan: MIXED_ENTRIES },
-      recommendation:
-        "The existing-state slice plan is written. Run cf build to record adoption as complete.",
-    },
-  ];
+  it("adoption incomplete: one incomplete line", async () => {
+    const options = { concept: true, arch: true };
+    const next = await nextFor(options);
+    expect(adoptionLinesIn(next)).toEqual([INCOMPLETE_ADOPTION_LINE]);
+    await expectNormalNavigation(next, options);
+  });
 
-  it.each(steps)(
-    "step $step recommends cf build and never moves the phase",
-    async ({ options, recommendation }) => {
-      const next = await nextFor(
-        { ...options, state: "in_progress" },
-        { instruction: CONCEPT_INSTRUCTION },
-      );
-      expect(next.recommendation).toBe(recommendation);
-      expect(next.suggestedCommand).toBe("cf build");
-      expect(next.phase).toBeUndefined();
-      expect(JSON.stringify(next)).not.toContain("cf set phase");
-    },
-  );
-});
-
-describe("WorkflowNavigator adoption: derived architecture gate (D4)", () => {
-  it("blocks the existing-state-plan step on an unreviewed derived architecture", async () => {
-    const fixture = createAdoptionFixture({
-      state: "in_progress",
+  it("opted out: no adoption line", async () => {
+    const next = await nextFor({
+      state: ADOPTION_OPT_OUT,
       concept: true,
       arch: true,
+      sourceLines: BROWNFIELD_MIN_SOURCE_LINES,
     });
-    const next = await new WorkflowNavigator(
-      makeStubConfig(GATE_ENABLED_DEFAULTS),
-    ).getNext(fixture.project({ instruction: CONCEPT_INSTRUCTION }));
-    expect(next.recommendation).toBe(
-      "Review required before creating the slice plan",
-    );
-    expect(next.summary).toContain("Architecture 100");
-  });
-});
-
-describe("WorkflowNavigator adoption: in_progress outside Phase 0 (D5)", () => {
-  it("keeps the Phase 2 recommendation and adds the D5 warning", async () => {
-    const instruction = "Phase 2: Architecture";
-    const options = { concept: true };
-    const inProgress = await nextFor(
-      { ...options, state: "in_progress" },
-      { instruction },
-    );
-    const declined = await nextFor(
-      { ...options, state: "declined" },
-      { instruction },
-    );
-    expect(inProgress.warnings).toEqual([
-      outsideConceptPhaseWarning(instruction),
-    ]);
-    expect(
-      withoutWarning(inProgress, outsideConceptPhaseWarning(instruction)),
-    ).toEqual(declined);
-  });
-});
-
-describe("WorkflowNavigator adoption: complete (D6)", () => {
-  const COMPLETE = { state: "complete", concept: true, arch: true } as const;
-
-  it("without an existing-state plan: today navigation plus the row 1 warning", async () => {
-    const complete = await nextFor(COMPLETE, {
-      instruction: CONCEPT_INSTRUCTION,
-    });
-    const declined = await nextFor(
-      { ...COMPLETE, state: "declined" },
-      { instruction: CONCEPT_INSTRUCTION },
-    );
-    expect(complete.warnings).toEqual([NO_EXISTING_STATE_PLAN_WARNING]);
-    expect(withoutWarning(complete, NO_EXISTING_STATE_PLAN_WARNING)).toEqual(
-      declined,
-    );
+    expect(adoptionLinesIn(next)).toEqual([]);
   });
 
-  it("plan present but unregistered → register the architecture", async () => {
+  it("greenfield: no adoption line, navigation as before", async () => {
+    const greenfield = await nextFor({ concept: true, sourceLines: BROWNFIELD_MIN_SOURCE_LINES - 1 });
+    const declined = await nextFor({ state: ADOPTION_OPT_OUT, concept: true });
+    expect(greenfield).toEqual(declined);
+  });
+
+  it("adopted: navigated to the first unbuilt slice", async () => {
     const next = await nextFor(
-      { ...COMPLETE, plan: MIXED_ENTRIES },
-      { instruction: CONCEPT_INSTRUCTION },
+      { concept: true, arch: true, plan: MIXED_ENTRIES, sourceLines: BROWNFIELD_MIN_SOURCE_LINES },
+      REGISTERED,
     );
-    expect(next.suggestedCommand).toBe("cf set arch 100-arch.existing");
+    expect(adoptionLinesIn(next)).toEqual([]);
+    expect(next.suggestedCommand).toBe(FIRST_NEW_SLICE_COMMAND);
   });
 
-  it("plan registered with new entries → pick the first new slice, not Phase 1", async () => {
-    const next = await nextFor(
-      { ...COMPLETE, plan: MIXED_ENTRIES },
-      { instruction: CONCEPT_INSTRUCTION, ...REGISTERED },
-    );
-    expect(next.suggestedCommand).toBe("cf set slice 102");
-    expect(next.recommendation).not.toContain("Advance to Phase 1");
+  it("legacy value: the notice joins the warnings", async () => {
+    const next = await nextFor({ state: LEGACY_VALUE, sourceLines: BROWNFIELD_MIN_SOURCE_LINES });
+    expect(next.warnings).toContain(legacyAdoptionStateNotice(LEGACY_VALUE));
+    expect(adoptionLinesIn(next)).toEqual([BROWNFIELD_LINE]);
   });
 
-  it("plan registered, all entries retroactive → plan new work in Phase 3", async () => {
-    const next = await nextFor(
-      { ...COMPLETE, plan: ALL_RETROACTIVE_ENTRIES },
-      { instruction: CONCEPT_INSTRUCTION, ...REGISTERED },
-    );
-    expect(next.suggestedCommand).toBe(
-      "cf set phase 'Phase 3: Slice Planning'",
-    );
-    expect(next.recommendation).not.toContain("Advance to Phase 1");
+  it("writes nothing to the config", async () => {
+    const fixture = createAdoptionFixture({ state: LEGACY_VALUE, concept: true, arch: true });
+    roots.push(fixture.root);
+    const before = fixture.configBytes();
+    await new WorkflowNavigator(GATE_DISABLED_CONFIG).getNext(fixture.project());
+    expect(fixture.configBytes()).toBe(before);
   });
 
-  it("a different plan registered → normal navigation on that plan", async () => {
-    const next = await nextFor(
-      { ...COMPLETE, plan: MIXED_ENTRIES, otherPlan: true },
-      {
-        instruction: CONCEPT_INSTRUCTION,
-        fileArch: "100-arch.existing",
-        fileSlicePlan: "200-slices.other",
-      },
-    );
-    expect(next.suggestedCommand).toBe("cf set slice 200");
-  });
-
-  it("a registered plan whose file is missing is treated as unregistered", async () => {
-    const next = await nextFor(
-      { ...COMPLETE, plan: MIXED_ENTRIES },
-      { instruction: CONCEPT_INSTRUCTION, fileSlicePlan: "999-slices.missing" },
-    );
-    expect(next.suggestedCommand).toBe("cf set arch 100-arch.existing");
-  });
-});
-
-describe("WorkflowNavigator adoption: active slice", () => {
-  const states = ["declined", "in_progress", "complete"];
-
-  it.each(states)(
-    "state %s leaves navigation unchanged when a slice is active",
-    async (state) => {
-      const options = { concept: true, arch: true, plan: MIXED_ENTRIES };
-      const overrides = {
-        instruction: CONCEPT_INSTRUCTION,
-        fileSlice: "102-slice.new-work.md",
-        ...REGISTERED,
-      };
-      const baseline = await nextFor(options, overrides);
-      expect(await nextFor({ ...options, state }, overrides)).toEqual(baseline);
-    },
-  );
-});
-
-describe("WorkflowNavigator adoption: read-only (D3)", () => {
-  const cases: AdoptionFixtureOptions[] = [
-    { state: "in_progress", concept: true, arch: true, plan: MIXED_ENTRIES },
-    { state: "complete", concept: true, arch: true, plan: MIXED_ENTRIES },
-    { concept: true },
-  ];
-
-  it.each(cases)("cf next writes nothing for %j", async (options) => {
-    const fixture = createAdoptionFixture(options);
-    const project = fixture.project({ instruction: CONCEPT_INSTRUCTION });
-    const configBefore = fixture.configBytes();
-    const projectBefore = JSON.stringify(project);
-    await new WorkflowNavigator(GATE_DISABLED_CONFIG).getNext(project);
-    expect(fixture.configBytes()).toBe(configBefore);
-    expect(JSON.stringify(project)).toBe(projectBefore);
-  });
-});
-
-describe("WorkflowNavigator adoption: failure modes (D7)", () => {
-  it("rejects an out-of-enum adoption.state with the readAdoptionState message", async () => {
-    const fixture = createAdoptionFixture({ state: "bogus", concept: true });
-    const attempt = new WorkflowNavigator(GATE_DISABLED_CONFIG).getNext(
-      fixture.project(),
-    );
+  it("rejects an out-of-enum adoption.state with the readAdoptionOptOut message", async () => {
+    const attempt = nextFor({ state: OUT_OF_ENUM_VALUE, concept: true });
     await expect(attempt).rejects.toThrow(
-      /adoption\.state is "bogus", which is not one of/,
+      `adoption.state is "${OUT_OF_ENUM_VALUE}", which is not one of`,
     );
   });
 });
