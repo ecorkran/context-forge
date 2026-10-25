@@ -152,6 +152,22 @@ describe('cf init', () => {
     );
   });
 
+  it('does not run git init in a subfolder of an existing repository (#133)', async () => {
+    mockGetAll.mockResolvedValue([]);
+    // No .git in cwd, but an enclosing repository exists
+    mockExistsSync.mockReturnValue(false);
+    mockExecFileSync.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'rev-parse') return 'true\n';
+      return '';
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['init'], { from: 'user' });
+
+    expect(mockExecFileSync).not.toHaveBeenCalledWith('git', ['init'], expect.anything());
+    expect(mockCreate).toHaveBeenCalled();
+  });
+
   it('warns and returns when git worktree of registered project is detected', async () => {
     const mainWorktreePath = '/some/main/project';
     mockGetAll.mockResolvedValue([

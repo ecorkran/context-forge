@@ -35,6 +35,25 @@ function isGitWorktreeOf(cwd: string, registeredPaths: string[]): boolean {
   }
 }
 
+/**
+ * Returns true if cwd is inside a git work tree, including a subfolder of an
+ * enclosing repository.
+ */
+function isInsideGitWorkTree(cwd: string): boolean {
+  try {
+    const output = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return String(output).trim() === 'true';
+  } catch {
+    // git exits non-zero outside a repository, or is not installed; both mean
+    // "not in a work tree", and the git init step reports its own failure.
+    return false;
+  }
+}
+
 const PERSONAL_CONFIG_GITIGNORE_LINE = '.context-forge.local.toml';
 
 /**
@@ -76,8 +95,9 @@ export function registerInitCommand(program: Command): void {
         const store = new FileProjectStore();
         const all = await store.getAll();
 
-        // Detection 1: No .git directory → git init
-        if (!fs.existsSync(path.join(cwd, '.git'))) {
+        // Detection 1: not inside any git work tree → git init. A subfolder of an
+        // existing repository must not get a nested repo (#133).
+        if (!fs.existsSync(path.join(cwd, '.git')) && !isInsideGitWorkTree(cwd)) {
           try {
             execFileSync('git', ['init'], { cwd, stdio: 'inherit' });
             console.log(success('git initialized'));
