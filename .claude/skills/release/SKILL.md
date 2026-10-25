@@ -85,3 +85,7 @@ Each package must show `X.Y.Z` as latest with a publish timestamp. If any is mis
 Never check `context-forge` unscoped — that is an unrelated third-party package.
 
 Report "X.Y.Z live on npm" when all four match.
+
+## 9. Summary
+
+Invoke `/sq:summary` (Skill tool, skill `sq:summary`) as the last action of the release. Call it even when the release is paused at step 7 waiting for the PM to run `pnpm publish -r --access public` (or supply an OTP): hand over the command, call `/sq:summary` right then, and don't wait for the publish to finish. Step 8 happens after the PM reports back, in the same session or a restored one.
