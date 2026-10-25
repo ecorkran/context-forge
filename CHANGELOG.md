@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`cf init` in a subfolder of a repository** no longer runs `git init` there, so adoption detection sees the enclosing repository's history and CI (#133).
+
+### Changed
+
+- **Minimum ai-project-guide is now v0.22.6**, the release that carries the `conventions-reconciliation` prompt (`cf prompt get conventions-reconciliation`) and runs `cf docs map` during brownfield adoption. On an older guide, `cf build` warns; `cf guides update` fixes it.
+
 ## [0.19.18] - 20261024
 
 ### Added

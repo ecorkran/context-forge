@@ -67,7 +67,7 @@ cf init --ide codex       # Same, but configured for OpenAI Codex (also: cursor,
 /cf:onboard               # Slash command: AI-guided setup — registers the project, then hands off to `cf build`
 ```
 
-That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` sets up the project, then runs `cf build` and follows the prompt it returns. It needs ai-project-guide v0.22.2 or newer; on an older install `cf build` warns and `cf guides update` fixes it.
+That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` sets up the project, then runs `cf build` and follows the prompt it returns. It needs ai-project-guide v0.22.6 or newer; on an older install `cf build` warns and `cf guides update` fixes it.
 
 <details>
 <summary>MCP server config (Cursor, Windsurf, OpenAI Codex, etc.)</summary>
@@ -279,7 +279,7 @@ The build includes an *Adoption Facts* section, so the assistant works from what
 - Squadron: unavailable. `sq` was not found on PATH.
 ```
 
-When the project already has rule files (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...), `cf setup-ide` keeps your text and appends the guide's rules below it. To settle any contradictions between the two, fetch the reconciliation prompt with `cf prompt get conventions-reconciliation` and give it to your assistant. It lists the conflicts, asks you to decide each one, and records the decisions with `cf rules resolve`. Run `cf setup-ide <target>` again to apply them. The prompt comes from the ai-project-guide release that carries it; if your installed guide lacks it, the command fails with "No prompt found" and you record decisions by hand with `cf rules resolve <guideRule> <projectSource> --statement "<text>"` (see `cf rules inventory --json` for the valid names).
+When the project already has rule files (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...), `cf setup-ide` keeps your text and appends the guide's rules below it. To settle any contradictions between the two, fetch the reconciliation prompt with `cf prompt get conventions-reconciliation` and give it to your assistant. It lists the conflicts, asks you to decide each one, and records the decisions with `cf rules resolve`. Run `cf setup-ide <target>` again to apply them. The prompt ships in ai-project-guide v0.22.6; on an older guide, the command fails with "No prompt found" and you record decisions by hand with `cf rules resolve <guideRule> <projectSource> --statement "<text>"` (see `cf rules inventory --json` for the valid names).
 
 An adopted project's existing README, `docs/` and ADRs stay where they are. `cf docs map` writes `project-documents/user/architecture/050-docs-map.{project}.md`, an index that links each of them in place, so the derived architecture and later designs can point at them. Re-run it to refresh the list; entries you add by hand outside the managed block are kept.
 
