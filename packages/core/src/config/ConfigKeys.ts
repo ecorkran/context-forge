@@ -23,19 +23,18 @@ export type PermissivenessLevel = (typeof PERMISSIVENESS_LEVELS)[number];
 // The default level, and the one level with no guide fragment (adds nothing to the build).
 export const STANDARD_PERMISSIVENESS: PermissivenessLevel = PERMISSIVENESS_LEVELS[1];
 
-// Defined here, not in adoption/, because adoption/adoptionState.ts imports ConfigManager,
-// which imports this file. adoptionState.ts re-exports them.
+// The adoption values are defined here, not in adoption/, because adoption/adoptionState.ts
+// imports ConfigManager, which imports this file.
+
 /** The one stored adoption value: the user's opt-out from adoption detection (slice 269 D1). */
 export const ADOPTION_OPT_OUT = 'declined';
 
-export const ADOPTION_STATES = ['', 'in_progress', 'complete', ADOPTION_OPT_OUT] as const;
+export const ADOPTION_STATES = ['', ADOPTION_OPT_OUT] as const;
 
 /** Values cf wrote before slice 269. Read and ignored with a notice, never an error (D2). */
 export const LEGACY_ADOPTION_STATES = ['in_progress', 'complete'] as const;
 
 export type LegacyAdoptionState = (typeof LEGACY_ADOPTION_STATES)[number];
-
-export type AdoptionState = (typeof ADOPTION_STATES)[number];
 
 export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
   'guide.auto_update': {
@@ -123,9 +122,8 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
     enum: [...ADOPTION_STATES],
     scope: ConfigScope.Shared,
     description:
-      'Brownfield adoption state. Empty: cf build detects whether the project is an existing codebase. ' +
-      'in_progress: cf build uses the brownfield-adoption prompt in Phase 0 (set automatically on detection, or by hand to force it). ' +
-      'complete: adoption finished. declined: treat the project as new.',
+      'Set to "declined" to treat this project as new even when it holds existing code. ' +
+      "Empty (default): cf decides from the project's files. The old values in_progress and complete are ignored.",
   },
   'workflow.review_threshold': {
     type: 'string',

@@ -3,11 +3,9 @@ import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
-  ADOPTION_STATES,
   AdoptionError,
   legacyAdoptionStateNotice,
   readAdoptionOptOut,
-  readAdoptionState,
 } from '../../src/adoption/index.js';
 import { ADOPTION_OPT_OUT, LEGACY_ADOPTION_STATES } from '../../src/config/ConfigKeys.js';
 
@@ -38,27 +36,9 @@ describe('adoption state helpers', () => {
     await rm(projectDir, { recursive: true, force: true });
   });
 
-  it('reads empty when there is no .context-forge.toml', async () => {
-    expect(await readAdoptionState(projectDir)).toBe('');
-  });
-
-  it.each(ADOPTION_STATES)('reads %j from the [adoption] table', async (state) => {
-    await writeFile(join(projectDir, '.context-forge.toml'), `[adoption]\nstate = "${state}"\n`);
-    expect(await readAdoptionState(projectDir)).toBe(state);
-  });
-
-  it('throws AdoptionError naming the value, the allowed values and the file for a hand-edited value', async () => {
-    await writeFile(join(projectDir, '.context-forge.toml'), '[adoption]\nstate = "maybe"\n');
-    const attempt = readAdoptionState(projectDir);
-    await expect(attempt).rejects.toBeInstanceOf(AdoptionError);
-    await expect(attempt).rejects.toThrow(/"maybe"/);
-    await expect(attempt).rejects.toThrow(/in_progress/);
-    await expect(attempt).rejects.toThrow(/\.context-forge\.toml/);
-  });
-
   it('propagates the parser error, not AdoptionError, for malformed TOML', async () => {
-    await writeFile(join(projectDir, '.context-forge.toml'), '[adoption\nstate = ');
-    const attempt = readAdoptionState(projectDir);
+    await writeFile(join(projectDir, CONFIG_FILE), '[adoption\nstate = ');
+    const attempt = readAdoptionOptOut(projectDir);
     await expect(attempt).rejects.toThrow();
     await expect(attempt).rejects.not.toBeInstanceOf(AdoptionError);
   });

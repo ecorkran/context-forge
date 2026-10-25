@@ -6,7 +6,6 @@ export {
   ADOPTION_STATES,
   LEGACY_ADOPTION_STATES,
   LegacyAdoptionState,
-  AdoptionState,
   PERMISSIVENESS_LEVELS,
   PermissivenessLevel,
   STANDARD_PERMISSIVENESS,

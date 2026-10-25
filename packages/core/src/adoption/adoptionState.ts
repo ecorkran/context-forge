@@ -2,20 +2,13 @@ import {
   ADOPTION_OPT_OUT,
   ADOPTION_STATES,
   LEGACY_ADOPTION_STATES,
-  type AdoptionState,
   type LegacyAdoptionState,
 } from '../config/ConfigKeys.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { AdoptionError } from './contracts.js';
 
-export { ADOPTION_STATES, type AdoptionState };
-
 const ADOPTION_STATE_KEY = 'adoption.state';
 const PROJECT_CONFIG_FILE = '.context-forge.toml';
-
-function isAdoptionState(value: unknown): value is AdoptionState {
-  return ADOPTION_STATES.some((state) => state === value);
-}
 
 function isLegacyAdoptionState(value: unknown): value is LegacyAdoptionState {
   return LEGACY_ADOPTION_STATES.some((state) => state === value);
@@ -42,7 +35,7 @@ export interface AdoptionOptOut {
 export async function readAdoptionOptOut(root: string): Promise<AdoptionOptOut> {
   const { value } = await new ConfigManager(root).get(ADOPTION_STATE_KEY);
   if (isLegacyAdoptionState(value)) return { optedOut: false, ignoredLegacyValue: value };
-  if (!isAdoptionState(value)) throw outOfEnumError(value);
+  if (!ADOPTION_STATES.some((state) => state === value)) throw outOfEnumError(value);
   return { optedOut: value === ADOPTION_OPT_OUT, ignoredLegacyValue: null };
 }
 
@@ -52,11 +45,4 @@ export function legacyAdoptionStateNotice(value: LegacyAdoptionState): string {
     `adoption.state is "${value}", which is no longer used and is ignored: adoption progress now comes ` +
     `from the project's files. Remove it with: cf config unset adoption.state`
   );
-}
-
-/** Reads the persisted adoption state. A malformed TOML file propagates the parser's error. */
-export async function readAdoptionState(root: string): Promise<AdoptionState> {
-  const { value } = await new ConfigManager(root).get(ADOPTION_STATE_KEY);
-  if (!isAdoptionState(value)) throw outOfEnumError(value);
-  return value;
 }

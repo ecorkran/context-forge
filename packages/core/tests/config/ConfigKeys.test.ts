@@ -1,15 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
+  ADOPTION_OPT_OUT,
   ADOPTION_STATES,
   CONFIG_KEYS,
+  LEGACY_ADOPTION_STATES,
   PERMISSIVENESS_LEVELS,
   STANDARD_PERMISSIVENESS,
   parseRulesExclude,
 } from '../../src/config/ConfigKeys.js';
 import { ConfigManager } from '../../src/config/ConfigManager.js';
+
+// Slice 269 D1, verbatim.
+const ADOPTION_STATE_DESCRIPTION =
+  'Set to "declined" to treat this project as new even when it holds existing code. ' +
+  "Empty (default): cf decides from the project's files. The old values in_progress and complete are ignored.";
 
 describe('CONFIG_KEYS', () => {
   it('every entry has a valid scope', () => {
@@ -116,12 +123,17 @@ describe('adoption.state', () => {
     await rm(projectDir, { recursive: true, force: true });
   });
 
-  it('is a shared string defaulting to empty, enum = ADOPTION_STATES', () => {
+  it('is a shared string defaulting to empty, enum = ["", "declined"]', () => {
     expect(def).toBeDefined();
     expect(def.type).toBe('string');
     expect(def.scope).toBe('shared');
     expect(def.default).toBe('');
+    expect(def.enum).toEqual(['', ADOPTION_OPT_OUT]);
     expect(def.enum).toEqual([...ADOPTION_STATES]);
+  });
+
+  it('describes only the opt-out (D1)', () => {
+    expect(def.description).toBe(ADOPTION_STATE_DESCRIPTION);
   });
 
   it.each(ADOPTION_STATES)('accepts %j and stores it in the shared project file', async (state) => {
@@ -136,13 +148,17 @@ describe('adoption.state', () => {
     ).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
-  it('rejects an unknown state and names every allowed value', async () => {
+  it.each(['maybe', ...LEGACY_ADOPTION_STATES])('rejects %j and names both allowed values', async (value) => {
     const cm = new ConfigManager(projectDir);
-    const attempt = cm.set('adoption.state', 'maybe', 'project');
+    const attempt = cm.set('adoption.state', value, 'project');
     await expect(attempt).rejects.toThrow(/must be one of/);
-    for (const state of ADOPTION_STATES.filter((s) => s !== '')) {
-      await expect(attempt).rejects.toThrow(state);
-    }
+    await expect(attempt).rejects.toThrow('""');
+    await expect(attempt).rejects.toThrow(`"${ADOPTION_OPT_OUT}"`);
+  });
+
+  it.each(LEGACY_ADOPTION_STATES)('reads a stored legacy %j without validating it', async (value) => {
+    await writeFile(join(projectDir, '.context-forge.toml'), `[adoption]\nstate = "${value}"\n`);
+    expect((await new ConfigManager(projectDir).get('adoption.state')).value).toBe(value);
   });
 });
 
