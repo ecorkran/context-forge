@@ -63,6 +63,9 @@ export * from './adoption/index.js';
 // Rule reconciliation — rule resolutions, project rule sources, managed markers; fs dependent
 export * from './ruleReconciliation/index.js';
 
+// Docs map — index of existing docs and ADRs in project-documents; fs dependent
+export * from './docs-map/index.js';
+
 // Project defaults — fs-dependent auto-set rules (uses resolveFileByIndex)
 export { computeAutoSetFields } from './project-autoset.js';
 
