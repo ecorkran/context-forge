@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-25
+
+### Release 0.19.19
+
+- **Contents:** slice 935 agent-scoped rule marker (`agents: [claude]` honored by setup-ide, #123); fix `cf init` in a repository subfolder no longer runs `git init` (#133); minimum ai-project-guide raised to v0.22.6 (conventions-reconciliation prompt, `cf docs map` in brownfield adoption).
+
+Tags: @context-forge/core@0.19.19, @context-forge/cli@0.19.19, @context-forge/mcp@0.19.19, @context-forge/context-forge@0.19.19
+
 ## 2026-10-24
 
 ### Release 0.19.18
