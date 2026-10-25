@@ -7,7 +7,7 @@ dependencies: [266]
 interfaces: []
 dateCreated: 20261025
 dateUpdated: 20261025
-status: not_started
+status: complete
 ---
 
 # Slice Design: Agent-Scoped Rule Marker
@@ -203,6 +203,14 @@ Run from the repo root after `pnpm -r build`, in a scratch copy of a project wit
 5. Change one marker to `agents: [claude, gemini]` and rerun `setup-ide agents`: one warning names `gemini`, and the exit code is 0.
 6. `node packages/cli/dist/index.js rules inventory --json`: the marked rules show `"agents": ["claude"]` and the others show `null`.
 
+**Results (20261025, local build, scratchpad sandbox with guide v0.22.6, isolated `HOME`).** A baseline run without markers wrote `.cursor/rules/python.mdc` and `.github/instructions/python.instructions.md`. Then `agents: [claude]` was added to `general.md` and `python.md`.
+
+1. Step 2: pass. CLAUDE.md has general.md's sections (Core Principles through Document Conventions), and `.claude/rules/python.md` exists.
+2. Step 3: pass. AGENTS.md has only Fixes and Git Rules, and the scoped index does not list `python.md`. The index skip is silent, as designed.
+3. Step 4: pass. Copilot and cursor printed `⊘ Skipped python.md (agents: claude)`, and the manifest removed both baseline files (`🧹 Removed … (no longer installed by the guide)`). copilot-instructions.md carries only Fixes and Git Rules.
+4. Step 5: pass. One `unknown agents value 'gemini'` warning, exit 0.
+5. Step 6: pass. `general.md` and `python.md` show `["claude"]` and `git.md` shows `null`. The unknown `gemini` is left out of the field.
+
 ## Implementation Notes
 
 ### Development Approach
@@ -227,3 +235,14 @@ Review `935-review.slice.agent-scoped-rule-marker.md` (claude-sonnet-5-5, CONCER
 - **F004, warning scope and scan failures:** "once per run" is defined as once per `installIde` call, which is once per target. An unreadable rule file goes through the existing filesystem-error exit 1, so the scan never skips a file silently. See Data Flow.
 - **F005, audience re-derived at many call sites:** one parser and one predicate carry the rule. Component Structure explains why call sites do not consume `GuideRuleEntry`.
 - **F006, F007 (notes):** no change.
+
+## Code Review Resolution
+
+Review `935-review.code.agent-scoped-rule-marker.md` (claude-sonnet-5-5, CONCERNS):
+
+- **Unknown-value warning said "ignored" even when the rule was dropped:** fixed. When no known value is left, the warning says the rule reaches no output.
+- **Parser too strict:** fixed. A trailing YAML comment (`agents: [claude]  # note`) is stripped. The key stays lowercase and at column 0, since YAML keys are case-sensitive and an indented key would be nested.
+- **Composite audiences listed by hand:** fixed. `EMPTY_RESOLUTION_SECTIONS` and `renderAllResolutions` are built from `COMPOSITE_AUDIENCES`.
+- **Skip block repeated in three targets (note):** fixed. `scopedRuleSkipped` handles both the exclusion skip and the audience skip.
+- **Marker parsed more than once per install (note):** kept, for the reason given in Component Structure: one parser and one predicate, and no shared rule list.
+- **Test nits (note):** fixed. Added a classify test for a rule that reaches no composite block, clarified the inventory JSON assertion, and fixed the spacing.
