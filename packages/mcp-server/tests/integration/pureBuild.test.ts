@@ -8,8 +8,8 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FileProjectStore, createContextPipeline } from '@context-forge/core/node';
-import { BROWNFIELD_MIN_SOURCE_LINES, CONCEPT_PHASE, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
+import { BROWNFIELD_MIN_SOURCE_LINES, FileProjectStore, createContextPipeline } from '@context-forge/core/node';
+import { CONCEPT_PHASE, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import {
   createIntegrationClient,
   setupFixtureEnv,
@@ -73,6 +73,8 @@ function createBrownfieldCheckout(config?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-mcp-pure-'));
   fs.cpSync(path.join(FIXTURE_DIR, 'integration-project'), dir, { recursive: true });
   fs.cpSync(BROWNFIELD_GUIDE, path.join(dir, PROMPT_FILE_RELATIVE_PATH));
+  // Guard: an unresolved threshold would yield an empty file and a vacuously passing suite.
+  if (!Number.isFinite(BROWNFIELD_MIN_SOURCE_LINES)) throw new Error('BROWNFIELD_MIN_SOURCE_LINES did not resolve');
   const lines = BROWNFIELD_MIN_SOURCE_LINES + 100;
   const source = Array.from({ length: lines }, (_, i) => `export const v${i} = ${i};`).join('\n');
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
