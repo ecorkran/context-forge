@@ -453,7 +453,7 @@ The goal is to recover three artifacts from what is already built, in order: a b
 - `surfaces` in the facts has one entry per agent surface where the squadron path can run. Find the entry for the surface you are running in. If there is none, take the CF-only path. The set of surfaces is squadron's to extend; do not assume which ones it holds.
 - If the probe output's `probe_version` is not 1, treat squadron as unavailable and say so.
 - Squadron path: the probe output is present, your surface has an entry, and that entry has `analysis_skill_installed` true. This is the normal path. The `understand_plugin_installed` fact matters only when the graph must be built (step 1 below).
-- CF-only path: any other case. Say why in one line (the section says squadron is absent or unreadable, or this surface is not supported) and continue from the repo alone.
+- CF-only path: any other case. Say why in one line (the section says squadron is absent or unreadable, this surface is not supported, or `analysis_skill_installed` is false or null for this surface) and continue from the repo alone.
 - A null fact means unknown. Say it is unknown; do not treat it as true or false.
 
 **Squadron path steps.** Run them in order:
@@ -485,7 +485,7 @@ We're reconciling the project's own rules in project {project} with the guide's 
 
 1. Run `cf rules inventory --json`. If it fails, stop and report the error. The output lists the guide rules, the project's own rule sources with the line range of each file's managed block, and the resolutions already stored.
 2. Compare only project-owned text: the parts of each project rule source outside its managed block. The managed block holds the guide's rules; never compare it with the guide rules.
-3. Find conflicts: places where a project rule and a guide rule tell the agent to do different things. Wording differences that agree are not conflicts. Skip any conflict whose guide rule and project source pair already has a stored resolution.
+3. Find conflicts: places where a project rule and a guide rule tell the agent to do different things. Wording differences that agree are not conflicts. Skip any conflict whose guide rule and project source pair already has a stored resolution. Skip pairs where the guide rule never reaches that source: a guide rule whose `agents` field in the inventory is a list applies only to the outputs it names (`claude`: CLAUDE.md and `.claude/rules/`; `agents`: AGENTS.md; `copilot`: copilot-instructions.md and `.github/instructions/`; `cursor`: `.cursor/rules/`); a null `agents` field means it reaches every source.
 4. Present each conflict to the PM: the guide rule, the project source, both texts, and how they disagree. Do not decide which wins. Ask the PM for the decision.
 5. Record each decision with `cf rules resolve <guideRule> <projectSource> --statement "<text>"`, using the guide rule and project source identifiers as the inventory output gives them. The statement says, in one or two sentences, which rule applies and when.
 6. When every conflict is resolved or the PM defers the rest, run `cf setup-ide`. It renders the stored resolutions as a `## Project Rule Resolutions` section at the end of each managed block. If no conflicts were found, say so and still run it.
