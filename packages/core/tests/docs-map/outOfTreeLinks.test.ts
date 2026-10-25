@@ -2,28 +2,18 @@
 // The docs map and an architecture doc both link ../../../docs/adr/... and ../../../README.md;
 // cf check must stay silent, the map must stay out of the ProjectModel, and 261's outcome must not move.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import { writeDocsMap, docsMapPath } from '../../src/docs-map/index.js';
 import { ConsistencyChecker } from '../../src/introspection/ConsistencyChecker.js';
 import { ArtifactIntrospector } from '../../src/introspection/ArtifactIntrospector.js';
 import { buildModel } from '../../src/introspection/ProjectModelBuilder.js';
-import { createAdoptionResolver } from '../../src/adoption/adoptionResolver.js';
+import { decideOutcome } from '../../src/adoption/adoptionOutcome.js';
 import { findPlanningArtifacts } from '../../src/detection/planningArtifacts.js';
-import { PROMPT_FILE_RELATIVE_PATH } from '../../src/services/constants.js';
-import type { SquadronProbe } from '../../src/adoption/contracts.js';
+import { measureSourceVolume } from '../../src/detection/sourceVolume.js';
 import { createAdoptionFixture, ARCH_FILE, CONCEPT_FILE } from '../helpers/adoptionFixtures.js';
 
-const BROWNFIELD_GUIDE = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'fixtures',
-  'brownfield-guide',
-  PROMPT_FILE_RELATIVE_PATH,
-);
-const CONCEPT = 'Phase 0: Concept';
 const PROJECT_NAME = 'scratch-project';
 const BROWNFIELD_SOURCE_LINES = 2000;
 
@@ -83,37 +73,28 @@ describe('out-of-tree links (slice 267, D6)', () => {
 
   describe("261's adoption outcome", () => {
     let project: string;
-    let dataDir: string;
-    let originalEnv: string | undefined;
-    const noProbe: SquadronProbe = async () => ({ kind: 'available', json: '{}', warnings: [] });
 
     beforeEach(async () => {
-      dataDir = await mkdtemp(join(tmpdir(), 'cf-oot-data-'));
       project = await mkdtemp(join(tmpdir(), 'cf-oot-project-'));
-      roots.push(dataDir, project);
-      originalEnv = process.env.CONTEXT_FORGE_DATA_DIR;
-      process.env.CONTEXT_FORGE_DATA_DIR = dataDir;
-      const guideTarget = join(project, PROMPT_FILE_RELATIVE_PATH);
-      await mkdir(dirname(guideTarget), { recursive: true });
-      await cp(BROWNFIELD_GUIDE, guideTarget);
+      roots.push(project);
       const body = Array.from({ length: BROWNFIELD_SOURCE_LINES }, (_, i) => `export const v${i} = ${i};`).join('\n');
       await put(project, 'src/big.ts', body);
       await put(project, 'README.md', '# Brownfield\n');
       await put(project, 'docs/adr/0001-x.md', '# 1. Record\n');
     });
 
-    afterEach(() => {
-      if (originalEnv === undefined) delete process.env.CONTEXT_FORGE_DATA_DIR;
-      else process.env.CONTEXT_FORGE_DATA_DIR = originalEnv;
-    });
-
     it('stays brownfield, and the map is not a planning artifact', async () => {
-      const resolve = createAdoptionResolver({ stateWrites: 'read-only', squadronProbe: noProbe });
-      expect((await resolve(project, project, CONCEPT)).selected).toBe(true);
+      const outcomeKind = async (): Promise<string> =>
+        decideOutcome({
+          state: '',
+          artifacts: await findPlanningArtifacts(project),
+          source: await measureSourceVolume(project),
+        }).kind;
+      expect(await outcomeKind()).toBe('brownfield');
 
       await writeDocsMap(project, PROJECT_NAME);
 
-      expect((await resolve(project, project, CONCEPT)).selected).toBe(true);
+      expect(await outcomeKind()).toBe('brownfield');
       expect(await findPlanningArtifacts(project)).toEqual([]);
     });
   });
