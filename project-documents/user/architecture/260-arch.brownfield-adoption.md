@@ -30,7 +30,7 @@ This initiative gives CF a brownfield path. When onboarding (`sq onboard`) finds
 > - **cf never invokes squadron (PM ban)**: squadron calls cf, never the reverse. The probe integration is removed, and cf knows none of squadron's file names. Squadron owns graph building and comprehension, and passes cf the comprehension doc's path.
 > - **Squadron is the only adoption path**: the CF-only fallback is dropped, and is low-priority future work.
 >
-> Until `sq onboard` exists, adoption is parked. The rework is slices 268–272, and 273–274 are parked (see the slice plan).
+> Until `sq onboard` exists, adoption is parked. The rework is slices 268, 269, 271 and 272 (270 folded into 269), and 273–274 are parked (see the slice plan).
 
 **Motivation:** Initiative 200 named "existing-repo adoption as first-class path" as a design goal, but it delivered *setup-level* detection only: git present, project registered, `project-documents/` present. Nothing in CF understands that the repository already contains a working system. A user adopting CF on a real codebase gets a Phase 0 conversation that ignores it all, then an empty slice plan that pretends nothing has been built.
 
@@ -153,8 +153,7 @@ Consequences (amended 20261025): adoption requires squadron. There is no CF-only
 The original slices 260–267 have shipped. Rework, in order:
 
 - **268 Pure `cf build`:** no detection, no state writes, no prompt swap.
-- **269 Collapse adoption state:** outcomes derived from files; the opt-out is the only stored value.
-- **270 `cf next` without adoption steps:** one line for unadopted brownfield, normal navigation otherwise.
+- **269 Collapse adoption state:** outcomes derived from files; the opt-out is the only stored value. `cf next` loses its adoption steps: one line for unadopted brownfield or incomplete adoption, normal navigation otherwise (270 folded in).
 - **271 Primitives for `sq onboard`:** the detection report and prompt delivery (contract above). Removes the probe integration (done in 268, D3) and cf's comprehension filename lookup.
 - **272 Docs and guide alignment:** nothing points at `cf build` for adoption. Guide minimum raised.
 
