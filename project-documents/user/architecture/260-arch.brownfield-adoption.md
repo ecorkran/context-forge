@@ -5,8 +5,8 @@ project: context-forge
 archIndex: 260
 component: brownfield-adoption
 dateCreated: 20261020
-dateUpdated: 20261024
-status: complete
+dateUpdated: 20261025
+status: in_progress
 relatedSlices: []
 riskLevel: medium
 ---
@@ -17,9 +17,20 @@ riskLevel: medium
 
 Context Forge assumes every project starts from an idea. The onboard skill, its Codex variant, the `agent_onboard` MCP recipe and `cf next` first-run guidance all open with "describe what you want to build" and never look at the code, docs, tests, CI or git history already in the repository. Most real adoption is the opposite case: an existing codebase, often years old, that has never had CF planning artifacts.
 
-This initiative gives CF a brownfield path. When onboarding finds an existing codebase, it branches. It builds a planning baseline from what already exists: a concept, an architecture reverse-engineered from the code, and a slice plan that records built work as completed. It leaves the workflow positioned so `cf next` points at the first piece of *new* work. Later in the initiative it reconciles the project's own conventions with the guide's rules and maps existing docs and ADRs. Greenfield behaves as it does today.
+This initiative gives CF a brownfield path. When onboarding (`sq onboard`) finds an existing codebase, it branches. It builds a planning baseline from what already exists: a concept, an architecture reverse-engineered from the code, and a slice plan that records built work as completed. It leaves the workflow positioned so `cf next` points at the first piece of *new* work. Alongside, it reconciles the project's own conventions with the guide's rules and maps existing docs and ADRs; both shipped (266, 267). Greenfield behaves as it does today.
 
-**Scope:** onboarding consolidation; detection and adoption state; the squadron path (the normal case) and the CF-only fallback; the baseline artifacts (architecture, existing-state slice plan with a retroactive marker); brownfield-aware navigation; and, last, conventions reconciliation and docs/ADR mapping. Guide content (the brownfield adoption prompt, an adoption guide, a concept guide that does not assume a new idea) belongs to ai-project-guide and is a dependency, not part of this initiative.
+**Scope:** onboarding consolidation; detection, exposed as a read-only report; the primitives `sq onboard` consumes; the baseline artifacts (architecture, existing-state slice plan with a retroactive marker); brownfield-aware navigation; and, last, conventions reconciliation and docs/ADR mapping. Guide content (the brownfield adoption prompt, an adoption guide, a concept guide that does not assume a new idea) belongs to ai-project-guide and is a dependency, not part of this initiative.
+
+> **Amendment 20261025 (PM decision, critical).** The first build of this initiative (slices 261–264) put adoption inside `cf build`. A Phase 0 build ran detection, wrote adoption state as a side effect, swapped in the adoption prompt and later recorded completion. `cf next` gained a per-step adoption guide, and cf ran and parsed squadron's probe. This architecture is amended as follows, and the sections below are rewritten to match:
+> - **Adoption is orchestrated by `sq onboard`**, which squadron builds once the cf core is stable. cf orchestrates nothing. `/cf:onboard` stays the entry point for now, with no brownfield path.
+> - **cf provides read-only primitives**: a project-state report (greenfield, brownfield or already planned, plus facts) and adoption-prompt delivery. It also keeps understanding the artifacts adoption writes.
+> - **`cf build` is pure again**: no detection, no state writes, no prompt swap.
+> - **There is no adoption state machine**: the files say whether a project is planned, and only an opt-out is stored.
+> - **`cf next` carries no adoption guidance**: one line for an unadopted brownfield repo.
+> - **cf no longer talks to squadron about graphs**: the probe integration is removed. Squadron owns graph building and comprehension.
+> - **Squadron is the only adoption path**: the CF-only fallback is dropped, and is low-priority future work.
+>
+> Until `sq onboard` exists, adoption is parked. The rework is slices 268–272, and 273–274 are parked (see the slice plan).
 
 **Motivation:** Initiative 200 named "existing-repo adoption as first-class path" as a design goal, but it delivered *setup-level* detection only: git present, project registered, `project-documents/` present. Nothing in CF understands that the repository already contains a working system. A user adopting CF on a real codebase gets a Phase 0 conversation that ignores it all, then an empty slice plan that pretends nothing has been built.
 
@@ -27,15 +38,16 @@ This initiative gives CF a brownfield path. When onboarding finds an existing co
 
 - **Greenfield behaves the same; brownfield is first-class.** An empty or near-empty repository gets the same flow it gets today: setup, then the concept conversation. An existing codebase gets a path designed for it, not the greenfield path with caveats.
 - **The workflow starts where the project is.** After adoption, the artifacts describe the system that exists, and `cf next` recommends the first piece of new work, not Phase 0.
-- **Squadron is the normal path; CF alone still works.** When squadron is installed, its graph-based comprehension and concept flows are used by default. Without squadron, the brownfield path still completes on CF and the guide.
+- **Squadron is the adoption path.** Adoption runs through `sq onboard` and squadron's graph-based comprehension. A project without squadron is told that adoption needs it, or can opt out and be treated as new. A CF-only path is low-priority future work (amended 20261025).
+- **cf commands keep one meaning each.** `cf build` assembles context for a phase and writes nothing. `cf next` recommends; it never runs a multi-step flow. Adoption logic never hides inside either (amended 20261025).
 - **Never fabricate intent.** Code describes structure, not purpose. Motivation, users and direction come from the repository's own prose or from the PM, or are marked unknown. This is the same rule squadron 360 adopted.
 - **Surface conflicts, never merge them silently.** Where the project's existing rules and the guide's rules disagree, the user sees the disagreement and decides.
 
 ## Architectural Principles
 
-- **One detection, many consumers.** Whether a repo is greenfield, brownfield or already planned is decided once, in core, and exposed to every surface: the onboard skill, the Codex variant, `agent_onboard` and `cf build`. `cf next` reads the persisted adoption state; it does not run detection. No surface carries its own heuristic.
-- **Facts in core, judgement in the prompt.** This follows initiative 200's "skill over server logic". Core reports observable facts (source volume, commit history, docs/ADRs/CI/rule files present, the squadron probe result) and maps them to an outcome. Interpreting the repository (drafting a concept or architecture, judging whether two rules contradict) is agent work driven by guide prompts. Core never parses prose for meaning.
-- **Use squadron by capability, never by assumption.** CF learns what squadron can do only from squadron's capability probe. It never inspects squadron's install paths, and it never reimplements squadron's flows: not the knowledge graph, not concept generation, not initiative candidates.
+- **One detection, many consumers.** Whether a repo is greenfield, brownfield or already planned is decided once, in core. It is exposed as a read-only report (CLI and MCP) that `sq onboard`, `cf init` and `cf next` consume. Nothing persists the outcome: it is derived from the files every time. No surface carries its own heuristic.
+- **Facts in core, judgement in the prompt.** This follows initiative 200's "skill over server logic". Core reports observable facts (source volume, commit history, docs/ADRs/CI/rule files present) and maps them to an outcome. Interpreting the repository (drafting a concept or architecture, judging whether two rules contradict) is agent work driven by guide prompts. Core never parses prose for meaning.
+- **cf does not orchestrate squadron.** Squadron calls cf's primitives, never the reverse. cf never runs squadron commands, parses squadron output or inspects squadron's install paths. It never reimplements squadron's flows: not the knowledge graph, not comprehension, not concept generation, not initiative candidates. The one point of contact is squadron's comprehension doc, which cf finds by filename and `docType` (amended 20261025; this replaces "use squadron by capability" and the probe).
 - **Retroactive artifacts say so.** Anything recording work that predates adoption is marked as retroactive. The consistency checker and review gate can then tell recorded history from work executed under the process. The retroactive marker is never the PM-only review exemption, and adoption never sets that exemption.
 - **Additive and reversible.** Adoption writes new planning artifacts and managed blocks. It does not move, rewrite or delete the project's existing docs, rules or CI. Where content is mapped, the original stays where it is.
 - **Guide owns content, cf owns logic.** This keeps the docs-only guide boundary from initiative 200. The brownfield prompt and the adoption guide ship in ai-project-guide. cf reads them at run time and hard-codes none of their wording. A missing guide prompt is an error, never a reason to fall back to another prompt.
@@ -48,107 +60,114 @@ This initiative gives CF a brownfield path. When onboarding finds an existing co
 - **Consistency checker and review gate.** A slice plan entry marked complete with no code review is a `review-gate` finding when `workflow.review_enabled` is on. An existing-state plan that records built work as complete would trip it on every entry. The `missing-artifact` rule already tolerates plan entries without a design.
 - **`/setup-ci`.** Offered by onboard, and fires only when `.github/workflows/ci.yml` is absent. A project with CI under another name or another provider is either missed or offered a duplicate.
 - **`setup-ide` composition.** CLAUDE.md and AGENTS.md are compiled from the same `alwaysApply` rule set. Issue #123 covers splitting them by audience. Reconciliation has to work with whatever split that issue lands.
-- **Squadron side.** The concept flow exists (squadron slice 363, complete) and requires a knowledge graph from the `understand-anything` plugin, the guide installed, and a CF-registered project name. Comprehension (362) is complete. Initiative candidates (364) is partly built, and dispatcher routing (366) is not built. The capability probe does not exist yet.
+- **Squadron side.** The concept flow (363) and comprehension (362) exist. The capability probe shipped (`probe_version` 1), and cf's first build consumed it; the 20261025 amendment removes that integration. `sq onboard` does not exist yet, and adoption waits on it.
 
 ## Envisioned State
 
-### Onboarding: setup, then hand off (PM decision 20261020)
+### Onboarding (amended 20261025)
 
-`/cf:onboard`, its Codex variant and `agent_onboard` stay as entry points, rendered from one cf-owned source. They contain only setup: the registration check, `cf init` or the MCP `project_create`/`guide_install` fallback. Then they say "run `cf build` and follow it", or `context_build` on the MCP-only path. No brownfield logic lives in the onboarding steps. What `cf build` assembles depends on detection. The `/setup-ci` offer moves from onboard to `cf next`, which already knows the project's state.
+`/cf:onboard`, its Codex variant and `agent_onboard` stay as entry points, rendered from one cf-owned source (slice 260). They contain only setup: the registration check, `cf init` or the MCP `project_create`/`guide_install` fallback, then the concept conversation for greenfield. They have no adoption path. When the detection report says brownfield, they stop before the concept conversation and say so in one message: adoption needs `sq onboard`, which is not available yet, and the user can opt out to treat the project as new. They never start the greenfield conversation on an existing codebase silently. Adoption is orchestrated by `sq onboard` once squadron builds it; until then it is parked. The `/setup-ci` offer lives in `cf next`.
 
-### Detection and adoption state
+### Detection: a read-only report (amended 20261025)
 
-Core produces one detection report: source, history, docs, ADRs, CI, rule files, and the squadron probe result. Core maps the report to one outcome, checking in this order:
+Core produces one detection report: source volume (a floor, because counting stops at the threshold), history, docs, ADRs, CI and rule files. It maps the report to one outcome, checking in this order:
 
-1. **Adoption in progress:** the persisted adoption state says so. `cf build` resumes the brownfield prompt.
-2. **Already planned:** the repo holds a CF/SQ planning artifact (an initiative plan, an architecture doc or a slice plan). A concept on its own does not count. The project is registered and development continues from the artifacts; there is no brownfield path (PM ruling 20261020; this case is expected to be very rare).
-3. **Brownfield or greenfield:** decided from the code signals. Brownfield sets the adoption state to in progress and `cf build` selects the brownfield prompt. Greenfield gets the concept prompt as today.
+1. **Opted out:** the user said to treat the project as new. It is greenfield.
+2. **Adoption incomplete:** a derived architecture (`provenance: derived`) exists, but no slice plan has a retroactive entry. Adoption stopped partway and resumes through `sq onboard`. This is what a stored "in progress" state used to record; the files record it now.
+3. **Already planned:** the repo holds a CF/SQ planning artifact (an initiative plan, an architecture doc or a slice plan) and case 2 does not apply. A concept on its own does not count. Development continues from the artifacts. A finished adoption lands here, because its slice plan has a retroactive entry. A stray non-derived architecture doc in a brownfield repo also lands here. That is the PM's 20261020 ruling on already-planned repos, and it is expected to be rare.
+4. **Brownfield or greenfield:** decided from the code signals. Brownfield needs at least `BROWNFIELD_MIN_SOURCE_LINES` (2000, in `adoption/adoptionOutcome.ts`) non-blank source lines in the project folder. Counting stops at the threshold, so the reported figure is a floor.
 
-A user override exists in both directions. Detection is scoped to the project's own folder, so a CF project in a monorepo subdirectory is judged on that folder. CI is the one exception: CI configs live at the repository root, so CI recognition also checks the root. Slice 260's `recognizeCi` owns that exception, and the detection report consumes it.
+The outcome is derived from the files every time and never stored. The only stored value is the opt-out, a project config value whose key and command slice 269 names. Detection is scoped to the project's own folder, so a CF project in a monorepo subdirectory is judged on that folder. CI is the one exception: CI configs live at the repository root, so CI recognition also checks the root (slice 260's `recognizeCi`). History counts only commits that touch the project folder, and the report says when a shallow clone truncates it.
 
-The adoption state is a persisted project value owned by core, readable by `cf build`, `cf next` and the checker. It moves from in progress to complete when the existing-state slice plan is written. Because the state persists, a user can stop after any step and resume with `cf build` or `cf next`.
+The report is exposed as one CLI command and one MCP tool returning JSON (slice 271). It writes nothing. `cf init` uses the same core function to print one line when it finds an existing codebase. `cf build` does not run detection.
 
-### The squadron path (normal case)
+### Adoption flow, under sq onboard (amended 20261025)
 
-When the probe reports squadron available, the brownfield prompt (which carries the probe facts) has the agent:
+`sq onboard` orchestrates. In outline, so squadron and the guide can design against it:
 
-1. Run the `understand-anything` plugin's `/understand` if the knowledge graph is missing or stale. It's a paid multi-agent run, so the agent first says so and asks the PM once to go ahead (PM ruling 20261020: a client repo isn't covered by the project's own pre-authorized spend). This is the only step that asks.
-2. Run `/sq:analysis understand` for squadron 362's comprehension analysis (layers, hotspots, dependencies).
-3. Run squadron's concept flow (363) to write `000-concept` from the graph and README, unless a concept already exists. The PM confirms or corrects it.
-4. Re-run `cf build`. The adoption state resumes the brownfield prompt, now with `fileComprehension` and `fileConcept` resolved. The agent writes the architecture and the existing-state slice plan, using the graph's `layers[]` for retroactive slice boundaries.
+1. Register the project (`cf init` or the MCP equivalent).
+2. Read cf's detection report. If the project is greenfield or already planned, adoption doesn't apply.
+3. On brownfield, squadron builds or refreshes the knowledge graph and writes the comprehension doc. It asks the PM once before a paid graph build (PM ruling 20261020: a client repo isn't covered by pre-authorized spend). This step is squadron's alone; cf has no part in it.
+4. Fetch the adoption prompt from cf (slice 271), with the comprehension doc's path filled in, and hand it to the agent.
+5. The agent drafts the concept, and the PM confirms or corrects it. Then the agent writes the derived architecture and the existing-state slice plan.
+6. `cf next` then points at the first new slice, and the normal phases continue with `cf build` as everywhere else.
 
-Only two squadron steps are *offered*, because they're optional: the 400 adoption baseline (a metrics and tech-debt snapshot in squadron's own store, which CF doesn't consume) and 364 initiative candidates (forward work, after the slice plan exists).
-
-The squadron path runs only on surfaces the probe's `surfaces` list names. CF never names a surface itself: the list is squadron's to maintain, and neither this design nor CF's tests fix its contents. On a surface the list doesn't name, CF takes its own path even when squadron is installed.
-
-The `understand-anything` plugin is needed only to build or refresh the graph. With a current graph, the squadron path runs whatever the plugin's state. When the graph must be built and the plugin is reported missing or unknown (null), the agent stops and tells the PM how to install it, or offers the CF-only path. That's a real choice, so the PM makes it; an unknown state is never treated as "missing" without asking. cf itself doesn't branch on probe fields; these rules live in the guide prompt. If squadron is absent, or the probe can't be read, the agent says so and takes the CF-only path.
-
-### The CF-only path (fallback)
-
-The brownfield prompt drafts the concept from the repository's own prose and filesystem, interviewing the PM only for what no artifact can hold. It then derives the architecture by reading the code, and writes the existing-state slice plan. The artifacts are the same as on the squadron path; only the provenance differs.
+Squadron decides its own surfaces, graph freshness and plugin requirements. cf neither knows nor tests those.
 
 ### Baseline artifacts
 
 - **Architecture:** an ordinary architecture document, marked as derived. Downstream phases consume it like any other.
 - **Existing-state slice plan:** built work is recorded as retroactive completed entries, and new work is planned after them. Retroactive entries come before new work in index order. That relative order is the only thing squadron 364 relies on. A single coarse "existing system" entry is allowed when finer boundaries aren't useful.
-- **Retroactive marker:** a property of a slice plan entry, set only by the adoption flow. A retroactive entry counts as complete for every "done" check (CF's and squadron's pipeline gates), and the code-review gate skips it rather than passing it. A retroactive entry with a slice design or task file is a checker error. Real new work always produces those files, so the marker can't be used to bypass the gate. This amends the 240 gate rule.
+- **Retroactive marker:** a property of a slice plan entry, specified in slice 263 and in the guide's `guide.ai-project.brownfield-adoption` (Marker section). It is a backticked `retroactive` token after the entry's title, on a checked entry with an explicit index. Squadron reads the same marker. A retroactive entry counts as complete for every "done" check (CF's and squadron's pipeline gates), and the code-review gate skips it rather than passing it. A retroactive entry with a slice design or task file is a checker error, which stops new work from being relabelled once it has started. It does not stop an unbuilt entry being marked retroactive before any design exists, because the agent writes the plan file directly. Tying a retroactive entry's validity to a derived architecture is possible future work. The rework leaves the marker unchanged. This amends the 240 gate rule.
 
 ### Navigation
 
-`cf next` reads the adoption state. While adoption is in progress, it points at the next adoption step. Once it's complete, it points at the first new work item instead of Phase 0.
+`cf next` has no adoption steps (amended 20261025). An unadopted brownfield repo gets one line: adoption arrives with `sq onboard`, plus how to opt out and treat the project as new. An adopted project is navigated like any planned project. Retroactive entries count as complete, so `cf next` points at the first unbuilt slice.
 
-### Later in the initiative
+### Delivered alongside (266, 267)
 
-- **Conventions reconciliation** lists where the project's existing rules disagree with the guide's. The PM resolves each one. Resolutions persist keyed by rule file identity, never heading text, so re-running `setup-ide` doesn't re-introduce them. Sequenced with #123.
-- **Docs and ADR mapping** links existing material into the project-documents structure, in place. Nothing is moved.
+- **Conventions reconciliation (shipped, 266)** lists where the project's existing rules disagree with the guide's. The PM resolves each one. Resolutions persist keyed by rule file identity, never heading text, so re-running `setup-ide` doesn't re-introduce them. #123 shipped in 935.
+- **Docs and ADR mapping (shipped, 267)** links existing material into the project-documents structure, in place. Nothing is moved.
 
-## Responsibility Split with Squadron (PM approved 20261020)
+Both stand on their own and work without adoption. The rework leaves them unchanged.
 
-Agreed in discussion between the CF and squadron agents. Squadron initiative 440 shrinks to the items marked squadron.
+### Comprehension in later phases (274, parked)
+
+Today the comprehension doc reaches only the adoption prompt. Architecture, slice planning and slice design builds never see it, and neither does the docs map (#135). Adoption is worth doing only if later design work benefits from it. Slice 274 makes both available to those phases and decides how they stay current. Squadron owns the graph's freshness; cf only says plainly when a doc is missing.
+
+## Responsibility Split with Squadron (PM approved 20261020, amended 20261025)
+
+Agreed in discussion between the CF and squadron agents. Squadron initiative 440 shrinks to the items marked squadron. The 20261025 amendment moves onboarding orchestration to squadron (`sq onboard`) and removes cf's probe integration. Rows (a), (b) and (g) changed.
 
 | Capability | Owner | Notes |
 |---|---|---|
-| (a) Detection and onboard branching | CF | Squadron drops its 440 detection item. |
-| (b) Handoff | Shared | CF reads squadron's **capability probe**: one `sq` command printing versioned JSON for sq installed, analysis skill installed, `understand-anything` plugin present, graph present and how stale. CF reads only the probe and never inspects squadron's install paths. Squadron provides the entry point (`/sq:analysis understand`, squadron slice 366). Output is recognized by existing filename/`docType` conventions plus squadron 361's provenance block. |
+| (a) Detection | CF | A read-only report (CLI and MCP) that squadron consumes. Squadron drops its 440 detection item. |
+| (a′) Onboard orchestration | Squadron | `sq onboard` runs the adoption flow and calls cf's primitives. cf onboarding has no brownfield path. |
+| (b) Handoff | Squadron → CF | Squadron writes the comprehension doc. cf finds it by filename and `docType` and fills its path into the adoption prompt. That naming convention is the one coupling to squadron's artifacts. cf no longer reads squadron's capability probe. |
 | (c) Architecture from code | CF | CF writes the architecture doc on both paths. With squadron present, squadron 362's comprehension analysis is an input the prompt reads. One writer. |
 | (d) Existing-state slice plan and retroactive marker | CF | Squadron 364 supplies the graph's `layers[]` as an optional signal for retroactive slice boundaries. A retroactive entry **counts as complete** for every "done" check (squadron's pipeline gates read slice status) and is **never treated as reviewed**. |
 | (e) Conventions reconciliation | CF | Squadron has nothing here. |
 | (f) Docs, ADR and CI mapping | CF | |
-| (g) Brownfield-aware `cf next` / `agent_onboard` | CF | |
-| Concept (`000-concept`) | Shared | Squadron 363 writes it from the graph; CF's fallback writes it from repo prose. Exactly one writer per run, and neither overwrites an existing concept without the PM saying so. |
+| (g) `cf next` | CF | One line for an unadopted brownfield repo pointing at `sq onboard`, then normal navigation. No adoption steps. |
+| Concept (`000-concept`) | Shared | Written during the `sq onboard` flow from the comprehension doc and repo prose (squadron 363, or the guide's adoption prompt). Exactly one writer per run, and nothing overwrites an existing concept without the PM saying so. |
 | Initiative candidates | Squadron | On brownfield, squadron 364 proposes forward work only (complexity clusters). Layer-boundary candidates describe existing components, so they feed (c) and (d) instead. Candidates are indexed after retroactive entries. Squadron 364's "candidates adopt" writes CF's initiative-plan format and never sets the retroactive marker. It is frozen until the handoff contract settles. |
 | Adoption baseline (squadron 400) | Squadron | Offered on the squadron path. CF doesn't consume its output. |
 
-Consequences: the graph is optional by construction. With no graph, the probe says so and CF's own path runs. Squadron drops its planned non-graph analysis path (360 future-work item 4) because CF's fallback covers it.
+Consequences (amended 20261025): adoption requires squadron. There is no CF-only fallback for now. Squadron's planned non-graph analysis path (360 future-work item 4) is not covered by cf either; a non-squadron path is low-priority future work.
 
 ## Technical Considerations
 
 - **Brownfield thresholds.** The mapping from detection facts to an outcome lives in core, in one place. It must not misfire on a repo that is only scaffolding (a framework starter, a README and a license), nor on a shallow clone, or a repo squashed or imported with little history. The costs are lopsided: a false greenfield wastes a conversation, while a false brownfield writes wrong artifacts. Signals and thresholds are set in slice design; the override is the safety valve.
 - **Retroactive slice granularity and numbering.** Code that was never sliced has no natural slice boundaries. Too fine, and the plan is noise; too coarse, and later slices can't reference what they build on. The graph's `layers[]` answer this when squadron runs. The absolute index scheme is a slice-design decision, constrained by the relative-order rule above.
-- **Squadron contract stability.** The probe contract is locked at `probe_version` 1 in squadron's `project-documents/user/reference/capability-probe-contract.md` (squadron commit 32b3c609): `sq probe --json`, fields `probe_version`, `sq_version`, `surfaces` (an object keyed by surface, maintained by squadron, where adding a surface is non-breaking; each entry is `{analysis_skill_installed, entry, understand_plugin_installed, graph_build, concept}`, because commands differ by surface: `entry` runs analysis against an existing graph, `graph_build` builds or refreshes it, `concept` runs the 363 concept step). The probe ships only after squadron 366, so it never reports an entry that doesn't route, `graph{present, path, commit, commits_behind}`, `baseline{available}`. Null means unknown. A non-zero exit means the probe itself broke. Neither the probe nor squadron 366 is built yet. CF tests check the field names as a cross-repo contract, and CF treats an unknown version or unreadable output as "squadron unavailable", stated to the user, never silently.
-- **Guide prompt contract (agreed with ai-project-guide 20261020; prompt content pending PM approval).** One context profile, `brownfield-adoption: [fileConcept, fileArch, fileSlicePlan, fileComprehension]`. It drives concept → architecture → existing-state slice plan, and a re-run resumes from whatever artifacts exist. `fileComprehension` is a new cf variable meaning squadron 362's `{n}-analysis.codebase-comprehension.md`, resolved by that filename and `docType`. It is optional: when nothing resolves, cf passes nothing (never a placeholder) and the prompt works from the repo alone. Squadron 363's concept is just `fileConcept`. The prompt detects 363's provenance block and has the PM confirm or correct a machine-derived concept before building on it. The detection and probe facts reach the prompt as an "Adoption Facts" section that `cf build` appends after the instruction prompt, outside the template, like the permissiveness fragment. It carries the probe JSON verbatim, or a plain statement that squadron is unavailable. cf doesn't report the current surface: the agent checks itself against `surfaces`. Graph staleness has no cf threshold. `commits_behind` 0 uses the graph with no ask. An absent graph, a non-zero count or an unknown count goes into the single `/understand` ask (rebuild, use as is, or CF-only path).
-- **Guide release coupling.** The `brownfield-adoption` profile, the concept-prompt opener (the prompt must open the conversation itself, since onboard no longer does) and removal of the stale `analyze-codebase` profile ship in ai-project-guide before the cf release that depends on them. If cf selects the brownfield profile and the installed guide lacks it, `cf build` fails with a named error. It never falls back to the greenfield prompt.
+- **cf ↔ squadron contract (20261025).** Squadron calls cf; cf never calls squadron. Slice 271 names the commands and fixes the details. This architecture fixes the shape:
+  - **Detection report:** one CLI command (`--json`) and one MCP tool, with identical JSON. Fields: `reportVersion` (integer, starting at 1, raised on any breaking change; squadron refuses a version it doesn't know), `outcome` (`opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`), and `facts` (source-line floor and file count, commit count with a shallow flag, docs, ADRs, CI and rule-file paths). It is read-only.
+  - **Adoption prompt delivery:** the guide's adoption prompt by key, rendered with the project's variables. The comprehension doc's path is filled in when exactly one exists. With none, the prompt says so plainly. With several, cf uses the highest-indexed one and names it. A guide missing the prompt is a named error, never a fallback.
+  - **Comprehension freshness** is squadron's responsibility. cf does not judge staleness.
+- **Guide prompt contract (20261025).** `cf build` does not select the `brownfield-adoption` profile or append Adoption Facts. The prompt is delivered by the slice 271 primitive. cf decides nothing about squadron's state, so the prompt's raw-probe branching goes away. The guide drops its `cf build` steps when 272 lands. Slice 271 settles how the profile's variables (fileConcept, fileArch, fileSlicePlan, fileComprehension) reach the prompt.
+- **Guide release coupling.** cf raises `MIN_GUIDE_VERSION` to the guide release that drops the `cf build` adoption steps (272). That cf release and that guide release ship together.
 - **Reconciliation is judgement.** Deciding that two rules contradict is semantic, so it's agent work. Core enumerates project rule sources (the composites CLAUDE.md, AGENTS.md and `.github/copilot-instructions.md`, plus the standalone rule directories) and applies stored resolutions deterministically inside `setup-ide`; the cli passes in the installed manifest paths and checks guide-rule delivery (slice 266 D7). It has to coexist with #123's CLAUDE.md/AGENTS.md split and existing managed blocks.
 - **Mapping without moving.** Existing docs have inbound links, tooling and owners. Referencing them in place keeps those intact, but leaves CF artifacts pointing outside `project-documents/`. Introspection has to tolerate that.
 
 ## Anticipated Slices
 
-In expected order. The last two aren't needed for the core goal (`cf next` pointing at new work after adoption) and come after the baseline works.
+The original slices 260–267 have shipped. Rework, in order:
 
-- **Onboarding consolidation:** one source rendered to the three entry points. Setup then hand off to `cf build` / `context_build`. The `/setup-ci` offer moves to `cf next`, and CI recognition stops keying on one filename. Greenfield behavior unchanged.
-- **Detection and adoption state:** the core detection report, the three-way outcome with override, the persisted adoption state, and `cf build` selecting the `brownfield-adoption` profile (fail-fast when the guide lacks it).
-- **Squadron path:** reading the probe, resolving `fileComprehension`, and the probe facts the brownfield prompt consumes. Depends on squadron's probe and 366.
-- **Retroactive marker and existing-state slice plan:** the marker, the checker rule against designs or task files on retroactive entries, the 240 gate amendment, and provenance for the derived architecture.
-- **Brownfield-aware `cf next`:** adoption steps while in progress, first new work item once complete.
-- **Conventions reconciliation (later):** enumerate conflicts, record resolutions keyed by rule file, make `setup-ide` honor them. Sequenced with #123.
-- **Docs and ADR mapping (later):** link existing material into project-documents in place.
+- **268 Pure `cf build`:** no detection, no state writes, no prompt swap.
+- **269 Collapse adoption state:** outcomes derived from files; the opt-out is the only stored value.
+- **270 `cf next` without adoption steps:** one line for unadopted brownfield, normal navigation otherwise.
+- **271 Primitives for `sq onboard`:** the detection report and prompt delivery (contract above). Removes the probe integration.
+- **272 Docs and guide alignment:** nothing points at `cf build` for adoption. Guide minimum raised.
+
+Parked until `sq onboard` exists: **273** a real adoption run with the PM answering live, and **274** comprehension in later phases (an umbrella).
+
+**Exit criterion:** the initiative is complete when 273 passes: a real repository adopted through `sq onboard`, through to a first new slice design built on the derived architecture. Until then the initiative stays in progress, and cf's part ends at 272.
 
 ## Dependencies
 
 - **Initiatives 160 and 200 (complete):** the workflow navigator, consistency checker, config system and onboarding flow this initiative extends.
 - **Initiative 240 (complete):** the review gate, amended for retroactive entries.
-- **ai-project-guide:** the `brownfield-adoption` profile and prompt, the concept-prompt opener, the adoption guide, the reworded concept guide and removal of the `analyze-codebase` profile all shipped in v0.22.0. v0.22.1 added the concept step from the probe's `surfaces.<s>.concept`. cf releases that select the brownfield profile require at least **v0.22.2** (v0.22.2 fixed the squadron-path gate in the brownfield prompt). Still pending, both written after cf specifies them in slice design: the retroactive-marker rule, and the naming-conventions entry for the docs map file (`050-docs-map.{project}.md`, slice 267). The docs map entry does not block a cf release.
-- **Squadron (initiative 440):** the capability probe and slice 366 must land before CF's squadron-path slice. The CF-only path doesn't depend on them.
+- **ai-project-guide:** the adoption prompt, the adoption guide and the retroactive-marker rule (shipped through v0.22.7). 272 needs a guide release that drops the `cf build` adoption steps and the raw-probe branching. 274 needs new context-profile variables.
+- **Squadron (initiative 440):** `sq onboard`, which orchestrates adoption and consumes cf's primitives (slice 271), and graph building plus the comprehension doc. Adoption is parked until `sq onboard` exists (amended 20261025; the probe dependency is gone).
 
 ## Related Work
 
