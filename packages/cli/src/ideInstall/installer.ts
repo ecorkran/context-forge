@@ -14,7 +14,7 @@ import { checkLintConfigs } from './lint.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
-import { RULE_AUDIENCE } from './ruleAudience.js';
+import { audienceProblemMessage, RULE_AUDIENCE, unknownAudienceValues } from './ruleAudience.js';
 import {
   classifyResolutions,
   renderResolutions,
@@ -94,6 +94,17 @@ function classifyForInstall(options: InstallOptions, base: InstallBase): Resolut
 }
 
 /**
+ * One stderr warning per unknown `agents:` value or valueless key (slice 935).
+ * With no rules directory the target's `requireRulesDir` aborts instead.
+ */
+function warnAudienceProblems(base: InstallBase): void {
+  if (!isDirectory(base.guide.rules)) return;
+  for (const problem of unknownAudienceValues(base.guide.rules)) {
+    base.out.statusErr('yellow', audienceProblemMessage(problem));
+  }
+}
+
+/**
  * Install IDE files for one target. Install failures (the bash exit-1 paths
  * and filesystem errors) are reported and return exit 1; anything else is a
  * bug and propagates.
@@ -118,6 +129,7 @@ export function installIde(options: InstallOptions): InstallResult {
     out.status('blue', `📍 IDE directories will be created in: ${targetRoot}`);
     out.line();
     const stale = classifyForInstall(options, base);
+    warnAudienceProblems(base);
     if (options.dryRun) dryRunInstall(options.target, base, installTarget);
     else installTarget(options.target, base);
     base.exclusions.warnUnmatched(base.guide.rules, out);

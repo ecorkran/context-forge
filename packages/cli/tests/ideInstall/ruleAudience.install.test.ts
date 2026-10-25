@@ -90,6 +90,24 @@ describe('agents rule marker', () => {
     expect(exists(rel)).toBe(false);
   });
 
+  it('warns once per unknown value and valueless key, and still exits 0', () => {
+    writeFiles(rulesDir, {
+      'claude-scoped.md': CLAUDE_SCOPED.replace('agents: [claude]', 'agents: [claude, gemini]'),
+      'block.md': '---\ndescription: Block list.\nalwaysApply: true\nagents:\n  - claude\n---\n\n# Block\n\nbody\n',
+    });
+    const result = run(guide, project, ['agents']);
+    expect(result.code).toBe(0);
+    expect(result.stderr.match(/unknown agents value 'gemini'/g)).toHaveLength(1);
+    expect(result.stderr).toContain('claude-scoped.md');
+    expect(result.stderr.match(/block\.md: agents must be written inline/g)).toHaveLength(1);
+    expect(read('AGENTS.md')).not.toContain('# Block');
+  });
+
+  it('prints no marker warning for a clean guide', () => {
+    const result = run(guide, project, ['claude']);
+    expect(result.stderr).not.toContain('agents');
+  });
+
   it('keeps an edited scoped file with the manifest warning', () => {
     const rel = '.cursor/rules/claude-scoped.mdc';
     writeFiles(rulesDir, { 'claude-scoped.md': SCOPED_UNMARKED });
