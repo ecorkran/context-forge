@@ -33,7 +33,17 @@ export interface DocsMapResult {
 
 /** The canonical map path. No pattern search: a renamed project gets a new map (D1). */
 export function docsMapPath(root: string, projectName: string): string {
+  if (/[\\/]/.test(projectName)) {
+    throw new DocsMapError(projectName, 'project name contains a path separator and cannot name the docs map file');
+  }
   return join(root, DOCS_MAP_DIR, `${DOCS_MAP_INDEX}-${DOCS_MAP_SEGMENT}.${projectName}.md`);
+}
+
+/** Plain YAML scalar when the name is plainly safe, else a double-quoted one (JSON strings are valid YAML). */
+const PLAIN_YAML_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9._ -]*[A-Za-z0-9._-])?$/;
+
+function yamlScalar(value: string): string {
+  return PLAIN_YAML_NAME.test(value) ? value : JSON.stringify(value);
 }
 
 /** The whole file for a project that has no map yet. All of it is cf-generated UTF-8. */
@@ -42,7 +52,7 @@ function newMapContent(projectName: string, block: string): string {
   return [
     '---',
     `docType: ${DOCS_MAP_DOC_TYPE}`,
-    `project: ${projectName}`,
+    `project: ${yamlScalar(projectName)}`,
     `dateCreated: ${today}`,
     `dateUpdated: ${today}`,
     '---',
@@ -66,7 +76,8 @@ type BlockLocation =
   | { state: 'broken'; problem: string };
 
 function lineText(line: string): string {
-  return line.replace(/\r?\n$/, '');
+  // Trailing whitespace (an editor's, or the line ending) does not make a marker a different line.
+  return line.trimEnd();
 }
 
 function indicesOf(lines: readonly string[], marker: string): number[] {

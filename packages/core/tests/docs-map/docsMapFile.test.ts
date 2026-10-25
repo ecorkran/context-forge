@@ -27,7 +27,24 @@ describe('docs map file', () => {
     expect(docsMapPath('/r', 'acme')).toBe('/r/project-documents/user/architecture/050-docs-map.acme.md');
   });
 
+  it('docsMapPath rejects a project name with a path separator', () => {
+    expect(() => docsMapPath('/r', 'a/b')).toThrow(DocsMapError);
+    expect(() => docsMapPath('/r', 'a\\b')).toThrow(DocsMapError);
+  });
+
   describe('create', () => {
+    it('quotes a project name that would be invalid as a plain YAML scalar', async () => {
+      const result = await writeDocsMap(root, 'acme: v2 #1');
+      const text = await readFile(result.path, 'utf8');
+      expect(text).toContain('project: "acme: v2 #1"\n');
+      expect(text).toContain('# Docs Map: acme: v2 #1');
+    });
+
+    it('leaves an ordinary project name unquoted', async () => {
+      const result = await writeDocsMap(root, 'my-app.v2');
+      expect(await readFile(result.path, 'utf8')).toContain('project: my-app.v2\n');
+    });
+
     it('writes frontmatter, heading, block and Additional Material', async () => {
       await put('README.md', '# Acme Service\n');
       await put('docs/adr/0001-x.md', '# 1. Record\n');
@@ -138,6 +155,14 @@ describe('docs map file', () => {
         expect((failure as DocsMapError).message).toContain(problem);
         expect((await mapBytes()).toString('utf8')).toBe(content);
       });
+    });
+
+    it('finds markers that carry trailing whitespace', async () => {
+      await put('README.md');
+      await writeMapBytes(`# M\n${DOCS_MAP_BEGIN}  \nstale\n${DOCS_MAP_END}\t\n`);
+      const result = await writeDocsMap(root, 'acme');
+      expect(result.status).toBe('updated');
+      expect(await mapText()).toContain('[T](../../../README.md)');
     });
 
     it('never edits frontmatter, even when it is malformed or lacks dateUpdated', async () => {

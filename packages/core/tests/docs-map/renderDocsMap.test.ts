@@ -38,6 +38,16 @@ describe('renderManagedBlock', () => {
     expect(block).toContain('`docs/my guide.md`');
   });
 
+  it('escapes characters that would break the link destination or link text', () => {
+    const block = renderManagedBlock(
+      [{ kind: 'doc', path: 'docs/a (v2) #1 100%.md', title: 'Guide [draft] \\ notes' }],
+      MAP_DIR,
+    );
+    expect(block).toContain('(../../../docs/a%20%28v2%29%20%231%20100%25.md)');
+    expect(block).toContain('[Guide \\[draft\\] \\\\ notes]');
+    expect(block).toContain('`docs/a (v2) #1 100%.md`');
+  });
+
   it('links relative to the map directory', () => {
     const block = renderManagedBlock(
       [

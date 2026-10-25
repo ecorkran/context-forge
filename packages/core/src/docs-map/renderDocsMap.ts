@@ -17,9 +17,22 @@ function byPath(a: MappedDoc, b: MappedDoc): number {
   return a.path > b.path ? 1 : 0;
 }
 
+/** Percent-encode each path segment; encodeURIComponent leaves parentheses, which end a Markdown link. */
+function linkDestination(fromDir: string, path: string): string {
+  return posix
+    .relative(fromDir, path)
+    .split('/')
+    .map((segment) => encodeURIComponent(segment).replaceAll('(', '%28').replaceAll(')', '%29'))
+    .join('/');
+}
+
+/** Backslash-escape the characters that close or open Markdown link text. */
+function escapeLinkText(title: string): string {
+  return title.replace(/[\\[\]]/g, '\\$&');
+}
+
 function entryLine(doc: MappedDoc, mapDir: string): string {
-  const link = posix.relative(mapDir, doc.path).replaceAll(' ', '%20');
-  return `- [${doc.title}](${link}) — \`${doc.path}\``;
+  return `- [${escapeLinkText(doc.title)}](${linkDestination(mapDir, doc.path)}) — \`${doc.path}\``;
 }
 
 /**

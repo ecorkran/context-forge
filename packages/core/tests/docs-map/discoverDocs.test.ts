@@ -60,15 +60,22 @@ describe('discoverMappedDocs', () => {
     });
   });
 
-  describe.each(DOC_PATHS.map((path) => [path]))('doc path %s', (candidate) => {
-    it('is discovered as doc', async () => {
-      if (candidate.includes('.') || candidate === 'README') await put(candidate);
-      else await put(`${candidate}/guide.md`);
-      const found = await discover();
-      const expected = candidate.includes('.') || candidate === 'README' ? candidate : `${candidate}/guide.md`;
-      expect(found).toEqual({ [expected]: { kind: 'doc', title: 'T' } });
-    });
+  // DOC_PATHS entries that are files; every other entry is a directory holding guide.md.
+  const FILE_DOC_PATHS = ['README.md', 'README'];
+
+  it('treats only known entries as files', () => {
+    for (const entry of FILE_DOC_PATHS) expect(DOC_PATHS).toContain(entry);
   });
+
+  describe.each(DOC_PATHS.map((path) => [path, FILE_DOC_PATHS.includes(path) ? path : `${path}/guide.md`]))(
+    'doc path %s',
+    (_candidate, expectedPath) => {
+      it('is discovered as doc', async () => {
+        await put(expectedPath);
+        expect(await discover()).toEqual({ [expectedPath]: { kind: 'doc', title: 'T' } });
+      });
+    },
+  );
 
   it('recurses into nested directories and lists docs/adr files once, as adr', async () => {
     await put('docs/a/b/deep.md');
