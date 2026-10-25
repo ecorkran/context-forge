@@ -421,7 +421,7 @@ Three interfaces — use whichever fits your workflow:
 | `workflow.decision_gate_enabled` | shared | Block design validation and `cf next` on pending PM decisions (on by default). |
 | `workflow.setup_ci_offer` | shared | `cf next` offers the setup-ci skill when a project has a build manifest but no CI or release skill (on by default). Set to `false` to stop the offer. |
 | `workflow.permissiveness` | shared | How readily AI work waits on the PM: `cautious`, `standard` (default) or `autonomous`. Applied by `cf build` in Phases 4–6. |
-| `adoption.state` | shared | Brownfield adoption state. `cf build` sets `in_progress` the first time it detects an existing codebase (2000+ source lines, nothing planned) and then uses the brownfield-adoption prompt in Phase 0. Set `in_progress` to force that, `declined` to treat the project as new, or `""` to re-detect. |
+| `adoption.state` | shared | Set to `declined` to treat this project as new even when it holds existing code. Empty (default): cf decides from the project's files. The old values `in_progress` and `complete` are ignored. |
 | `workflow.review_threshold` | shared | Verdict floor that clears a gate (`pass` \| `concerns`). |
 | `workflow.review_gate_effective_date` | shared | Grandfather work designed before `YYYYMMDD` past the gate. |
 | `workflow.auto_advance` | shared | Auto-advance to the next slice when the current one completes. |
