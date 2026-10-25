@@ -8,7 +8,7 @@ interfaces:
 - collapse-adoption-state
 dateCreated: 20261025
 dateUpdated: 20261025
-status: not_started
+status: complete
 turns: 47
 promptTokens: 3299518
 cachedTokens: 3189518
@@ -202,19 +202,22 @@ Status: decided
 ### Verification Walkthrough
 These steps need a local build: `pnpm -r build`. The global `cf` is the published npm build, so the commands run `node packages/cli/dist/index.js` (written `cf` below).
 
-1. **Brownfield build writes nothing.** Take a scratch repo with more than 2000 source lines and no `project-documents/user/architecture` artifacts, registered with `cf init` and in Phase 0:
+Verified 20261025 against the slice 268 branch. `cf build` prints the prompt to stdout only with `--json` (it is the `context` field); plain `cf build` prints status lines to stderr and nothing to stdout. The steps below use `--json`. Set `CONTEXT_FORGE_DATA_DIR` to a scratch directory so the walkthrough never touches your real project registry. In this shell, `cf` is a one-line wrapper script that runs `node <repo>/packages/cli/dist/index.js "$@"`.
+
+1. **Brownfield build writes nothing.** Make a scratch repo with more than 2000 source lines, no `project-documents/user/architecture` artifacts, and a guide prompt at `project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md` (copy `packages/core/tests/fixtures/brownfield-guide/...` for an offline run). Register it with `cf init --lite --name bf-scratch` and `cf set instruction "Phase 0: Concept"`:
    ```
    cd /tmp/bf-scratch
-   shasum .context-forge.toml        # record (or note it is absent)
-   cf build > /tmp/out.md
-   shasum .context-forge.toml        # same hash (or still absent)
-   grep -c "Adoption Facts" /tmp/out.md   # 0
+   ls .context-forge.toml                 # absent: "No such file or directory"
+   cf build --json > /tmp/out1.json
+   ls .context-forge.toml                 # still absent
+   grep -c "Adoption Facts" /tmp/out1.json            # 0
+   grep -c "starting work on a new project" /tmp/out1.json   # 1 (the fixture's concept prompt text)
    ```
-   The output is the guide's concept prompt.
-2. **A stored state is ignored.** `cf config set adoption.state in_progress`, then `cf build` again. The output is still the concept prompt, and `cf config get adoption.state` still shows `in_progress`. Reset with `cf config set adoption.state ""`.
-3. **No probe, MCP matches.** The D5 purity test covers both, using a fake `sq` marker and CLI/MCP parity. Run it with `pnpm --filter @context-forge/mcp test`; it passes.
-4. **Greenfield unchanged.** Run `pnpm --filter @context-forge/core test pure-build-golden`. It passes against the golden files committed before the cut.
+2. **A stored state is ignored.** `cf config set adoption.state in_progress`, record `shasum .context-forge.toml`, then `cf build --json > /tmp/out2.json`. The hash is unchanged, `cmp /tmp/out1.json /tmp/out2.json` reports no difference, and `cf config get adoption.state` still shows `in_progress`. Reset with `cf config set adoption.state ""`, then remove the scratch `.context-forge.toml`.
+3. **No probe, MCP matches.** The D5 purity test (`packages/mcp-server/tests/integration/pureBuild.test.ts`) covers both, using a fake `sq` marker and CLI/MCP parity. Run `pnpm --filter @context-forge/mcp test pureBuild`; it passes (4 tests).
+4. **Greenfield unchanged.** Run `pnpm --filter @context-forge/core test pure-build-golden`. It passes against the golden files committed before the cut (`git diff e376d3a3 --stat -- packages/core/tests/fixtures/pure-build-golden/` is empty).
 5. **Code is gone.** `grep -rn "resolveAdoptionFn\|adoptionFacts\|runSquadronProbe\|writeAdoptionState" packages/*/src` prints nothing.
+6. **Guide warning still goes to stderr.** With a guide whose version is unknown or older than the minimum, `cf build --json 2>&1 >/dev/null` prints `Warning: Installed ai-project-guide version is unknown; context-forge needs v0.22.6 or newer. ...`.
 
 ## Risk Assessment
 ### Technical Risks

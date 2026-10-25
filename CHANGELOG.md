@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`cf build`, `context_build` and `template_preview` are pure.** They assemble context and write nothing. They no longer read or write `adoption.state`, run `sq probe`, or add Adoption Facts or a `Comprehension:` line to the prompt. Phase 0 always builds the concept prompt, even in a brownfield project. An explicit `--it brownfield-adoption` still renders that prompt, without facts.
+
+### Removed
+
+- Build-time brownfield adoption: the resolver, the facts renderer, the completion handling, the `adoption.state` writer and the squadron probe. Adoption moves to `sq onboard`.
+
 ## [0.19.19] - 20261025
 
 ### Added
