@@ -19,6 +19,7 @@ import { registerInitCommand } from './commands/init.js';
 import { registerInstallCommandsCommand, registerUninstallCommandsCommand } from './commands/commandInstaller.js';
 import { registerSetupIdeCommand } from './commands/setup-ide.js';
 import { registerRulesCommand } from './commands/rules.js';
+import { registerDocsCommand } from './commands/docs.js';
 import { registerUpdateCommand } from './commands/update.js';
 import { registerValidateCommand } from './commands/validate.js';
 import { handleError, setJsonMode } from './utils/errors.js';
@@ -128,6 +129,7 @@ registerInstallCommandsCommand(program);
 registerUninstallCommandsCommand(program);
 registerSetupIdeCommand(program);
 registerRulesCommand(program);
+registerDocsCommand(program);
 registerUpdateCommand(program);
 
 // Version introspection
