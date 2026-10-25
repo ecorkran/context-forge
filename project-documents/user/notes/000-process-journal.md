@@ -5,7 +5,7 @@ project: context-forge
 audience: [human, ai]
 description: Append-only log of process decisions and design reasoning that has no home in other document types
 dateCreated: 20260705
-dateUpdated: 20261022
+dateUpdated: 20261025
 status: in_progress
 ---
 
@@ -19,6 +19,16 @@ that drift. When the file exceeds the standard size limit, split per
 file-naming-conventions (`-1`, `-2`, …).
 
 # Entries
+
+## 20261025 — cf never invokes squadron
+
+**Context:** Slice 262 had `cf build` run `sq probe`, and cf found squadron's comprehension doc by its filename and `docType`. Before brownfield adoption, the dependency ran one way only: squadron calls cf. 268 removed the probe, but cf still knew squadron's file naming, and the guide's adoption prompt, delivered by cf, told the agent to run squadron's analysis.
+
+**Decision:** Banned (PM). cf never runs a squadron command, parses squadron output or hard-codes squadron's file names. Squadron calls cf. When cf needs a squadron artifact, squadron passes its path in, for the adoption prompt and for later phases (274). Every trace is removed: the comprehension filename lookup goes in 271, and the guide prompt's probe branching and squadron steps go in 272. Onboarding is split by tool: `cf onboard` stays thin (setup, then the concept conversation on greenfield), and adoption is `sq onboard`.
+
+**Rationale:** cf is a state engine that squadron builds on. cf running squadron makes the dependency circular and leaves cf owning process spawning, failure classification and another tool's output format. Finding squadron's file by name was fragile anyway: a rename in squadron would silently break cf. The tool that writes the file knows where it is.
+
+**Follow-ups:** Supersedes the 20261022 entry, including its single-entry-point rationale. Slice 262 is marked superseded in the 260 slice plan. 271 and 272 carry the removals, and the 271 contract goes to the squadron session.
 
 ## 20261022 — cf calling sq is accepted for 262 but is a boundary concern; onboarding should live in one tool
 
