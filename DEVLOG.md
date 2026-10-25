@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-24
+
+### Release 0.19.18
+
+- **Contents:** brownfield adoption initiative 260 completed: slice 262 (squadron probe), 263 (retroactive slice plan entries), 264 (adoption-aware `cf next`), 265 (end-to-end verification and docs), 266 (conventions reconciliation), 267 (`cf docs map`), source-extension count fix
+
+Tags: @context-forge/core@0.19.18, @context-forge/cli@0.19.18, @context-forge/mcp@0.19.18, @context-forge/context-forge@0.19.18
+
 ## 2026-10-21
 
 ### Release 0.19.17
