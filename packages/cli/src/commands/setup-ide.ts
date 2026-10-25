@@ -4,8 +4,6 @@ import { askConfirmation } from '../utils/confirm.js';
 import { Command } from 'commander';
 import type { ProjectData } from '@context-forge/core';
 import {
-  ConfigManager,
-  parseRulesExclude,
   readRuleResolutions,
 } from '@context-forge/core/node';
 import { resolvePathedProject } from '../utils/project.js';
@@ -17,6 +15,7 @@ import { normalizeTarget, invalidTargetMessage, TARGETS, MANAGED_MARKERS, type T
 import { installCommandsForTarget } from './commandInstaller.js';
 import { propagationTargets } from './worktreePropagation.js';
 import { installIde } from '../ideInstall/installer.js';
+import { readRulesExclude } from '../ideInstall/exclusions.js';
 import type { OutputSink } from '../ideInstall/output.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
@@ -67,15 +66,6 @@ const PROCESS_OUTPUT: OutputSink = {
   stdout: (text) => process.stdout.write(text),
   stderr: (text) => process.stderr.write(text),
 };
-
-/** `rules.exclude` as configured for the checkout at root (a worktree can carry its own). */
-export async function readRulesExclude(root: string): Promise<string[]> {
-  const { value } = await new ConfigManager(root).get('rules.exclude');
-  if (typeof value !== 'string') {
-    throw new Error(`rules.exclude resolved to a ${typeof value}, expected a string`);
-  }
-  return parseRulesExclude(value);
-}
 
 export interface InstallFlags {
   dryRun: boolean;

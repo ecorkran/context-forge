@@ -78,4 +78,16 @@ describe('validateRuleResolutionsFile', () => {
   it('rejects a backtick in projectSource', () => {
     expect(rejection(fileOf({ ...valid, projectSource: 'CL`AUDE.md' })).message).toContain('projectSource');
   });
+
+  it.each(['guideRule', 'projectSource'] as const)('rejects a line break in %s', (field) => {
+    expect(rejection(fileOf({ ...valid, [field]: 'a\nb' })).message).toContain(field);
+  });
+
+  it.each(['guideRule', 'projectSource'] as const)('rejects a managed marker in %s', (field) => {
+    expect(rejection(fileOf({ ...valid, [field]: `a${MANAGED_END_MARKER}` })).message).toContain(field);
+  });
+
+  it.each(['/etc/passwd', 'C:\\x', '../x', 'a/../../x'])('rejects projectSource outside the checkout: %s', (projectSource) => {
+    expect(rejection(fileOf({ ...valid, projectSource })).message).toContain('projectSource');
+  });
 });

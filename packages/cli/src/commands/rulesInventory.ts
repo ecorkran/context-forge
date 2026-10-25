@@ -13,7 +13,7 @@ import { RuleExclusions } from '../ideInstall/exclusions.js';
 import { guideRuleEntries, type GuideRuleEntry } from '../ideInstall/guideRules.js';
 import { readInstalledPaths } from '../ideInstall/manifest.js';
 import { requireGuideDir } from '../utils/guideReady.js';
-import { readRulesExclude } from './setup-ide.js';
+import { readRulesExclude } from '../ideInstall/exclusions.js';
 
 export interface RulesInventory {
   guideRules: GuideRuleEntry[];

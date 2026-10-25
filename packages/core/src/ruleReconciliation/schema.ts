@@ -34,8 +34,8 @@ export class RuleResolutionsError extends Error {
   }
 }
 
-/** Markers that must never appear inside a statement: they would corrupt the managed block. */
-const FORBIDDEN_STATEMENT_MARKERS = [MANAGED_BEGIN_MARKER, MANAGED_END_MARKER, GENERATED_MARKER];
+/** Markers that must never appear inside a rendered field: they would corrupt the managed block. */
+const FORBIDDEN_MARKERS = [MANAGED_BEGIN_MARKER, MANAGED_END_MARKER, GENERATED_MARKER];
 
 /** The renderer wraps both names in backticks, so a backtick is rejected rather than escaped. */
 const BACKTICK = '`';
@@ -59,17 +59,28 @@ export function validateRuleResolution(r: unknown, file: string): RuleResolution
   const projectSource = requireString(r, 'projectSource', file);
   const statement = requireString(r, 'statement', file);
 
+  // All three fields land on one bullet line in the managed block.
+  for (const [field, value] of [
+    ['guideRule', guideRule],
+    ['projectSource', projectSource],
+    ['statement', statement],
+  ] as const) {
+    if (/[\r\n]/.test(value)) {
+      throw new RuleResolutionsError(file, `"${field}" must be a single line`);
+    }
+    const marker = FORBIDDEN_MARKERS.find((m) => value.includes(m));
+    if (marker) {
+      throw new RuleResolutionsError(file, `"${field}" must not contain the marker ${marker}`);
+    }
+  }
   for (const [field, value] of [['guideRule', guideRule], ['projectSource', projectSource]] as const) {
     if (value.includes(BACKTICK)) {
       throw new RuleResolutionsError(file, `"${field}" must not contain a backtick`);
     }
   }
-  if (/[\r\n]/.test(statement)) {
-    throw new RuleResolutionsError(file, '"statement" must be a single line');
-  }
-  const marker = FORBIDDEN_STATEMENT_MARKERS.find((m) => statement.includes(m));
-  if (marker) {
-    throw new RuleResolutionsError(file, `"statement" must not contain the marker ${marker}`);
+  // Probed against the checkout, so it must stay inside it.
+  if (projectSource.startsWith('/') || /^[A-Za-z]:/.test(projectSource) || projectSource.split(/[\\/]/).includes('..')) {
+    throw new RuleResolutionsError(file, '"projectSource" must be a relative path inside the checkout');
   }
   return { guideRule, projectSource, statement };
 }

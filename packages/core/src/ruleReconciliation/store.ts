@@ -1,7 +1,7 @@
 // Read and append rule resolutions in `<root>/.context-forge/rule-resolutions.json`.
 // An absent file is the valid empty state; anything malformed throws. Writes go to
 // a temp file in the same directory and are renamed into place (atomic).
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { isEnoent } from '../detection/pathPresent.js';
 import {
@@ -50,7 +50,14 @@ export function addRuleResolution(root: string, resolution: RuleResolution): voi
     resolutions: [...existing, record],
   };
   mkdirSync(join(root, RULE_RESOLUTIONS_DIR), { recursive: true });
-  const temp = `${file}.tmp`;
-  writeFileSync(temp, JSON.stringify(content, null, 2) + '\n', 'utf-8');
-  renameSync(temp, file);
+  // Unique per process so concurrent writers never share a temp file. The
+  // read-modify-write itself is unlocked: simultaneous appends can lose one.
+  const temp = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temp, JSON.stringify(content, null, 2) + '\n', 'utf-8');
+    renameSync(temp, file);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 }

@@ -6,12 +6,22 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { ConfigManager, parseRulesExclude } from '@context-forge/core/node';
 import { listMarkdownFiles } from './fsChecks.js';
 import { hasAlwaysApply } from './frontmatter.js';
 import type { Printer } from './output.js';
 
 /** Named in the active-exclusions notice. The only source since the env tier was dropped. */
 const EXCLUDE_SOURCE = 'cf config rules.exclude';
+
+/** `rules.exclude` as configured for the checkout at root (a worktree can carry its own). */
+export async function readRulesExclude(root: string): Promise<string[]> {
+  const { value } = await new ConfigManager(root).get('rules.exclude');
+  if (typeof value !== 'string') {
+    throw new Error(`rules.exclude resolved to a ${typeof value}, expected a string`);
+  }
+  return parseRulesExclude(value);
+}
 
 /** `⊘ Skipped <file> (excluded)`, shared by every target that copies scoped rules. */
 export function excludedMessage(filename: string): string {
