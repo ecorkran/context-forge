@@ -173,15 +173,6 @@ describe('context_build', () => {
     expect(content[1].text).toContain(WARNING);
   });
 
-  it('lets the build persist adoption state (slice 261)', async () => {
-    mockGetById.mockResolvedValue(MOCK_PROJECT);
-    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
-
-    await client.callTool({ name: 'context_build', arguments: { projectId: MOCK_PROJECT.id } });
-
-    expect(createContextPipeline).toHaveBeenCalledWith(expect.any(String), { adoptionStateWrites: 'persist' });
-  });
-
   it('returns a single content item when the guide meets the minimum', async () => {
     mockGetById.mockResolvedValue(MOCK_PROJECT);
     mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
@@ -366,15 +357,6 @@ describe('template_preview', () => {
     expect(result.isError).toBeFalsy();
     const content = result.content as { type: string; text: string }[];
     expect(content[0].text).toBe(GENERATED_CONTEXT);
-  });
-
-  it('never writes adoption state (slice 261)', async () => {
-    mockGetById.mockResolvedValue(MOCK_PROJECT);
-    mockGenerateContextFromProject.mockResolvedValue(GENERATED_CONTEXT);
-
-    await client.callTool({ name: 'template_preview', arguments: { projectId: MOCK_PROJECT.id } });
-
-    expect(createContextPipeline).toHaveBeenCalledWith(expect.any(String), { adoptionStateWrites: 'read-only' });
   });
 
   it('returns isError for non-existent project', async () => {

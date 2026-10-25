@@ -217,34 +217,6 @@ describe('ContextTemplateEngine', () => {
     });
   });
 
-  describe('adoption facts (slice 261)', () => {
-    const FACTS = '### Adoption Facts\n\n- Outcome: brownfield';
-    const FRAGMENT = '### Permissiveness: sample\n\nSample body.';
-
-    it('renders the facts after the instruction prompt and before the permissiveness fragment', async () => {
-      const engine = createEngine();
-      const output = await engine.generateContext(
-        createTestEnhancedContextData({ adoptionFacts: FACTS, permissivenessFragment: FRAGMENT }),
-      );
-      const instructionAt = output.indexOf('### Instruction Prompt');
-      const factsAt = output.indexOf(FACTS);
-      expect(output.split(FACTS)).toHaveLength(2);
-      expect(factsAt).toBeGreaterThan(instructionAt);
-      expect(output.indexOf(FRAGMENT)).toBeGreaterThan(factsAt);
-    });
-
-    it.each([
-      ['an empty string', ''],
-      ['whitespace', '   '],
-      ['undefined', undefined],
-    ])('adds nothing for %s', async (_label, facts) => {
-      const engine = createEngine();
-      const baseline = await engine.generateContext(createTestEnhancedContextData());
-      const output = await engine.generateContext(createTestEnhancedContextData({ adoptionFacts: facts }));
-      expect(output).toBe(baseline);
-    });
-  });
-
   describe('validateInputData', () => {
     it('returns error context when projectName missing', async () => {
       const engine = createEngine();

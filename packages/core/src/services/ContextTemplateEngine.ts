@@ -109,17 +109,6 @@ export class ContextTemplateEngine {
       order: 3
     });
 
-    // 3.4. Adoption Facts (conditional, slice 261). The section carries its own heading.
-    if (data.adoptionFacts?.trim()) {
-      sections.push({
-        key: 'adoptionFacts',
-        title: '',
-        content: data.adoptionFacts,
-        conditional: false,
-        order: 3.4
-      });
-    }
-
     // 3.5. Permissiveness fragment (conditional, slice 246). The fragment carries its own heading.
     if (data.permissivenessFragment?.trim()) {
       sections.push({

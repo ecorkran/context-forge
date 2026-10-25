@@ -224,7 +224,7 @@ describe('cf build', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'cf', 'build', '--project', 'proj_001']);
 
-    expect(createContextPipeline).toHaveBeenCalledWith('/tmp/test', { adoptionStateWrites: 'persist' });
+    expect(createContextPipeline).toHaveBeenCalledWith('/tmp/test');
   });
 
   it('applies --instruction-type override to instruction field', async () => {

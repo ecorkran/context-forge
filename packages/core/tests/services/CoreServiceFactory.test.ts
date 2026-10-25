@@ -26,13 +26,13 @@ const FIXTURE_PROJECT_PATH = join(__dirname, '..', 'fixtures', 'test-project');
 
 describe('CoreServiceFactory — createContextPipeline', () => {
   it('returns engine and integrator with correct types', () => {
-    const { engine, integrator } = createContextPipeline(FIXTURE_PROJECT_PATH, { adoptionStateWrites: 'read-only' });
+    const { engine, integrator } = createContextPipeline(FIXTURE_PROJECT_PATH);
     expect(engine).toBeInstanceOf(ContextTemplateEngine);
     expect(integrator).toBeInstanceOf(ContextIntegrator);
   });
 
   it('generates non-empty context from fixture project', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_PROJECT_PATH, { adoptionStateWrites: 'read-only' });
+    const { integrator } = createContextPipeline(FIXTURE_PROJECT_PATH);
     const project = createTestProjectData({
       projectPath: FIXTURE_PROJECT_PATH,
       name: 'test-project',
@@ -56,7 +56,7 @@ describe('CoreServiceFactory — createContextPipeline', () => {
   });
 
   it('generated context contains project name', async () => {
-    const { integrator } = createContextPipeline(FIXTURE_PROJECT_PATH, { adoptionStateWrites: 'read-only' });
+    const { integrator } = createContextPipeline(FIXTURE_PROJECT_PATH);
     const project = createTestProjectData({
       projectPath: FIXTURE_PROJECT_PATH,
       name: 'my-context-forge',
@@ -96,7 +96,7 @@ describe('CoreServiceFactory — permissiveness fragment (slice 246)', () => {
 
   it('places the configured fragment after the instruction prompt and before the next section', async () => {
     await new ConfigManager(checkout).set('workflow.permissiveness', FRAGMENT_LEVEL, 'project');
-    const { integrator } = createContextPipeline(checkout, { adoptionStateWrites: 'read-only' });
+    const { integrator } = createContextPipeline(checkout);
     const project = createTestProjectData({ projectPath: checkout, instruction: TASK_BREAKDOWN_PHASE });
 
     const context = await integrator.generateContextFromProject(project);
@@ -116,7 +116,7 @@ describe('CoreServiceFactory — permissiveness fragment (slice 246)', () => {
   it.each([...PERMISSIVENESS_PHASES])(
     'is byte-identical to a pipeline without the resolver when the key is unset (%s)',
     async (phase) => {
-      const { engine, integrator } = createContextPipeline(checkout, { adoptionStateWrites: 'read-only' });
+      const { engine, integrator } = createContextPipeline(checkout);
       const withoutResolver = new ContextIntegrator(
         engine,
         true,
@@ -138,7 +138,7 @@ describe('CoreServiceFactory — permissiveness fragment (slice 246)', () => {
       recursive: true,
       force: true,
     });
-    const { integrator } = createContextPipeline(checkout, { adoptionStateWrites: 'read-only' });
+    const { integrator } = createContextPipeline(checkout);
     const project = createTestProjectData({ projectPath: checkout, instruction: TASK_BREAKDOWN_PHASE });
 
     await expect(integrator.generateContextFromProject(project)).rejects.toThrow('cf guides update');

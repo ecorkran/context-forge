@@ -40,7 +40,7 @@ describe('pure build golden outputs (slice 268)', () => {
       dateProject: PINNED_PROJECT_DATE,
       ...overrides,
     });
-    const { integrator } = createContextPipeline(projectPath, { adoptionStateWrites: 'read-only' });
+    const { integrator } = createContextPipeline(projectPath);
     const output = await integrator.generateContextFromProject(project);
     return output.split(projectPath).join(PROJECT_PATH_PLACEHOLDER);
   }

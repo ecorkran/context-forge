@@ -3,13 +3,7 @@ import { z } from 'zod';
 import { FileProjectStore, createContextPipeline, SystemPromptParser, resolvePromptFilePath, ConfigManager, GuideManager, checkGuideMinimum } from '@context-forge/core/node';
 import { resolveProjectId } from './resolveProjectId.js';
 import type { ProjectData } from '@context-forge/core';
-import type { AdoptionStateWrites, SquadronProbe } from '@context-forge/core/node';
 import { resolveProject } from '@context-forge/core';
-
-/** Test seam: production callers pass nothing and get the real `sq probe` (slice 262, R2). */
-export interface ContextToolOptions {
-  squadronProbe?: SquadronProbe;
-}
 
 // --- Shared helpers ---
 
@@ -62,11 +56,9 @@ export async function ensureGuideForProject(projectPath: string): Promise<string
  */
 export async function generateContext(
   projectId: string,
-  adoptionStateWrites: AdoptionStateWrites,
   overrides?: Partial<ProjectData>,
   additionalInstructions?: string,
   worktreeId?: string,
-  options?: ContextToolOptions,
 ): Promise<{ contextString: string; notices: string[]; guideWarning: string | null }> {
   const store = new FileProjectStore();
   const project = await store.getById(projectId);
@@ -97,7 +89,7 @@ export async function generateContext(
   // leaves the submodule uninitialized (#80).
   const notices = await ensureGuideForProject(workingCopy.projectPath!);
 
-  const { integrator } = createContextPipeline(workingCopy.projectPath!, { adoptionStateWrites, ...options });
+  const { integrator } = createContextPipeline(workingCopy.projectPath!);
   let contextString = await integrator.generateContextFromProject(workingCopy, worktreeId);
 
   if (additionalInstructions) {
@@ -149,7 +141,7 @@ async function resolvePromptFileForTools(
 
 // --- Tool registration ---
 
-export function registerContextTools(server: McpServer, options?: ContextToolOptions): void {
+export function registerContextTools(server: McpServer): void {
   // --- context_build ---
   server.registerTool(
     'context_build',
@@ -207,11 +199,9 @@ export function registerContextTools(server: McpServer, options?: ContextToolOpt
 
         const { contextString, notices, guideWarning } = await generateContext(
           resolvedId,
-          'persist',
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWorktreeId,
-          options,
         );
         const result = withNotices(textResult(contextString), notices);
         // The build still succeeds on an old guide; the warning is a second item after the prompt.
@@ -273,12 +263,9 @@ export function registerContextTools(server: McpServer, options?: ContextToolOpt
 
         const { contextString, notices } = await generateContext(
           resolvedId,
-          // template_preview is "without side effects": it must not write adoption.state.
-          'read-only',
           Object.keys(mergedOverrides).length > 0 ? mergedOverrides : undefined,
           additionalInstructions,
           resolvedWtId,
-          options,
         );
         return withNotices(textResult(contextString), notices);
       } catch (error: unknown) {

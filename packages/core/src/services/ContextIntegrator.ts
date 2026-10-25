@@ -6,8 +6,6 @@ import { ContextProfileParser } from './ContextProfileParser.js';
 import type { ProfileMap } from './ContextProfileParser.js';
 import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH, DEFAULT_TARGET_BRANCH } from './constants.js';
 import { getFieldNamesByGroup } from '../schema/projectSchema.js';
-// contracts.ts only (never adoption/index.ts): keeps services/ and adoption/ from importing each other's internals.
-import { AdoptionError, type AdoptionResolver } from '../adoption/contracts.js';
 
 /**
  * Finds the slice's task file(s) on disk under a checkout and renders them for
@@ -72,7 +70,6 @@ export class ContextIntegrator {
   private resolveTaskFilesFn: TaskFilesResolver | null;
   private resolveIntegrationBranchFn: IntegrationBranchResolver | null;
   private resolvePermissivenessFn: PermissivenessResolver | null;
-  private resolveAdoptionFn: AdoptionResolver | null;
 
   /**
    * @param engine Template engine for context generation
@@ -81,7 +78,6 @@ export class ContextIntegrator {
    * @param resolveTaskFilesFn Optional on-disk task file lookup (Node.js only)
    * @param resolveIntegrationBranchFn Optional per-checkout integration branch lookup (Node.js only)
    * @param resolvePermissivenessFn Optional per-checkout permissiveness fragment lookup (Node.js only)
-   * @param resolveAdoptionFn Optional brownfield-adoption prompt selection (Node.js only)
    */
   constructor(
     engine: ContextTemplateEngine,
@@ -90,12 +86,10 @@ export class ContextIntegrator {
     resolveTaskFilesFn: TaskFilesResolver | null = null,
     resolveIntegrationBranchFn: IntegrationBranchResolver | null = null,
     resolvePermissivenessFn: PermissivenessResolver | null = null,
-    resolveAdoptionFn: AdoptionResolver | null = null,
   ) {
     this.resolveTaskFilesFn = resolveTaskFilesFn;
     this.resolveIntegrationBranchFn = resolveIntegrationBranchFn;
     this.resolvePermissivenessFn = resolvePermissivenessFn;
-    this.resolveAdoptionFn = resolveAdoptionFn;
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
@@ -119,8 +113,6 @@ export class ContextIntegrator {
     } catch (error: unknown) {
       // A configured permissiveness level that cannot be applied must fail the build.
       if (error instanceof PermissivenessFragmentError) throw error;
-      // Likewise an adoption failure: falling back to the concept prompt would mislead.
-      if (error instanceof AdoptionError) throw error;
       console.error('Error generating context from project:', error);
       return this.getErrorContext(project, error);
     }
@@ -143,21 +135,8 @@ export class ContextIntegrator {
     const worktree = (project.worktrees ?? []).find((w) => w.id === worktreeId);
     const checkoutPath = worktree?.worktreePath ?? project.projectPath;
 
-    // Adoption may replace the instruction, and profile filtering keys on it, so it
-    // runs before the project is mapped. Errors propagate.
-    const instruction = project.instruction || 'implementation';
-    const adoption =
-      this.resolveAdoptionFn && project.projectPath && checkoutPath
-        ? await this.resolveAdoptionFn(project.projectPath, checkoutPath, instruction)
-        : null;
-
     // Map project data to enhanced context data
-    const enhancedData = this.mapProjectToEnhancedContext(
-      adoption?.selected ? { ...project, instruction: adoption.instruction } : project,
-      worktreeId,
-    );
-    if (adoption?.selected) enhancedData.adoptionFacts = adoption.facts;
-    if (adoption?.selected && adoption.fileComprehension) enhancedData.fileComprehension = adoption.fileComprehension;
+    const enhancedData = this.mapProjectToEnhancedContext(project, worktreeId);
 
     // Resolve the slice's real task file(s)
     if (this.resolveTaskFilesFn && project.fileSlice && checkoutPath) {
