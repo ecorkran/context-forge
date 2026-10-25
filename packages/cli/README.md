@@ -109,6 +109,7 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates |
 | `cf rules inventory` | `cf rules inventory --json` | List the guide's rule files, the project's own rule sources and the stored resolutions as JSON. Read-only |
 | `cf rules resolve` | `cf rules resolve <guideRule> <projectSource> --statement "<text>"` | Record the decision about a conflict between a guide rule and a project rule source. Run `cf setup-ide <target>` afterwards to apply it |
+| `cf docs map` | `cf docs map` | Write or refresh `project-documents/user/architecture/050-docs-map.{project}.md`, an index linking the project's existing README, `docs/` and ADRs in place |
 | `cf version` | `cf version [--json]` | Show version (JSON includes breaking changes) |
 | `cf help` | `cf help [--json]` | Show help (JSON outputs command catalog) |
 
