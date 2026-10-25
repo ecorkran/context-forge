@@ -18,10 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`cf build`, `context_build` and `template_preview` are pure.** They assemble context and write nothing. They no longer read or write `adoption.state`, run `sq probe`, or add Adoption Facts or a `Comprehension:` line to the prompt. Phase 0 always builds the concept prompt, even in a brownfield project. An explicit `--it brownfield-adoption` still renders that prompt, without facts.
+- **`adoption.state` is now only the opt-out.** Set it to `declined` to treat a project as new; empty (the default) lets cf decide from the project's files. Adoption progress is derived from the files every time: a derived architecture (`provenance: derived`) with no retroactive slice plan is an incomplete adoption, and a retroactive plan means the project is adopted. The old values `in_progress` and `complete` are ignored, never an error; `cf next` and `workflow_next` show a notice until you run `cf config unset adoption.state`. `cf config set` no longer accepts them.
+- **`cf next` / `workflow_next` give one line for adoption instead of adoption steps.** An unadopted brownfield repo gets a warning pointing at `sq onboard`, and so does an incomplete adoption. Navigation otherwise proceeds as for any project, and never recommends `cf build` for adoption. An adopted project is navigated to its first unbuilt slice. If cf can't measure the source tree, `cf next` still succeeds and says why.
 
 ### Removed
 
 - Build-time brownfield adoption: the resolver, the facts renderer, the completion handling, the `adoption.state` writer and the squadron probe. Adoption moves to `sq onboard`.
+- Per-step adoption guidance in `cf next` (concept, architecture, existing-state plan, record completion, register plan).
 
 ## [0.19.19] - 20261025
 

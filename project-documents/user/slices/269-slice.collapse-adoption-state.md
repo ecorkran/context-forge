@@ -9,7 +9,7 @@ interfaces:
 - adoption-primitives-for-sq-onboard
 dateCreated: 20261025
 dateUpdated: 20261025
-status: not_started
+status: complete
 turns: 61
 promptTokens: 3980315
 cachedTokens: 3849041
@@ -243,14 +243,24 @@ Status: decided
 - 271 can build its report from `decideOutcome` and the gathering functions alone.
 
 ### Verification Walkthrough
-Use a scratch copy of a repo with more than 2000 source lines and no `project-documents/user/architecture`, registered with `cf init`. Run the local build: `node packages/cli/dist/index.js` (aliased `cfl` below).
+Verified 20261025 on the slice branch. Setup: a scratch git repo holding a copy of `packages/core/src` (well over 2000 TypeScript lines) and no `project-documents/`, with an isolated data directory so the real project store is untouched. `cfl` is a wrapper script:
 
-1. **Unadopted brownfield.** `cfl config get adoption.state` shows value `""` and the new description. `cfl next` shows `BROWNFIELD_LINE` and no adoption step.
-2. **Legacy value.** Set `[adoption]\nstate = "in_progress"` in `.context-forge.toml` by hand. `cfl next` exits 0 and adds the notice. `cfl check` gives the same findings as before the edit. `cfl config unset adoption.state`, then `cfl next`: the notice is gone. `cfl config set adoption.state complete` fails, listing `""` and `"declined"`.
-3. **Incomplete adoption.** Add `project-documents/user/architecture/100-arch.existing.md` with `provenance: derived`. `cfl next` shows `INCOMPLETE_ADOPTION_LINE`.
-4. **Adopted.** Add `100-slices.existing.md` with one checked `retroactive` entry and one unchecked new entry. `cfl next` shows no adoption line and points at the new entry once the plan is registered. `shasum .context-forge.toml` before and after shows no write.
-5. **Opt-out.** `cfl config set adoption.state declined` on the step 1 repo. `cfl next` shows no adoption line.
-6. **MCP parity.** Repeat steps 1 and 2 through `workflow_next`. The warnings match the CLI.
+```sh
+#!/bin/sh
+export CONTEXT_FORGE_DATA_DIR=<scratch>/data
+exec node <repo>/packages/cli/dist/index.js "$@"
+```
+
+Run `pnpm -r build` first. Register with `cfl init --lite --name wt-scratch` (`--lite` skips the guide install; navigation doesn't need it). The first run in an empty data directory prints `Migrated projects.json from legacy location: …`; that is a copy, and the legacy file is left as it was.
+
+1. **Unadopted brownfield.** `cfl config get adoption.state` prints `Value:` empty, `Source: default`, and `About:` with the D1 text. `cfl next` prints `Warning:   This project has existing code and no planning artifacts. Adopting an existing codebase arrives with sq onboard. …`, then the ordinary Phase 0 recommendation (`Run: cf build`, for the concept). No adoption step.
+2. **Legacy value.** `printf '[adoption]\nstate = "in_progress"\n' >> .context-forge.toml`. `cfl next` exits 0 and prints the legacy notice before the brownfield line. `cfl check` output, saved before and after the edit, is byte-identical (`diff` empty). `cfl config unset adoption.state` prints `Unset adoption.state (project)`; the next `cfl next` has only the brownfield line. `cfl config set adoption.state complete` exits 1 with `Error: Config key "adoption.state" must be one of ["", "declined"], got "complete"`.
+3. **Incomplete adoption.** Write `project-documents/user/architecture/100-arch.existing.md` with architecture frontmatter including `provenance: derived`. `cfl next` prints `INCOMPLETE_ADOPTION_LINE` and the ordinary Phase 0 recommendation.
+4. **Adopted.** Write `100-slices.existing.md` beside it with `1. [x] **(100) Existing System** \`retroactive\` — …` and `2. [ ] **(101) New Work** — …`. Before registering, `cfl next` has no adoption line and recommends `cf set arch <index>`. `cfl set arch 100-arch.existing` (auto-sets the slice plan), then `cfl next` prints `Run: cf set slice 101`. `shasum .context-forge.toml` is the same before, between and after. Caveat: with review gating on and no arch review artifact, the project's own arch gate blocks first (`Review required before creating the slice plan`); that is the ordinary gate, not adoption.
+5. **Opt-out.** Remove `project-documents/`, then `cfl config set adoption.state declined`. `cfl next` shows no warning, only the Phase 0 recommendation.
+6. **MCP parity.** A small stdio MCP client (`@modelcontextprotocol/sdk` `StdioClientTransport` running `node packages/mcp-server/dist/index.js` with the same `CONTEXT_FORGE_DATA_DIR`) calls `workflow_next` with the project id from `cfl get --json`. For step 1 and step 2's states, its `warnings` array equals `cfl next --json`'s, element for element.
+
+Automated equivalents: `tests/adoption/adoptionLines.test.ts` (every D6 row, walk failures), `tests/introspection/WorkflowNavigator.adoption.test.ts`, CLI `tests/commands/next.adoption.test.ts` (including the `MAX_WALK_ENTRIES` case), MCP `tests/workflowNextAdoption.test.ts`, and `tests/introspection/ConsistencyChecker.legacyAdoptionState.test.ts`.
 
 ## Risk Assessment
 ### Technical Risks
