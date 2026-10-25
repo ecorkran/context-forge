@@ -155,7 +155,7 @@ The original slices 260–267 have shipped. Rework, in order:
 - **268 Pure `cf build`:** no detection, no state writes, no prompt swap.
 - **269 Collapse adoption state:** outcomes derived from files; the opt-out is the only stored value.
 - **270 `cf next` without adoption steps:** one line for unadopted brownfield, normal navigation otherwise.
-- **271 Primitives for `sq onboard`:** the detection report and prompt delivery (contract above). Removes the probe integration.
+- **271 Primitives for `sq onboard`:** the detection report and prompt delivery (contract above). Removes the probe integration (done in 268, D3).
 - **272 Docs and guide alignment:** nothing points at `cf build` for adoption. Guide minimum raised.
 
 Parked until `sq onboard` exists: **273** a real adoption run with the PM answering live, and **274** comprehension in later phases (an umbrella).
