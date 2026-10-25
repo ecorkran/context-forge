@@ -93,10 +93,10 @@ status: complete
 
 - [x] **Task 6C: Commit**: `docs: document the agents rule marker`
 
-- [ ] **Task 7: Verification** (effort: 2)
+- [x] **Task 7: Verification** (effort: 2)
   - [x] `pnpm -r build`, `pnpm -r typecheck`, lint (`npx eslint .` from the repo root), and `pnpm -r test`. All pass.
   - [x] Run the design's Verification Walkthrough in a scratchpad copy, using the local build. Record the results in the slice design's Verification Walkthrough section.
-  - [ ] Success: every walkthrough step matches. Commit as `docs: record slice 935 walkthrough`.
+  - [x] Success: every walkthrough step matches. Commit as `docs: record slice 935 walkthrough`.
 
 ## Task Review Resolution
 
