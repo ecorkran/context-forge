@@ -57,7 +57,7 @@ export { updateCheckbox, updateFrontmatterField } from './introspection/writers/
 // Detection — project-folder facts (CI, build manifests); fs dependent
 export * from './detection/index.js';
 
-// Adoption — brownfield adoption state, outcome and build resolver; fs dependent
+// Adoption — brownfield adoption state read, outcome and AdoptionError; fs dependent
 export * from './adoption/index.js';
 
 // Rule reconciliation — rule resolutions, project rule sources, managed markers; fs dependent
