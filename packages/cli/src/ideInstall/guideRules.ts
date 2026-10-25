@@ -2,7 +2,7 @@
  * The guide's rule files as rule reconciliation sees them (slice 266, D1/D7):
  * one entry per rule with its delivery state. Delivery is decided here and
  * nowhere else; the inventory and the resolution renderer both read it through
- * `delivered`, which is the one predicate issue #123 later extends.
+ * `deliveredTo`, which also honors the `agents:` marker (slice 935, #123).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -10,6 +10,7 @@ import type { RuleExclusions } from './exclusions.js';
 import { isDirectory, listMarkdownFiles } from './fsChecks.js';
 import { hasAlwaysApply } from './frontmatter.js';
 import { guidePaths, relativeToRoot } from './paths.js';
+import { ruleAudiences, type RuleAudience } from './ruleAudience.js';
 
 export type GuideRuleKind = 'alwaysApply' | 'scoped';
 
@@ -20,6 +21,8 @@ export interface GuideRuleEntry {
   path: string;
   kind: GuideRuleKind;
   excluded: boolean;
+  /** Known audiences from the `agents:` marker; null when absent (every audience). */
+  agents: RuleAudience[] | null;
 }
 
 /**
@@ -37,17 +40,19 @@ export function guideRuleEntries(
   if (!isDirectory(rulesDir)) throw new Error(`Guide rules directory not found: ${rulesDir}`);
   return listMarkdownFiles(rulesDir).map((file) => {
     const rule = path.basename(file);
-    const kind: GuideRuleKind = hasAlwaysApply(fs.readFileSync(file, 'utf-8')) ? 'alwaysApply' : 'scoped';
+    const text = fs.readFileSync(file, 'utf-8');
+    const kind: GuideRuleKind = hasAlwaysApply(text) ? 'alwaysApply' : 'scoped';
     return {
       rule,
       path: relativeToRoot(path.resolve(root), file),
       kind,
       excluded: kind === 'scoped' && exclusions.isExcluded(rule),
+      agents: ruleAudiences(text)?.known ?? null,
     };
   });
 }
 
-/** True when the rule reaches the composite blocks (and so its resolutions render). */
-export function delivered(entry: GuideRuleEntry): boolean {
-  return !entry.excluded;
+/** True when the rule reaches the audience's outputs (and so its resolutions render there). */
+export function deliveredTo(entry: GuideRuleEntry, audience: RuleAudience): boolean {
+  return !entry.excluded && (entry.agents === null || entry.agents.includes(audience));
 }

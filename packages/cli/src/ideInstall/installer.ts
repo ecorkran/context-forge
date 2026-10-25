@@ -14,6 +14,7 @@ import { checkLintConfigs } from './lint.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
+import { RULE_AUDIENCE } from './ruleAudience.js';
 import {
   classifyResolutions,
   renderResolutions,
@@ -75,7 +76,7 @@ function isFilesystemError(err: unknown): err is Error & { code: string } {
 
 /**
  * Classify the stored resolutions against the guide and the checkout, and set
- * `base.resolutionsSection` from the live ones. Returns null when there is
+ * `base.resolutionSections` from the live ones, one per composite block. Returns null when there is
  * nothing to classify. With no rules directory the target's own
  * `requireRulesDir` aborts the install before anything is written, so no
  * resolution is silently dropped.
@@ -84,7 +85,11 @@ function classifyForInstall(options: InstallOptions, base: InstallBase): Resolut
   if (options.ruleResolutions.length === 0 || !isDirectory(base.guide.rules)) return null;
   const entries = guideRuleEntries(options.guideDir, base.projectRoot, base.exclusions);
   const classification = classifyResolutions(options.ruleResolutions, entries, base.projectRoot);
-  base.resolutionsSection = renderResolutions(classification.live);
+  base.resolutionSections = {
+    claude: renderResolutions(classification.live, entries, RULE_AUDIENCE.Claude),
+    agents: renderResolutions(classification.live, entries, RULE_AUDIENCE.Agents),
+    copilot: renderResolutions(classification.live, entries, RULE_AUDIENCE.Copilot),
+  };
   return classification;
 }
 
@@ -105,7 +110,7 @@ export function installIde(options: InstallOptions): InstallResult {
     force: options.force,
     out,
     exclusions: new RuleExclusions(options.rulesExclude),
-    resolutionsSection: '',
+    resolutionSections: { claude: '', agents: '', copilot: '' },
   };
 
   try {

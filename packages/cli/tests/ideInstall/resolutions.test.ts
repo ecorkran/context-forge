@@ -9,13 +9,15 @@ import {
   renderResolutions,
   warnStaleResolutions,
 } from '../../src/ideInstall/resolutions.js';
+import { RULE_AUDIENCE } from '../../src/ideInstall/ruleAudience.js';
 import { makeTmpDir, writeFiles } from './harness.js';
 
-const entry = (rule: string, excluded = false): GuideRuleEntry => ({
+const entry = (rule: string, excluded = false, agents: GuideRuleEntry['agents'] = null): GuideRuleEntry => ({
   rule,
   path: `guide/rules/${rule}`,
   kind: excluded ? 'scoped' : 'alwaysApply',
   excluded,
+  agents,
 });
 const resolution = (guideRule: string, projectSource: string, statement = 'Project wins.'): RuleResolution => ({
   guideRule,
@@ -30,13 +32,17 @@ const PYTHON_VS_CURSOR = resolution(
   'Use ruff for formatting; the black instruction in team-style.mdc is superseded.',
 );
 
+/** Every rule the render tests name, delivered everywhere. */
+const ENTRIES = ['git.md', 'python.md', 'a.md', 'b.md'].map((rule) => entry(rule));
+const render = (live: RuleResolution[]) => renderResolutions(live, ENTRIES, RULE_AUDIENCE.Claude);
+
 describe('renderResolutions', () => {
   it('renders nothing for an empty list', () => {
-    expect(renderResolutions([])).toBe('');
+    expect(render([])).toBe('');
   });
 
   it("matches the design's example for two records", () => {
-    expect(renderResolutions([GIT_VS_CLAUDE, PYTHON_VS_CURSOR])).toBe(
+    expect(render([GIT_VS_CLAUDE, PYTHON_VS_CURSOR])).toBe(
       [
         '## Project Rule Resolutions',
         "Where a rule above conflicts with the project's own rules, the resolution below applies.",
@@ -49,9 +55,19 @@ describe('renderResolutions', () => {
   });
 
   it('keeps file order and renders a duplicate pair as two bullets', () => {
-    const out = renderResolutions([resolution('b.md', 'X.md', 'one'), resolution('a.md', 'X.md', 'two'), resolution('b.md', 'X.md', 'three')]);
+    const out = render([resolution('b.md', 'X.md', 'one'), resolution('a.md', 'X.md', 'two'), resolution('b.md', 'X.md', 'three')]);
     const bullets = out.split('\n').filter((l) => l.startsWith('- '));
     expect(bullets).toEqual(['- `b.md` vs `X.md`: one', '- `a.md` vs `X.md`: two', '- `b.md` vs `X.md`: three']);
+  });
+  it('renders a resolution on a [claude] rule only in the claude section (slice 935)', () => {
+    const entries = [entry('git.md', false, ['claude']), entry('python.md')];
+    const live = [GIT_VS_CLAUDE, PYTHON_VS_CURSOR];
+    expect(renderResolutions(live, entries, RULE_AUDIENCE.Claude)).toContain('`git.md`');
+    for (const audience of [RULE_AUDIENCE.Agents, RULE_AUDIENCE.Copilot]) {
+      const out = renderResolutions(live, entries, audience);
+      expect(out).not.toContain('`git.md`');
+      expect(out).toContain('`python.md`');
+    }
   });
 });
 

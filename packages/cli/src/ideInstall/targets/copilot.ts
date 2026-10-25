@@ -105,7 +105,7 @@ export function setupCopilot(ctx: InstallContext): void {
     outFile: path.join(ctx.targetRoot, '.github', INSTRUCTIONS_LABEL),
     label: INSTRUCTIONS_LABEL,
     h1: '',
-    trailing: ctx.resolutionsSection,
+    trailing: ctx.resolutionSections.copilot,
     audience: RULE_AUDIENCE.Copilot,
     out,
   });

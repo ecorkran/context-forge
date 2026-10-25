@@ -46,6 +46,17 @@ describe('buildInventory', () => {
     });
   });
 
+  it('reports each rule\'s agents marker, null when absent (slice 935)', async () => {
+    writeFiles(path.join(guide, 'project-guides', 'rules'), {
+      'peers.md': '---\ndescription: Peers.\nalwaysApply: true\nagents: [claude]\n---\n\n# Peers\n',
+    });
+    const { guideRules } = await buildInventory(project);
+    const agents = Object.fromEntries(guideRules.map((r) => [r.rule, r.agents]));
+    expect(agents['peers.md']).toEqual(['claude']);
+    expect(agents['always-a.md']).toBeNull();
+    expect(JSON.parse(JSON.stringify(guideRules)).find((r: { rule: string }) => r.rule === 'always-a.md').agents).toBeNull();
+  });
+
   it('reports a hand-written CLAUDE.md as a composite with its block range after a real setup-ide run', async () => {
     writeFiles(project, { 'CLAUDE.md': HAND_WRITTEN });
     expect(run(guide, project, ['claude']).code).toBe(0);

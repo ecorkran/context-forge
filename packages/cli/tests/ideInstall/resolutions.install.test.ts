@@ -46,6 +46,23 @@ describe('rule resolutions through the install', () => {
     expect(claude).toContain(bullet(FIXTURE_RESOLUTION));
   });
 
+  it('a resolution on a [claude] rule renders in CLAUDE.md only (slice 935)', () => {
+    writeFiles(path.join(guide, 'project-guides', 'rules'), {
+      'peers.md': '---\ndescription: Peers.\nalwaysApply: true\nagents: [claude]\n---\n\n# Peers\n\nbody\n',
+    });
+    const peers = { guideRule: 'peers.md', projectSource: 'CLAUDE.md', statement: 'Peers rule wins.' };
+    const options = { ruleResolutions: [peers, FIXTURE_RESOLUTION] };
+    expect(run(guide, project, ['claude'], options).code).toBe(0);
+    expect(run(guide, project, ['copilot'], options).code).toBe(0);
+
+    expect(read(project, 'CLAUDE.md')).toContain(bullet(peers));
+    for (const rel of ['AGENTS.md', '.github/copilot-instructions.md']) {
+      const text = read(project, rel);
+      expect(text).not.toContain(bullet(peers));
+      expect(text).toContain(bullet(FIXTURE_RESOLUTION));
+    }
+  });
+
   it('no resolutions writes no section', () => {
     run(guide, project, ['claude']);
     expect(read(project, 'CLAUDE.md')).not.toContain(RESOLUTIONS_HEADING);

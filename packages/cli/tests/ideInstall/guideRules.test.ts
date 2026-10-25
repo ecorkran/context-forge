@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RuleExclusions } from '../../src/ideInstall/exclusions.js';
-import { delivered, guideRuleEntries } from '../../src/ideInstall/guideRules.js';
+import { deliveredTo, guideRuleEntries } from '../../src/ideInstall/guideRules.js';
+import { RULE_AUDIENCE } from '../../src/ideInstall/ruleAudience.js';
 import { Printer } from '../../src/ideInstall/output.js';
 import { makeProject, makeTmpDir } from './harness.js';
 
@@ -31,16 +32,17 @@ describe('guideRuleEntries', () => {
       path: 'project-documents/ai-project-guide/project-guides/rules/always-a.md',
       kind: 'alwaysApply',
       excluded: false,
+      agents: null,
     });
     expect(byRule(list, 'scoped-a.md')?.kind).toBe('scoped');
-    expect(list.every(delivered)).toBe(true);
+    expect(list.every((e) => deliveredTo(e, RULE_AUDIENCE.Agents))).toBe(true);
   });
 
   it('marks a scoped rule excluded when a pattern matches its basename', () => {
     const list = entries(['scoped-a*']);
     expect(byRule(list, 'scoped-a.md')?.excluded).toBe(true);
-    expect(delivered(byRule(list, 'scoped-a.md')!)).toBe(false);
-    expect(delivered(byRule(list, 'scoped-b.md')!)).toBe(true);
+    expect(deliveredTo(byRule(list, 'scoped-a.md')!, RULE_AUDIENCE.Claude)).toBe(false);
+    expect(deliveredTo(byRule(list, 'scoped-b.md')!, RULE_AUDIENCE.Claude)).toBe(true);
   });
 
   it('keeps an alwaysApply rule delivered and records no match, so the ignored-pattern warning still prints', () => {

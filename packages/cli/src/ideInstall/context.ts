@@ -7,6 +7,7 @@ import { isDirectory } from './fsChecks.js';
 import type { InstallManifest } from './manifest.js';
 import type { Printer } from './output.js';
 import type { GuidePaths } from './paths.js';
+import type { CompositeAudience } from './ruleAudience.js';
 
 export interface InstallContext {
   guide: GuidePaths;
@@ -21,10 +22,11 @@ export interface InstallContext {
   /** Shared across a dry run's sandbox install, so warnings see every match. */
   exclusions: RuleExclusions;
   /**
-   * The rendered `## Project Rule Resolutions` section (slice 266), rendered once
-   * per run; `''` when there is no resolutions file or no live resolution.
+   * The rendered `## Project Rule Resolutions` section (slice 266) for each
+   * composite block, keyed by its audience (slice 935); `''` when there is no
+   * resolutions file or no live resolution for that block.
    */
-  resolutionsSection: string;
+  resolutionSections: Readonly<Record<CompositeAudience, string>>;
   manifest: InstallManifest;
 }
 

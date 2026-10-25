@@ -61,7 +61,7 @@ export function emitAgentsMd(ctx: InstallContext, includeScopedIndex: boolean): 
     outFile: path.join(ctx.targetRoot, AGENTS_FILE),
     label: AGENTS_FILE,
     h1: AGENTS_H1,
-    trailing: index.text + ctx.resolutionsSection,
+    trailing: index.text + ctx.resolutionSections.agents,
     audience: RULE_AUDIENCE.Agents,
     out: ctx.out,
   });

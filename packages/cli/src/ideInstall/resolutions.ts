@@ -10,8 +10,16 @@ import {
   RULE_RESOLUTIONS_FILE,
   type RuleResolution,
 } from '@context-forge/core/node';
-import { delivered, type GuideRuleEntry } from './guideRules.js';
+import { deliveredTo, type GuideRuleEntry } from './guideRules.js';
 import type { Printer } from './output.js';
+import { RULE_AUDIENCE, type CompositeAudience } from './ruleAudience.js';
+
+/** The audiences with a composite block, each rendered with its own section. */
+export const COMPOSITE_AUDIENCES: readonly CompositeAudience[] = [
+  RULE_AUDIENCE.Claude,
+  RULE_AUDIENCE.Agents,
+  RULE_AUDIENCE.Copilot,
+];
 
 /** Heading of the section, the last thing inside each composite block. */
 export const RESOLUTIONS_HEADING = '## Project Rule Resolutions';
@@ -21,7 +29,7 @@ export const RESOLUTIONS_PRECEDENCE =
   "Where a rule above conflicts with the project's own rules, the resolution below applies.";
 
 export interface ResolutionClassification {
-  /** Both identities exist and the guide rule is delivered: rendered. */
+  /** Both identities exist and the guide rule reaches a composite block: rendered there. */
   live: RuleResolution[];
   /** `guideRule` is not in the guide: warned about, not rendered. */
   staleGuide: RuleResolution[];
@@ -31,8 +39,8 @@ export interface ResolutionClassification {
 
 /**
  * Splits resolutions by whether their identities still exist. A resolution on a
- * rule that exists but is not delivered (excluded) is in none of the lists: it
- * is neither rendered nor reported.
+ * rule that exists but reaches no composite block (excluded, or marked for
+ * other agents only) is in none of the lists: it is neither rendered nor reported.
  */
 export function classifyResolutions(
   resolutions: readonly RuleResolution[],
@@ -46,17 +54,28 @@ export function classifyResolutions(
       result.staleGuide.push(resolution);
     } else if (!pathPresent(path.join(projectRoot, resolution.projectSource))) {
       result.staleProject.push(resolution);
-    } else if (delivered(entry)) {
+    } else if (COMPOSITE_AUDIENCES.some((audience) => deliveredTo(entry, audience))) {
       result.live.push(resolution);
     }
   }
   return result;
 }
 
-/** The section for the live resolutions, in file order; `''` when there are none. */
-export function renderResolutions(live: readonly RuleResolution[]): string {
-  if (live.length === 0) return '';
-  const bullets = live.map((r) => `- \`${r.guideRule}\` vs \`${r.projectSource}\`: ${r.statement}`);
+/**
+ * The section for the live resolutions whose guide rule reaches `audience`, in
+ * file order; `''` when there are none.
+ */
+export function renderResolutions(
+  live: readonly RuleResolution[],
+  guideEntries: readonly GuideRuleEntry[],
+  audience: CompositeAudience,
+): string {
+  const shown = live.filter((r) => {
+    const entry = guideEntries.find((e) => e.rule === r.guideRule);
+    return entry !== undefined && deliveredTo(entry, audience);
+  });
+  if (shown.length === 0) return '';
+  const bullets = shown.map((r) => `- \`${r.guideRule}\` vs \`${r.projectSource}\`: ${r.statement}`);
   return [RESOLUTIONS_HEADING, RESOLUTIONS_PRECEDENCE, '', ...bullets].join('\n') + '\n';
 }
 
