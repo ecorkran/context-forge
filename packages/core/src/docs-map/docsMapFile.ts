@@ -60,6 +60,50 @@ function newMapContent(projectName: string, block: string): string {
   ].join('\n');
 }
 
+type BlockLocation =
+  | { state: 'absent' }
+  | { state: 'managed'; begin: number; end: number }
+  | { state: 'broken'; problem: string };
+
+function lineText(line: string): string {
+  return line.replace(/\r?\n$/, '');
+}
+
+function indicesOf(lines: readonly string[], marker: string): number[] {
+  return lines.flatMap((line, index) => (lineText(line) === marker ? [index] : []));
+}
+
+/** Find the one BEGIN/END pair, matching whole lines. Private to the docs map (D7). */
+function locateBlock(lines: readonly string[]): BlockLocation {
+  const begins = indicesOf(lines, DOCS_MAP_BEGIN);
+  const ends = indicesOf(lines, DOCS_MAP_END);
+  if (begins.length > 1) return { state: 'broken', problem: `duplicated ${DOCS_MAP_BEGIN} marker` };
+  if (ends.length > 1) return { state: 'broken', problem: `duplicated ${DOCS_MAP_END} marker` };
+  if (begins.length === 0 && ends.length === 0) return { state: 'absent' };
+  if (ends.length === 0) return { state: 'broken', problem: `unpaired ${DOCS_MAP_BEGIN} marker` };
+  if (begins.length === 0) return { state: 'broken', problem: `unpaired ${DOCS_MAP_END} marker` };
+  if (ends[0] < begins[0]) return { state: 'broken', problem: 'END marker comes before BEGIN marker' };
+  return { state: 'managed', begin: begins[0], end: ends[0] };
+}
+
+/**
+ * The map text with only the lines between the markers replaced. `existing` is latin1 (one char
+ * per byte), so bytes outside the block survive untouched; the UTF-8 block is converted to match.
+ */
+function replaceBlock(existing: string, block: string, path: string): string {
+  // Split after each newline so every line keeps its own ending.
+  const lines = existing.split(/(?<=\n)/);
+  const location = locateBlock(lines);
+  if (location.state === 'absent') throw new DocsMapError(path, `no ${DOCS_MAP_BEGIN} block found`);
+  if (location.state === 'broken') throw new DocsMapError(path, location.problem);
+  const eol = lines[location.begin].endsWith('\r\n') ? '\r\n' : '\n';
+  const inserted = Buffer.from(block, 'utf8')
+    .toString('latin1')
+    .split('\n')
+    .map((line) => line + eol);
+  return [...lines.slice(0, location.begin + 1), ...inserted, ...lines.slice(location.end)].join('');
+}
+
 /** The map's current text, or `undefined` when there is no map yet. */
 async function readExistingMap(path: string): Promise<string | undefined> {
   try {
@@ -86,15 +130,17 @@ export async function writeDocsMap(root: string, projectName: string): Promise<D
   const block = renderManagedBlock(discovery.docs, DOCS_MAP_DIR);
   const path = docsMapPath(root, projectName);
   const existing = await readExistingMap(path);
-  if (existing !== undefined) {
-    throw new DocsMapError(path, 'update path not implemented until 4.4');
-  }
-  await writeMap(path, newMapContent(projectName, block), 'utf8');
-  return {
-    path,
-    status: DOCS_MAP_STATUS.Created,
+  const counts = {
     adrs: discovery.docs.filter((doc) => doc.kind === 'adr').length,
     docs: discovery.docs.filter((doc) => doc.kind === 'doc').length,
     skippedSymlinks: discovery.skippedSymlinks,
   };
+  if (existing === undefined) {
+    await writeMap(path, newMapContent(projectName, block), 'utf8');
+    return { path, status: DOCS_MAP_STATUS.Created, ...counts };
+  }
+  const updated = replaceBlock(existing, block, path);
+  if (updated === existing) return { path, status: DOCS_MAP_STATUS.Unchanged, ...counts };
+  await writeMap(path, updated, 'latin1');
+  return { path, status: DOCS_MAP_STATUS.Updated, ...counts };
 }
