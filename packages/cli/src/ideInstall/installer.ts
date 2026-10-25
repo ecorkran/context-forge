@@ -14,10 +14,11 @@ import { checkLintConfigs } from './lint.js';
 import { InstallManifest } from './manifest.js';
 import { Printer, type OutputSink } from './output.js';
 import { guidePaths } from './paths.js';
-import { audienceProblemMessage, RULE_AUDIENCE, unknownAudienceValues } from './ruleAudience.js';
+import { audienceProblemMessage, unknownAudienceValues } from './ruleAudience.js';
 import {
   classifyResolutions,
-  renderResolutions,
+  EMPTY_RESOLUTION_SECTIONS,
+  renderAllResolutions,
   warnStaleResolutions,
   type ResolutionClassification,
 } from './resolutions.js';
@@ -85,11 +86,7 @@ function classifyForInstall(options: InstallOptions, base: InstallBase): Resolut
   if (options.ruleResolutions.length === 0 || !isDirectory(base.guide.rules)) return null;
   const entries = guideRuleEntries(options.guideDir, base.projectRoot, base.exclusions);
   const classification = classifyResolutions(options.ruleResolutions, entries, base.projectRoot);
-  base.resolutionSections = {
-    claude: renderResolutions(classification.live, entries, RULE_AUDIENCE.Claude),
-    agents: renderResolutions(classification.live, entries, RULE_AUDIENCE.Agents),
-    copilot: renderResolutions(classification.live, entries, RULE_AUDIENCE.Copilot),
-  };
+  base.resolutionSections = renderAllResolutions(classification.live, entries);
   return classification;
 }
 
@@ -121,7 +118,7 @@ export function installIde(options: InstallOptions): InstallResult {
     force: options.force,
     out,
     exclusions: new RuleExclusions(options.rulesExclude),
-    resolutionSections: { claude: '', agents: '', copilot: '' },
+    resolutionSections: EMPTY_RESOLUTION_SECTIONS,
   };
 
   try {

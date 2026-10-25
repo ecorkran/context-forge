@@ -5,10 +5,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { requireRulesDir, type InstallContext } from '../context.js';
-import { excludedMessage } from '../exclusions.js';
 import { isDirectory, isFile, listMarkdownFiles } from '../fsChecks.js';
 import { convertPathsToGlobs, frontmatterWarning, hasAlwaysApply } from '../frontmatter.js';
-import { audienceSkipMessage, RULE_AUDIENCE } from '../ruleAudience.js';
+import { RULE_AUDIENCE, scopedRuleSkipped } from '../ruleAudience.js';
 import { emitAgentsMd } from './agents.js';
 
 const MDC = '.mdc';
@@ -39,15 +38,7 @@ function copyCursorRules(ctx: InstallContext, targetDir: string): void {
     const text = fs.readFileSync(file, 'utf-8');
     if (hasAlwaysApply(text)) continue;
     const filename = path.basename(file);
-    if (ctx.exclusions.isExcluded(filename)) {
-      ctx.out.status('yellow', excludedMessage(filename));
-      continue;
-    }
-    const audienceSkip = audienceSkipMessage(text, filename, RULE_AUDIENCE.Cursor);
-    if (audienceSkip !== null) {
-      ctx.out.status('yellow', audienceSkip);
-      continue;
-    }
+    if (scopedRuleSkipped(ctx, text, filename, RULE_AUDIENCE.Cursor)) continue;
     const targetFilename = mdcName(file);
     const targetPath = path.join(targetDir, targetFilename);
     if (!ctx.manifest.installFile(Buffer.from(convertPathsToGlobs(text)), targetPath)) continue;

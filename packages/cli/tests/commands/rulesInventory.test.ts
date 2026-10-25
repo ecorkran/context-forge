@@ -54,7 +54,9 @@ describe('buildInventory', () => {
     const agents = Object.fromEntries(guideRules.map((r) => [r.rule, r.agents]));
     expect(agents['peers.md']).toEqual(['claude']);
     expect(agents['always-a.md']).toBeNull();
-    expect(JSON.parse(JSON.stringify(guideRules)).find((r: { rule: string }) => r.rule === 'always-a.md').agents).toBeNull();
+    // The JSON output keeps an unmarked rule's agents as an explicit null, not a missing key.
+    expect(JSON.stringify(guideRules)).toContain('"rule":"always-a.md"');
+    expect(JSON.stringify(guideRules.find((r) => r.rule === 'always-a.md'))).toContain('"agents":null');
   });
 
   it('reports a hand-written CLAUDE.md as a composite with its block range after a real setup-ide run', async () => {

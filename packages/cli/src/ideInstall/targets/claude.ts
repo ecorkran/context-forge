@@ -7,9 +7,8 @@ import * as path from 'node:path';
 import { InstallAbort, requireRulesDir, type InstallContext } from '../context.js';
 import { isDirectory, listMarkdownFiles } from '../fsChecks.js';
 import { hasAlwaysApply, stripNameField } from '../frontmatter.js';
-import { excludedMessage } from '../exclusions.js';
 import { compileClaudeRules } from '../rules.js';
-import { audienceSkipMessage, RULE_AUDIENCE } from '../ruleAudience.js';
+import { RULE_AUDIENCE, scopedRuleSkipped } from '../ruleAudience.js';
 import { copyFiles, copySkills } from './copy.js';
 
 /** `copy_claude_modular_rules`: scoped rules to .claude/rules/, name: stripped. */
@@ -20,15 +19,7 @@ function copyClaudeModularRules(ctx: InstallContext, targetDir: string): void {
     const text = fs.readFileSync(file, 'utf-8');
     if (hasAlwaysApply(text)) continue;
     const filename = path.basename(file);
-    if (ctx.exclusions.isExcluded(filename)) {
-      ctx.out.status('yellow', excludedMessage(filename));
-      continue;
-    }
-    const audienceSkip = audienceSkipMessage(text, filename, RULE_AUDIENCE.Claude);
-    if (audienceSkip !== null) {
-      ctx.out.status('yellow', audienceSkip);
-      continue;
-    }
+    if (scopedRuleSkipped(ctx, text, filename, RULE_AUDIENCE.Claude)) continue;
     const content = Buffer.from(stripNameField(text));
     if (!ctx.manifest.installFile(content, path.join(targetDir, filename))) continue;
     ctx.out.status('green', `✅ Copied ${filename} → .claude/rules/${filename}`);

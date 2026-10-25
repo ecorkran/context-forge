@@ -79,6 +79,22 @@ export function renderResolutions(
   return [RESOLUTIONS_HEADING, RESOLUTIONS_PRECEDENCE, '', ...bullets].join('\n') + '\n';
 }
 
+/** One section per composite block, each '' until resolutions are rendered. */
+export const EMPTY_RESOLUTION_SECTIONS: Readonly<Record<CompositeAudience, string>> = Object.freeze(
+  Object.fromEntries(COMPOSITE_AUDIENCES.map((audience) => [audience, ''])) as Record<CompositeAudience, string>,
+);
+
+/** The section for every composite block, built from `COMPOSITE_AUDIENCES`. */
+export function renderAllResolutions(
+  live: readonly RuleResolution[],
+  guideEntries: readonly GuideRuleEntry[],
+): Readonly<Record<CompositeAudience, string>> {
+  // fromEntries loses the key type; the keys are exactly COMPOSITE_AUDIENCES.
+  return Object.fromEntries(
+    COMPOSITE_AUDIENCES.map((audience) => [audience, renderResolutions(live, guideEntries, audience)]),
+  ) as Record<CompositeAudience, string>;
+}
+
 const REMEDY = `re-run reconciliation or edit ${RULE_RESOLUTIONS_DIR}/${RULE_RESOLUTIONS_FILE}`;
 
 /** Stale-identity warnings on stderr. They never change the exit code. */

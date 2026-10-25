@@ -45,6 +45,15 @@ describe('ruleAudiences', () => {
     });
   });
 
+  it('drops a trailing YAML comment', () => {
+    expect(ruleAudiences(rule('agents: [claude]  # only claude'))).toEqual({
+      known: ['claude'],
+      unknown: [],
+      notInline: false,
+    });
+    expect(ruleAudiences(rule('agents: claude # scalar'))?.known).toEqual(['claude']);
+  });
+
   it('ignores the key outside the frontmatter', () => {
     expect(ruleAudiences(rule('description: x', 'agents: [claude]\n'))).toBeNull();
   });
@@ -89,10 +98,12 @@ describe('unknownAudienceValues', () => {
     fs.writeFileSync(path.join(tmp, 'a.md'), rule('agents: [claude, gemini, zed]'));
     fs.writeFileSync(path.join(tmp, 'b.md'), rule('agents:\n  - claude'));
     fs.writeFileSync(path.join(tmp, 'c.md'), rule('agents: [claude]'));
+    fs.writeFileSync(path.join(tmp, 'd.md'), rule('agents: [claud]'));
     expect(unknownAudienceValues(tmp)).toEqual([
-      { rule: 'a.md', value: 'gemini' },
-      { rule: 'a.md', value: 'zed' },
-      { rule: 'b.md', value: null },
+      { rule: 'a.md', value: 'gemini', reachesNothing: false },
+      { rule: 'a.md', value: 'zed', reachesNothing: false },
+      { rule: 'b.md', value: null, reachesNothing: true },
+      { rule: 'd.md', value: 'claud', reachesNothing: true },
     ]);
   });
 
@@ -105,12 +116,20 @@ describe('unknownAudienceValues', () => {
 
 describe('audienceProblemMessage', () => {
   it('names the rule, the value and every known audience', () => {
-    expect(audienceProblemMessage({ rule: 'a.md', value: 'gemini' })).toBe(
+    expect(audienceProblemMessage({ rule: 'a.md', value: 'gemini', reachesNothing: false })).toBe(
       "⚠️  a.md: unknown agents value 'gemini' (known: claude, agents, copilot, cursor) — ignored",
     );
   });
 
   it('tells the author to write a valueless key inline', () => {
-    expect(audienceProblemMessage({ rule: 'b.md', value: null })).toContain('agents must be written inline');
+    expect(audienceProblemMessage({ rule: 'b.md', value: null, reachesNothing: true })).toContain(
+      'agents must be written inline',
+    );
+  });
+
+  it('says the rule reaches no output when no known value is left', () => {
+    expect(audienceProblemMessage({ rule: 'd.md', value: 'claud', reachesNothing: true })).toBe(
+      "⚠️  d.md: unknown agents value 'claud' (known: claude, agents, copilot, cursor) — no known value left, so the rule reaches no output",
+    );
   });
 });

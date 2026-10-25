@@ -5,6 +5,8 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { InstallContext } from './context.js';
+import { excludedMessage } from './exclusions.js';
 import { listMarkdownFiles } from './fsChecks.js';
 import { FENCE } from './frontmatter.js';
 import { toRecords } from './lines.js';
@@ -38,6 +40,8 @@ export interface AudienceList {
 }
 
 const AGENTS_KEY = /^agents:(.*)$/;
+/** A YAML comment: `#` preceded by whitespace, to end of line. */
+const TRAILING_COMMENT = /\s+#.*$/;
 
 function isAudience(value: string): value is RuleAudience {
   return KNOWN.includes(value);
@@ -67,7 +71,7 @@ export function ruleAudiences(text: string): AudienceList | null {
     if (!inFrontmatter) continue;
     const match = AGENTS_KEY.exec(line);
     if (match === null) continue;
-    const raw = match[1].trim();
+    const raw = match[1].replace(TRAILING_COMMENT, '').trim();
     if (raw === '') return { known: [], unknown: [], notInline: true };
     const list: AudienceList = { known: [], unknown: [], notInline: false };
     for (const value of parseValues(raw)) {
@@ -97,10 +101,33 @@ export function audienceSkipMessage(text: string, filename: string, audience: Ru
   return `⊘ Skipped ${filename} (agents: ${named})`;
 }
 
+/**
+ * True when a scoped rule must not be copied for this audience: excluded by
+ * `rules.exclude`, or left out by its `agents:` marker. Prints the reason.
+ * Shared by every target that copies scoped rules.
+ */
+export function scopedRuleSkipped(
+  ctx: InstallContext,
+  text: string,
+  filename: string,
+  audience: RuleAudience,
+): boolean {
+  if (ctx.exclusions.isExcluded(filename)) {
+    ctx.out.status('yellow', excludedMessage(filename));
+    return true;
+  }
+  const audienceSkip = audienceSkipMessage(text, filename, audience);
+  if (audienceSkip === null) return false;
+  ctx.out.status('yellow', audienceSkip);
+  return true;
+}
+
 export interface AudienceProblem {
   rule: string;
   /** The unknown value, or null for a valueless `agents:` key. */
   value: string | null;
+  /** True when no known value remains, so the rule reaches no output. */
+  reachesNothing: boolean;
 }
 
 /** Unknown values and valueless keys across the rules directory, in file order. */
@@ -110,8 +137,9 @@ export function unknownAudienceValues(rulesDir: string): AudienceProblem[] {
     const list = ruleAudiences(fs.readFileSync(file, 'utf-8'));
     if (list === null) continue;
     const rule = path.basename(file);
-    if (list.notInline) problems.push({ rule, value: null });
-    for (const value of list.unknown) problems.push({ rule, value });
+    const reachesNothing = list.known.length === 0;
+    if (list.notInline) problems.push({ rule, value: null, reachesNothing });
+    for (const value of list.unknown) problems.push({ rule, value, reachesNothing });
   }
   return problems;
 }
@@ -121,5 +149,6 @@ export function audienceProblemMessage(problem: AudienceProblem): string {
   if (problem.value === null) {
     return `⚠️  ${problem.rule}: agents must be written inline, e.g. agents: [claude] — rule reaches no output`;
   }
-  return `⚠️  ${problem.rule}: unknown agents value '${problem.value}' (known: ${KNOWN_AUDIENCES_TEXT}) — ignored`;
+  const effect = problem.reachesNothing ? 'no known value left, so the rule reaches no output' : 'ignored';
+  return `⚠️  ${problem.rule}: unknown agents value '${problem.value}' (known: ${KNOWN_AUDIENCES_TEXT}) — ${effect}`;
 }

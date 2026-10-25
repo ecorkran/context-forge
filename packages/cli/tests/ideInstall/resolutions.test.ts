@@ -59,6 +59,7 @@ describe('renderResolutions', () => {
     const bullets = out.split('\n').filter((l) => l.startsWith('- '));
     expect(bullets).toEqual(['- `b.md` vs `X.md`: one', '- `a.md` vs `X.md`: two', '- `b.md` vs `X.md`: three']);
   });
+
   it('renders a resolution on a [claude] rule only in the claude section (slice 935)', () => {
     const entries = [entry('git.md', false, ['claude']), entry('python.md')];
     const live = [GIT_VS_CLAUDE, PYTHON_VS_CURSOR];
@@ -117,6 +118,11 @@ describe('classifyResolutions and warnStaleResolutions', () => {
     expect(c).toEqual({ live: [], staleGuide: [], staleProject: [] });
     warnStaleResolutions(c, out);
     expect(stderr).toBe('');
+  });
+
+  it('drops a resolution on a rule that reaches no composite block silently (slice 935)', () => {
+    const c = classifyResolutions([GIT_VS_CLAUDE], [entry('git.md', false, ['cursor'])], root);
+    expect(c).toEqual({ live: [], staleGuide: [], staleProject: [] });
   });
 
   it('resolves projectSource against the root argument', () => {

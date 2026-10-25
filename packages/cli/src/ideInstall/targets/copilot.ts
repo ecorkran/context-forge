@@ -7,12 +7,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { GENERATED_MARKER } from '../../commands/ideTargets.js';
 import { InstallAbort, requireRulesDir, type InstallContext } from '../context.js';
-import { excludedMessage } from '../exclusions.js';
 import { isDirectory, isEmptyDirectory, listMarkdownFiles } from '../fsChecks.js';
 import { FENCE, getApplyTo, getFrontmatterField, hasAlwaysApply } from '../frontmatter.js';
 import { fromRecords, toRecords } from '../lines.js';
 import { compileAlwaysOnRules } from '../rules.js';
-import { audienceSkipMessage, RULE_AUDIENCE } from '../ruleAudience.js';
+import { RULE_AUDIENCE, scopedRuleSkipped } from '../ruleAudience.js';
 import { copyAgentSkills, emitAgentsMd } from './agents.js';
 
 const INSTRUCTIONS_LABEL = 'copilot-instructions.md';
@@ -55,15 +54,7 @@ function emitCopilotInstructionFiles(ctx: InstallContext): void {
     const text = fs.readFileSync(file, 'utf-8');
     if (hasAlwaysApply(text)) continue; // goes to copilot-instructions.md
     const filename = path.basename(file);
-    if (ctx.exclusions.isExcluded(filename)) {
-      ctx.out.status('yellow', excludedMessage(filename));
-      continue;
-    }
-    const audienceSkip = audienceSkipMessage(text, filename, RULE_AUDIENCE.Copilot);
-    if (audienceSkip !== null) {
-      ctx.out.status('yellow', audienceSkip);
-      continue;
-    }
+    if (scopedRuleSkipped(ctx, text, filename, RULE_AUDIENCE.Copilot)) continue;
     const stem = path.basename(file, '.md');
     const { content, applyTo } = instructionFile(text, stem);
     const dest = path.join(targetDir, `${stem}.instructions.md`);
