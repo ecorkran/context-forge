@@ -5,8 +5,16 @@ import { tmpdir } from 'os';
 import {
   ADOPTION_STATES,
   AdoptionError,
+  legacyAdoptionStateNotice,
+  readAdoptionOptOut,
   readAdoptionState,
 } from '../../src/adoption/index.js';
+import { ADOPTION_OPT_OUT, LEGACY_ADOPTION_STATES } from '../../src/config/ConfigKeys.js';
+
+const CONFIG_FILE = '.context-forge.toml';
+const UNSET_COMMAND = 'cf config unset adoption.state';
+const UNKNOWN_VALUE = 'maybe';
+const stateToml = (value: string): string => `[adoption]\nstate = "${value}"\n`;
 
 describe('adoption state helpers', () => {
   let dataDir: string;
@@ -53,5 +61,42 @@ describe('adoption state helpers', () => {
     const attempt = readAdoptionState(projectDir);
     await expect(attempt).rejects.toThrow();
     await expect(attempt).rejects.not.toBeInstanceOf(AdoptionError);
+  });
+
+  describe('readAdoptionOptOut', () => {
+    it('is not opted out when there is no config file', async () => {
+      expect(await readAdoptionOptOut(projectDir)).toEqual({ optedOut: false, ignoredLegacyValue: null });
+    });
+
+    it('is not opted out for an empty value', async () => {
+      await writeFile(join(projectDir, CONFIG_FILE), stateToml(''));
+      expect(await readAdoptionOptOut(projectDir)).toEqual({ optedOut: false, ignoredLegacyValue: null });
+    });
+
+    it('is opted out for the opt-out value', async () => {
+      await writeFile(join(projectDir, CONFIG_FILE), stateToml(ADOPTION_OPT_OUT));
+      expect(await readAdoptionOptOut(projectDir)).toEqual({ optedOut: true, ignoredLegacyValue: null });
+    });
+
+    it.each(LEGACY_ADOPTION_STATES)('ignores and reports the legacy value %j', async (value) => {
+      await writeFile(join(projectDir, CONFIG_FILE), stateToml(value));
+      expect(await readAdoptionOptOut(projectDir)).toEqual({ optedOut: false, ignoredLegacyValue: value });
+    });
+
+    it('throws AdoptionError naming the opt-out for an unknown value', async () => {
+      await writeFile(join(projectDir, CONFIG_FILE), stateToml(UNKNOWN_VALUE));
+      const attempt = readAdoptionOptOut(projectDir);
+      await expect(attempt).rejects.toBeInstanceOf(AdoptionError);
+      await expect(attempt).rejects.toThrow(`"${UNKNOWN_VALUE}"`);
+      await expect(attempt).rejects.toThrow(`"${ADOPTION_OPT_OUT}"`);
+    });
+  });
+
+  describe('legacyAdoptionStateNotice', () => {
+    it.each(LEGACY_ADOPTION_STATES)('names %j and the unset command', (value) => {
+      const notice = legacyAdoptionStateNotice(value);
+      expect(notice).toContain(`"${value}"`);
+      expect(notice).toContain(UNSET_COMMAND);
+    });
   });
 });

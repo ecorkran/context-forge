@@ -25,7 +25,15 @@ export const STANDARD_PERMISSIVENESS: PermissivenessLevel = PERMISSIVENESS_LEVEL
 
 // Defined here, not in adoption/, because adoption/adoptionState.ts imports ConfigManager,
 // which imports this file. adoptionState.ts re-exports them.
-export const ADOPTION_STATES = ['', 'in_progress', 'complete', 'declined'] as const;
+/** The one stored adoption value: the user's opt-out from adoption detection (slice 269 D1). */
+export const ADOPTION_OPT_OUT = 'declined';
+
+export const ADOPTION_STATES = ['', 'in_progress', 'complete', ADOPTION_OPT_OUT] as const;
+
+/** Values cf wrote before slice 269. Read and ignored with a notice, never an error (D2). */
+export const LEGACY_ADOPTION_STATES = ['in_progress', 'complete'] as const;
+
+export type LegacyAdoptionState = (typeof LEGACY_ADOPTION_STATES)[number];
 
 export type AdoptionState = (typeof ADOPTION_STATES)[number];
 
