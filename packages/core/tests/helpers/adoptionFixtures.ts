@@ -1,5 +1,5 @@
-// Fixtures for adoption navigation tests (slice 264): a temp checkout with an adoption state
-// and the artifacts a brownfield adoption writes, plus a matching ProjectData builder.
+// Fixtures for adoption tests (slices 264, 269): a temp checkout with an optional adoption.state,
+// the artifacts a brownfield adoption writes and optional source code, plus a matching ProjectData builder.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -32,7 +32,10 @@ export const MIXED_ENTRIES: PlanEntrySpec[] = [
 export const ALL_RETROACTIVE_ENTRIES: PlanEntrySpec[] = MIXED_ENTRIES.slice(0, 2);
 
 export interface AdoptionFixtureOptions {
-  /** adoption.state written to .context-forge.toml; omitted means no [adoption] section. */
+  /**
+   * adoption.state written to .context-forge.toml: `declined`, a legacy value (`in_progress`,
+   * `complete`) or an out-of-enum value for error cases. Omitted means no [adoption] section.
+   */
   state?: string;
   concept?: boolean;
   /** Writes 100-arch.existing.md with provenance: derived. */
