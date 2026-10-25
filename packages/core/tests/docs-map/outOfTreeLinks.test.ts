@@ -9,7 +9,8 @@ import { writeDocsMap, docsMapPath } from '../../src/docs-map/index.js';
 import { ConsistencyChecker } from '../../src/introspection/ConsistencyChecker.js';
 import { ArtifactIntrospector } from '../../src/introspection/ArtifactIntrospector.js';
 import { buildModel } from '../../src/introspection/ProjectModelBuilder.js';
-import { decideOutcome } from '../../src/adoption/adoptionOutcome.js';
+import { decideOutcome, decideStage } from '../../src/adoption/adoptionOutcome.js';
+import { readPlanningFacts } from '../../src/adoption/planningFacts.js';
 import { findPlanningArtifacts } from '../../src/detection/planningArtifacts.js';
 import { measureSourceVolume } from '../../src/detection/sourceVolume.js';
 import { createAdoptionFixture, ARCH_FILE, CONCEPT_FILE } from '../helpers/adoptionFixtures.js';
@@ -86,8 +87,7 @@ describe('out-of-tree links (slice 267, D6)', () => {
     it('stays brownfield, and the map is not a planning artifact', async () => {
       const outcomeKind = async (): Promise<string> =>
         decideOutcome({
-          state: '',
-          artifacts: await findPlanningArtifacts(project),
+          stage: decideStage({ optedOut: false, facts: await readPlanningFacts(project) }),
           source: await measureSourceVolume(project),
         }).kind;
       expect(await outcomeKind()).toBe('brownfield');

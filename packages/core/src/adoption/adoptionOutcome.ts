@@ -1,46 +1,62 @@
-import type { AdoptionState } from '../config/ConfigKeys.js';
 // Type-only: sourceVolume.ts imports the threshold from this file, so a value import would cycle.
 import type { SourceVolume } from '../detection/sourceVolume.js';
+import type { PlanningFacts } from './planningFacts.js';
 
 /**
  * Brownfield iff the project folder holds at least this many non-blank source lines (D1).
  * The one place the threshold is written; deliberately not configurable (the
- * `adoption.state` override is the safety valve).
+ * `adoption.state = "declined"` opt-out is the safety valve).
  */
 export const BROWNFIELD_MIN_SOURCE_LINES = 2000;
 
+/** What the opt-out and the planning files decide, before any source walk (slice 269 D5). */
+export type AdoptionStage =
+  | { kind: 'opted-out' }
+  | { kind: 'adoption-incomplete'; derivedArchitectures: string[] }
+  | { kind: 'already-planned'; artifacts: string[]; existingStatePlan: string | null }
+  | { kind: 'unplanned' };
+
 export type AdoptionOutcome =
-  | { kind: 'adoption-in-progress' }
-  | { kind: 'adoption-closed'; state: 'complete' | 'declined' }
-  | { kind: 'already-planned'; artifacts: string[] }
+  | Exclude<AdoptionStage, { kind: 'unplanned' }>
   | { kind: 'brownfield'; source: SourceVolume }
   | { kind: 'greenfield'; source: SourceVolume };
 
+export interface StageInput {
+  optedOut: boolean;
+  facts: PlanningFacts;
+}
+
 export interface OutcomeInput {
-  state: AdoptionState;
-  /** Planning artifacts found; read only when `state` is unset. */
-  artifacts?: string[];
-  /** Source volume; read only when `state` is unset and nothing is planned. */
+  stage: AdoptionStage;
+  /** Source volume; read only when the stage is `unplanned`. */
   source?: SourceVolume;
 }
 
 /**
- * The outcome order (D1): persisted state → already planned → source volume.
- * Pure. The caller supplies each fact only when the previous one did not decide;
- * a fact the order needs but the caller left out is a programming error.
+ * The stage order (D5): opted out → adoption incomplete → already planned → unplanned. Pure.
+ * A derived architecture with no existing-state plan is mid-adoption; any other planning
+ * artifact means the project is planned.
  */
-export function decideOutcome(input: OutcomeInput): AdoptionOutcome {
-  const { state, artifacts, source } = input;
-  if (state === 'in_progress') return { kind: 'adoption-in-progress' };
-  if (state === 'complete' || state === 'declined') return { kind: 'adoption-closed', state };
-
-  if (artifacts === undefined) {
-    throw new Error('decideOutcome: state is unset, so `artifacts` is required');
+export function decideStage({ optedOut, facts }: StageInput): AdoptionStage {
+  if (optedOut) return { kind: 'opted-out' };
+  if (facts.derivedArchitectures.length > 0 && facts.existingStatePlan === null) {
+    return { kind: 'adoption-incomplete', derivedArchitectures: facts.derivedArchitectures };
   }
-  if (artifacts.length > 0) return { kind: 'already-planned', artifacts };
+  if (facts.artifacts.length > 0) {
+    return { kind: 'already-planned', artifacts: facts.artifacts, existingStatePlan: facts.existingStatePlan };
+  }
+  return { kind: 'unplanned' };
+}
 
+/**
+ * The outcome (D5): a decided stage passes through; `unplanned` becomes brownfield or greenfield
+ * by source volume. Pure. The caller measures source volume only for `unplanned`; leaving it out
+ * then is a programming error.
+ */
+export function decideOutcome({ stage, source }: OutcomeInput): AdoptionOutcome {
+  if (stage.kind !== 'unplanned') return stage;
   if (source === undefined) {
-    throw new Error('decideOutcome: state is unset and nothing is planned, so `source` is required');
+    throw new Error('decideOutcome: the stage is unplanned, so `source` is required');
   }
   return source.lines >= BROWNFIELD_MIN_SOURCE_LINES
     ? { kind: 'brownfield', source }
