@@ -9,6 +9,7 @@ import { isDirectory, listMarkdownFiles } from '../fsChecks.js';
 import { hasAlwaysApply, stripNameField } from '../frontmatter.js';
 import { excludedMessage } from '../exclusions.js';
 import { compileClaudeRules } from '../rules.js';
+import { audienceSkipMessage, RULE_AUDIENCE } from '../ruleAudience.js';
 import { copyFiles, copySkills } from './copy.js';
 
 /** `copy_claude_modular_rules`: scoped rules to .claude/rules/, name: stripped. */
@@ -21,6 +22,11 @@ function copyClaudeModularRules(ctx: InstallContext, targetDir: string): void {
     const filename = path.basename(file);
     if (ctx.exclusions.isExcluded(filename)) {
       ctx.out.status('yellow', excludedMessage(filename));
+      continue;
+    }
+    const audienceSkip = audienceSkipMessage(text, filename, RULE_AUDIENCE.Claude);
+    if (audienceSkip !== null) {
+      ctx.out.status('yellow', audienceSkip);
       continue;
     }
     const content = Buffer.from(stripNameField(text));

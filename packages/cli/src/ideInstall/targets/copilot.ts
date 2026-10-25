@@ -12,6 +12,7 @@ import { isDirectory, isEmptyDirectory, listMarkdownFiles } from '../fsChecks.js
 import { FENCE, getApplyTo, getFrontmatterField, hasAlwaysApply } from '../frontmatter.js';
 import { fromRecords, toRecords } from '../lines.js';
 import { compileAlwaysOnRules } from '../rules.js';
+import { audienceSkipMessage, RULE_AUDIENCE } from '../ruleAudience.js';
 import { copyAgentSkills, emitAgentsMd } from './agents.js';
 
 const INSTRUCTIONS_LABEL = 'copilot-instructions.md';
@@ -58,6 +59,11 @@ function emitCopilotInstructionFiles(ctx: InstallContext): void {
       ctx.out.status('yellow', excludedMessage(filename));
       continue;
     }
+    const audienceSkip = audienceSkipMessage(text, filename, RULE_AUDIENCE.Copilot);
+    if (audienceSkip !== null) {
+      ctx.out.status('yellow', audienceSkip);
+      continue;
+    }
     const stem = path.basename(file, '.md');
     const { content, applyTo } = instructionFile(text, stem);
     const dest = path.join(targetDir, `${stem}.instructions.md`);
@@ -100,6 +106,7 @@ export function setupCopilot(ctx: InstallContext): void {
     label: INSTRUCTIONS_LABEL,
     h1: '',
     trailing: ctx.resolutionsSection,
+    audience: RULE_AUDIENCE.Copilot,
     out,
   });
   if (!compiled) throw new InstallAbort(`${INSTRUCTIONS_LABEL} could not be compiled`);

@@ -10,6 +10,7 @@ import { isDirectory, listMarkdownFiles } from '../fsChecks.js';
 import { getApplyTo, getFrontmatterField, hasAlwaysApply } from '../frontmatter.js';
 import { relativeToRoot } from '../paths.js';
 import { compileAlwaysOnRules } from '../rules.js';
+import { reachesAudience, RULE_AUDIENCE } from '../ruleAudience.js';
 import { copySkills } from './copy.js';
 
 const AGENTS_FILE = 'AGENTS.md';
@@ -18,7 +19,8 @@ const AGENTS_H1 = 'Project Guidelines';
 /**
  * Index of the scoped rules, listed by the path they already occupy. The
  * AGENTS.md format has no paths mechanism to scope rules back down, so they
- * are not inlined. Excluded rules are left out: they are not installed.
+ * are not inlined. Excluded rules are left out: they are not installed. So are
+ * rules whose `agents:` marker excludes AGENTS.md (slice 935).
  */
 function scopedRuleIndex(ctx: InstallContext): { text: string; count: number } {
   const rulesPath = relativeToRoot(ctx.targetRoot, ctx.guide.rules);
@@ -29,6 +31,7 @@ function scopedRuleIndex(ctx: InstallContext): { text: string; count: number } {
     if (hasAlwaysApply(text)) continue;
     const filename = path.basename(file);
     if (ctx.exclusions.isExcluded(filename)) continue;
+    if (!reachesAudience(text, RULE_AUDIENCE.Agents)) continue;
 
     const description = getFrontmatterField(text, 'description');
     body += `- \`${rulesPath}/${filename}\``;
@@ -59,6 +62,7 @@ export function emitAgentsMd(ctx: InstallContext, includeScopedIndex: boolean): 
     label: AGENTS_FILE,
     h1: AGENTS_H1,
     trailing: index.text + ctx.resolutionsSection,
+    audience: RULE_AUDIENCE.Agents,
     out: ctx.out,
   });
   if (!compiled) throw new InstallAbort(`${AGENTS_FILE} could not be compiled`);

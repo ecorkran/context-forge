@@ -11,6 +11,7 @@ import { FENCE, hasAlwaysApply } from './frontmatter.js';
 import { fromRecords, toRecords } from './lines.js';
 import { writeManagedSection } from './managedSection.js';
 import type { Printer } from './output.js';
+import { reachesAudience, RULE_AUDIENCE, type RuleAudience } from './ruleAudience.js';
 
 const HEADING = /^#{1,6} /;
 const SUBHEADING = /^#{2,6} /;
@@ -103,10 +104,11 @@ export function alwaysOnFallbackTitle(file: string): string {
   return stem(file).replaceAll('-', ' ');
 }
 
-function alwaysOnRules(rulesDir: string): { file: string; text: string }[] {
+/** alwaysApply rules whose `agents:` marker reaches the audience (slice 935). */
+function alwaysOnRules(rulesDir: string, audience: RuleAudience): { file: string; text: string }[] {
   return listMarkdownFiles(rulesDir)
     .map((file) => ({ file, text: fs.readFileSync(file, 'utf-8') }))
-    .filter(({ text }) => hasAlwaysApply(text));
+    .filter(({ text }) => hasAlwaysApply(text) && reachesAudience(text, audience));
 }
 
 /**
@@ -126,7 +128,7 @@ export function compileClaudeRules(
   out.status('blue', '📄 Compiling alwaysApply rules into CLAUDE.md...');
 
   let content = `# ${CLAUDE_H1}\n\n`;
-  const rules = alwaysOnRules(rulesDir);
+  const rules = alwaysOnRules(rulesDir, RULE_AUDIENCE.Claude);
   for (const { file, text } of rules) {
     const title = sectionTitle(text);
     content += `## ${title !== '' ? title : claudeFallbackTitle(file)}\n`;
@@ -149,6 +151,8 @@ export interface AlwaysOnOptions {
   h1: string;
   /** Generated sections appended inside the block, after the rules. */
   trailing: string;
+  /** The output's audience: rules whose `agents:` marker excludes it are left out. */
+  audience: RuleAudience;
   out: Printer;
 }
 
@@ -157,7 +161,7 @@ export interface AlwaysOnOptions {
  * (copilot-instructions.md or AGENTS.md). False on failure.
  */
 export function compileAlwaysOnRules(options: AlwaysOnOptions): boolean {
-  const { rulesDir, outFile, label, h1, trailing, out } = options;
+  const { rulesDir, outFile, label, h1, trailing, audience, out } = options;
   if (!isDirectory(rulesDir)) {
     out.status('red', sourceDirMissing(rulesDir));
     return false;
@@ -165,7 +169,7 @@ export function compileAlwaysOnRules(options: AlwaysOnOptions): boolean {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
 
   let content = h1 !== '' ? `# ${h1}\n\n` : '';
-  const rules = alwaysOnRules(rulesDir);
+  const rules = alwaysOnRules(rulesDir, audience);
   for (const { file, text } of rules) {
     const title = sectionTitle(text);
     content += `## ${title !== '' ? title : alwaysOnFallbackTitle(file)}\n`;

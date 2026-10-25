@@ -85,6 +85,18 @@ export function reachesAudience(text: string, audience: RuleAudience): boolean {
   return list === null || list.known.includes(audience);
 }
 
+/**
+ * `⊘ Skipped <file> (agents: <list>)` when the rule does not reach the
+ * audience, else null. Shared by every target that copies scoped rules, next to
+ * the excluded message they already print.
+ */
+export function audienceSkipMessage(text: string, filename: string, audience: RuleAudience): string | null {
+  const list = ruleAudiences(text);
+  if (list === null || list.known.includes(audience)) return null;
+  const named = list.known.length > 0 ? list.known.join(', ') : 'none';
+  return `⊘ Skipped ${filename} (agents: ${named})`;
+}
+
 export interface AudienceProblem {
   rule: string;
   /** The unknown value, or null for a valueless `agents:` key. */

@@ -13,6 +13,7 @@ import {
   ruleBody,
   sectionTitle,
 } from '../../src/ideInstall/rules.js';
+import { RULE_AUDIENCE } from '../../src/ideInstall/ruleAudience.js';
 import { makeTmpDir, writeFiles } from './harness.js';
 
 const ALWAYS = (body: string): string => `---\ndescription: d\nalwaysApply: true\n---\n${body}`;
@@ -109,7 +110,7 @@ describe('compileAlwaysOnRules', () => {
     const rules = path.join(tmp, 'rules');
     writeFiles(rules, { 'b.md': ALWAYS('# B\nbee\n'), 'a.md': ALWAYS('no heading\n'), 's.md': SCOPED });
     const outFile = path.join(tmp, 'out', 'AGENTS.md');
-    const ok = compileAlwaysOnRules({ rulesDir: rules, outFile, label: 'AGENTS.md', h1: 'H', trailing: 'TAIL\n', out: printer });
+    const ok = compileAlwaysOnRules({ rulesDir: rules, outFile, label: 'AGENTS.md', h1: 'H', trailing: 'TAIL\n', audience: RULE_AUDIENCE.Agents, out: printer });
     expect(ok).toBe(true);
     expect(fs.readFileSync(outFile, 'utf-8')).toBe(
       '<!-- BEGIN:context-forge -->\n# H\n\n## a\n\n## B\nbee\n\nTAIL\n<!-- END:context-forge -->\n',
@@ -131,7 +132,7 @@ describe('compileAlwaysOnRules', () => {
     expect(listMarkdownFiles(rules).map((f) => path.basename(f))).toEqual(['general.md']);
 
     const outFile = path.join(tmp, 'out', 'AGENTS.md');
-    compileAlwaysOnRules({ rulesDir: rules, outFile, label: 'AGENTS.md', h1: 'H', trailing: '', out: printer });
+    compileAlwaysOnRules({ rulesDir: rules, outFile, label: 'AGENTS.md', h1: 'H', trailing: '', audience: RULE_AUDIENCE.Agents, out: printer });
     expect(fs.readFileSync(outFile, 'utf-8')).not.toContain('Permissiveness: autonomous');
   });
 });
