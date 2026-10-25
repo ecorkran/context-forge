@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   ADOPTION_STATES,
   AdoptionError,
   readAdoptionState,
-  writeAdoptionState,
 } from '../../src/adoption/index.js';
 
 describe('adoption state helpers', () => {
@@ -35,16 +34,9 @@ describe('adoption state helpers', () => {
     expect(await readAdoptionState(projectDir)).toBe('');
   });
 
-  it.each(ADOPTION_STATES)('round-trips %j', async (state) => {
-    await writeAdoptionState(projectDir, state);
+  it.each(ADOPTION_STATES)('reads %j from the [adoption] table', async (state) => {
+    await writeFile(join(projectDir, '.context-forge.toml'), `[adoption]\nstate = "${state}"\n`);
     expect(await readAdoptionState(projectDir)).toBe(state);
-  });
-
-  it('writes an [adoption] table with the state', async () => {
-    await writeAdoptionState(projectDir, 'in_progress');
-    const toml = await readFile(join(projectDir, '.context-forge.toml'), 'utf-8');
-    expect(toml).toContain('[adoption]');
-    expect(toml).toContain('state = "in_progress"');
   });
 
   it('throws AdoptionError naming the value, the allowed values and the file for a hand-edited value', async () => {

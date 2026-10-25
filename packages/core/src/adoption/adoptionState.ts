@@ -23,8 +23,3 @@ export async function readAdoptionState(root: string): Promise<AdoptionState> {
   }
   return value;
 }
-
-/** Persists the state to the shared project file. Does not catch: callers own the failure message. */
-export async function writeAdoptionState(root: string, state: AdoptionState): Promise<void> {
-  await new ConfigManager(root).set(ADOPTION_STATE_KEY, state, 'project');
-}

@@ -11,8 +11,6 @@ export const BROWNFIELD_MIN_SOURCE_LINES = 2000;
 
 export type AdoptionOutcome =
   | { kind: 'adoption-in-progress' }
-  // Built by the resolver, not decideOutcome: it needs the recorded plan's path (slice 263 R5).
-  | { kind: 'adoption-completed'; planPath: string }
   | { kind: 'adoption-closed'; state: 'complete' | 'declined' }
   | { kind: 'already-planned'; artifacts: string[] }
   | { kind: 'brownfield'; source: SourceVolume }
