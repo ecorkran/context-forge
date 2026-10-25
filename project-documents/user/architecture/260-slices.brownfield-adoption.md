@@ -64,7 +64,7 @@ These aren't needed for the core goal and follow the integration slice.
    - **Dependencies:** 261. Coordinated with #123.
    - **Interfaces:** provides a new persisted resolution format, and needs a guide-side reconciliation prompt.
    - **Risk:** High (semantic comparison, new persisted format). **Effort:** 4/5
-8. [ ] **(267) Docs and ADR Mapping** — Link existing docs and ADRs into the project-documents structure in place, without moving them. Introspection and `cf check` tolerate artifacts that point outside `project-documents/`.
+8. [x] **(267) Docs and ADR Mapping** — Link existing docs and ADRs into the project-documents structure in place, without moving them. Introspection and `cf check` tolerate artifacts that point outside `project-documents/`.
    - **Value:** an adopted project's existing design material is reachable from CF's artifacts without breaking inbound links or tooling.
    - **Success criteria:** mapped material is discoverable from project-documents. No original file is moved or modified. `cf check` raises no findings for out-of-tree references.
    - **Dependencies:** 261. Guide follow-up, non-blocking: ai-project-guide documents the docs map filename after cf specifies it.

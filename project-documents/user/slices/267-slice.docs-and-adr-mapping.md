@@ -7,8 +7,8 @@ dependencies:
 - 261
 interfaces: [retroactive-marker-and-existing-state-slice-plan, end-to-end-adoption-verification-and-docs]
 dateCreated: 20261020
-dateUpdated: 20261020
-status: not_started
+dateUpdated: 20261024
+status: complete
 turns: 39
 promptTokens: 2773522
 cachedTokens: 2670385
@@ -304,25 +304,26 @@ Uses the local build (the global `cf` is the published npm package): `alias cfl=
    printf '# Acme Service\n' > README.md
    printf '# Deployment\n' > docs/deployment.md
    printf '# 1. Record architecture decisions\n' > docs/adr/0001-record-architecture-decisions.md
-   cfl init            # registers the project and installs the guide
-   find . -path ./project-documents -prune -o -type f -print | xargs shasum > /tmp/dm-before.txt
+   cfl init --lite --name dm   # registers the project only (no guide download, no IDE files)
+   find . -path ./project-documents -prune -o -path ./.git -prune -o -type f -print | grep -v '^./.context-forge' | xargs shasum > /tmp/dm-before.txt
    ```
+   Caveat: `cfl init` registers the project in the machine-wide registry. To keep a walkthrough run out of your real registry, `export CONTEXT_FORGE_DATA_DIR=$(mktemp -d)` first. `cf init --lite` also writes `.gitignore`, so it is in the "before" hashes; the hash list excludes `project-documents/`, `.git/` and `.context-forge*`.
 2. **Create the map.**
    ```bash
    cfl docs map
-   # Docs map: project-documents/user/architecture/050-docs-map.<project>.md (created)
+   # Docs map: project-documents/user/architecture/050-docs-map.dm.md (created)
    #   ADRs: 1   Docs: 2
    cat project-documents/user/architecture/050-docs-map.*.md
    ```
    Expect the ADR under "Architecture Decision Records" and README plus `docs/deployment.md` under "Documentation", each with a `../../../` link. Open a link from an editor's Markdown preview and confirm it resolves.
 3. **Originals untouched.**
    ```bash
-   find . -path ./project-documents -prune -o -type f -print | xargs shasum | diff /tmp/dm-before.txt -
+   find . -path ./project-documents -prune -o -path ./.git -prune -o -type f -print | grep -v '^./.context-forge' | xargs shasum | diff /tmp/dm-before.txt -
    ```
    Expect no output.
 4. **Re-run is stable; hand entries survive.**
    ```bash
-   cfl docs map                                   # (unchanged)
+   cfl docs map                                   # (unchanged)  ADRs: 1   Docs: 2
    echo '- [Runbook](../../../ops/runbook.md)' >> project-documents/user/architecture/050-docs-map.*.md
    printf '# 2. Use Postgres\n' > docs/adr/0002-use-postgres.md
    cfl docs map                                   # (updated)  ADRs: 2
@@ -330,9 +331,11 @@ Uses the local build (the global `cf` is the published npm package): `alias cfl=
    ```
 5. **`cf check` tolerates out-of-tree links.**
    ```bash
-   cfl check            # no findings mention the docs map or its links
+   cfl check            # "No inconsistencies found" in the sandbox project
    ```
-6. **Explicit failure.** Delete the `<!-- END:cf-docs-map -->` line and run `cfl docs map`. Expect a non-zero exit naming the file and the unpaired marker, and the file unchanged.
+6. **Explicit failure.** Delete the `<!-- END:cf-docs-map -->` line and run `cfl docs map`. Expect exit 1 and `Error: Docs map: unpaired <!-- BEGIN:cf-docs-map --> marker (<path to the map>)`, and the file's `shasum` unchanged.
+
+Verified 20261024 on the local build: steps 1-6 behave as described above.
 
 ## Risk Assessment
 
