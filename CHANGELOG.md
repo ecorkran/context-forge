@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent-scoped guide rules (#123).** `cf setup-ide` honors an `agents: [claude]` marker in a guide rule's frontmatter. A marked rule reaches only the listed outputs: `claude` (CLAUDE.md, `.claude/rules/`), `agents` (AGENTS.md), `copilot` (copilot-instructions.md, `.github/instructions/`), and `cursor` (`.cursor/rules/`). Without the key, a rule goes everywhere, as before. A scoped file an earlier run wrote for a now-skipped rule is removed. An unknown value is ignored with a warning. Rule resolutions render only in the blocks their rule reaches, and `cf rules inventory --json` reports each rule's `agents`.
+
 ### Fixed
 
 - **`cf init` in a subfolder of a repository** no longer runs `git init` there, so adoption detection sees the enclosing repository's history and CI (#133).

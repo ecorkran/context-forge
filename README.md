@@ -118,6 +118,15 @@ cf setup-ide cursor              # AGENTS.md (always-on), .cursor/rules/*.mdc (s
 cf setup-ide codex|openai|agents # AGENTS.md, .agents/skills/<name>/SKILL.md
 ```
 
+A guide rule can be limited to some agents with `agents: [claude]` in its frontmatter. Without the key, the rule goes everywhere. The audiences name output files, not targets:
+
+- `claude`: the CLAUDE.md block and `.claude/rules/`
+- `agents`: the AGENTS.md block and its scoped-rule index
+- `copilot`: the copilot-instructions.md block and `.github/instructions/`
+- `cursor`: `.cursor/rules/`
+
+A skipped scoped rule prints `⊘ Skipped <file> (agents: …)`, and a file an earlier run wrote for it is removed. An unknown value is ignored with a warning. Cursor reads its always-on rules from AGENTS.md, so an always-on rule meant for Cursor must list `agents`.
+
 </details>
 
 Requirements: Node.js 20.18+.

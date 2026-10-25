@@ -126,7 +126,7 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 
 ## Rule Resolutions
 
-An adopted project keeps its own rules (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...) beside the guide's. `cf rules inventory` lists both sides; for a composite file such as `CLAUDE.md` it gives the line range of the managed block, so only the project-owned text outside it is compared. The comparison is the agent's job (guide prompt `conventions-reconciliation`); cf never judges whether two rules conflict. Each decision is recorded with `cf rules resolve`.
+An adopted project keeps its own rules (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, ...) beside the guide's. `cf rules inventory` lists both sides; for a composite file such as `CLAUDE.md` it gives the line range of the managed block, so only the project-owned text outside it is compared. The comparison is the agent's job (guide prompt `conventions-reconciliation`); cf never judges whether two rules conflict. Each decision is recorded with `cf rules resolve`. Each guide rule in the inventory has an `agents` field: the audiences from its `agents:` marker (`claude`, `agents`, `copilot`, `cursor`), or `null` when it goes to every agent. A resolution renders only in the managed blocks its rule reaches.
 
 Resolutions are stored in `.context-forge/rule-resolutions.json`, which is committed to git:
 
