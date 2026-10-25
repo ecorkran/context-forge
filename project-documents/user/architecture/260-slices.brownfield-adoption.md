@@ -3,8 +3,8 @@ docType: slice-plan
 parent: project-documents/user/architecture/260-arch.brownfield-adoption.md
 project: context-forge
 dateCreated: 20261020
-dateUpdated: 20261024
-status: complete
+dateUpdated: 20261025
+status: in_progress
 ---
 
 # Slice Plan: Brownfield Adoption
@@ -70,7 +70,54 @@ These aren't needed for the core goal and follow the integration slice.
    - **Dependencies:** 261. Guide follow-up, non-blocking: ai-project-guide documents the docs map filename after cf specifies it.
    - **Risk:** Medium. **Effort:** 3/5
 
+## Rework: Adoption Out of cf, Waiting for sq onboard (PM decision 20261025, critical)
+Shipped 261–264 put adoption inside `cf build`. A Phase 0 build scans the repo, writes `adoption.state` as a side effect, swaps the concept prompt for the adoption prompt, and later "records adoption complete" when it sees a retroactive plan entry. `cf next` carries a per-step adoption guide (~240 lines in `adoptionNavigation.ts` plus routing) that the 265 runs never exercised live. cf also runs and parses squadron's probe. Everywhere else, `cf build` assembles context for a phase; here it became a hidden state machine.
+
+**Direction:** adoption is orchestrated by `sq onboard`, which squadron builds once this core is stable. cf orchestrates nothing. Its part is a few read-only primitives, plus the artifacts adoption writes (retroactive entries, docs map, registered architecture and plan), which cf already understands. Until `sq onboard` exists, adoption is parked. `/cf:onboard` gets no brownfield path, and cf neither starts nor half-runs an adoption.
+
+9. [ ] **(268) Pure cf build** — Remove the adoption resolver from `cf build`, `context_build` and `template_preview`: `ContextIntegrator.resolveAdoptionFn`, the Adoption Facts section in `ContextTemplateEngine`, the brownfield profile swap, and both state writes. A Phase 0 build selects the concept prompt and has no side effects, the same as every other phase. Delete the code only build-time adoption used. Keep `MIN_GUIDE_VERSION` and its build warning, which are not adoption logic.
+   - **Value:** `cf build` means one thing again: assemble context for the current phase. No hidden writes.
+   - **Success criteria:** no `cf build`, `context_build` or `template_preview` path reads or writes adoption state, runs detection or probes squadron. A test asserts that a build in a brownfield repo writes nothing to config. Greenfield builds are byte-identical to before. CLI and MCP builds match.
+   - **Dependencies:** none.
+   - **Risk:** Medium (the guide's current brownfield prompt tells agents to run `cf build`; 272 aligns it). **Effort:** 2/5
+10. [ ] **(269) Collapse Adoption State** — Replace the four-value `adoption.state` (`""`, `in_progress`, `complete`, `declined`) with what the filesystem already says. Brownfield means code and no planning artifacts; once the artifacts exist, the project is planned. Keep only an explicit opt-out ("treat this as new"). The slice design settles whether that keeps `declined` under the same key or uses a new boolean. Existing `in_progress` and `complete` values are ignored with a one-time notice, never an error. Delete the state transitions, completion detection and their tests.
+   - **Value:** no stored state that can drift from the files, and a large cut in code and rules.
+   - **Success criteria:** detection gives the same outcome from files alone. The opt-out works. Configs already holding `in_progress` or `complete` keep working with no hand edit. `cf check` and `cf config get` describe only the remaining value.
+   - **Dependencies:** 268.
+   - **Risk:** Medium (config key semantics change for shipped 0.19.x users). **Effort:** 2/5
+11. [ ] **(270) Remove Adoption Navigation from cf next** — Delete the per-step adoption guidance: `adoptionNavigation.ts`, `routeAdoption` in `WorkflowNavigator`, the adoption warnings on the architecture and slice-plan prompts, and the "run `cf build` to record adoption" advice. A project with code, no planning artifacts and no opt-out gets one line saying adoption arrives with `sq onboard`, and how to opt out and treat it as new. An adopted project is navigated like any other planned project; retroactive entries already count as complete, so `cf next` points at the first unbuilt slice. `workflow_next` matches.
+   - **Value:** removes the largest block of untested navigation code and its special cases.
+   - **Success criteria:** `cf next` and `workflow_next` give that one line for an unadopted brownfield repo and normal navigation otherwise. No adoption-specific routing remains in the navigator. Greenfield and already-planned navigation is unchanged.
+   - **Dependencies:** 269.
+   - **Risk:** Low–Medium. **Effort:** 2/5
+12. [ ] **(271) Adoption Primitives for sq onboard** — Two read-only primitives for `sq onboard` to call, and nothing that orchestrates. **(a) Project state:** one CLI command and MCP tool returning JSON: greenfield, brownfield or already planned, plus the detection facts (source volume labelled as a floor, history, docs, ADRs, CI, rule files). It writes nothing and makes no squadron decisions. cf owns it because "already planned" means cf artifacts exist. `cf init` uses the same core function to print one line when it finds an existing codebase. **(b) Prompt delivery:** the guide's adoption prompt by key, with the comprehension doc's path filled in when one exists (found by filename and `docType`, as today). Delete cf's squadron probe code (262): running `sq probe`, `probe_version` checks and the probe JSON in the facts. Squadron owns graphs and comprehension. The slice design settles command names, and how the guide's `brownfield-adoption` context profile is delivered now that `cf build` no longer selects it.
+   - **Value:** `sq onboard` gets exactly what it needs from cf, with no logic duplicated across the two repos and nothing to unwind later.
+   - **Success criteria:** the state command and its MCP tool return matching JSON and write nothing. The prompt fills the comprehension path when the doc exists and says plainly when it doesn't. No cf code runs or parses `sq probe`. `cf init` and the state command share one detection function.
+   - **Dependencies:** 269 (no stored state to report).
+   - **Risk:** Low–Medium (the contract squadron will build against; confirm it with the sq session before design is final). **Effort:** 2/5
+13. [ ] **(272) Docs and Guide Alignment** — README, CLI and MCP references describe the reworked state: adoption arrives with `sq onboard`, the opt-out exists, and the primitives are there for squadron. Coordinate with ai-project-guide so its brownfield prompt and adoption guide drop every `cf build` step and the raw-probe branching. Raise `MIN_GUIDE_VERSION` to the guide release that carries that. Send squadron the primitives contract (271) for `sq onboard`.
+   - **Value:** nothing in cf, the guide or the docs points at the removed `cf build` behavior.
+   - **Success criteria:** no doc or guide prompt tells anyone to run `cf build` for adoption. The squadron session has the 271 contract.
+   - **Dependencies:** 268–271. External: ai-project-guide prompt update.
+   - **Risk:** Low. **Effort:** 1/5
+
+**Parked until `sq onboard` exists:**
+
+14. [ ] **(273) Real Adoption Run via sq onboard** — One adoption on a real repository chosen by the PM, with the PM answering live (not scripted), through to the first new slice design built on the derived architecture. Fix or file what it finds.
+   - **Dependencies:** 271, 272. External: `sq onboard`.
+   - **Risk:** Medium. **Effort:** 2/5
+15. [ ] **(274) Carry Codebase Comprehension into Later Phases** — Today the comprehension doc is in only one guide context profile, `brownfield-adoption`. Architecture and slice-design builds never see it, and neither does the docs map (#135). The graph's understanding is used once, condensed into the derived architecture, and then never seen again, and nothing refreshes it as the code changes. Make the comprehension doc and the docs map available to the phases that do later design work (architecture, slice planning, slice design), and decide how they are kept current. This entry is an umbrella and is expected to split into several slices at design time.
+   - **Value:** adoption improves every later design session, not just the first afternoon. This is the benefit that justifies adoption at all.
+   - **Success criteria:** after adoption, an architecture or slice-design build includes the comprehension doc and the docs map when they exist, and says so plainly when they don't. Staleness is detectable, and the way to refresh is named.
+   - **Dependencies:** 273. External: ai-project-guide context profiles (new variables), squadron (refresh of the graph and the comprehension doc).
+   - **Risk:** Medium (three-repo contract; staleness rules). **Effort:** 3/5 as an umbrella; real effort is set when it splits.
+
+**Squadron is the only supported adoption path (PM decision 20261025).** There is no CF-only branch, prompt path or verification. The rework removes the CF-only special cases it touches instead of carrying them forward. A proper CF-only path is low-priority Future Work.
+
+**Deliberately not in this rework:** retroactive slice entries (cf check, the review gate and the plan parser; consumed by ai-project-guide and squadron as a cross-repo contract), conventions reconciliation (266), the docs map (267), and #123. Each stands on its own and is not part of the `cf build` and `cf next` problem.
+
 ## Notes
+- **Reversed 20261025 (PM):** the arch's adoption flow, in which onboard hands off to `cf build` and `cf build` selects the brownfield prompt and holds adoption state, no longer holds. Adoption is orchestrated by `sq onboard`, and cf provides read-only primitives (271). The cf/squadron responsibility split changes with it: cf no longer runs the squadron probe. The arch needs a matching amendment before 268's design. The settled list below is superseded where it conflicts.
 - **Settled in the arch (don't relitigate in slice design):** onboarding is setup plus a handoff, with no brownfield logic in the recipe. Squadron is the normal path. `/understand` (the probe's `graph_build`) is the only step that asks the PM, once. A missing Adoption Facts section stops the prompt. A missing brownfield profile fails the build. The CF/squadron responsibility split is PM approved 20261020.
 - **Cross-repo state:** ai-project-guide v0.22.1 ships the profile, the prompt, the concept opener and the adoption guide. Its retroactive-marker rule waits on 263's spec. Squadron's probe contract is locked (`probe_version` 1, squadron commit 32b3c609), but the probe isn't built and ships after squadron 366. Only 262 waits on it.
 - **Review status:** the 260 arch review (CONCERNS, 11 findings) is addressed in the arch revision. No re-review has been run.
@@ -78,6 +125,8 @@ These aren't needed for the core goal and follow the integration slice.
 
 ## Future Work
 Items to be added here as they arise during slice design, task breakdown, or implementation.
+
+- **CF-only adoption path (low priority, PM 20261025):** adoption without squadron. Deferred; until then a project without squadron is told adoption needs squadron.
 
 - **From slice 266 (conventions reconciliation):**
   - A `cf next` recommendation to run reconciliation when rule files are present and no resolutions are recorded.
