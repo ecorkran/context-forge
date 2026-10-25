@@ -2,7 +2,7 @@
 // A concept (000-concept.*) is not a planning artifact.
 import { readdir } from 'fs/promises';
 import { basename, join } from 'path';
-import { AdoptionError } from '../adoption/contracts.js';
+import { AdoptionError, OVERRIDE_REMEDY } from '../adoption/contracts.js';
 import { INITIATIVE_PLAN_FILE_PATTERN } from '../introspection/ArtifactIntrospector.js';
 import { isEnoent } from './pathPresent.js';
 
@@ -31,9 +31,6 @@ export function compareByFileIndex(a: string, b: string): number {
 function isPlanningArtifactName(name: string): boolean {
   return ARCHITECTURE_FILE_PATTERN.test(name) || SLICE_PLAN_FILE_PATTERN.test(name);
 }
-
-const OVERRIDE_REMEDY =
-  'To skip detection run `cf config set adoption.state in_progress` or `cf config set adoption.state declined`.';
 
 /** File names in a directory; a missing directory (ENOENT) has none. Other errors throw. */
 async function listFileNames(dir: string): Promise<string[]> {

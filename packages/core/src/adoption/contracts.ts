@@ -10,3 +10,6 @@ export class AdoptionError extends Error {
     this.name = 'AdoptionError';
   }
 }
+
+/** Remedy appended to detection errors: the opt-out that skips detection. */
+export const OVERRIDE_REMEDY = 'To treat the project as new and skip detection: cf config set adoption.state declined';

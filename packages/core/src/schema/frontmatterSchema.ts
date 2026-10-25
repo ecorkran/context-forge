@@ -31,6 +31,9 @@ export interface FrontmatterFinding {
 /** Canonical valid status values across all docTypes. */
 export const VALID_STATUSES = Object.values(STATUS);
 
+/** The architecture `provenance` value marking an architecture derived from an existing system. */
+export const DERIVED_PROVENANCE = 'derived';
+
 /** Per-docType frontmatter schemas — required fields only. */
 export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
   concept: {
@@ -61,8 +64,8 @@ export const FRONTMATTER_SCHEMAS: Record<string, DocTypeSchema> = {
       dateCreated: { required: true },
       dateUpdated: { required: true },
       // Marks an architecture derived from an existing system (slice 263 D7).
-      // Informational only: no behavior branches on it; this entry just rejects misspellings.
-      provenance: { required: false, values: ['derived'] },
+      // Adoption detection reads it: a derived architecture with no retroactive plan is mid-adoption (slice 269 D4).
+      provenance: { required: false, values: [DERIVED_PROVENANCE] },
     },
   },
   'slice-plan': {
