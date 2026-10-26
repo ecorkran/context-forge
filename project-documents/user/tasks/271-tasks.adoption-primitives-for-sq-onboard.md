@@ -85,95 +85,95 @@ revision_number: 2
 
 ### 3. One outcome-to-line mapping (D9)
 
-- [ ] **3.1 Extract `outcomeLine`** — effort 1
-  - [ ] In `packages/core/src/adoption/adoptionLines.ts`, export `outcomeLine(outcome: AdoptionOutcome): string | null`: `BROWNFIELD_LINE` for `brownfield`, `INCOMPLETE_ADOPTION_LINE` for `adoption-incomplete`, `null` for `opted-out`, `already-planned` and `greenfield`. Use an exhaustive `switch` with a `never` default, as `adoptionNavLines` does
-  - [ ] Change `adoptionNavLines` and `codeSignalLines` so every outcome-to-line choice goes through `outcomeLine`. Keep their existing behavior: `adoption-incomplete` still returns before any source walk, and a failed walk still returns `inconclusiveDetectionLine`
-  - [ ] **Success:** `grep -n "BROWNFIELD_LINE\|INCOMPLETE_ADOPTION_LINE" packages/core/src/adoption/adoptionLines.ts` shows each constant used only in its definition and in `outcomeLine`
+- [x] **3.1 Extract `outcomeLine`** — effort 1
+  - [x] In `packages/core/src/adoption/adoptionLines.ts`, export `outcomeLine(outcome: AdoptionOutcome): string | null`: `BROWNFIELD_LINE` for `brownfield`, `INCOMPLETE_ADOPTION_LINE` for `adoption-incomplete`, `null` for `opted-out`, `already-planned` and `greenfield`. Use an exhaustive `switch` with a `never` default, as `adoptionNavLines` does
+  - [x] Change `adoptionNavLines` and `codeSignalLines` so every outcome-to-line choice goes through `outcomeLine`. Keep their existing behavior: `adoption-incomplete` still returns before any source walk, and a failed walk still returns `inconclusiveDetectionLine`
+  - [x] **Success:** `grep -n "BROWNFIELD_LINE\|INCOMPLETE_ADOPTION_LINE" packages/core/src/adoption/adoptionLines.ts` shows each constant used only in its definition and in `outcomeLine`
 
-- [ ] **3.2 Test `outcomeLine`** — effort 1
-  - [ ] In `packages/core/tests/adoption/adoptionLines.test.ts`, one case per outcome kind, asserting against the imported constants or `null`
-  - [ ] **Success:** existing `adoptionLines` tests and `pnpm --filter @context-forge/core test adoption` pass unchanged. `pnpm --filter @context-forge/cli test next` and `pnpm --filter @context-forge/mcp test workflow` pass
+- [x] **3.2 Test `outcomeLine`** — effort 1
+  - [x] In `packages/core/tests/adoption/adoptionLines.test.ts`, one case per outcome kind, asserting against the imported constants or `null`
+  - [x] **Success:** existing `adoptionLines` tests and `pnpm --filter @context-forge/core test adoption` pass unchanged. `pnpm --filter @context-forge/cli test next` and `pnpm --filter @context-forge/mcp test workflow` pass
 
-- [ ] **3.3 Commit** — `refactor: extract outcomeLine as the one outcome-to-line mapping`
+- [x] **3.3 Commit** — `refactor: extract outcomeLine as the one outcome-to-line mapping`
 
 ---
 
 ### 4. Adoption artifacts (D3 `artifacts`)
 
-- [ ] **4.1 Implement `readAdoptionArtifacts`** — effort 2
-  - [ ] Create `packages/core/src/adoption/adoptionInputs.ts`. Export `AdoptionArtifacts` (`concept: string | null`, `derivedArchitectures: string[]`, `existingStatePlan: string | null`) and `readAdoptionArtifacts(root)`
-  - [ ] Concept from `resolveConceptPath(root)` (`introspection/ArtifactIntrospector.ts`); the other two from `readPlanningFacts(root)`. Do not scan planning files a second way
-  - [ ] Convert every path to root-relative with `/` separators (D3). Do the conversion in one exported helper, which `detectProject` reuses for CI and other facts
-  - [ ] Errors propagate unchanged (`AdoptionError` from `readPlanningFacts`)
-  - [ ] Export the module from `adoption/index.ts`
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **4.1 Implement `readAdoptionArtifacts`** — effort 2
+  - [x] Create `packages/core/src/adoption/adoptionInputs.ts`. Export `AdoptionArtifacts` (`concept: string | null`, `derivedArchitectures: string[]`, `existingStatePlan: string | null`) and `readAdoptionArtifacts(root)`
+  - [x] Concept from `resolveConceptPath(root)` (`introspection/ArtifactIntrospector.ts`); the other two from `readPlanningFacts(root)`. Do not scan planning files a second way. Note: `resolveConceptPath` moved to `introspection/parsers/projectGuideFile.ts` to satisfy the D8 import-layer lint rule
+  - [x] Convert every path to root-relative with `/` separators (D3). Do the conversion in one exported helper, which `detectProject` reuses for CI and other facts
+  - [x] Errors propagate unchanged (`AdoptionError` from `readPlanningFacts`)
+  - [x] Export the module from `adoption/index.ts`
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **4.2 Test `readAdoptionArtifacts`** — effort 1
-  - [ ] New `packages/core/tests/adoption/adoptionInputs.test.ts`, using `tests/helpers/adoptionFixtures.ts`
-  - [ ] Cases: empty directory (all `null` / `[]`); concept only; derived architecture without retroactive plan; complete adoption (all three set). Assert root-relative `/` paths built from the fixture's file-name constants
-  - [ ] **Success:** `pnpm --filter @context-forge/core test adoptionInputs` passes
+- [x] **4.2 Test `readAdoptionArtifacts`** — effort 1
+  - [x] New `packages/core/tests/adoption/adoptionInputs.test.ts`, using `tests/helpers/adoptionFixtures.ts`
+  - [x] Cases: empty directory (all `null` / `[]`); concept only; derived architecture without retroactive plan; complete adoption (all three set). Assert root-relative `/` paths built from the fixture's file-name constants
+  - [x] **Success:** `pnpm --filter @context-forge/core test adoptionInputs` passes
 
-- [ ] **4.3 Commit** — `feat: add readAdoptionArtifacts`
+- [x] **4.3 Commit** — `feat: add readAdoptionArtifacts`
 
 ---
 
 ### 5. Report types and error envelope (D3, D5, D8 versioning)
 
-- [ ] **5.1 Implement `detectionReport.ts`** — effort 2
-  - [ ] Create `packages/core/src/adoption/detectionReport.ts` with:
+- [x] **5.1 Implement `detectionReport.ts`** — effort 2
+  - [x] Create `packages/core/src/adoption/detectionReport.ts` with:
     1. `REPORT_VERSION = 1` and `INIT_REPORT_VERSION = 1`, side by side, each with a comment stating the D3 bump rule
     2. `DETECTION_ERROR_CODES`: `path-not-found`, `invalid-config`, `unreadable-planning`, `source-unmeasurable`, `worktree-of-registered-project`, `internal`, and a `DetectionErrorCode` type derived from it. This is the only place the codes are written
     3. `DetectionError extends Error` with a `code: DetectionErrorCode`
     4. `ProjectDetection` (the result type `detectProject` returns) and `DetectionReport` (the D3 JSON shape), with `facts.source` and `facts.history` as the D3 tagged unions (`measured` / `known` booleans)
     5. `toDetectionReport(detection): DetectionReport`. `outcome` is `AdoptionOutcome.kind` passed straight through, with no second list of outcome values
     6. `serializeDetectionReport(report): string` and `serializeErrorEnvelope(reportVersion, code, message): string`, producing the D5 object `{ reportVersion, error: { code, message } }`. Both use one `JSON.stringify` call with fixed indentation, so CLI and MCP output is byte-identical
-  - [ ] Map `HistoryFact` to `{ known, … }` here (D3), not in callers
-  - [ ] Export from `adoption/index.ts`
-  - [ ] **Success:** `pnpm typecheck` passes
+  - [x] Map `HistoryFact` to `{ known, … }` here (D3), not in callers
+  - [x] Export from `adoption/index.ts`
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **5.2 Test the serializers** — effort 1
-  - [ ] New `packages/core/tests/adoption/detectionReport.test.ts`. Build a `ProjectDetection` by hand for one outcome and assert the serialized JSON matches the D3 shape: field names, `reportVersion`, the `source` and `history` unions both ways (measured/unmeasured, known/unknown)
-  - [ ] Assert `serializeErrorEnvelope` output parses to exactly `{ reportVersion, error: { code, message } }`, for both version constants
-  - [ ] **Success:** `pnpm --filter @context-forge/core test detectionReport` passes
+- [x] **5.2 Test the serializers** — effort 1
+  - [x] New `packages/core/tests/adoption/detectionReport.test.ts`. Build a `ProjectDetection` by hand for one outcome and assert the serialized JSON matches the D3 shape: field names, `reportVersion`, the `source` and `history` unions both ways (measured/unmeasured, known/unknown)
+  - [x] Assert `serializeErrorEnvelope` output parses to exactly `{ reportVersion, error: { code, message } }`, for both version constants
+  - [x] **Success:** `pnpm --filter @context-forge/core test detectionReport` passes
 
-- [ ] **5.3 Commit** — `feat: add detection report types and error envelope`
+- [x] **5.3 Commit** — `feat: add detection report types and error envelope`
 
 ---
 
 ### 6. `detectProject` (D2, D4, D5)
 
-- [ ] **6.1 Implement `detectProject(root)`** — effort 3
-  - [ ] Create `packages/core/src/adoption/projectDetection.ts`. `root` must be absolute; a non-absolute root is a programming error (throw a plain `Error`), because callers resolve or refuse relative paths (D5)
-  - [ ] Missing path or not a directory: throw `DetectionError` `path-not-found`, with a message naming the path and which case it is (D2)
-  - [ ] Gather every fact on every call (D4): `readAdoptionOptOut`, `readPlanningFacts`, `readAdoptionArtifacts`, `measureSourceVolume`, `readHistory`, `presentPaths(root, DOC_PATHS)`, `presentPaths(root, ADR_DIRS)`, `presentPaths(root, RULE_FILE_PATHS)`, `recognizeCi`. Export `DOC_PATHS` and `ADR_DIRS` from `detection/index.ts` if they are not already exported
-  - [ ] Wrap each `AdoptionError` at its call with that call's code (D5): opt-out read → `invalid-config`; planning facts and artifacts → `unreadable-planning`. Keep the original message and set `cause`. No class-to-code mapping table. Other errors propagate untouched
-  - [ ] A failed source walk (`AdoptionError` from `measureSourceVolume`) becomes `{ measured: false, reason }`. Then decide the stage with `decideStage`. If the stage is `unplanned`, throw `source-unmeasurable` with the walk's message as is: it already ends with `OVERRIDE_REMEDY` (`detection/sourceVolume.ts`), so do not append it again. Otherwise use the stage as the outcome (D4)
-  - [ ] When measured, `capped` is true exactly when counting stopped at `BROWNFIELD_MIN_SOURCE_LINES` (read how `measureSourceVolume` reports this; do not recompute)
-  - [ ] Notices (D3): the legacy notice when `ignoredLegacyValue` is set, then `outcomeLine(outcome)` when not `null`
-  - [ ] All fact paths root-relative via the 4.1 helper. Root-level CI in a monorepo keeps its climbing `../` path (D2)
-  - [ ] Write nothing: no config, no store, no git command that writes
-  - [ ] Export from `adoption/index.ts`
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **6.1 Implement `detectProject(root)`** — effort 3
+  - [x] Create `packages/core/src/adoption/projectDetection.ts`. `root` must be absolute; a non-absolute root is a programming error (throw a plain `Error`), because callers resolve or refuse relative paths (D5)
+  - [x] Missing path or not a directory: throw `DetectionError` `path-not-found`, with a message naming the path and which case it is (D2)
+  - [x] Gather every fact on every call (D4): `readAdoptionOptOut`, `readPlanningFacts`, `readAdoptionArtifacts`, `measureSourceVolume`, `readHistory`, `presentPaths(root, DOC_PATHS)`, `presentPaths(root, ADR_DIRS)`, `presentPaths(root, RULE_FILE_PATHS)`, `recognizeCi`. Export `DOC_PATHS` and `ADR_DIRS` from `detection/index.ts` if they are not already exported. Note: `detectProject` takes an optional second parameter, a source-volume measurer, for test injection
+  - [x] Wrap each `AdoptionError` at its call with that call's code (D5): opt-out read → `invalid-config`; planning facts and artifacts → `unreadable-planning`. Keep the original message and set `cause`. No class-to-code mapping table. Other errors propagate untouched
+  - [x] A failed source walk (`AdoptionError` from `measureSourceVolume`) becomes `{ measured: false, reason }`. Then decide the stage with `decideStage`. If the stage is `unplanned`, throw `source-unmeasurable` with the walk's message as is: it already ends with `OVERRIDE_REMEDY` (`detection/sourceVolume.ts`), so do not append it again. Otherwise use the stage as the outcome (D4)
+  - [x] When measured, `capped` is true exactly when counting stopped at `BROWNFIELD_MIN_SOURCE_LINES` (read how `measureSourceVolume` reports this; do not recompute)
+  - [x] Notices (D3): the legacy notice when `ignoredLegacyValue` is set, then `outcomeLine(outcome)` when not `null`
+  - [x] All fact paths root-relative via the 4.1 helper. Root-level CI in a monorepo keeps its climbing `../` path (D2)
+  - [x] Write nothing: no config, no store, no git command that writes
+  - [x] Export from `adoption/index.ts`
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **6.2 Test `detectProject` per outcome** — effort 2
-  - [ ] New `packages/core/tests/adoption/projectDetection.test.ts`. One case each for `opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`. Assert `outcome`, `artifacts` and `notices` (against `outcomeLine` and imported constants)
-  - [ ] Brownfield fixture: write at least `BROWNFIELD_MIN_SOURCE_LINES` non-blank `.ts` lines (import the constant). Assert `capped: true`
-  - [ ] A non-git directory gives `history.known: false` with a reason
-  - [ ] A monorepo subdirectory (git root with `.github/workflows/ci.yml`, project in `packages/app`) is judged on the subfolder, and CI is reported as `../../.github/workflows/ci.yml`
-  - [ ] A stored legacy `adoption.state` value puts the legacy notice first in `notices`
-  - [ ] Every path in the result except `projectRoot` is relative (assert none starts with `/`)
-  - [ ] **Success:** `pnpm --filter @context-forge/core test projectDetection` passes
+- [x] **6.2 Test `detectProject` per outcome** — effort 2
+  - [x] New `packages/core/tests/adoption/projectDetection.test.ts`. One case each for `opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`. Assert `outcome`, `artifacts` and `notices` (against `outcomeLine` and imported constants)
+  - [x] Brownfield fixture: write at least `BROWNFIELD_MIN_SOURCE_LINES` non-blank `.ts` lines (import the constant). Assert `capped: true`
+  - [x] A non-git directory gives `history.known: false` with a reason
+  - [x] A monorepo subdirectory (git root with `.github/workflows/ci.yml`, project in `packages/app`) is judged on the subfolder, and CI is reported as `../../.github/workflows/ci.yml`
+  - [x] A stored legacy `adoption.state` value puts the legacy notice first in `notices`
+  - [x] Every path in the result except `projectRoot` is relative (assert none starts with `/`)
+  - [x] **Success:** `pnpm --filter @context-forge/core test projectDetection` passes
 
-- [ ] **6.3 Test `detectProject` errors and the unmeasured walk** — effort 2
-  - [ ] `path-not-found` for a missing path and for a file path
-  - [ ] `invalid-config` for an out-of-set `adoption.state` and for unparseable TOML
-  - [ ] `unreadable-planning` for an unlistable planning directory (permission `000`; skip on platforms where `chmod` has no effect, as existing planning tests do)
-  - [ ] A failing source walk, injected the way `adoptionLines.test.ts` injects one: on a planned project the result has `source.measured: false`; on an unplanned project it throws `source-unmeasurable` with `OVERRIDE_REMEDY` in the message.
-  - [ ] Assert each error's `code` against `DETECTION_ERROR_CODES`
-  - [ ] **Success:** `pnpm --filter @context-forge/core test adoption` passes
+- [x] **6.3 Test `detectProject` errors and the unmeasured walk** — effort 2
+  - [x] `path-not-found` for a missing path and for a file path
+  - [x] `invalid-config` for an out-of-set `adoption.state` and for unparseable TOML
+  - [x] `unreadable-planning` for an unlistable planning directory (permission `000`; skip on platforms where `chmod` has no effect, as existing planning tests do). Note: tested via `ENOTDIR` (a file where `architecture/` should be), not `chmod`
+  - [x] A failing source walk, injected the way `adoptionLines.test.ts` injects one: on a planned project the result has `source.measured: false`; on an unplanned project it throws `source-unmeasurable` with `OVERRIDE_REMEDY` in the message.
+  - [x] Assert each error's `code` against `DETECTION_ERROR_CODES`
+  - [x] **Success:** `pnpm --filter @context-forge/core test adoption` passes
 
-- [ ] **6.4 Commit** — `feat: add detectProject`
-  - [ ] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/core test` pass first
+- [x] **6.4 Commit** — `feat: add detectProject`
+  - [x] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/core test` pass first
 
 ---
 

@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { registerBuildCommand } from './commands/build.js';
 import { registerCheckCommand } from './commands/check.js';
+import { registerDetectCommand } from './commands/detect.js';
 import { registerFutureCommand } from './commands/future.js';
 import { registerNextCommand } from './commands/next.js';
 import { registerProjectCommand, projectSetAction, projectGetAction, projectUnsetAction, buildSettableFieldsHelp } from './commands/project.js';
@@ -53,6 +54,7 @@ program
 // Workflow commands
 registerBuildCommand(program);
 registerCheckCommand(program);
+registerDetectCommand(program);
 registerFutureCommand(program);
 registerNextCommand(program);
 registerProjectCommand(program);
