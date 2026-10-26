@@ -5,3 +5,4 @@ export * from './planningFacts.js';
 export * from './adoptionLines.js';
 export * from './adoptionInputs.js';
 export * from './detectionReport.js';
+export * from './projectDetection.js';
