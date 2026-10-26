@@ -1,5 +1,4 @@
 import { join } from 'node:path';
-import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
 import type { IArtifactIntrospector } from './interfaces.js';
 import type {
@@ -16,19 +15,10 @@ import { parseFrontmatter } from './parsers/frontmatterParser.js';
 import { parseFutureWork } from './parsers/futureWorkParser.js';
 import { detectDocuments, checkFileExists } from './parsers/documentDetector.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
+import { findProjectGuideFile, resolveConceptPath } from './parsers/projectGuideFile.js';
 
-/** Find the first file in the project's project-guides directory matching `pattern`. */
-async function findProjectGuideFile(projectPath: string, pattern: RegExp): Promise<string | null> {
-  const guidesDir = join(projectPath, 'project-documents/user/project-guides');
-  try {
-    const files = await readdir(guidesDir);
-    const match = files.find((f) => pattern.test(f));
-    return match ? join(guidesDir, match) : null;
-  } catch {
-    // Missing directory means the artifact has not been created yet
-    return null;
-  }
-}
+// Moved to parsers/ so adoption/ can read the concept without crossing the D8 layer boundary.
+export { resolveConceptPath };
 
 /** Filename of an initiative plan: 001-initiative-plan.*.md (case-insensitive). */
 export const INITIATIVE_PLAN_FILE_PATTERN = /^001-initiative-plan\..*\.md$/i;
@@ -40,15 +30,6 @@ export const INITIATIVE_PLAN_FILE_PATTERN = /^001-initiative-plan\..*\.md$/i;
  */
 export function resolveInitiativePlanPath(projectPath: string): Promise<string | null> {
   return findProjectGuideFile(projectPath, INITIATIVE_PLAN_FILE_PATTERN);
-}
-
-/**
- * Locate the concept file for a project.
- * Convention: project-documents/user/project-guides/000-concept.*.md
- * Returns the full path, or null if not found.
- */
-export function resolveConceptPath(projectPath: string): Promise<string | null> {
-  return findProjectGuideFile(projectPath, /^000-concept\..*\.md$/i);
 }
 
 /**
