@@ -136,6 +136,7 @@ describe('Server Lifecycle', () => {
       'introspection_slice_plan',
       'introspection_tasks',
       'project_create',
+      'project_detect',
       'project_get',
       'project_list',
       'project_schema',

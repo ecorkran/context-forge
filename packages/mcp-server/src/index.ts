@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerProjectTools } from './tools/projectTools.js';
+import { registerDetectTools } from './tools/detectTools.js';
 import { registerContextTools } from './tools/contextTools.js';
 import { registerStateTools } from './tools/stateTools.js';
 import { registerConfigTools } from './tools/configTools.js';
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   registerAgentOnboardTool(server);     // onboarding recipe for new projects
   registerAgentQuickstartTool(server, SERVER_VERSION); // structured schema for machine consumers
   registerProjectTools(server, SERVER_VERSION); // core: list, get, create, update
+  registerDetectTools(server);          // judge a directory, registered or not
   registerWorkflowTools(server);        // what to do next
   registerContextTools(server);         // build prompts
   registerGuideTools(server);           // install/check guides
