@@ -5,20 +5,17 @@ import { handleError } from '../utils/errors.js';
 import { dim } from '../output/styles.js';
 import { strategyHelpText } from './guides.js';
 import {
-  ensurePersonalConfigGitignored,
-  runCommandsStep,
+  HUMAN_OUTPUT,
+  anyStepFailed,
   runGitStep,
-  runGuidesStep,
-  runIdeStep,
+  runGitignoreStep,
   runRegisterStep,
-  type IdeOption,
+  runSetupSteps,
+  type SetupOptions,
 } from './initSteps.js';
 
-interface InitOptions {
+interface InitOptions extends SetupOptions {
   name?: string;
-  lite?: boolean;
-  ide?: IdeOption;
-  strategy?: string;
 }
 
 export function registerInitCommand(program: Command): void {
@@ -32,26 +29,21 @@ export function registerInitCommand(program: Command): void {
     .option('--strategy <method>', strategyHelpText())
     .action(async (opts: InitOptions) => {
       try {
+        const out = HUMAN_OUTPUT;
         const cwd = path.resolve(process.cwd());
         const store = new FileProjectStore();
         const all = await store.getAll();
 
-        runGitStep(cwd);
-        const registration = await runRegisterStep(store, all, cwd, opts.name);
+        const git = runGitStep(cwd, out);
+        const registration = await runRegisterStep(store, all, cwd, opts.name, out);
         if (registration.kind === 'worktree') return;
 
-        // Ensure the personal config file is gitignored — repo hygiene, so this runs
-        // regardless of --lite (unlike guides/commands/IDE setup below).
-        ensurePersonalConfigGitignored(cwd);
-
-        if (!opts.lite) {
-          await runGuidesStep(cwd, opts.strategy);
-          runCommandsStep(opts.ide);
-          await runIdeStep(cwd, opts.ide);
-        }
+        const steps = [git, registration.result, runGitignoreStep(cwd), ...(await runSetupSteps(cwd, opts, out))];
 
         console.log(dim('──────────────────────────────────────'));
         console.log('Your project is ready. Run cf next to see recommended next steps.');
+        // A failed step still prints its warning above; the exit code now reports it too (D8).
+        if (anyStepFailed(steps)) process.exitCode = 1;
       } catch (err) {
         handleError(err);
       }

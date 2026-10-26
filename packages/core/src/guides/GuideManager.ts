@@ -20,6 +20,14 @@ import { CloneStrategy } from './strategies/CloneStrategy.js';
 import { TarballStrategy, readExcludeRecord } from './strategies/TarballStrategy.js';
 import { evaluateBranchGuard, BranchGuardBlockedError, BranchGuardWarnError } from './branchGuard.js';
 
+/** Thrown by `install` when a guide is already there, so callers test the type rather than the message text. */
+export class GuideAlreadyInstalledError extends Error {
+  constructor() {
+    super('Guide is already installed. Use guide_update (or cf guides update) to update it.');
+    this.name = 'GuideAlreadyInstalledError';
+  }
+}
+
 /**
  * A strategy resolved from an input boundary, plus the original spelling when
  * that input used a deprecated alias (D5). Used for both the config path and
@@ -124,9 +132,7 @@ export class GuideManager {
     // Check if already installed
     const info = await this.detector.detect(this.projectPath, source);
     if (info.installed) {
-      throw new Error(
-        'Guide is already installed. Use guide_update (or cf guides update) to update it.'
-      );
+      throw new GuideAlreadyInstalledError();
     }
 
     const strategy = this.getStrategy(method, exclude);

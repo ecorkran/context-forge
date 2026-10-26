@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
+import { GuideAlreadyInstalledError } from '@context-forge/core/node';
 import { registerInitCommand } from '../../src/commands/init.js';
+import { HUMAN_OUTPUT, INIT_STEP, SKIP_REASON, STEP_STATUS, runSetupSteps } from '../../src/commands/initSteps.js';
 
 const mockGetAll = vi.fn();
 const mockCreate = vi.fn();
@@ -69,6 +71,11 @@ vi.mock('../../src/commands/commandInstaller.js', () => ({
   registerInstallCommandsCommand: vi.fn(),
   registerUninstallCommandsCommand: vi.fn(),
 }));
+
+// A failed step now sets the exit code (slice 271 D8); keep it from leaking between tests.
+afterEach(() => {
+  process.exitCode = undefined;
+});
 
 function createProgram(): Command {
   const program = new Command();
@@ -222,7 +229,7 @@ describe('cf init', () => {
     const program = createProgram();
     await program.parseAsync(['init', '--ide', 'codex'], { from: 'user' });
 
-    expect(mockInstallCommandsAction).toHaveBeenCalledWith('agents');
+    expect(mockInstallCommandsAction).toHaveBeenCalledWith('agents', {}, expect.any(Function));
   });
 
   it('does not install commands for targets without command delivery', async () => {
@@ -245,6 +252,7 @@ describe('cf init', () => {
       process.cwd(),
       'cursor',
       expect.objectContaining({ yes: true }),
+      expect.any(Function),
     );
   });
 
@@ -258,6 +266,7 @@ describe('cf init', () => {
       process.cwd(),
       'claude',
       expect.objectContaining({ yes: true }),
+      expect.any(Function),
     );
   });
 
@@ -271,6 +280,7 @@ describe('cf init', () => {
       process.cwd(),
       'codex',
       expect.objectContaining({ yes: true }),
+      expect.any(Function),
     );
   });
 
@@ -310,7 +320,7 @@ describe('cf init', () => {
 
   it('guides already installed prints skip message and continues', async () => {
     mockGetAll.mockResolvedValue([]);
-    mockGuidesInstallAction.mockRejectedValue(new Error('Guide is already installed. Use guide_update to update it.'));
+    mockGuidesInstallAction.mockRejectedValue(new GuideAlreadyInstalledError());
 
     const program = createProgram();
     await program.parseAsync(['init'], { from: 'user' });
@@ -425,6 +435,7 @@ describe('cf init --strategy (D8)', () => {
     expect(mockGuidesInstallAction).toHaveBeenCalledWith(
       process.cwd(),
       { strategy: 'tarball' },
+      expect.any(Function),
     );
   });
 
@@ -437,6 +448,7 @@ describe('cf init --strategy (D8)', () => {
     expect(mockGuidesInstallAction).toHaveBeenCalledWith(
       process.cwd(),
       { strategy: 'manual' },
+      expect.any(Function),
     );
   });
 
@@ -447,10 +459,11 @@ describe('cf init --strategy (D8)', () => {
     expect(mockGuidesInstallAction).toHaveBeenCalledWith(
       process.cwd(),
       { strategy: undefined },
+      expect.any(Function),
     );
   });
 
-  it('surfaces an invalid strategy as a warning without failing init', async () => {
+  it('surfaces an invalid strategy as a warning without aborting init', async () => {
     mockGuidesInstallAction.mockRejectedValue(
       new Error("Invalid guide strategy 'bogus'. Valid values: submodule, clone, tarball."),
     );
@@ -461,5 +474,120 @@ describe('cf init --strategy (D8)', () => {
     const output = vi.mocked(console.log).mock.calls.map((c) => String(c[0] ?? '')).join('\n');
     expect(output).toContain('bogus');
     expect(output).toContain('submodule, clone, tarball');
+  });
+});
+
+describe('cf init step results and exit code (D8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockExistsSync.mockImplementation((p: string) => p.endsWith('.git'));
+    mockCreate.mockResolvedValue({ id: 'project_new_001', name: 'test-dir' });
+    mockGuidesInstallAction.mockResolvedValue(undefined);
+    mockSetupIdeAction.mockResolvedValue(undefined);
+    mockInstallCommandsAction.mockReturnValue(undefined);
+    mockGetAll.mockResolvedValue([]);
+  });
+
+  async function runInit(...args: string[]): Promise<void> {
+    await createProgram().parseAsync(['init', ...args], { from: 'user' });
+  }
+
+  it('exits 0 when every step succeeds', async () => {
+    await runInit();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('exits 1 when the guide install fails, and still runs the later steps', async () => {
+    mockGuidesInstallAction.mockRejectedValue(new Error('Invalid guide strategy'));
+    await runInit('--strategy', 'bogus');
+    expect(process.exitCode).toBe(1);
+    expect(mockSetupIdeAction).toHaveBeenCalled();
+  });
+
+  it('exits 1 when the IDE setup fails', async () => {
+    mockSetupIdeAction.mockRejectedValue(new Error('setup-ide failed'));
+    await runInit();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('exits 1 when the command install fails', async () => {
+    mockInstallCommandsAction.mockImplementation(() => {
+      throw new Error('cannot write');
+    });
+    await runInit();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('exits 1 when git init fails', async () => {
+    mockExistsSync.mockReturnValue(false);
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('git not found');
+    });
+    await runInit('--lite');
+    expect(process.exitCode).toBe(1);
+    mockExecFileSync.mockReset();
+  });
+
+  it('an already-installed guide is skipped, not failed', async () => {
+    mockGuidesInstallAction.mockRejectedValue(new GuideAlreadyInstalledError());
+    await runInit();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('the worktree refusal still exits 0', async () => {
+    mockGetAll.mockResolvedValue([{ id: 'p1', name: 'main-repo', projectPath: '/repo/main' }]);
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]) =>
+      args[0] === 'worktree' ? 'worktree /repo/main\nHEAD abc\n' : '',
+    );
+    await runInit();
+    expect(process.exitCode).toBeUndefined();
+    expect(mockCreate).not.toHaveBeenCalled();
+    mockExecFileSync.mockReset();
+  });
+
+  describe('runSetupSteps statuses', () => {
+    const statusOf = (steps: { step: string; status: string; message?: string }[], step: string) =>
+      steps.find((result) => result.step === step);
+
+    it('--lite marks guides, commands and ide skipped', async () => {
+      const steps = await runSetupSteps('/work', { lite: true }, HUMAN_OUTPUT);
+      for (const step of [INIT_STEP.guides, INIT_STEP.commands, INIT_STEP.ide]) {
+        expect(statusOf(steps, step)).toEqual({ step, status: STEP_STATUS.skipped, message: SKIP_REASON.lite });
+      }
+    });
+
+    it('--no-ide marks commands and ide skipped and runs guides', async () => {
+      const steps = await runSetupSteps('/work', { ide: false }, HUMAN_OUTPUT);
+      expect(statusOf(steps, INIT_STEP.guides)?.status).toBe(STEP_STATUS.ok);
+      expect(statusOf(steps, INIT_STEP.commands)).toEqual({
+        step: INIT_STEP.commands,
+        status: STEP_STATUS.skipped,
+        message: SKIP_REASON.noIde,
+      });
+      expect(statusOf(steps, INIT_STEP.ide)?.status).toBe(STEP_STATUS.skipped);
+    });
+
+    it('a target without command delivery marks commands skipped and still sets up the IDE', async () => {
+      const steps = await runSetupSteps('/work', { ide: 'cursor' }, HUMAN_OUTPUT);
+      expect(statusOf(steps, INIT_STEP.commands)?.message).toBe(SKIP_REASON.noCommandDelivery);
+      expect(statusOf(steps, INIT_STEP.ide)?.status).toBe(STEP_STATUS.ok);
+    });
+
+    it('an already-installed guide is skipped with the error message; a real failure is failed', async () => {
+      mockGuidesInstallAction.mockRejectedValueOnce(new GuideAlreadyInstalledError());
+      const skipped = await runSetupSteps('/work', { ide: false }, HUMAN_OUTPUT);
+      expect(statusOf(skipped, INIT_STEP.guides)?.status).toBe(STEP_STATUS.skipped);
+
+      mockGuidesInstallAction.mockRejectedValueOnce(new Error('Network error'));
+      const failed = await runSetupSteps('/work', { ide: false }, HUMAN_OUTPUT);
+      expect(statusOf(failed, INIT_STEP.guides)).toEqual({
+        step: INIT_STEP.guides,
+        status: STEP_STATUS.failed,
+        message: 'Network error',
+      });
+    });
   });
 });

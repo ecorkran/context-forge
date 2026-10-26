@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GuideManager } from '../../src/guides/GuideManager.js';
+import { GuideAlreadyInstalledError, GuideManager } from '../../src/guides/GuideManager.js';
 import { DEFAULT_SOURCE_GIT } from '../../src/guides/types.js';
 import type { DetectedGuideInfo } from '../../src/guides/types.js';
 
@@ -215,6 +215,7 @@ describe('GuideManager', () => {
       const manager = new GuideManager(projectPath, mockConfigManager as never);
 
       await expect(manager.install()).rejects.toThrow('already installed');
+      await expect(manager.install()).rejects.toBeInstanceOf(GuideAlreadyInstalledError);
     });
   });
 

@@ -1,10 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execFileSync } from 'node:child_process';
-import type { FileProjectStore } from '@context-forge/core/node';
+import { execFileSync, type StdioOptions } from 'node:child_process';
+import { GuideAlreadyInstalledError, type FileProjectStore } from '@context-forge/core/node';
 import { buildProjectCreationDefaults } from '@context-forge/core';
 import type { CreateProjectData, ProjectData } from '@context-forge/core';
 import { success, warn, dim } from '../output/styles.js';
+import { STDERR_SINK, STDOUT_SINK, type LogSink } from '../output/logSink.js';
 import { guidesInstallAction } from './guides.js';
 import { setupIdeAction, normalizeTarget } from './setup-ide.js';
 import { installCommandsAction } from './commandInstaller.js';
@@ -78,61 +79,130 @@ export function ensurePersonalConfigGitignored(cwd: string): void {
   );
 }
 
+/** The six setup steps, in the order they run. The one place the names are written. */
+export const INIT_STEP = {
+  git: 'git',
+  register: 'register',
+  gitignore: 'gitignore',
+  guides: 'guides',
+  commands: 'commands',
+  ide: 'ide',
+} as const;
+export type InitStepName = (typeof INIT_STEP)[keyof typeof INIT_STEP];
+
+export const STEP_STATUS = { ok: 'ok', skipped: 'skipped', failed: 'failed' } as const;
+export type StepStatus = (typeof STEP_STATUS)[keyof typeof STEP_STATUS];
+
+export interface StepResult {
+  step: InitStepName;
+  status: StepStatus;
+  message?: string;
+}
+
+/** Why a step was skipped, when the skip is not an "already done" case. */
+export const SKIP_REASON = {
+  lite: '--lite',
+  noIde: '--no-ide',
+  noCommandDelivery: 'the IDE target has no command delivery',
+  insideGitWorkTree: 'already inside a git work tree',
+} as const;
+
+function stepResult(step: InitStepName, status: StepStatus, message?: string): StepResult {
+  return message === undefined ? { step, status } : { step, status, message };
+}
+
+/** The result for a step that a flag turned off. */
+export function skippedStep(step: InitStepName, reason: string): StepResult {
+  return stepResult(step, STEP_STATUS.skipped, reason);
+}
+
+/** Where progress goes: stdout for people, stderr when stdout carries the JSON report (D8). */
+export interface InitOutput {
+  log: LogSink;
+  /** stdio for `git init`, which prints on its own. */
+  gitStdio: StdioOptions;
+}
+
+const STDERR_FD = 2;
+const IGNORE_STDIN = 'ignore';
+
+export const HUMAN_OUTPUT: InitOutput = { log: STDOUT_SINK, gitStdio: 'inherit' };
+export const JSON_OUTPUT: InitOutput = { log: STDERR_SINK, gitStdio: [IGNORE_STDIN, STDERR_FD, STDERR_FD] };
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 /** Detection 1: not inside any git work tree → git init. A subfolder of an existing repository must not get a nested repo (#133). */
-export function runGitStep(cwd: string): void {
-  if (!fs.existsSync(path.join(cwd, '.git')) && !isInsideGitWorkTree(cwd)) {
-    try {
-      execFileSync('git', ['init'], { cwd, stdio: 'inherit' });
-      console.log(success('git initialized'));
-    } catch {
-      console.log(warn('git init failed, continuing without git'));
-    }
+export function runGitStep(cwd: string, out: InitOutput): StepResult {
+  if (fs.existsSync(path.join(cwd, '.git')) || isInsideGitWorkTree(cwd)) {
+    return skippedStep(INIT_STEP.git, SKIP_REASON.insideGitWorkTree);
+  }
+  try {
+    execFileSync('git', ['init'], { cwd, stdio: out.gitStdio });
+    out.log(success('git initialized'));
+    return stepResult(INIT_STEP.git, STEP_STATUS.ok);
+  } catch (err) {
+    out.log(warn('git init failed, continuing without git'));
+    return stepResult(INIT_STEP.git, STEP_STATUS.failed, messageOf(err));
   }
 }
 
-export type RegisterOutcome = { kind: 'worktree' } | { kind: 'registered' };
+export type RegisterOutcome =
+  | { kind: 'worktree' }
+  | { kind: 'registered'; registration: 'created' | 'existing'; project: ProjectData; result: StepResult };
 
 /**
  * Detection 2: a CF project already registered at cwd is kept and setup continues. Detection 3: a git
- * worktree of a registered project is refused. Otherwise the project is created.
+ * worktree of a registered project is refused. Otherwise the project is created. A store failure
+ * throws: no project id exists, so there is no step result to report.
  */
 export async function runRegisterStep(
   store: FileProjectStore,
   all: ProjectData[],
   cwd: string,
   name: string | undefined,
+  out: InitOutput,
 ): Promise<RegisterOutcome> {
+  const result = stepResult(INIT_STEP.register, STEP_STATUS.ok);
   const existing = all.find((p) => p.projectPath === cwd);
   if (existing) {
-    console.log(dim(`Project '${existing.name}' already registered — running setup steps`));
-    return { kind: 'registered' };
+    out.log(dim(`Project '${existing.name}' already registered — running setup steps`));
+    return { kind: 'registered', registration: 'existing', project: existing, result };
   }
   const registeredPaths = all.filter((p) => p.projectPath).map((p) => p.projectPath as string);
   if (isGitWorktreeOf(cwd, registeredPaths)) {
-    console.log(warn('This looks like a worktree. Run cf worktree init instead.'));
+    out.log(warn('This looks like a worktree. Run cf worktree init instead.'));
     return { kind: 'worktree' };
   }
   const projectName = name || path.basename(cwd);
-  await store.create(buildProjectCreationDefaults({
+  const project = await store.create(buildProjectCreationDefaults({
     name: projectName,
     projectPath: cwd,
   }) as CreateProjectData);
-  console.log(success(`Project '${projectName}' registered`));
-  return { kind: 'registered' };
+  out.log(success(`Project '${projectName}' registered`));
+  return { kind: 'registered', registration: 'created', project, result };
 }
 
-/** Step 2: install guides. */
-export async function runGuidesStep(cwd: string, strategy: string | undefined): Promise<void> {
+/** Repo hygiene, so this runs regardless of --lite. A write failure throws, as every cf init file write does. */
+export function runGitignoreStep(cwd: string): StepResult {
+  ensurePersonalConfigGitignored(cwd);
+  return stepResult(INIT_STEP.gitignore, STEP_STATUS.ok);
+}
+
+/** Install guides. */
+export async function runGuidesStep(cwd: string, strategy: string | undefined, out: InitOutput): Promise<StepResult> {
   try {
-    await guidesInstallAction(cwd, { strategy });
-    console.log(success('Guides installed'));
+    await guidesInstallAction(cwd, { strategy }, out.log);
+    out.log(success('Guides installed'));
+    return stepResult(INIT_STEP.guides, STEP_STATUS.ok);
   } catch (err) {
-    const msg = (err as Error).message ?? '';
-    if (msg.toLowerCase().includes('already installed')) {
-      console.log(dim('  Guides already installed — skipping'));
-    } else {
-      console.log(warn(`Guides install failed: ${msg}`));
+    if (err instanceof GuideAlreadyInstalledError) {
+      out.log(dim('  Guides already installed — skipping'));
+      return stepResult(INIT_STEP.guides, STEP_STATUS.skipped, err.message);
     }
+    out.log(warn(`Guides install failed: ${messageOf(err)}`));
+    return stepResult(INIT_STEP.guides, STEP_STATUS.failed, messageOf(err));
   }
 }
 
@@ -144,38 +214,64 @@ function ideTargetOf(ide: IdeOption): string {
 }
 
 /**
- * Step 3: install commands/skills for the chosen IDE target, machine-level
+ * Install commands/skills for the chosen IDE target, machine-level
  * (preserves the pre-slice-924 behavior of a global Claude install; a
  * project-local install is available via `cf install-commands` directly).
  * --no-ide skips delivery entirely; targets without command delivery
- * (copilot, cursor) and invalid targets skip silently here — the IDE step
+ * (copilot, cursor) and invalid targets skip here — the IDE step
  * reports invalid targets with the full message.
  */
-export function runCommandsStep(ide: IdeOption): void {
-  if (ide === false) return;
+export function runCommandsStep(ide: IdeOption, out: InitOutput): StepResult {
+  if (ide === false) return skippedStep(INIT_STEP.commands, SKIP_REASON.noIde);
   const normalizedIde = normalizeTarget(ideTargetOf(ide));
-  if (normalizedIde === 'claude' || normalizedIde === 'agents') {
-    try {
-      installCommandsAction(normalizedIde);
-    } catch (err) {
-      console.log(warn(`Command install failed: ${(err as Error).message}`));
-    }
+  if (normalizedIde !== 'claude' && normalizedIde !== 'agents') {
+    return skippedStep(INIT_STEP.commands, SKIP_REASON.noCommandDelivery);
+  }
+  try {
+    installCommandsAction(normalizedIde, {}, out.log);
+    return stepResult(INIT_STEP.commands, STEP_STATUS.ok);
+  } catch (err) {
+    out.log(warn(`Command install failed: ${messageOf(err)}`));
+    return stepResult(INIT_STEP.commands, STEP_STATUS.failed, messageOf(err));
   }
 }
 
-/** Step 4: IDE setup (--no-ide sets the option to false via commander negation). */
-export async function runIdeStep(cwd: string, ide: IdeOption): Promise<void> {
-  if (ide === false) return;
+/** IDE setup (--no-ide sets the option to false via commander negation). */
+export async function runIdeStep(cwd: string, ide: IdeOption, out: InitOutput): Promise<StepResult> {
+  if (ide === false) return skippedStep(INIT_STEP.ide, SKIP_REASON.noIde);
   const ideTarget = ideTargetOf(ide);
   try {
-    await setupIdeAction(cwd, ideTarget, { yes: true });
+    await setupIdeAction(cwd, ideTarget, { yes: true }, out.log);
     // normalizeTarget cannot return null here: setupIdeAction just validated
     // this same string and would have thrown otherwise.
     const normalizedIdeTarget = normalizeTarget(ideTarget) ?? ideTarget;
     const wasAlias = ideTarget.trim().toLowerCase() !== normalizedIdeTarget;
     const ideLabel = wasAlias ? `${normalizedIdeTarget} (${ideTarget})` : normalizedIdeTarget;
-    console.log(success(`IDE configured for ${ideLabel}`));
+    out.log(success(`IDE configured for ${ideLabel}`));
+    return stepResult(INIT_STEP.ide, STEP_STATUS.ok);
   } catch (err) {
-    console.log(warn(`IDE setup failed: ${(err as Error).message}`));
+    out.log(warn(`IDE setup failed: ${messageOf(err)}`));
+    return stepResult(INIT_STEP.ide, STEP_STATUS.failed, messageOf(err));
   }
+}
+
+export interface SetupOptions {
+  lite?: boolean;
+  ide?: IdeOption;
+  strategy?: string;
+}
+
+/** The guides, commands and IDE steps, in order. `--lite` skips all three. */
+export async function runSetupSteps(cwd: string, opts: SetupOptions, out: InitOutput): Promise<StepResult[]> {
+  if (opts.lite) {
+    return [INIT_STEP.guides, INIT_STEP.commands, INIT_STEP.ide].map((step) => skippedStep(step, SKIP_REASON.lite));
+  }
+  const guides = await runGuidesStep(cwd, opts.strategy, out);
+  const commands = runCommandsStep(opts.ide, out);
+  const ide = await runIdeStep(cwd, opts.ide, out);
+  return [guides, commands, ide];
+}
+
+export function anyStepFailed(steps: readonly StepResult[]): boolean {
+  return steps.some((step) => step.status === STEP_STATUS.failed);
 }

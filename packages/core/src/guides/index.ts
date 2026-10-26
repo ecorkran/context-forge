@@ -1,5 +1,5 @@
 // Guide management — public exports
-export { GuideManager } from './GuideManager.js';
+export { GuideManager, GuideAlreadyInstalledError } from './GuideManager.js';
 export { GuideDetector } from './GuideDetector.js';
 export {
   type GuideInfo,
