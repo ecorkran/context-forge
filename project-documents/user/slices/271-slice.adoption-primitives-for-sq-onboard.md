@@ -10,7 +10,7 @@ interfaces:
 - 273
 dateCreated: 20261025
 dateUpdated: 20261026
-status: not_started
+status: complete
 turns: 62
 promptTokens: 5832377
 cachedTokens: 5680829
@@ -335,19 +335,21 @@ The comprehension line reads "No codebase comprehension analysis was provided." 
 
 ### Verification Walkthrough
 
-Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the global `cf` is the published package. Run `pnpm -r build` first.
+Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the global `cf` is the published package. Run `pnpm -r build` first. Point `CONTEXT_FORGE_DATA_DIR` at a temp directory for the whole walkthrough, so the real project store stays untouched. Verified 20261026 on the slice branch; corrections from that run are marked *(verified)*.
 
 1. **Report on an unregistered brownfield repo**
    ```bash
    cf detect --path ~/source/repos/manta/squadron --json
    ```
    Expect `"reportVersion": 1`, `"outcome"` of `brownfield` or `already-planned` (squadron has its own planning docs, so `already-planned` is the likely result), `facts.source.capped: true`, and relative paths throughout. Confirm nothing was written: `git -C ~/source/repos/manta/squadron status --short` is unchanged, and `cf project list` doesn't show it.
+   *(verified)* Result: `already-planned`, `source` `{ measured: true, lines: 2120, files: 19, capped: true }`, `history` `{ known: true, commits: 3199, shallow: false }`, `ci` `[".github/workflows/ci.yml"]`, all artifacts `null`, `notices` `[]`. Squadron's `git status --short` is unchanged and its path is not in `cf project list`.
 
 2. **Greenfield and errors**
    ```bash
    mkdir /tmp/cf271-empty && cf detect --path /tmp/cf271-empty --json   # outcome greenfield, history.known false
    cf detect --path /tmp/does-not-exist --json; echo "exit=$?"            # error.code path-not-found, exit=1
    ```
+   *(verified)* The first prints `"outcome": "greenfield"` and `history` `{ "known": false, "reason": "git rev-list --count HEAD -- . failed in <dir>: fatal: not a git repository …" }`. The second prints `{ "reportVersion": 1, "error": { "code": "path-not-found", "message": "Path does not exist: /tmp/does-not-exist" } }` on stdout, then `exit=1`.
 
 3. **Brownfield fixture, MCP parity, init line**
    ```bash
@@ -355,13 +357,15 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the
    # write ≥2000 non-blank lines of .ts source, then commit
    cf detect --json > /tmp/cli.json                                     # outcome brownfield
    ```
-   Call `project_detect` with `path: "/tmp/cf271-bf"` from an MCP client and diff its result against `/tmp/cli.json`: no difference. Then run `cf init --name cf271-bf` and confirm the last lines include the brownfield notice naming `sq onboard` and the opt-out command.
+   Call `project_detect` with `path: "/tmp/cf271-bf"` from an MCP client and diff its result against `/tmp/cli.json`: no difference. Then run `cf init --name cf271-bf --no-ide` and confirm the last lines include the brownfield notice naming `sq onboard` and the opt-out command.
+   *(verified)* Use `--no-ide`: without it `cf init` also installs the commands into the machine-level `~/.claude/commands/cf`, which a walkthrough on a developer machine should not overwrite with a local build. The MCP diff is covered by `packages/mcp-server/tests/integration/detectParity.test.ts` (all five outcomes, byte-identical apart from the CLI's trailing newline). The brownfield fixture reports `brownfield`. `cf init` prints, before the closing divider: `This project has existing code and no planning artifacts. Adopting an existing codebase arrives with sq onboard. To treat the project as new: cf config set adoption.state declined`. The guide install needs network access.
 
 4. **`cf init --json` and exit codes**
    ```bash
-   cd /tmp/cf271-empty && cf init --json --strategy bogus ; echo "exit=$?"   # GuideManager.install rejects the strategy inside the guides step
+   cd /tmp/cf271-empty && cf init --json --strategy bogus --no-ide ; echo "exit=$?"   # GuideManager.install rejects the strategy inside the guides step
    ```
    Expect one JSON object on stdout with the `guides` step `failed`, `"ok": false`, and exit=1. Progress text appears on stderr only (`cf init --json 2>/dev/null` prints only the JSON).
+   *(verified)* `--no-ide` again keeps the machine-level commands untouched; it makes `commands` and `ide` `skipped` with message `--no-ide`. Result: `reportVersion` 1, `registration` `created`, steps `git` ok, `register` ok, `gitignore` ok, `guides` `failed` with message `Invalid guide strategy 'bogus'. Valid values: submodule, clone, tarball.`, `commands` and `ide` skipped, `notices` `[]`, `"ok": false`, exit=1. stderr holds the git init output and the progress lines.
 
 5. **Prompt delivery**
    ```bash
@@ -370,9 +374,10 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the
    mkdir -p project-documents/user/analysis && echo '# c' > project-documents/user/analysis/x.md
    cf prompt get brownfield-adoption --comprehension project-documents/user/analysis/x.md | tail -6
    cf prompt get brownfield-adoption --comprehension nope.md; echo "exit=$?"   # named error, exit=1
-   cf prompt get concept-phase-0 --comprehension project-documents/user/analysis/x.md; echo "exit=$?"  # refused
+   cf prompt get concept --comprehension project-documents/user/analysis/x.md; echo "exit=$?"  # refused, naming concept-phase-0
    cd ~ && cf prompt get brownfield-adoption --path /tmp/cf271-bf --comprehension /tmp/cf271-bf/project-documents/user/analysis/x.md | tail -6   # cf271-bf's inputs, absolute path accepted
    ```
+   *(verified)* Against the installed guide (v0.22.7), whose `brownfield-adoption` profile already lists `fileComprehension`: with no flag the section is `- No codebase comprehension analysis was provided.` then `- Concept: none`, `- Derived architecture: none`, `- Existing-state slice plan: none`. With the relative path: `- Codebase comprehension: project-documents/user/analysis/x.md`. A missing path prints `--comprehension path does not exist: <absolute path>` and exits 1; a directory prints `--comprehension path is a directory, not a file: <path>` and exits 1. The absolute path from `~` with `--path` prints the root-relative form (it is inside the project). `cf prompt get concept --comprehension …` prints `--comprehension is not accepted by prompt 'concept-phase-0': its context profile does not list fileComprehension.` and exits 1. `--raw` with `--comprehension` prints `--comprehension cannot be used with --raw: raw output is the unrendered template.` and exits 1. Use `concept` (or `P0`), not `concept-phase-0`: `cf prompt get concept-phase-0` fails with "No prompt found" because of an older key-resolution defect (#136, not part of this slice).
 
 6. **Opt-out and planned outcomes**
    ```bash
@@ -380,14 +385,21 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the
    cf config unset adoption.state
    cf detect --path ~/source/repos/manta/context-forge --json | grep outcome   # already-planned
    ```
+   *(verified)* Run these inside `/tmp/cf271-bf` (the first `cf detect --json` uses the current directory). They print `opted-out`, then `brownfield` (after the unset), then `already-planned`.
 
 7. **Onboarding stop.** In a Claude Code session in `/tmp/cf271-bf` (registered in step 3), run `/cf:onboard`. Expect the detection step to run, the brownfield notice to be printed as given, and no build and no concept question.
+   *(verified)* Put a `cf` shim first on `PATH` (`CONTEXT_FORGE_DATA_DIR=<the walkthrough data dir> exec node <repo>/packages/cli/dist/index.js "$@"`), run `cf install-commands --local` in `/tmp/cf271-bf`, then:
+   ```bash
+   claude -p "/cf:onboard" --setting-sources project,local --output-format stream-json --verbose < /dev/null
+   ```
+   `--setting-sources project,local` is required on a machine that has the cf commands installed at user level (`~/.claude/commands/cf/`): without it the user-level `/cf:onboard`, which is the older published recipe, ran instead and went straight to `cf build` and the concept question. With it the session ran `cf project list`, said the project is registered and went to Step 3, ran `cf detect --json`, printed `This project has existing code and no planning artifacts. Adopting an existing codebase arrives with sq onboard. To treat the project as new: cf config set adoption.state declined`, and stopped: no `cf build`, no question.
 
 8. **Ban guard**
    ```bash
    grep -rn "codebase-comprehension\|sq probe" packages/*/src || echo clean
    ```
    Expect `clean`, and the guard test passes in `pnpm -r test`.
+   *(verified)* Prints `clean`.
 
 ## Risk Assessment
 

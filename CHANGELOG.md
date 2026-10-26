@@ -15,14 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cf detect` and the `project_detect` MCP tool** report what a directory holds and which adoption outcome applies (`opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`): source volume, git history, docs, ADRs, CI, rule files, and the concept, derived architecture and existing-state plan paths. Read-only, works on unregistered projects, and `--json` output matches the MCP result byte for byte. Failures are one JSON error object with a stable code, on stdout with exit 1.
+- **`cf init --json`** prints one JSON object with the project id and each setup step's result (`git`, `register`, `gitignore`, `guides`, `commands`, `ide`: `ok`, `skipped` or `failed`). Progress goes to stderr, so stdout stays machine-readable.
+- **`cf prompt get --path <dir>`** renders a prompt for the registered project at that directory. **`--comprehension <path>`** names a codebase comprehension file; for prompts whose guide profile lists `fileComprehension`, the output gains an `## Adoption Inputs` section listing it with the project's concept, derived architecture and existing-state plan.
+- **`cf init` prints one line for an existing codebase** (or an incomplete adoption), the same line `cf next` shows.
+
 ### Changed
 
+- **`cf init` now exits 1 when a setup step fails** (git init, guide install, command install or IDE setup). Before, a failed step printed a warning and exited 0. The remaining steps still run, and an already-installed guide is not a failure.
+- **Onboarding (`/cf:onboard`, the Codex skill and `agent_onboard`) stops on an existing codebase.** After setup it checks the directory and, on `brownfield` or `adoption-incomplete`, prints the detection notices and stops instead of starting a concept conversation.
 - **`cf build`, `context_build` and `template_preview` are pure.** They assemble context and write nothing. They no longer read or write `adoption.state`, run `sq probe`, or add Adoption Facts or a `Comprehension:` line to the prompt. Phase 0 always builds the concept prompt, even in a brownfield project. An explicit `--it brownfield-adoption` still renders that prompt, without facts.
 - **`adoption.state` is now only the opt-out.** Set it to `declined` to treat a project as new; empty (the default) lets cf decide from the project's files. Adoption progress is derived from the files every time: a derived architecture (`provenance: derived`) with no retroactive slice plan is an incomplete adoption, and a retroactive plan means the project is adopted. The old values `in_progress` and `complete` are ignored, never an error; `cf next` and `workflow_next` show a notice until you run `cf config unset adoption.state`. `cf config set` no longer accepts them.
 - **`cf next` / `workflow_next` give one line for adoption instead of adoption steps.** An unadopted brownfield repo gets a warning pointing at `sq onboard`, and so does an incomplete adoption. Navigation otherwise proceeds as for any project, and never recommends `cf build` for adoption. An adopted project is navigated to its first unbuilt slice. If cf can't measure the source tree, `cf next` still succeeds and says why.
 
 ### Removed
 
+- The codebase-comprehension file lookup in cf. Squadron passes the path in; cf never names squadron's files or runs `sq`, and a test guards that.
 - Build-time brownfield adoption: the resolver, the facts renderer, the completion handling, the `adoption.state` writer and the squadron probe. Adoption moves to `sq onboard`.
 - Per-step adoption guidance in `cf next` (concept, architecture, existing-state plan, record completion, register plan).
 

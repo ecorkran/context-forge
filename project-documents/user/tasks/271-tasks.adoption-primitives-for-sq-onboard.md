@@ -17,7 +17,7 @@ projectState: main after slice 269 (collapse adoption state, merged). `adoption/
   build.
 dateCreated: 20261025
 dateUpdated: 20261026
-status: in_progress
+status: complete
 turns: 39
 promptTokens: 3343512
 cachedTokens: 3223934
@@ -291,76 +291,76 @@ revision_number: 2
 
 ### 11. Prompt delivery: `cf prompt get --path` and `--comprehension` (D7)
 
-- [ ] **11.1 Parameterize project lookup by directory** — effort 2
-  - [ ] Change `findProjectByCwd` in `packages/cli/src/utils/project.ts` to take an optional directory (defaulting to `process.cwd()` at the call, not a magic value). Existing callers are unchanged
-  - [ ] Add `--path <dir>` to `cf prompt get` (`commands/prompt.ts`). With `--path`, resolve the registered project at that directory through `findProjectByCwd(dir)` (worktree-aware). Without it, resolution is unchanged
-  - [ ] `--path` together with `--project`: `UserError`. No registered project at `--path`: the existing project-not-found error
-  - [ ] The resolved project's operation path is the single root for `{project}` substitution and for 11.5
-  - [ ] Tests in `prompt.test.ts`: from an unrelated cwd, `--path <project>` substitutes that project's name; `--path` + `--project` errors; an unregistered `--path` gives the not-found error
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test prompt` and `pnpm --filter @context-forge/cli test project` pass
+- [x] **11.1 Parameterize project lookup by directory** — effort 2
+  - [x] Change `findProjectByCwd` in `packages/cli/src/utils/project.ts` to take an optional directory (defaulting to `process.cwd()` at the call, not a magic value). Existing callers are unchanged
+  - [x] Add `--path <dir>` to `cf prompt get` (`commands/prompt.ts`). With `--path`, resolve the registered project at that directory through `findProjectByCwd(dir)` (worktree-aware). Without it, resolution is unchanged
+  - [x] `--path` together with `--project`: `UserError`. No registered project at `--path`: the existing project-not-found error
+  - [x] The resolved project's operation path is the single root for `{project}` substitution and for 11.5
+  - [x] Tests in `prompt.test.ts`: from an unrelated cwd, `--path <project>` substitutes that project's name; `--path` + `--project` errors; an unregistered `--path` gives the not-found error
+  - [x] **Success:** `pnpm --filter @context-forge/cli test prompt` and `pnpm --filter @context-forge/cli test project` pass
 
-- [ ] **11.2 Commit** — `feat: add cf prompt get --path`
+- [x] **11.2 Commit** — `feat: add cf prompt get --path`
 
-- [ ] **11.3 Implement `renderAdoptionInputs`** — effort 2
-  - [ ] In `adoption/adoptionInputs.ts`, add the profile variable constant `COMPREHENSION_PROFILE_VARIABLE = 'fileComprehension'` (D10: the guide's name, written once), the section heading `## Adoption Inputs`, the four labels and the sentence "No codebase comprehension analysis was provided." as constants (API Contracts)
-  - [ ] `renderAdoptionInputs(root, comprehensionPath: string | null, artifacts: AdoptionArtifacts): string`. The comprehension path shows root-relative with `/` when inside `root`, absolute otherwise. Absent artifacts render `none`. Several derived architectures are joined with `, ` on the one label line
-  - [ ] Test in `adoptionInputs.test.ts`: with and without a comprehension path, inside and outside the root, with and without each artifact
-  - [ ] **Success:** `pnpm --filter @context-forge/core test adoptionInputs` passes
+- [x] **11.3 Implement `renderAdoptionInputs`** — effort 2
+  - [x] In `adoption/adoptionInputs.ts`, add the profile variable constant `COMPREHENSION_PROFILE_VARIABLE = 'fileComprehension'` (D10: the guide's name, written once), the section heading `## Adoption Inputs`, the four labels and the sentence "No codebase comprehension analysis was provided." as constants (API Contracts)
+  - [x] `renderAdoptionInputs(root, comprehensionPath: string | null, artifacts: AdoptionArtifacts): string`. The comprehension path shows root-relative with `/` when inside `root`, absolute otherwise. Absent artifacts render `none`. Several derived architectures are joined with `, ` on the one label line
+  - [x] Test in `adoptionInputs.test.ts`: with and without a comprehension path, inside and outside the root, with and without each artifact
+  - [x] **Success:** `pnpm --filter @context-forge/core test adoptionInputs` passes
 
-- [ ] **11.4 Commit** — `feat: add renderAdoptionInputs`
+- [x] **11.4 Commit** — `feat: add renderAdoptionInputs`
 
-- [ ] **11.5 Add `--comprehension` and append the section** — effort 3
-  - [ ] Read the resolved prompt's context profile with `ContextProfileParser`. If the profile lists `COMPREHENSION_PROFILE_VARIABLE`, append `renderAdoptionInputs(...)` after the substituted prompt, flag or no flag (D7 item 2). Hard-code no prompt key
-  - [ ] `--comprehension <path>`: relative resolves against the project root. Errors (`UserError`, message names the path or key and the reason): profile lacks the variable; `--raw` given; path missing; path is a directory. cf never reads the file and does no containment check
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **11.5 Add `--comprehension` and append the section** — effort 3
+  - [x] Read the resolved prompt's context profile with `ContextProfileParser`. If the profile lists `COMPREHENSION_PROFILE_VARIABLE`, append `renderAdoptionInputs(...)` after the substituted prompt, flag or no flag (D7 item 2). Hard-code no prompt key. The profile is read through a new `SystemPromptParser.getProfileVariables(key)` in core
+  - [x] `--comprehension <path>`: relative resolves against the project root. Errors (`UserError`, message names the path or key and the reason): profile lacks the variable; `--raw` given; path missing; path is a directory. cf never reads the file and does no containment check. `--raw` alone prints the template with no section
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **11.6 Test prompt delivery** — effort 2
-  - [ ] In `prompt.test.ts`, use a guide fixture that has the `brownfield-adoption` profile with `fileComprehension` (the core fixture `packages/core/tests/fixtures/brownfield-guide/` shows the format; copy or reference it)
-  - [ ] Cases: no flag → section with the no-comprehension sentence; relative path → path shown root-relative; absolute path → accepted; missing path and directory → named errors, exit 1; `--comprehension` on `concept-phase-0` → refused naming the key; `--raw` + `--comprehension` → error; a prompt without the variable and no flag → no section; `--path` from an unrelated cwd → `{project}` and the Adoption Inputs come from the `--path` project
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test prompt` passes
+- [x] **11.6 Test prompt delivery** — effort 2
+  - [x] In `prompt.test.ts`, use a guide fixture that has the `brownfield-adoption` profile with `fileComprehension` (the core fixture `packages/core/tests/fixtures/brownfield-guide/` shows the format; copy or reference it). The CLI tests for the gated section live in a new `prompt.adoption.test.ts` that uses this real brownfield-guide fixture
+  - [x] Cases: no flag → section with the no-comprehension sentence; relative path → path shown root-relative; absolute path → accepted; missing path and directory → named errors, exit 1; `--comprehension` on `concept-phase-0` → refused naming the key; `--raw` + `--comprehension` → error; a prompt without the variable and no flag → no section; `--path` from an unrelated cwd → `{project}` and the Adoption Inputs come from the `--path` project
+  - [x] **Success:** `pnpm --filter @context-forge/cli test prompt` passes
 
-- [ ] **11.7 Commit** — `feat: add cf prompt get --comprehension`
+- [x] **11.7 Commit** — `feat: add cf prompt get --comprehension`
 
 ---
 
 ### 12. Onboarding stops on brownfield (D6)
 
-- [ ] **12.1 Add the detection step to the recipe** — effort 2
-  - [ ] In `packages/core/src/onboarding/onboardRecipe.ts`, add a step between setup and the build handoff. Step 1's "skip to Step 3" target becomes the new detection step; renumber the handoff
-  - [ ] Add one per-surface field in `ONBOARD_SURFACES` for how to run detection: Claude command → MCP `project_detect` with `path` set to the current directory, or `cf detect --json`; agent skill → `cf detect --json`; MCP tool → `project_detect`
-  - [ ] Step text (D6): on `brownfield` or `adoption-incomplete`, print each `notices` entry exactly as given and stop, with no build and no concept conversation; on an error object, show its message and stop; otherwise continue. Name the outcome values from the report; include no example notice text and no adoption wording of its own
-  - [ ] Add `mcp__context-forge__project_detect` to the Claude command's `allowed-tools`
-  - [ ] Update `packages/core/tests/onboarding/onboardRecipe.test.ts`: each surface contains the detection step and its surface-specific invocation; the Claude frontmatter lists `project_detect`; no surface contains `BROWNFIELD_LINE` text
-  - [ ] **Success:** `pnpm --filter @context-forge/core test onboardRecipe` passes
+- [x] **12.1 Add the detection step to the recipe** — effort 2
+  - [x] In `packages/core/src/onboarding/onboardRecipe.ts`, add a step between setup and the build handoff. Step 1's "skip to Step 3" target becomes the new detection step; renumber the handoff
+  - [x] Add one per-surface field in `ONBOARD_SURFACES` for how to run detection: Claude command → MCP `project_detect` with `path` set to the current directory, or `cf detect --json`; agent skill → `cf detect --json`; MCP tool → `project_detect`
+  - [x] Step text (D6): on `brownfield` or `adoption-incomplete`, print each `notices` entry exactly as given and stop, with no build and no concept conversation; on an error object, show its message and stop; otherwise continue. Name the outcome values from the report; include no example notice text and no adoption wording of its own
+  - [x] Add `mcp__context-forge__project_detect` to the Claude command's `allowed-tools`
+  - [x] Update `packages/core/tests/onboarding/onboardRecipe.test.ts`: each surface contains the detection step and its surface-specific invocation; the Claude frontmatter lists `project_detect`; no surface contains `BROWNFIELD_LINE` text
+  - [x] **Success:** `pnpm --filter @context-forge/core test onboardRecipe` passes
 
-- [ ] **12.2 Re-render the committed assets** — effort 1
-  - [ ] `pnpm -r build`, then `pnpm --filter @context-forge/cli render:onboard`
-  - [ ] **Success:** `packages/cli/commands/cf/onboard.md` and `packages/cli/commands/codex/cf-onboard/SKILL.md` contain the step; `pnpm --filter @context-forge/cli test onboardRender` and `pnpm --filter @context-forge/mcp test agentOnboardTool` pass
+- [x] **12.2 Re-render the committed assets** — effort 1
+  - [x] `pnpm -r build`, then `pnpm --filter @context-forge/cli render:onboard`
+  - [x] **Success:** `packages/cli/commands/cf/onboard.md` and `packages/cli/commands/codex/cf-onboard/SKILL.md` contain the step; `pnpm --filter @context-forge/cli test onboardRender` and `pnpm --filter @context-forge/mcp test agentOnboardTool` pass
 
-- [ ] **12.3 Commit** — `feat: stop onboarding on a brownfield repo using the detection report`
+- [x] **12.3 Commit** — `feat: stop onboarding on a brownfield repo using the detection report`
 
 ---
 
 ### 13. CHANGELOG and validation
 
-- [ ] **13.1 CHANGELOG** — effort 1
-  - [ ] Under `## [Unreleased]` in `CHANGELOG.md`, add concise user-facing entries: `cf detect` and `project_detect`; `cf init --json`; **`cf init` now exits 1 when a setup step fails** (previously a warning and exit 0); `cf prompt get --path` and `--comprehension`; onboarding stops on an existing codebase; comprehension-file lookup removed
-  - [ ] **Success:** entries present; no version number added
+- [x] **13.1 CHANGELOG** — effort 1
+  - [x] Under `## [Unreleased]` in `CHANGELOG.md`, add concise user-facing entries: `cf detect` and `project_detect`; `cf init --json`; **`cf init` now exits 1 when a setup step fails** (previously a warning and exit 0); `cf prompt get --path` and `--comprehension`; onboarding stops on an existing codebase; comprehension-file lookup removed
+  - [x] **Success:** entries present; no version number added
 
-- [ ] **13.2 Full suite** — effort 1
-  - [ ] `pnpm -r build`, `pnpm lint`, `pnpm typecheck`, `pnpm -r test` all pass. Fix any failure in this slice's code before continuing
-  - [ ] **Success:** all four commands exit 0
+- [x] **13.2 Full suite** — effort 1
+  - [x] `pnpm -r build`, `pnpm lint`, `pnpm typecheck`, `pnpm -r test` all pass. Fix any failure in this slice's code before continuing
+  - [x] **Success:** all four commands exit 0
 
-- [ ] **13.3 Run the Verification Walkthrough steps 1–6 and 8** — effort 2
-  - [ ] Run each step from the design with `node packages/cli/dist/index.js`, with `CONTEXT_FORGE_DATA_DIR` pointed at a temp dir so the real store is untouched. For step 3's MCP comparison, the 8.3 parity test stands in if no MCP client is at hand; say so in the commit. If `~/source/repos/manta/squadron` is absent for step 1, use another unregistered repo that has CF planning docs and record the substitute in the commit
-  - [ ] Each result matches the design's expectation. A mismatch in this slice's code is fixed and its test extended; anything else gets an issue
-  - [ ] **Success:** every step's expectation holds; step 8 prints `clean`
+- [x] **13.3 Run the Verification Walkthrough steps 1–6 and 8** — effort 2
+  - [x] Run each step from the design with `node packages/cli/dist/index.js`, with `CONTEXT_FORGE_DATA_DIR` pointed at a temp dir so the real store is untouched. For step 3's MCP comparison, the 8.3 parity test stands in if no MCP client is at hand; say so in the commit. If `~/source/repos/manta/squadron` is absent for step 1, use another unregistered repo that has CF planning docs and record the substitute in the commit
+  - [x] Each result matches the design's expectation. A mismatch in this slice's code is fixed and its test extended; anything else gets an issue. Substitutions: step 3's MCP comparison is covered by the 8.3 `detectParity` test; `cf init` ran with `--no-ide`, so the machine-level commands dir was not touched; step 5 used `concept` instead of `concept-phase-0` because of pre-existing issue #136
+  - [x] **Success:** every step's expectation holds; step 8 prints `clean`
 
-- [ ] **13.4 Walkthrough step 7: live onboarding stop** — effort 2
-  - [ ] Put a `cf` shim on `PATH` that exports `CONTEXT_FORGE_DATA_DIR` set to the same temp dir as 13.3 (so step 3's registration is visible and the real store is untouched), then runs `node <repo>/packages/cli/dist/index.js "$@"`. In `/tmp/cf271-bf`, install the local commands with `cf install-commands --local`
-  - [ ] Run `claude -p "/cf:onboard"` there with the same `CONTEXT_FORGE_DATA_DIR` exported. Expect the brownfield notice printed as given, no build and no concept question
-  - [ ] If the `claude` CLI is not installed, write `BLOCKED: claude CLI unavailable for walkthrough step 7` under this task and leave it unchecked
-  - [ ] **Success:** transcript shows the notice and a stop
+- [x] **13.4 Walkthrough step 7: live onboarding stop** — effort 2
+  - [x] Put a `cf` shim on `PATH` that exports `CONTEXT_FORGE_DATA_DIR` set to the same temp dir as 13.3 (so step 3's registration is visible and the real store is untouched), then runs `node <repo>/packages/cli/dist/index.js "$@"`. In `/tmp/cf271-bf`, install the local commands with `cf install-commands --local`
+  - [x] Run `claude -p "/cf:onboard"` there with the same `CONTEXT_FORGE_DATA_DIR` exported. Expect the brownfield notice printed as given, no build and no concept question. Needs `--setting-sources project,local`; without that flag the user-level older command runs instead
+  - [x] If the `claude` CLI is not installed, write `BLOCKED: claude CLI unavailable for walkthrough step 7` under this task and leave it unchecked
+  - [x] **Success:** transcript shows the notice and a stop
 
-- [ ] **13.5 Commit** — `chore: complete slice 271 validation`
-  - [ ] Includes the CHANGELOG and any walkthrough fixes. Work ends at this commit on the slice branch
+- [x] **13.5 Commit** — `chore: complete slice 271 validation`
+  - [x] Includes the CHANGELOG and any walkthrough fixes. Work ends at this commit on the slice branch
