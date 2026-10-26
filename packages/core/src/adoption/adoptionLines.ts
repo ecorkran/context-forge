@@ -1,7 +1,7 @@
 // Adoption warnings for navigation (slice 269 D6): one line for an unadopted brownfield repo and
 // one for an incomplete adoption. Navigation never returns an adoption step.
 import { measureSourceVolume, type SourceVolume } from '../detection/sourceVolume.js';
-import { decideOutcome, decideStage, type AdoptionStage } from './adoptionOutcome.js';
+import { decideOutcome, decideStage, type AdoptionOutcome, type AdoptionStage } from './adoptionOutcome.js';
 import { legacyAdoptionStateNotice, readAdoptionOptOut } from './adoptionState.js';
 import { AdoptionError, OPT_OUT_COMMAND } from './contracts.js';
 import { readPlanningFacts } from './planningFacts.js';
@@ -19,6 +19,28 @@ export const INCOMPLETE_ADOPTION_LINE =
 
 export function inconclusiveDetectionLine(reason: string): string {
   return `cf could not tell whether this project holds existing code: ${reason}. ${OPT_OUT_SENTENCE}`;
+}
+
+/** The one outcome-to-line mapping (slice 271 D9): navigation, `cf detect` and `cf init` all use it. */
+export function outcomeLine(outcome: AdoptionOutcome): string | null {
+  switch (outcome.kind) {
+    case 'brownfield':
+      return BROWNFIELD_LINE;
+    case 'adoption-incomplete':
+      return INCOMPLETE_ADOPTION_LINE;
+    case 'opted-out':
+    case 'already-planned':
+    case 'greenfield':
+      return null;
+    default: {
+      const unhandled: never = outcome;
+      throw new Error(`Unhandled adoption outcome: ${JSON.stringify(unhandled)}`);
+    }
+  }
+}
+
+function withLine(warnings: string[], line: string | null): string[] {
+  return line === null ? warnings : [...warnings, line];
 }
 
 export interface AdoptionNavLines {
@@ -45,7 +67,7 @@ export async function adoptionNavLines(
     case 'opted-out':
       throw new Error('adoptionNavLines: the opt-out returned before the planning facts were read');
     case 'adoption-incomplete':
-      return { warnings: [...warnings, INCOMPLETE_ADOPTION_LINE], skipFirstRun: false };
+      return { warnings: withLine(warnings, outcomeLine(stage)), skipFirstRun: false };
     case 'already-planned':
       return { warnings, skipFirstRun: stage.existingStatePlan !== null };
     case 'unplanned':
@@ -74,7 +96,5 @@ async function codeSignalLines(
     return { warnings: [...warnings, inconclusiveDetectionLine(error.message)], skipFirstRun: false };
   }
   const outcome = decideOutcome({ stage, source });
-  return outcome.kind === 'brownfield'
-    ? { warnings: [...warnings, BROWNFIELD_LINE], skipFirstRun: false }
-    : { warnings, skipFirstRun: false };
+  return { warnings: withLine(warnings, outcomeLine(outcome)), skipFirstRun: false };
 }

@@ -17,7 +17,7 @@ projectState: main after slice 269 (collapse adoption state, merged). `adoption/
   build.
 dateCreated: 20261025
 dateUpdated: 20261026
-status: not_started
+status: in_progress
 turns: 39
 promptTokens: 3343512
 cachedTokens: 3223934
@@ -53,33 +53,33 @@ revision_number: 2
 
 ### 1. Branch setup
 
-- [ ] **1.1 Create the slice branch** — effort 1
-  - [ ] Run `pwd` and confirm it is the repo root. Run `cf config get git.integration_branch`. Its value, or `main` when empty, is the target
-  - [ ] Run `git status --short`. It must be empty. Anything else: stop and commit or report it first
-  - [ ] Confirm you are on the target, then `git checkout -b 271-slice.adoption-primitives-for-sq-onboard {target}`. If the branch already exists, switch to it
-  - [ ] **Success:** `git branch --show-current` prints `271-slice.adoption-primitives-for-sq-onboard`
+- [x] **1.1 Create the slice branch** — effort 1
+  - [x] Run `pwd` and confirm it is the repo root. Run `cf config get git.integration_branch`. Its value, or `main` when empty, is the target
+  - [x] Run `git status --short`. It must be empty. Anything else: stop and commit or report it first
+  - [x] Confirm you are on the target, then `git checkout -b 271-slice.adoption-primitives-for-sq-onboard {target}`. If the branch already exists, switch to it
+  - [x] **Success:** `git branch --show-current` prints `271-slice.adoption-primitives-for-sq-onboard`
 
 ---
 
 ### 2. Delete the comprehension lookup and guard the ban (D10)
 
-- [ ] **2.1 Delete `comprehensionAnalysis`** — effort 1
-  - [ ] Delete `packages/core/src/detection/comprehensionAnalysis.ts` and `packages/core/tests/detection/comprehensionAnalysis.test.ts`
-  - [ ] Remove the `findComprehensionAnalysis` / `COMPREHENSION_PROFILE_VARIABLE` export line from `packages/core/src/detection/index.ts`
-  - [ ] Leave the comprehension-doc setup in `pureBuild.test.ts` alone (272)
-  - [ ] **Success:** `grep -rn "comprehensionAnalysis\|findComprehensionAnalysis\|COMPREHENSION_PROFILE_VARIABLE" packages --exclude-dir=node_modules --exclude-dir=dist` returns nothing. `pnpm typecheck` passes
+- [x] **2.1 Delete `comprehensionAnalysis`** — effort 1
+  - [x] Delete `packages/core/src/detection/comprehensionAnalysis.ts` and `packages/core/tests/detection/comprehensionAnalysis.test.ts`
+  - [x] Remove the `findComprehensionAnalysis` / `COMPREHENSION_PROFILE_VARIABLE` export line from `packages/core/src/detection/index.ts`
+  - [x] Leave the comprehension-doc setup in `pureBuild.test.ts` alone (272)
+  - [x] **Success:** `grep -rn "comprehensionAnalysis\|findComprehensionAnalysis\|COMPREHENSION_PROFILE_VARIABLE" packages --exclude-dir=node_modules --exclude-dir=dist` returns nothing. `pnpm typecheck` passes
 
-- [ ] **2.2 Add the squadron-ban guard test** — effort 2
-  - [ ] Create `packages/core/tests/squadronBan.test.ts`. Locate the repo's `packages/` directory from the test file's own path (`import.meta.url`), not from cwd
-  - [ ] Scan every `packages/*/src/**/*.ts` file. Skip `node_modules`, `dist` and every `tests` directory (D10: tests may name squadron patterns)
-  - [ ] Fail on: the text `codebase-comprehension`; the text `sq probe`; and a process invocation of `sq`, matched as `'sq'` or `"sq"` passed as an argument (e.g. to `execFile`/`spawn`). Define the forbidden patterns once at the top of the file
-  - [ ] The failure message lists each offending file and line
-  - [ ] Add one case that runs the same matcher on an in-memory string containing each pattern and asserts it is caught, so the scan can't pass by matching nothing
-  - [ ] Assert the scan visited at least one file per package (`core`, `cli`, `mcp-server`), so a wrong root fails loudly. The glob also covers any other `packages/*/src`: `packages/context-forge` has none today, and an ignored leftover `packages/electron/src` may exist locally (no matches today). A match in either is a real finding, not a test bug
-  - [ ] **Success:** `pnpm --filter @context-forge/core test squadronBan` passes
+- [x] **2.2 Add the squadron-ban guard test** — effort 2
+  - [x] Create `packages/core/tests/squadronBan.test.ts`. Locate the repo's `packages/` directory from the test file's own path (`import.meta.url`), not from cwd
+  - [x] Scan every `packages/*/src/**/*.ts` file. Skip `node_modules`, `dist` and every `tests` directory (D10: tests may name squadron patterns)
+  - [x] Fail on: the text `codebase-comprehension`; the text `sq probe`; and a process invocation of `sq`, matched as `'sq'` or `"sq"` passed as an argument (e.g. to `execFile`/`spawn`). Define the forbidden patterns once at the top of the file
+  - [x] The failure message lists each offending file and line
+  - [x] Add one case that runs the same matcher on an in-memory string containing each pattern and asserts it is caught, so the scan can't pass by matching nothing
+  - [x] Assert the scan visited at least one file per package (`core`, `cli`, `mcp-server`), so a wrong root fails loudly. The glob also covers any other `packages/*/src`: `packages/context-forge` has none today, and an ignored leftover `packages/electron/src` may exist locally (no matches today). A match in either is a real finding, not a test bug
+  - [x] **Success:** `pnpm --filter @context-forge/core test squadronBan` passes
 
-- [ ] **2.3 Commit** — `refactor: remove comprehension lookup and guard the squadron ban`
-  - [ ] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/core test` pass first
+- [x] **2.3 Commit** — `refactor: remove comprehension lookup and guard the squadron ban`
+  - [x] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/core test` pass first
 
 ---
 

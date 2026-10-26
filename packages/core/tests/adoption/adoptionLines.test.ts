@@ -8,6 +8,8 @@ import {
   adoptionNavLines,
   inconclusiveDetectionLine,
   legacyAdoptionStateNotice,
+  outcomeLine,
+  type AdoptionOutcome,
 } from '../../src/adoption/index.js';
 import { ADOPTION_OPT_OUT, LEGACY_ADOPTION_STATES } from '../../src/config/ConfigKeys.js';
 import {
@@ -84,5 +86,20 @@ describe('adoptionNavLines', () => {
     const root = fixture();
     const buggyWalk = () => Promise.reject(new Error(PLAIN_FAILURE_MESSAGE));
     await expect(adoptionNavLines(root, buggyWalk)).rejects.toThrow(PLAIN_FAILURE_MESSAGE);
+  });
+});
+
+describe('outcomeLine', () => {
+  const source = { files: 1, lines: 1, capped: false };
+  const cases: readonly [AdoptionOutcome, string | null][] = [
+    [{ kind: 'brownfield', source }, BROWNFIELD_LINE],
+    [{ kind: 'adoption-incomplete', derivedArchitectures: ['a'] }, INCOMPLETE_ADOPTION_LINE],
+    [{ kind: 'opted-out' }, null],
+    [{ kind: 'already-planned', artifacts: ['x'], existingStatePlan: null }, null],
+    [{ kind: 'greenfield', source }, null],
+  ];
+
+  it.each(cases)('%j maps to its line', (outcome, expected) => {
+    expect(outcomeLine(outcome)).toBe(expected);
   });
 });
