@@ -202,3 +202,48 @@ describe('cf prompt get', () => {
     );
   });
 });
+
+describe('cf prompt get --path', () => {
+  const otherProject = { ...sampleProject, id: 'proj_002', name: 'other-project', projectPath: '/tmp/other' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAll.mockResolvedValue([sampleProject, otherProject]);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    mockGetPromptForInstruction.mockResolvedValue(samplePrompts[2]);
+  });
+
+  async function promptGet(...args: string[]): Promise<void> {
+    await createProgram().parseAsync(['node', 'cf', 'prompt', 'get', 'P6', ...args]);
+  }
+
+  function printed(): string {
+    return vi.mocked(process.stdout.write).mock.calls.map((call) => String(call[0])).join('');
+  }
+
+  it('from an unrelated cwd, substitutes the name of the project at --path', async () => {
+    await promptGet('--path', '/tmp/other');
+    expect(printed()).toContain('other-project');
+    expect(printed()).not.toContain('my-project');
+  });
+
+  it('resolves a subdirectory of the project at --path', async () => {
+    await promptGet('--path', '/tmp/other/src');
+    expect(printed()).toContain('other-project');
+  });
+
+  it('--path with --project is an error', async () => {
+    await promptGet('--path', '/tmp/other', '--project', 'proj_001');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('--path and --project'));
+    expect(printed()).toBe('');
+  });
+
+  it('an unregistered --path is the project-not-found error', async () => {
+    await promptGet('--path', '/tmp/not-registered');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Project not found'));
+    expect(printed()).toBe('');
+  });
+});

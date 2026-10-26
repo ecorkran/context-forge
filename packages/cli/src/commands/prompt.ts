@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { FileProjectStore, SystemPromptParser } from '@context-forge/core/node';
 import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
-import { resolveProjectWorktree } from '../utils/project.js';
+import { findProjectByCwd, resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { ensureGuideReady } from '../utils/guideReady.js';
 import { handleError, UserError } from '../utils/errors.js';
@@ -31,6 +31,37 @@ function substituteVariables(content: string, project: ProjectData): string {
     const value = vars[varName];
     return value !== undefined ? value : `{${varName}}`;
   });
+}
+
+/**
+ * The project a prompt is rendered for. `--path` picks the registered project at that directory
+ * (worktree-aware); otherwise the usual `--project` / current-directory resolution applies.
+ */
+async function resolvePromptProject(
+  store: FileProjectStore,
+  opts: { project?: string; path?: string },
+): Promise<{ project: ProjectData; worktreeId?: string }> {
+  if (opts.path !== undefined) {
+    if (opts.project) {
+      throw new UserError('--path and --project cannot be used together.', 'INVALID_ARGUMENT');
+    }
+    const directory = path.resolve(opts.path);
+    const match = await findProjectByCwd(store, directory);
+    if (!match) {
+      throw new UserError(
+        `Project not found: no registered project at '${directory}'.`,
+        'PROJECT_NOT_FOUND',
+        'Run cf init in that directory first, or cf project list to see registered projects.',
+      );
+    }
+    return match;
+  }
+  const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
+  const project = await store.getById(id);
+  if (!project) {
+    throw new UserError(`Project not found: '${id}'.`);
+  }
+  return { project, worktreeId };
 }
 
 export function registerPromptCommand(program: Command): void {
@@ -98,15 +129,11 @@ export function registerPromptCommand(program: Command): void {
   const getCmd = cmd.command('get <phase>').description('Get a prompt template with project variables substituted');
   withProjectOption(getCmd);
   withRawOption(getCmd);
-  getCmd.action(async (phase: string, opts: { project?: string; raw?: boolean }) => {
+  getCmd.option('--path <dir>', 'Use the registered project at this directory (default: resolve from the current directory)');
+  getCmd.action(async (phase: string, opts: { project?: string; raw?: boolean; path?: string }) => {
       try {
         const store = new FileProjectStore();
-        const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const project = await store.getById(id);
-
-        if (!project) {
-          throw new UserError(`Project not found: '${id}'.`);
-        }
+        const { project, worktreeId } = await resolvePromptProject(store, opts);
         const opPath = resolveOperationPath(project, worktreeId);
         if (!opPath) {
           throw new UserError(

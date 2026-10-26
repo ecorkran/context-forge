@@ -30,23 +30,24 @@ export interface CwdMatch {
 }
 
 /**
- * Find the project whose projectPath or worktreePath best matches the current
- * working directory. When multiple paths match (nested paths), the longest wins.
+ * Find the project whose projectPath or worktreePath best matches `directory`
+ * (default: the current working directory, read at the call). When multiple
+ * paths match (nested paths), the longest wins.
  * Projects without a projectPath are skipped; worktrees without a worktreePath
  * are also skipped.
  */
 export async function findProjectByCwd(
   store: FileProjectStore,
+  directory: string = process.cwd(),
 ): Promise<CwdMatch | null> {
   const projects = await store.getAll();
-  const cwd = process.cwd();
 
   // Each project resolves independently; the best match across all of them
   // wins by the same longest-root rule resolveWorktreeForPath applies within one.
   let best: { project: ProjectData; match: WorktreeMatch } | null = null;
 
   for (const p of projects) {
-    const match = resolveWorktreeForPath(p, cwd);
+    const match = resolveWorktreeForPath(p, directory);
     if (!match) continue;
     if (!best || match.rootPath.length > best.match.rootPath.length) {
       best = { project: p, match };

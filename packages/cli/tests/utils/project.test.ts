@@ -86,6 +86,14 @@ describe('findProjectByCwd', () => {
     vi.restoreAllMocks();
   });
 
+  it('judges an explicit directory instead of the current directory', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/repos/other');
+    const store = mockStore(projects);
+    const result = await findProjectByCwd(store, '/repos/outer/packages/inner/src');
+    expect(result?.project).toEqual(projects[1]);
+    vi.restoreAllMocks();
+  });
+
   it('returns CwdMatch with project on subdirectory match', async () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/repos/other/src/components');
     const store = mockStore(projects);
