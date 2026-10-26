@@ -40,7 +40,19 @@ unavailable, fall back to its tools:
 Note: the MCP fallback cannot initialize git. If the directory is not a git
 repository, inform the user they need to run `git init` first.
 
-## Step 3 — Hand off to the context prompt
+## Step 3 — Check the codebase
+
+Judge the current directory before starting any concept conversation.
+
+Run `cf detect --json`.
+
+The result is a JSON report with an `outcome`, or an error object with an `error` field.
+
+- If `outcome` is `brownfield` or `adoption-incomplete` → print each entry of `notices` exactly as given, then stop. Do not build the context prompt and do not start a concept conversation.
+- If the result is an error object → show its `message` and stop.
+- Otherwise → continue to Step 4.
+
+## Step 4 — Hand off to the context prompt
 
 The project is set up. Build the context prompt:
 

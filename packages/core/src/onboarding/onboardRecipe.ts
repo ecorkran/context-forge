@@ -19,9 +19,11 @@ export interface OnboardSurfaceProfile {
   setupRun: string;
   /** Step 2: what to do when `cf init` cannot be run (ends with the no-`git init` note). */
   setupFallback: string;
-  /** Step 3: how to run the build on this surface. */
+  /** Step 3: how to run the codebase detection on this surface. */
+  detectionRun: string;
+  /** Step 4: how to run the build on this surface. */
   buildHandoff: string;
-  /** Step 3: how this surface refers to the "what next" command. */
+  /** Step 4: how this surface refers to the "what next" command. */
   nextHint: string;
   /** Closing note on tool failure, or '' for none. */
   failureNote: string;
@@ -34,7 +36,7 @@ export const GENERATED_NOTICE =
 const CLAUDE_FRONTMATTER = `---
 description: Guide a user through Context Forge project setup and into their first phase of work
 argument-hint: [project-name]
-allowed-tools: Bash(cf:*), mcp__context-forge__project_list, mcp__context-forge__project_create, mcp__context-forge__project_get, mcp__context-forge__guide_status, mcp__context-forge__guide_install, mcp__context-forge__context_build, mcp__context-forge__workflow_next
+allowed-tools: Bash(cf:*), mcp__context-forge__project_list, mcp__context-forge__project_create, mcp__context-forge__project_get, mcp__context-forge__guide_status, mcp__context-forge__guide_install, mcp__context-forge__project_detect, mcp__context-forge__context_build, mcp__context-forge__workflow_next
 ---`;
 
 const SKILL_FRONTMATTER = `---
@@ -58,6 +60,8 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     nameProvided: 'If a project name argument\nwas provided with the command, use that.',
     setupRun: '**Primary:** Run `cf init --name <name>` via the shell.',
     setupFallback: `**MCP fallback** (if shell access is unavailable):\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
+    detectionRun:
+      '**MCP:** Call `project_detect` with `path` set to the current directory.\n**CLI:** Run `cf detect --json`.',
     buildHandoff: '**MCP:** Call `context_build`.\n**CLI:** Run `cf build`.',
     nextHint: '`cf next` (or `/cf:next`)',
     failureNote: 'If any MCP tool call fails, fall back to the CLI equivalent.',
@@ -71,6 +75,7 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     nameProvided: 'If they provided a name\nwith the request, use that.',
     setupRun: 'Run `cf init --name <name>`.',
     setupFallback: `If the Context Forge MCP server is configured and shell access is\nunavailable, fall back to its tools:\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
+    detectionRun: 'Run `cf detect --json`.',
     buildHandoff: 'Run `cf build`.',
     nextHint: '`cf next` (or the `cf-next` skill)',
     failureNote: 'If an MCP tool call fails, fall back to the CLI equivalent.',
@@ -84,6 +89,7 @@ export const ONBOARD_SURFACES: Record<OnboardSurface, OnboardSurfaceProfile> = {
     nameProvided: 'If a project name argument\nwas provided, use that.',
     setupRun: 'Run `cf init --name <name>` via the shell.',
     setupFallback: `If shell access is unavailable, fall back to the MCP path:\n${MCP_FALLBACK_STEPS}\n${NO_GIT_INIT_NOTE}`,
+    detectionRun: 'Call `project_detect` with `path` set to the current directory.',
     buildHandoff: 'Call `context_build`.',
     nextHint: '`workflow_next` (or `cf next` on the CLI)',
     failureNote: '',
@@ -96,7 +102,9 @@ function renderBody(profile: OnboardSurfaceProfile): string[] {
     `## Step 1 — Detect existing project\n\nCheck whether a Context Forge project is already registered at the current\nworking directory.\n\n${profile.registrationCheck}\n\n- If a project exists at this path → skip to Step 3.\n- If no project exists → continue to Step 2.`,
     // No example name here on purpose: an example would be used when the user gives none.
     `## Step 2 — Set up the project\n\nAsk the user what they'd like to name their project. ${profile.nameProvided}\nIf the user declines to choose, use the current directory name.\n\n${profile.setupRun} This single command handles\neverything: git initialization, project registration, guide installation,\ncommand installation, and IDE setup.\n\n**Important:** Do not rely on environment context (like "Is a git repository")\nto determine git status — \`cf init\` checks the actual directory and handles\ngit initialization itself.\n\n${profile.setupFallback}`,
-    `## Step 3 — Hand off to the context prompt\n\nThe project is set up. Build the context prompt:\n\n${profile.buildHandoff}\n\nUse the returned prompt as your working context and follow it; it starts the\nconversation, so do not open with questions of your own.\n\nYou can run ${profile.nextHint} anytime to see what to do next. It adapts as\nyour project progresses.`,
+    // The recipe holds no adoption wording and no example notice: the report's own `notices` are the message.
+    `## Step 3 — Check the codebase\n\nJudge the current directory before starting any concept conversation.\n\n${profile.detectionRun}\n\nThe result is a JSON report with an \`outcome\`, or an error object with an \`error\` field.\n\n- If \`outcome\` is \`brownfield\` or \`adoption-incomplete\` → print each entry of \`notices\` exactly as given, then stop. Do not build the context prompt and do not start a concept conversation.\n- If the result is an error object → show its \`message\` and stop.\n- Otherwise → continue to Step 4.`,
+    `## Step 4 — Hand off to the context prompt\n\nThe project is set up. Build the context prompt:\n\n${profile.buildHandoff}\n\nUse the returned prompt as your working context and follow it; it starts the\nconversation, so do not open with questions of your own.\n\nYou can run ${profile.nextHint} anytime to see what to do next. It adapts as\nyour project progresses.`,
   ];
   if (profile.failureNote) blocks.push(`## Notes\n\n- ${profile.failureNote}`);
   return blocks;

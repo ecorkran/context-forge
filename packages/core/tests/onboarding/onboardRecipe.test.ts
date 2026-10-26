@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { BROWNFIELD_LINE, INCOMPLETE_ADOPTION_LINE } from '../../src/adoption/index.js';
 import {
   GENERATED_NOTICE,
   ONBOARD_SURFACES,
@@ -65,4 +66,47 @@ describe('renderOnboardRecipe', () => {
       expect(renderOnboardRecipe(surface).startsWith(`${frontmatter}\n${GENERATED_NOTICE}\n`)).toBe(true);
     }
   );
+
+  describe('codebase detection step (slice 271 D6)', () => {
+    /** The surface-specific way to run detection. */
+    const DETECTION_INVOCATION: Record<OnboardSurface, string[]> = {
+      'claude-command': ['project_detect', 'cf detect --json'],
+      'agent-skill': ['cf detect --json'],
+      'mcp-tool': ['project_detect'],
+    };
+
+    it.each(SURFACES)('%s has a detection step between setup and the build handoff', (surface) => {
+      const text = renderOnboardRecipe(surface);
+      const setup = text.indexOf('## Step 2');
+      const detect = text.indexOf('## Step 3 — Check the codebase');
+      const handoff = text.indexOf('## Step 4 — Hand off');
+      expect(setup).toBeGreaterThan(-1);
+      expect(detect).toBeGreaterThan(setup);
+      expect(handoff).toBeGreaterThan(detect);
+      for (const expected of DETECTION_INVOCATION[surface]) {
+        expect(text.slice(detect, handoff)).toContain(expected);
+      }
+    });
+
+    it.each(SURFACES)('%s stops on brownfield and adoption-incomplete, printing the notices as given', (surface) => {
+      const text = renderOnboardRecipe(surface);
+      expect(text).toContain('`brownfield` or `adoption-incomplete`');
+      expect(text).toContain('print each entry of `notices` exactly as given');
+    });
+
+    it.each(SURFACES)('%s sends an already-registered project to the detection step', (surface) => {
+      expect(renderOnboardRecipe(surface)).toContain('→ skip to Step 3');
+    });
+
+    it.each(SURFACES)('%s holds no adoption wording of its own', (surface) => {
+      const text = renderOnboardRecipe(surface);
+      expect(text).not.toContain(BROWNFIELD_LINE);
+      expect(text).not.toContain(INCOMPLETE_ADOPTION_LINE);
+      expect(text).not.toContain('sq onboard');
+    });
+
+    it('the Claude command may call project_detect', () => {
+      expect(ONBOARD_SURFACES['claude-command'].frontmatter).toContain('mcp__context-forge__project_detect');
+    });
+  });
 });
