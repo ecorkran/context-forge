@@ -63,7 +63,7 @@ export async function detectProject(
 
   const optOut = await readAs('invalid-config', [AdoptionError, TomlError], () => readAdoptionOptOut(root));
   const facts = await readAs('unreadable-planning', [AdoptionError], () => readPlanningFacts(root));
-  const artifacts = await readAs('unreadable-planning', [AdoptionError], () => readAdoptionArtifacts(root));
+  const artifacts = await readAs('unreadable-planning', [AdoptionError], () => readAdoptionArtifacts(root, facts));
   const source = await measureSource(root, measure);
 
   const stage = decideStage({ optedOut: optOut.optedOut, facts });

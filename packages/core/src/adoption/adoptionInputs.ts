@@ -2,7 +2,7 @@
 // adoption, reported as root-relative paths so consumers need not know cf's file names. Read-only.
 import { isAbsolute, relative, sep } from 'node:path';
 import { resolveConceptPath } from '../introspection/parsers/projectGuideFile.js';
-import { readPlanningFacts } from './planningFacts.js';
+import { readPlanningFacts, type PlanningFacts } from './planningFacts.js';
 
 export interface AdoptionArtifacts {
   concept: string | null;
@@ -20,15 +20,16 @@ export function toRootRelative(root: string, absolutePath: string): string {
 
 /**
  * The concept, derived architectures and existing-state plan under `root`. Planning-file read
- * errors (`AdoptionError`) propagate unchanged; the caller attaches the error code.
+ * errors (`AdoptionError`) propagate unchanged; the caller attaches the error code. Pass `facts`
+ * when the caller has already read them, so one call never reads the planning files twice.
  */
-export async function readAdoptionArtifacts(root: string): Promise<AdoptionArtifacts> {
-  const [conceptPath, facts] = await Promise.all([resolveConceptPath(root), readPlanningFacts(root)]);
+export async function readAdoptionArtifacts(root: string, facts?: PlanningFacts): Promise<AdoptionArtifacts> {
+  const [conceptPath, planning] = await Promise.all([resolveConceptPath(root), facts ?? readPlanningFacts(root)]);
   const relativeToRoot = (path: string): string => toRootRelative(root, path);
   return {
     concept: conceptPath === null ? null : relativeToRoot(conceptPath),
-    derivedArchitectures: facts.derivedArchitectures.map(relativeToRoot),
-    existingStatePlan: facts.existingStatePlan === null ? null : relativeToRoot(facts.existingStatePlan),
+    derivedArchitectures: planning.derivedArchitectures.map(relativeToRoot),
+    existingStatePlan: planning.existingStatePlan === null ? null : relativeToRoot(planning.existingStatePlan),
   };
 }
 

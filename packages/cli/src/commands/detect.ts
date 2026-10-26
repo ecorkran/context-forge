@@ -1,12 +1,11 @@
 import { resolve } from 'node:path';
 import { Command } from 'commander';
 import {
-  DetectionError,
   REPORT_VERSION,
   detectProject,
   serializeDetectionReport,
-  serializeErrorEnvelope,
   toDetectionReport,
+  toErrorEnvelope,
 } from '@context-forge/core/node';
 import { handleError } from '../utils/errors.js';
 import { withJsonOption } from '../options.js';
@@ -19,11 +18,7 @@ interface DetectOptions {
 
 /** D5: a failure is one envelope on stdout and exit 1. `internal` is applied here, at the process boundary. */
 function writeJsonFailure(error: unknown): void {
-  const envelope =
-    error instanceof DetectionError
-      ? serializeErrorEnvelope(REPORT_VERSION, error.code, error.message)
-      : serializeErrorEnvelope(REPORT_VERSION, 'internal', error instanceof Error ? error.message : String(error));
-  process.stdout.write(envelope + '\n');
+  process.stdout.write(toErrorEnvelope(REPORT_VERSION, error) + '\n');
   process.exitCode = 1;
 }
 

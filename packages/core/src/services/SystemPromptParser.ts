@@ -216,16 +216,17 @@ export class SystemPromptParser {
    * The context-profile variables the guide declares for a prompt key (the `_default` profile
    * when the key has no entry; empty when the file has no profiles block).
    */
-  getProfileVariables(promptKey: string): Promise<string[]> {
-    // Executor throws surface as rejections, preserving the async contract
-    return new Promise((resolve) => {
-      if (!fs.existsSync(this.filePath)) {
-        throw new Error(`System prompt file not found at ${this.filePath}`);
-      }
-      const profileParser = new ContextProfileParser();
-      const profiles = profileParser.parseProfiles(fs.readFileSync(this.filePath, 'utf-8'));
-      resolve(profileParser.getProfileForInstruction(promptKey, profiles));
-    });
+  async getProfileVariables(promptKey: string): Promise<string[]> {
+    let content: string;
+    try {
+      content = await fs.promises.readFile(this.filePath, 'utf-8');
+    } catch (error) {
+      // readFile only rejects with filesystem errors, which carry a `code`.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      throw new Error(`System prompt file not found at ${this.filePath}`, { cause: error });
+    }
+    const profileParser = new ContextProfileParser();
+    return profileParser.getProfileForInstruction(promptKey, profileParser.parseProfiles(content));
   }
 
   /**

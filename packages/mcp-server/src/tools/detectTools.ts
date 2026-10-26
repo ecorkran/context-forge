@@ -6,19 +6,14 @@ import {
   REPORT_VERSION,
   detectProject,
   serializeDetectionReport,
-  serializeErrorEnvelope,
   toDetectionReport,
+  toErrorEnvelope,
 } from '@context-forge/core/node';
 
 type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
 
 function failure(error: unknown): ToolResult {
-  // D5: `internal` is applied here, at the process boundary; the message carries the original error.
-  const envelope =
-    error instanceof DetectionError
-      ? serializeErrorEnvelope(REPORT_VERSION, error.code, error.message)
-      : serializeErrorEnvelope(REPORT_VERSION, 'internal', error instanceof Error ? error.message : String(error));
-  return { content: [{ type: 'text', text: envelope }], isError: true };
+  return { content: [{ type: 'text', text: toErrorEnvelope(REPORT_VERSION, error) }], isError: true };
 }
 
 export function registerDetectTools(server: McpServer): void {

@@ -13,6 +13,7 @@ export function resolveComprehensionPath(root: string, input: string): string {
   try {
     stats = fs.statSync(resolved);
   } catch (error) {
+    // statSync only throws filesystem errors, which carry a `code`.
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     throw new UserError(`--comprehension path does not exist: ${resolved}`, 'ARTIFACT_NOT_FOUND');
   }

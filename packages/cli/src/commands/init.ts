@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, INIT_REPORT_VERSION, serializeErrorEnvelope } from '@context-forge/core/node';
+import { FileProjectStore, INIT_REPORT_VERSION, serializeErrorEnvelope, toErrorEnvelope } from '@context-forge/core/node';
 import { handleError } from '../utils/errors.js';
 import { withJsonOption } from '../options.js';
 import { dim } from '../output/styles.js';
@@ -25,8 +25,8 @@ interface InitOptions extends SetupOptions {
 }
 
 /** An error envelope on stdout and exit 1 (D8). Never `handleError` in JSON mode: it writes another shape to stderr. */
-function writeJsonFailure(code: 'worktree-of-registered-project' | 'internal', message: string): void {
-  process.stdout.write(serializeErrorEnvelope(INIT_REPORT_VERSION, code, message) + '\n');
+function writeJsonFailure(envelope: string): void {
+  process.stdout.write(envelope + '\n');
   process.exitCode = 1;
 }
 
@@ -51,7 +51,9 @@ export function registerInitCommand(program: Command): void {
       const git = runGitStep(cwd, out);
       const registration = await runRegisterStep(store, all, cwd, opts.name, out);
       if (registration.kind === 'worktree') {
-        if (opts.json) writeJsonFailure('worktree-of-registered-project', WORKTREE_REFUSAL);
+        if (opts.json) {
+          writeJsonFailure(serializeErrorEnvelope(INIT_REPORT_VERSION, 'worktree-of-registered-project', WORKTREE_REFUSAL));
+        }
         return;
       }
 
@@ -78,7 +80,7 @@ export function registerInitCommand(program: Command): void {
       if (anyStepFailed(steps)) process.exitCode = 1;
     } catch (err) {
       if (opts.json) {
-        writeJsonFailure('internal', err instanceof Error ? err.message : String(err));
+        writeJsonFailure(toErrorEnvelope(INIT_REPORT_VERSION, err));
         return;
       }
       handleError(err);

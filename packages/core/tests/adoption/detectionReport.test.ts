@@ -7,6 +7,7 @@ import {
   serializeDetectionReport,
   serializeErrorEnvelope,
   toDetectionReport,
+  toErrorEnvelope,
   type AdoptionOutcome,
   type ProjectDetection,
 } from '../../src/adoption/index.js';
@@ -97,5 +98,27 @@ describe('DetectionError', () => {
     expect(error).toBeInstanceOf(Error);
     expect(error.code).toBe(DETECTION_ERROR_CODES[0]);
     expect(error.cause).toBe(cause);
+  });
+});
+
+describe('toErrorEnvelope', () => {
+  const parse = (text: string) => JSON.parse(text) as { reportVersion: number; error: { code: string; message: string } };
+
+  it('keeps a DetectionError code and message', () => {
+    expect(parse(toErrorEnvelope(REPORT_VERSION, new DetectionError('invalid-config', 'bad toml'))).error).toEqual({
+      code: 'invalid-config',
+      message: 'bad toml',
+    });
+  });
+
+  it('maps any other Error to internal with its message', () => {
+    expect(parse(toErrorEnvelope(INIT_REPORT_VERSION, new Error('boom')))).toEqual({
+      reportVersion: INIT_REPORT_VERSION,
+      error: { code: 'internal', message: 'boom' },
+    });
+  });
+
+  it('maps a non-Error value to internal with its string form', () => {
+    expect(parse(toErrorEnvelope(REPORT_VERSION, 'plain text')).error).toEqual({ code: 'internal', message: 'plain text' });
   });
 });

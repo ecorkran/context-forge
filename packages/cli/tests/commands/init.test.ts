@@ -86,6 +86,7 @@ vi.mock('../../src/commands/commandInstaller.js', () => ({
 // A failed step now sets the exit code (slice 271 D8); keep it from leaking between tests.
 afterEach(() => {
   process.exitCode = undefined;
+  mockExecFileSync.mockReset();
 });
 
 function createProgram(): Command {
@@ -539,7 +540,6 @@ describe('cf init step results and exit code (D8)', () => {
     });
     await runInit('--lite');
     expect(process.exitCode).toBe(1);
-    mockExecFileSync.mockReset();
   });
 
   it('an already-installed guide is skipped, not failed', async () => {
@@ -556,7 +556,6 @@ describe('cf init step results and exit code (D8)', () => {
     await runInit();
     expect(process.exitCode).toBeUndefined();
     expect(mockCreate).not.toHaveBeenCalled();
-    mockExecFileSync.mockReset();
   });
 
   describe('runSetupSteps statuses', () => {
@@ -707,7 +706,6 @@ describe('cf init --json (D8)', () => {
     );
     expect(process.exitCode).toBe(1);
     expect(mockCreate).not.toHaveBeenCalled();
-    mockExecFileSync.mockReset();
   });
 
   it('a registration failure is an internal envelope with no step results', async () => {

@@ -107,3 +107,12 @@ export function serializeDetectionReport(report: DetectionReport): string {
 export function serializeErrorEnvelope(reportVersion: number, code: DetectionErrorCode, message: string): string {
   return JSON.stringify({ reportVersion, error: { code, message } }, null, JSON_INDENT);
 }
+
+/**
+ * The envelope for any thrown value. A `DetectionError` keeps its code; anything else is `internal`
+ * (D5: applied only at a process boundary, with the original message, and the exit stays non-zero).
+ */
+export function toErrorEnvelope(reportVersion: number, error: unknown): string {
+  if (error instanceof DetectionError) return serializeErrorEnvelope(reportVersion, error.code, error.message);
+  return serializeErrorEnvelope(reportVersion, 'internal', error instanceof Error ? error.message : String(error));
+}
