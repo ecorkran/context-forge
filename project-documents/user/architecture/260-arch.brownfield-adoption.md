@@ -66,7 +66,7 @@ This initiative gives CF a brownfield path. When onboarding (`sq onboard`) finds
 
 ### Onboarding (amended 20261025)
 
-`/cf:onboard`, its Codex variant and `agent_onboard` stay as entry points, rendered from one cf-owned source (slice 260). They contain only setup: the registration check, `cf init` or the MCP `project_create`/`guide_install` fallback, then the concept conversation for greenfield. They have no adoption path. When the detection report says brownfield, they stop before the concept conversation and say so in one message: adoption needs `sq onboard`, which is not available yet, and the user can opt out to treat the project as new. They never start the greenfield conversation on an existing codebase silently. Adoption is orchestrated by `sq onboard` once squadron builds it; until then it is parked. The `/setup-ci` offer lives in `cf next`.
+`/cf:onboard`, its Codex variant and `agent_onboard` stay as entry points, rendered from one cf-owned source (slice 260). They contain only setup: the registration check, `cf init` or the MCP `project_create`/`guide_install` fallback, then the concept conversation for greenfield. They have no adoption path. When the detection report says brownfield, they stop before the concept conversation and say so in one message: adoption needs `sq onboard`, which is not available yet, and the user can opt out to treat the project as new. They never start the greenfield conversation on an existing codebase silently. They also stop on adoption-incomplete, printing the report's own line for it (amended 20261026, slice 271 D6). Adoption is orchestrated by `sq onboard` once squadron builds it; until then it is parked. The `/setup-ci` offer lives in `cf next`.
 
 ### Detection: a read-only report (amended 20261025)
 
@@ -79,7 +79,7 @@ Core produces one detection report: source volume (a floor, because counting sto
 
 The outcome is derived from the files every time and never stored. The only stored value is the opt-out, a project config value whose key and command slice 269 names. Detection is scoped to the project's own folder, so a CF project in a monorepo subdirectory is judged on that folder. CI is the one exception: CI configs live at the repository root, so CI recognition also checks the root (slice 260's `recognizeCi`). History counts only commits that touch the project folder, and the report says when a shallow clone truncates it.
 
-The report is exposed as one CLI command and one MCP tool returning JSON (slice 271). It writes nothing. `cf init` uses the same core function to print one line when it finds an existing codebase. `cf build` does not run detection.
+The report is exposed as one CLI command and one MCP tool returning JSON (slice 271). It writes nothing. `cf init` uses the same core function to print one line when it finds an existing codebase or an incomplete adoption (amended 20261026, slice 271 D9). `cf build` does not run detection.
 
 ### Adoption flow, under sq onboard (amended 20261025)
 

@@ -193,6 +193,7 @@ Status: decided
   - `invalid-config`: `adoption.state` holds a value outside the allowed set, or the TOML doesn't parse.
   - `unreadable-planning`: a planning directory can't be listed (non-ENOENT).
   - `source-unmeasurable`: D4.
+  - `worktree-of-registered-project`: `cf init --json` only (D8).
   - `internal`: the catch-all for any other error. It is applied only at the process boundary (the CLI action and the MCP handler). The message carries the original error, and the exit is still non-zero, so nothing is swallowed.
 - One error class, `DetectionError`, carries the code. `detectProject` throws it directly for the first four codes. Where it calls a read function that throws `AdoptionError`, it wraps that error at the call, with that call's code. There is no separate class-to-code mapping table.
 - Without `--json`, the CLI prints the message through `handleError`, as other commands do.
@@ -209,10 +210,11 @@ Status: decided
 
 ### D7 — Prompt delivery: `cf prompt get` with `--comprehension`, gated by the guide's profile
 Status: decided
-- The slice plan asked whether `cf prompt get` accepting the path is all this needs. Almost. It already renders a prompt by key with `{project}` substituted, and it has no fallback: an unknown key is an error. Three things are missing, and this slice adds them:
+- The slice plan asked whether `cf prompt get` accepting the path is all this needs. Almost. It already renders a prompt by key with `{project}` substituted, and it has no fallback: an unknown key is an error. Four things are missing, and this slice adds them:
   1. **The flag.** `--comprehension <path>` is accepted only when the resolved prompt's context profile (the guide's `context_profiles` table, read with `ContextProfileParser`) lists `fileComprehension`. On any other prompt it is an error naming the key. The guide decides which prompts take a comprehension doc, and cf hard-codes no prompt key.
   2. **The Adoption Inputs section.** For any prompt whose profile lists `fileComprehension`, cf appends `## Adoption Inputs`, flag or no flag. It lists the comprehension path, or the sentence "No codebase comprehension analysis was provided.", and then the concept, derived architectures and existing-state plan from `readAdoptionArtifacts`, each `none` when absent. That is how the profile's other variables (`fileConcept`, `fileArch`, `fileSlicePlan`) reach the prompt now that `cf build` doesn't select it. They come from the files cf already knows by name, not from project fields, which an adopting project hasn't set.
-  3. **Path checks.** The path resolves against the project root. A missing path, a directory, or a path outside the project root is an error (the CLI's existing `UserError`, no new class) whose message names the path and the reason. The containment check compares real paths (`fs.realpath` of both the path and the project root), so a symlink inside the project that points outside it is refused. The section shows the path relative to the project root, as passed.
+  3. **Path checks.** The path may be absolute or relative; a relative path resolves against the project root. A missing path or a directory is an error (the CLI's existing `UserError`, no new class) whose message names the path and the reason. There is no containment check: cf never reads the file, it only names it to an agent that can already read the disk. Squadron writes the doc inside the project root anyway (`sq` session, 20261026). The section shows the path relative to the project root when it is inside it, and absolute otherwise.
+  4. **The project root.** `cf prompt get` gains `--path <dir>`, the same option `cf detect` has. It resolves the registered project at that directory the way cwd resolution works today (`findProjectByCwd`, parameterized with a directory, worktree-aware). Without `--path`, resolution is unchanged (cwd, then the existing fallbacks). The resolved project's operation path is the one root for both `{project}` substitution and `readAdoptionArtifacts`, so the two can't come from different projects. `--path` with `--project` is an error. A directory with no registered project is the existing project-not-found error; `sq onboard` runs `cf init` first. Squadron always passes `--path` (`sq` session, 20261026).
 - `--raw` with `--comprehension` is an error: raw output is the unrendered template.
 - The section is named "Adoption Inputs", not "Adoption Facts". The Adoption Facts section was the build-time block 268 removed, and the names must not be confused.
 - CLI only. Squadron calls cf as a CLI. The MCP `prompt_get` tool returns raw template text with no variable substitution today, and giving it inputs would be a separate change to that tool. The arch requires an MCP twin only for the detection report.
@@ -230,6 +232,7 @@ Status: decided
 
   ```json
   {
+    "reportVersion": 1,
     "projectId": "…",
     "projectName": "…",
     "projectPath": "/abs/path",
@@ -240,7 +243,9 @@ Status: decided
   }
   ```
 
-  `registration` is `created` or `existing`. `notices` carries the D9 line. Failures before any step runs use D5's error object.
+  `registration` is `created` or `existing`. `notices` carries the D9 line.
+- **Versioning.** `reportVersion` uses the same field name and bump rule as D3, so squadron refuses an unknown version the same way for both commands. Its value is a separate constant, `INIT_REPORT_VERSION`, next to `REPORT_VERSION`, so a change to one report doesn't bump the other.
+- **Errors.** Every `cf init --json` failure that happens before or instead of the step results (the worktree refusal, an unreadable store, an unexpected throw) uses D5's envelope exactly: `{ "reportVersion": <INIT_REPORT_VERSION>, "error": { "code", "message" } }` on stdout, exit 1. The serializer is shared with `cf detect`, so squadron parses both with one error reader (`sq` session, 20261026). A failed step is not an error object: it is the step-result JSON above with `"ok": false`, also exit 1.
 - **Stdout stays pure JSON.** The guide, command and IDE actions print progress with `console.log`. Each gains an optional log sink parameter that defaults to stdout. `cf init --json` passes a stderr sink, and runs `git init` with piped stdio and its output sent to stderr. Rejected: patching `console.log` for the duration of the command. It is a global side effect, and it leaks if an action throws past the restore.
 
 ### D9 — `cf init` prints one line for an existing codebase
@@ -276,9 +281,9 @@ Without `--json`, it prints only the outcome and the notices. Every consumer the
 
 Returns the same JSON as `cf detect --json`, as a JSON text result. On failure, `isError: true` with the D5 object as text. `readOnlyHint: true`.
 
-**`cf prompt get <key> --comprehension <path>`**
+**`cf prompt get <key> [--path <dir>] [--comprehension <path>]`**
 
-Output is the prompt with `{project}` substituted, then:
+`--path` picks the registered project at that directory (D7 item 4); default is today's cwd resolution. `--comprehension` takes an absolute or root-relative file path. Output is the prompt with `{project}` substituted, then:
 
 ```markdown
 ## Adoption Inputs
@@ -288,7 +293,7 @@ Output is the prompt with `{project}` substituted, then:
 - Existing-state slice plan: none
 ```
 
-The comprehension line reads "No codebase comprehension analysis was provided." when no path is passed. Labels and sentences are constants in `adoptionInputs.ts`. Errors: `--comprehension` on a prompt whose profile lacks `fileComprehension`, `--comprehension` with `--raw`, a comprehension path that is missing, a directory or outside the root, and an unknown key (an existing error).
+The comprehension line reads "No codebase comprehension analysis was provided." when no path is passed. Labels and sentences are constants in `adoptionInputs.ts`. Errors: `--comprehension` on a prompt whose profile lacks `fileComprehension`, `--comprehension` with `--raw`, a comprehension path that is missing or a directory, `--path` with `--project`, no registered project at `--path` (an existing error), and an unknown key (an existing error).
 
 **`cf init --json`**: D8.
 
@@ -312,7 +317,8 @@ The comprehension line reads "No codebase comprehension analysis was provided." 
 - Every path in the report except `projectRoot` is relative to the project root.
 - Each D5 error code is produced by a test case, as a JSON object with exit 1.
 - A failed source walk on a planned project still gives a report with `source.measured: false`. On an unplanned project it gives `source-unmeasurable`.
-- `cf prompt get brownfield-adoption --comprehension <path>` appends Adoption Inputs with that path. Without the flag, it says plainly that none was provided. A missing path, a directory, or a path outside the root is a named error. `--comprehension` on `concept-phase-0` is an error.
+- `cf prompt get brownfield-adoption --comprehension <path>` appends Adoption Inputs with that path. Without the flag, it says plainly that none was provided. An absolute path and a root-relative path both work. A missing path or a directory is a named error. `--comprehension` on `concept-phase-0` is an error. Run from an unrelated cwd with `--path <project>`, the output's `{project}` and Adoption Inputs both come from that project.
+- `cf init --json` output and its errors carry `reportVersion`, and its error objects match the `cf detect` envelope exactly.
 - `cf init --json` prints one JSON object on stdout, with no other output on stdout, and exits 1 when a step fails (for example a guide install forced to fail). Without `--json`, the same failure also exits 1.
 - `cf init` on a brownfield fixture prints `BROWNFIELD_LINE`. On a greenfield fixture it prints no adoption line.
 - The three rendered onboarding surfaces contain the detection step, and the existing divergence test passes. Running `/cf:onboard` on a brownfield repo prints the notice and stops before any concept question.
@@ -321,11 +327,10 @@ The comprehension line reads "No codebase comprehension analysis was provided." 
 - `detectProject` is the only fact-gathering function behind `cf detect`, `project_detect` and `cf init`. `outcomeLine` is the only outcome-to-line mapping.
 - No source file under `packages/*/src` names `codebase-comprehension` or invokes `sq`. The D10 guard test catches these known patterns. It is a text scan, so it doesn't prove the ban: a command built from parts, or another squadron file name, would pass it.
 - `comprehensionAnalysis.ts`, its test and its exports are gone, and the build, lint and typecheck pass.
-- New files stay within ~300 lines and functions within ~50.
 - Format, lint, typecheck and the full test suite pass.
 
 ### Integration Requirements
-- The `sq` session has confirmed the command names and report shape (D1), or its requested changes are in this design, before Phase 5 starts.
+- The `sq` session confirmed the command names and report shapes on 20261026. Its requests (the `cf init --json` version field, one error envelope for both commands, relative or absolute `--comprehension` paths) are in D7 and D8.
 - 272 can document the contract from this design's API Contracts section without reading the code.
 
 ### Verification Walkthrough
@@ -354,7 +359,7 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the
 
 4. **`cf init --json` and exit codes**
    ```bash
-   cd /tmp/cf271-empty && cf init --json --strategy <invalid> ; echo "exit=$?"
+   cd /tmp/cf271-empty && cf init --json --strategy bogus ; echo "exit=$?"   # GuideManager.install rejects the strategy inside the guides step
    ```
    Expect one JSON object on stdout with the `guides` step `failed`, `"ok": false`, and exit=1. Progress text appears on stderr only (`cf init --json 2>/dev/null` prints only the JSON).
 
@@ -366,6 +371,7 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below); the
    cf prompt get brownfield-adoption --comprehension project-documents/user/analysis/x.md | tail -6
    cf prompt get brownfield-adoption --comprehension nope.md; echo "exit=$?"   # named error, exit=1
    cf prompt get concept-phase-0 --comprehension project-documents/user/analysis/x.md; echo "exit=$?"  # refused
+   cd ~ && cf prompt get brownfield-adoption --path /tmp/cf271-bf --comprehension /tmp/cf271-bf/project-documents/user/analysis/x.md | tail -6   # cf271-bf's inputs, absolute path accepted
    ```
 
 6. **Opt-out and planned outcomes**
@@ -409,5 +415,4 @@ Effort: 3/5. The slice plan said 2/5. Scope matches the plan entry: it assigns t
 
 ### Special Considerations
 - **Interim guide mismatch.** Until 272 ships the reworked guide prompt, the installed `Brownfield Adoption` prompt still expects an Adoption Facts section and stops without one. That is acceptable because no release ships before 272 (the same interim 268 accepted).
-- **Contract confirmation.** Send D1–D5, D7 and D8 to the `sq` session with `SendMessage` when this design is presented, and record its answer here before Phase 5.
-- **Security.** `--comprehension` paths must stay inside the project root (D7), so the prompt never names arbitrary files on the machine.
+- **Contract confirmation.** Done 20261026. The `sq` session confirmed D1–D5, D7 and D8, and its requests are folded into D7 and D8. Send squadron the commit of the final design.
