@@ -148,6 +148,9 @@ export function runGitStep(cwd: string, out: InitOutput): StepResult {
   }
 }
 
+/** Printed (and, with --json, sent in the error envelope) when cwd is a git worktree of a registered project. */
+export const WORKTREE_REFUSAL = 'This looks like a worktree. Run cf worktree init instead.';
+
 export type RegisterOutcome =
   | { kind: 'worktree' }
   | { kind: 'registered'; registration: 'created' | 'existing'; project: ProjectData; result: StepResult };
@@ -172,7 +175,7 @@ export async function runRegisterStep(
   }
   const registeredPaths = all.filter((p) => p.projectPath).map((p) => p.projectPath as string);
   if (isGitWorktreeOf(cwd, registeredPaths)) {
-    out.log(warn('This looks like a worktree. Run cf worktree init instead.'));
+    out.log(warn(WORKTREE_REFUSAL));
     return { kind: 'worktree' };
   }
   const projectName = name || path.basename(cwd);

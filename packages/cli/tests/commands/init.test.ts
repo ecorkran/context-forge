@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import { GuideAlreadyInstalledError } from '@context-forge/core/node';
+import { GuideAlreadyInstalledError, INIT_REPORT_VERSION, serializeErrorEnvelope } from '@context-forge/core/node';
 import { registerInitCommand } from '../../src/commands/init.js';
-import { HUMAN_OUTPUT, INIT_STEP, SKIP_REASON, STEP_STATUS, runSetupSteps } from '../../src/commands/initSteps.js';
+import { HUMAN_OUTPUT, INIT_STEP, SKIP_REASON, STEP_STATUS, WORKTREE_REFUSAL, runSetupSteps } from '../../src/commands/initSteps.js';
 
 const mockGetAll = vi.fn();
 const mockCreate = vi.fn();
@@ -589,5 +589,126 @@ describe('cf init step results and exit code (D8)', () => {
         message: 'Network error',
       });
     });
+  });
+});
+
+describe('cf init --json (D8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    mockExistsSync.mockImplementation((p: string) => p.endsWith('.git'));
+    mockCreate.mockResolvedValue({ id: 'project_new_001', name: 'test-dir' });
+    mockGuidesInstallAction.mockResolvedValue(undefined);
+    mockSetupIdeAction.mockResolvedValue(undefined);
+    mockInstallCommandsAction.mockReturnValue(undefined);
+    mockGetAll.mockResolvedValue([]);
+  });
+
+  const written = (stream: NodeJS.WriteStream): string =>
+    vi.mocked(stream.write).mock.calls.map((call) => String(call[0])).join('');
+
+  async function runInitJson(...args: string[]): Promise<void> {
+    await createProgram().parseAsync(['init', '--json', ...args], { from: 'user' });
+  }
+
+  it('an all-ok run writes exactly one JSON object to stdout and progress only to stderr', async () => {
+    await runInitJson();
+
+    const report = JSON.parse(written(process.stdout));
+    expect(report).toMatchObject({
+      reportVersion: INIT_REPORT_VERSION,
+      projectId: 'project_new_001',
+      projectName: 'test-dir',
+      projectPath: process.cwd(),
+      registration: 'created',
+      notices: [],
+      ok: true,
+    });
+    expect(report.steps.map((step: { step: string }) => step.step)).toEqual(Object.values(INIT_STEP));
+    expect(written(process.stderr)).toContain('Project');
+    expect(console.log).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('hands every action the stderr sink', async () => {
+    await runInitJson();
+
+    expect(mockGuidesInstallAction).toHaveBeenCalledWith(process.cwd(), { strategy: undefined }, expect.any(Function));
+    const sink = mockGuidesInstallAction.mock.calls[0][2] as (line: string) => void;
+    sink('a progress line');
+    expect(written(process.stderr)).toContain('a progress line');
+    expect(written(process.stdout)).not.toContain('a progress line');
+  });
+
+  it('an existing project reports registration: existing', async () => {
+    mockGetAll.mockResolvedValue([{ id: 'project_old', name: 'old-name', projectPath: process.cwd() }]);
+    await runInitJson();
+    expect(JSON.parse(written(process.stdout))).toMatchObject({
+      registration: 'existing',
+      projectId: 'project_old',
+      projectName: 'old-name',
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('a failed guide step is ok: false with exit 1, not an error envelope', async () => {
+    mockGuidesInstallAction.mockRejectedValue(new Error('Network error'));
+    await runInitJson();
+
+    const report = JSON.parse(written(process.stdout));
+    expect(report.ok).toBe(false);
+    expect(report.error).toBeUndefined();
+    expect(report.steps.find((step: { step: string }) => step.step === INIT_STEP.guides)).toEqual({
+      step: INIT_STEP.guides,
+      status: STEP_STATUS.failed,
+      message: 'Network error',
+    });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('--lite reports the skipped steps', async () => {
+    await runInitJson('--lite');
+    const report = JSON.parse(written(process.stdout));
+    const liteSkipped = report.steps
+      .filter((step: { message?: string }) => step.message === SKIP_REASON.lite)
+      .map((step: { step: string; status: string }) => [step.step, step.status]);
+    expect(liteSkipped).toEqual([
+      [INIT_STEP.guides, STEP_STATUS.skipped],
+      [INIT_STEP.commands, STEP_STATUS.skipped],
+      [INIT_STEP.ide, STEP_STATUS.skipped],
+    ]);
+  });
+
+  it('the worktree refusal is the shared error envelope with exit 1', async () => {
+    mockGetAll.mockResolvedValue([{ id: 'p1', name: 'main-repo', projectPath: '/repo/main' }]);
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]) =>
+      args[0] === 'worktree' ? 'worktree /repo/main\nHEAD abc\n' : '',
+    );
+
+    await runInitJson();
+
+    expect(written(process.stdout)).toBe(
+      serializeErrorEnvelope(INIT_REPORT_VERSION, 'worktree-of-registered-project', WORKTREE_REFUSAL) + '\n',
+    );
+    expect(process.exitCode).toBe(1);
+    expect(mockCreate).not.toHaveBeenCalled();
+    mockExecFileSync.mockReset();
+  });
+
+  it('a registration failure is an internal envelope with no step results', async () => {
+    mockCreate.mockRejectedValue(new Error('store is read-only'));
+
+    await runInitJson();
+
+    expect(written(process.stdout)).toBe(
+      serializeErrorEnvelope(INIT_REPORT_VERSION, 'internal', 'store is read-only') + '\n',
+    );
+    expect(JSON.parse(written(process.stdout)).steps).toBeUndefined();
+    expect(process.exitCode).toBe(1);
+    expect(mockGuidesInstallAction).not.toHaveBeenCalled();
   });
 });
