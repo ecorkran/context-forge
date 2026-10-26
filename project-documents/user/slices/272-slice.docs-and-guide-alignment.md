@@ -117,8 +117,7 @@ None.
 Status: decided
 - `docs/ADOPTION-PRIMITIVES.md` states, per primitive, only what squadron depends on: inputs, where output goes, exit codes, and guarantees. For `cf prompt get … --path --comprehension` that includes the path rules and that stderr may carry the guide-minimum warning while stdout and the exit code are unaffected by it (D4).
 - It does not re-list the schemas. For field lists, outcome values and error codes it names the code's definitions in `core/src/adoption/detectionReport.ts` (`DetectionReport`, `DETECTION_ERROR_CODES`, `REPORT_VERSION`, `INIT_REPORT_VERSION`) and gives the `reportVersion` bump rule in one sentence.
-- It keeps one JSON example per primitive (a success and an error), taken from the local build; walkthrough step 3 checks them.
-- It opens with the rule: a change to those definitions updates this document in the same commit. The owner is whoever changes the code, as for any doc the change makes stale.
+- It keeps one `cf detect --json` success example and one error example, taken from the local build; walkthrough step 3 checks them. `cf init --json` and `cf prompt get` get prose only: their shapes live in the code definitions named above and the CLI README rows.
 - The README and the CLI and MCP references give one row or paragraph per primitive and link to it. The schema is written once.
 - It is written from 271's API Contracts and D3, D5, D7 and D8, then checked against the code: each JSON example comes from running the local build, not from the design text.
 - Rejected: the contract in the CLI README. Squadron needs MCP and CLI together, and the CLI README is a command table.
@@ -262,11 +261,13 @@ Use the local build (`node packages/cli/dist/index.js`, written `cf` below) afte
    ```bash
    cf guides info | grep Version
    grep -n "MIN_GUIDE_VERSION =" packages/core/src/guides/guideMinimum.ts
-   awk '/^##### Brownfield Adoption/,/^##### Conventions/' project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md \
-     | grep -n -i "cf build\|adoption facts\|probe\|surfaces\|analysis_skill\|understand_plugin\|graph_build\|selects it" || echo clean
+   section=$(awk '/^#+ Brownfield Adoption/{f=1; next} f && /^#+ Conventions/{exit} f' project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md)
+   echo "$section" | grep -q "Adoption Inputs" && echo "section found" || echo "FAIL: section empty or missing Adoption Inputs"
+   echo "$section" | grep -n -i "cf build\|adoption facts\|probe\|surfaces\|analysis_skill\|understand_plugin\|graph_build\|selects it" || echo clean
+   grep -q "How It Is Run" project-documents/ai-project-guide/project-guides/guide.ai-project.brownfield-adoption.md && echo "guide found" || echo "FAIL: adoption guide missing How It Is Run"
    grep -n -i "adoption facts\|graph-based analysis or" project-documents/ai-project-guide/project-guides/guide.ai-project.brownfield-adoption.md || echo clean
    ```
-   Expect the two versions to match and `clean` twice.
+   Expect the two versions to match, `section found`, `clean`, `guide found`, `clean`. Either `FAIL` line means the extraction range was empty and the `clean` after it proves nothing.
 
 5. **The delivered prompt.** In the brownfield fixture after `cf init --name cf272-bf --no-ide`:
    ```bash
@@ -302,3 +303,14 @@ Effort: 2/5. The plan said 1/5. The contract document and the `cf prompt get` wa
 
 ### Special Considerations
 - **Ordering with the guide release.** cf can't ship this slice before the guide release, because the raised minimum would name a version that doesn't exist. The docs work lands first on the slice branch; the version raise is the last task.
+
+## Review Resolution
+
+Slice review `272-review.slice.docs-and-guide-alignment.md` (CONCERNS, run-20261026-p4-feb3f704). The review file is unedited.
+
+- **F004 (verification can pass on an empty range): accepted.** Walkthrough step 4 now captures the section once, asserts it is non-empty and contains "Adoption Inputs" before the negative grep, and does the same for the adoption guide.
+- **F005 (proportionality): partly accepted.**
+  - JSON examples: accepted. D1 keeps `cf detect --json` success and error examples only.
+  - Ownership rule: accepted. The opening rule is dropped from D1; it has no enforcement and applies to any doc.
+  - D5 triage: not moved. Walkthrough step 1 and the first Functional Requirement say "apart from the kept hits listed in D5", so the kept list has to stay where the verification reads it.
+- **F006 (note): no change needed.**
