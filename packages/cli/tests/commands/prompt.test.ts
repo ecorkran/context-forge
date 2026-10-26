@@ -6,8 +6,11 @@ const mockGetAll = vi.fn();
 const mockGetById = vi.fn();
 const mockGetAllPrompts = vi.fn();
 const mockGetPromptForInstruction = vi.fn();
+// No prompt here lists adoption inputs; prompt.adoption.test.ts covers the profile-gated section.
+const mockGetProfileVariables = vi.fn().mockResolvedValue([]);
 
-vi.mock('@context-forge/core/node', () => ({
+vi.mock('@context-forge/core/node', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@context-forge/core/node')>()),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
@@ -21,6 +24,7 @@ vi.mock('@context-forge/core/node', () => ({
   SystemPromptParser: vi.fn().mockImplementation(() => ({
     getAllPrompts: mockGetAllPrompts,
     getPromptForInstruction: mockGetPromptForInstruction,
+    getProfileVariables: mockGetProfileVariables,
   })),
   ConfigManager: vi.fn().mockImplementation(() => ({
     get: vi.fn().mockResolvedValue({ value: '' }),

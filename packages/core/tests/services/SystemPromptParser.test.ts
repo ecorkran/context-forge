@@ -9,6 +9,17 @@ import { SystemPromptParser } from '../../src/services/SystemPromptParser.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const BROWNFIELD_PROMPT_PATH = join(
+  __dirname,
+  '..',
+  'fixtures',
+  'brownfield-guide',
+  'project-documents',
+  'ai-project-guide',
+  'project-guides',
+  'prompt.ai-project.system.md',
+);
+
 const FIXTURE_PROMPT_PATH = join(
   __dirname,
   '..',
@@ -277,6 +288,25 @@ describe('SystemPromptParser', () => {
       expect(result.errors).toContain('No prompt sections found (##### headers)');
 
       await rm(tempDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('getProfileVariables', () => {
+    const parser = new SystemPromptParser(BROWNFIELD_PROMPT_PATH);
+
+    it('returns the variables the profile lists for a key', async () => {
+      expect(await parser.getProfileVariables('brownfield-adoption')).toContain('fileComprehension');
+      expect(await parser.getProfileVariables('concept-phase-0')).toEqual([]);
+    });
+
+    it('uses the _default profile for a key without an entry', async () => {
+      expect(await parser.getProfileVariables('no-such-key')).toEqual(['fileArch', 'fileSlicePlan', 'fileSlice', 'fileTasks']);
+    });
+
+    it('throws when the prompt file is missing', async () => {
+      await expect(new SystemPromptParser(join(tmpdir(), 'cf-missing-prompt.md')).getProfileVariables('x')).rejects.toThrow(
+        'not found',
+      );
     });
   });
 });

@@ -1,6 +1,12 @@
 import * as path from 'node:path';
 import { Command } from 'commander';
-import { FileProjectStore, SystemPromptParser } from '@context-forge/core/node';
+import {
+  COMPREHENSION_PROFILE_VARIABLE,
+  FileProjectStore,
+  SystemPromptParser,
+  readAdoptionArtifacts,
+  renderAdoptionInputs,
+} from '@context-forge/core/node';
 import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
 import { findProjectByCwd, resolveProjectWorktree } from '../utils/project.js';
@@ -11,6 +17,7 @@ import { withJsonOption, withProjectOption, withRawOption } from '../options.js'
 import { printJson, printRaw } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { getPhaseShorthands, resolvePhaseInput } from '../utils/phaseShorthand.js';
+import { resolveComprehensionPath } from './promptAdoption.js';
 
 /**
  * Substitute project variables into template content.
@@ -130,8 +137,15 @@ export function registerPromptCommand(program: Command): void {
   withProjectOption(getCmd);
   withRawOption(getCmd);
   getCmd.option('--path <dir>', 'Use the registered project at this directory (default: resolve from the current directory)');
-  getCmd.action(async (phase: string, opts: { project?: string; raw?: boolean; path?: string }) => {
+  getCmd.option(
+    '--comprehension <path>',
+    'Codebase comprehension file to name in the Adoption Inputs section (only for prompts whose profile lists it)',
+  );
+  getCmd.action(async (phase: string, opts: { project?: string; raw?: boolean; path?: string; comprehension?: string }) => {
       try {
+        if (opts.raw && opts.comprehension !== undefined) {
+          throw new UserError('--comprehension cannot be used with --raw: raw output is the unrendered template.', 'INVALID_ARGUMENT');
+        }
         const store = new FileProjectStore();
         const { project, worktreeId } = await resolvePromptProject(store, opts);
         const opPath = resolveOperationPath(project, worktreeId);
@@ -160,8 +174,23 @@ export function registerPromptCommand(program: Command): void {
           );
         }
 
+        // The guide's profile decides which prompts take adoption inputs; cf names no prompt key.
+        const takesAdoptionInputs = (await parser.getProfileVariables(prompt.key)).includes(COMPREHENSION_PROFILE_VARIABLE);
+        if (opts.comprehension !== undefined && !takesAdoptionInputs) {
+          throw new UserError(
+            `--comprehension is not accepted by prompt '${prompt.key}': its context profile does not list ${COMPREHENSION_PROFILE_VARIABLE}.`,
+            'INVALID_ARGUMENT',
+          );
+        }
+        const comprehensionPath =
+          opts.comprehension === undefined ? null : resolveComprehensionPath(opPath, opts.comprehension);
+
         const resolved = worktreeId ? applyWorktreeOverlay(project, worktreeId) : project;
-        const output = opts.raw ? prompt.content : substituteVariables(prompt.content, resolved);
+        let output = opts.raw ? prompt.content : substituteVariables(prompt.content, resolved);
+        if (takesAdoptionInputs && !opts.raw) {
+          const section = renderAdoptionInputs(opPath, comprehensionPath, await readAdoptionArtifacts(opPath));
+          output = `${output.trimEnd()}\n\n${section}\n`;
+        }
         printRaw(output);
       } catch (err) {
         handleError(err);
