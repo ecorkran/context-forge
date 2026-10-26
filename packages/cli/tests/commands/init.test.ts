@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import { GuideAlreadyInstalledError, INIT_REPORT_VERSION, serializeErrorEnvelope } from '@context-forge/core/node';
+import {
+  BROWNFIELD_LINE,
+  GuideAlreadyInstalledError,
+  INCOMPLETE_ADOPTION_LINE,
+  INIT_REPORT_VERSION,
+  inconclusiveDetectionLine,
+  serializeErrorEnvelope,
+} from '@context-forge/core/node';
 import { registerInitCommand } from '../../src/commands/init.js';
 import { HUMAN_OUTPUT, INIT_STEP, SKIP_REASON, STEP_STATUS, WORKTREE_REFUSAL, runSetupSteps } from '../../src/commands/initSteps.js';
 
@@ -13,6 +20,9 @@ const mockExecFileSync = vi.fn();
 const mockGuidesInstallAction = vi.fn();
 const mockSetupIdeAction = vi.fn();
 const mockInstallCommandsAction = vi.fn();
+const GREENFIELD_DETECTION = { outcome: { kind: 'greenfield', source: { files: 0, lines: 0, capped: false } } };
+// cwd is the cli package, which would read as brownfield; tests choose the outcome explicitly.
+const mockDetectProject = vi.fn().mockResolvedValue(GREENFIELD_DETECTION);
 
 vi.mock('@context-forge/core/node', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@context-forge/core/node')>();
@@ -23,6 +33,7 @@ vi.mock('@context-forge/core/node', async (importOriginal) => {
       getAll: mockGetAll,
       create: mockCreate,
     })),
+    detectProject: (...args: unknown[]) => mockDetectProject(...args),
   };
 });
 
@@ -710,5 +721,74 @@ describe('cf init --json (D8)', () => {
     expect(JSON.parse(written(process.stdout)).steps).toBeUndefined();
     expect(process.exitCode).toBe(1);
     expect(mockGuidesInstallAction).not.toHaveBeenCalled();
+  });
+});
+
+describe('cf init codebase line (D9)', () => {
+  const BROWNFIELD_DETECTION = { outcome: { kind: 'brownfield', source: { files: 9, lines: 2000, capped: true } } };
+  const INCOMPLETE_DETECTION = { outcome: { kind: 'adoption-incomplete', derivedArchitectures: ['a'] } };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    mockExistsSync.mockImplementation((p: string) => p.endsWith('.git'));
+    mockCreate.mockResolvedValue({ id: 'project_new_001', name: 'test-dir' });
+    mockGuidesInstallAction.mockResolvedValue(undefined);
+    mockSetupIdeAction.mockResolvedValue(undefined);
+    mockInstallCommandsAction.mockReturnValue(undefined);
+    mockGetAll.mockResolvedValue([]);
+  });
+
+  const logged = (): string => vi.mocked(console.log).mock.calls.map((c) => String(c[0])).join('\n');
+
+  async function runInit(...args: string[]): Promise<void> {
+    await createProgram().parseAsync(['init', ...args], { from: 'user' });
+  }
+
+  it('brownfield prints the brownfield line', async () => {
+    mockDetectProject.mockResolvedValueOnce(BROWNFIELD_DETECTION);
+    await runInit();
+    expect(logged()).toContain(BROWNFIELD_LINE);
+    expect(mockDetectProject).toHaveBeenCalledWith(process.cwd());
+  });
+
+  it('an incomplete adoption prints the incomplete line', async () => {
+    mockDetectProject.mockResolvedValueOnce(INCOMPLETE_DETECTION);
+    await runInit();
+    expect(logged()).toContain(INCOMPLETE_ADOPTION_LINE);
+  });
+
+  it('greenfield prints neither adoption line', async () => {
+    await runInit();
+    expect(logged()).not.toContain(BROWNFIELD_LINE);
+    expect(logged()).not.toContain(INCOMPLETE_ADOPTION_LINE);
+  });
+
+  it('a detection error prints the inconclusive line and still exits 0', async () => {
+    mockDetectProject.mockRejectedValueOnce(new Error('walk failed'));
+    await runInit();
+    expect(logged()).toContain(inconclusiveDetectionLine('walk failed'));
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('--json puts the line in notices and not in the progress output', async () => {
+    mockDetectProject.mockResolvedValueOnce(BROWNFIELD_DETECTION);
+    await runInit('--json');
+    const stdout = vi.mocked(process.stdout.write).mock.calls.map((c) => String(c[0])).join('');
+    expect(JSON.parse(stdout).notices).toEqual([BROWNFIELD_LINE]);
+  });
+
+  it('--json with a detection error puts the inconclusive line in notices, with ok: true', async () => {
+    mockDetectProject.mockRejectedValueOnce(new Error('walk failed'));
+    await runInit('--json');
+    const stdout = vi.mocked(process.stdout.write).mock.calls.map((c) => String(c[0])).join('');
+    const report = JSON.parse(stdout);
+    expect(report.notices).toEqual([inconclusiveDetectionLine('walk failed')]);
+    expect(report.ok).toBe(true);
+    expect(process.exitCode).toBeUndefined();
   });
 });

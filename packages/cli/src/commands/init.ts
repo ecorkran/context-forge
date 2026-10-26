@@ -11,6 +11,7 @@ import {
   JSON_OUTPUT,
   WORKTREE_REFUSAL,
   anyStepFailed,
+  codebaseNotice,
   runGitStep,
   runGitignoreStep,
   runRegisterStep,
@@ -55,7 +56,8 @@ export function registerInitCommand(program: Command): void {
       }
 
       const steps = [git, registration.result, runGitignoreStep(cwd), ...(await runSetupSteps(cwd, opts, out))];
-      const notices: string[] = [];
+      const codebaseLine = await codebaseNotice(cwd);
+      const notices = codebaseLine === null ? [] : [codebaseLine];
 
       // The one place the result is written: later additions go into `steps` and `notices` above.
       if (opts.json) {
@@ -68,6 +70,7 @@ export function registerInitCommand(program: Command): void {
         });
         process.stdout.write(JSON.stringify(report, null, 2) + '\n');
       } else {
+        for (const notice of notices) out.log(notice);
         out.log(dim('──────────────────────────────────────'));
         out.log('Your project is ready. Run cf next to see recommended next steps.');
       }

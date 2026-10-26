@@ -1,7 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync, type StdioOptions } from 'node:child_process';
-import { GuideAlreadyInstalledError, type FileProjectStore } from '@context-forge/core/node';
+import {
+  GuideAlreadyInstalledError,
+  detectProject,
+  inconclusiveDetectionLine,
+  outcomeLine,
+  type FileProjectStore,
+} from '@context-forge/core/node';
 import { buildProjectCreationDefaults } from '@context-forge/core';
 import type { CreateProjectData, ProjectData } from '@context-forge/core';
 import { success, warn, dim } from '../output/styles.js';
@@ -277,4 +283,17 @@ export async function runSetupSteps(cwd: string, opts: SetupOptions, out: InitOu
 
 export function anyStepFailed(steps: readonly StepResult[]): boolean {
   return steps.some((step) => step.status === STEP_STATUS.failed);
+}
+
+/**
+ * The D9 line for an existing codebase, or null when there is none. Detection is advisory, not a
+ * step: it never sets `failed` or the exit code, because a hint must not fail a registration that
+ * worked. Any detection error becomes the visible inconclusive line carrying the error's message.
+ */
+export async function codebaseNotice(cwd: string): Promise<string | null> {
+  try {
+    return outcomeLine((await detectProject(cwd)).outcome);
+  } catch (err) {
+    return inconclusiveDetectionLine(messageOf(err));
+  }
 }
