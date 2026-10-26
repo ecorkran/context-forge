@@ -17,6 +17,7 @@ import { propagationTargets } from './worktreePropagation.js';
 import { installIde } from '../ideInstall/installer.js';
 import { readRulesExclude } from '../ideInstall/exclusions.js';
 import type { OutputSink } from '../ideInstall/output.js';
+import type { LogSink } from '../output/logSink.js';
 
 // Re-exported so existing importers (tests, init.ts) keep one import site.
 export {
@@ -67,6 +68,11 @@ const PROCESS_OUTPUT: OutputSink = {
   stderr: (text) => process.stderr.write(text),
 };
 
+/** IDE install output on a log sink: stdout lines go to `log`, stderr stays on the process stream. */
+function outputSinkFor(log: LogSink): OutputSink {
+  return { stdout: (text) => log(text.replace(/\n$/, '')), stderr: (text) => PROCESS_OUTPUT.stderr(text) };
+}
+
 export interface InstallFlags {
   dryRun: boolean;
   writeLint: boolean;
@@ -74,7 +80,13 @@ export interface InstallFlags {
 }
 
 /** Install one checkout from guideDir. Exit 1 means the install reported its failure. */
-async function installCheckout(guideDir: string, root: string, target: Target, flags: InstallFlags): Promise<0 | 1> {
+async function installCheckout(
+  guideDir: string,
+  root: string,
+  target: Target,
+  flags: InstallFlags,
+  out: OutputSink = PROCESS_OUTPUT,
+): Promise<0 | 1> {
   const { exitCode } = installIde({
     guideDir,
     projectRoot: root,
@@ -86,7 +98,7 @@ async function installCheckout(guideDir: string, root: string, target: Target, f
     rulesExclude: await readRulesExclude(root),
     // Read (and validated) before installIde runs, so a malformed file writes nothing.
     ruleResolutions: readRuleResolutions(root),
-    out: PROCESS_OUTPUT,
+    out,
   });
   return exitCode;
 }
@@ -101,12 +113,14 @@ export interface SetupIdeRun {
  * Run IDE setup for a project. Errors propagate to the caller. Returns the run
  * details, or null when the user declined the overwrite prompt. With `dryRun`
  * the install previews its changes and writes nothing, so the overwrite prompt
- * is skipped too. With `writeLint`, missing lint configs are also written.
+ * is skipped too. With `writeLint`, missing lint configs are also written. With
+ * `log`, the installer's stdout lines go there instead of the process stdout.
  */
 export async function setupIdeAction(
   projectPath: string,
   target: string,
-  opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean; force?: boolean }
+  opts?: { yes?: boolean; dryRun?: boolean; writeLint?: boolean; force?: boolean },
+  log?: LogSink,
 ): Promise<SetupIdeRun | null> {
   // Validate and normalize target — everything downstream uses the canonical value
   const normalizedTarget = normalizeTarget(target);
@@ -137,7 +151,7 @@ export async function setupIdeAction(
     writeLint: opts?.writeLint ?? false,
     force: opts?.force ?? false,
   };
-  if ((await installCheckout(guideDir, projectPath, normalizedTarget, flags)) !== 0) {
+  if ((await installCheckout(guideDir, projectPath, normalizedTarget, flags, log ? outputSinkFor(log) : PROCESS_OUTPUT)) !== 0) {
     throw new UserError(`setup-ide failed for ${normalizedTarget}. Check the output above for details.`);
   }
 

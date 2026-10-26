@@ -320,6 +320,19 @@ describe('guidesInstallAction', () => {
     expect(output).toContain('submodule');
   });
 
+  it('sends progress lines to the log sink, not console.log', async () => {
+    mockInstall.mockResolvedValue({
+      success: true, version: 'v0.13.2', method: 'submodule', path: '/tmp/test/project-documents/ai-project-guide',
+    });
+    const lines: string[] = [];
+
+    await guidesInstallAction('/tmp/test', undefined, (line) => lines.push(line));
+
+    expect(lines.join('\n')).toContain('installed successfully');
+    expect(lines.join('\n')).toContain('v0.13.2');
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
   it('propagates errors thrown by manager.install', async () => {
     mockInstall.mockRejectedValue(new Error('Guide is already installed.'));
 

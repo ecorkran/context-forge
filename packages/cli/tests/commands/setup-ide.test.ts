@@ -539,3 +539,19 @@ describe('setupIdeAction — guide missing', () => {
     await expect(setupIdeAction('/tmp/test', target)).rejects.toThrow('Guides are not installed');
   });
 });
+
+describe('setupIdeAction — log sink', () => {
+  beforeEach(resetMocks);
+
+  it('routes the installer stdout lines to the sink, not console.log or the process stdout', async () => {
+    const lines: string[] = [];
+    const stdoutWrite = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await setupIdeAction('/tmp/test', 'claude', { yes: true }, (line) => lines.push(line));
+    mockInstallIde.mock.calls[0][0].out.stdout('installed a file\n');
+
+    expect(lines).toEqual(['installed a file']);
+    expect(console.log).not.toHaveBeenCalled();
+    expect(stdoutWrite).not.toHaveBeenCalled();
+  });
+});

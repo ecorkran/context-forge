@@ -359,6 +359,15 @@ describe('installCommandsAction', () => {
     expect(logOutput()).toContain('/cf:status');
   });
 
+  it('sends progress lines to the log sink, not console.log', () => {
+    const lines: string[] = [];
+
+    installCommandsAction('claude', { targetDir: tempDir }, (line) => lines.push(line));
+
+    expect(lines.join('\n')).toContain('/cf:status');
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
   it('installs Codex skills to an explicit directory and reports $ invocations', () => {
     installCommandsAction('codex', { targetDir: tempDir });
 

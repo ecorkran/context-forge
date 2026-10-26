@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { success, dim } from '../output/styles.js';
+import { STDOUT_SINK, type LogSink } from '../output/logSink.js';
 import { normalizeTarget, invalidTargetMessage, AGENT_SKILLS_DIR, type Target } from './ideTargets.js';
 import { UserError } from '../utils/errors.js';
 
@@ -243,15 +244,15 @@ export function sweepLegacyGlobalDir(target: CommandTarget, installDir: string):
   return uninstallCommands(target, legacyDir);
 }
 
-function reportInstall(target: CommandTarget, dir: string, result: InstallResult): void {
+function reportInstall(target: CommandTarget, dir: string, result: InstallResult, log: LogSink): void {
   const descriptor = COMMAND_TARGETS[target];
   const installedDir = descriptor.layout === 'flat-md' ? path.join(dir, 'cf') : dir;
-  console.log(success(`Installed ${result.installed.length} ${descriptor.noun} to ${installedDir} (${descriptor.label})`));
+  log(success(`Installed ${result.installed.length} ${descriptor.noun} to ${installedDir} (${descriptor.label})`));
   for (const entry of result.installed) {
-    console.log(`  ${dim(descriptor.invocationHint(entry))}`);
+    log(`  ${dim(descriptor.invocationHint(entry))}`);
   }
   if (result.removed.length > 0) {
-    console.log(
+    log(
       dim(
         `Removed ${result.removed.length} stale ${descriptor.noun}: ${result.removed
           .map((e) => descriptor.invocationHint(e))
@@ -267,11 +268,11 @@ function isDefaultScope(opts: InstallScopeOptions): boolean {
 }
 
 /** Sweep the legacy dir (default scope only) and print one line if anything was removed. */
-function sweepAndReportLegacy(target: CommandTarget, installDir: string): string[] {
+function sweepAndReportLegacy(target: CommandTarget, installDir: string, log: LogSink = STDOUT_SINK): string[] {
   const removed = sweepLegacyGlobalDir(target, installDir);
   const descriptor = COMMAND_TARGETS[target];
   if (removed.length > 0 && descriptor.legacyGlobalDir) {
-    console.log(
+    log(
       dim(
         `Removed ${removed.length} ${descriptor.noun} from legacy location ${descriptor.legacyGlobalDir()}: ` +
           removed.map((e) => descriptor.invocationHint(e)).join(', '),
@@ -285,15 +286,23 @@ function sweepAndReportLegacy(target: CommandTarget, installDir: string): string
  * Install and report for an already-resolved command target. In the default
  * scope, then sweeps the legacy machine-level dir. Errors propagate.
  */
-export function installCommandsForTarget(target: CommandTarget, opts: InstallScopeOptions = {}): void {
+export function installCommandsForTarget(
+  target: CommandTarget,
+  opts: InstallScopeOptions = {},
+  log: LogSink = STDOUT_SINK,
+): void {
   const dir = resolveInstallDir(target, opts);
-  reportInstall(target, dir, installCommands(target, dir));
-  if (isDefaultScope(opts)) sweepAndReportLegacy(target, dir);
+  reportInstall(target, dir, installCommands(target, dir), log);
+  if (isDefaultScope(opts)) sweepAndReportLegacy(target, dir, log);
 }
 
 /** Install and report, resolving the target from user input. Errors propagate. */
-export function installCommandsAction(ide: string = 'claude', opts: InstallScopeOptions = {}): void {
-  installCommandsForTarget(resolveCommandTarget(ide), opts);
+export function installCommandsAction(
+  ide: string = 'claude',
+  opts: InstallScopeOptions = {},
+  log: LogSink = STDOUT_SINK,
+): void {
+  installCommandsForTarget(resolveCommandTarget(ide), opts, log);
 }
 
 /**

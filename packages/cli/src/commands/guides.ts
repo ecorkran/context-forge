@@ -24,6 +24,7 @@ import { withJsonOption, withProjectOption, withYesOption } from '../options.js'
 import { handleError, UserError } from '../utils/errors.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
+import { STDOUT_SINK, type LogSink } from '../output/logSink.js';
 import { label, value as valueStyle, dim, success, warn } from '../output/styles.js';
 
 interface GuideContext {
@@ -152,7 +153,8 @@ export function strategyHelpText(): string {
  */
 export async function guidesInstallAction(
   projectPath: string,
-  opts?: { strategy?: string; source?: string; version?: string }
+  opts?: { strategy?: string; source?: string; version?: string },
+  log: LogSink = STDOUT_SINK
 ): Promise<void> {
   const cm = new ConfigManager(projectPath);
   const manager = new GuideManager(projectPath, cm);
@@ -167,19 +169,19 @@ export async function guidesInstallAction(
     console.error(warn(guideMethodDeprecationMessage(result.deprecatedAlias, result.method)));
   }
 
-  console.log(success('Guide installed successfully.'));
-  console.log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
-  console.log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
-  console.log(`  ${label('Path:')}     ${dim(result.path)}`);
-  reportCommitted(result.committed);
+  log(success('Guide installed successfully.'));
+  log(`  ${label('Version:')}  ${valueStyle(result.version ?? 'unknown')}`);
+  log(`  ${label('Method:')}   ${valueStyle(result.method)}`);
+  log(`  ${label('Path:')}     ${dim(result.path)}`);
+  reportCommitted(result.committed, log);
   if (result.persistedStrategy) {
-    console.log(
+    log(
       `  ${label('Config:')}   guide.git_strategy = ${valueStyle(result.persistedStrategy)} ` +
         dim('(saved to the shared project config; commit it so teammates get the same strategy)')
     );
   }
   if (result.exclude) {
-    console.log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
+    log(`  ${label('Excluded:')} ${valueStyle(result.exclude.join(', '))}`);
   }
   printExcludeNotices(result);
 }
@@ -188,9 +190,9 @@ export async function guidesInstallAction(
  * Say whether the guide change was committed. Silent when the strategy reports
  * nothing (`undefined`), so strategies with no commit step print no line.
  */
-function reportCommitted(committed: boolean | undefined): void {
+function reportCommitted(committed: boolean | undefined, log: LogSink = STDOUT_SINK): void {
   if (committed === undefined) return;
-  console.log(
+  log(
     `  ${label('Commit:')}   ${
       committed
         ? valueStyle('committed (not pushed)')
