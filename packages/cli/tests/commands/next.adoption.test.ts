@@ -77,6 +77,7 @@ async function runNextJson(fixture: AdoptionFixture, overrides: Record<string, s
   vi.mocked(process.stdout.write).mockClear();
   await createProgram().parseAsync(['node', 'cf', 'next', '--project', project.id, '--json']);
   const printed = vi.mocked(process.stdout.write).mock.calls.map((call) => String(call[0])).join('');
+  // cf next --json prints the navigator's NextAction verbatim.
   return JSON.parse(printed) as NextAction;
 }
 
@@ -160,9 +161,9 @@ describe('cf next: adoption warnings (slice 269 D6)', () => {
     await createProgram().parseAsync(['node', 'cf', 'next', '--project', project.id]);
     const failure = await new WorkflowNavigator(new ConfigManager(fixture.root)).getNext(project).catch((e: unknown) => e);
 
-    expect(failure).toBeInstanceOf(Error);
-    expect((failure as Error).message).toContain(`adoption.state is "${OUT_OF_ENUM_VALUE}"`);
+    if (!(failure instanceof Error)) throw new Error('expected getNext to reject with an Error');
+    expect(failure.message).toContain(`adoption.state is "${OUT_OF_ENUM_VALUE}"`);
     expect(process.exit).toHaveBeenCalledWith(1);
-    expect(console.error).toHaveBeenCalledWith(`Error: ${(failure as Error).message}`);
+    expect(console.error).toHaveBeenCalledWith(`Error: ${failure.message}`);
   });
 });

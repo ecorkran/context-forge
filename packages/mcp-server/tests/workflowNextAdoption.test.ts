@@ -108,6 +108,7 @@ describe('workflow_next: adoption warnings (slice 269 D6)', () => {
   }
 
   function textOf(result: { content: unknown }): string {
+    // workflow_next returns one text content item; the SDK types content as unknown here.
     return (result.content as Array<{ text: string }>)[0].text;
   }
 
@@ -117,6 +118,7 @@ describe('workflow_next: adoption warnings (slice 269 D6)', () => {
     const project = fixture.project({ instruction: CONCEPT_INSTRUCTION, ...overrides });
     const expected = await new WorkflowNavigator(new ConfigManager(fixture.root)).getNext(project);
 
+    // workflow_next returns the navigator's NextAction as JSON text.
     const actual = JSON.parse(textOf(await callNext(project))) as NextAction;
 
     expect(actual).toEqual(JSON.parse(JSON.stringify(expected)));
@@ -129,10 +131,10 @@ describe('workflow_next: adoption warnings (slice 269 D6)', () => {
     roots.push(fixture.root);
     const project = fixture.project({ instruction: CONCEPT_INSTRUCTION });
     const failure = await new WorkflowNavigator(new ConfigManager(fixture.root)).getNext(project).catch((e: unknown) => e);
-    expect(failure).toBeInstanceOf(Error);
+    if (!(failure instanceof Error)) throw new Error('expected getNext to reject with an Error');
 
     const result = await callNext(project);
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe(`Error: ${(failure as Error).message}`);
+    expect(textOf(result)).toBe(`Error: ${failure.message}`);
   });
 });
