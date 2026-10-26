@@ -1,6 +1,6 @@
 // Adoption artifacts (slice 271, D3): the three planning files `sq onboard` needs to resume an
 // adoption, reported as root-relative paths so consumers need not know cf's file names. Read-only.
-import { relative, sep } from 'node:path';
+import { isAbsolute, relative, sep } from 'node:path';
 import { resolveConceptPath } from '../introspection/parsers/projectGuideFile.js';
 import { readPlanningFacts } from './planningFacts.js';
 
@@ -30,4 +30,48 @@ export async function readAdoptionArtifacts(root: string): Promise<AdoptionArtif
     derivedArchitectures: facts.derivedArchitectures.map(relativeToRoot),
     existingStatePlan: facts.existingStatePlan === null ? null : relativeToRoot(facts.existingStatePlan),
   };
+}
+
+/** The guide's context-profile variable that marks a prompt as taking a comprehension doc (D10: the guide's name). */
+export const COMPREHENSION_PROFILE_VARIABLE = 'fileComprehension';
+
+export const ADOPTION_INPUTS_HEADING = '## Adoption Inputs';
+export const ADOPTION_INPUT_LABELS = {
+  comprehension: 'Codebase comprehension',
+  concept: 'Concept',
+  derivedArchitecture: 'Derived architecture',
+  existingStatePlan: 'Existing-state slice plan',
+} as const;
+export const NO_COMPREHENSION_SENTENCE = 'No codebase comprehension analysis was provided.';
+export const ABSENT_ARTIFACT = 'none';
+
+/** Root-relative with `/` when inside `root`, the absolute path otherwise (D7 item 3). */
+function displayPath(root: string, absolutePath: string): string {
+  const fromRoot = relative(root, absolutePath);
+  const outside = fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot);
+  return outside ? absolutePath : fromRoot.split(sep).join('/');
+}
+
+/**
+ * The `## Adoption Inputs` section appended to a prompt whose profile lists the comprehension
+ * variable (D7). `comprehensionPath` is absolute, or null when none was passed.
+ */
+export function renderAdoptionInputs(
+  root: string,
+  comprehensionPath: string | null,
+  artifacts: AdoptionArtifacts,
+): string {
+  const labeled = (label: string, value: string | null): string => `- ${label}: ${value ?? ABSENT_ARTIFACT}`;
+  const comprehension =
+    comprehensionPath === null
+      ? `- ${NO_COMPREHENSION_SENTENCE}`
+      : labeled(ADOPTION_INPUT_LABELS.comprehension, displayPath(root, comprehensionPath));
+  const derived = artifacts.derivedArchitectures.length > 0 ? artifacts.derivedArchitectures.join(', ') : null;
+  return [
+    ADOPTION_INPUTS_HEADING,
+    comprehension,
+    labeled(ADOPTION_INPUT_LABELS.concept, artifacts.concept),
+    labeled(ADOPTION_INPUT_LABELS.derivedArchitecture, derived),
+    labeled(ADOPTION_INPUT_LABELS.existingStatePlan, artifacts.existingStatePlan),
+  ].join('\n');
 }

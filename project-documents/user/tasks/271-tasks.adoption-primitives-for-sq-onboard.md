@@ -179,113 +179,113 @@ revision_number: 2
 
 ### 7. `cf detect` (D1, D5, API Contracts)
 
-- [ ] **7.1 Implement the command** — effort 2
-  - [ ] Create `packages/cli/src/commands/detect.ts` and register it in `packages/cli/src/index.ts`. Options: `--path <dir>` (default: the current directory, resolved to absolute) and `--json` (use `withJsonOption`)
-  - [ ] Never look up a registered project (D1: works unregistered)
-  - [ ] With `--json`: success writes `serializeDetectionReport` plus a newline to stdout, exit 0. A `DetectionError` writes `serializeErrorEnvelope(REPORT_VERSION, code, message)` to stdout, exit 1. Any other error writes the envelope with code `internal` and the original message, exit 1. Do not call `handleError` in this path (see the JSON-mode trap in Context Summary)
-  - [ ] Without `--json`: print the outcome and each notice, nothing more (API Contracts). Errors go through `handleError`
-  - [ ] Add `detect` to any command list the CLI help tests enumerate
-  - [ ] **Success:** `pnpm -r build`, then `node packages/cli/dist/index.js detect --path /tmp/does-not-exist --json; echo $?` prints a `path-not-found` envelope on stdout and `1`
+- [x] **7.1 Implement the command** — effort 2
+  - [x] Create `packages/cli/src/commands/detect.ts` and register it in `packages/cli/src/index.ts`. Options: `--path <dir>` (default: the current directory, resolved to absolute) and `--json` (use `withJsonOption`)
+  - [x] Never look up a registered project (D1: works unregistered)
+  - [x] With `--json`: success writes `serializeDetectionReport` plus a newline to stdout, exit 0. A `DetectionError` writes `serializeErrorEnvelope(REPORT_VERSION, code, message)` to stdout, exit 1. Any other error writes the envelope with code `internal` and the original message, exit 1. Do not call `handleError` in this path (see the JSON-mode trap in Context Summary)
+  - [x] Without `--json`: print the outcome and each notice, nothing more (API Contracts). Errors go through `handleError`
+  - [x] Add `detect` to any command list the CLI help tests enumerate
+  - [x] **Success:** `pnpm -r build`, then `node packages/cli/dist/index.js detect --path /tmp/does-not-exist --json; echo $?` prints a `path-not-found` envelope on stdout and `1`
 
-- [ ] **7.2 Test `cf detect`** — effort 2
-  - [ ] New `packages/cli/tests/commands/detect.test.ts`, following the style of the nearest existing command test
-  - [ ] `--json` on a greenfield and a brownfield fixture: stdout parses to the D3 shape with the right `outcome`; exit 0
-  - [ ] Each D5 code reachable from the CLI (`path-not-found`, `invalid-config`, `unreadable-planning`, `source-unmeasurable`, `internal`, forced by mocking `detectProject` with `vi.mock` of `@context-forge/core/node` to throw a plain `Error`): stdout is the envelope, nothing is written to stderr by the error path, exit 1
-  - [ ] Without `--json`: output holds the outcome and the notices
-  - [ ] **No-writes test** (Success Criteria): with `CONTEXT_FORGE_DATA_DIR` set to a temp dir, snapshot a brownfield fixture's tree (paths, sizes, mtimes), its `.context-forge.toml` and the store directory, run `cf detect --json`, snapshot again, assert equal. Assert the fixture is still unregistered
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test detect` passes
+- [x] **7.2 Test `cf detect`** — effort 2
+  - [x] New `packages/cli/tests/commands/detect.test.ts`, following the style of the nearest existing command test
+  - [x] `--json` on a greenfield and a brownfield fixture: stdout parses to the D3 shape with the right `outcome`; exit 0
+  - [x] Each D5 code reachable from the CLI (`path-not-found`, `invalid-config`, `unreadable-planning`, `source-unmeasurable`, `internal`, forced by mocking `detectProject` with `vi.mock` of `@context-forge/core/node` to throw a plain `Error`): stdout is the envelope, nothing is written to stderr by the error path, exit 1. Note: the `source-unmeasurable` case uses a chmod-000 directory instead of the mock; it is skipped when running as root or on win32.
+  - [x] Without `--json`: output holds the outcome and the notices
+  - [x] **No-writes test** (Success Criteria): with `CONTEXT_FORGE_DATA_DIR` set to a temp dir, snapshot a brownfield fixture's tree (paths, sizes, mtimes), its `.context-forge.toml` and the store directory, run `cf detect --json`, snapshot again, assert equal. Assert the fixture is still unregistered
+  - [x] **Success:** `pnpm --filter @context-forge/cli test detect` passes
 
-- [ ] **7.3 Commit** — `feat: add cf detect command`
+- [x] **7.3 Commit** — `feat: add cf detect command`
 
 ---
 
 ### 8. MCP `project_detect` (D1, D5, API Contracts)
 
-- [ ] **8.1 Implement the tool** — effort 2
-  - [ ] Create `packages/mcp-server/src/tools/detectTools.ts` with `registerDetectTools(server)`, and register it in `packages/mcp-server/src/index.ts` next to `registerProjectTools`
-  - [ ] Input: `path`, required string. A non-absolute path returns the `path-not-found` envelope, with a message saying the path must be absolute; never resolve it (D5)
-  - [ ] Success: text result with the `serializeDetectionReport` string. The CLI writes that same string plus one newline. Failure: `isError: true`, text is the envelope. Other errors: envelope with `internal`
-  - [ ] Annotations: `readOnlyHint: true`. Description says it judges the given directory and works unregistered
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **8.1 Implement the tool** — effort 2
+  - [x] Create `packages/mcp-server/src/tools/detectTools.ts` with `registerDetectTools(server)`, and register it in `packages/mcp-server/src/index.ts` next to `registerProjectTools`
+  - [x] Input: `path`, required string. A non-absolute path returns the `path-not-found` envelope, with a message saying the path must be absolute; never resolve it (D5)
+  - [x] Success: text result with the `serializeDetectionReport` string. The CLI writes that same string plus one newline. Failure: `isError: true`, text is the envelope. Other errors: envelope with `internal`
+  - [x] Annotations: `readOnlyHint: true`. Description says it judges the given directory and works unregistered
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **8.2 Test the tool** — effort 1
-  - [ ] New `packages/mcp-server/tests/detectTools.test.ts`, following `projectTools.test.ts`: success on a greenfield fixture, relative path refused as `path-not-found` with `isError`, a missing absolute path refused the same way
-  - [ ] **Success:** `pnpm --filter @context-forge/mcp test detectTools` passes
+- [x] **8.2 Test the tool** — effort 1
+  - [x] New `packages/mcp-server/tests/detectTools.test.ts`, following `projectTools.test.ts`: success on a greenfield fixture, relative path refused as `path-not-found` with `isError`, a missing absolute path refused the same way
+  - [x] **Success:** `pnpm --filter @context-forge/mcp test detectTools` passes
 
-- [ ] **8.3 CLI/MCP parity test** — effort 2
-  - [ ] New `packages/mcp-server/tests/integration/detectParity.test.ts`. For each of the five outcomes, build a fixture, spawn the built CLI (`detect --path <dir> --json`, locate `packages/cli/dist/index.js` as `packages/cli/tests/integration/build.integration.test.ts` does) and call the `project_detect` handler. Assert the strings are byte-identical, allowing only the CLI's trailing newline
-  - [ ] If `packages/cli/dist/index.js` is missing, the test fails with a message saying to run `pnpm -r build`. It never skips
-  - [ ] **Success:** after `pnpm -r build`, `pnpm --filter @context-forge/mcp test detectParity` passes
+- [x] **8.3 CLI/MCP parity test** — effort 2
+  - [x] New `packages/mcp-server/tests/integration/detectParity.test.ts`. For each of the five outcomes, build a fixture, spawn the built CLI (`detect --path <dir> --json`, locate `packages/cli/dist/index.js` as `packages/cli/tests/integration/build.integration.test.ts` does) and call the `project_detect` handler. Assert the strings are byte-identical, allowing only the CLI's trailing newline
+  - [x] If `packages/cli/dist/index.js` is missing, the test fails with a message saying to run `pnpm -r build`. It never skips
+  - [x] **Success:** after `pnpm -r build`, `pnpm --filter @context-forge/mcp test detectParity` passes
 
-- [ ] **8.4 Commit** — `feat: add project_detect MCP tool`
+- [x] **8.4 Commit** — `feat: add project_detect MCP tool`. Note: `serverLifecycle.test.ts` tool list gained `project_detect`.
 
 ---
 
 ### 9. Log sinks for `cf init --json` (D8 "Stdout stays pure JSON")
 
-- [ ] **9.1 Add the `LogSink` type** — effort 1
-  - [ ] Create `packages/cli/src/output/logSink.ts`: `type LogSink = (line: string) => void`, plus `STDOUT_SINK` (wraps `console.log`) and `STDERR_SINK` (writes the line and a newline to `process.stderr`)
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **9.1 Add the `LogSink` type** — effort 1
+  - [x] Create `packages/cli/src/output/logSink.ts`: `type LogSink = (line: string) => void`, plus `STDOUT_SINK` (wraps `console.log`) and `STDERR_SINK` (writes the line and a newline to `process.stderr`)
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **9.2 Thread the sink through the three actions** — effort 2
-  - [ ] For each action below, add an optional `log: LogSink = STDOUT_SINK` parameter, replace every `console.log` it reaches (including in helpers it calls) with `log`, and add a test in the named file: with a capturing sink, the progress lines go to the sink and `console.log` is not called. Existing callers pass nothing and behave the same
+- [x] **9.2 Thread the sink through the three actions** — effort 2
+  - [x] For each action below, add an optional `log: LogSink = STDOUT_SINK` parameter, replace every `console.log` it reaches (including in helpers it calls) with `log`, and add a test in the named file: with a capturing sink, the progress lines go to the sink and `console.log` is not called. Existing callers pass nothing and behave the same
     1. `guidesInstallAction` in `commands/guides.ts`; test in `guides.test.ts`
     2. `installCommandsAction` in `commands/commandInstaller.ts` (in `InstallScopeOptions` or as a parameter). `uninstallCommandsAction` stays unchanged: it logs on its own and `cf init` never calls it; test in `commandInstaller.test.ts`
     3. `setupIdeAction` in `commands/setup-ide.ts`; test in `setup-ide.test.ts`
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test guides commandInstaller setup-ide` passes
+  - [x] **Success:** `pnpm --filter @context-forge/cli test guides commandInstaller setup-ide` passes
 
-- [ ] **9.3 Commit** — `refactor: let guide, command and IDE actions take a log sink`
+- [x] **9.3 Commit** — `refactor: let guide, command and IDE actions take a log sink`
 
 ---
 
 ### 10. `cf init` step results, exit code, `--json` and the codebase line (D8, D9)
 
-- [ ] **10.1 Extract the init steps** — effort 2
-  - [ ] Move the step code out of `init.ts` into `packages/cli/src/commands/initSteps.ts`: git init, registration, gitignore, guides, commands, IDE, plus `isGitWorktreeOf`, `isInsideGitWorkTree` and `ensurePersonalConfigGitignored`. A pure move: output, exit codes and order unchanged
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test init` passes with no test changes; `init.ts` and `initSteps.ts` are each under ~300 lines
+- [x] **10.1 Extract the init steps** — effort 2
+  - [x] Move the step code out of `init.ts` into `packages/cli/src/commands/initSteps.ts`: git init, registration, gitignore, guides, commands, IDE, plus `isGitWorktreeOf`, `isInsideGitWorkTree` and `ensurePersonalConfigGitignored`. A pure move: output, exit codes and order unchanged
+  - [x] **Success:** `pnpm --filter @context-forge/cli test init` passes with no test changes; `init.ts` and `initSteps.ts` are each under ~300 lines
 
-- [ ] **10.2 Commit** — `refactor: extract cf init steps into initSteps.ts`
+- [x] **10.2 Commit** — `refactor: extract cf init steps into initSteps.ts`
 
-- [ ] **10.3 Record step results and exit 1 on a failed step** — effort 2
-  - [ ] In `initSteps.ts`, define the step names `git`, `register`, `gitignore`, `guides`, `commands`, `ide` and statuses `ok`, `skipped`, `failed` once, and a `StepResult` type (`step`, `status`, optional `message`). Each step returns a `StepResult` and takes a `LogSink`
-  - [ ] Statuses per D8: git already present → `skipped`; "already installed" guides → `skipped`; `--lite` marks `guides`, `commands`, `ide` `skipped`; `--no-ide` marks `commands` and `ide` `skipped`; a target without command delivery (copilot, cursor) marks `commands` `skipped`. A caught step error → `failed` with its message
-  - [ ] Stop deciding "already installed" from message text. Today `init.ts` matches `'already installed'` in the error from `GuideManager.install` (`core/src/guides/GuideManager.ts`, the `info.installed` check), which is a user-facing label used as logic. Throw a typed `GuideAlreadyInstalledError` there (same message, exported from core) and have the guides step test `instanceof`. Any other caller that matches the message text switches too (`grep -rn "already installed" packages/*/src`)
-  - [ ] `register` is `ok` for both a new and an existing project. Which one is not in `StepResult`: the step function also returns `registration` (`created` / `existing`) for the top-level field in 10.6. `register` is never `failed`: a registration throw is not caught per step and aborts the command as today (10.6 gives its JSON form)
-  - [ ] Keep today's human output for each step (success/warn/dim lines) through the sink
-  - [ ] After all steps run, `process.exitCode = 1` when any step is `failed`, with or without `--json` (D8, deliberate behavior change)
-  - [ ] The worktree refusal without `--json` stays as today: warning, exit 0
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **10.3 Record step results and exit 1 on a failed step** — effort 2
+  - [x] In `initSteps.ts`, define the step names `git`, `register`, `gitignore`, `guides`, `commands`, `ide` and statuses `ok`, `skipped`, `failed` once, and a `StepResult` type (`step`, `status`, optional `message`). Each step returns a `StepResult` and takes a `LogSink`
+  - [x] Statuses per D8: git already present → `skipped`; "already installed" guides → `skipped`; `--lite` marks `guides`, `commands`, `ide` `skipped`; `--no-ide` marks `commands` and `ide` `skipped`; a target without command delivery (copilot, cursor) marks `commands` `skipped`. A caught step error → `failed` with its message
+  - [x] Stop deciding "already installed" from message text. Today `init.ts` matches `'already installed'` in the error from `GuideManager.install` (`core/src/guides/GuideManager.ts`, the `info.installed` check), which is a user-facing label used as logic. Throw a typed `GuideAlreadyInstalledError` there (same message, exported from core) and have the guides step test `instanceof`. Any other caller that matches the message text switches too (`grep -rn "already installed" packages/*/src`). Note: `GuideAlreadyInstalledError` was added to core `GuideManager` and exported.
+  - [x] `register` is `ok` for both a new and an existing project. Which one is not in `StepResult`: the step function also returns `registration` (`created` / `existing`) for the top-level field in 10.6. `register` is never `failed`: a registration throw is not caught per step and aborts the command as today (10.6 gives its JSON form)
+  - [x] Keep today's human output for each step (success/warn/dim lines) through the sink
+  - [x] After all steps run, `process.exitCode = 1` when any step is `failed`, with or without `--json` (D8, deliberate behavior change)
+  - [x] The worktree refusal without `--json` stays as today: warning, exit 0
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **10.4 Test step results and exit code** — effort 2
-  - [ ] Extend `packages/cli/tests/commands/init.test.ts`: a forced guide-install failure (e.g. `--strategy bogus`) exits 1 without `--json`; an all-ok run exits 0; `--lite` and `--no-ide` give the `skipped` statuses above; the worktree refusal without `--json` still exits 0
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test init` passes
+- [x] **10.4 Test step results and exit code** — effort 2
+  - [x] Extend `packages/cli/tests/commands/init.test.ts`: a forced guide-install failure (e.g. `--strategy bogus`) exits 1 without `--json`; an all-ok run exits 0; `--lite` and `--no-ide` give the `skipped` statuses above; the worktree refusal without `--json` still exits 0. Note: the init tests that asserted call args now expect a trailing log-sink function.
+  - [x] **Success:** `pnpm --filter @context-forge/cli test init` passes
 
-- [ ] **10.5 Commit** — `feat: record cf init step results and exit 1 on a failed step`
+- [x] **10.5 Commit** — `feat: record cf init step results and exit 1 on a failed step`
 
-- [ ] **10.6 Implement `cf init --json`** — effort 2
-  - [ ] Add `--json` (`withJsonOption`). In JSON mode pass `STDERR_SINK` to every step, and run `git init` with `stdio: ['ignore', 'pipe', 'pipe']`, writing its output to stderr
-  - [ ] Build the result object once, after all steps, and serialize it in one place at the very end of the action, so 10.9 only adds to `notices` before that write and doesn't restructure it
-  - [ ] On completion write one D8 object to stdout: `reportVersion` (`INIT_REPORT_VERSION`), `projectId`, `projectName`, `projectPath`, `registration` (`created` / `existing`), `steps`, `notices`, `ok`. A failed step is not an error envelope: `ok: false`, exit 1
-  - [ ] Worktree refusal with `--json`: `serializeErrorEnvelope(INIT_REPORT_VERSION, 'worktree-of-registered-project', …)` on stdout, exit 1. Any other throw before or instead of step results, including a registration throw (D8: no project id exists, so no step-result object is written): the envelope with `internal`, exit 1. Never `handleError` in JSON mode
-  - [ ] **Success:** `pnpm typecheck` passes
+- [x] **10.6 Implement `cf init --json`** — effort 2
+  - [x] Add `--json` (`withJsonOption`). In JSON mode pass `STDERR_SINK` to every step, and run `git init` with `stdio: ['ignore', 'pipe', 'pipe']`, writing its output to stderr. Note: it is `stdio: ['ignore', 2, 2]` (stderr's fd) instead of pipes; same effect.
+  - [x] Build the result object once, after all steps, and serialize it in one place at the very end of the action, so 10.9 only adds to `notices` before that write and doesn't restructure it
+  - [x] On completion write one D8 object to stdout: `reportVersion` (`INIT_REPORT_VERSION`), `projectId`, `projectName`, `projectPath`, `registration` (`created` / `existing`), `steps`, `notices`, `ok`. A failed step is not an error envelope: `ok: false`, exit 1
+  - [x] Worktree refusal with `--json`: `serializeErrorEnvelope(INIT_REPORT_VERSION, 'worktree-of-registered-project', …)` on stdout, exit 1. Any other throw before or instead of step results, including a registration throw (D8: no project id exists, so no step-result object is written): the envelope with `internal`, exit 1. Never `handleError` in JSON mode
+  - [x] **Success:** `pnpm typecheck` passes
 
-- [ ] **10.7 Test `cf init --json`** — effort 2
-  - [ ] Stdout holds exactly one JSON object and nothing else, for an all-ok run and for a forced guide failure (`guides` step `failed`, `ok: false`, exit 1). Progress text appears only on stderr
-  - [ ] The worktree refusal gives the envelope with `worktree-of-registered-project`, exit 1. Its shape equals `serializeErrorEnvelope` output (same parser as `cf detect`)
-  - [ ] A forced registration throw (mock the store's `create`) gives the envelope with `internal`, exit 1, and no step-result object
-  - [ ] `reportVersion` equals the imported `INIT_REPORT_VERSION`
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test init` passes
+- [x] **10.7 Test `cf init --json`** — effort 2
+  - [x] Stdout holds exactly one JSON object and nothing else, for an all-ok run and for a forced guide failure (`guides` step `failed`, `ok: false`, exit 1). Progress text appears only on stderr
+  - [x] The worktree refusal gives the envelope with `worktree-of-registered-project`, exit 1. Its shape equals `serializeErrorEnvelope` output (same parser as `cf detect`)
+  - [x] A forced registration throw (mock the store's `create`) gives the envelope with `internal`, exit 1, and no step-result object
+  - [x] `reportVersion` equals the imported `INIT_REPORT_VERSION`
+  - [x] **Success:** `pnpm --filter @context-forge/cli test init` passes
 
-- [ ] **10.8 Commit** — `feat: add cf init --json`
+- [x] **10.8 Commit** — `feat: add cf init --json`
 
-- [ ] **10.9 Print the codebase line (D9)** — effort 1
-  - [ ] After the setup steps and before the 10.6 write, call `detectProject(cwd)`. Print `outcomeLine(outcome)` when non-null, through the sink; in JSON mode put it in `notices` instead
-  - [ ] A detection error prints `inconclusiveDetectionLine(message)` (JSON mode: into `notices`). It is not a step and never sets `failed` or the exit code
-  - [ ] Tests in `init.test.ts`: brownfield fixture prints `BROWNFIELD_LINE`; greenfield prints neither `BROWNFIELD_LINE` nor `INCOMPLETE_ADOPTION_LINE`; a forced detection error prints the inconclusive line and exits 0; `--json` on brownfield has the line in `notices`
-  - [ ] **Success:** `pnpm --filter @context-forge/cli test init` passes
+- [x] **10.9 Print the codebase line (D9)** — effort 1
+  - [x] After the setup steps and before the 10.6 write, call `detectProject(cwd)`. Print `outcomeLine(outcome)` when non-null, through the sink; in JSON mode put it in `notices` instead
+  - [x] A detection error prints `inconclusiveDetectionLine(message)` (JSON mode: into `notices`). It is not a step and never sets `failed` or the exit code
+  - [x] Tests in `init.test.ts`: brownfield fixture prints `BROWNFIELD_LINE`; greenfield prints neither `BROWNFIELD_LINE` nor `INCOMPLETE_ADOPTION_LINE`; a forced detection error prints the inconclusive line and exits 0; `--json` on brownfield has the line in `notices`
+  - [x] **Success:** `pnpm --filter @context-forge/cli test init` passes
 
-- [ ] **10.10 Commit** — `feat: print a codebase line from cf init`
-  - [ ] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/cli test` pass first
+- [x] **10.10 Commit** — `feat: print a codebase line from cf init`
+  - [x] `pnpm lint`, `pnpm typecheck` and `pnpm --filter @context-forge/cli test` pass first
 
 ---
 
