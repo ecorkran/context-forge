@@ -44,7 +44,7 @@ vi.mock('@context-forge/core/node', async () => {
 });
 
 const CONCEPT_INSTRUCTION = 'Phase 0: Concept';
-const REGISTERED = { fileArch: '100-arch.existing', fileSlicePlan: '100-slices.existing' };
+const REGISTERED = { fileConcept: '000-concept.existing', fileArch: '100-arch.existing', fileSlicePlan: '100-slices.existing' };
 const FIRST_NEW_SLICE_COMMAND = 'cf set slice 102';
 const OUT_OF_ENUM_VALUE = 'bogus';
 const LEGACY_VALUE = LEGACY_ADOPTION_STATES[0];

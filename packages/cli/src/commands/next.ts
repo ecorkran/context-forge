@@ -3,6 +3,8 @@ import { FileProjectStore, WorkflowNavigator, ConfigManager } from '@context-for
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { registerAdoptedArtifacts } from '../utils/registerAdoptedArtifacts.js';
+import { projectSetAction } from './project.js';
 import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
@@ -18,10 +20,14 @@ export function registerNextCommand(program: Command): void {
       try {
         const store = new FileProjectStore();
         const { id, worktreeId } = await resolveProjectWorktree({ project: opts.project }, store);
-        const project = await resolveProject(store, id, worktreeId);
+        let project = await resolveProject(store, id, worktreeId);
 
         if (!project) {
           throw new UserError(`Project not found: '${id}'. Run cf project list to see available projects.`);
+        }
+
+        if (await registerAdoptedArtifacts(project, (field, value) => projectSetAction(field, value, { project: opts.project }))) {
+          project = (await resolveProject(store, id, worktreeId)) ?? project;
         }
 
         const config = new ConfigManager(project.projectPath);

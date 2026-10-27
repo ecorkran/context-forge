@@ -6,6 +6,8 @@ import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@con
 import type { NormalizedStatus } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
+import { registerAdoptedArtifacts } from '../utils/registerAdoptedArtifacts.js';
+import { projectSetAction } from './project.js';
 import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
@@ -23,9 +25,13 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
     throw new UserError(`Project not found: '${id}'.`);
   }
 
-  const project = await resolveProject(store, id, worktreeId);
+  let project = await resolveProject(store, id, worktreeId);
   if (!project) {
     throw new UserError(`Project not found: '${id}'.`);
+  }
+
+  if (await registerAdoptedArtifacts(project, (field, value) => projectSetAction(field, value, { project: opts.project }))) {
+    project = (await resolveProject(store, id, worktreeId)) ?? project;
   }
 
   if (!project.projectPath) {
