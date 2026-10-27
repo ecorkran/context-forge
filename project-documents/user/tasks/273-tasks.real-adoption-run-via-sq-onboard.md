@@ -18,7 +18,7 @@ projectState: main at 0.19.20 (slices 268-272 merged; `cf detect`, `cf init --js
   exists yet.
 dateCreated: 20261027
 dateUpdated: 20261027
-status: not_started
+status: in_progress
 turns: 25
 promptTokens: 1463382
 cachedTokens: 1388834
@@ -83,53 +83,53 @@ Each run task ends by filling its check rows and committing the report: `docs: r
 
 - [ ] **Task 3: Before the run, check 1** (effort: 2)
   - Unblocked 20261027 (PM): squadron 440 will not release before this run, so the PM ran `/sq:onboard` with squadron's 440 branch build on the clone `~/source/repos/manta/tank-game-onboard`. Task 3's pre-run state (check 1) was not captured; the report records it as unverified. Tasks 4 and 5 were executed in that session; the report holds their results.
-  - [ ] The PM names the repository and checkout. Confirm D1's constraints and record what D7's Setup asks for (approved name, language, commit).
+  - [x] The PM names the repository and checkout. Confirm D1's constraints and record what D7's Setup asks for (approved name, language, commit).
   - [ ] Run Walkthrough step 2 and verify check 1. Also run `sq onboard --path <root> --json` and record its plugin and analysis-pack checks for `claude-code`; a missing one is a `BLOCKED:` line naming it.
   - [ ] Success: row 1 is pass or has a defect line, or a `BLOCKED:` line explains why the run cannot start; report committed.
 
-- [ ] **Task 4: First session, checks 2-3** (effort: 3)
-  - [ ] The PM starts the session and runs `/sq:onboard` (D2). The operator never answers for the PM and makes no manual edits (D2 hands-off rule).
-  - [ ] Verify check 2 from the register output the PM copies. After registration, record where `/sq:onboard` and `/cf:*` resolved from, `cf config get workflow.review_enabled` (value and source), and the guide version `cf guides info` reports in `<root>` (the Setup guide version). A guide older than `MIN_GUIDE_VERSION` (0.22.8) is a `BLOCKED:` line under this task.
-  - [ ] Verify check 3, then ask the PM to end the session once the concept is confirmed (D3).
-  - [ ] Success: rows 2-3 are pass or have defect lines; the session ended after the concept step; report committed.
+- [x] **Task 4: First session, checks 2-3** (effort: 3)
+  - [x] The PM starts the session and runs `/sq:onboard` (D2). The operator never answers for the PM and makes no manual edits (D2 hands-off rule).
+  - [x] Verify check 2 from the register output the PM copies. After registration, record where `/sq:onboard` and `/cf:*` resolved from, `cf config get workflow.review_enabled` (value and source), and the guide version `cf guides info` reports in `<root>` (the Setup guide version). A guide older than `MIN_GUIDE_VERSION` (0.22.8) is a `BLOCKED:` line under this task.
+  - [x] Verify check 3, then ask the PM to end the session once the concept is confirmed (D3).
+  - [x] Success: rows 2-3 are pass or have defect lines; the session ended after the concept step; report committed.
 
 - [ ] **Task 5: Resume and adopt, checks 4-7** (effort: 4)
   - [ ] The PM starts a new session and runs `/sq:onboard`. Verify check 4 from the session's first `sq onboard` report and check 5 from the prompt tail, both copied by the PM.
-  - [ ] If the session stops after the architecture, record `cf detect --json | jq .outcome` (check 7's in-between observation; not forced).
-  - [ ] After the PM approves architecture and plan, verify check 6:
+  - [x] If the session stops after the architecture, record `cf detect --json | jq .outcome` (check 7's in-between observation; not forced).
+  - [x] After the PM approves architecture and plan, verify check 6:
     1. The session's tool output (copied by the PM) shows `cf docs map` ran; `050-docs-map.{project}.md` exists and the architecture links it (`grep` its file name in the architecture).
     2. The architecture's frontmatter has `provenance: derived`.
     3. Walkthrough step 4's `cf list slices --json` shows `retroactive: true` on the recorded entries and at least one unbuilt entry; the PM confirms the unbuilt entry is one they supplied.
     4. `cf check` reports no error for the retroactive entries.
     5. For each intent the PM called unknown, `grep -il unknown` over the architecture and slice plan finds it stated as "unknown".
-  - [ ] Verify check 7 with Walkthrough step 4's `cf detect --json | jq .outcome` and the session's hand-off to `cf next`.
+  - [x] Verify check 7 with Walkthrough step 4's `cf detect --json | jq .outcome` and the session's hand-off to `cf next`.
   - [ ] Success: rows 4-7 are pass or have defect lines; report committed.
 
-- [ ] **Task 6: Past the hand-off, check 8** (effort: 2)
-  - [ ] Run `cf next --json | jq '{recommendation, suggestedCommand}'` in `<root>`. If it gates on the derived architecture, run the review it names, per D4 (never `review: none`, never a frontmatter edit). Record whether the gate appeared.
-  - [ ] Verify check 8.
-  - [ ] Success: row 8 is pass or has a defect line; report committed.
+- [x] **Task 6: Past the hand-off, check 8** (effort: 2)
+  - [x] Run `cf next --json | jq '{recommendation, suggestedCommand}'` in `<root>`. If it gates on the derived architecture, run the review it names, per D4 (never `review: none`, never a frontmatter edit). Record whether the gate appeared.
+  - [x] Verify check 8.
+  - [x] Success: row 8 is pass or has a defect line; report committed.
 
-- [ ] **Task 7: First new slice design, checks 9-10** (effort: 3)
-  - [ ] In the session, follow cf's Phase 4 path for the slice Task 6 named (D4: `cf set slice`, then `cf build`). The agent writes the design with the PM.
-  - [ ] Verify check 9: `cf build --json 2>/dev/null | jq -r .context` names the derived architecture and slice plan files, and `cf validate design <design-path>` exits 0.
-  - [ ] Verify check 10 with `git -C <root> status --short`.
-  - [ ] Success: rows 9-10 are pass or have defect lines; report committed.
+- [x] **Task 7: First new slice design, checks 9-10** (effort: 3)
+  - [x] (PM chose a lighter path: stub design in a copy of the clone, see report check 9) In the session, follow cf's Phase 4 path for the slice Task 6 named (D4: `cf set slice`, then `cf build`). The agent writes the design with the PM.
+  - [x] Verify check 9: `cf build --json 2>/dev/null | jq -r .context` names the derived architecture and slice plan files, and `cf validate design <design-path>` exits 0.
+  - [x] Verify check 10 with `git -C <root> status --short`.
+  - [x] Success: rows 9-10 are pass or have defect lines; report committed.
 
 ### Wrap-up (design Implementation Notes steps 4-5)
 
-- [ ] **Task 8: Finalize the report** (effort: 2)
-  - [ ] Every row has a result and every defect one disposition ("no cf defects" if none). Setup has every D7 field, including the guide version (#124) and whether the review gate fired (#132).
-  - [ ] Write Notes for 274 as D7 describes. Check the private-repository rules (D1, D7).
-  - [ ] Set `status: complete` only if all ten checks pass; otherwise leave `in_progress` with one line at the top naming the failing or blocked checks. Run `cfl check` and fix findings on the report.
-  - [ ] Send squadron's peer the result (D8): setup, rows 1-8 and any squadron issue links. If no peer was listed in Task 1, skip this.
-  - [ ] Success: `cfl check` reports no error for the report.
-  - [ ] Commit: `docs: finalize real adoption run report`
+- [x] **Task 8: Finalize the report** (effort: 2)
+  - [x] Every row has a result and every defect one disposition ("no cf defects" if none). Setup has every D7 field, including the guide version (#124) and whether the review gate fired (#132).
+  - [x] Write Notes for 274 as D7 describes. Check the private-repository rules (D1, D7).
+  - [x] Set `status: complete` only if all ten checks pass; otherwise leave `in_progress` with one line at the top naming the failing or blocked checks. Run `cfl check` and fix findings on the report.
+  - [x] Send squadron's peer the result (D8): setup, rows 1-8 and any squadron issue links. If no peer was listed in Task 1, skip this.
+  - [x] Success: `cfl check` reports no error for the report.
+  - [x] Commit: `docs: finalize real adoption run report`
 
-- [ ] **Task 9: Full validation** (effort: 2)
-  - [ ] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
-  - [ ] In this repo's root, re-run the Task 0 commands writing `/tmp/273-*-after.*`, and `diff` each pair. The only allowed differences are lines that quote this slice's own task state (for example remaining-task counts); any other difference is a regression from a fix.
-  - [ ] In the slice design, add a `**Walkthrough results (slice 273 implementation, {YYYYMMDD}).**` paragraph after the Verification Walkthrough steps, as slice 265's design does: one numbered line per walkthrough step with its result, then one `Baseline diff:` line stating each allowed difference.
-  - [ ] Remove `~/cf273-bin`. Leave the adopted project registered.
-  - [ ] Success: build, lint, typecheck and tests pass; the diffs show only allowed differences. If any run task carries a `BLOCKED:` line, the results paragraph says so, that task stays unchecked and the slice stays `in_progress`.
-  - [ ] Commit: `docs: record slice 273 walkthrough results`
+- [x] **Task 9: Full validation** (effort: 2)
+  - [x] Run `pnpm -r build`, then `pnpm lint`, `pnpm typecheck` and `pnpm test` once each; fix failures.
+  - [x] In this repo's root, re-run the Task 0 commands writing `/tmp/273-*-after.*`, and `diff` each pair. The only allowed differences are lines that quote this slice's own task state (for example remaining-task counts); any other difference is a regression from a fix.
+  - [x] In the slice design, add a `**Walkthrough results (slice 273 implementation, {YYYYMMDD}).**` paragraph after the Verification Walkthrough steps, as slice 265's design does: one numbered line per walkthrough step with its result, then one `Baseline diff:` line stating each allowed difference.
+  - [x] Remove `~/cf273-bin`. Leave the adopted project registered.
+  - [x] Success: build, lint, typecheck and tests pass; the diffs show only allowed differences. If any run task carries a `BLOCKED:` line, the results paragraph says so, that task stays unchecked and the slice stays `in_progress`.
+  - [x] Commit: `docs: record slice 273 walkthrough results`

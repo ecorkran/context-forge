@@ -24,7 +24,7 @@ One real adoption driven through `/sq:onboard` in Claude Code with the PM answer
 - `cf` (local build): 0.19.20, branch `273-slice.real-adoption-run-via-sq-onboard`, forked from `c23fe532`. Two fixes were rebuilt during the run, `f5d4ed3f` and `e12ab0fc`.
 - ai-project-guide in the adopted project: v0.22.8 (tarball), installed by `cf init` (commit `26ab940`, 111 files). At `MIN_GUIDE_VERSION`.
 - `sq`: reports 0.24.5; the build is the squadron 440 branch (`440-slice.sq-onboard`), an editable install at `~/.local/bin/sq` per squadron's session. The squadron commit was not independently verified here. A stale `sq` in the Python framework directory was removed by squadron's session.
-- `/sq:onboard` installed from the 440 branch into `~/.claude/commands/sq` (per squadron's session). Where `/sq:onboard` and `/cf:*` resolved from in the session: _pending (PM)_. Machine-level `~/.claude/commands/cf/` exists (9 files, not deleted).
+- Command sources (from the file system after the run; not captured in-session): `/sq:onboard` is `~/.claude/commands/sq/onboard.md` (machine level, from the 440 branch per squadron's session). The clone has no project-level `.claude/commands/`, so `/cf:*` resolved from machine-level `~/.claude/commands/cf/` (9 files, not deleted).
 - `workflow.review_enabled`: `true`, source `user`.
 - Review gate fired: yes. `cf next` blocked on the derived architecture until `100-review.arch.tank-game-onboard.md` existed; after the review it cleared (see #132 for the wording).
 
