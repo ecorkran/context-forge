@@ -4,6 +4,9 @@ slice: real-adoption-run-via-sq-onboard
 project: context-forge
 parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
 dependencies:
+- 263
+- 267
+- 269
 - 271
 - 272
 interfaces:
@@ -107,15 +110,7 @@ Output kept in this repository: the run report (D7) and any fix commits (D6). Ev
 
 ### Data Flow
 
-The cf-owned hand-offs D5 checks, in run order:
-
-1. `cf detect` before anything: brownfield (or adoption-incomplete), unregistered, nothing written.
-2. `cf init --json`: one JSON object on stdout, `ok: true`, read by `sq onboard register`.
-3. After squadron's concept flow: `cf detect` reports `artifacts.concept`. Squadron learns the concept's path only from cf (440 D3).
-4. `cf prompt get`: Adoption Inputs names the comprehension doc squadron passed and the concept cf found.
-5. The agent's artifacts: `050-docs-map`, the `provenance: derived` architecture, and a slice plan with retroactive entries plus at least one new entry. `cf check` and `cf list slices --json` read them.
-6. `cf detect` reports `already-planned`, so `sq onboard` hands off to `cf next`.
-7. `cf next` reaches the first new slice, and the Phase 4 `cf build` includes the derived architecture and slice plan.
+The cf-owned hand-offs, in run order, are the D5 checks.
 
 ### State Management
 
@@ -166,22 +161,15 @@ The run passes when every check holds. Checks cover the composition points no fi
 | 5 | Prompt inputs | The adoption prompt the agent receives ends with `## Adoption Inputs` naming the newest comprehension doc and the concept; architecture and plan are `none`. (`sq onboard prompt` prints cf's stdout unchanged, so the operator checks the session's tool output.) |
 | 6 | Artifacts | The agent ran `cf docs map`; `050-docs-map.{project}.md` exists and the architecture links it. The architecture has `provenance: derived`. The slice plan has retroactive entries and at least one unbuilt entry the PM supplied. `cf list slices --json` shows `retroactive: true` on the recorded entries, and `cf check` reports no error for them. Where the PM said an intent was unknown, the artifacts say "unknown". |
 | 7 | Hand-off | `cf detect` reports `already-planned`, and `sq onboard` hands off to `cf next`. In between, if the session stops after the architecture, `cf detect` reports `adoption-incomplete` (observed if it happens, not forced). |
-| 8 | First new slice | `cf next` (after any review gate, D4) recommends the first unbuilt entry, never a retroactive one and never Phase 0–3. `workflow_next` agrees, checked once from an MCP client. |
+| 8 | First new slice | `cf next` (after any review gate, D4) recommends the first unbuilt entry, never a retroactive one and never Phase 0–3. |
 | 9 | Design on the derived arch | The Phase 4 `cf build` output for that slice names the derived architecture and the slice plan as its inputs. The design passes `cf validate design`. |
-| 10 | No stray writes | At the end, `git status` in the adopted repo shows only cf setup, adoption artifacts, the slice design and squadron's analysis files; nothing outside the repository changed except the cf project store and the review file, if a review ran. |
+| 10 | No stray writes | At the end, `git status` in the adopted repo shows only cf setup, adoption artifacts, the slice design, squadron's analysis files and the review file, if a review ran. |
 
 ### D6 — What gets fixed here, and what gets filed
 Status: decided
-This follows 265 D5, with the scope moved to the reworked code.
-- **cf defect in the adoption code as it stands** (261, 263, 264, 267, 268, 269, 271, 272): cf does something its design says it shouldn't, or fails on real input its design covers. Fixed in this slice: first a test that fails for the reason the run showed, using the real input's format, then the fix, one commit each. Then re-run the affected checks.
-- **Contract mismatch between cf and squadron:** the side that differs from 271's design (`docs/ADOPTION-PRIMITIVES.md`) owns the fix. If cf differs, it is a cf defect above. If squadron differs, file it in squadron.
-- **Constant tuning** (`BROWNFIELD_MIN_SOURCE_LINES`, `SOURCE_EXTENSIONS`, `EXCLUDED_DIRS`, `MAX_WALK_ENTRIES`): only with evidence from the run in the report, and a fixture test at the new boundary.
-- **A change to a decided design behavior, a new option, or a format change:** not made here. File an issue with the run evidence and tell the PM. If it blocks the end state, the run's task gets a `BLOCKED:` line.
-- **Guide prompt defect** (the agent misreads correct Adoption Inputs, skips the docs map, invents intent, writes a malformed marker): issue in ai-project-guide with the prompt excerpt and the behavior. cf doesn't work around it in code.
-- **Squadron or plugin defect** (a step that doesn't route, a comprehension doc that isn't found): issue in squadron, or the plugin's repository. cf doesn't work around it either.
-- **cf defect outside the initiative:** issue, and continue.
-- **Agent misbehavior on correct inputs:** repeat the step once. A second occurrence is a guide-prompt defect.
-- Every defect gets a line in the report with its fix commit or issue link.
+265 D5's rules apply unchanged (cf defects fixed here with a failing test first, one commit each; constant tuning only with run evidence; design changes, new options and formats filed and told to the PM; guide and squadron defects filed in their repositories, never worked around in cf; a repeated agent misbehavior is a guide defect; every defect gets a report line). Two changes:
+- **Scope:** "the initiative's cf code" means the adoption code as it stands after the rework (261, 263, 264, 267, 268, 269, 271, 272).
+- **Contract mismatch between cf and squadron:** the side that differs from 271's design (`docs/ADOPTION-PRIMITIVES.md`) owns the fix.
 
 ### D7 — The run report
 Status: decided
@@ -251,34 +239,17 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
    git status --short; cf project list --json | diff - /tmp/cf273-proj.json && echo unchanged
    ```
 
-3. **Adoption, first session (checks 2–3).** In `<root>`, start Claude Code with the shim on PATH and run `/sq:onboard`. The PM answers yes to adopt and to the graph build, then confirms or corrects the concept. Once the concept is written:
-   ```bash
-   cf detect --json | jq '.outcome, .artifacts.concept'      # concept path set
-   sq onboard --json | jq '.next.step'                       # "adopt"
-   ```
-   End the session.
+3. **First session (checks 2–3).** In `<root>`, start Claude Code with the shim on PATH and run `/sq:onboard`. The PM answers. Once the concept is written, `cf detect --json | jq .artifacts.concept` is set; end the session.
 
-4. **Resume and adopt (checks 4–7).** New session, `/sq:onboard`. Expect it to start at `adopt`, fetch the prompt (the tool output ends with `## Adoption Inputs`), run `cf docs map`, and write the architecture and slice plan with the PM. Then:
+4. **Resume and adopt (checks 4–7).** New session, `/sq:onboard`; it starts at `adopt`. After the PM approves the architecture and plan:
    ```bash
-   cf list slices --json | jq '.entries[] | {index, name, retroactive, status}'
-   cf check                                                  # no retroactive-entry errors
-   cf detect --json | jq .outcome                            # "already-planned"
+   cf list slices --json | jq '.entries[] | {index, retroactive, status}'
+   cf check && cf detect --json | jq .outcome                # no retroactive-entry errors; "already-planned"
    ```
 
-5. **First new slice (checks 8–9)**
-   ```bash
-   cf next                                                   # review gate on the derived arch, or the first unbuilt slice
-   ```
-   Run any review it names, then `cf next` again until it names the first unbuilt slice. Call `workflow_next` once from an MCP client and compare. Follow cf's Phase 4 path for that slice; confirm the `cf build` output lists the derived architecture and slice plan. The agent writes the design with the PM. Then:
-   ```bash
-   cf validate design project-documents/user/slices/<nnn>-slice.<name>.md   # PASS, exit 0
-   ```
+5. **First new slice (checks 8–9).** `cf next` until it names the first unbuilt slice (running any review it names), then cf's Phase 4 path for that slice, and `cf validate design <design-path>` exits 0.
 
-6. **After (check 10)**
-   ```bash
-   git -C <root> status --short                              # only expected adoption and design files
-   ```
-   Write the run report (D7).
+6. **After (check 10).** `git -C <root> status --short` lists only expected files. Write the run report (D7).
 
 ## Risk Assessment
 
