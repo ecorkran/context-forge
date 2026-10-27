@@ -19,20 +19,21 @@ projectState: main at 0.19.20 (slices 268-272 merged; `cf detect`, `cf init --js
 dateCreated: 20261027
 dateUpdated: 20261027
 status: not_started
-turns: 15
-promptTokens: 686652
-cachedTokens: 633802
-cacheWriteTokens: 52824
-completionTokens: 10948
-durationSeconds: 126.4
-costUsd: 0.768704
-usageRounds: 1
-pricedRounds: 1
+turns: 22
+promptTokens: 1209471
+cachedTokens: 1138396
+cacheWriteTokens: 71033
+completionTokens: 19169
+durationSeconds: 209.7
+costUsd: 1.179779
+usageRounds: 2
+pricedRounds: 2
 usageByModel:
   claude-opus-5-5:
-    rounds: 1
-    costUsd: 0.7687037000000001
-    completionTokens: 10948
+    rounds: 2
+    costUsd: 1.1797785
+    completionTokens: 19169
+revision_number: 1
 ---
 
 ## Context Summary
