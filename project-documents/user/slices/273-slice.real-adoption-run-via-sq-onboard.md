@@ -261,6 +261,8 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
 6. After (check 10): pass.
 Baseline diff: `cf next` (json and text) differ only in the remaining-task count (53 vs 40); the `cf build` context is identical.
 
+**Code review response (20261027, review: CONCERNS, `reviews/273-review.code.real-adoption-run-via-sq-onboard.md`).** F001 fixed: a failed re-read after registration now throws instead of returning the stale project. F003 fixed: the helper moved into `commands/`, so utils no longer import commands. F004 fixed for `cf next` (test through the real navigator); `cf list tasks` shares the same helper and has no test of its own. F002 declined: registration inside `cf next`, `cf list slices` and `cf list tasks` is the PM's ruling on #137 (option c), and `cf set` prints what it changed. F005 and F006 (notes) left as they are: the field names are two constants with one use each, and the grammar helper covers the current review types.
+
 ## Risk Assessment
 
 ### Technical Risks

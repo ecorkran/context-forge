@@ -15,7 +15,7 @@ import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
 import { warnIfBehindUpstream } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
-import { withAdoptedArtifactsRegistered } from '../utils/adoptedProject.js';
+import { withAdoptedArtifactsRegistered } from './adoptedProject.js';
 import { label, success, dim } from '../output/styles.js';
 
 /** Shared action handler for listing task files. */

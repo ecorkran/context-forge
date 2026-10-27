@@ -6,7 +6,7 @@ import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@con
 import type { NormalizedStatus } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
 import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
-import { withAdoptedArtifactsRegistered } from '../utils/adoptedProject.js';
+import { withAdoptedArtifactsRegistered } from './adoptedProject.js';
 import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';

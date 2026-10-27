@@ -1,7 +1,8 @@
 import { resolveProject, type ResolvedProject } from '@context-forge/core';
 import type { FileProjectStore } from '@context-forge/core/node';
-import { projectSetAction } from '../commands/project.js';
-import { registerAdoptedArtifacts } from './registerAdoptedArtifacts.js';
+import { UserError } from '../utils/errors.js';
+import { registerAdoptedArtifacts } from '../utils/registerAdoptedArtifacts.js';
+import { projectSetAction } from './project.js';
 
 /**
  * Registers a completed adoption's artifacts on the project (#137) and returns the project as the
@@ -17,5 +18,7 @@ export async function withAdoptedArtifactsRegistered(
     projectSetAction(field, value, { project: target.projectOption }),
   );
   if (!changed) return project;
-  return (await resolveProject(store, target.id, target.worktreeId)) ?? project;
+  const reread = await resolveProject(store, target.id, target.worktreeId);
+  if (!reread) throw new UserError(`Project not found after registering adopted artifacts: '${target.id}'.`);
+  return reread;
 }

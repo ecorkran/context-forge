@@ -29,6 +29,8 @@ import {
  */
 
 const mockGetAll = vi.fn();
+const mockSetAction = vi.hoisted(() => vi.fn());
+vi.mock('../../src/commands/project.js', () => ({ projectSetAction: mockSetAction }));
 const mockGetById = vi.fn();
 
 vi.mock('@context-forge/core/node', async () => {
@@ -125,6 +127,28 @@ describe('cf next: adoption warnings (slice 269 D6)', () => {
     appendFileSync(join(fixture.root, CONFIG_FILE), REVIEW_GATE_OFF);
     const next = await runNextJson(fixture, REGISTERED);
     expect(adoptionLinesIn(next)).toEqual([]);
+    expect(next.suggestedCommand).toBe(FIRST_NEW_SLICE_COMMAND);
+  });
+
+  // #137: a completed adoption leaves arch, plan and concept unset; `cf next` registers them first.
+  it('adopted but unregistered: registers arch and concept, then points at the first unbuilt slice', async () => {
+    const fixture = fixtureFor({ concept: true, arch: true, plan: MIXED_ENTRIES });
+    appendFileSync(join(fixture.root, CONFIG_FILE), REVIEW_GATE_OFF);
+    // Stands in for `cf set`: arch also sets the plan, as computeAutoSetFields does.
+    mockSetAction.mockImplementation(async (field: string, value: string) => {
+      const project = await mockGetById();
+      if (field === 'arch') {
+        project.fileArch = value;
+        project.fileSlicePlan = value.replace('-arch.', '-slices.');
+      } else if (field === 'concept') {
+        project.fileConcept = value;
+      }
+    });
+    const next = await runNextJson(fixture);
+    expect(mockSetAction.mock.calls.map(([field, value]) => [field, value])).toEqual([
+      ['arch', '100-arch.existing'],
+      ['concept', '000-concept.existing'],
+    ]);
     expect(next.suggestedCommand).toBe(FIRST_NEW_SLICE_COMMAND);
   });
 

@@ -3,7 +3,7 @@ import { FileProjectStore, WorkflowNavigator, ConfigManager } from '@context-for
 import { resolveProject } from '@context-forge/core';
 import { resolveProjectWorktree } from '../utils/project.js';
 import { handleError, UserError } from '../utils/errors.js';
-import { withAdoptedArtifactsRegistered } from '../utils/adoptedProject.js';
+import { withAdoptedArtifactsRegistered } from './adoptedProject.js';
 import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { withJsonOption, withProjectOption } from '../options.js';
 import { printJson } from '../output/formatter.js';
