@@ -14,16 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261027
 dateUpdated: 20261027
-reviewedSha: a8cf27ce689f1ac9441b4904fc12d247664eaf9c
+reviewedSha: 34923c5c01a609637393bb2ad9b80c0a52632e42
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
 turns: 3
-promptTokens: 95144
-cachedTokens: 8820
-cacheWriteTokens: 86320
-completionTokens: 5493
-durationSeconds: 51.3
-costUsd: 0.401836
+promptTokens: 92860
+cachedTokens: 11176
+cacheWriteTokens: 81680
+completionTokens: 3378
+durationSeconds: 30.0
+costUsd: 0.362361
 costBasis: provider
 runId: run-20261027-p5-0d4832dc
 squadronVersion: 0.24.5
@@ -31,38 +32,28 @@ findings:
   - id: F001
     severity: pass
     category: coverage
-    summary: "D5 checks 1-10 and the success criteria trace to tasks"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:101-152"
+    summary: "Success criteria coverage"
+    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:85-111"
   - id: F002
     severity: concern
     category: completeness
-    summary: "Format step is missing from the validation and fix procedures"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:168"
+    summary: "Guide version for the Setup section is recorded from the wrong place"
+    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:61"
   - id: F003
     severity: concern
-    category: commit-checkpoints
-    summary: "No commit checkpoints across the run tasks (5-9)"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:101-152"
+    category: clarity
+    summary: "Check 6 verification is only partly specified"
+    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:99"
   - id: F004
-    severity: concern
-    category: clarity
-    summary: "Live-session tasks do not say who starts the session or how its output is observed"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:108-114"
-  - id: F005
-    severity: concern
-    category: proportionality
-    summary: "Task granularity and restated design content exceed what a 2/5 slice needs"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:55-152"
-  - id: F006
-    severity: concern
-    category: clarity
-    summary: "Task 3 success requires an acknowledgement the executor cannot force"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:78-80"
-  - id: F007
     severity: note
-    category: clarity
-    summary: "Task 12's \"walkthrough notes\" target and baseline diffs are loosely defined"
-    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:169-172"
+    category: scope
+    summary: "Task 5 is large, but it follows the run's natural boundary"
+    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:96-100"
+  - id: F005
+    severity: note
+    category: process
+    summary: "Commit checkpoints and the single task file are proportionate"
+    location: "project-documents/user/tasks/273-tasks.real-adoption-run-via-sq-onboard.md:71"
 ---
 
 # Review: tasks — slice 273
@@ -72,56 +63,54 @@ findings:
 
 ## Findings
 
-### [PASS] D5 checks 1-10 and the success criteria trace to tasks
+### [PASS] Success criteria coverage
 
-- **D5 checks:** Checks 1-10 map to Tasks 5-10 (1 → T5, 2-3 → T6, 4-7 → T7, 8 → T8, 9 → T9, 10 → T10). Task 4 creates the ten-row table those tasks fill.
-- **D3 resume:** Task 6 ends the session after the concept step, and Task 7 starts the new one.
-- **D4:** The review gate is handled in Task 8, and the slice design in Task 9.
-- **D6 and D7:** The defect procedure covers D6, and Tasks 4 and 11 cover the D7 report.
-- **D8:** Squadron is notified in Tasks 3 and 11.
-- **Unchanged-output requirement:** The "this repository's `cf build` and `cf next --json` are unchanged" requirement is covered by the Task 0 baselines and the Task 12 diff.
-- **Scope creep:** No task falls outside the slice design.
+- **D5 checks:** check 1 is in Task 3, checks 2-3 in Task 4, checks 4-7 in Task 5, check 8 in Task 6, and checks 9-10 in Task 7.
+- **Defect handling:** the "Every defect has a disposition" requirement is covered by the Defect procedure (lines 73-79) and Task 8.
+- **Regression tests:** the failing-test-first rule is in the Defect procedure.
+- **Technical requirements:** full validation is Task 9, which also holds the before/after baseline diff for `cf build` and `cf next --json`.
+- **Squadron evidence:** the evidence for squadron 440 is the squadron-peer note in Task 1 and the result message in Task 8.
+- **No cf defects:** the "no cf defects" wording is in Task 8.
 
-### [CONCERN] Format step is missing from the validation and fix procedures
+Nothing in the tasks lacks a source in the design. The slice design edit in Task 9 follows slice 265's precedent, so it is not scope creep.
 
-The slice's Technical Requirements say that after the last fix, `pnpm -r build`, format, lint, typecheck and the full test suite must pass. Task 12 runs build, lint, typecheck and test only. The defect procedure's per-fix step (line 94) also omits format, although CLAUDE.md's fix rules require it. Add the format command to both. Without it, a fix commit could fail the project's formatting check.
+### [CONCERN] Guide version for the Setup section is recorded from the wrong place
 
-### [CONCERN] No commit checkpoints across the run tasks (5-9)
+- **The gap:**
+  - D7's Setup requires the guide version, and Task 8 (line 116) requires it for #124.
+  - The design's prerequisite is a guide of at least v0.22.8 installed in the *adopted project*.
+  - Task 1 only checks `cfl guides info` for the context-forge repo's own guide.
+  - No run task records the guide version `cf init` installed in `<root>` after check 2.
+  - Task 8 could therefore fill the field from the wrong source.
+- **Fix:** add to Task 4, after the check 2 register output, "record the guide version installed in `<root>`".
+- **Baseline risk:**
+  - Task 1 runs `cfl guides update` after the Task 0 baselines were saved.
+  - If that update changes this repo's guide files, the Task 9 `cf build` diff may show a difference that is not a regression.
+  - Either run the update before the baselines or list it as an allowed difference in Task 9.
 
-- **Where commits fall:** Task 4 (line 87) is the only commit before Task 10. Tasks 5-9 each fill report rows and the Setup fields, yet the first commit after Task 4 is Task 10's (line 152).
-- **Why it matters:** The run spans multiple sessions, so a stop on a `BLOCKED:` line, a squadron defect or a crash would lose the recorded evidence. CLAUDE.md asks for a commit at least once per task that changes the repo.
-- **Suggested fix:** Commit the report after Task 6 (checks 1-3) and after Task 8 (checks 4-8), with `docs:` messages like the existing ones.
+### [CONCERN] Check 6 verification is only partly specified
 
-### [CONCERN] Live-session tasks do not say who starts the session or how its output is observed
+- Task 5 says to verify checks 6 and 7 "with the commands in Walkthrough step 4".
+- Step 4 only covers `cf list slices`, `cf check` and `cf detect`.
+- Check 6 also requires:
+  - `050-docs-map.{project}.md` exists and the architecture links it.
+  - The architecture has `provenance: derived`.
+  - The slice plan has at least one unbuilt entry the PM supplied.
+  - Intents the PM called unknown read "unknown" in the artifacts.
+- None of these has a command, so a junior executor could mark row 6 pass after running only the step 4 commands.
+- **Fix:** add one sub-item to Task 5 listing these verifications, for example `ls`, `grep` for `provenance: derived`, and a grep for "unknown".
 
-- **Role gap:** Tasks 6 and 7 say "Start an interactive Claude Code session in `<root>`" and "end the session". The executing agent is itself a Claude session. The tasks do not say whether the PM starts the session, or how the operator sees the session's tool output.
-- **Dependent checks:** Check 5 (line 120) needs that tool output. Check 6 item 1 needs to know whether the session ran `cf docs map`. Task 6 also needs to know where `/sq:onboard` resolved from.
-- **Why it matters:** A junior AI cannot complete these tasks as written without guessing.
-- **Suggested fix:** State once, in the Context Summary, who runs the interactive session and how the operator reads its output (for example, the PM pastes it, or the operator reads the session transcript file). Name the command or file for "where `/sq:onboard` resolved from".
+### [NOTE] Task 5 is large, but it follows the run's natural boundary
 
-### [CONCERN] Task granularity and restated design content exceed what a 2/5 slice needs
+Task 5 covers four checks across one PM session. Splitting it would put a boundary in the middle of a live session, so keep it as is. Tasks 0-2 are small, but each ends at a distinct verifiable state (branch and baselines, shim and prerequisites, report skeleton), so merging them is not needed.
 
-- **Setup tasks:** The slice is rated effort 2/5, yet Setup is five tasks (0-4) of effort 1-2 each. Tasks 0, 1 and 2 are all pre-run environment checks, and Task 3 is a single message.
-- **Task 10:** It is a one-command effort-1 task that could be a closing step of Task 9 or Task 11.
-- **Restated design content:** The Context Summary says "tasks reference them rather than restate them." But Task 7's check 6 sub-list (lines 122-127) and the Task 5 and Task 8 check text re-copy D5 row wording. If D5 changes, the two copies will drift.
-- **Suggested fix:**
-  - Merge Tasks 0-3 into one "Setup and prerequisites" task.
-  - Fold Task 10 into Task 11, or keep it as the final run step.
-  - Replace the copied check wording in Tasks 5-8 with "check N per D5 row N", keeping only the commands.
+### [NOTE] Commit checkpoints and the single task file are proportionate
 
-### [CONCERN] Task 3 success requires an acknowledgement the executor cannot force
-
-Task 3's success criterion is "the note is sent and acknowledged, or the absence of a peer is noted." A peer may take a long time to ack, or never ack, and the task has no fallback for that. Make "sent" the success condition, and note a missing ack in the report's Setup part, as the task already does for a missing peer.
-
-### [NOTE] Task 12's "walkthrough notes" target and baseline diffs are loosely defined
-
-- **Notes target:** The slice design has a "Verification Walkthrough" marked "Draft; refined after the run", but no section called "walkthrough notes". Name the section to update.
-- **Success line:** "Success: all checks pass" is vague. Say whether it means the ten D5 checks or Task 12's own commands.
-- **Baseline diff:** The baseline diff is acknowledged to differ on slice-state lines, since the report is added in Task 4. A junior AI may over-flag those lines, so list the expected differing lines.
+Commits are spread across Tasks 2-9, not batched at the end. Tasks 0 and 1 produce no committable change, so they have no commit. No NFR is restated in the slice, so no load test or CI wiring task is required. One task file with ten tasks fits an effort 2/5 slice.
 
 ### Run Digest
 
-- Response length: 5790 chars
+- Response length: 4050 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -132,12 +121,12 @@ Task 3's success criterion is "the note is sent and acknowledged, or the absence
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 95144 / 8820 / 86320 / 5493 / not computed
-- Duration: 51.3 s
-- Cost: $0.40 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 92860 / 11176 / 81680 / 3378 / not computed
+- Duration: 30.0 s
+- Cost: $0.36 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 7
+- Finding-shaped matches — whole response: 5
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 7
-- Finding-shaped matches — surviving validation: 7
+- Finding-shaped matches — in findings section: 5
+- Finding-shaped matches — surviving validation: 5
