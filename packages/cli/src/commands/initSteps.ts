@@ -65,8 +65,7 @@ const PERSONAL_CONFIG_GITIGNORE_LINE = '.context-forge.local.toml';
  * Ensures the CWD's .gitignore contains a line for the personal config file.
  * Simple line-based check (not a full gitignore-pattern parse) — matches this
  * project's lenient-parsing convention for straightforward line-oriented files.
- * A write failure propagates to the caller's handleError(err) catch block,
- * consistent with every other cf init file-write failure.
+ * A write failure propagates to runGitignoreStep, which reports it as a failed step.
  */
 export function ensurePersonalConfigGitignored(cwd: string): void {
   const gitignorePath = path.join(cwd, '.gitignore');
@@ -193,10 +192,15 @@ export async function runRegisterStep(
   return { kind: 'registered', registration: 'created', project, result };
 }
 
-/** Repo hygiene, so this runs regardless of --lite. A write failure throws, as every cf init file write does. */
-export function runGitignoreStep(cwd: string): StepResult {
-  ensurePersonalConfigGitignored(cwd);
-  return stepResult(INIT_STEP.gitignore, STEP_STATUS.ok);
+/** Repo hygiene, so this runs regardless of --lite. A failure is a failed step, so the later steps still run. */
+export function runGitignoreStep(cwd: string, out: InitOutput): StepResult {
+  try {
+    ensurePersonalConfigGitignored(cwd);
+    return stepResult(INIT_STEP.gitignore, STEP_STATUS.ok);
+  } catch (err) {
+    out.log(warn(`.gitignore update failed: ${messageOf(err)}`));
+    return stepResult(INIT_STEP.gitignore, STEP_STATUS.failed, messageOf(err));
+  }
 }
 
 /** Install guides. */

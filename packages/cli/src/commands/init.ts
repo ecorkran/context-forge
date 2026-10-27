@@ -57,7 +57,7 @@ export function registerInitCommand(program: Command): void {
         return;
       }
 
-      const steps = [git, registration.result, runGitignoreStep(cwd), ...(await runSetupSteps(cwd, opts, out))];
+      const steps = [git, registration.result, runGitignoreStep(cwd, out),...(await runSetupSteps(cwd, opts, out))];
       const codebaseLine = await codebaseNotice(cwd);
       const notices = codebaseLine === null ? [] : [codebaseLine];
 

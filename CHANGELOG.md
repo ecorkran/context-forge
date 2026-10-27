@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `cf init`: a `.gitignore` write failure is now reported as a failed `gitignore` step (exit 1, later steps still run) instead of aborting init with an internal error after the project was registered.
+
 ## [0.19.20] - 20261026
 
 ### Added

@@ -542,6 +542,21 @@ describe('cf init step results and exit code (D8)', () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it('exits 1 when the .gitignore write fails, and still runs the later steps', async () => {
+    mockWriteFileSync.mockImplementation((p: string) => {
+      if (String(p).endsWith('.gitignore')) throw new Error('EISDIR: illegal operation on a directory');
+    });
+    try {
+      await runInit();
+    } finally {
+      // clearAllMocks keeps implementations; don't leak the throwing one into later tests.
+      mockWriteFileSync.mockReset();
+    }
+    expect(process.exitCode).toBe(1);
+    expect(mockGuidesInstallAction).toHaveBeenCalled();
+    expect(mockSetupIdeAction).toHaveBeenCalled();
+  });
+
   it('an already-installed guide is skipped, not failed', async () => {
     mockGuidesInstallAction.mockRejectedValue(new GuideAlreadyInstalledError());
     await runInit();
