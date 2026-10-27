@@ -2,7 +2,7 @@
 import { GuideDetector, isNewerVersion } from './GuideDetector.js';
 import { LOCAL_VERSION_MARKER } from './types.js';
 
-export const MIN_GUIDE_VERSION = '0.22.6';
+export const MIN_GUIDE_VERSION = '0.22.8';
 
 const UPDATE_HINT = 'Run: cf guides update';
 
