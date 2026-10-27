@@ -14,60 +14,51 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261027
 dateUpdated: 20261027
-reviewedSha: 65b8147105442883b19514e62028ad95afd06f9f
+reviewedSha: dc11fb078ab77195a2569fdcec797f4d080311cc
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
 turns: 3
-promptTokens: 97890
-cachedTokens: 8842
-cacheWriteTokens: 89044
-completionTokens: 3518
-durationSeconds: 31.3
-costUsd: 0.392997
+promptTokens: 97839
+cachedTokens: 11220
+cacheWriteTokens: 86615
+completionTokens: 3655
+durationSeconds: 38.7
+costUsd: 0.38489
 costBasis: provider
 runId: run-20261027-p4-9cc4f1a6
 squadronVersion: 0.24.5
 findings:
   - id: F001
-    severity: concern
-    category: scope-creep
-    summary: "Freshness machinery exceeds the architecture's cf role"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D5 — Freshness facts, with no verdict"
+    severity: pass
+    category: architecture-alignment
+    summary: "Squadron boundary and ownership split hold"
+    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#Technical Decisions"
   - id: F002
     severity: concern
-    category: under-specification
-    summary: "`comprehensionCommit` semantics are unreliable and the autoset trigger is unspecified"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D5 — Freshness facts, with no verdict"
+    category: integration
+    summary: "The `fileComprehension` project field collides with the adoption prompt's \"argument only\" contract"
+    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D2 and Technical Scope (Excluded: \"Changing 271's `--comprehension` flag\")"
   - id: F003
     severity: concern
-    category: error-handling
-    summary: "Failure modes for the new build-time I/O are only partly enumerated"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D5 — Freshness facts, with no verdict"
+    category: boundaries
+    summary: "`cf build` now makes an adoption-state judgement, against \"build is pure, no adoption logic\""
+    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D6 and Data Flow"
   - id: F004
     severity: concern
     category: proportionality
-    summary: "`--embed` support is optional scope with an unbounded payload"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D8 — `--embed` includes both documents"
+    summary: "The design is heavier than the slice plan requires"
+    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D3, D5"
   - id: F005
-    severity: concern
-    category: proportionality
-    summary: "New module and schema marker are heavier than the requirement needs"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#Component Structure"
-  - id: F006
-    severity: note
-    category: architecture-alignment
-    summary: "Wording of the absence line is consistent with the squadron ban"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D7 — How the comprehension refresh is named"
-  - id: F007
-    severity: pass
-    category: architecture-alignment
-    summary: "Boundaries, dependencies and integration points match the architecture"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#Dependencies"
-  - id: F008
     severity: note
     category: documentation
-    summary: "Frontmatter `interfaces` is empty despite provided interfaces"
-    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md:10"
+    summary: "The architecture's squadron responsibility table does not list the new registration channel"
+    location: "project-documents/user/architecture/260-arch.brownfield-adoption.md (Responsibility Split, row b)"
+  - id: F006
+    severity: pass
+    category: error-handling
+    summary: "Failure modes are enumerated and the build never fails"
+    location: "project-documents/user/slices/274-slice.carry-codebase-comprehension-into-later-phases.md#D5"
 ---
 
 # Review: slice — slice 274
@@ -77,67 +68,44 @@ findings:
 
 ## Findings
 
-### [CONCERN] Freshness machinery exceeds the architecture's cf role
+### [PASS] Squadron boundary and ownership split hold
 
-The architecture (Comprehension in later phases; Technical Considerations) says squadron owns freshness. It also says "cf only says plainly when a doc is missing" and "cf does not judge staleness". D5 adds the following:
-- A second stored field, `comprehensionCommit`, with its own autoset rule.
-- A `git rev-list --count` call on every Phase 2–4 build.
-- A docs-map comparison (`current` / `out of date`) that requires refactoring `writeDocsMap`.
-- Four git-failure fact lines.
+D2, D5 and D7 match the architecture's "Comprehension in later phases" section and the PM ban of 20261025. cf learns the comprehension doc's location from a cf-owned field that squadron sets. It never searches for squadron's files, parses its output or runs it. Comprehension freshness stays with squadron, and cf reports only present or missing. The docs map is cf's own artifact, so a freshness check on it is in scope. Dependencies run the right way: core owns the check, and the CLI and MCP call it. The guide coupling (new profile variables, `MIN_GUIDE_VERSION`) matches the architecture's Dependencies section.
 
-None of this is needed to meet the plan's requirement that the docs reach later phases, with absence stated plainly. Raw commit counts without a threshold are still a freshness signal that cf computes, which blurs the stated boundary.
+### [CONCERN] The `fileComprehension` project field collides with the adoption prompt's "argument only" contract
 
-What to cut or defer:
-- Drop `comprehensionCommit` and the commit-count fact. Show the path, and flag it only as missing.
-- If a freshness signal is wanted, keep only the docs-map `out of date` line. The map is cf's own artifact, and the cost of that check is bounded.
-- Add the commit count later, once the squadron session confirms it wants it.
+The architecture says `fileComprehension` for the adoption prompt "comes only from squadron's argument". With no path given, the prompt "says so plainly" (Technical Considerations, adoption prompt delivery). The slice makes `fileComprehension` a stored project field in the same variable namespace. The `brownfield-adoption` profile already lists that variable (271 D10). The slice does not say what `cf prompt get` does when `--comprehension` is omitted but the field is set. It might silently fill the variable from the stored value. That would break the "no path given" behaviour, and the field could drift from the path squadron passes. The slice needs an explicit decision. Either the adoption prompt path ignores the stored field, or the stored field becomes a documented fallback and the architecture sentence is amended. It also needs a test for whichever is chosen.
 
-### [CONCERN] `comprehensionCommit` semantics are unreliable and the autoset trigger is unspecified
+### [CONCERN] `cf build` now makes an adoption-state judgement, against "build is pure, no adoption logic"
 
-The recorded commit is HEAD at registration time, not when the doc was written. D5 itself rests on the assumption that "Squadron registers right after it writes the doc … in practice." If squadron registers late, or refreshes the doc and sets the same path again, the count is wrong. The design does not say whether the autoset rule fires when `fileComprehension` is set to an unchanged value. If it does not fire, a refresh leaves a stale commit, and the section reports "N commits since" against the old registration. This is the hidden-dependency pattern. Either specify that every `cf set comprehension` call re-records HEAD, or cut the field (see the previous finding).
+The 20261025 amendment and the design goal "cf commands keep one meaning each" say `cf build` runs no detection and that adoption logic never hides inside it. D6 gates the "none" lines on `readPlanningFacts(root).derivedArchitectures.length > 0`, "adopted or adoption-incomplete". That is the architecture's adoption classification, evaluated inside the build. It is read-only, but it is the kind of coupling the amendment removed. It also adds a mechanism whose value is small: it only suppresses "none" lines on greenfield projects whose profile lists the variables, and the plan says that case is already empty. Options:
+- Drop the adopted gate and show absence lines whenever the profile lists the variable.
+- Drop absence lines entirely and emit the section only when a document or a registered path exists.
+- Keep the gate, but state in the slice why it does not breach the build-purity rule.
 
-### [CONCERN] Failure modes for the new build-time I/O are only partly enumerated
+The second option also removes the `readPlanningFacts` dependency.
 
-D5 covers the git cases: no commit recorded, commit not in history, and `git` unavailable. These cases are still missing:
-- A `git rev-list` that hangs or runs very long on a large repository. The design names no timeout.
-- A docs map whose managed block is missing or malformed. Does the comparison read that as `out of date`, an error or a skip?
-- A registered path that now exists but is a directory or unreadable. Only the deleted-file case is handled.
-- An `--embed` build (D8) of a very large comprehension doc. No size bound or failure behavior is given.
+### [CONCERN] The design is heavier than the slice plan requires
 
-The rule "a build never fails because of this section" is implied but never stated. State it, and say how each case degrades.
+The architecture asks for the two documents to reach later phases and for cf to say plainly when one is missing. The design adds more than that:
+- a path-valued schema marker that bypasses stem normalization;
+- a docs-map freshness comparison, with a refactor of `writeDocsMap` to share the compare step;
+- a four-row degradation table;
+- the adopted-project gate above.
 
-### [CONCERN] `--embed` support is optional scope with an unbounded payload
+Each piece is justified on its own. Together they make a slice that touches the schema, core, the CLI, MCP, the docs-map writer and `SectionBuilder`, which is more than "effort 2/5" suggests. The docs-map freshness check, with its compare-step refactor and its broken-marker and unreadable-tree cases, is the most separable piece. It goes beyond the architecture's "only says plainly when a doc is missing". It could move to a follow-up issue, as the comprehension commit-count fact already did (#138). The slice could then ship presence-only lines for both documents. If the PM wants freshness kept, the design should say that this is a deliberate extension of the architecture's wording.
 
-D8 extends `ContextEmbedder` to inline both documents. Nothing in the architecture or the slice's stated purpose requires embedding. It is a separate integration, and it can inline a whole comprehension doc, which is generated and likely large. Defer it until a model without file access actually needs these documents. If it stays, give it a size handling rule.
+### [NOTE] The architecture's squadron responsibility table does not list the new registration channel
 
-### [CONCERN] New module and schema marker are heavier than the requirement needs
+Row (b) says squadron hands the comprehension path over only through the adoption-prompt fetch. Slice 274 adds a second handoff: `cf set comprehension` or `project_update` after squadron writes the doc. The architecture's 274 paragraph covers it ("a cf-owned field it sets"), so this is not a violation. Row (b) should be updated when the slice lands, so squadron's session sees both channels in one place.
 
-The design adds a three-file `codebase-reference/` module, a new schema property ("path-valued"), a moved and renamed path check, a new named error, a shared docs-map comparison and a derived variable. Several of these only serve the freshness and embed scope questioned above. If those are cut, the slice reduces to the following:
-- The `fileComprehension` field with set-time validation.
-- The derived `fileDocsMap` variable.
-- A short section that lists the paths and says when they are missing.
+### [PASS] Failure modes are enumerated and the build never fails
 
-That is a much smaller change.
-
-### [NOTE] Wording of the absence line is consistent with the squadron ban
-
-D7 names the action ("registers the new path with `cf set comprehension`") rather than a squadron command. This respects the architecture's rule that cf runs no squadron command and holds none of squadron's file names. It does reference "squadron" by name in user-facing text, which matches the existing `cf next` precedent. Using a constant that is easy to change later is appropriate.
-
-### [PASS] Boundaries, dependencies and integration points match the architecture
-
-- The dependency direction is correct: squadron calls cf, and cf never searches for squadron files.
-- The profile rows live in ai-project-guide, which matches the architecture's Dependencies note that 274 needs new context-profile variables.
-- Greenfield and old-guide builds stay byte-identical.
-- The build remains write-free, with 268's purity test extended.
-- The machine-local field limitation is stated openly.
-
-### [NOTE] Frontmatter `interfaces` is empty despite provided interfaces
-
-The slice provides `cf set comprehension`, `project_update` and the variable names `fileComprehension` and `fileDocsMap` to squadron and the guide. Consider listing them, or confirm that `interfaces` is meant only for slice-to-slice contracts.
+The comprehension path may be missing, a directory or unreadable. The docs map may have broken markers or an unreadable tree. Each case degrades to one plain line, and the build still succeeds. The setter's errors (missing path, directory, outside the root) are named. The build is purity-tested, and greenfield and current-guide output stays byte-identical. The architecture states no NFR for this path, and the slice states the build cost it adds.
 
 ### Run Digest
 
-- Response length: 6687 chars
+- Response length: 5811 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -148,12 +116,12 @@ The slice provides `cf set comprehension`, `project_update` and the variable nam
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 97890 / 8842 / 89044 / 3518 / not computed
-- Duration: 31.3 s
-- Cost: $0.39 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 97839 / 11220 / 86615 / 3655 / not computed
+- Duration: 38.7 s
+- Cost: $0.38 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 8
+- Finding-shaped matches — whole response: 6
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 8
-- Finding-shaped matches — surviving validation: 8
+- Finding-shaped matches — in findings section: 6
+- Finding-shaped matches — surviving validation: 6
