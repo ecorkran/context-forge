@@ -6,6 +6,7 @@ parent: project-documents/user/architecture/260-slices.brownfield-adoption.md
 dependencies:
 - 263
 - 267
+- 268
 - 269
 - 271
 - 272
@@ -132,7 +133,7 @@ Status: decided
 ### D2 — How the run is driven
 Status: decided
 - One interactive Claude Code session in the adopted repository, started with `/sq:onboard`. Claude Code is the surface `sq onboard` and cf both install commands for. Not headless: the PM answers in the session.
-- **cf on PATH is the local build of the target.** `sq onboard` calls `cf` from PATH. A shim first on PATH runs `node <context-forge>/packages/cli/dist/index.js "$@"`, so a fix made during the run applies on resume without a release. Its version and the target commit go in the report. The real project store is used, not a temp `CONTEXT_FORGE_DATA_DIR`: the registration is real (D1).
+- **cf on PATH is the local build of the slice branch** (`273-slice.real-adoption-run-via-sq-onboard`, forked from the target, where D6's fix commits land). `sq onboard` calls `cf` from PATH. A shim first on PATH runs `node <context-forge>/packages/cli/dist/index.js "$@"`, so a fix rebuilt during the run applies on resume without a release. Its version and the branch commit go in the report. The real project store is used, not a temp `CONTEXT_FORGE_DATA_DIR`: the registration is real (D1).
 - **Commands come from the project, not user level.** Machine-level cf commands at `~/.claude/commands/cf/` are the published recipe, and 271's walkthrough found they shadow project ones. The session runs with project-level commands installed by `cf init` (or `cf install-commands --local`), and `/sq:onboard` from the installed `sq`'s bundle. The report records where each command resolved from.
 - **The PM role.** The PM answers every question: adopt or decline, the graph build, the concept confirmation, unknowns in intent, contradictions between code and docs, what comes next in the slice plan, the rules-reconciliation offer, and the slice design's open points. The operator never answers for the PM. Declining the reconciliation offer is fine; it is not part of the pass.
 - **Hands-off rule.** Every step happens inside the session as `/sq:onboard`, the guide prompt or `cf next` directs. A run that needs a manual file or config edit to proceed has found a defect (D6). The only manual actions are the session break (D3), cf fixes (D6), and the PATH shim.
@@ -169,14 +170,14 @@ The run passes when every check holds. Checks cover the composition points no fi
 ### D6 — What gets fixed here, and what gets filed
 Status: decided
 265 D5's rules apply unchanged (cf defects fixed here with a failing test first, one commit each; constant tuning only with run evidence; design changes, new options and formats filed and told to the PM; guide and squadron defects filed in their repositories, never worked around in cf; a repeated agent misbehavior is a guide defect; every defect gets a report line). Two changes:
-- **Scope:** "the initiative's cf code" means the adoption code as it stands after the rework (261, 263, 264, 267, 268, 269, 271, 272).
+- **Scope:** "the initiative's cf code" means the adoption code as it stands after the rework (261, 263, 264, 266, 267, 268, 269, 271, 272). 266 is in scope because the guide prompt offers conventions reconciliation; it is exercised only if the PM accepts (D2).
 - **Contract mismatch between cf and squadron:** the side that differs from 271's design (`docs/ADOPTION-PRIMITIVES.md`) owns the fix.
 
 ### D7 — The run report
 Status: decided
 - One document, `project-documents/user/analysis/260-analysis.real-adoption-run.md` (`docType: analysis`, `topic: real-adoption-run`), under the initiative's base index like 265's report. 265's report (`260-analysis.adoption-verification-runs.md`) is complete and records the old flow; it is not edited.
 - Three parts:
-  - **Setup:** repository (name as the PM approves; URL and commit if public), language, `cf --version` and target commit, guide version, `sq` version and commit, where `/sq:onboard` and `/cf:*` resolved from, and the `workflow.review_enabled` value and source.
+  - **Setup:** repository (name as the PM approves; URL and commit if public), language, `cf --version` and branch commit, guide version, `sq` version and commit, where `/sq:onboard` and `/cf:*` resolved from, and the `workflow.review_enabled` value and source.
   - **Checks:** one row per D5 check, pass or defect, with the evidence in a few words.
   - **Defects:** one line each with its disposition and the excerpt that proves it. For a private repository, excerpts are cf or squadron output only.
 - Plus one short **Notes for 274** list: what the slice design session lacked that the comprehension doc or docs map held, as observed. No proposals; 274 designs from it.
@@ -220,11 +221,11 @@ Status: decided
 
 ### Verification Walkthrough
 
-Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` this repository. The shim makes `cf` the local build.
+Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` this repository. Expected results are the D5 checks named on each step; they are not repeated here.
 
 1. **Prerequisites**
    ```bash
-   cd <cf> && git checkout main && pnpm -r build
+   cd <cf> && git checkout 273-slice.real-adoption-run-via-sq-onboard && pnpm -r build   # rebuild after each fix
    mkdir -p ~/cf273-bin && printf '#!/bin/sh\nexec node %s/packages/cli/dist/index.js "$@"\n' "$PWD" > ~/cf273-bin/cf && chmod +x ~/cf273-bin/cf
    export PATH=~/cf273-bin:$PATH && cf --version              # local build, record it
    sq onboard --help                                         # exists; record sq --version and commit
@@ -233,10 +234,8 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
 
 2. **Before (check 1)**
    ```bash
-   cd <root> && git status --short                           # empty
-   cf detect --json | jq '.outcome, .facts.source'          # "brownfield"
-   cf project list --json > /tmp/cf273-proj.json
-   sq onboard --path <root>                                  # Next: ask-adopt
+   cd <root> && git status --short && cf detect --json | jq .outcome
+   cf project list --json > /tmp/cf273-proj.json && sq onboard --path <root>
    git status --short; cf project list --json | diff - /tmp/cf273-proj.json && echo unchanged
    ```
 
@@ -265,14 +264,8 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
 ### Development Approach
 1. Confirm prerequisites: target builds, guide ≥ v0.22.8 resolvable, `sq onboard` installed, the plugin and analysis pack installed for Claude Code. `BLOCKED:` on anything missing.
 2. Before the run, send squadron's session a short note that this run will also serve 440's live criterion (D8), per the project's agent-communication rule (find the peer with `ListAgents`).
-3. The PM names the repository; check D1's constraints with walkthrough step 2.
-4. Run the adoption (walkthrough steps 3–4), fixing cf defects as they appear (D6) and resuming.
-5. Continue to the first new slice design (step 5).
-6. Write the run report, then send squadron's session the result and any squadron issues.
-7. After the last fix: build, format, lint, typecheck, full test suite.
+3. Run the Verification Walkthrough with the PM, fixing cf defects as they appear (D6).
+4. Write the run report, then send squadron's session the result and any squadron issues.
+5. After the last fix: build, format, lint, typecheck, full test suite.
 
 Effort: 2/5. Calendar time is set by squadron 440 and the PM's availability, not cf work.
-
-### Special Considerations
-- **The PM's real repository.** The run writes setup files and artifacts into a real checkout. The clean-tree start (D1) makes them reviewable and discardable with git. The operator commits nothing there.
-- **Spend.** The graph build and the agent sessions are pre-authorized as LLM spend. Whether a private codebase may be sent through them is the PM's decision in naming it (D1).
