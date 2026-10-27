@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-27
+
+### Release 0.19.21
+
+- **Contents:** slice 273 (real adoption run via `/sq:onboard`, run report); fixes: adopted projects register their derived architecture, slice plan and concept so `cf next` advances (#137); architecture review gate message names the review file location and the opt-out (#132); `cf set plan` named in the no-slice-plan error; `cf init` reports a `.gitignore` write failure as a failed step. Guide updated to ai-project-guide v0.22.10.
+
+Tags: @context-forge/core@0.19.21, @context-forge/cli@0.19.21, @context-forge/mcp@0.19.21, @context-forge/context-forge@0.19.21
+
 ## 2026-10-26
 
 ### Release 0.19.20
