@@ -75,7 +75,7 @@ When installed via `cf install-commands`, these slash commands are available dir
 | `/cf:project` | Manage projects (e.g., `/cf:project list`, `/cf:project --schema`) |
 | `/cf:next` | Show recommended next action |
 | `/cf:check` | Run consistency checks on project artifacts |
-| `/cf:onboard` | AI-guided project setup, then hands off to `cf build` |
+| `/cf:onboard` | AI-guided project setup, then hands off to `cf build`. On an existing codebase it stops after one line naming `sq onboard` and the opt-out |
 
 Each command runs `cf` under the hood — same CWD-based project resolution, same output.
 
@@ -97,16 +97,17 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `cf init` | `cf init` | Register the current directory as a project |
+| `cf init` | `cf init [--json]` | Register the current directory as a project. `cf init --json` prints the step results; a failed step exits 1, with or without `--json`. On an existing codebase it prints one line naming `sq onboard` and the opt-out. See [Adoption Primitives](../../docs/ADOPTION-PRIMITIVES.md) |
+| `cf detect` | `cf detect [--path <dir>] [--json]` | Read-only report of what a directory holds and whether it needs adoption. Works on unregistered directories. See [Adoption Primitives](../../docs/ADOPTION-PRIMITIVES.md) |
 | `cf status` | `cf status [--json]` | Show workflow status |
-| `cf next` | `cf next [--json]` | Show recommended next action. During adoption of an existing codebase it reports the adoption step (`concept`, `architecture`, `existing-state-plan`, `record-completion`; each is carried out by `cf build`), then `register-plan` with the suggested `cf set arch` command, then the first new slice. It does not change the phase during adoption |
-| `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt. For an existing codebase it selects the brownfield adoption prompt instead of the concept prompt and adds an *Adoption Facts* section; the `adoption.state` setting records and overrides the outcome (`cf config get adoption.state`) |
+| `cf next` | `cf next [--json]` | Show recommended next action. For an unadopted or incompletely adopted repo it prints one line naming `sq onboard` and the opt-out; otherwise it navigates normally |
+| `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt |
 | `cf set` | `cf set <field> <value>` | Set a project field |
 | `cf get` | `cf get [--json]` | Show all project fields |
 | `cf check` | `cf check [--fix] [--slice <n>] [--json]` | Run consistency checks |
 | `cf future` | `cf future [--status <filter>] [--json]` | Consolidated future work |
 | `cf project` | `cf project list\|get\|set\|rm` | Manage projects |
-| `cf prompt` | `cf prompt list\|get <phase>` | Access prompt templates |
+| `cf prompt` | `cf prompt list\|get <phase> [--path <dir>] [--comprehension <file>]` | Access prompt templates. `--path` uses the registered project at that directory; `--comprehension` names a codebase comprehension file for prompts whose profile takes adoption inputs. See [Adoption Primitives](../../docs/ADOPTION-PRIMITIVES.md) |
 | `cf rules inventory` | `cf rules inventory --json` | List the guide's rule files, the project's own rule sources and the stored resolutions as JSON. Read-only |
 | `cf rules resolve` | `cf rules resolve <guideRule> <projectSource> --statement "<text>"` | Record the decision about a conflict between a guide rule and a project rule source. Run `cf setup-ide <target>` afterwards to apply it |
 | `cf docs map` | `cf docs map` | Write or refresh `project-documents/user/architecture/050-docs-map.{project}.md`, an index linking the project's existing README, `docs/` and ADRs in place |
