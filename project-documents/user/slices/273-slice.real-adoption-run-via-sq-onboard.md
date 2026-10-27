@@ -11,6 +11,20 @@ interfaces:
 dateCreated: 20261027
 dateUpdated: 20261027
 status: not_started
+turns: 25
+promptTokens: 1583626
+cachedTokens: 1485062
+cacheWriteTokens: 98522
+completionTokens: 19433
+durationSeconds: 222.8
+costUsd: 1.474345
+usageRounds: 1
+pricedRounds: 1
+usageByModel:
+  claude-opus-5-5:
+    rounds: 1
+    costUsd: 1.4743453
+    completionTokens: 19433
 ---
 
 # Slice Design: Real Adoption Run via sq onboard
