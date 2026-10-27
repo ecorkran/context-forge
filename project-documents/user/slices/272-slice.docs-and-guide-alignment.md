@@ -175,6 +175,7 @@ Status: decided
 - Triage of the repo-wide search (run 20261026; command/skill markdown under `packages/cli/commands` had no hits):
   - Fixed by this slice: `README.md`, `packages/cli/README.md` rows, `presentPaths.ts` comment, the three fixture stubs.
   - Kept: `pureBuild.test.ts` `ADOPTION_FACTS_HEADING`, used only in `not.toContain` assertions that the removed section stays gone. `WorkflowNavigator.adoption.test.ts:63`, a comment saying Phase 0 navigation may suggest `cf build` for the concept, which is true and not about adoption; its test asserts the adoption lines never mention `cf build`.
+  - Added at implementation time (task 9.1): `README.md` adoption paragraph, which says `cf build` is unchanged by the codebase; the first grep's `cf build.*adopt` pattern matches it only through `adoption.state` on the same line. And `docs/ADOPTION-PRIMITIVES.md`, which states the section is not named Adoption Facts (271 D7). Both are accurate prose, not stale text.
   - Any new hit found at implementation time is fixed or added to this kept list with its reason.
 
 ### D6 — Hand-offs to squadron and ai-project-guide
