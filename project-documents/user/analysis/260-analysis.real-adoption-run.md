@@ -12,9 +12,9 @@ status: in_progress
 
 One real adoption driven through `/sq:onboard` in Claude Code with the PM answering live, continued to the first new slice design on the derived architecture. Recorded by slice 273. Home-directory paths are written as `~`.
 
-**Result so far:** checks 2–4 and 6–8 pass. Check 1 and check 5 are unverified. Checks 9–10 are not run yet (first new slice design). Two cf defects were found and fixed in this slice; one known gate issue (#132) is still open. Not yet passed overall.
+**Result:** checks 2–4, 6–8 and 10 pass. Checks 1 and 5 are unverified. Check 9 is partial: the design step ran as a template stub in a copy, and the Phase 4 build context omits the architecture (guide profile). Two cf defects were found and fixed in this slice; #132 is still open. Not all ten checks pass, so the report stays `in_progress`.
 
-**Deviation from the design (PM-approved 20261027):** squadron 440 was not released before the run, because its live run is one of 440's open criteria. The run used the 440 branch build of `sq` and a prepared clone instead of a PM-named released repository.
+**Deviations from the design (PM-approved 20261027):** (1) the PM chose not to write a real slice design for the old game, so check 9's design step is a template stub (above). (2) squadron 440 was not released before the run, because its live run is one of 440's open criteria. The run used the 440 branch build of `sq` and a prepared clone instead of a PM-named released repository.
 
 ## Setup
 
@@ -38,8 +38,8 @@ One real adoption driven through `/sq:onboard` in Claude Code with the PM answer
 | 6 | Artifacts | pass | `050-docs-map.tank-game-onboard.md` exists and is linked from the architecture; `provenance: derived`; `cf list slices --json` shows `retroactive: true` for 100–102 and unbuilt 103 (PM-supplied); `cf check` reports one info line, no errors; "unknown" appears in the architecture. Caveat: arch and plan had to be set by hand (`cf set arch 100`), see #137. |
 | 7 | Hand-off | pass | `cf detect` reports `already-planned`; `sq onboard` hands off to `cf next`. The in-between `adoption-incomplete` state was not observed. |
 | 8 | First new slice | pass | After the arch review, `cf next` recommends `cf set slice 103`, never a retroactive slice. |
-| 9 | Design on the derived arch | | |
-| 10 | No stray writes | | `git status --short` before the design: modified `.gitignore`; untracked `.claude/`, `.context-forge/`, `.understand-anything/`, `CLAUDE.md`, `project-documents/user/`. The guide install is committed by `cf init` itself (`26ab940`). |
+| 9 | Design on the derived arch | partial | PM chose a lighter path (no real design effort on the old game). In a copy of the clone the operator ran `cf set slice 103`, `cf set phase 4`, `cf build`, filled the guide's slice-design template frontmatter, and `cf validate design` exited 0 (`PASS`); `cf check` and `cf next` then moved to Phase 5. Not met as written: `cf build --json` for Phase 4 names `Slice Plan: 100-slices.tank-game-onboard` but not the derived architecture. The guide profile is `slice-design-phase-4: [fileSlicePlan, fileSlice]`. `cf validate design` checks section presence only, so the template stub passes. |
+| 10 | No stray writes | pass | On the PM's clone (no design written there):  modified `.gitignore`; untracked `.claude/`, `.context-forge/`, `.understand-anything/`, `CLAUDE.md`, `project-documents/user/`. The guide install is committed by `cf init` itself (`26ab940`). |
 
 ## Defects
 
@@ -49,4 +49,5 @@ One real adoption driven through `/sq:onboard` in Claude Code with the PM answer
 
 ## Notes for 274
 
-_Pending the first new slice design (Task 7)._
+- The Phase 4 build context for slice 103 lists the slice plan and the slice, not the architecture file, so a design session starts without the derived architecture or the docs map unless it follows the plan's parent link (#135 covers the docs map).
+- No real design session was run, so nothing was observed about what that session lacked.
