@@ -5,6 +5,7 @@ import {
   GuideManager,
   GUIDE_OFFLINE_REMEDIATION,
   GUIDE_RELATIVE_PATH,
+  checkGuideMinimum,
 } from '@context-forge/core/node';
 import type { EnsureCheckoutResult } from '@context-forge/core';
 import { warn, dim } from '../output/styles.js';
@@ -55,4 +56,14 @@ export async function requireGuideDir(projectPath: string): Promise<string> {
     );
   }
   return path.join(projectPath, GUIDE_RELATIVE_PATH);
+}
+
+/**
+ * Warn on stderr when the guide checked out at `checkoutPath` is older than
+ * MIN_GUIDE_VERSION or its version is unknown (slice 260, D8). The warning never
+ * goes to stdout, so the prompt or output the caller prints is unaffected.
+ */
+export async function warnIfGuideOutdated(checkoutPath: string): Promise<void> {
+  const guideWarning = await checkGuideMinimum(checkoutPath);
+  if (guideWarning) process.stderr.write(`Warning: ${guideWarning}\n`);
 }

@@ -11,7 +11,7 @@ import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/
 import type { ProjectData } from '@context-forge/core';
 import { findProjectByCwd, resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
-import { ensureGuideReady } from '../utils/guideReady.js';
+import { ensureGuideReady, warnIfGuideOutdated } from '../utils/guideReady.js';
 import { handleError, UserError } from '../utils/errors.js';
 import { withJsonOption, withProjectOption, withRawOption } from '../options.js';
 import { printJson, printRaw } from '../output/formatter.js';
@@ -191,6 +191,8 @@ export function registerPromptCommand(program: Command): void {
           const section = renderAdoptionInputs(opPath, comprehensionPath, await readAdoptionArtifacts(opPath));
           output = `${output.trimEnd()}\n\n${section}\n`;
         }
+        // Guide-version warning goes to stderr; stdout and the exit code are unchanged (slice 272, D4).
+        await warnIfGuideOutdated(opPath);
         printRaw(output);
       } catch (err) {
         handleError(err);
