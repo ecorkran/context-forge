@@ -11,6 +11,20 @@ interfaces: []
 dateCreated: 20261027
 dateUpdated: 20261027
 status: not_started
+turns: 25
+promptTokens: 1602279
+cachedTokens: 1504453
+cacheWriteTokens: 97784
+completionTokens: 21653
+durationSeconds: 253.6
+costUsd: 1.516722
+usageRounds: 1
+pricedRounds: 1
+usageByModel:
+  claude-opus-5-5:
+    rounds: 1
+    costUsd: 1.5167224000000004
+    completionTokens: 21653
 ---
 
 # Slice Design: Carry Codebase Comprehension into Later Phases
