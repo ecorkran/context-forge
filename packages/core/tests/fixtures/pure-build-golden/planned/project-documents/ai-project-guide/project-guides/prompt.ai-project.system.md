@@ -42,7 +42,7 @@ context_profiles:
 We're starting work on a new project. Write the concept.
 
 ##### Brownfield Adoption
-We are adopting an existing codebase. Use the Adoption Facts section below.
+We are adopting an existing codebase. Use the Adoption Inputs section below.
 
 ##### Architecture (Phase 2)
 Design the architecture.

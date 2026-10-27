@@ -33,8 +33,6 @@ const BROWNFIELD_INSTRUCTION = 'brownfield-adoption';
 const CONCEPT_PROMPT_TEXT = "We're starting work on a new project. Write the concept.";
 const BROWNFIELD_PROMPT_TEXT = 'We are adopting an existing codebase.';
 const ADOPTION_FACTS_HEADING = '### Adoption Facts';
-const COMPREHENSION_LINE = 'Comprehension:';
-const COMPREHENSION_DOC = 'project-documents/user/analysis/944-analysis.codebase-comprehension.md';
 const SQ_MARKER_FILE = 'sq-was-run';
 
 let fixtureEnv: FixtureEnv;
@@ -69,7 +67,7 @@ afterEach(() => {
   fs.rmSync(sqMarker, { force: true });
 });
 
-/** A brownfield checkout: enough source, a comprehension document, and no planning artifacts. */
+/** A brownfield checkout: enough source and no planning artifacts. */
 function createBrownfieldCheckout(config?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-mcp-pure-'));
   fs.cpSync(path.join(FIXTURE_DIR, 'integration-project'), dir, { recursive: true });
@@ -80,8 +78,6 @@ function createBrownfieldCheckout(config?: string): string {
   const source = Array.from({ length: lines }, (_, i) => `export const v${i} = ${i};`).join('\n');
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'big.ts'), source);
-  fs.mkdirSync(path.dirname(path.join(dir, COMPREHENSION_DOC)), { recursive: true });
-  fs.writeFileSync(path.join(dir, COMPREHENSION_DOC), '---\ndocType: analysis\nproject: sample\n---\n# Comprehension\n');
   if (config !== undefined) fs.writeFileSync(path.join(dir, PROJECT_CONFIG_FILE), config);
   const projectsJson = fs
     .readFileSync(path.join(FIXTURE_DIR, 'projects.json'), 'utf-8')
@@ -153,11 +149,10 @@ describe('pure build (slice 268)', () => {
     expect(mcpPrompt).toBe(cliPrompt);
   });
 
-  it('an explicit brownfield-adoption instruction renders its prompt with no facts and no Comprehension line', async () => {
+  it('an explicit brownfield-adoption instruction renders its prompt with no facts', async () => {
     createBrownfieldCheckout();
     const prompt = await buildViaCli(BROWNFIELD_INSTRUCTION);
     expect(prompt).toContain(BROWNFIELD_PROMPT_TEXT);
-    expect(prompt).not.toContain(COMPREHENSION_LINE);
     expect(prompt).not.toContain(ADOPTION_FACTS_HEADING);
     expect(fs.existsSync(sqMarker)).toBe(false);
   });

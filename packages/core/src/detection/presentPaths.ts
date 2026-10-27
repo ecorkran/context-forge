@@ -1,6 +1,7 @@
-// Presence-only facts for the Adoption Facts section (slice 261, D5). Core records
-// which well-known paths exist; it never reads them for meaning. Exported from
-// detection/index.ts: rule reconciliation (slice 266) enumerates the same list.
+// Presence-only facts for the detection report (`cf detect`, slice 271), docs map
+// discovery and rule reconciliation. Core records which well-known paths exist; it
+// never reads them for meaning. Exported from detection/index.ts: rule reconciliation
+// (slice 266) enumerates the same list.
 import { join } from 'path';
 import { pathPresent } from './pathPresent.js';
 
