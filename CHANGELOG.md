@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.20] - 20261026
+
 ### Added
 
+- **`cf prompt get` warns on stderr when the installed ai-project-guide is older than the minimum** (now v0.22.8), the same warning `cf build` gives. It also prints with `--raw`; stdout is unchanged.
+- **`docs/ADOPTION-PRIMITIVES.md`** documents the `cf detect`, `cf init --json` and `cf prompt get --path/--comprehension` contract that `sq onboard` consumes.
 - **`cf detect` and the `project_detect` MCP tool** report what a directory holds and which adoption outcome applies (`opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`): source volume, git history, docs, ADRs, CI, rule files, and the concept, derived architecture and existing-state plan paths. Read-only, works on unregistered projects, and `--json` output matches the MCP result byte for byte. Failures are one JSON error object with a stable code, on stdout with exit 1.
 - **`cf init --json`** prints one JSON object with the project id and each setup step's result (`git`, `register`, `gitignore`, `guides`, `commands`, `ide`: `ok`, `skipped` or `failed`). Progress goes to stderr, so stdout stays machine-readable.
 - **`cf prompt get --path <dir>`** renders a prompt for the registered project at that directory. **`--comprehension <path>`** names a codebase comprehension file; for prompts whose guide profile lists `fileComprehension`, the output gains an `## Adoption Inputs` section listing it with the project's concept, derived architecture and existing-state plan.
@@ -24,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Minimum ai-project-guide is now v0.22.8**, which carries the reworked brownfield-adoption prompt. Run `cf guides update` if you see the warning.
 - **`cf init` now exits 1 when a setup step fails** (git init, guide install, command install or IDE setup). Before, a failed step printed a warning and exited 0. The remaining steps still run, and an already-installed guide is not a failure.
 - **Onboarding (`/cf:onboard`, the Codex skill and `agent_onboard`) stops on an existing codebase.** After setup it checks the directory and, on `brownfield` or `adoption-incomplete`, prints the detection notices and stops instead of starting a concept conversation.
 - **`cf build`, `context_build` and `template_preview` are pure.** They assemble context and write nothing. They no longer read or write `adoption.state`, run `sq probe`, or add Adoption Facts or a `Comprehension:` line to the prompt. Phase 0 always builds the concept prompt, even in a brownfield project. An explicit `--it brownfield-adoption` still renders that prompt, without facts.

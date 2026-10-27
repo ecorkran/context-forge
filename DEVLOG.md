@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-26
+
+### Release 0.19.20
+
+- **Contents:** slice 269 (adoption state collapsed to the `declined` opt-out), slice 271 (`cf detect`, `project_detect`, `cf init --json`, `cf prompt get --path/--comprehension`, pure `cf build`), slice 272 (docs and guide alignment, `cf prompt get` guide-minimum warning, minimum ai-project-guide raised to v0.22.8, `docs/ADOPTION-PRIMITIVES.md`); fix stale `adoption.state` warning in `cf next`.
+
+Tags: @context-forge/core@0.19.20, @context-forge/cli@0.19.20, @context-forge/mcp@0.19.20, @context-forge/context-forge@0.19.20
+
 ## 2026-10-25
 
 ### Release 0.19.19
