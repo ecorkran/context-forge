@@ -331,7 +331,7 @@ export async function evaluateReviewGate(
     return {
       status: 'pending-review',
       reviewType,
-      rationale: `${gatedNoun(boundary)} ${index} requires ${withArticle(reviewType)} review before proceeding — no review artifact found.`,
+      rationale: `${gatedNoun(boundary)} ${index} requires ${withArticle(reviewType)} review before proceeding — no review artifact found. Add ${index}-review.${reviewType}.*.md under the reviews folder, or turn gating off: cf config set workflow.review_enabled false`,
     };
   }
 
