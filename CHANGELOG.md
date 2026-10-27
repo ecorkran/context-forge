@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `cf next` and `cf list slices` register the derived architecture, slice plan and concept after a completed adoption, so `cf next` no longer says "Create architecture document" for an adopted project (#137). With several derived architectures it names them and does not guess.
+- The "No slice plan configured" error now names the real command, `cf set plan <path>`, instead of `cf set slicePlan`.
+- The architecture review gate message no longer says "before creating the slice plan" when the plan exists, and reads "an arch review" (#132).
 - `cf init`: a `.gitignore` write failure is now reported as a failed `gitignore` step (exit 1, later steps still run) instead of aborting init with an internal error after the project was registered.
 
 ## [0.19.20] - 20261026

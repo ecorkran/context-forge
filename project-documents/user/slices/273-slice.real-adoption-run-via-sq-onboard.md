@@ -14,7 +14,7 @@ interfaces:
 - 274
 dateCreated: 20261027
 dateUpdated: 20261027
-status: in_progress
+status: complete
 turns: 47
 promptTokens: 3128095
 cachedTokens: 3001192
@@ -254,9 +254,9 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
 
 **Walkthrough results (slice 273 implementation, 20261027).**
 1. Prerequisites: pass. Shim `~/cf273-bin` ran the local build (0.19.20). `sq onboard` was missing from the installed `sq` (0.24.5); squadron's session then installed its 440 branch build, after which `register`, `decline` and `prompt` all answered `--help`. Squadron 440 was not released before the run (its live run is one of its own open criteria).
-2. Before (check 1): unverified. The pre-run `cf detect` and project-list state were not captured.
+2. Before (check 1): pass, reproduced afterwards on a fresh clone of tank-game at `cd6f11c` (not captured before the live run).
 3. First session (checks 2-3): pass, per squadron's session (`registration: created`, concept detected).
-4. Resume and adopt (checks 4-7): checks 4, 6 and 7 pass (check 4 on the PM's word); check 5 unverified (prompt tail not captured). Check 6 needed a hand-run `cf set arch 100`, which exposed #137, fixed in `e12ab0fc`.
+4. Resume and adopt (checks 4-7): checks 4, 6 and 7 pass (check 4 on the PM's word); check 5 pass, reproduced on a fresh clone (prompt tail not captured live). Check 6 needed a hand-run `cf set arch 100`, which exposed #137, fixed in `e12ab0fc`.
 5. First new slice (checks 8-9): check 8 passes after the arch review (#132's gate fired and cleared). Check 9 passes: the PM chose a lighter path, so the design was a template stub in a copy of the clone and `cf validate design` exited 0; the Phase 4 `cf build` first named only the slice plan, and after guide v0.22.10 (profile `slice-design-phase-4` now includes the architecture) it names both.
 6. After (check 10): pass.
 Baseline diff: `cf next` (json and text) differ only in the remaining-task count (53 vs 40); the `cf build` context is identical.

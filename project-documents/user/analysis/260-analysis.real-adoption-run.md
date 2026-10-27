@@ -5,16 +5,14 @@ topic: real-adoption-run
 project: context-forge
 dateCreated: 20261027
 dateUpdated: 20261027
-status: in_progress
+status: complete
 ---
 
 # Real Adoption Run — context-forge
 
-Open checks: 1 and 5 (not captured on tank-game-onboard; squadron covered them on scratch repos).
-
 One real adoption driven through `/sq:onboard` in Claude Code with the PM answering live, continued to the first new slice design on the derived architecture. Recorded by slice 273. Home-directory paths are written as `~`.
 
-**Result:** checks 2–4 and 6–10 pass. Checks 1 and 5 are unverified. Check 9 passes with a template-stub design in a copy (guide v0.22.10 added the architecture to the Phase 4 profile after the run found it missing). Two cf defects were found and fixed in this slice; #132 is still open. Not all ten checks pass, so the report stays `in_progress`.
+**Result:** all ten checks pass. Checks 1 and 5 were not captured live and are reproduced on a fresh clone of tank-game at the pre-adoption commit; check 9's design is a template stub in a copy (PM chose the lighter path). Three cf defects found and fixed in this slice (error text, #137, #132 wording); guide v0.22.10 added the architecture to the Phase 4 profile.
 
 **Deviations from the design (PM-approved 20261027):** (1) the PM chose not to write a real slice design for the old game, so check 9's design step is a template stub. (2) squadron 440 was not released before the run, because its live run is one of 440's open criteria. The run used the 440 branch build of `sq` and a prepared clone instead of a PM-named released repository.
 
@@ -32,11 +30,11 @@ One real adoption driven through `/sq:onboard` in Claude Code with the PM answer
 
 | # | Point | Result | Evidence |
 |---|---|---|---|
-| 1 | Before the run | unverified | Pre-run `cf detect` and project-list state were not captured on tank-game-onboard. Squadron's session reports it covered this on scratch repos with real cf 0.19.20: `sq onboard` left the files and the project list unchanged. |
+| 1 | Before the run | pass (reproduced) | Not captured before the live run. Reproduced afterwards on a fresh clone of tank-game at the pre-adoption commit `cd6f11c` (own project store): `cf detect` gives `brownfield`, not in `cf project list`; `sq onboard --path` left `git status --short` empty and the project list unchanged. `sq onboard --json` surfaces: `claude-code` has the analysis skill and the understand plugin installed. |
 | 2 | Register | pass | Squadron's session: `registration: created`, every `cf init` step ok or skipped. |
 | 3 | Concept from cf | pass | Squadron's session: concept detected, `sq onboard` moved on. Caveat: the project's `fileConcept` stayed unset until #137's fix. |
 | 4 | Resume | pass | PM confirmed the session was resumed at `adopt`. |
-| 5 | Prompt inputs | unverified | The `## Adoption Inputs` tail was not captured on tank-game-onboard. Squadron's session reports that on scratch repos `sq onboard prompt` ended with `## Adoption Inputs` naming the comprehension doc. |
+| 5 | Prompt inputs | pass (reproduced) | Not captured in the live session. Reproduced on the same fresh clone after `sq onboard register`, with the run's comprehension doc and concept copied in: `sq onboard` reported `Next: adopt`, and `sq onboard prompt` ended with `## Adoption Inputs`: comprehension `940-analysis.codebase-comprehension.md`, concept `000-concept.tank-game-onboard.md`, derived architecture `none`, existing-state slice plan `none`. |
 | 6 | Artifacts | pass | `050-docs-map.tank-game-onboard.md` exists and is linked from the architecture; `provenance: derived`; `cf list slices --json` shows `retroactive: true` for 100–102 and unbuilt 103 (PM-supplied); `cf check` reports one info line, no errors; "unknown" appears in the architecture. Caveat: arch and plan had to be set by hand (`cf set arch 100`), see #137. |
 | 7 | Hand-off | pass | `cf detect` reports `already-planned`; `sq onboard` hands off to `cf next`. The in-between `adoption-incomplete` state was not observed. |
 | 8 | First new slice | pass | After the arch review, `cf next` recommends `cf set slice 103`, never a retroactive slice. |

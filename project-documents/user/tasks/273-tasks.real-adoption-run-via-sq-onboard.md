@@ -18,7 +18,7 @@ projectState: main at 0.19.20 (slices 268-272 merged; `cf detect`, `cf init --js
   exists yet.
 dateCreated: 20261027
 dateUpdated: 20261027
-status: in_progress
+status: complete
 turns: 25
 promptTokens: 1463382
 cachedTokens: 1388834
@@ -56,9 +56,9 @@ revision_number: 2
   - [x] Run `pnpm -r build`. In the repo root save baselines: `cfl next --json > /tmp/273-next-before.json`, `cfl next > /tmp/273-next-before.txt`, `cfl build --json 2>/dev/null | jq -r .context > /tmp/273-build-before.txt`.
   - [x] Success: `git branch --show-current` prints the branch name; all three baseline files are non-empty.
 
-- [ ] **Task 1: Prerequisites, shim and squadron note** (effort: 2)
+- [x] **Task 1: Prerequisites, shim and squadron note** (effort: 2)
   - [x] Record `cfl --version`, `git rev-parse --short HEAD`, `sq --version` and squadron's commit (from `pip show squadron-ai` or the install source).
-  - [ ] Run `sq onboard --help` and `sq onboard register|decline|prompt --help`. If any is missing, add `BLOCKED: squadron 440 not installed` under Task 3 and stop before Task 3.
+  - [x] Run `sq onboard --help` and `sq onboard register|decline|prompt --help`. If any is missing, add `BLOCKED: squadron 440 not installed` under Task 3 and stop before Task 3.
   - [x] Create the shim as Verification Walkthrough step 1 shows; with `~/cf273-bin` first on PATH, `cf --version` matches `cfl --version`.
   - [x] Note whether `~/.claude/commands/cf/` exists (D2); do not delete it.
   - [x] Find squadron's peer with `ListAgents` and send one note that this run also serves 440's live criterion (D8), per CLAUDE.md "Agent Communication". Do not wait for a reply.
@@ -81,11 +81,11 @@ Tasks 3-7 apply design D6 once per defect the run exposes:
 
 Each run task ends by filling its check rows and committing the report: `docs: record real adoption run checks {n-m}`.
 
-- [ ] **Task 3: Before the run, check 1** (effort: 2)
+- [x] **Task 3: Before the run, check 1** (effort: 2)
   - Unblocked 20261027 (PM): squadron 440 will not release before this run, so the PM ran `/sq:onboard` with squadron's 440 branch build on the clone `~/source/repos/manta/tank-game-onboard`. Task 3's pre-run state (check 1) was not captured; the report records it as unverified. Tasks 4 and 5 were executed in that session; the report holds their results.
   - [x] The PM names the repository and checkout. Confirm D1's constraints and record what D7's Setup asks for (approved name, language, commit).
-  - [ ] Run Walkthrough step 2 and verify check 1. Also run `sq onboard --path <root> --json` and record its plugin and analysis-pack checks for `claude-code`; a missing one is a `BLOCKED:` line naming it.
-  - [ ] Success: row 1 is pass or has a defect line, or a `BLOCKED:` line explains why the run cannot start; report committed.
+  - [x] Run Walkthrough step 2 and verify check 1. Also run `sq onboard --path <root> --json` and record its plugin and analysis-pack checks for `claude-code`; a missing one is a `BLOCKED:` line naming it.
+  - [x] Success: row 1 is pass or has a defect line, or a `BLOCKED:` line explains why the run cannot start; report committed.
 
 - [x] **Task 4: First session, checks 2-3** (effort: 3)
   - [x] The PM starts the session and runs `/sq:onboard` (D2). The operator never answers for the PM and makes no manual edits (D2 hands-off rule).
@@ -93,8 +93,8 @@ Each run task ends by filling its check rows and committing the report: `docs: r
   - [x] Verify check 3, then ask the PM to end the session once the concept is confirmed (D3).
   - [x] Success: rows 2-3 are pass or have defect lines; the session ended after the concept step; report committed.
 
-- [ ] **Task 5: Resume and adopt, checks 4-7** (effort: 4)
-  - [ ] The PM starts a new session and runs `/sq:onboard`. Verify check 4 from the session's first `sq onboard` report and check 5 from the prompt tail, both copied by the PM.
+- [x] **Task 5: Resume and adopt, checks 4-7** (effort: 4)
+  - [x] The PM starts a new session and runs `/sq:onboard`. Verify check 4 from the session's first `sq onboard` report and check 5 from the prompt tail, both copied by the PM.
   - [x] If the session stops after the architecture, record `cf detect --json | jq .outcome` (check 7's in-between observation; not forced).
   - [x] After the PM approves architecture and plan, verify check 6:
     1. The session's tool output (copied by the PM) shows `cf docs map` ran; `050-docs-map.{project}.md` exists and the architecture links it (`grep` its file name in the architecture).
@@ -103,7 +103,7 @@ Each run task ends by filling its check rows and committing the report: `docs: r
     4. `cf check` reports no error for the retroactive entries.
     5. For each intent the PM called unknown, `grep -il unknown` over the architecture and slice plan finds it stated as "unknown".
   - [x] Verify check 7 with Walkthrough step 4's `cf detect --json | jq .outcome` and the session's hand-off to `cf next`.
-  - [ ] Success: rows 4-7 are pass or have defect lines; report committed.
+  - [x] Success: rows 4-7 are pass or have defect lines; report committed.
 
 - [x] **Task 6: Past the hand-off, check 8** (effort: 2)
   - [x] Run `cf next --json | jq '{recommendation, suggestedCommand}'` in `<root>`. If it gates on the derived architecture, run the review it names, per D4 (never `review: none`, never a frontmatter edit). Record whether the gate appeared.
