@@ -57,7 +57,7 @@ Excluded:
 - Comprehension freshness. cf does not judge it and reports no fact about it; it is squadron's (arch, Technical Considerations). A commit-count fact is deferred to #138, pending squadron's interest.
 - `cf build --embed` of either document. Deferred to #139 until a model without file access needs them; it needs a size rule first (D8).
 - Refreshing anything. cf never rebuilds the graph or the comprehension doc, and the build never runs `cf docs map`. A build writes nothing (268).
-- Changing 271's `--comprehension` flag or the Adoption Inputs section. The adoption prompt still gets the path squadron passes.
+- Changing 271's `--comprehension` flag or the Adoption Inputs section. The adoption prompt gets its path only from the flag, never from the stored field (D2).
 - The guide's profile rows and the squadron call (external, D1).
 - Sharing the field across clones. Project fields are machine-local, like every other `cf set` field (Special Considerations).
 
@@ -65,7 +65,7 @@ Excluded:
 
 ### Prerequisites
 - **267 (shipped):** `docsMapPath`, `discoverMappedDocs`, `renderManagedBlock` and the managed-block markers.
-- **271 (shipped):** `resolveComprehensionPath` (`packages/cli/src/commands/promptAdoption.ts`), which moves to core (D3). `readPlanningFacts` gives the derived-architecture test (D6).
+- **271 (shipped):** `resolveComprehensionPath` (`packages/cli/src/commands/promptAdoption.ts`), which moves to core (D3).
 - **273 (complete):** the run's Notes for 274. The Phase 4 profile now includes the architecture (guide v0.22.10), and the docs map is in no profile.
 - **External, ai-project-guide:** a release that adds `fileComprehension` and `fileDocsMap` to the `architecture-phase-2`, `slice-planning-phase-3` and `slice-design-phase-4` rows of `context_profiles` (D1). The cf code is inert until it ships, and `MIN_GUIDE_VERSION` rises to that release.
 - **External, squadron:** `sq onboard`, and squadron's comprehension refresh, call `cf set comprehension <path>` after writing the doc (D1).
@@ -102,7 +102,6 @@ cf build / context_build   (Phase 2, 3 or 4)
    ├─ codebaseReference(root, project):
    │     comprehension: path, a readable file?
    │     docs map:      docsMapPath(root, name), exists?, would `cf docs map` change it?
-   │     adopted:       readPlanningFacts(root).derivedArchitectures.length > 0
    └─ SectionBuilder: ### Codebase Reference   (read-only; nothing written)
 ```
 
@@ -114,7 +113,7 @@ One new project field, `fileComprehension`. It is project-level, not worktree-sc
 
 ### D1 — The umbrella splits by repository, not into several cf slices
 Status: decided
-- The work falls into three parts: cf (this slice), the guide (profile rows) and squadron (one `cf set` call wherever it writes or refreshes the doc). The cf part is one coherent change of effort 2/5, with one test surface (the build output). Splitting it further would ship a field with no reader, or a section with no data.
+- The work falls into three parts: cf (this slice), the guide (profile rows) and squadron (one `cf set` call wherever it writes or refreshes the doc). The cf part is one coherent change of effort 3/5, with one test surface (the build output). Splitting it further would ship a field with no reader, or a section with no data.
 - The guide and squadron parts are requests to those sessions, not cf slices. This follows 272's pattern for cross-repo changes. They are sent when this design is approved, so all three can land together.
 - Rejected: separate cf slices for the docs map and the comprehension doc. They share the section, the profile gate and the absence rule, and a split would design those twice.
 
@@ -124,6 +123,7 @@ Status: decided
 - Squadron runs `cf set comprehension <path>` (or MCP `project_update`) after it writes or refreshes the doc. This is the "cf-owned field that squadron sets" the slice plan calls for. cf never looks for the file itself.
 - Rejected: a `cf config` key. Project fields are where artifact pointers already live. They already reach the build and already have a CLI and MCP setter.
 - Rejected: reusing 271's `--comprehension` value. `cf prompt get` is read-only and must not store anything.
+- **The adoption prompt ignores the stored field.** The architecture says the adoption prompt's comprehension path "comes only from squadron's argument". `cf prompt get` keeps filling the Adoption Inputs line from `--comprehension` alone. When the flag is omitted, the prompt says "No codebase comprehension analysis was provided." even if `fileComprehension` is set. The stored field feeds only `cf build` and `context_build`. A test sets the field, runs `cf prompt get brownfield-adoption` without the flag and asserts the "not provided" sentence.
 
 ### D3 — The field holds a validated root-relative path, not a stem
 Status: decided
@@ -138,7 +138,7 @@ Status: decided
 ### D5 — Freshness: the docs map only; the section never fails a build
 Status: decided
 - **Comprehension doc: presence only.** The architecture says squadron owns its freshness and cf "only says plainly when a doc is missing". cf stores no commit, runs no git and reports no age. Squadron refreshes the doc and re-registers it (D7). A commit-count fact is deferred to #138, to be added only if squadron's session asks for it.
-- **Docs map: `current` or `out of date`.** The map is cf's own artifact, and the check is bounded: it walks the same doc tree `cf docs map` walks. The build runs `discoverMappedDocs` and `renderManagedBlock` and compares the result with the file's managed block, read-only. This is the comparison `writeDocsMap` already makes to decide `unchanged`. It is factored out as one compare step that both use, not duplicated.
+- **Docs map: `current` or `out of date`.** This deliberately goes beyond the architecture's "only says plainly when a doc is missing", which is about the comprehension doc. The slice plan's success criterion ("staleness is detectable, and the way to refresh is named") needs it, and the docs map is the one document whose freshness cf owns. The map is cf's own artifact, and the check is bounded: it walks the same doc tree `cf docs map` walks. The build runs `discoverMappedDocs` and `renderManagedBlock` and compares the result with the file's managed block, read-only. This is the comparison `writeDocsMap` already makes to decide `unchanged`. It is factored out as one compare step that both use, not duplicated.
 - **No failure mode fails the build.** The section is advisory. Each case below degrades to one plain line, and the rest of the build is unchanged:
 
 | Case | Line |
@@ -151,7 +151,7 @@ Status: decided
 ### D6 — When the section appears, and the plain absence line
 Status: decided
 - The `### Codebase Reference` section follows Project Context. It appears only when the active profile lists `fileComprehension` or `fileDocsMap`, and only the listed variables get lines. With today's guide nothing changes, and greenfield builds stay byte-identical while the profile rows are absent.
-- The section shows a document that exists, or a registered comprehension path whose file is gone, which is named as missing. Absence ("none") is shown only for an **adopted** project, meaning a derived architecture exists (adopted or adoption-incomplete, `readPlanningFacts`). A greenfield project whose profile lists the variables, and that has neither document, gets no section. "None" there would be noise rather than information.
+- Each listed variable gets one line: the document, a registered path named as missing, or "none". The build does no adoption check of its own (no `readPlanningFacts`, no derived-architecture test), so `cf build` keeps one meaning (arch, amendment 20261025). Under the new guide rows, a greenfield Phase 2–4 build therefore also shows the "none" lines. That is plain and accurate.
 - Wording lives in constants in `codebaseReference.ts`, like `adoptionInputs.ts`. Shape:
 
 ```
@@ -160,7 +160,7 @@ Codebase comprehension: project-documents/user/analysis/362-analysis.foo.md
 Docs map: project-documents/user/architecture/050-docs-map.foo.md (out of date: run `cf docs map` to refresh)
 ```
 
-  Absent, on an adopted project:
+  Absent:
 
 ```
 Codebase comprehension: none registered. Refresh it through squadron, which registers the new path with `cf set comprehension`.
@@ -211,16 +211,17 @@ Errors: the path does not exist, is a directory, or lies outside the project roo
 ### Consumes from Other Slices
 - 267's map path and rendering, and 271's path check and planning facts.
 - If the guide lacks the new rows, the section is never emitted, and no error or fallback occurs. `MIN_GUIDE_VERSION` warns about an old guide, as it does today.
-- If squadron never calls `cf set`, an adopted project shows "Codebase comprehension: none registered", which is plain and correct.
+- If squadron never calls `cf set`, the build shows "Codebase comprehension: none registered", which is plain and correct.
 
 ## Success Criteria
 
 ### Functional Requirements
 - With a guide whose Phase 2, 3 and 4 rows list both variables, a build on an adopted project with both documents shows the Codebase Reference section with both paths and the docs map's freshness. CLI and MCP output are identical.
-- On an adopted project without them, the section says "none" for each and names the way to create or refresh it.
+- On a project without them, the section says "none" for each and names the way to create or refresh it.
 - A registered comprehension path whose file was deleted, or that is now a directory, is shown as missing or not readable. A docs map with broken markers is shown as `cannot check`. None of these fails the build (D5).
 - After a new doc is added under `docs/`, the docs map shows `out of date`, and after `cf docs map` it shows `current`.
-- A greenfield build, and every build under the current guide (whose rows lack the variables), is byte-identical to before.
+- Every build under the current guide (whose rows lack the variables) is byte-identical to before. Under the new rows, a greenfield Phase 2–4 build gains only the two "none" lines.
+- `cf prompt get brownfield-adoption` without `--comprehension` says no analysis was provided, even when `fileComprehension` is set (D2).
 - `cf set comprehension` rejects a missing path, a directory and a path outside the root, and stores an absolute input root-relative.
 - No build writes to the filesystem or to config (268's purity test extended to a project with both documents).
 
@@ -254,7 +255,8 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
 4. **Drift and degradation.** `echo b > docs/b.md && cf build`: the docs map is `out of date: run \`cf docs map\` to refresh`. Then `rm project-documents/user/analysis/x.md && cf build`: the comprehension line says missing, and the build exits 0.
 5. **Errors.** `cf set comprehension nope.md; echo $?` and `cf set comprehension /tmp/outside.md; echo $?` each print a named error and exit 1.
 6. **Parity and purity.** `context_build` through the MCP server returns the same section. `git status --short` and the project's config are unchanged by steps 2 and 4.
-7. **Greenfield and current guide.** On a greenfield project, and on this project with the stock guide, the `cf build` output matches the output before the change (diff against the saved output).
+7. **Current guide.** On this project with the stock guide, the `cf build` output matches the output before the change (diff against the saved output).
+8. **Prompt ignores the field.** With the field set from step 3, `cf prompt get brownfield-adoption | tail -5` still says "No codebase comprehension analysis was provided."
 
 ## Risk Assessment
 
@@ -271,10 +273,10 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
 2. The schema field, the path-valued marker and the core path check (moved from the CLI), with `cf set` and `project_update` tests.
 3. Factor the docs-map compare step out of `writeDocsMap`.
 4. `codebaseReference` facts and rendering, including every D5 degradation case, then the `SectionBuilder` and `ContextIntegrator` wiring and the profile gate.
-5. Docs. Raise `MIN_GUIDE_VERSION` when the guide release exists.
+5. Docs. Raise `MIN_GUIDE_VERSION` when the guide release exists. Update row (b) of the architecture's Responsibility Split to list both channels squadron uses: the `--comprehension` argument for the adoption prompt, and `cf set comprehension` / `project_update` for later builds.
 
-Effort: 2/5.
+Effort: 3/5. The slice touches the schema, the core path check, the CLI and MCP setters, the docs-map writer's compare step and `SectionBuilder`.
 
 ### Special Considerations
-- **The field is machine-local.** Like every `cf set` field, it lives in the local project store, so a teammate's clone does not have it until squadron (or the teammate) runs `cf set comprehension`. On that clone, an adopted project shows "none registered", which is accurate. A shared, committed pointer would be a new state format and is out of scope.
+- **The field is machine-local.** Like every `cf set` field, it lives in the local project store, so a teammate's clone does not have it until squadron (or the teammate) runs `cf set comprehension`. On that clone, the build shows "none registered", which is accurate. A shared, committed pointer would be a new state format and is out of scope.
 - **Build cost.** The docs-map comparison walks the docs tree, and only when the profile lists `fileDocsMap`, which means Phase 2–4 builds only. The build runs no git.
