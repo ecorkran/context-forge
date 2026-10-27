@@ -51,23 +51,23 @@ revision_number: 2
 
 ### Setup (design Implementation Notes steps 1-2)
 
-- [ ] **Task 0: Slice branch and baseline** (effort: 1)
-  - [ ] Read `cf config get git.integration_branch`; empty means the target is `main`. Create `273-slice.real-adoption-run-via-sq-onboard` from the target if it does not exist, otherwise switch to it.
-  - [ ] Run `pnpm -r build`. In the repo root save baselines: `cfl next --json > /tmp/273-next-before.json`, `cfl next > /tmp/273-next-before.txt`, `cfl build --json 2>/dev/null | jq -r .context > /tmp/273-build-before.txt`.
-  - [ ] Success: `git branch --show-current` prints the branch name; all three baseline files are non-empty.
+- [x] **Task 0: Slice branch and baseline** (effort: 1)
+  - [x] Read `cf config get git.integration_branch`; empty means the target is `main`. Create `273-slice.real-adoption-run-via-sq-onboard` from the target if it does not exist, otherwise switch to it.
+  - [x] Run `pnpm -r build`. In the repo root save baselines: `cfl next --json > /tmp/273-next-before.json`, `cfl next > /tmp/273-next-before.txt`, `cfl build --json 2>/dev/null | jq -r .context > /tmp/273-build-before.txt`.
+  - [x] Success: `git branch --show-current` prints the branch name; all three baseline files are non-empty.
 
 - [ ] **Task 1: Prerequisites, shim and squadron note** (effort: 2)
-  - [ ] Record `cfl --version`, `git rev-parse --short HEAD`, `sq --version` and squadron's commit (from `pip show squadron-ai` or the install source).
+  - [x] Record `cfl --version`, `git rev-parse --short HEAD`, `sq --version` and squadron's commit (from `pip show squadron-ai` or the install source).
   - [ ] Run `sq onboard --help` and `sq onboard register|decline|prompt --help`. If any is missing, add `BLOCKED: squadron 440 not installed` under Task 3 and stop before Task 3.
-  - [ ] Create the shim as Verification Walkthrough step 1 shows; with `~/cf273-bin` first on PATH, `cf --version` matches `cfl --version`.
-  - [ ] Note whether `~/.claude/commands/cf/` exists (D2); do not delete it.
-  - [ ] Find squadron's peer with `ListAgents` and send one note that this run also serves 440's live criterion (D8), per CLAUDE.md "Agent Communication". Do not wait for a reply.
-  - [ ] Success: versions, shim result and command-directory note are recorded for the report; the note is sent, or "no squadron peer listed" is recorded; or a `BLOCKED:` line names what is missing.
+  - [x] Create the shim as Verification Walkthrough step 1 shows; with `~/cf273-bin` first on PATH, `cf --version` matches `cfl --version`.
+  - [x] Note whether `~/.claude/commands/cf/` exists (D2); do not delete it.
+  - [x] Find squadron's peer with `ListAgents` and send one note that this run also serves 440's live criterion (D8), per CLAUDE.md "Agent Communication". Do not wait for a reply.
+  - [x] Success: versions, shim result and command-directory note are recorded for the report; the note is sent, or "no squadron peer listed" is recorded; or a `BLOCKED:` line names what is missing.
 
-- [ ] **Task 2: Report skeleton** (effort: 1)
-  - [ ] Create `project-documents/user/analysis/260-analysis.real-adoption-run.md` (`docType: analysis`, `topic: real-adoption-run`, `status: in_progress`; frontmatter per `file-naming-conventions.md`) with D7's parts: Setup (filled from Task 1), Checks (one row per D5 check, results empty), Defects, Notes for 274. Do not edit 265's report.
-  - [ ] Success: `cfl check` reports no frontmatter error for the file; the table has ten rows.
-  - [ ] Commit: `docs: add real adoption run report skeleton`
+- [x] **Task 2: Report skeleton** (effort: 1)
+  - [x] Create `project-documents/user/analysis/260-analysis.real-adoption-run.md` (`docType: analysis`, `topic: real-adoption-run`, `status: in_progress`; frontmatter per `file-naming-conventions.md`) with D7's parts: Setup (filled from Task 1), Checks (one row per D5 check, results empty), Defects, Notes for 274. Do not edit 265's report.
+  - [x] Success: `cfl check` reports no frontmatter error for the file; the table has ten rows.
+  - [x] Commit: `docs: add real adoption run report skeleton`
 
 #### Defect procedure (reference, not a checklist task)
 
