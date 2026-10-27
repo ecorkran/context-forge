@@ -13,12 +13,26 @@ dependencies:
 projectState: main at 0.19.20 (slices 268-272 merged; `cf detect`, `cf init --json`,
   `cf prompt get brownfield-adoption --path --comprehension` and `MIN_GUIDE_VERSION`
   0.22.8 shipped). Slice 273 design committed. Local build prints 0.19.20. Installed
-  `sq` is 0.24.5 and has no `onboard` command; squadron 440 is on squadron's
-  `440-slice.sq-onboard` branch and the PM has said it will be released before the
-  run. No `user/analysis/260-analysis.real-adoption-run.md` exists yet.
+  `sq` is 0.24.5 and has no `onboard` command; squadron 440 is on squadron's `440-slice.sq-onboard`
+  branch and the PM has said it will be released before the run. No `user/analysis/260-analysis.real-adoption-run.md`
+  exists yet.
 dateCreated: 20261027
 dateUpdated: 20261027
 status: not_started
+turns: 15
+promptTokens: 686652
+cachedTokens: 633802
+cacheWriteTokens: 52824
+completionTokens: 10948
+durationSeconds: 126.4
+costUsd: 0.768704
+usageRounds: 1
+pricedRounds: 1
+usageByModel:
+  claude-opus-5-5:
+    rounds: 1
+    costUsd: 0.7687037000000001
+    completionTokens: 10948
 ---
 
 ## Context Summary
