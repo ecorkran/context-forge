@@ -900,14 +900,14 @@ export class WorkflowNavigator {
     if (!isBlockingGate(gate)) return null;
     return gate.status === 'pending-review'
       ? {
-          recommendation: 'Review required before creating the slice plan',
+          recommendation: 'Architecture review required',
           rationale: gate.rationale,
-          summary: `Architecture ${archIndex} needs an ${gate.reviewType} review before the slice plan can be created`,
+          summary: `Architecture ${archIndex} needs an ${gate.reviewType} review`,
         }
       : {
           recommendation: `Blocked: review verdict does not clear threshold`,
           rationale: gate.rationale,
-          summary: `Architecture ${archIndex} review does not clear — blocked before slice plan creation`,
+          summary: `Architecture ${archIndex} review does not clear — blocked`,
         };
   }
 

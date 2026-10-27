@@ -5,7 +5,8 @@ import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@context-forge/core';
 import type { NormalizedStatus } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange } from '../utils/worktree-overlay.js';
-import { UserError } from '../utils/errors.js';
+import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
+import { withAdoptedArtifactsRegistered } from './adoptedProject.js';
 import { checkoutLagWarning } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
@@ -23,10 +24,12 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
     throw new UserError(`Project not found: '${id}'.`);
   }
 
-  const project = await resolveProject(store, id, worktreeId);
+  let project = await resolveProject(store, id, worktreeId);
   if (!project) {
     throw new UserError(`Project not found: '${id}'.`);
   }
+
+  project = await withAdoptedArtifactsRegistered(project, store, { id, worktreeId, projectOption: opts.project });
 
   if (!project.projectPath) {
     throw new UserError(
@@ -56,9 +59,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
     filteredEntries = planResult.entries;
   } else {
     if (!project.fileSlicePlan) {
-      throw new UserError(
-        'No slice plan configured. Set one with: cf set slicePlan <path>',
-      );
+      throw new UserError(NO_SLICE_PLAN_MESSAGE);
     }
 
     const indexRange = getWorktreeIndexRange(rawProject, worktreeId);

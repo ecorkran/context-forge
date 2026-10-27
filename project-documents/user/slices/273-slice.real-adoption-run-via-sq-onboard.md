@@ -14,7 +14,7 @@ interfaces:
 - 274
 dateCreated: 20261027
 dateUpdated: 20261027
-status: not_started
+status: complete
 turns: 47
 promptTokens: 3128095
 cachedTokens: 3001192
@@ -251,6 +251,17 @@ Draft; refined after the run. `<root>` is the repository the PM names, `<cf>` th
 5. **First new slice (checks 8–9).** `cf next` until it names the first unbuilt slice (running any review it names), then cf's Phase 4 path for that slice, and `cf validate design <design-path>` exits 0.
 
 6. **After (check 10).** `git -C <root> status --short` lists only expected files. Write the run report (D7).
+
+**Walkthrough results (slice 273 implementation, 20261027).**
+1. Prerequisites: pass. Shim `~/cf273-bin` ran the local build (0.19.20). `sq onboard` was missing from the installed `sq` (0.24.5); squadron's session then installed its 440 branch build, after which `register`, `decline` and `prompt` all answered `--help`. Squadron 440 was not released before the run (its live run is one of its own open criteria).
+2. Before (check 1): pass, reproduced afterwards on a fresh clone of tank-game at `cd6f11c` (not captured before the live run).
+3. First session (checks 2-3): pass, per squadron's session (`registration: created`, concept detected).
+4. Resume and adopt (checks 4-7): checks 4, 6 and 7 pass (check 4 on the PM's word); check 5 pass, reproduced on a fresh clone (prompt tail not captured live). Check 6 needed a hand-run `cf set arch 100`, which exposed #137, fixed in `e12ab0fc`.
+5. First new slice (checks 8-9): check 8 passes after the arch review (#132's gate fired and cleared). Check 9 passes: the PM chose a lighter path, so the design was a template stub in a copy of the clone and `cf validate design` exited 0; the Phase 4 `cf build` first named only the slice plan, and after guide v0.22.10 (profile `slice-design-phase-4` now includes the architecture) it names both.
+6. After (check 10): pass.
+Baseline diff: `cf next` (json and text) differ only in the remaining-task count (53 vs 40); the `cf build` context is identical.
+
+**Code review response (20261027, review: CONCERNS, `reviews/273-review.code.real-adoption-run-via-sq-onboard.md`).** F001 fixed: a failed re-read after registration now throws instead of returning the stale project. F003 fixed: the helper moved into `commands/`, so utils no longer import commands. F004 fixed for `cf next` (test through the real navigator); `cf list tasks` shares the same helper and has no test of its own. F002 declined: registration inside `cf next`, `cf list slices` and `cf list tasks` is the PM's ruling on #137 (option c), and `cf set` prints what it changed. F005 and F006 (notes) left as they are: the field names are two constants with one use each, and the grammar helper covers the current review types.
 
 ## Risk Assessment
 

@@ -9,6 +9,8 @@ const mockNavigatorCtor = vi.fn();
 const mockConfigManagerCtor = vi.fn();
 
 vi.mock('@context-forge/core/node', () => ({
+  // No adoption artifacts on disk: registerAdoptedArtifacts (#137) finds nothing to set.
+  readAdoptionArtifacts: vi.fn().mockResolvedValue({ concept: null, derivedArchitectures: [], existingStatePlan: null }),
   upstreamLag: vi.fn().mockResolvedValue(null),
   formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({

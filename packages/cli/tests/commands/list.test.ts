@@ -29,6 +29,8 @@ const mockIntrospectorParseTaskFile = vi.fn().mockResolvedValue({
 const mockIntrospectorParseFrontmatter = vi.fn().mockResolvedValue({ filePath: '', found: false, data: {} });
 
 vi.mock('@context-forge/core/node', () => ({
+  // No adoption artifacts on disk: registerAdoptedArtifacts (#137) finds nothing to set.
+  readAdoptionArtifacts: vi.fn().mockResolvedValue({ concept: null, derivedArchitectures: [], existingStatePlan: null }),
   upstreamLag: vi.fn().mockResolvedValue(null),
   formatUpstreamLagWarning: vi.fn(),
   FileProjectStore: vi.fn().mockImplementation(() => ({

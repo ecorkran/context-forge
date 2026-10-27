@@ -285,6 +285,16 @@ export function evaluateExemption(
   return null;
 }
 
+/** What a boundary's index names: preSlicePlan gates an architecture, every other boundary a slice. */
+function gatedNoun(boundary: Boundary): string {
+  return boundary === 'preSlicePlan' ? 'Architecture' : 'Slice';
+}
+
+/** "a tasks" / "an arch" for the review-type word in a sentence. */
+function withArticle(word: string): string {
+  return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`;
+}
+
 /**
  * Composite gate evaluation for one boundary of one slice/arch index.
  * Returns null only when gating is off. Otherwise one of:
@@ -321,7 +331,7 @@ export async function evaluateReviewGate(
     return {
       status: 'pending-review',
       reviewType,
-      rationale: `Slice ${index} requires a ${reviewType} review before proceeding — no review artifact found.`,
+      rationale: `${gatedNoun(boundary)} ${index} requires ${withArticle(reviewType)} review before proceeding — no review artifact found. Add ${index}-review.${reviewType}.*.md under the reviews folder, or turn gating off: cf config set workflow.review_enabled false`,
     };
   }
 

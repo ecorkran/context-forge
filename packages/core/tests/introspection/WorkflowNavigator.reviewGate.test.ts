@@ -138,7 +138,13 @@ describe('WorkflowNavigator — review gate (slice 241)', () => {
       });
 
       const next = await nav.getNext(project);
-      expect(next.recommendation).toContain('Review required before creating the slice plan');
+      expect(next.recommendation).toContain('Architecture review required');
+      // #132: the plan exists, so the message must not talk about creating it, and it says "an arch".
+      expect(next.rationale).toContain('Architecture 50 requires an arch review');
+      expect(next.summary).not.toContain('slice plan');
+      // #132: no dead end without a review tool; the way out is named without naming one.
+      expect(next.rationale).toContain('cf config set workflow.review_enabled false');
+      expect(next.rationale).toContain('50-review.arch.*.md');
     });
 
     it('#59 Gap 1: arch gate clears when the arch review exists and passes, slice plan present', async () => {
@@ -170,7 +176,7 @@ describe('WorkflowNavigator — review gate (slice 241)', () => {
       });
 
       const next = await nav.getNext(project);
-      expect(next.recommendation).toContain('Review required before creating the slice plan');
+      expect(next.recommendation).toContain('Architecture review required');
     });
   });
 
