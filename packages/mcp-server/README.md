@@ -72,7 +72,7 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 
 | Tool | Description |
 |------|-------------|
-| `agent_onboard` | Step-by-step onboarding recipe for new projects |
+| `agent_onboard` | Step-by-step onboarding recipe for new projects. On an existing codebase the recipe stops after printing the detection notice, which points to `sq onboard` |
 | `agent_quickstart` | Structured capability schema for machine consumers (orchestrators, CI) |
 
 ### Project Management
@@ -85,6 +85,7 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 | `project_update` | Update project configuration. Setting `developmentPhase` auto-sets `instruction`. |
 | `project_schema` | Full project data schema with field definitions, aliases, groups, and enum values |
 | `project_structure` | Build full project model (foundation, initiatives, slices, tasks, future work) |
+| `project_detect` | Report what a directory holds and which adoption outcome applies. Read-only; works on unregistered directories. See [Adoption Primitives](../../docs/ADOPTION-PRIMITIVES.md) |
 
 ### Context Generation
 
