@@ -82,6 +82,7 @@ Tasks 3-7 apply design D6 once per defect the run exposes:
 Each run task ends by filling its check rows and committing the report: `docs: record real adoption run checks {n-m}`.
 
 - [ ] **Task 3: Before the run, check 1** (effort: 2)
+  - BLOCKED: installed `sq` 0.24.5 has no `onboard` command (squadron 440 unreleased). Squadron's session says 440 will not release before this run (the live run is one of 440's open criteria) and offers the branch build `~/source/repos/manta/squadron/.venv/bin/sq` (branch `440-slice.sq-onboard`) plus a test clone `~/source/repos/manta/tank-game-onboard`. The design requires a released 440 and a PM-named repository, so the PM decides whether to run against the branch build and that clone.
   - [ ] The PM names the repository and checkout. Confirm D1's constraints and record what D7's Setup asks for (approved name, language, commit).
   - [ ] Run Walkthrough step 2 and verify check 1. Also run `sq onboard --path <root> --json` and record its plugin and analysis-pack checks for `claude-code`; a missing one is a `BLOCKED:` line naming it.
   - [ ] Success: row 1 is pass or has a defect line, or a `BLOCKED:` line explains why the run cannot start; report committed.
