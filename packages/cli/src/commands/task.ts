@@ -15,6 +15,7 @@ import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
 import { warnIfBehindUpstream } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
+import { withAdoptedArtifactsRegistered } from '../utils/adoptedProject.js';
 import { label, success, dim } from '../output/styles.js';
 
 /** Shared action handler for listing task files. */
@@ -27,10 +28,11 @@ export async function taskListAction(opts: { json?: boolean; all?: boolean; proj
     throw new UserError(`Project not found: '${id}'.`);
   }
 
-  const project = await resolveProject(store, id, worktreeId);
-  if (!project) {
+  const resolved = await resolveProject(store, id, worktreeId);
+  if (!resolved) {
     throw new UserError(`Project not found: '${id}'.`);
   }
+  const project = await withAdoptedArtifactsRegistered(resolved, store, { id, worktreeId, projectOption: opts.project });
 
   if (!project.projectPath) {
     throw new UserError(
