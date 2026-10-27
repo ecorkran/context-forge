@@ -102,7 +102,7 @@ describe('review gate cutoff — cross-boundary integration (slice 912 success c
     const project = makeProject(root, { fileArch: '700-arch.new-arch', developmentPhase: 'Phase 3: Slice Planning' });
 
     const next = await nav.getNext(project);
-    expect(next.recommendation).toContain('Review required before creating the slice plan');
+    expect(next.recommendation).toContain('Architecture review required');
   });
 
   it('checkAll(): a grandfathered slice + architecture produce zero review-gate findings across all four boundaries', async () => {
