@@ -25,6 +25,9 @@ export class UserError extends Error {
   }
 }
 
+/** Shared by every command that needs the project's slice plan; `plan` is the `cf set` alias of fileSlicePlan. */
+export const NO_SLICE_PLAN_MESSAGE = 'No slice plan configured. Set one with: cf set plan <path>';
+
 /** Module-level JSON mode flag — set during option parsing. */
 let jsonMode = false;
 

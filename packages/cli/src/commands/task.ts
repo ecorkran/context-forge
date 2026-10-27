@@ -11,7 +11,7 @@ import {
 import { resolveProjectWorktree } from '../utils/project.js';
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, isInIndexRange, resolveAllOperationPaths } from '../utils/worktree-overlay.js';
-import { UserError } from '../utils/errors.js';
+import { UserError, NO_SLICE_PLAN_MESSAGE } from '../utils/errors.js';
 import { warnIfBehindUpstream } from '../utils/upstreamLag.js';
 import { parseArchIndex } from '../utils/archIndex.js';
 import { printJson } from '../output/formatter.js';
@@ -159,7 +159,7 @@ async function listTaskFiles(
     plan = await parseSlicePlan(explicitPlanPath);
   } else {
     if (!project.fileSlicePlan) {
-      throw new UserError('No slice plan configured. Set one with: cf set slicePlan <path>');
+      throw new UserError(NO_SLICE_PLAN_MESSAGE);
     }
 
     const planRelPath = resolveArtifactPath('fileSlicePlan', project.fileSlicePlan);
