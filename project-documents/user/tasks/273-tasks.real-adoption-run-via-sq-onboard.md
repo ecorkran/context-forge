@@ -58,7 +58,6 @@ revision_number: 1
 
 - [ ] **Task 1: Prerequisites, shim and squadron note** (effort: 2)
   - [ ] Record `cfl --version`, `git rev-parse --short HEAD`, `sq --version` and squadron's commit (from `pip show squadron-ai` or the install source).
-  - [ ] Confirm `cfl guides info` shows a guide at least `MIN_GUIDE_VERSION` (0.22.8, in `packages/core/src`); if older, run `cfl guides update` once and re-check.
   - [ ] Run `sq onboard --help` and `sq onboard register|decline|prompt --help`. If any is missing, add `BLOCKED: squadron 440 not installed` under Task 3 and stop before Task 3.
   - [ ] Create the shim as Verification Walkthrough step 1 shows; with `~/cf273-bin` first on PATH, `cf --version` matches `cfl --version`.
   - [ ] Note whether `~/.claude/commands/cf/` exists (D2); do not delete it.
@@ -89,14 +88,20 @@ Each run task ends by filling its check rows and committing the report: `docs: r
 
 - [ ] **Task 4: First session, checks 2-3** (effort: 3)
   - [ ] The PM starts the session and runs `/sq:onboard` (D2). The operator never answers for the PM and makes no manual edits (D2 hands-off rule).
-  - [ ] Verify check 2 from the register output the PM copies. After registration, record where `/sq:onboard` and `/cf:*` resolved from, and `cf config get workflow.review_enabled` (value and source).
+  - [ ] Verify check 2 from the register output the PM copies. After registration, record where `/sq:onboard` and `/cf:*` resolved from, `cf config get workflow.review_enabled` (value and source), and the guide version `cf guides info` reports in `<root>` (the Setup guide version). A guide older than `MIN_GUIDE_VERSION` (0.22.8) is a `BLOCKED:` line under this task.
   - [ ] Verify check 3, then ask the PM to end the session once the concept is confirmed (D3).
   - [ ] Success: rows 2-3 are pass or have defect lines; the session ended after the concept step; report committed.
 
 - [ ] **Task 5: Resume and adopt, checks 4-7** (effort: 4)
   - [ ] The PM starts a new session and runs `/sq:onboard`. Verify check 4 from the session's first `sq onboard` report and check 5 from the prompt tail, both copied by the PM.
   - [ ] If the session stops after the architecture, record `cf detect --json | jq .outcome` (check 7's in-between observation; not forced).
-  - [ ] After the PM approves architecture and plan, verify checks 6 and 7 with the commands in Walkthrough step 4.
+  - [ ] After the PM approves architecture and plan, verify check 6:
+    1. The session's tool output (copied by the PM) shows `cf docs map` ran; `050-docs-map.{project}.md` exists and the architecture links it (`grep` its file name in the architecture).
+    2. The architecture's frontmatter has `provenance: derived`.
+    3. Walkthrough step 4's `cf list slices --json` shows `retroactive: true` on the recorded entries and at least one unbuilt entry; the PM confirms the unbuilt entry is one they supplied.
+    4. `cf check` reports no error for the retroactive entries.
+    5. For each intent the PM called unknown, `grep -il unknown` over the architecture and slice plan finds it stated as "unknown".
+  - [ ] Verify check 7 with Walkthrough step 4's `cf detect --json | jq .outcome` and the session's hand-off to `cf next`.
   - [ ] Success: rows 4-7 are pass or have defect lines; report committed.
 
 - [ ] **Task 6: Past the hand-off, check 8** (effort: 2)
