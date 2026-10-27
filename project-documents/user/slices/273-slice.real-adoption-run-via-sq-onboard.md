@@ -72,6 +72,7 @@ Excluded:
 ### Prerequisites
 - **cf 271 and 272 on the target.** Both shipped in 0.19.20 (`cf detect`, `cf init --json`, `--path`/`--comprehension`, the onboarding stop, the guide copies and `MIN_GUIDE_VERSION` 0.22.8).
 - **ai-project-guide ≥ v0.22.8** installed in the adopted project. Its `brownfield-adoption` prompt reads the Adoption Inputs section, runs `cf docs map`, and defines the retroactive marker.
+- **cf 266, conditional.** Conventions reconciliation is exercised only if the PM accepts the guide prompt's offer (D2, D6). It is not part of the pass, so it is left out of the frontmatter `dependencies`.
 - **Squadron with slice 440.** `sq onboard`, `/sq:onboard` and `sq onboard register|decline|prompt`. As of this design the installed `sq` is 0.24.5 with no `onboard` command, and 440 is complete only on squadron's `440-slice.sq-onboard` branch (fixtures regenerated from cf 0.19.20, squadron `598fcb1f`). Squadron's own live criterion for 440 is this same run (D8), so 440 may not be released when the run is due. An `sq` installed from squadron's 440 branch or its merge is acceptable. The report records the exact version and commit.
 - **The understand-anything plugin and squadron's analysis pack** installed for Claude Code, as `sq onboard` checks them per surface (440 D2, D10).
 - **The PM, live, for the whole run,** and a repository the PM names (D1).
@@ -216,7 +217,7 @@ Status: decided
 - This repository's own `cf build` and `cf next --json` are unchanged by the fixes.
 
 ### Integration Requirements
-- The report gives squadron's session enough to close 440's live criterion, or names the squadron issue that blocks it.
+- The report records the evidence squadron's session needs for 440's live criterion, or names the squadron issue that blocks it. Closing 440 is squadron's call; 273 passing does not depend on it.
 - If no cf fix was needed, the slice still completes; the report says "no cf defects".
 
 ### Verification Walkthrough
