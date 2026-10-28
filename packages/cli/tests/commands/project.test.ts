@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
-import { registerProjectCommand } from '../../src/commands/project.js';
+import { registerProjectCommand, resolveSetValue } from '../../src/commands/project.js';
 import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
 
 const mockGetAll = vi.fn();
@@ -835,5 +835,27 @@ describe('cf set comprehension — path-valued field', () => {
   it('the empty string clears the field', async () => {
     await setComprehension('');
     expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileComprehension: '' });
+  });
+});
+
+describe('resolveSetValue', () => {
+  it('returns the value as given', () => {
+    expect(resolveSetValue('slice', '200-slice.new')).toBe('200-slice.new');
+  });
+
+  it('maps a bare date field to now', () => {
+    expect(resolveSetValue('date', undefined)).toBe('now');
+    expect(resolveSetValue('dateProject', '')).toBe('now');
+  });
+
+  it('has no value for a missing or empty value on an ordinary field', () => {
+    expect(resolveSetValue('slice', undefined)).toBeUndefined();
+    expect(resolveSetValue('slice', '')).toBeUndefined();
+    expect(resolveSetValue(undefined, 'x')).toBe('x');
+  });
+
+  it('keeps an empty value only for a path-valued field, where it clears the path', () => {
+    expect(resolveSetValue('comprehension', '')).toBe('');
+    expect(resolveSetValue('fileComprehension', '')).toBe('');
   });
 });

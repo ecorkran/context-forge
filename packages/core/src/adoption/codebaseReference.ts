@@ -2,7 +2,7 @@
 // and the `fileComprehension` setters (slice 274, D3).
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { isFsError } from '../detection/pathPresent.js';
+import { isEnoent, isFsError } from '../detection/pathPresent.js';
 import {
   DOCS_MAP_ERROR_KIND,
   DOCS_MAP_STATE,
@@ -63,8 +63,7 @@ export function resolveComprehensionPath(root: string, input: string, options: P
   try {
     stats = fs.statSync(resolved);
   } catch (error) {
-    // statSync only throws filesystem errors, which carry a `code`.
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (!isEnoent(error)) throw error;
     throw new PathCheckError(PATH_CHECK_REASONS.missing, resolved);
   }
   if (stats.isDirectory()) throw new PathCheckError(PATH_CHECK_REASONS.directory, resolved);
@@ -133,6 +132,8 @@ export interface CodebaseReferenceFacts {
 
 const NOT_A_FILE_REASON = 'is a directory, not a file';
 
+// The stored path is trusted: the setters keep it inside the root, and cf only stats it. A
+// hand-edited value outside the root is reported like any other path.
 async function readComprehensionFact(root: string, fileComprehension: string): Promise<ComprehensionFact> {
   if (fileComprehension === '') return { kind: COMPREHENSION_FACT.None };
   const resolved = path.resolve(root, fileComprehension);

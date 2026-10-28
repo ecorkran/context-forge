@@ -10,6 +10,7 @@ import {
   isPathValuedField,
 } from '../../src/schema/projectSchema.js';
 import { WORKTREE_SCOPED_FIELDS } from '../../src/project-defaults.js';
+import { CODEBASE_REFERENCE_VARIABLES } from '../../src/services/constants.js';
 
 describe('projectSchema', () => {
   describe('resolveFieldName', () => {
@@ -263,6 +264,11 @@ describe('projectSchema', () => {
 
     it('is not worktree-scoped', () => {
       expect(WORKTREE_SCOPED_FIELDS.has('fileComprehension')).toBe(false);
+    });
+
+    it('the profile variable name is this schema field, in the artifacts group', () => {
+      const def = PROJECT_FIELDS.find((f) => f.field === CODEBASE_REFERENCE_VARIABLES.comprehension);
+      expect(def?.group).toBe('artifacts');
     });
   });
 });

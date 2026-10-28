@@ -247,7 +247,11 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
         if (pathValuedKeys.length > 0) {
           const { operationPath } = await resolveOperationContext({ projectId: resolvedId, worktreeId });
           for (const key of pathValuedKeys) {
-            allUpdates[key] = normalizePathFieldValue(operationPath, allUpdates[key] as string);
+            const value = allUpdates[key];
+            if (typeof value !== 'string') {
+              return errorResult(`Field '${key}' must be a string path, got ${typeof value}.`);
+            }
+            allUpdates[key] = normalizePathFieldValue(operationPath, value);
           }
         }
 
