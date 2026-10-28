@@ -3,7 +3,18 @@ import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symli
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
+  CODEBASE_REFERENCE_HEADING,
+  CODEBASE_REFERENCE_LABELS,
   COMPREHENSION_FACT,
+  COMPREHENSION_NONE,
+  COMPREHENSION_REFRESH_SENTENCE,
+  DOCS_MAP_CURRENT,
+  DOCS_MAP_FIX_MARKERS,
+  DOCS_MAP_NONE,
+  DOCS_MAP_OUT_OF_DATE,
+  renderCodebaseReference,
+  type ComprehensionFact,
+  type DocsMapFact,
   DOCS_MAP_FACT,
   PATH_CHECK_MESSAGES,
   PATH_CHECK_REASONS,
@@ -252,5 +263,91 @@ describe('readCodebaseReference (D5)', () => {
     await readCodebaseReference(root, NAME, DOC, BOTH);
     await readCodebaseReference(root, NAME, 'gone.md', BOTH);
     expect(snapshot(root)).toEqual(before);
+  });
+});
+
+describe('renderCodebaseReference (D6, D7)', () => {
+  const COMPREHENSION_LABEL = CODEBASE_REFERENCE_LABELS.comprehension;
+  const DOCS_MAP_LABEL = CODEBASE_REFERENCE_LABELS.docsMap;
+
+  function comprehensionOnly(fact: ComprehensionFact): string {
+    return renderCodebaseReference({ comprehension: fact });
+  }
+
+  function docsMapOnly(fact: DocsMapFact): string {
+    return renderCodebaseReference({ docsMap: fact });
+  }
+
+  it('renders nothing when no variable is listed', () => {
+    expect(renderCodebaseReference({})).toBe('');
+  });
+
+  it('puts the heading first and the comprehension line before the docs map line', () => {
+    const text = renderCodebaseReference({
+      comprehension: { kind: COMPREHENSION_FACT.Present, path: 'a.md' },
+      docsMap: { kind: DOCS_MAP_FACT.Current, path: 'm.md' },
+    });
+    expect(text.split('\n')).toEqual([
+      CODEBASE_REFERENCE_HEADING,
+      `${COMPREHENSION_LABEL}: a.md`,
+      `${DOCS_MAP_LABEL}: m.md (${DOCS_MAP_CURRENT})`,
+    ]);
+  });
+
+  it('renders only the listed variable', () => {
+    expect(comprehensionOnly({ kind: COMPREHENSION_FACT.Present, path: 'a.md' })).not.toContain(DOCS_MAP_LABEL);
+    expect(docsMapOnly({ kind: DOCS_MAP_FACT.None })).not.toContain(COMPREHENSION_LABEL);
+  });
+
+  it('comprehension none: neutral, no squadron text', () => {
+    const text = comprehensionOnly({ kind: COMPREHENSION_FACT.None });
+    expect(text).toContain(`${COMPREHENSION_LABEL}: ${COMPREHENSION_NONE}`);
+    expect(text.toLowerCase()).not.toContain('squadron');
+    expect(text).not.toContain(COMPREHENSION_REFRESH_SENTENCE);
+  });
+
+  it('comprehension present: the path alone, no refresh sentence', () => {
+    const text = comprehensionOnly({ kind: COMPREHENSION_FACT.Present, path: 'a/b.md' });
+    expect(text).toContain(`${COMPREHENSION_LABEL}: a/b.md`);
+    expect(text).not.toContain(COMPREHENSION_REFRESH_SENTENCE);
+  });
+
+  it.each([
+    [COMPREHENSION_FACT.Missing, 'missing: ENOENT'],
+    [COMPREHENSION_FACT.NotReadable, 'not readable: ENOENT'],
+  ] as const)('comprehension %s: names the reason and ends with the refresh sentence', (kind, expected) => {
+    const text = comprehensionOnly({ kind, path: 'a.md', reason: 'ENOENT' });
+    expect(text).toContain(`a.md (${expected})`);
+    expect(text.endsWith(COMPREHENSION_REFRESH_SENTENCE)).toBe(true);
+  });
+
+  it('docs map none: names cf docs map', () => {
+    expect(docsMapOnly({ kind: DOCS_MAP_FACT.None })).toContain(`${DOCS_MAP_LABEL}: ${DOCS_MAP_NONE}`);
+  });
+
+  it('docs map out of date: names the refresh command', () => {
+    const text = docsMapOnly({ kind: DOCS_MAP_FACT.OutOfDate, path: 'm.md' });
+    expect(text).toContain(`m.md (${DOCS_MAP_OUT_OF_DATE})`);
+  });
+
+  it('docs map cannot check, broken markers: carries the fix-the-markers tail', () => {
+    const text = docsMapOnly({ kind: DOCS_MAP_FACT.CannotCheck, path: 'm.md', reason: 'unpaired marker', markers: true });
+    expect(text).toContain(`m.md (cannot check: unpaired marker; ${DOCS_MAP_FIX_MARKERS})`);
+  });
+
+  it('docs map cannot check, I/O problem: the reason alone, no markers tail', () => {
+    const text = docsMapOnly({ kind: DOCS_MAP_FACT.CannotCheck, path: 'm.md', reason: 'EACCES', markers: false });
+    expect(text).toContain('m.md (cannot check: EACCES)');
+    expect(text).not.toContain(DOCS_MAP_FIX_MARKERS);
+  });
+
+  it('docs map cannot check with no path: the line carries no path', () => {
+    const text = docsMapOnly({ kind: DOCS_MAP_FACT.CannotCheck, path: null, reason: 'bad name', markers: false });
+    expect(text).toContain(`${DOCS_MAP_LABEL}: cannot check: bad name`);
+  });
+
+  it('the refresh sentence names cf set comprehension and no squadron command', () => {
+    expect(COMPREHENSION_REFRESH_SENTENCE).toContain('`cf set comprehension`');
+    expect(COMPREHENSION_REFRESH_SENTENCE).not.toMatch(/\bsq\b/);
   });
 });
