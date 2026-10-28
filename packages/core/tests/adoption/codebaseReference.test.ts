@@ -1,16 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
+  COMPREHENSION_FACT,
+  DOCS_MAP_FACT,
   PATH_CHECK_MESSAGES,
   PATH_CHECK_REASONS,
   PathCheckError,
   normalizePathFieldValue,
+  readCodebaseReference,
   resolveComprehensionPath,
 } from '../../src/adoption/index.js';
+import { writeDocsMap } from '../../src/docs-map/index.js';
+import { DOCS_MAP_BEGIN } from '../../src/docs-map/docsMapFile.js';
 
 const DOC = 'project-documents/user/analysis/700-analysis.comprehension.md';
+const runningAsRoot = process.getuid?.() === 0;
 const INSIDE_ONLY = { requireInsideRoot: true };
 const ANYWHERE = { requireInsideRoot: false };
 
@@ -132,5 +138,119 @@ describe('normalizePathFieldValue', () => {
 
   it('never produces a backslash', () => {
     expect(normalizePathFieldValue(root, join(root, DOC))).not.toContain('\\');
+  });
+});
+
+describe('readCodebaseReference (D5)', () => {
+  const NAME = 'acme';
+  const BOTH = { comprehension: true, docsMap: true };
+  const MAP = 'project-documents/user/architecture/050-docs-map.acme.md';
+
+  /** Every file under root with its size and mtime, to prove a call changed nothing. */
+  function snapshot(dir: string): Record<string, string> {
+    const entries: Record<string, string> = {};
+    for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const file = join(entry.parentPath, entry.name);
+      const stats = statSync(file);
+      entries[file] = `${stats.size}:${stats.mtimeMs}`;
+    }
+    return entries;
+  }
+
+  describe('comprehension', () => {
+    it('is none when no path is registered', async () => {
+      const facts = await readCodebaseReference(root, NAME, '', BOTH);
+      expect(facts.comprehension).toEqual({ kind: COMPREHENSION_FACT.None });
+    });
+
+    it('is present for a readable file, with a root-relative path', async () => {
+      const facts = await readCodebaseReference(root, NAME, DOC, BOTH);
+      expect(facts.comprehension).toEqual({ kind: COMPREHENSION_FACT.Present, path: DOC });
+    });
+
+    it('is missing for a registered path that is gone, with the fs reason', async () => {
+      const facts = await readCodebaseReference(root, NAME, 'gone/file.md', BOTH);
+      expect(facts.comprehension).toEqual({ kind: COMPREHENSION_FACT.Missing, path: 'gone/file.md', reason: 'ENOENT' });
+    });
+
+    it('is not readable for a directory', async () => {
+      const facts = await readCodebaseReference(root, NAME, 'project-documents/user/analysis', BOTH);
+      expect(facts.comprehension?.kind).toBe(COMPREHENSION_FACT.NotReadable);
+    });
+
+    it.skipIf(runningAsRoot)('is not readable for a file without read permission, with its code', async () => {
+      const locked = join(root, 'locked.md');
+      touch(locked);
+      chmodSync(locked, 0o000);
+      try {
+        const facts = await readCodebaseReference(root, NAME, 'locked.md', BOTH);
+        expect(facts.comprehension).toEqual({ kind: COMPREHENSION_FACT.NotReadable, path: 'locked.md', reason: 'EACCES' });
+      } finally {
+        chmodSync(locked, 0o644);
+      }
+    });
+  });
+
+  describe('docs map', () => {
+    it('is none when there is no map file', async () => {
+      const facts = await readCodebaseReference(root, NAME, '', BOTH);
+      expect(facts.docsMap).toEqual({ kind: DOCS_MAP_FACT.None });
+    });
+
+    it('is current for a map that was just written, with a root-relative path', async () => {
+      await writeDocsMap(root, NAME);
+      const facts = await readCodebaseReference(root, NAME, '', BOTH);
+      expect(facts.docsMap).toEqual({ kind: DOCS_MAP_FACT.Current, path: MAP });
+    });
+
+    it('is out of date once a doc is added', async () => {
+      await writeDocsMap(root, NAME);
+      touch(join(root, 'docs/guide.md'));
+      const facts = await readCodebaseReference(root, NAME, '', BOTH);
+      expect(facts.docsMap).toEqual({ kind: DOCS_MAP_FACT.OutOfDate, path: MAP });
+    });
+
+    it('cannot be checked when the markers are broken, and says the markers are the problem', async () => {
+      touch(join(root, MAP));
+      writeFileSync(join(root, MAP), `# M\n${DOCS_MAP_BEGIN}\nx\n`);
+      const facts = await readCodebaseReference(root, NAME, '', BOTH);
+      expect(facts.docsMap).toMatchObject({ kind: DOCS_MAP_FACT.CannotCheck, path: MAP, markers: true });
+    });
+
+    it.skipIf(runningAsRoot)('cannot be checked when the docs tree is unreadable, and markers are not blamed', async () => {
+      const locked = join(root, 'docs/locked.md');
+      touch(locked);
+      chmodSync(locked, 0o000);
+      try {
+        const facts = await readCodebaseReference(root, NAME, '', BOTH);
+        expect(facts.docsMap).toMatchObject({ kind: DOCS_MAP_FACT.CannotCheck, path: MAP, markers: false });
+      } finally {
+        chmodSync(locked, 0o644);
+      }
+    });
+
+    it('cannot be checked when the project name cannot form a map path', async () => {
+      const facts = await readCodebaseReference(root, 'a/b', '', BOTH);
+      expect(facts.docsMap).toMatchObject({ kind: DOCS_MAP_FACT.CannotCheck, path: null, markers: false });
+    });
+  });
+
+  it('produces no fact for a variable the profile does not list', async () => {
+    const facts = await readCodebaseReference(root, NAME, DOC, { comprehension: false, docsMap: false });
+    expect(facts.comprehension).toBeUndefined();
+    expect(facts.docsMap).toBeUndefined();
+    const onlyMap = await readCodebaseReference(root, NAME, DOC, { comprehension: false, docsMap: true });
+    expect(onlyMap.comprehension).toBeUndefined();
+    expect(onlyMap.docsMap).toBeDefined();
+  });
+
+  it('changes no file under the root', async () => {
+    await writeDocsMap(root, NAME);
+    touch(join(root, 'docs/guide.md'));
+    const before = snapshot(root);
+    await readCodebaseReference(root, NAME, DOC, BOTH);
+    await readCodebaseReference(root, NAME, 'gone.md', BOTH);
+    expect(snapshot(root)).toEqual(before);
   });
 });

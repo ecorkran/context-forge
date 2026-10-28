@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { isEnoent } from '../detection/pathPresent.js';
 import { formatDateProject } from '../project-defaults.js';
-import { DocsMapError, wrapFsError } from './docsMapError.js';
+import { DOCS_MAP_ERROR_KIND, DocsMapError, wrapFsError } from './docsMapError.js';
 import { discoverMappedDocs } from './discoverDocs.js';
 import { renderManagedBlock } from './renderDocsMap.js';
 
@@ -34,7 +34,7 @@ export interface DocsMapResult {
 /** The canonical map path. No pattern search: a renamed project gets a new map (D1). */
 export function docsMapPath(root: string, projectName: string): string {
   if (/[\\/]/.test(projectName)) {
-    throw new DocsMapError(projectName, 'project name contains a path separator and cannot name the docs map file');
+    throw new DocsMapError(projectName, 'project name contains a path separator and cannot name the docs map file', DOCS_MAP_ERROR_KIND.Other);
   }
   return join(root, DOCS_MAP_DIR, `${DOCS_MAP_INDEX}-${DOCS_MAP_SEGMENT}.${projectName}.md`);
 }
@@ -105,8 +105,8 @@ function replaceBlock(existing: string, block: string, path: string): string {
   // Split after each newline so every line keeps its own ending.
   const lines = existing.split(/(?<=\n)/);
   const location = locateBlock(lines);
-  if (location.state === 'absent') throw new DocsMapError(path, `no ${DOCS_MAP_BEGIN} block found`);
-  if (location.state === 'broken') throw new DocsMapError(path, location.problem);
+  if (location.state === 'absent') throw new DocsMapError(path, `no ${DOCS_MAP_BEGIN} block found`, DOCS_MAP_ERROR_KIND.Markers);
+  if (location.state === 'broken') throw new DocsMapError(path, location.problem, DOCS_MAP_ERROR_KIND.Markers);
   const eol = lines[location.begin].endsWith('\r\n') ? '\r\n' : '\n';
   const inserted = Buffer.from(block, 'utf8')
     .toString('latin1')

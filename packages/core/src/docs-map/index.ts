@@ -7,5 +7,5 @@ export {
   type DocsMapResult,
   type DocsMapState,
 } from './docsMapFile.js';
-export { DocsMapError } from './docsMapError.js';
+export { DocsMapError, DOCS_MAP_ERROR_KIND, type DocsMapErrorKind } from './docsMapError.js';
 export type { MappedDoc } from './discoverDocs.js';
