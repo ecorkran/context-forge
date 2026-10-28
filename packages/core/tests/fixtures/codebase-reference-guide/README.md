@@ -1,0 +1,1 @@
+Test fixture mirroring the guide release rows that add `fileComprehension` and `fileDocsMap` to the Phase 2, 3 and 4 profiles (slice 274, D1). `brownfield-guide/` stands for the guide before that release.
