@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `cf set comprehension <path>` (and MCP `project_update` with `fileComprehension`) registers the codebase comprehension doc. The path must be an existing file inside the project; it is stored relative to the project root, and `""` clears it. Squadron calls it after `sq onboard`.
+- Architecture, slice planning and slice design builds (`cf build`, `context_build`) include a `### Codebase Reference` section naming the registered comprehension doc and the docs map. The docs map is reported as `current` or `out of date`, a deleted comprehension doc as `missing`, and the section never fails the build. It needs ai-project-guide v0.22.11 or newer, which lists the new variables in those phases' profiles.
+
+### Changed
+
+- `cf build brownfield-adoption` now ends its project context with one `Codebase comprehension:` line, because the guide's adoption profile already lists `fileComprehension`. The adoption prompt itself still takes the doc path only from `--comprehension`.
+- The minimum ai-project-guide version is now v0.22.11.
+
 ## [0.19.21] - 20261027
 
 ### Fixed
