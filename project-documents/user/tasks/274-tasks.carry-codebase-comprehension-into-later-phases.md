@@ -75,7 +75,8 @@ usageByModel:
   - [ ] In the copy's `prompt.ai-project.system.md`, replace the `context_profiles` rows with the real guide's full row list (from `project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md`), keeping the compact `name: [a, b]` layout, and add `fileComprehension, fileDocsMap` to the `architecture-phase-2`, `slice-planning-phase-3` and `slice-design-phase-4` rows only.
   - [ ] Leave `fixtures/brownfield-guide/` and `fixtures/pure-build-golden/` untouched: they stand for today's guide.
   - [ ] Add a one-line comment or README note in the fixture directory saying it mirrors the pending guide release rows (D1).
-  - [ ] Success: `ContextProfileParser.parseProfiles` on the copy returns both variables for the three rows (checked in Task 13's tests).
+  - [ ] Add a test to `packages/core/tests/services/ContextProfileParser.test.ts`: the fixture yields both variables for the three Phase 2-4 rows and neither for `_default`.
+  - [ ] Success: that test passes.
   - [ ] Commit: `test: add guide fixture with codebase reference profile rows`
 
 ### Schema and path check
@@ -96,14 +97,14 @@ usageByModel:
   - [ ] Create `packages/core/src/adoption/codebaseReference.ts`. Move `resolveComprehensionPath` from `packages/cli/src/commands/promptAdoption.ts` into it.
   - [ ] Core has no `UserError`. Add a core error class in the same file (pattern: `AdoptionError` in `adoption/contracts.ts`) carrying a reason: `missing`, `directory`, `outside-root`. Messages are constants and do not start with `--comprehension` (the check now serves the setters too).
   - [ ] Add an option that enables the inside-the-root rule (see "Decision recorded" above). With it on, a resolved path outside the root raises `outside-root`. With it off, behavior equals today's.
-  - [ ] Add the setter-side function, e.g. `normalizeComprehensionValue(root, input)`: `""` returns `""` (clears); otherwise runs the check with containment on and returns the path relative to `root` with `/` separators.
+  - [ ] Add the setter-side function, e.g. `normalizePathFieldValue(root, input)`: `""` returns `""` (clears); otherwise runs the check with containment on and returns the path relative to `root` with `/` separators.
   - [ ] Export the new symbols from `packages/core/src/adoption/index.ts` and the core node entry (follow how `adoptionInputs.ts` symbols are exported).
   - [ ] Update `promptAdoption.ts` (or `prompt.ts`) to call the core check with containment off and map the core error to `UserError`: `missing` → `ARTIFACT_NOT_FOUND`, `directory` → `INVALID_ARGUMENT`. Delete the CLI copy; do not leave a duplicate.
   - [ ] Success: typecheck passes; existing `prompt.adoption.test.ts` passes, with message assertions updated to the new constants only where they matched the old text.
 
 - [ ] **Task 7: Path check tests** (effort 2)
   - [ ] Add `packages/core/tests/adoption/codebaseReference.test.ts` covering the check: missing path, directory, absolute inside, relative inside, outside the root with containment on (error) and off (accepted).
-  - [ ] Cover `normalizeComprehensionValue`: absolute input stored root-relative; `..`-relative path that lands outside rejected; `""` returns `""`; Windows-style separators are not produced (use `path.posix`/`split(path.sep)` as appropriate).
+  - [ ] Cover `normalizePathFieldValue`: absolute input stored root-relative; `..`-relative path that lands outside rejected; `""` returns `""`; Windows-style separators are not produced (use `path.posix`/`split(path.sep)` as appropriate).
   - [ ] Confirm `packages/core/tests/squadronBan.test.ts` still passes.
   - [ ] Success: core and CLI test suites pass.
   - [ ] Commit: `refactor: move comprehension path check to core`
@@ -112,7 +113,7 @@ usageByModel:
 
 - [ ] **Task 8: `cf set comprehension` through the core setter (D3, API Contracts)** (effort 2)
   - [ ] In `packages/cli/src/commands/project.ts` (the `cf set` handler), branch on the path-valued helper from Task 4, before the artifact warning, `normalizeArtifactValue` and `resolveFileByIndex` blocks. A path-valued field skips all three.
-  - [ ] Call `normalizeComprehensionValue` with the operation root the handler already computes (`resolveOperationPath`). Map core errors to `UserError` as in Task 6, with `outside-root` → `INVALID_ARGUMENT`. Each exits non-zero.
+  - [ ] Call `normalizePathFieldValue` with the operation root the handler already computes (`resolveOperationPath`). Map core errors to `UserError` as in Task 6, with `outside-root` → `INVALID_ARGUMENT`. Each exits non-zero.
   - [ ] Output follows `cf set`'s existing pattern: `fileComprehension = <root-relative path>`. `cf set comprehension ""` clears the field through the existing clear path.
   - [ ] Success: manual run against a temp project stores an absolute input root-relative.
 
@@ -124,7 +125,7 @@ usageByModel:
 
 - [ ] **Task 10: MCP `project_update` through the same setter** (effort 2)
   - [ ] In `packages/mcp-server/src/tools/projectTools.ts`, add `fileComprehension: z.string().optional()` to the `project_update` input schema, described as the root-relative or absolute path to the codebase comprehension doc.
-  - [ ] Before both the worktree and the standard update branches, pass every path-valued field in the updates through `normalizeComprehensionValue`, using the root from `resolveOperationPath.ts`. Return `errorResult` with the core error's message on failure; write nothing in that case.
+  - [ ] Before both the worktree and the standard update branches, pass every path-valued field in the updates through `normalizePathFieldValue`, using the root from `resolveOperationPath.ts`. Return `errorResult` with the core error's message on failure; write nothing in that case.
   - [ ] The field is project-level, so in the worktree branch it lands in `projectUpdates` (it is not in `WORKTREE_SCOPED_FIELDS`).
   - [ ] Success: typecheck passes.
 
@@ -144,7 +145,6 @@ usageByModel:
 
 - [ ] **Task 13: Compare step tests** (effort 1)
   - [ ] In `packages/core/tests/docs-map/docsMapFile.test.ts`: no map → `absent`; map just written → `current`; doc added under `docs/` → `out-of-date`; broken markers → `DocsMapError` with the same message `writeDocsMap` reports; the compare step writes nothing (bytes and mtime unchanged).
-  - [ ] Add a `ContextProfileParser` test that the Task 3 fixture yields both variables for the three Phase 2-4 rows and neither for `_default`.
   - [ ] Success: core suite passes.
   - [ ] Commit: `refactor: share docs map compare step with the build`
 
@@ -168,39 +168,46 @@ usageByModel:
   - [ ] Success: core suite passes.
   - [ ] Commit: `feat: add codebase reference facts and section text`
 
-- [ ] **Task 16: Wire the section into the build (D6)** (effort 3)
-  - [ ] `ContextIntegrator`: add `fileComprehension` to `EnhancedContextData` and to `mapProjectToEnhancedContext` (the existing `applyProfileFiltering` zeroes it when not listed, like `fileArch`).
+- [ ] **Task 16: Profile gate and facts resolver in `ContextIntegrator` (D6)** (effort 2)
+  - [ ] Add `fileComprehension` to `EnhancedContextData` and to `mapProjectToEnhancedContext` (the existing `applyProfileFiltering` zeroes it when not listed, like `fileArch`).
   - [ ] Make `applyProfileFiltering` (or a small sibling) also report which of `fileComprehension` / `fileDocsMap` the active profile lists. When no profiles are available, neither is listed. Use the field-name constant from the schema and one exported constant for `fileDocsMap`, not repeated literals.
   - [ ] Inject the facts reader as a resolver, following the existing pattern (`resolveIntegrationBranchForPrompt` in `CoreServiceFactory.createContextPipeline`). When neither variable is listed, the resolver is not called, so the docs tree is not walked.
-  - [ ] Put the rendered section text on the context data (e.g. `codebaseReference: string`).
-  - [ ] `SectionBuilder` / `ContextTemplateEngine`: emit the section right after the Project Context section (`project-info`, order 1.5), only when the text is non-empty. An empty text must leave the output byte-identical to today.
-  - [ ] `cf build --json` carries the section only inside its rendered text; add no JSON fields.
-  - [ ] `ContextEmbedder` is unchanged (D8).
+  - [ ] Put the rendered section text on the context data (e.g. `codebaseReference: string`); `''` when nothing is listed.
+  - [ ] Success: typecheck passes.
+
+- [ ] **Task 17: Profile gate and resolver tests** (effort 1)
+  - [ ] In `packages/core/tests/services/ContextIntegrator.test.ts`, using the Task 3 fixture: Phase 2, 3 and 4 report both variables listed and carry non-empty section text; Phase 5, Phase 6 and `_default` carry `''` and never call the resolver; with no profiles available, the resolver is not called.
+  - [ ] Success: core suite passes.
+  - [ ] Commit: `feat: compute Codebase Reference text when the profile lists it`
+
+- [ ] **Task 18: Emit the section in the build output (D6, D8)** (effort 1)
+  - [ ] `SectionBuilder` / `ContextTemplateEngine`: emit the section text right after the Project Context section (`project-info`, order 1.5), only when it is non-empty. An empty text must leave the output byte-identical to today.
+  - [ ] `cf build --json` carries the section only inside its rendered text; add no JSON fields. `ContextEmbedder` is unchanged (D8).
   - [ ] Success: typecheck passes; `pure-build-golden.test.ts` passes unchanged.
 
-- [ ] **Task 17: Build wiring tests** (effort 2)
-  - [ ] In `packages/core/tests/services/ContextIntegrator.test.ts` (or `ContextTemplateEngine.test.ts`), using the Task 3 fixture: a Phase 4 build of a project with both documents shows the section after Project Context with both paths and `current`; with neither, the two `none` lines; Phase 5 and Phase 6 builds have no section.
+- [ ] **Task 19: Build output tests** (effort 2)
+  - [ ] In `packages/core/tests/services/ContextTemplateEngine.test.ts` (or `SectionBuilder.test.ts`), using the Task 3 fixture: a Phase 4 build of a project with both documents shows the section after Project Context with both paths and `current`; with neither, the two `none` lines.
   - [ ] With the stock `brownfield-guide` fixture: Phase 2-4 builds are byte-identical to the same build without this change (compare against output with the resolver stubbed to report nothing listed, or extend the golden fixtures if that is the established pattern); the `brownfield-adoption` build gains exactly the one comprehension line.
   - [ ] Success: core suite passes; `pure-build-golden.test.ts` unchanged and passing.
   - [ ] Commit: `feat: emit Codebase Reference section in cf build`
 
-- [ ] **Task 18: CLI and MCP parity and purity tests** (effort 2)
-  - [ ] In `packages/cli/tests/commands/build.test.ts`: a Phase 4 `cf build` on a temp project using the Task 3 fixture guide shows the section; adding `docs/b.md` turns the docs map `out of date`; running the docs map writer then makes it `current`; deleting the registered comprehension file shows the missing line with the D7 sentence, and the build still exits 0.
-  - [ ] Beside `packages/mcp-server/tests/integration/pureBuild.test.ts`: `context_build` returns the same section text as `cf build` for the same project; the `brownfield-adoption` build under the stock guide gains only the comprehension line.
+- [ ] **Task 20: CLI and MCP parity and purity tests** (effort 2)
+  - [ ] In `packages/cli/tests/commands/build.test.ts`: on a temp project using the Task 3 fixture guide, at Phase 4, adding `docs/b.md` turns the docs map `out of date`; running the docs map writer then makes it `current`; deleting the registered comprehension file shows the missing line with the D7 sentence, and the build still exits 0.
+  - [ ] Beside `packages/mcp-server/tests/integration/pureBuild.test.ts`: `context_build` returns the same section text as `cf build` for the same project.
   - [ ] Extend the purity test (268) to a project with both documents registered: no file and no config changes after `cf build` and `context_build`.
   - [ ] Success: CLI and MCP suites pass.
   - [ ] Commit: `test: cover codebase reference parity and build purity`
 
 ### Docs and architecture
 
-- [ ] **Task 19: User docs** (effort 2)
+- [ ] **Task 21: User docs** (effort 2)
   - [ ] `docs/ADOPTION-PRIMITIVES.md`: document the registration call (`cf set comprehension <path>` / `project_update` `fileComprehension`), its rules (exists, a file, inside the root, stored root-relative, `""` clears, machine-local) and the Codebase Reference section with its lines. State that the adoption prompt takes the path only from `--comprehension`.
   - [ ] `packages/cli/README.md`: add the `comprehension` alias to the `cf set` field list and mention the section under `cf build`.
   - [ ] `docs/TOOLS.md` and `packages/mcp-server/README.md`: add `fileComprehension` to `project_update` and the section to `context_build`.
   - [ ] Success: each doc names the commands exactly as implemented.
   - [ ] Commit: `docs: document cf set comprehension and the Codebase Reference section`
 
-- [ ] **Task 20: Amend the architecture (Implementation Notes step 5)** (effort 1)
+- [ ] **Task 22: Amend the architecture (Implementation Notes step 5)** (effort 1)
   - [ ] In `project-documents/user/architecture/260-arch.brownfield-adoption.md`, make the three amendments listed in the design's Implementation Notes step 5: Responsibility Split row (b) lists both channels; the "Comprehension in later phases (274)" paragraph and the "Comprehension freshness" bullet say cf judges freshness only for artifacts it writes; the "Greenfield behaves the same" goal notes the two neutral `none` lines.
   - [ ] Update `dateUpdated` in the frontmatter. Do not change any section titled "User-Provided Concept".
   - [ ] Success: the three passages match D5 and D6.
@@ -208,19 +215,19 @@ usageByModel:
 
 ### Validation
 
-- [ ] **Task 21: Full validation** (effort 1)
+- [ ] **Task 23: Full validation** (effort 1)
   - [ ] Run `pnpm -r build`, `pnpm lint`, `pnpm typecheck` and `pnpm test` once each from the root. Fix any failure in this slice's code.
   - [ ] Confirm `squadronBan.test.ts` passes and `grep -rn "codebase-comprehension" packages/*/src` returns nothing.
   - [ ] Success: all four commands pass.
   - [ ] Commit any fixes with the semantic type that fits the change (skip if none).
 
-- [ ] **Task 22: Verification walkthrough** (effort 2)
+- [ ] **Task 24: Verification walkthrough** (effort 2)
   - [ ] Run the design's Verification Walkthrough steps 1-8 against a temp project using the local build and a copy of the Task 3 fixture guide.
   - [ ] Refine the walkthrough text in the slice design to match the actual commands and output (the design calls it a draft).
   - [ ] Success: each step's expected result is observed; any mismatch is fixed in code (with a test) or recorded under this task.
   - [ ] Commit: `docs: refine slice 274 verification walkthrough`
 
-- [ ] **Task 23: Raise `MIN_GUIDE_VERSION` (Prerequisites, Integration Requirements)** (effort 1)
+- [ ] **Task 25: Raise `MIN_GUIDE_VERSION` (Prerequisites, Integration Requirements)** (effort 1)
   - [ ] Check whether an ai-project-guide release with the new Phase 2-4 rows exists (the version the guide session reported in Task 1, or the guide repo's release tags and its `prompt.ai-project.system.md`).
   - [ ] If it exists: set `MIN_GUIDE_VERSION` in `packages/core/src/guides/guideMinimum.ts` to that version, update `prompt.guideMinimum.test.ts` if it pins the value, and run the touched tests.
   - [ ] If it does not exist: write `BLOCKED: guide release with fileComprehension/fileDocsMap rows not yet published` under this task, leave it unchecked, and stop. All other tasks remain valid; the release waits on this item (Risk Assessment).
