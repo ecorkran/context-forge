@@ -15,20 +15,21 @@ projectState: main at 0.19.21 (slices 267-273 complete; guide v0.22.10 installed
 dateCreated: 20261028
 dateUpdated: 20261028
 status: not_started
-turns: 22
-promptTokens: 1179399
-cachedTokens: 1110051
-cacheWriteTokens: 69308
-completionTokens: 20196
-durationSeconds: 229.2
-costUsd: 1.180842
-usageRounds: 1
-pricedRounds: 1
+turns: 32
+promptTokens: 1827693
+cachedTokens: 1743475
+cacheWriteTokens: 84164
+completionTokens: 25516
+durationSeconds: 297.5
+costUsd: 1.532831
+usageRounds: 2
+pricedRounds: 2
 usageByModel:
   claude-opus-5-5:
-    rounds: 1
-    costUsd: 1.1808415
-    completionTokens: 20196
+    rounds: 2
+    costUsd: 1.5328303000000003
+    completionTokens: 25516
+revision_number: 1
 ---
 
 ## Context Summary
