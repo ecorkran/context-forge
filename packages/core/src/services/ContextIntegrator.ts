@@ -4,7 +4,8 @@ import { TemplateProcessor } from './TemplateProcessor.js';
 import { ContextTemplateEngine } from './ContextTemplateEngine.js';
 import { ContextProfileParser } from './ContextProfileParser.js';
 import type { ProfileMap } from './ContextProfileParser.js';
-import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH, DEFAULT_TARGET_BRANCH } from './constants.js';
+import type { ListedReferences } from '../adoption/codebaseReference.js';
+import { PROMPT_FILE_RELATIVE_PATH, STATEMENTS_FILE_RELATIVE_PATH, DEFAULT_TARGET_BRANCH, CODEBASE_REFERENCE_VARIABLES } from './constants.js';
 import { getFieldNamesByGroup } from '../schema/projectSchema.js';
 
 /**
@@ -24,6 +25,18 @@ export type IntegrationBranchResolver = (checkoutPath: string) => Promise<string
  * the project's `instruction` value. Returns '' when no fragment applies.
  */
 export type PermissivenessResolver = (checkoutPath: string, instruction: string) => Promise<string>;
+
+/**
+ * Renders the `### Codebase Reference` section for one checkout, given which of its two
+ * variables the active profile lists. Called only when at least one is listed. Returns the
+ * section text, or '' when there is nothing to show.
+ */
+export type CodebaseReferenceResolver = (
+  checkoutPath: string,
+  projectName: string,
+  fileComprehension: string,
+  listed: ListedReferences,
+) => Promise<string>;
 
 /**
  * Raised when workflow.permissiveness is set but its fragment cannot be loaded.
@@ -70,6 +83,7 @@ export class ContextIntegrator {
   private resolveTaskFilesFn: TaskFilesResolver | null;
   private resolveIntegrationBranchFn: IntegrationBranchResolver | null;
   private resolvePermissivenessFn: PermissivenessResolver | null;
+  private resolveCodebaseReferenceFn: CodebaseReferenceResolver | null;
 
   /**
    * @param engine Template engine for context generation
@@ -78,6 +92,7 @@ export class ContextIntegrator {
    * @param resolveTaskFilesFn Optional on-disk task file lookup (Node.js only)
    * @param resolveIntegrationBranchFn Optional per-checkout integration branch lookup (Node.js only)
    * @param resolvePermissivenessFn Optional per-checkout permissiveness fragment lookup (Node.js only)
+   * @param resolveCodebaseReferenceFn Optional Codebase Reference section renderer (Node.js only)
    */
   constructor(
     engine: ContextTemplateEngine,
@@ -86,10 +101,12 @@ export class ContextIntegrator {
     resolveTaskFilesFn: TaskFilesResolver | null = null,
     resolveIntegrationBranchFn: IntegrationBranchResolver | null = null,
     resolvePermissivenessFn: PermissivenessResolver | null = null,
+    resolveCodebaseReferenceFn: CodebaseReferenceResolver | null = null,
   ) {
     this.resolveTaskFilesFn = resolveTaskFilesFn;
     this.resolveIntegrationBranchFn = resolveIntegrationBranchFn;
     this.resolvePermissivenessFn = resolvePermissivenessFn;
+    this.resolveCodebaseReferenceFn = resolveCodebaseReferenceFn;
     this.templateProcessor = new TemplateProcessor();
     this.templateEngine = engine;
     this.enableNewEngine = enableNewEngine;
@@ -159,6 +176,20 @@ export class ContextIntegrator {
       );
     }
 
+    // Render the Codebase Reference section. Only when the profile lists one of its variables,
+    // so a build that does not show the section never walks the docs tree.
+    if (this.resolveCodebaseReferenceFn && checkoutPath) {
+      const listed = this.listedReferences(enhancedData.instruction);
+      if (listed.comprehension || listed.docsMap) {
+        enhancedData.codebaseReference = await this.resolveCodebaseReferenceFn(
+          checkoutPath,
+          project.name,
+          project.fileComprehension ?? '',
+          listed,
+        );
+      }
+    }
+
     // Generate using template engine
     return await this.templateEngine.generateContext(enhancedData);
   }
@@ -202,6 +233,7 @@ export class ContextIntegrator {
       fileHLD: project.fileHLD || '',
       fileSpec: project.fileSpec || '',
       fileConcept: project.fileConcept || '',
+      fileComprehension: project.fileComprehension || '',
       recentEvents: project.customData?.recentEvents || '',
       additionalNotes: project.customData?.additionalNotes || '',
       availableTools,
@@ -227,11 +259,11 @@ export class ContextIntegrator {
   }
 
   /**
-   * Zeros out artifact fields not in the active instruction's profile.
-   * Skips filtering if readFileFn is not set or profiles block is absent.
+   * The variable names the active instruction's profile lists, or null when no profiles are
+   * available (no file reader, no prompt path, or no profiles block): callers then skip filtering.
    */
-  private applyProfileFiltering(data: EnhancedContextData, instruction: string): void {
-    if (!this.readFileFn || !this.cachedPromptPath) return;
+  private activeProfileVariables(instruction: string): string[] | null {
+    if (!this.readFileFn || !this.cachedPromptPath) return null;
 
     // Lazy-load and cache profiles
     if (this.cachedProfiles === null) {
@@ -244,14 +276,33 @@ export class ContextIntegrator {
     }
 
     const profiles = this.cachedProfiles;
-    if (Object.keys(profiles).length === 0) return;
+    if (Object.keys(profiles).length === 0) return null;
 
-    const allowedVars = this.profileParser.getProfileForInstruction(instruction, profiles);
+    return this.profileParser.getProfileForInstruction(instruction, profiles);
+  }
+
+  /**
+   * Zeros out artifact fields not in the active instruction's profile.
+   * Skips filtering if profiles are unavailable.
+   */
+  private applyProfileFiltering(data: EnhancedContextData, instruction: string): void {
+    const allowedVars = this.activeProfileVariables(instruction);
+    if (!allowedVars) return;
+
     for (const field of getFieldNamesByGroup('artifacts')) {
       if (!allowedVars.includes(field)) {
         (data as unknown as Record<string, unknown>)[field] = '';
       }
     }
+  }
+
+  /** Which Codebase Reference variables the active profile lists. Neither, when no profiles are available. */
+  private listedReferences(instruction: string): ListedReferences {
+    const vars = this.activeProfileVariables(instruction) ?? [];
+    return {
+      comprehension: vars.includes(CODEBASE_REFERENCE_VARIABLES.comprehension),
+      docsMap: vars.includes(CODEBASE_REFERENCE_VARIABLES.docsMap),
+    };
   }
 
   /**

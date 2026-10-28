@@ -6,6 +6,15 @@ export const STATEMENTS_FILE_RELATIVE_PATH = 'default-statements.md';
 /** Trunk branch that work targets when git.integration_branch is unset */
 export const DEFAULT_TARGET_BRANCH = 'main';
 
+/**
+ * The context-profile variables that switch on the Codebase Reference section (slice 274, D6).
+ * The comprehension one is also a project field name; the docs map one is derived, not stored.
+ */
+export const CODEBASE_REFERENCE_VARIABLES = {
+  comprehension: 'fileComprehension',
+  docsMap: 'fileDocsMap',
+} as const;
+
 /** Relative path (from project root) to the system prompt file */
 export const PROMPT_FILE_RELATIVE_PATH =
   'project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md';

@@ -90,6 +90,17 @@ export class ContextTemplateEngine {
       order: 1.5
     });
 
+    // 1.6. Codebase Reference (conditional, slice 274). The text carries its own heading.
+    if (data.codebaseReference?.trim()) {
+      sections.push({
+        key: 'codebase-reference',
+        title: '',
+        content: data.codebaseReference,
+        conditional: false,
+        order: 1.6
+      });
+    }
+
     // 2. Context initialization prompt
     const contextInitPrompt = await this.promptParser.getContextInitializationPrompt();
     sections.push({

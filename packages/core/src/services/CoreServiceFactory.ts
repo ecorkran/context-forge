@@ -8,6 +8,7 @@ import { STATEMENTS_FILE_RELATIVE_PATH } from './constants.js';
 import { resolveTaskFilesForPrompt } from './taskFilesResolver.js';
 import { resolveIntegrationBranchForPrompt } from './integrationBranchResolver.js';
 import { resolvePermissivenessForPrompt } from './permissivenessResolver.js';
+import { resolveCodebaseReferenceForPrompt } from './codebaseReferenceResolver.js';
 import { resolvePromptFilePath } from './promptFilePath.js';
 
 // Defined in its own module so resolvers can use it without importing this factory.
@@ -42,6 +43,7 @@ export function createContextPipeline(projectPath: string): {
     resolveTaskFilesForPrompt,
     resolveIntegrationBranchForPrompt,
     resolvePermissivenessForPrompt,
+    resolveCodebaseReferenceForPrompt,
   );
 
   return { engine, integrator };

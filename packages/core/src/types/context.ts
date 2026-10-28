@@ -22,6 +22,7 @@ export interface ContextData {
   fileHLD?: string;
   fileSpec?: string;
   fileConcept?: string;
+  fileComprehension?: string;
   workType?: 'start' | 'continue';
   dateProject?: string;
   recentEvents: string;
@@ -35,6 +36,8 @@ export interface ContextData {
   targetBranch?: string;
   /** Guide fragment for workflow.permissiveness; empty or undefined when none applies. */
   permissivenessFragment?: string;
+  /** Rendered `### Codebase Reference` section (slice 274); empty or undefined when the profile lists neither variable. */
+  codebaseReference?: string;
 }
 
 /**

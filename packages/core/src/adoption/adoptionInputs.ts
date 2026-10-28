@@ -2,6 +2,7 @@
 // adoption, reported as root-relative paths so consumers need not know cf's file names. Read-only.
 import { isAbsolute, relative, sep } from 'node:path';
 import { resolveConceptPath } from '../introspection/parsers/projectGuideFile.js';
+import { CODEBASE_REFERENCE_VARIABLES } from '../services/constants.js';
 import { readPlanningFacts, type PlanningFacts } from './planningFacts.js';
 
 export interface AdoptionArtifacts {
@@ -34,7 +35,7 @@ export async function readAdoptionArtifacts(root: string, facts?: PlanningFacts)
 }
 
 /** The guide's context-profile variable that marks a prompt as taking a comprehension doc (D10: the guide's name). */
-export const COMPREHENSION_PROFILE_VARIABLE = 'fileComprehension';
+export const COMPREHENSION_PROFILE_VARIABLE = CODEBASE_REFERENCE_VARIABLES.comprehension;
 
 export const ADOPTION_INPUTS_HEADING = '## Adoption Inputs';
 export const ADOPTION_INPUT_LABELS = {
