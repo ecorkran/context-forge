@@ -5,7 +5,7 @@ project: context-forge
 archIndex: 260
 component: brownfield-adoption
 dateCreated: 20261020
-dateUpdated: 20261025
+dateUpdated: 20261028
 status: in_progress
 relatedSlices: []
 riskLevel: medium
@@ -36,7 +36,7 @@ This initiative gives CF a brownfield path. When onboarding (`sq onboard`) finds
 
 ## Design Goals
 
-- **Greenfield behaves the same; brownfield is first-class.** An empty or near-empty repository gets the same flow it gets today: setup, then the concept conversation. An existing codebase gets a path designed for it, not the greenfield path with caveats.
+- **Greenfield behaves the same; brownfield is first-class.** An empty or near-empty repository gets the same flow it gets today: setup, then the concept conversation. An existing codebase gets a path designed for it, not the greenfield path with caveats. The one visible change for a greenfield project is in Phase 2–4 builds, which show two neutral "none" lines in the Codebase Reference section, with no pointer to squadron (slice 274, D6).
 - **The workflow starts where the project is.** After adoption, the artifacts describe the system that exists, and `cf next` recommends the first piece of new work, not Phase 0.
 - **Squadron is the adoption path.** Adoption runs through `sq onboard` and squadron's graph-based comprehension. A project without squadron is told that adoption needs it, or can opt out and be treated as new. A CF-only path is low-priority future work (amended 20261025).
 - **cf commands keep one meaning each.** `cf build` assembles context for a phase and writes nothing. `cf next` recommends; it never runs a multi-step flow. Adoption logic never hides inside either (amended 20261025).
@@ -113,9 +113,9 @@ Squadron decides its own surfaces, graph freshness and plugin requirements. cf n
 
 Both stand on their own and work without adoption. The rework leaves them unchanged.
 
-### Comprehension in later phases (274, parked)
+### Comprehension in later phases (274)
 
-Today the comprehension doc reaches only the adoption prompt. Architecture, slice planning and slice design builds never see it, and neither does the docs map (#135). Adoption is worth doing only if later design work benefits from it. Slice 274 makes both available to those phases and decides how they stay current. Squadron owns the graph's freshness and tells cf where the doc is, through a cf-owned field it sets; cf never searches for squadron's files. cf only says plainly when a doc is missing.
+Today the comprehension doc reaches only the adoption prompt. Architecture, slice planning and slice design builds never see it, and neither does the docs map (#135). Adoption is worth doing only if later design work benefits from it. Slice 274 makes both available to those phases and decides how they stay current. Squadron owns the comprehension doc's freshness and tells cf where the doc is, through a cf-owned field it sets (`cf set comprehension`); cf never searches for squadron's files. cf judges freshness only for artifacts it writes: it reports the docs map as current or out of date. The comprehension doc it reports only as present or missing, and says plainly when it is missing.
 
 ## Responsibility Split with Squadron (PM approved 20261020, amended 20261025)
 
@@ -125,7 +125,7 @@ Agreed in discussion between the CF and squadron agents. Squadron initiative 440
 |---|---|---|
 | (a) Detection | CF | A read-only report (CLI and MCP) that squadron consumes. Squadron drops its 440 detection item. |
 | (a′) Onboard orchestration | Squadron | `sq onboard` runs the adoption flow and calls cf's primitives. cf onboarding has no brownfield path. |
-| (b) Handoff | Squadron → CF | Squadron writes the comprehension doc and passes its path to cf when it fetches the adoption prompt. cf knows nothing of squadron's file naming and never searches for the doc. cf no longer reads squadron's capability probe. |
+| (b) Handoff | Squadron → CF | Squadron writes the comprehension doc and passes its path to cf through two channels: the `--comprehension` argument when it fetches the adoption prompt, and `cf set comprehension` (or MCP `project_update`) so later builds can point at it. cf knows nothing of squadron's file naming and never searches for the doc. cf no longer reads squadron's capability probe. |
 | (c) Architecture from code | CF | CF writes the architecture doc on both paths. With squadron present, squadron 362's comprehension analysis is an input the prompt reads. One writer. |
 | (d) Existing-state slice plan and retroactive marker | CF | The agent writes the plan from cf's adoption prompt; squadron never writes it directly and passes cf no slice-boundary signal (dropped in squadron's 440 re-scope, 20261025). A retroactive entry **counts as complete** for every "done" check (squadron's pipeline gates read slice status) and is **never treated as reviewed**. |
 | (e) Conventions reconciliation | CF | Squadron has nothing here. |
@@ -143,7 +143,7 @@ Consequences (amended 20261025): adoption requires squadron. There is no CF-only
 - **cf ↔ squadron contract (20261025).** Squadron calls cf; cf never calls squadron. Slice 271 names the commands and fixes the details. This architecture fixes the shape:
   - **Detection report:** one CLI command (`--json`) and one MCP tool, with identical JSON. Fields: `reportVersion` (integer, starting at 1, raised on any breaking change; squadron refuses a version it doesn't know), `outcome` (`opted-out`, `adoption-incomplete`, `already-planned`, `brownfield`, `greenfield`), `facts` (source-line floor and file count, commit count with a shallow flag, docs, ADRs, CI and rule-file paths), and `artifacts` (paths of the concept, derived architectures and existing-state slice plan that exist, so squadron can resume without knowing cf's file names). All paths are relative to the project root. It is read-only and works on an unregistered directory. Errors are a JSON error object with a stable code and a non-zero exit (PM 20261025).
   - **Adoption prompt delivery:** the guide's adoption prompt by key, rendered with the project's variables plus the comprehension doc's path as squadron passes it. With no path given, the prompt says so plainly. A path that doesn't exist is a named error. A guide missing the prompt is a named error, never a fallback. `cf prompt get` already renders a prompt by key with project variables; 271 checks whether accepting the path there is all this needs.
-  - **Comprehension freshness** is squadron's responsibility. cf does not judge staleness.
+  - **Comprehension freshness** is squadron's responsibility. cf judges freshness only for artifacts it writes (the docs map, reported as current or out of date) and reports the comprehension doc only as present or missing (slice 274, D5).
 - **Guide prompt contract (20261025).** `cf build` does not select the `brownfield-adoption` profile or append Adoption Facts. The prompt is delivered by the slice 271 primitive. cf decides nothing about squadron's state, so the prompt's raw-probe branching goes away. The guide drops its `cf build` steps when 272 lands. Slice 271 settles how the profile's variables (fileConcept, fileArch, fileSlicePlan, fileComprehension) reach the prompt; fileComprehension comes only from squadron's argument. The guide's prompt also drops its squadron step list, since squadron finishes the analysis before handing the prompt over.
 - **Guide release coupling.** cf raises `MIN_GUIDE_VERSION` to the guide release that drops the `cf build` adoption steps (272). That cf release and that guide release ship together.
 - **Reconciliation is judgement.** Deciding that two rules contradict is semantic, so it's agent work. Core enumerates project rule sources (the composites CLAUDE.md, AGENTS.md and `.github/copilot-instructions.md`, plus the standalone rule directories) and applies stored resolutions deterministically inside `setup-ide`; the cli passes in the installed manifest paths and checks guide-rule delivery (slice 266 D7). It has to coexist with #123's CLAUDE.md/AGENTS.md split and existing managed blocks.
