@@ -6,6 +6,7 @@ import {
   SystemPromptParser,
   readAdoptionArtifacts,
   renderAdoptionInputs,
+  resolveComprehensionPath,
 } from '@context-forge/core/node';
 import { PROMPT_FILE_RELATIVE_PATH, applyWorktreeOverlay } from '@context-forge/core';
 import type { ProjectData } from '@context-forge/core';
@@ -13,11 +14,11 @@ import { findProjectByCwd, resolveProjectWorktree } from '../utils/project.js';
 import { resolveOperationPath } from '../utils/worktree-overlay.js';
 import { ensureGuideReady, warnIfGuideOutdated } from '../utils/guideReady.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withPathCheckAsUserError } from '../utils/pathCheck.js';
 import { withJsonOption, withProjectOption, withRawOption } from '../options.js';
 import { printJson, printRaw } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
 import { getPhaseShorthands, resolvePhaseInput } from '../utils/phaseShorthand.js';
-import { resolveComprehensionPath } from './promptAdoption.js';
 
 /**
  * Substitute project variables into template content.
@@ -182,8 +183,13 @@ export function registerPromptCommand(program: Command): void {
             'INVALID_ARGUMENT',
           );
         }
+        const comprehensionInput = opts.comprehension;
         const comprehensionPath =
-          opts.comprehension === undefined ? null : resolveComprehensionPath(opPath, opts.comprehension);
+          comprehensionInput === undefined
+            ? null
+            : withPathCheckAsUserError(() =>
+                resolveComprehensionPath(opPath, comprehensionInput, { requireInsideRoot: false }),
+              );
 
         const resolved = worktreeId ? applyWorktreeOverlay(project, worktreeId) : project;
         let output = opts.raw ? prompt.content : substituteVariables(prompt.content, resolved);
