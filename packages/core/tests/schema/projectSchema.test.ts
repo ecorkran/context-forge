@@ -7,7 +7,9 @@ import {
   getSchema,
   PROJECT_FIELDS,
   FIELD_ALIASES,
+  isPathValuedField,
 } from '../../src/schema/projectSchema.js';
+import { WORKTREE_SCOPED_FIELDS } from '../../src/project-defaults.js';
 
 describe('projectSchema', () => {
   describe('resolveFieldName', () => {
@@ -173,6 +175,7 @@ describe('projectSchema', () => {
         plan: 'fileSlicePlan',
         hld: 'fileHLD',
         concept: 'fileConcept',
+        comprehension: 'fileComprehension',
         spec: 'fileSpec',
         path: 'projectPath',
         events: 'customData.recentEvents',
@@ -236,6 +239,30 @@ describe('projectSchema', () => {
       for (const canonical of Object.values(FIELD_ALIASES)) {
         expect(fieldNames.has(canonical)).toBe(true);
       }
+    });
+  });
+
+  describe('fileComprehension', () => {
+    it('resolves the comprehension alias', () => {
+      expect(resolveFieldName('comprehension')).toBe('fileComprehension');
+      expect(resolveFieldName('fileComprehension')).toBe('fileComprehension');
+    });
+
+    it('is in the artifacts group', () => {
+      const def = PROJECT_FIELDS.find((f) => f.field === 'fileComprehension');
+      expect(def?.group).toBe('artifacts');
+    });
+
+    it('is the only path-valued field', () => {
+      expect(isPathValuedField('fileComprehension')).toBe(true);
+      const others = PROJECT_FIELDS.filter((f) => f.field !== 'fileComprehension');
+      for (const f of others) {
+        expect(isPathValuedField(f.field)).toBe(false);
+      }
+    });
+
+    it('is not worktree-scoped', () => {
+      expect(WORKTREE_SCOPED_FIELDS.has('fileComprehension')).toBe(false);
     });
   });
 });

@@ -15,6 +15,11 @@ export interface FieldDefinition {
   aliases: string[];
   label: string;
   enumValues?: string[];
+  /**
+   * The value is a root-relative file path to an arbitrary file, so stem
+   * normalization and index resolution (used for slice/task artifacts) do not apply.
+   */
+  pathValued?: boolean;
 }
 
 // Phase display strings
@@ -101,6 +106,7 @@ export const PROJECT_FIELDS: FieldDefinition[] = [
   { field: 'fileSlicePlan', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Slice plan document path (relative)', aliases: ['plan'], label: 'Slice Plan' },
   { field: 'fileSlice', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current slice design path (relative)', aliases: ['slice'], label: 'Slice' },
   { field: 'fileTasks', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Current tasks file path (relative)', aliases: ['tasks'], label: 'Tasks' },
+  { field: 'fileComprehension', type: 'string', required: false, readonly: false, group: 'artifacts', description: 'Codebase comprehension doc path (relative to project root)', aliases: ['comprehension'], label: 'Codebase Comprehension', pathValued: true },
 
   // Workflow
   { field: 'developmentPhase', type: 'string', required: false, readonly: false, group: 'workflow', description: 'Current methodology phase', aliases: ['phase'], label: 'Phase', enumValues: ALL_PHASE_VALUES },
@@ -153,6 +159,11 @@ phaseLookup['phase 1: concept'] = 'Phase 0: Concept';
  */
 export function resolveFieldName(input: string): string | undefined {
   return fieldLookup[input.toLowerCase()];
+}
+
+/** True when the canonical field holds a root-relative file path (see `FieldDefinition.pathValued`). */
+export function isPathValuedField(field: string): boolean {
+  return PROJECT_FIELDS.some((f) => f.field === field && f.pathValued === true);
 }
 
 /**

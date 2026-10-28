@@ -25,6 +25,8 @@ export interface ProjectData {
   fileSpec?: string;
   /** Path to concept document (relative to project root) */
   fileConcept?: string;
+  /** Path to the codebase comprehension doc (relative to project root) */
+  fileComprehension?: string;
   customData?: {
     recentEvents?: string;
     additionalNotes?: string;
@@ -82,6 +84,7 @@ export type UpdateProjectData = Partial<
     | 'fileSlicePlan'
     | 'fileSpec'
     | 'fileConcept'
+    | 'fileComprehension'
     | 'customData'
     | 'worktrees'
   >
