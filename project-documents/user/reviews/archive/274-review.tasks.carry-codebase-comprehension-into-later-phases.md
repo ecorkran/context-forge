@@ -14,16 +14,17 @@ aiProfile: sdk
 status: complete
 dateCreated: 20261028
 dateUpdated: 20261028
-reviewedSha: b81bf5e3490b451c77c15adb1fac8f41e8970413
+reviewedSha: d91d5b1e294faafc24b1e52a3f805eb115b43f12
+revision_number: 1
 toolsGiven: [read_file, list_files, grep]
 toolCallsMade: 2
 turns: 3
-promptTokens: 99211
+promptTokens: 99440
 cachedTokens: 11176
-cacheWriteTokens: 88031
-completionTokens: 5146
-durationSeconds: 46.6
-costUsd: 0.405463
+cacheWriteTokens: 88260
+completionTokens: 4780
+durationSeconds: 44.4
+costUsd: 0.402719
 costBasis: provider
 runId: run-20261028-p5-cdb39c2a
 squadronVersion: 0.24.8
@@ -32,32 +33,37 @@ findings:
     severity: pass
     category: coverage
     summary: "Success criteria coverage is complete"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:56-228"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:57-236"
   - id: F002
     severity: pass
     category: sequencing
     summary: "Sequencing and checkpoints"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:81-193"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:57-236"
   - id: F003
     severity: concern
     category: task-sizing
-    summary: "Task 16 bundles too much for one junior-AI task"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:171-179"
+    summary: "Task 14 is oversized and mixes three responsibilities"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:154-163"
   - id: F004
     severity: concern
-    category: test-placement
-    summary: "Parser test and fixture check sit in the wrong task"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:78"
+    category: dry
+    summary: "Error-to-`UserError` mapping is written in two CLI places"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:103,117"
   - id: F005
-    severity: note
-    category: proportionality
-    summary: "Task 17 and Task 18 overlap"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:181-192"
+    severity: concern
+    category: test-coverage
+    summary: "The `brownfield-adoption` one-line change is not tested beside `pureBuild.test.ts`"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:189-198"
   - id: F006
+    severity: concern
+    category: proportionality
+    summary: "Test tasks overlap and are slightly over-split"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:79,179-193"
+  - id: F007
     severity: note
-    category: naming
-    summary: "Generalized helper keeps a comprehension-specific name"
-    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:127"
+    category: process
+    summary: "External-request task is placed before the branch exists"
+    location: "project-documents/user/tasks/274-tasks.carry-codebase-comprehension-into-later-phases.md:61-72"
 ---
 
 # Review: tasks — slice 274
@@ -69,57 +75,69 @@ findings:
 
 ### [PASS] Success criteria coverage is complete
 
-Each design criterion traces to a task:
-- **Section with freshness and CLI/MCP parity:** Tasks 14–18.
-- **Neutral `none` lines:** Tasks 14, 15 and 17.
-- **Missing, not-readable and cannot-check lines that never fail the build:** Tasks 14, 15 and 18, including the exit-0 assertion.
-- **`out of date` to `current` after `cf docs map`:** Tasks 12, 13 and 18.
-- **Byte-identical builds under today's guide, and the one added `brownfield-adoption` line:** Tasks 16, 17 and 18.
-- **`cf prompt get` ignoring the stored field:** Task 9.
-- **`cf set` rejecting missing, directory and outside-root paths:** Tasks 8 and 9.
-- **Purity:** Task 18.
-- **Compact-row fixture:** Task 3.
-- **Shared compare step:** Task 12.
-- **271 guard test:** Tasks 7 and 21.
-- **Docs:** Task 19.
-- **External requests and `MIN_GUIDE_VERSION`:** Tasks 1 and 23.
+Each criterion in the slice design maps to a task:
+- **Section content (both paths, freshness, CLI/MCP identical):** Tasks 14, 15, 18, 19 and 20.
+- **Neutral `none` lines:** Tasks 14, 15 and 19.
+- **Missing, directory and broken-marker cases never fail the build:** Tasks 14, 15 and 20.
+- **`out of date` to `current` after `cf docs map`:** Tasks 13 and 20.
+- **Byte-identical builds under the current guide:** Tasks 18 and 19.
+- **`cf prompt get` ignores the stored field (D2):** Task 9.
+- **Setter rejections and root-relative storage:** Tasks 8 to 11.
+- **Purity:** Task 20.
+- **Technical and integration requirements:**
+  - The squadron ban guard test: Tasks 7 and 23.
+  - Docs: Task 21.
+  - The `MIN_GUIDE_VERSION` bump: Task 25.
+  - The architecture amendments: Task 22.
+  - The walkthrough: Task 24.
+  - The external requests: Task 1.
 
-I found no scope creep. Task 20 (architecture amendment) and Task 22 (walkthrough refinement) both come from the design's Implementation Notes.
+I found no scope creep. The slice states no NFR, so no load test or CI gating task is required.
 
 ### [PASS] Sequencing and checkpoints
 
-Dependencies run forward with no cycles:
-- The schema helper (Task 4) comes before the core check (Task 6), which comes before the setters (Tasks 8 and 10).
-- The compare step (Task 12) comes before the facts function (Task 14), which comes before the wiring (Task 16).
+The dependency order holds:
+- The Task 3 fixture comes before its consumers (Tasks 17, 19, 20 and 24).
+- The schema marker (Task 4) comes before the setters (Tasks 8 and 10).
+- The path check move (Task 6) comes before the setters and the facts code (Task 14).
+- The compare step (Task 12) comes before the facts code (Task 14).
+- The profile gate (Task 16) comes before the section emission (Task 18).
 
-Implementation tasks are each followed by their tests (4→5, 6→7, 8→9, 10→11, 12→13, 14→15, 16→17), and the commits land at those pairs. The recorded decision that containment applies to the setters only keeps the existing `prompt.adoption.test.ts` assertion valid. Task 23 uses the permitted `BLOCKED:` form for a genuine external dependency.
+I found no cycles. Commits land at Tasks 3, 5, 7, 9, 11, 13, 15, 17, 19, 20, 21 and 22, not at the end. Task 25's `BLOCKED:` handling follows the project rule.
 
-### [CONCERN] Task 16 bundles too much for one junior-AI task
+### [CONCERN] Task 14 is oversized and mixes three responsibilities
 
-Task 16 (effort 3) does five things:
-- Adds a field to the context data.
-- Extends profile filtering to report which variables are listed.
-- Injects a resolver through `CoreServiceFactory`.
-- Adds rendered text to the context data.
-- Changes `SectionBuilder`/`ContextTemplateEngine` ordering, with a byte-identical guarantee when the text is empty.
+Task 14 is rated effort 3, the highest in the file. It adds wording constants, an async facts reader with eight or more distinct outcomes, and a pure renderer. All of this goes into `codebaseReference.ts`, which already holds the moved path check and `normalizePathFieldValue` from Task 6. The task itself concedes the file may pass 300 lines.
 
-Task 14 (effort 3) is similarly broad: wording constants, an async facts function with seven cases, and a render function. Split Task 16 into two tasks, "profile gate and resolver injection" and "section emission in `SectionBuilder`". The first can be checked by typecheck plus the golden test, and the second by the Task 17 tests. Consider moving Task 14's render function into its own sub-task so the facts and render tests in Task 15 line up with it.
+Split it so a junior AI can finish each piece alone:
+- 14a: the wording constants, created up front in `codebaseReferenceText.ts`.
+- 14b: the facts reader.
+- 14c: the renderer.
 
-### [CONCERN] Parser test and fixture check sit in the wrong task
+Task 15's tests already divide along the same lines. Alternatively, mandate the `codebaseReferenceText.ts` split in this task instead of leaving it conditional.
 
-Task 3 creates the fixture, but its success check is deferred to Task 13, which is about the docs-map compare step. The `ContextProfileParser` test for the fixture (Task 13, line 147) has nothing to do with the compare step. It also lands ten tasks after the fixture it validates, so a malformed fixture would surface late. Move the parser test into Task 3 (or a test sub-item committed with it), and drop the "checked in Task 13's tests" deferral.
+### [CONCERN] Error-to-`UserError` mapping is written in two CLI places
 
-### [NOTE] Task 17 and Task 18 overlap
+Task 6 maps the core error reasons to `UserError` codes in the prompt command. Task 8 repeats the same mapping in `project.ts` ("Map core errors to `UserError` as in Task 6"), plus `outside-root`. Project rules forbid duplicated logic. Have Task 6 add one small CLI helper, for example `toUserError(err)`, that covers all three reasons. Task 8 and the prompt command then both call it. The MCP side returns the message text only, so it needs no mapping.
 
-Task 17 asserts the Phase 4 section content, the none/both cases, and the absence in Phases 5 and 6 at core level. Task 18 then asserts the same section through `cf build` and `context_build`. The CLI and MCP parity and purity checks are required by the design. The core-level assertions in Task 17 could be cut down to the byte-identical and gating cases, with content assertions left to Task 18. This trims test volume without losing any criterion.
+### [CONCERN] The `brownfield-adoption` one-line change is not tested beside `pureBuild.test.ts`
 
-### [NOTE] Generalized helper keeps a comprehension-specific name
+The slice's Functional Requirements say the `brownfield-adoption` change is "covered by a test beside `pureBuild.test.ts`". Task 19 puts that assertion in the core template-engine test. Task 20 puts the MCP test beside `pureBuild.test.ts`, but it covers only parity and purity. As a result, nothing checks through the real `context_build` and `cf build` path that the one-line change appears and that Phase 2 to 4 output is unchanged. Move that assertion into Task 20, or say in Task 19 that the core test replaces the one beside `pureBuild.test.ts`.
 
-Task 10 passes "every path-valued field" through `normalizeComprehensionValue`, and Task 8 branches on `isPathValuedField`. The marker is generic but the normalizer is named for one field. If more path-valued fields are expected, name the function for the behavior (for example `normalizePathValue`). Otherwise keep the current name and note that only `fileComprehension` is path-valued.
+### [CONCERN] Test tasks overlap and are slightly over-split
+
+Three overlaps add test tasks without adding criterion coverage:
+- Task 17 (profile gate via `ContextIntegrator`) and Task 19 (build output) both check "Phase 2 to 4 emit, Phase 5/6/default don't". Merge them into one build-level test task with the resolver-not-called assertions folded in.
+- Task 3's `ContextProfileParser` test only checks the contents of the fixture the task just made. It does not exercise any new code. The real-layout parsing requirement is already met when the Task 17/19 tests consume the fixture. Drop it, or keep it only if the parser needs to be shown to accept the fixture.
+- Task 7 dictates implementation detail that the slice does not require ("use `path.posix`/`split(path.sep)` as appropriate"). State the outcome instead: the stored value uses `/` separators.
+
+### [NOTE] External-request task is placed before the branch exists
+
+Task 1 (messages to other sessions) comes before Task 2 (branch creation). This is harmless because Task 1 changes no files. It matches the design's "send once approved" step, and the `NOT SENT` fallback keeps the later tasks unblocked.
 
 ### Run Digest
 
-- Response length: 5094 chars
+- Response length: 5945 chars
 - Response is newline-free: no
 - Tool calls made: 2
 - Tool calls failed: 0
@@ -130,12 +148,12 @@ Task 10 passes "every path-valued field" through `normalizeComprehensionValue`, 
 - Reasoning characters: 0
 - Effort: backend default
 - Turns: 3
-- Tokens — prompt / cached / cache write / completion / reasoning: 99211 / 11176 / 88031 / 5146 / not computed
-- Duration: 46.6 s
-- Cost: $0.41 (provider)
+- Tokens — prompt / cached / cache write / completion / reasoning: 99440 / 11176 / 88260 / 4780 / not computed
+- Duration: 44.4 s
+- Cost: $0.40 (provider)
 - `## Summary` located: yes
 - `## Findings` located: yes
-- Finding-shaped matches — whole response: 6
+- Finding-shaped matches — whole response: 7
 - Finding-shaped matches — inside fences: 0
-- Finding-shaped matches — in findings section: 6
-- Finding-shaped matches — surviving validation: 6
+- Finding-shaped matches — in findings section: 7
+- Finding-shaped matches — surviving validation: 7
