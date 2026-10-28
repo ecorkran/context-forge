@@ -8,8 +8,16 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { BROWNFIELD_MIN_SOURCE_LINES, FileProjectStore, createContextPipeline } from '@context-forge/core/node';
-import { CONCEPT_PHASE, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
+import {
+  BROWNFIELD_MIN_SOURCE_LINES,
+  CODEBASE_REFERENCE_HEADING,
+  CODEBASE_REFERENCE_LABELS,
+  COMPREHENSION_NONE,
+  FileProjectStore,
+  createContextPipeline,
+  writeDocsMap,
+} from '@context-forge/core/node';
+import { CONCEPT_PHASE, ContextIntegrator, PROMPT_FILE_RELATIVE_PATH } from '@context-forge/core';
 import {
   createIntegrationClient,
   setupFixtureEnv,
@@ -24,6 +32,15 @@ const BROWNFIELD_GUIDE = path.resolve(
   '../../../core/tests/fixtures/brownfield-guide',
   PROMPT_FILE_RELATIVE_PATH,
 );
+// The guide with the Phase 2-4 rows that list fileComprehension and fileDocsMap (slice 274).
+const REFERENCE_GUIDE = path.resolve(
+  import.meta.dirname,
+  '../../../core/tests/fixtures/codebase-reference-guide',
+  PROMPT_FILE_RELATIVE_PATH,
+);
+const SLICE_DESIGN_PHASE = 'Phase 4: Slice Design';
+const COMPREHENSION_DOC = 'project-documents/user/analysis/700-analysis.comprehension.md';
+const PROJECT_NAME = 'integration-test-project';
 const PROJECT_PATH_PLACEHOLDER = '__FIXTURE_PROJECT_PATH__';
 const PROJECT_CONFIG_FILE = '.context-forge.toml';
 // A legacy adoption.state (slice 269): no longer used, and the build ignores it.
@@ -67,11 +84,18 @@ afterEach(() => {
   fs.rmSync(sqMarker, { force: true });
 });
 
+interface CheckoutOptions {
+  /** The guide prompt file to install; the brownfield-guide fixture when omitted. */
+  guide?: string;
+  /** Fields merged into the registered project. */
+  project?: Record<string, unknown>;
+}
+
 /** A brownfield checkout: enough source and no planning artifacts. */
-function createBrownfieldCheckout(config?: string): string {
+function createBrownfieldCheckout(config?: string, options: CheckoutOptions = {}): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-mcp-pure-'));
   fs.cpSync(path.join(FIXTURE_DIR, 'integration-project'), dir, { recursive: true });
-  fs.cpSync(BROWNFIELD_GUIDE, path.join(dir, PROMPT_FILE_RELATIVE_PATH));
+  fs.cpSync(options.guide ?? BROWNFIELD_GUIDE, path.join(dir, PROMPT_FILE_RELATIVE_PATH));
   // Guard: an unresolved threshold would yield an empty file and a vacuously passing suite.
   if (!Number.isFinite(BROWNFIELD_MIN_SOURCE_LINES)) throw new Error('BROWNFIELD_MIN_SOURCE_LINES did not resolve');
   const lines = BROWNFIELD_MIN_SOURCE_LINES + 100;
@@ -79,10 +103,11 @@ function createBrownfieldCheckout(config?: string): string {
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'big.ts'), source);
   if (config !== undefined) fs.writeFileSync(path.join(dir, PROJECT_CONFIG_FILE), config);
-  const projectsJson = fs
-    .readFileSync(path.join(FIXTURE_DIR, 'projects.json'), 'utf-8')
-    .replace(PROJECT_PATH_PLACEHOLDER, dir);
-  fs.writeFileSync(path.join(fixtureEnv.tempDir, 'projects.json'), projectsJson);
+  const projects = JSON.parse(
+    fs.readFileSync(path.join(FIXTURE_DIR, 'projects.json'), 'utf-8').replace(PROJECT_PATH_PLACEHOLDER, dir),
+  ) as Record<string, unknown>[];
+  Object.assign(projects[0], options.project);
+  fs.writeFileSync(path.join(fixtureEnv.tempDir, 'projects.json'), JSON.stringify(projects));
   checkout = dir;
   return dir;
 }
@@ -155,5 +180,53 @@ describe('pure build (slice 268)', () => {
     expect(prompt).toContain(BROWNFIELD_PROMPT_TEXT);
     expect(prompt).not.toContain(ADOPTION_FACTS_HEADING);
     expect(fs.existsSync(sqMarker)).toBe(false);
+  });
+});
+
+/** The CLI path with the pre-274 wiring: no Codebase Reference resolver. */
+async function buildViaCliWithoutReference(instruction: string): Promise<string> {
+  const project = await new FileProjectStore().getById(FIXTURE_PROJECT_ID);
+  expect(project).toBeDefined();
+  const workingCopy = { ...project!, instruction };
+  const { engine } = createContextPipeline(workingCopy.projectPath!);
+  const integrator = new ContextIntegrator(engine, true, (file) => fs.readFileSync(file, 'utf-8'));
+  return integrator.generateContextFromProject(workingCopy);
+}
+
+describe('Codebase Reference section (slice 274)', () => {
+  it('context_build returns the same section as cf build, and neither writes anything', async () => {
+    const root = createBrownfieldCheckout(undefined, {
+      guide: REFERENCE_GUIDE,
+      project: { name: PROJECT_NAME, fileComprehension: COMPREHENSION_DOC },
+    });
+    fs.mkdirSync(path.join(root, path.dirname(COMPREHENSION_DOC)), { recursive: true });
+    fs.writeFileSync(path.join(root, COMPREHENSION_DOC), '# analysis\n');
+    await writeDocsMap(root, PROJECT_NAME);
+
+    const before = snapshot(root);
+    const cliPrompt = await buildViaCli(SLICE_DESIGN_PHASE);
+    const mcpPrompt = await callTool('context_build', { instruction: SLICE_DESIGN_PHASE });
+    expect(snapshot(root)).toEqual(before);
+    expect(fs.existsSync(sqMarker)).toBe(false);
+
+    expect(cliPrompt).toContain(CODEBASE_REFERENCE_HEADING);
+    expect(cliPrompt).toContain(`${CODEBASE_REFERENCE_LABELS.comprehension}: ${COMPREHENSION_DOC}`);
+    expect(cliPrompt).toContain(`${CODEBASE_REFERENCE_LABELS.docsMap}: `);
+    expect(mcpPrompt).toBe(cliPrompt);
+  });
+
+  it('under today\'s guide, brownfield-adoption gains exactly the one comprehension line', async () => {
+    createBrownfieldCheckout();
+    const before = await buildViaCliWithoutReference(BROWNFIELD_INSTRUCTION);
+    const after = await buildViaCli(BROWNFIELD_INSTRUCTION);
+    const section = `${CODEBASE_REFERENCE_HEADING}\n${CODEBASE_REFERENCE_LABELS.comprehension}: ${COMPREHENSION_NONE}`;
+    expect(after).toContain(section);
+    expect(after).not.toContain(CODEBASE_REFERENCE_LABELS.docsMap);
+    expect(after.replace(`${section}\n\n`, '')).toBe(before);
+  });
+
+  it('under today\'s guide, a Phase 4 build has no section', async () => {
+    createBrownfieldCheckout();
+    expect(await buildViaCli(SLICE_DESIGN_PHASE)).not.toContain(CODEBASE_REFERENCE_HEADING);
   });
 });
