@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { tmpdir } from 'os';
-import { DocsMapError, docsMapPath, writeDocsMap } from '../../src/docs-map/index.js';
+import { DOCS_MAP_STATE, DocsMapError, compareDocsMap, docsMapPath, writeDocsMap } from '../../src/docs-map/index.js';
 import { DOCS_MAP_BEGIN, DOCS_MAP_END } from '../../src/docs-map/docsMapFile.js';
 
 const runningAsRoot = process.getuid?.() === 0;
@@ -225,6 +225,49 @@ describe('docs map file', () => {
       } finally {
         await chmod(docsMapPath(root, 'acme'), 0o644);
       }
+    });
+  });
+
+  describe('compareDocsMap (slice 274, D5)', () => {
+    const NAME = 'acme';
+
+    it('reports absent when there is no map file, and creates none', async () => {
+      const result = await compareDocsMap(root, NAME);
+      expect(result.state).toBe(DOCS_MAP_STATE.Absent);
+      await expect(stat(docsMapPath(root, NAME))).rejects.toThrow();
+    });
+
+    it('reports current for a map that was just written', async () => {
+      await writeDocsMap(root, NAME);
+      expect((await compareDocsMap(root, NAME)).state).toBe(DOCS_MAP_STATE.Current);
+    });
+
+    it('reports out-of-date when a doc is added under docs/, and counts it', async () => {
+      await writeDocsMap(root, NAME);
+      await put('docs/guide.md');
+      const result = await compareDocsMap(root, NAME);
+      expect(result.state).toBe(DOCS_MAP_STATE.OutOfDate);
+      expect(result.docs).toBe(1);
+    });
+
+    it('raises the same DocsMapError message as writeDocsMap for broken markers', async () => {
+      const path = docsMapPath(root, NAME);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, `# M\n${DOCS_MAP_BEGIN}\nx\n`);
+      const compareError = await compareDocsMap(root, NAME).catch((error: unknown) => error);
+      const writeError = await writeDocsMap(root, NAME).catch((error: unknown) => error);
+      expect(compareError).toBeInstanceOf(DocsMapError);
+      expect((compareError as DocsMapError).message).toBe((writeError as DocsMapError).message);
+    });
+
+    it('writes nothing: bytes and mtime are unchanged for an out-of-date map', async () => {
+      await writeDocsMap(root, NAME);
+      await put('docs/guide.md');
+      const path = docsMapPath(root, NAME);
+      const before = { bytes: await readFile(path), mtime: (await stat(path)).mtimeMs };
+      await compareDocsMap(root, NAME);
+      expect(await readFile(path)).toEqual(before.bytes);
+      expect((await stat(path)).mtimeMs).toBe(before.mtime);
     });
   });
 });

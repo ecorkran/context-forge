@@ -135,8 +135,32 @@ async function writeMap(path: string, content: string, encoding: BufferEncoding)
   }
 }
 
-/** Write or refresh the project's docs map. Discovery runs first, so a discovery error leaves any map untouched. */
-export async function writeDocsMap(root: string, projectName: string): Promise<DocsMapResult> {
+/** Whether the map file matches what `cf docs map` would write now. */
+export const DOCS_MAP_STATE = {
+  Absent: 'absent',
+  Current: 'current',
+  OutOfDate: 'out-of-date',
+} as const;
+
+export type DocsMapState = (typeof DOCS_MAP_STATE)[keyof typeof DOCS_MAP_STATE];
+
+export interface DocsMapComparison {
+  path: string;
+  state: DocsMapState;
+  adrs: number;
+  docs: number;
+  skippedSymlinks: string[];
+  /** The text a write would produce, in `encoding`. For a current map it equals the file. */
+  content: string;
+  encoding: BufferEncoding;
+}
+
+/**
+ * Discover, render and compare against the map on disk, without writing (slice 274, D5). Shared
+ * by `writeDocsMap` and the build's freshness check. Discovery runs first, so a discovery error
+ * surfaces before any map is read; broken or absent markers raise `DocsMapError`.
+ */
+export async function compareDocsMap(root: string, projectName: string): Promise<DocsMapComparison> {
   const discovery = await discoverMappedDocs(root);
   const block = renderManagedBlock(discovery.docs, DOCS_MAP_DIR);
   const path = docsMapPath(root, projectName);
@@ -147,11 +171,18 @@ export async function writeDocsMap(root: string, projectName: string): Promise<D
     skippedSymlinks: discovery.skippedSymlinks,
   };
   if (existing === undefined) {
-    await writeMap(path, newMapContent(projectName, block), 'utf8');
-    return { path, status: DOCS_MAP_STATUS.Created, ...counts };
+    return { path, state: DOCS_MAP_STATE.Absent, ...counts, content: newMapContent(projectName, block), encoding: 'utf8' };
   }
   const updated = replaceBlock(existing, block, path);
-  if (updated === existing) return { path, status: DOCS_MAP_STATUS.Unchanged, ...counts };
-  await writeMap(path, updated, 'latin1');
-  return { path, status: DOCS_MAP_STATUS.Updated, ...counts };
+  const state = updated === existing ? DOCS_MAP_STATE.Current : DOCS_MAP_STATE.OutOfDate;
+  return { path, state, ...counts, content: updated, encoding: 'latin1' };
+}
+
+/** Write or refresh the project's docs map. A discovery error leaves any map untouched. */
+export async function writeDocsMap(root: string, projectName: string): Promise<DocsMapResult> {
+  const { state, content, encoding, path, ...counts } = await compareDocsMap(root, projectName);
+  if (state === DOCS_MAP_STATE.Current) return { path, status: DOCS_MAP_STATUS.Unchanged, ...counts };
+  await writeMap(path, content, encoding);
+  const status = state === DOCS_MAP_STATE.Absent ? DOCS_MAP_STATUS.Created : DOCS_MAP_STATUS.Updated;
+  return { path, status, ...counts };
 }
