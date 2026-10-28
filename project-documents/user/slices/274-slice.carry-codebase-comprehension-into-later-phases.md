@@ -138,7 +138,7 @@ Status: decided
 ### D5 — Freshness: the docs map only; the section never fails a build
 Status: decided
 - **Comprehension doc: presence only.** The architecture says squadron owns its freshness and cf "only says plainly when a doc is missing". cf stores no commit, runs no git and reports no age. Squadron refreshes the doc and re-registers it (D7). A commit-count fact is deferred to #138, to be added only if squadron's session asks for it.
-- **Docs map: `current` or `out of date`.** This deliberately goes beyond the architecture's "only says plainly when a doc is missing", which is about the comprehension doc. The slice plan's success criterion ("staleness is detectable, and the way to refresh is named") needs it, and the docs map is the one document whose freshness cf owns. The map is cf's own artifact, and the check is bounded: it walks the same doc tree `cf docs map` walks. The build runs `discoverMappedDocs` and `renderManagedBlock` and compares the result with the file's managed block, read-only. This is the comparison `writeDocsMap` already makes to decide `unchanged`. It is factored out as one compare step that both use, not duplicated.
+- **Docs map: `current` or `out of date`.** This deliberately goes beyond the architecture's "only says plainly when a doc is missing", which is about the comprehension doc. The slice plan's success criterion ("staleness is detectable, and the way to refresh is named") needs it, and the docs map is the one document whose freshness cf owns. The architecture is amended to match (Implementation Notes step 5). The map is cf's own artifact, and the check is bounded: it walks the same doc tree `cf docs map` walks. The build runs `discoverMappedDocs` and `renderManagedBlock` and compares the result with the file's managed block, read-only. This is the comparison `writeDocsMap` already makes to decide `unchanged`. It is factored out as one compare step that both use, not duplicated.
 - **No failure mode fails the build.** The section is advisory. Each case below degrades to one plain line, and the rest of the build is unchanged:
 
 | Case | Line |
@@ -151,7 +151,8 @@ Status: decided
 ### D6 — When the section appears, and the plain absence line
 Status: decided
 - The `### Codebase Reference` section follows Project Context. It appears only when the active profile lists `fileComprehension` or `fileDocsMap`, and only the listed variables get lines. With today's guide nothing changes, and greenfield builds stay byte-identical while the profile rows are absent.
-- Each listed variable gets one line: the document, a registered path named as missing, or "none". The build does no adoption check of its own (no `readPlanningFacts`, no derived-architecture test), so `cf build` keeps one meaning (arch, amendment 20261025). Under the new guide rows, a greenfield Phase 2–4 build therefore also shows the "none" lines. That is plain and accurate.
+- Each listed variable gets one line: the document, a registered path named as missing, or "none". The build does no adoption check of its own (no `readPlanningFacts`, no derived-architecture test), so `cf build` keeps one meaning (arch, amendment 20261025). Under the new guide rows, a greenfield Phase 2–4 build therefore also shows the "none" lines.
+- **The "none" lines are neutral.** The slice plan requires saying plainly when a document is absent, so the lines stay. But the architecture's "Greenfield behaves the same" goal means a project that never used squadron must not be pointed at it. So the comprehension "none" line names no squadron action. The squadron refresh sentence (D7) appears only when a registered path is missing or unreadable, which can happen only after squadron registered it. The docs map "none" line names `cf docs map`, which is cf's own command and fine for any project. The greenfield change is two neutral lines in Phase 2–4 builds; the architecture amendment records it (Implementation Notes step 5).
 - Wording lives in constants in `codebaseReference.ts`, like `adoptionInputs.ts`. Shape:
 
 ```
@@ -163,14 +164,14 @@ Docs map: project-documents/user/architecture/050-docs-map.foo.md (out of date: 
   Absent:
 
 ```
-Codebase comprehension: none registered. Refresh it through squadron, which registers the new path with `cf set comprehension`.
+Codebase comprehension: none registered.
 Docs map: none. Run `cf docs map` to create it.
 ```
 
 ### D7 — How the comprehension refresh is named
 Status: decided
 - The success criteria require "the way to refresh is named". The docs map is cf's, so its line names `cf docs map`. The comprehension doc is squadron's, and cf does not know squadron's refresh command, so the design cannot name one without guessing.
-- **Decided: cf names the action, not a squadron command.** The line reads: "Refresh it through squadron, which registers the new path with `cf set comprehension`." The way to refresh is named, cf holds no squadron command name, and `cf set comprehension` is cf's own command.
+- **Decided: cf names the action, not a squadron command.** The sentence reads: "Refresh it through squadron, which registers the new path with `cf set comprehension`." The way to refresh is named, cf holds no squadron command name, and `cf set comprehension` is cf's own command. It is appended only to the missing and not-readable lines (D5 table), never to the "none registered" line (D6).
 - Rejected for now: **(a)** naming squadron's refresh command in a constant. There is precedent (`cf next` names `sq onboard`), but no stable refresh command has been confirmed. If squadron's session confirms one, switching is a change to one constant and its test, made as a small fix. **(b)** squadron registering the command text in a second field. That adds state that can go stale, just to print a sentence.
 
 ### D8 — `--embed` is not extended
@@ -217,7 +218,7 @@ Errors: the path does not exist, is a directory, or lies outside the project roo
 
 ### Functional Requirements
 - With a guide whose Phase 2, 3 and 4 rows list both variables, a build on an adopted project with both documents shows the Codebase Reference section with both paths and the docs map's freshness. CLI and MCP output are identical.
-- On a project without them, the section says "none" for each and names the way to create or refresh it.
+- On a project without them, the section says "none" for each. The docs map line names `cf docs map`; the comprehension line names no squadron action (D6).
 - A registered comprehension path whose file was deleted, or that is now a directory, is shown as missing or not readable. A docs map with broken markers is shown as `cannot check`. None of these fails the build (D5).
 - After a new doc is added under `docs/`, the docs map shows `out of date`, and after `cf docs map` it shows `current`.
 - Every build under the current guide (whose rows lack the variables) is byte-identical to before. Under the new rows, a greenfield Phase 2–4 build gains only the two "none" lines.
@@ -244,7 +245,7 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
    ```bash
    cf set phase 4 && cf build | sed -n '/### Codebase Reference/,/^###/p'
    ```
-   Expected: `Codebase comprehension: none registered.` plus the D7 refresh line, and `Docs map: none. Run \`cf docs map\` to create it.`
+   Expected: `Codebase comprehension: none registered.` with no squadron sentence, and `Docs map: none. Run \`cf docs map\` to create it.`
 3. **Register and map.**
    ```bash
    mkdir -p project-documents/user/analysis && echo '# x' > project-documents/user/analysis/x.md
@@ -252,7 +253,7 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
    cf docs map && cf build | sed -n '/### Codebase Reference/,/^###/p'
    ```
    Expected: both paths, and the docs map `current`.
-4. **Drift and degradation.** `echo b > docs/b.md && cf build`: the docs map is `out of date: run \`cf docs map\` to refresh`. Then `rm project-documents/user/analysis/x.md && cf build`: the comprehension line says missing, and the build exits 0.
+4. **Drift and degradation.** `echo b > docs/b.md && cf build`: the docs map is `out of date: run \`cf docs map\` to refresh`. Then `rm project-documents/user/analysis/x.md && cf build`: the comprehension line says missing, with the D7 refresh sentence, and the build exits 0.
 5. **Errors.** `cf set comprehension nope.md; echo $?` and `cf set comprehension /tmp/outside.md; echo $?` each print a named error and exit 1.
 6. **Parity and purity.** `context_build` through the MCP server returns the same section. `git status --short` and the project's config are unchanged by steps 2 and 4.
 7. **Current guide.** On this project with the stock guide, the `cf build` output matches the output before the change (diff against the saved output).
@@ -273,7 +274,10 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
 2. The schema field, the path-valued marker and the core path check (moved from the CLI), with `cf set` and `project_update` tests.
 3. Factor the docs-map compare step out of `writeDocsMap`.
 4. `codebaseReference` facts and rendering, including every D5 degradation case, then the `SectionBuilder` and `ContextIntegrator` wiring and the profile gate.
-5. Docs. Raise `MIN_GUIDE_VERSION` when the guide release exists. Update row (b) of the architecture's Responsibility Split to list both channels squadron uses: the `--comprehension` argument for the adoption prompt, and `cf set comprehension` / `project_update` for later builds.
+5. Docs. Raise `MIN_GUIDE_VERSION` when the guide release exists. Amend the architecture (260) in three places:
+   - Row (b) of the Responsibility Split: list both channels squadron uses, the `--comprehension` argument for the adoption prompt and `cf set comprehension` / `project_update` for later builds.
+   - The "Comprehension in later phases (274)" paragraph and the contract's "Comprehension freshness" bullet: cf judges freshness only for artifacts it writes. It reports the docs map as current or out of date; the comprehension doc's freshness stays squadron's, and cf reports it only as present or missing (D5).
+   - The "Greenfield behaves the same" goal: Phase 2–4 builds show two neutral "none" lines in the Codebase Reference section, with no pointer to squadron (D6).
 
 Effort: 3/5. The slice touches the schema, the core path check, the CLI and MCP setters, the docs-map writer's compare step and `SectionBuilder`.
 
