@@ -238,26 +238,46 @@ Errors: the path does not exist, is a directory, or lies outside the project roo
 
 ### Verification Walkthrough
 
-Draft, refined after implementation. Uses a temp adopted project, with the guide fixture's rows edited until the guide release ships. `cf` is the local build (`node packages/cli/dist/index.js`).
+Verified at implementation time (20261028) against a throwaway project and the local build. `cf` below means `node <repo>/packages/cli/dist/index.js`. `cf build` with no flags prints its prompt nowhere (stdout stays empty, a hint goes to stderr), so every step reads the prompt through `--json`. Until the guide release carries the rows, step 1 installs the fixture guide's prompt file.
 
-1. **Setup.** Create a project with code, a derived architecture (`provenance: derived`), a slice plan with a retroactive entry and `docs/a.md`. Register it with `cf init`. Point its guide at a copy whose Phase 2–4 rows list `fileComprehension` and `fileDocsMap`.
-2. **Absent, adopted.**
+Helper used in the steps:
+
+```bash
+section() { cf build --json 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin)["context"])' | sed -n '/^### Codebase Reference/,/^$/p'; }
+```
+
+1. **Setup.** A git repo with `src/a.ts` and `docs/a.md`, registered with `cf init --lite --name walk`. Copy `packages/core/tests/fixtures/codebase-reference-guide/project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md` into the project at the same relative path. The build runs no adoption check (D6), so no derived architecture or slice plan is needed.
+2. **Absent.**
    ```bash
-   cf set phase 4 && cf build | sed -n '/### Codebase Reference/,/^###/p'
+   cf set phase 4 && section
    ```
-   Expected: `Codebase comprehension: none registered.` with no squadron sentence, and `Docs map: none. Run \`cf docs map\` to create it.`
+   Expected:
+   ```
+   ### Codebase Reference
+   Codebase comprehension: none registered.
+   Docs map: none. Run `cf docs map` to create it.
+   ```
+   No squadron text.
 3. **Register and map.**
    ```bash
    mkdir -p project-documents/user/analysis && echo '# x' > project-documents/user/analysis/x.md
-   cf set comprehension "$PWD/project-documents/user/analysis/x.md"   # stored root-relative
-   cf docs map && cf build | sed -n '/### Codebase Reference/,/^###/p'
+   cf set comprehension "$PWD/project-documents/user/analysis/x.md"   # prints: Updated comprehension = project-documents/user/analysis/x.md on project walk
+   cf docs map && section
    ```
-   Expected: both paths, and the docs map `current`.
-4. **Drift and degradation.** `echo b > docs/b.md && cf build`: the docs map is `out of date: run \`cf docs map\` to refresh`. Then `rm project-documents/user/analysis/x.md && cf build`: the comprehension line says missing, with the D7 refresh sentence, and the build exits 0.
-5. **Errors.** `cf set comprehension nope.md; echo $?` and `cf set comprehension /tmp/outside.md; echo $?` each print a named error and exit 1.
-6. **Parity and purity.** `context_build` through the MCP server returns the same section. `git status --short` and the project's config are unchanged by steps 2 and 4.
-7. **Current guide.** On this project with the stock guide, the Phase 2–4 `cf build` output matches the output before the change (diff against the saved output). `cf build` for `brownfield-adoption` differs only by the one comprehension line.
-8. **Prompt ignores the field.** With the field set from step 3, `cf prompt get brownfield-adoption | tail -5` still says "No codebase comprehension analysis was provided."
+   Expected: `Codebase comprehension: project-documents/user/analysis/x.md` and `Docs map: project-documents/user/architecture/050-docs-map.walk.md (current)`. The absolute input was stored root-relative.
+4. **Drift and degradation.**
+   ```bash
+   echo b > docs/b.md && section                       # docs map: (out of date: run `cf docs map` to refresh)
+   rm project-documents/user/analysis/x.md && section  # comprehension: (missing: ENOENT). Refresh it through squadron, which registers the new path with `cf set comprehension`.
+   cf build --json >/dev/null; echo $?                 # 0
+   ```
+   A checksum of the tree plus `git status --short`, taken before and after the builds, is identical: the builds write nothing.
+5. **Errors.** `cf set comprehension nope.md` prints `path does not exist: <absolute path>`; `cf set comprehension /tmp/outside.md` prints `path is outside the project root: /tmp/outside.md`. Each exits 1. `cf set comprehension ""` prints `Updated comprehension =  on project walk` and the section returns to `none registered.`
+6. **Parity and purity.** Automated: `packages/mcp-server/tests/integration/pureBuild.test.ts` ("Codebase Reference section") asserts that `context_build` returns the same text as the CLI path for a project with both documents registered, and that neither build changes a file or the config.
+7. **Current guide.** Automated: `packages/core/tests/services/codebaseReferenceGate.test.ts` asserts that under the stock guide (the `brownfield-guide` fixture) Phase 2-4 builds are byte-identical to the build without the section resolver, and that `brownfield-adoption` gains exactly the one `Codebase comprehension: none registered.` line.
+8. **Prompt ignores the field.** With the field set (`cf set comprehension project-documents/user/analysis/x.md`), `cf prompt get brownfield-adoption | tail -6` still ends with the Adoption Inputs section saying `No codebase comprehension analysis was provided.`
+
+Caveats found while verifying: on macOS a project path reached through `/var` and `/private/var` is the same directory, so the inside-the-root check compares real paths; a symlink inside the root that points outside is refused.
 
 ## Risk Assessment
 
