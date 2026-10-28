@@ -1,10 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'node:path';
-import { FileProjectStore, ArtifactIntrospector, WorktreeService, computeAutoSetFields } from '@context-forge/core/node';
+import { FileProjectStore, ArtifactIntrospector, WorktreeService, computeAutoSetFields, normalizePathFieldValue } from '@context-forge/core/node';
 import type { ProjectData, CreateProjectData, UpdateProjectData, UpdateWorktreeInput } from '@context-forge/core';
-import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD, buildProjectCreationDefaults } from '@context-forge/core';
+import { getSchema, resolveProject, WORKTREE_SCOPED_FIELDS, PROJECT_TO_WORKTREE_FIELD, buildProjectCreationDefaults, isPathValuedField } from '@context-forge/core';
 import { resolveProjectId } from './resolveProjectId.js';
+import { resolveOperationContext } from './resolveOperationPath.js';
 
 /** Summary fields returned by project_list */
 interface ProjectSummary {
@@ -200,6 +201,7 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
         fileSlicePlan: z.string().optional().describe('Path to slice plan (relative to project root)'),
         fileSpec: z.string().optional().describe('Path to project spec (relative to project root)'),
         fileConcept: z.string().optional().describe('Path to concept document (relative to project root)'),
+        fileComprehension: z.string().optional().describe('Path to the codebase comprehension doc: root-relative or absolute, must be an existing file inside the project root. Empty string clears it.'),
         customData: z
           .object({
             recentEvents: z.string().optional(),
@@ -237,6 +239,16 @@ export function registerProjectTools(server: McpServer, serverVersion?: string):
           return errorResult(
             `Project not found: '${resolvedId}'. Use the project_list tool to see available projects and their IDs.`,
           );
+        }
+
+        // Path-valued fields are checked and stored root-relative, as `cf set` does. All checks run
+        // before any write, so a failing value leaves the project unchanged.
+        const pathValuedKeys = Object.keys(allUpdates).filter(isPathValuedField);
+        if (pathValuedKeys.length > 0) {
+          const { operationPath } = await resolveOperationContext({ projectId: resolvedId, worktreeId });
+          for (const key of pathValuedKeys) {
+            allUpdates[key] = normalizePathFieldValue(operationPath, allUpdates[key] as string);
+          }
         }
 
         // --- Worktree-aware field routing ---

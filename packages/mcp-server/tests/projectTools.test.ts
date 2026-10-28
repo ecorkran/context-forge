@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -57,7 +60,9 @@ function defaultComputeAutoSetFields(
 
 const mockComputeAutoSetFields = vi.fn().mockImplementation(defaultComputeAutoSetFields);
 
-vi.mock('@context-forge/core/node', () => ({
+vi.mock('@context-forge/core/node', async () => ({
+  // The real path check, so project_update exercises actual files (hoisting needs the lazy import).
+  ...(await import('../../core/src/adoption/codebaseReference.js')),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
@@ -863,5 +868,75 @@ describe('project_create', () => {
     const parsed = JSON.parse(content[0].text);
     expect(parsed.id).toBe(CREATED_PROJECT.id);
     expect(parsed.introspection).toBeUndefined();
+  });
+});
+
+describe('project_update with fileComprehension', () => {
+  const DOC = 'project-documents/user/analysis/700-analysis.comprehension.md';
+  let client: Client;
+  let cleanup: () => Promise<void>;
+  let base: string;
+  let root: string;
+  let project: ProjectData;
+
+  function touch(file: string): void {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, '# doc\n');
+  }
+
+  async function update(args: Record<string, unknown>) {
+    return client.callTool({ name: 'project_update', arguments: { id: project.id, ...args } });
+  }
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    base = mkdtempSync(join(tmpdir(), 'cf-mcp-comprehension-'));
+    root = join(base, 'root');
+    touch(join(root, DOC));
+    touch(join(base, 'outside.md'));
+    project = { ...MOCK_PROJECT, projectPath: root, worktrees: [MOCK_WORKTREE] };
+    mockGetById.mockResolvedValue(project);
+    mockUpdate.mockResolvedValue(undefined);
+    mockWtGetWorktree.mockResolvedValue(MOCK_WORKTREE);
+    const ctx = await createTestClient();
+    client = ctx.client;
+    cleanup = ctx.cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  it('stores an absolute input root-relative', async () => {
+    const result = await update({ fileComprehension: join(root, DOC) });
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(project.id, { fileComprehension: DOC });
+  });
+
+  it.each([
+    ['a missing path', 'no/such/file.md', 'does not exist'],
+    ['a directory', 'project-documents/user/analysis', 'is a directory'],
+    ['a path outside the root', '../outside.md', 'outside the project root'],
+  ])('%s returns an error result and writes nothing', async (_label, input, message) => {
+    const result = await update({ fileSlice: 'other-slice', fileComprehension: input });
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0].text).toContain(message);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockWtUpdateWorktree).not.toHaveBeenCalled();
+  });
+
+  it('the empty string clears the field', async () => {
+    const result = await update({ fileComprehension: '' });
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(project.id, { fileComprehension: '' });
+  });
+
+  it('with a worktree id, the value is stored at project level', async () => {
+    const result = await update({ worktreeId: MOCK_WORKTREE.id, fileComprehension: join(root, DOC) });
+    expect(result.isError).toBeFalsy();
+    expect(mockUpdate).toHaveBeenCalledWith(project.id, { fileComprehension: DOC });
+    expect(mockWtUpdateWorktree).not.toHaveBeenCalled();
   });
 });
