@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { readdirSync } from 'node:fs';
-import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields, normalizeArtifactValue } from '@context-forge/core/node';
+import { FileProjectStore, resolveFileByIndex, resolveArtifactPath, deriveArtifactStem, parseSlicePlan, WorktreeService, computeAutoSetFields, normalizeArtifactValue, normalizePathFieldValue } from '@context-forge/core/node';
 import type { ProjectData, WorktreeContext } from '@context-forge/core';
 import {
   resolveFieldName,
@@ -15,6 +15,7 @@ import {
   WORKTREE_SCOPED_FIELDS,
   PROJECT_TO_WORKTREE_FIELD,
   formatDateProject,
+  isPathValuedField,
 } from '@context-forge/core';
 import type { FieldGroup } from '@context-forge/core';
 import { resolveProjectId, resolveProjectWorktree, findProjectByCwd } from '../utils/project.js';
@@ -22,6 +23,7 @@ import { withJsonOption, withProjectOption, withYesOption, withProjectLevelOptio
 import { resolveProject } from '@context-forge/core';
 import { resolveOperationPath, getWorktreeIndexRange, getWorktreeRangeOverride, isInIndexRange } from '../utils/worktree-overlay.js';
 import { handleError, UserError } from '../utils/errors.js';
+import { withPathCheckAsUserError } from '../utils/pathCheck.js';
 import { askConfirmation } from '../utils/confirm.js';
 import { printJson } from '../output/formatter.js';
 import { renderTable } from '../output/tables.js';
@@ -193,6 +195,17 @@ export function buildSettableFieldsHelp(): string {
   return lines.join('\n');
 }
 
+/**
+ * The value `cf set` should write, or undefined when the command has none (the caller prints
+ * usage). `date` alone means today; an empty value is valid only for a path-valued field, where
+ * it clears the path.
+ */
+export function resolveSetValue(field: string | undefined, val: string | undefined): string | undefined {
+  if (field && !val && /^date/i.test(field)) return 'now';
+  if (val === '' && field && isPathValuedField(resolveFieldName(field) ?? '')) return '';
+  return val || undefined;
+}
+
 /** Shared action handler for `cf set` and `cf project set`. */
 export async function projectSetAction(
   field: string,
@@ -255,9 +268,19 @@ export async function projectSetAction(
   // Falls back to slice plan entry name if file doesn't exist on disk
   const opPath = resolveOperationPath(existing, worktreeId);
 
+  // Path-valued fields hold a checked root-relative file path, not an artifact stem or index:
+  // they skip the artifact warning, stem normalization and index resolution below.
+  const pathValued = isPathValuedField(resolvedField);
+  if (pathValued) {
+    if (!opPath) {
+      throw new UserError(`Project '${existing.name}' has no project path set.`, 'MISSING_CONFIG');
+    }
+    resolvedValue = withPathCheckAsUserError(() => normalizePathFieldValue(opPath, resolvedValue));
+  }
+
   // Warn on non-numeric artifact values that don't match expected patterns
   // Valid patterns: numeric index (handled below), or NNN-type.name stem
-  if (fieldDef?.group === 'artifacts' && !/^\d+$/.test(resolvedValue) && !/^\d+-\w+\./.test(resolvedValue)) {
+  if (fieldDef?.group === 'artifacts' && !pathValued && !/^\d+$/.test(resolvedValue) && !/^\d+-\w+\./.test(resolvedValue)) {
     process.stderr.write(
       `Warning: '${resolvedValue}' doesn't look like a valid artifact value.\n` +
       `  Expected a numeric index (e.g. 200) or artifact stem (e.g. 200-slice.my-feature).\n` +
@@ -270,7 +293,7 @@ export async function projectSetAction(
   // and stems with extensions ("100-arch.foo.md") are reduced to bare stems
   // ("100-arch.foo") before storage. This prevents resolveArtifactPath from
   // doubling the directory when the value is used later.
-  if (fieldDef?.group === 'artifacts') {
+  if (fieldDef?.group === 'artifacts' && !pathValued) {
     const stripped = normalizeArtifactValue(resolvedValue);
     if (stripped !== resolvedValue) {
       process.stderr.write(`  Normalized '${resolvedValue}' → '${stripped}'\n`);
@@ -278,7 +301,7 @@ export async function projectSetAction(
     }
   }
 
-  if (fieldDef?.group === 'artifacts' && /^\d+$/.test(resolvedValue) && opPath) {
+  if (fieldDef?.group === 'artifacts' && !pathValued && /^\d+$/.test(resolvedValue) && opPath) {
     // Use worktree-resolved project for slice plan lookup (project-level fields
     // may be cleared after migration, but the worktree context has the values)
     const overlaid = await resolveProject(store, id, worktreeId) ?? existing;
@@ -621,9 +644,8 @@ export function registerProjectCommand(program: Command): void {
   withProjectLevelOption(setCmd);
   setCmd.addHelpText('after', buildSettableFieldsHelp)
     .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
-      // Allow `cf project set date` (no value) as shorthand for `cf project set date now`
-      const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
-      if (!field || !resolvedVal) {
+      const resolvedVal = resolveSetValue(field, val);
+      if (!field || resolvedVal === undefined) {
         console.log(`Usage: cf project set [options] <field> <value>  —  run cf project set --help for details`);
         return;
       }

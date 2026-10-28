@@ -8,7 +8,7 @@ import { registerCheckCommand } from './commands/check.js';
 import { registerDetectCommand } from './commands/detect.js';
 import { registerFutureCommand } from './commands/future.js';
 import { registerNextCommand } from './commands/next.js';
-import { registerProjectCommand, projectSetAction, projectGetAction, projectUnsetAction, buildSettableFieldsHelp } from './commands/project.js';
+import { registerProjectCommand, projectSetAction, resolveSetValue, projectGetAction, projectUnsetAction, buildSettableFieldsHelp } from './commands/project.js';
 import { registerPromptCommand } from './commands/prompt.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerListCommand } from './commands/list.js';
@@ -84,9 +84,8 @@ withProjectOption(setCmd);
 withProjectLevelOption(setCmd);
 setCmd.addHelpText('after', buildSettableFieldsHelp)
   .action(async (field: string | undefined, val: string | undefined, opts: { project?: string; projectLevel?: boolean }) => {
-    // Allow `cf set date` (no value) as shorthand for `cf set date now`
-    const resolvedVal = (!val && field && /^date/i.test(field)) ? 'now' : val;
-    if (!field || !resolvedVal) {
+    const resolvedVal = resolveSetValue(field, val);
+    if (!field || resolvedVal === undefined) {
       console.log(`Usage: cf set [options] <field> <value>  —  run cf set --help for details`);
       return;
     }

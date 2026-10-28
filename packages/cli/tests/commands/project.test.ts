@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import { registerProjectCommand } from '../../src/commands/project.js';
 import { normalizeArtifactValue } from '../../../core/src/schema/normalizeArtifactValue.js';
@@ -13,7 +16,9 @@ const mockUpdateWorktree = vi.fn();
 
 const mockComputeAutoSetFields = vi.fn().mockReturnValue({ derivedUpdates: {}, descriptions: [] });
 
-vi.mock('@context-forge/core/node', () => ({
+vi.mock('@context-forge/core/node', async () => ({
+  // The real path check, so cf set exercises actual files (hoisting needs the lazy import).
+  ...(await import('../../../core/src/adoption/codebaseReference.js')),
   FileProjectStore: vi.fn().mockImplementation(() => ({
     getAll: mockGetAll,
     getById: mockGetById,
@@ -758,5 +763,77 @@ describe('cf project unset', () => {
 
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Usage');
+  });
+});
+
+describe('cf set comprehension — path-valued field', () => {
+  const DOC = 'project-documents/user/analysis/700-analysis.comprehension.md';
+  let root: string;
+  let outsideFile: string;
+  let stderr: ReturnType<typeof vi.spyOn>;
+
+  function touch(file: string): void {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, '# doc\n');
+  }
+
+  async function setComprehension(value: string): Promise<void> {
+    await createProgram().parseAsync([
+      'node', 'cf', 'project', 'set', 'comprehension', value, '--project', 'proj_001',
+    ]);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const base = mkdtempSync(join(tmpdir(), 'cf-set-comprehension-'));
+    root = join(base, 'root');
+    outsideFile = join(base, 'outside.md');
+    touch(join(root, DOC));
+    touch(outsideFile);
+    mockGetAll.mockResolvedValue([{ ...sampleProject, projectPath: root }]);
+    mockGetById.mockResolvedValue({ ...sampleProject, projectPath: root });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    rmSync(dirname(root), { recursive: true, force: true });
+    stderr.mockRestore();
+  });
+
+  it('stores an absolute input root-relative', async () => {
+    await setComprehension(join(root, DOC));
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileComprehension: DOC });
+  });
+
+  it('stores a relative input as given, with / separators', async () => {
+    await setComprehension(DOC);
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileComprehension: DOC });
+  });
+
+  it('does not reduce the value to a bare name or print artifact warnings', async () => {
+    await setComprehension(DOC);
+    const written = stderr.mock.calls.map((call) => String(call[0])).join('');
+    expect(written).not.toContain('valid artifact value');
+    expect(written).not.toContain('Normalized');
+    expect(mockResolveFileByIndex).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a missing path', 'no/such/file.md', 'does not exist'],
+    ['a directory', 'project-documents/user/analysis', 'is a directory'],
+    ['a path outside the root', '../outside.md', 'outside the project root'],
+  ])('%s is refused and nothing is stored', async (_label, input, message) => {
+    await setComprehension(input);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(message));
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('the empty string clears the field', async () => {
+    await setComprehension('');
+    expect(mockUpdate).toHaveBeenCalledWith('proj_001', { fileComprehension: '' });
   });
 });

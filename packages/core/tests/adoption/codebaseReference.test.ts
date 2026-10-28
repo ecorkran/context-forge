@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
@@ -77,8 +77,20 @@ describe('resolveComprehensionPath', () => {
     expect(resolveComprehensionPath(root, outsideFile, ANYWHERE)).toBe(outsideFile);
   });
 
-  it('containment is checked before existence, so a missing outside path reports outside-root', () => {
+  it('a missing path reports missing even when it is outside the root', () => {
     const error = pathCheckError(() => resolveComprehensionPath(root, join(base, 'nope.md'), INSIDE_ONLY));
+    expect(error.reason).toBe(PATH_CHECK_REASONS.missing);
+  });
+
+  it('a symlinked spelling of the root still counts as inside', () => {
+    const alias = join(base, 'alias');
+    symlinkSync(root, alias);
+    expect(resolveComprehensionPath(root, join(alias, DOC), INSIDE_ONLY)).toBe(join(alias, DOC));
+  });
+
+  it('a symlink inside the root that points outside is rejected', () => {
+    symlinkSync(outsideFile, join(root, 'link.md'));
+    const error = pathCheckError(() => resolveComprehensionPath(root, 'link.md', INSIDE_ONLY));
     expect(error.reason).toBe(PATH_CHECK_REASONS.outsideRoot);
   });
 
@@ -101,6 +113,12 @@ describe('normalizePathFieldValue', () => {
 
   it('normalizes a ./ prefix and inner .. segments', () => {
     expect(normalizePathFieldValue(root, `./project-documents/user/../user/analysis/700-analysis.comprehension.md`)).toBe(DOC);
+  });
+
+  it('stores a path given through a symlinked spelling of the root root-relative', () => {
+    const alias = join(base, 'alias');
+    symlinkSync(root, alias);
+    expect(normalizePathFieldValue(root, join(alias, DOC))).toBe(DOC);
   });
 
   it('rejects a ..-relative path that lands outside the root', () => {

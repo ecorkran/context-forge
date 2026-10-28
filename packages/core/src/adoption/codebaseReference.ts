@@ -44,15 +44,13 @@ function isInsideRoot(root: string, resolved: string): boolean {
 
 /**
  * Resolves `input` against the project root. The path must exist and be a file; with
- * `requireInsideRoot` it must also lie inside the root. cf never reads the file: it only names
- * the path to an agent that can already read the disk.
+ * `requireInsideRoot` it must also lie inside the root, compared by real path so a symlinked
+ * spelling of the root (macOS `/var` vs `/private/var`) still counts as inside. cf never reads
+ * the file: it only names the path to an agent that can already read the disk.
  * @returns the absolute resolved path
  */
 export function resolveComprehensionPath(root: string, input: string, options: PathCheckOptions): string {
   const resolved = path.resolve(root, input);
-  if (options.requireInsideRoot && !isInsideRoot(root, resolved)) {
-    throw new PathCheckError(PATH_CHECK_REASONS.outsideRoot, resolved);
-  }
   let stats: fs.Stats;
   try {
     stats = fs.statSync(resolved);
@@ -62,6 +60,9 @@ export function resolveComprehensionPath(root: string, input: string, options: P
     throw new PathCheckError(PATH_CHECK_REASONS.missing, resolved);
   }
   if (stats.isDirectory()) throw new PathCheckError(PATH_CHECK_REASONS.directory, resolved);
+  if (options.requireInsideRoot && !isInsideRoot(fs.realpathSync(root), fs.realpathSync(resolved))) {
+    throw new PathCheckError(PATH_CHECK_REASONS.outsideRoot, resolved);
+  }
   return resolved;
 }
 
@@ -72,5 +73,5 @@ export function resolveComprehensionPath(root: string, input: string, options: P
 export function normalizePathFieldValue(root: string, input: string): string {
   if (input === '') return '';
   const resolved = resolveComprehensionPath(root, input, { requireInsideRoot: true });
-  return toRootRelative(root, resolved);
+  return toRootRelative(fs.realpathSync(root), fs.realpathSync(resolved));
 }

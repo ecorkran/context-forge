@@ -104,6 +104,17 @@ describe('cf prompt get: Adoption Inputs (D7)', () => {
     expect(printed()).toContain(`${ADOPTION_INPUT_LABELS.concept}: ${ABSENT_ARTIFACT}`);
   });
 
+  it('a stored fileComprehension is ignored: only --comprehension names the doc (D2)', async () => {
+    const { root, id } = project();
+    writeAnalysis(root);
+    const stored = { ...(await mockGetById()), fileComprehension: ANALYSIS_FILE };
+    mockGetAll.mockResolvedValue([stored]);
+    mockGetById.mockResolvedValue(stored);
+    await promptGet(ADOPTION_KEY, '--project', id);
+    expect(printed()).toContain(NO_COMPREHENSION_SENTENCE);
+    expect(printed()).not.toContain(ANALYSIS_FILE);
+  });
+
   it('lists the concept, derived architecture and existing-state plan the project already has', async () => {
     const { id } = project({ concept: true, arch: true });
     await promptGet(ADOPTION_KEY, '--project', id);
