@@ -7,13 +7,28 @@ dependencies:
 - 267
 - 271
 - 273
-projectState: main at 0.19.21 (slices 267-273 complete; guide v0.22.10 installed, its
-  `brownfield-adoption` profile already lists `fileComprehension`; no Phase 2-4 profile lists
-  `fileComprehension` or `fileDocsMap`). `MIN_GUIDE_VERSION` is 0.22.8. `resolveComprehensionPath`
-  lives in the CLI (`promptAdoption.ts`). Slice 274 design committed and reviewed.
+projectState: main at 0.19.21 (slices 267-273 complete; guide v0.22.10 installed,
+  its `brownfield-adoption` profile already lists `fileComprehension`; no Phase 2-4
+  profile lists `fileComprehension` or `fileDocsMap`). `MIN_GUIDE_VERSION` is 0.22.8.
+  `resolveComprehensionPath` lives in the CLI (`promptAdoption.ts`). Slice 274 design
+  committed and reviewed.
 dateCreated: 20261028
 dateUpdated: 20261028
 status: not_started
+turns: 22
+promptTokens: 1179399
+cachedTokens: 1110051
+cacheWriteTokens: 69308
+completionTokens: 20196
+durationSeconds: 229.2
+costUsd: 1.180842
+usageRounds: 1
+pricedRounds: 1
+usageByModel:
+  claude-opus-5-5:
+    rounds: 1
+    costUsd: 1.1808415
+    completionTokens: 20196
 ---
 
 ## Context Summary
