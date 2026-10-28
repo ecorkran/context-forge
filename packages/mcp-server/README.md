@@ -82,7 +82,7 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 | `project_list` | List all configured projects with summary fields |
 | `project_get` | Get full project details by ID (or default project) |
 | `project_create` | Create a new project (name + path required) |
-| `project_update` | Update project configuration. Setting `developmentPhase` auto-sets `instruction`. |
+| `project_update` | Update project configuration. Setting `developmentPhase` auto-sets `instruction`. `fileComprehension` registers the codebase comprehension doc (checked, stored root-relative; `""` clears). |
 | `project_schema` | Full project data schema with field definitions, aliases, groups, and enum values |
 | `project_structure` | Build full project model (foundation, initiatives, slices, tasks, future work) |
 | `project_detect` | Report what a directory holds and which adoption outcome applies. Read-only; works on unregistered directories. See [Adoption Primitives](../../docs/ADOPTION-PRIMITIVES.md) |
@@ -91,7 +91,7 @@ Add the following to your Cursor MCP settings (`.cursor/mcp.json` in your projec
 
 | Tool | Description |
 |------|-------------|
-| `context_build` | Generate a complete context prompt from project configuration |
+| `context_build` | Generate a complete context prompt from project configuration. Includes a `### Codebase Reference` section when the active prompt's profile lists `fileComprehension` or `fileDocsMap`. |
 | `context_summarize` | Update project session state (recent events, notes) |
 | `template_preview` | Preview context output without side effects |
 | `prompt_list` | List available prompt templates for a project |

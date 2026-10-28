@@ -102,7 +102,7 @@ Each command runs `cf` under the hood — same CWD-based project resolution, sam
 | `cf status` | `cf status [--json]` | Show workflow status |
 | `cf next` | `cf next [--json]` | Show recommended next action. For an unadopted or incompletely adopted repo it prints one line naming `sq onboard` and the opt-out; otherwise it navigates normally |
 | `cf build` | `cf build [--phase] [--slice] [--json]` | Generate context prompt |
-| `cf set` | `cf set <field> <value>` | Set a project field |
+| `cf set` | `cf set <field> <value>` | Set a project field (for example `cf set comprehension <path>` registers the codebase comprehension doc; `""` clears it) |
 | `cf get` | `cf get [--json]` | Show all project fields |
 | `cf check` | `cf check [--fix] [--slice <n>] [--json]` | Run consistency checks |
 | `cf future` | `cf future [--status <filter>] [--json]` | Consolidated future work |
@@ -266,6 +266,7 @@ pnpm --filter @context-forge/cli typecheck # Type check
 - **Unified opening statement** — always "Working on {name}..." regardless of workType
 - **Phase auto-sets instruction** — `cf set phase N` also updates `instruction` to match
 - **Top-level shortcuts** — `cf set` and `cf get` work as shortcuts for `cf project set/get`
+- **Codebase Reference** — when the active prompt's profile lists `fileComprehension` or `fileDocsMap`, `cf build` adds a `### Codebase Reference` section after Project Context naming the registered comprehension doc and the docs map, with the docs map shown as `current` or `out of date` (see `docs/ADOPTION-PRIMITIVES.md`)
 
 ### v0.2.0
 

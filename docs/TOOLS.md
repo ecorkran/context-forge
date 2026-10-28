@@ -50,6 +50,7 @@ Complete parameter reference for all tools exposed by the `context-forge-mcp` MC
 | `isMonorepo` | boolean | No | Whether project uses monorepo mode |
 | `isMonorepoEnabled` | boolean | No | Whether monorepo UI is enabled |
 | `projectPath` | string | No | Absolute path to project root |
+| `fileComprehension` | string | No | Codebase comprehension doc: an absolute or root-relative path to an existing file inside the project root, stored root-relative. An empty string clears it. A bad path returns an error result and nothing is written. |
 | `customData` | object | No | Custom data fields for context generation (see below) |
 
 **`customData` fields:**
@@ -83,7 +84,7 @@ Complete parameter reference for all tools exposed by the `context-forge-mcp` MC
 | `workType` | `"start"` \| `"continue"` | No | Override whether starting or continuing work |
 | `additionalInstructions` | string | No | Additional instructions to append to the generated context |
 
-**Returns:** Plain text context prompt assembled from the project's templates, statements, and configuration.
+**Returns:** Plain text context prompt assembled from the project's templates, statements, and configuration. When the active prompt's context profile lists `fileComprehension` or `fileDocsMap`, it includes a `### Codebase Reference` section after Project Context (the registered comprehension doc, and the docs map as `current` or `out of date`). See `docs/ADOPTION-PRIMITIVES.md`.
 
 **When to use:** At the start of a coding session or when you need a fresh context prompt. This is the primary tool — use it to generate the structured context block that gets injected into your AI session.
 

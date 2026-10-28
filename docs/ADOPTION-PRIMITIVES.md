@@ -3,7 +3,7 @@ docType: guide
 scope: adoption-primitives
 audience: [ai-agent-developers, project-managers]
 dateCreated: 20261026
-dateUpdated: 20261026
+dateUpdated: 20261028
 ---
 
 # Adoption Primitives
@@ -104,7 +104,27 @@ On stderr: a guide-version warning when the installed guide is older than the mi
 
 **Exit codes.** 0 on success, 1 on error. The `--raw` output is the unrendered template with no section.
 
-**Guarantees.** The section is named `Adoption Inputs`, not `Adoption Facts`. The Adoption Facts section was a build-time block that slice 268 removed. The profile variable is the guide's contract, and cf names no prompt key in its code.
+**Guarantees.** The adoption prompt takes the comprehension path only from `--comprehension`. It ignores the `fileComprehension` project field described below. The section is named `Adoption Inputs`, not `Adoption Facts`. The Adoption Facts section was a build-time block that slice 268 removed. The profile variable is the guide's contract, and cf names no prompt key in its code.
+
+## `cf set comprehension <path>` and the Codebase Reference section
+
+Squadron registers the codebase comprehension doc with cf so that later phases can point at it. cf never searches for the doc or runs squadron; it stores the path it is given.
+
+**Registering.** `cf set comprehension <path>`, or MCP `project_update` with `fileComprehension`. The path may be absolute or relative to the project root (the worktree's own root when one is selected). It must exist, be a file, and lie inside the project root, by real path, so a symlink that points outside is refused. cf stores it relative to the root with `/` separators. `cf set comprehension ""` clears it. The value lives in the project record on this machine; it is not part of the checkout.
+
+**Errors.** A missing path, a directory and a path outside the root are each a named error and a non-zero exit (MCP: an error result; nothing is written).
+
+**The section.** `cf build` and MCP `context_build` add a `### Codebase Reference` section right after `### Project Context`, only when the active prompt's context profile lists `fileComprehension` or `fileDocsMap`. Only the listed variables get a line, comprehension first:
+
+```
+### Codebase Reference
+Codebase comprehension: project-documents/user/analysis/362-analysis.foo.md
+Docs map: project-documents/user/architecture/050-docs-map.foo.md (current)
+```
+
+- Comprehension line: the registered path; `none registered.` when the field is empty; `<path> (missing: ENOENT)` or `<path> (not readable: <reason>)` followed by the sentence "Refresh it through squadron, which registers the new path with `cf set comprehension`." cf judges only whether the doc is present; keeping it fresh is squadron's job.
+- Docs map line: `(current)` or `(out of date: run `cf docs map` to refresh)` after comparing the map with the doc tree, read-only; `none. Run `cf docs map` to create it.` when there is no map; `(cannot check: <reason>)` when the tree cannot be read, with "fix the markers, then run `cf docs map`" added when the map's markers are broken.
+- No case fails the build. Nothing is written, and `--embed` does not inline either document.
 
 ## Opt-out
 
