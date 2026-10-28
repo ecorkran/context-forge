@@ -76,7 +76,7 @@ revision_number: 2
   - [ ] In the copy's `prompt.ai-project.system.md`, replace the `context_profiles` rows with the real guide's full row list (from `project-documents/ai-project-guide/project-guides/prompt.ai-project.system.md`), keeping the compact `name: [a, b]` layout, and add `fileComprehension, fileDocsMap` to the `architecture-phase-2`, `slice-planning-phase-3` and `slice-design-phase-4` rows only.
   - [ ] Leave `fixtures/brownfield-guide/` and `fixtures/pure-build-golden/` untouched: they stand for today's guide.
   - [ ] Add a one-line comment or README note in the fixture directory saying it mirrors the pending guide release rows (D1).
-  - [ ] Success: the fixture exists; Task 20's gate tests exercise its rows.
+  - [ ] Success: the fixture exists; Task 19's gate tests exercise its rows.
   - [ ] Commit: `test: add guide fixture with codebase reference profile rows`
 
 ### Schema and path check
@@ -175,29 +175,30 @@ revision_number: 2
   - [ ] Success: core suite passes.
   - [ ] Commit: `feat: add Codebase Reference section text`
 
-- [ ] **Task 18: Profile gate and facts resolver in `ContextIntegrator` (D6)** (effort 2)
+- [ ] **Task 18: Profile gate, facts resolver and section emission (D6, D8)** (effort 3)
   - [ ] Add `fileComprehension` to `EnhancedContextData` and to `mapProjectToEnhancedContext` (the existing `applyProfileFiltering` zeroes it when not listed, like `fileArch`).
   - [ ] Make `applyProfileFiltering` (or a small sibling) also report which of `fileComprehension` / `fileDocsMap` the active profile lists. When no profiles are available, neither is listed. Use the field-name constant from the schema and one exported constant for `fileDocsMap`, not repeated literals.
   - [ ] Inject the facts reader as a resolver, following the existing pattern (`resolveIntegrationBranchForPrompt` in `CoreServiceFactory.createContextPipeline`). When neither variable is listed, the resolver is not called, so the docs tree is not walked.
   - [ ] Put the rendered section text on the context data (e.g. `codebaseReference: string`); `''` when nothing is listed.
-  - [ ] Success: typecheck passes.
-
-- [ ] **Task 19: Emit the section in the build output (D6, D8)** (effort 1)
   - [ ] `SectionBuilder` / `ContextTemplateEngine`: emit the section text right after the Project Context section (`project-info`, order 1.5), only when it is non-empty. An empty text must leave the output byte-identical to today.
   - [ ] `cf build --json` carries the section only inside its rendered text; add no JSON fields. `ContextEmbedder` is unchanged (D8).
   - [ ] Success: typecheck passes; `pure-build-golden.test.ts` passes unchanged.
 
-- [ ] **Task 20: Gate and build output tests (Tasks 18-19)** (effort 2)
+- [ ] **Task 19: Gate and build output tests (Task 18)** (effort 2)
   - [ ] In `packages/core/tests/services/ContextTemplateEngine.test.ts` (or `ContextIntegrator.test.ts`), using the Task 3 fixture: Phase 2, 3 and 4 builds of a project with both documents show the section after Project Context with both paths and `current`; with neither, the two `none` lines; Phase 5, Phase 6 and `_default` builds have no section and never call the resolver; with no profiles available, the resolver is not called.
   - [ ] With the stock `brownfield-guide` fixture: Phase 2-4 builds are byte-identical to the same build with the resolver stubbed to report nothing listed (or extend the golden fixtures if that is the established pattern).
   - [ ] Success: core suite passes; `pure-build-golden.test.ts` unchanged and passing.
   - [ ] Commit: `feat: emit Codebase Reference section in cf build`
 
-- [ ] **Task 21: CLI and MCP parity and purity tests** (effort 2)
+- [ ] **Task 20: CLI drift and degradation tests** (effort 1)
   - [ ] In `packages/cli/tests/commands/build.test.ts`: on a temp project using the Task 3 fixture guide, at Phase 4, adding `docs/b.md` turns the docs map `out of date`; running the docs map writer then makes it `current`; deleting the registered comprehension file shows the missing line with the D7 sentence, and the build still exits 0.
+  - [ ] Success: CLI suite passes.
+  - [ ] Commit: `test: cover codebase reference drift and degradation in cf build`
+
+- [ ] **Task 21: MCP parity and purity tests** (effort 2)
   - [ ] Beside `packages/mcp-server/tests/integration/pureBuild.test.ts`: `context_build` returns the same section text as `cf build` for the same project; under the stock guide, the `brownfield-adoption` build differs from the pre-change output by exactly the one comprehension line.
   - [ ] Extend the purity test (268) to a project with both documents registered: no file and no config changes after `cf build` and `context_build`.
-  - [ ] Success: CLI and MCP suites pass.
+  - [ ] Success: MCP suite passes.
   - [ ] Commit: `test: cover codebase reference parity and build purity`
 
 ### Docs and architecture
