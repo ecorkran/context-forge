@@ -150,7 +150,7 @@ Status: decided
 
 ### D6 — When the section appears, and the plain absence line
 Status: decided
-- The `### Codebase Reference` section follows Project Context. It appears only when the active profile lists `fileComprehension` or `fileDocsMap`, and only the listed variables get lines. With today's guide nothing changes, and greenfield builds stay byte-identical while the profile rows are absent.
+- The `### Codebase Reference` section follows Project Context. It appears only when the active profile lists `fileComprehension` or `fileDocsMap`, and only the listed variables get lines. The gate is the profile's variable list and nothing else; it names no instruction. One consequence: the guide already lists `fileComprehension` in the `brownfield-adoption` profile (guide v0.22.10), so `cf build brownfield-adoption` gains a one-line section under today's guide, showing the stored path or `none registered`. That is accurate, harmless and consistent with D2 (the stored field feeds `cf build` and `context_build`; only `cf prompt get` ignores it). Every other build under today's guide is byte-identical, and greenfield builds stay so while the profile rows are absent.
 - Each listed variable gets one line: the document, a registered path named as missing, or "none". The build does no adoption check of its own (no `readPlanningFacts`, no derived-architecture test), so `cf build` keeps one meaning (arch, amendment 20261025). Under the new guide rows, a greenfield Phase 2–4 build therefore also shows the "none" lines.
 - **The "none" lines are neutral.** The slice plan requires saying plainly when a document is absent, so the lines stay. But the architecture's "Greenfield behaves the same" goal means a project that never used squadron must not be pointed at it. So the comprehension "none" line names no squadron action. The squadron refresh sentence (D7) appears only when a registered path is missing or unreadable, which can happen only after squadron registered it. The docs map "none" line names `cf docs map`, which is cf's own command and fine for any project. The greenfield change is two neutral lines in Phase 2–4 builds; the architecture amendment records it (Implementation Notes step 5).
 - Wording lives in constants in `codebaseReference.ts`, like `adoptionInputs.ts`. Shape:
@@ -221,7 +221,7 @@ Errors: the path does not exist, is a directory, or lies outside the project roo
 - On a project without them, the section says "none" for each. The docs map line names `cf docs map`; the comprehension line names no squadron action (D6).
 - A registered comprehension path whose file was deleted, or that is now a directory, is shown as missing or not readable. A docs map with broken markers is shown as `cannot check`. None of these fails the build (D5).
 - After a new doc is added under `docs/`, the docs map shows `out of date`, and after `cf docs map` it shows `current`.
-- Every build under the current guide (whose rows lack the variables) is byte-identical to before. Under the new rows, a greenfield Phase 2–4 build gains only the two "none" lines.
+- Every build under the current guide is byte-identical to before, except `cf build` / `context_build` for `brownfield-adoption`, whose profile already lists `fileComprehension`: it gains the one comprehension line (D6), covered by a test beside `pureBuild.test.ts`. Under the new rows, a greenfield Phase 2–4 build gains only the two "none" lines.
 - `cf prompt get brownfield-adoption` without `--comprehension` says no analysis was provided, even when `fileComprehension` is set (D2).
 - `cf set comprehension` rejects a missing path, a directory and a path outside the root, and stores an absolute input root-relative.
 - No build writes to the filesystem or to config (268's purity test extended to a project with both documents).
@@ -256,7 +256,7 @@ Draft, refined after implementation. Uses a temp adopted project, with the guide
 4. **Drift and degradation.** `echo b > docs/b.md && cf build`: the docs map is `out of date: run \`cf docs map\` to refresh`. Then `rm project-documents/user/analysis/x.md && cf build`: the comprehension line says missing, with the D7 refresh sentence, and the build exits 0.
 5. **Errors.** `cf set comprehension nope.md; echo $?` and `cf set comprehension /tmp/outside.md; echo $?` each print a named error and exit 1.
 6. **Parity and purity.** `context_build` through the MCP server returns the same section. `git status --short` and the project's config are unchanged by steps 2 and 4.
-7. **Current guide.** On this project with the stock guide, the `cf build` output matches the output before the change (diff against the saved output).
+7. **Current guide.** On this project with the stock guide, the Phase 2–4 `cf build` output matches the output before the change (diff against the saved output). `cf build` for `brownfield-adoption` differs only by the one comprehension line.
 8. **Prompt ignores the field.** With the field set from step 3, `cf prompt get brownfield-adoption | tail -5` still says "No codebase comprehension analysis was provided."
 
 ## Risk Assessment
