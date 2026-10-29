@@ -192,6 +192,11 @@ export class SystemPromptParser {
     const phaseMatch = instruction.match(/^Phase\s+\d+:\s*(.+)$/i);
     const extractedName = phaseMatch ? phaseMatch[1].toLowerCase() : null;
 
+    // An exact key wins over fuzzy matching; keys are hyphenated, so accept spaces for hyphens.
+    const keyForm = instructionLower.trim().replace(/\s+/g, '-');
+    const exactKeyMatch = parsed.prompts.find(prompt => prompt.key.toLowerCase() === keyForm);
+    if (exactKeyMatch) return exactKeyMatch;
+
     const match = parsed.prompts.find(prompt => {
       const nameLower = prompt.name.toLowerCase();
       const keyLower = prompt.key.toLowerCase();

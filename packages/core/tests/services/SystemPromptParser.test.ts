@@ -110,6 +110,18 @@ describe('SystemPromptParser', () => {
       expect(prompt!.name).toContain('Task Breakdown');
     });
 
+    it('matches a full key whose name carries parentheses (#136)', async () => {
+      const prompt = await parser.getPromptForInstruction('task-breakdown-phase-5');
+      expect(prompt).not.toBeNull();
+      expect(prompt!.key).toBe('task-breakdown-phase-5');
+    });
+
+    it('matches a full key given with spaces instead of hyphens (#136)', async () => {
+      const prompt = await parser.getPromptForInstruction('task breakdown phase 5');
+      expect(prompt).not.toBeNull();
+      expect(prompt!.key).toBe('task-breakdown-phase-5');
+    });
+
     it('matches full phase string case-insensitively', async () => {
       const prompt = await parser.getPromptForInstruction('phase 5: task breakdown');
       expect(prompt).not.toBeNull();
