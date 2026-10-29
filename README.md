@@ -67,7 +67,7 @@ cf init --ide codex       # Same, but configured for OpenAI Codex (also: cursor,
 /cf:onboard               # Slash command: AI-guided setup — registers the project, then hands off to `cf build`
 ```
 
-That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` sets up the project, then runs `cf build` and follows the prompt it returns. It needs ai-project-guide v0.22.6 or newer; on an older install `cf build` warns and `cf guides update` fixes it.
+That's it. `cf status` works. Your AI assistant can call Context Forge tools. `/cf:build` assembles context. `/cf:onboard` sets up the project, then runs `cf build` and follows the prompt it returns. It needs ai-project-guide v0.22.11 or newer; on an older install `cf build` warns and `cf guides update` fixes it.
 
 <details>
 <summary>MCP server config (Cursor, Windsurf, OpenAI Codex, etc.)</summary>

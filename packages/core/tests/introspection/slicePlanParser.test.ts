@@ -367,4 +367,22 @@ describe('parseSlicePlan retroactive marker (slice 263 D1/D2)', () => {
       expect(result.entries[0].status).toBe('complete');
     });
   });
+
+  describe('read failures (#131)', () => {
+    let dir: string;
+    afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+    it('returns an empty plan for a missing file and for a directory', async () => {
+      dir = await mkdtemp(join(tmpdir(), 'plan-read-'));
+      expect((await parseSlicePlan(join(dir, 'missing.md'))).entries).toEqual([]);
+      expect((await parseSlicePlan(dir)).entries).toEqual([]);
+    });
+
+    it.skipIf(process.getuid?.() === 0)('throws on a file it cannot read', async () => {
+      dir = await mkdtemp(join(tmpdir(), 'plan-read-'));
+      const file = join(dir, 'plan.md');
+      await writeFile(file, '1. [ ] **(101) A** — x', { mode: 0o000 });
+      await expect(parseSlicePlan(file)).rejects.toMatchObject({ code: 'EACCES' });
+    });
+  });
 });

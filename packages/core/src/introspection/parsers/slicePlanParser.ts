@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { STATUS } from '../types.js';
+import { isFsError } from '../../detection/pathPresent.js';
 import { normalizeStatus } from './statusNormalizer.js';
 import type { NormalizedStatus, SlicePlanEntry, SlicePlanResult } from '../types.js';
 
@@ -46,6 +47,9 @@ function parseCheckboxStatus(checkboxChar: string): { status: NormalizedStatus; 
   return { status: isChecked ? STATUS.Complete : STATUS.NotStarted, isChecked };
 }
 
+/** Read errors that mean "no plan here" rather than a failure. */
+const SKIPPABLE_READ_ERRORS: ReadonlySet<string> = new Set(['ENOENT', 'EISDIR']);
+
 /** Matches headings: #, ##, ### */
 const HEADING_RE = /^#{1,3}\s+/;
 
@@ -65,82 +69,88 @@ function parseDescription(raw: string | undefined): string | undefined {
  *   - Indexed:   `1. [ ] **(101) Slice Name**` — uses parenthesized index
  *   - Unindexed: `1. [ ] **Slice Name**` — uses sequential list number as index
  * Section-aware: skips entries under Future Work, Implementation Order, Notes, Parent Document.
- * Never throws — returns empty result on error.
+ * A missing file or a directory yields an empty result; other read errors throw.
  */
 export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult> {
   const empty: SlicePlanResult = { filePath, entries: [], totalSlices: 0, completedSlices: 0 };
 
+  let content: string;
   try {
-    const content = await readFile(filePath, 'utf-8');
-    const entries: SlicePlanEntry[] = [];
-    let inSliceSection = true;
-    let unindexedCounter = 0;
+    content = await readFile(filePath, 'utf-8');
+  } catch (error) {
+    // A missing plan, or a path that is a directory, is a plan with no entries (slice 264 D7:
+    // an unreadable plan is skipped by findExistingStatePlan). Other errors, such as
+    // EACCES, are real failures and surface.
+    if (isFsError(error) && SKIPPABLE_READ_ERRORS.has(error.code)) return empty;
+    throw error;
+  }
 
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const stripped = lines[i].trim();
+  const entries: SlicePlanEntry[] = [];
+  let inSliceSection = true;
+  let unindexedCounter = 0;
 
-      if (HEADING_RE.test(stripped)) {
-        const heading = stripped.replace(/^#+\s+/, '').toLowerCase();
-        inSliceSection = !NON_SLICE_HEADINGS.some((ns) => heading.startsWith(ns));
-        continue;
-      }
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].trim();
 
-      if (!inSliceSection) continue;
-
-      // Try indexed format first (preferred)
-      const indexed = PLAN_INDEXED_RE.exec(stripped);
-      if (indexed) {
-        const { status, isChecked } = applyLineStatus(parseCheckboxStatus(indexed[2]), indexed[5]);
-        const retroactive = RETROACTIVE_MARKER_RE.test(indexed[5]);
-        const description = parseDescription(indexed[5].replace(RETROACTIVE_MARKER_RE, ''));
-        entries.push({
-          index: parseInt(indexed[3], 10),
-          name: indexed[4].trim(),
-          status,
-          isChecked,
-          lineIndex: i,
-          indexSource: 'explicit',
-          retroactive,
-          ...(description && { description }),
-        });
-        continue;
-      }
-
-      // Fall back to unindexed format — use sequential counter as index
-      const unindexed = PLAN_UNINDEXED_RE.exec(stripped);
-      if (unindexed) {
-        unindexedCounter++;
-        const { status, isChecked } = applyLineStatus(parseCheckboxStatus(unindexed[2]), unindexed[4]);
-        const description = parseDescription(unindexed[4]);
-        entries.push({
-          index: unindexedCounter,
-          name: unindexed[3].trim(),
-          status,
-          isChecked,
-          lineIndex: i,
-          indexSource: 'fallback',
-          retroactive: false,
-          ...(description && { description }),
-        });
-      }
+    if (HEADING_RE.test(stripped)) {
+      const heading = stripped.replace(/^#+\s+/, '').toLowerCase();
+      inSliceSection = !NON_SLICE_HEADINGS.some((ns) => heading.startsWith(ns));
+      continue;
     }
 
-    // Sort by index ascending. Slice plans usually appear in order, but entries
-    // can be added out of order during planning — every consumer expects the
-    // canonical order (display, "next slice" recommendation, consistency checks).
-    entries.sort((a, b) => a.index - b.index);
+    if (!inSliceSection) continue;
 
-    const completedSlices = entries.filter(
-      (e) => e.isChecked || e.status === STATUS.Deprecated
-    ).length;
-    return {
-      filePath,
-      entries,
-      totalSlices: entries.length,
-      completedSlices,
-    };
-  } catch {
-    return empty;
+    // Try indexed format first (preferred)
+    const indexed = PLAN_INDEXED_RE.exec(stripped);
+    if (indexed) {
+      const { status, isChecked } = applyLineStatus(parseCheckboxStatus(indexed[2]), indexed[5]);
+      const retroactive = RETROACTIVE_MARKER_RE.test(indexed[5]);
+      const description = parseDescription(indexed[5].replace(RETROACTIVE_MARKER_RE, ''));
+      entries.push({
+        index: parseInt(indexed[3], 10),
+        name: indexed[4].trim(),
+        status,
+        isChecked,
+        lineIndex: i,
+        indexSource: 'explicit',
+        retroactive,
+        ...(description && { description }),
+      });
+      continue;
+    }
+
+    // Fall back to unindexed format — use sequential counter as index
+    const unindexed = PLAN_UNINDEXED_RE.exec(stripped);
+    if (unindexed) {
+      unindexedCounter++;
+      const { status, isChecked } = applyLineStatus(parseCheckboxStatus(unindexed[2]), unindexed[4]);
+      const description = parseDescription(unindexed[4]);
+      entries.push({
+        index: unindexedCounter,
+        name: unindexed[3].trim(),
+        status,
+        isChecked,
+        lineIndex: i,
+        indexSource: 'fallback',
+        retroactive: false,
+        ...(description && { description }),
+      });
+    }
   }
+
+  // Sort by index ascending. Slice plans usually appear in order, but entries
+  // can be added out of order during planning — every consumer expects the
+  // canonical order (display, "next slice" recommendation, consistency checks).
+  entries.sort((a, b) => a.index - b.index);
+
+  const completedSlices = entries.filter(
+    (e) => e.isChecked || e.status === STATUS.Deprecated
+  ).length;
+  return {
+    filePath,
+    entries,
+    totalSlices: entries.length,
+    completedSlices,
+  };
 }
