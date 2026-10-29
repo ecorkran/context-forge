@@ -15,8 +15,8 @@ projectState: main after slice 271 (adoption primitives, merged). `cf detect`, M
   still describe adoption through `cf build`. Global `cf` is the published npm package,
   not the local build.
 dateCreated: 20261026
-dateUpdated: 20261026
-status: not_started
+dateUpdated: 20261029
+status: complete
 turns: 45
 promptTokens: 2783828
 cachedTokens: 2678017
