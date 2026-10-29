@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-10-29
+
+### Release 0.19.22
+
+- **Contents:** slice 274 (codebase comprehension carried into later phases): `cf set comprehension`, MCP `project_update` `fileComprehension`, `### Codebase Reference` section in architecture, slice planning and slice design builds; minimum ai-project-guide raised to v0.22.11.
+
+Tags: @context-forge/core@0.19.22, @context-forge/cli@0.19.22, @context-forge/mcp@0.19.22, @context-forge/context-forge@0.19.22
+
 ## 2026-10-27
 
 ### Release 0.19.21

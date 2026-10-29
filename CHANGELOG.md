@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.22] - 20261029
+
 ### Added
 
 - `cf set comprehension <path>` (and MCP `project_update` with `fileComprehension`) registers the codebase comprehension doc. The path must be an existing file inside the project; it is stored relative to the project root, and `""` clears it. Squadron calls it after `sq onboard`.
