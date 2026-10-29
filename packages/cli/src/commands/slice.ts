@@ -126,7 +126,7 @@ export async function sliceListAction(opts: { json?: boolean; project?: string; 
           : deriveEntryStatus({
               frontmatterStatus,
               taskInferredStatus,
-              planLineStatus: entry.status === STATUS.Deprecated ? STATUS.Deprecated : undefined,
+              planLineStatus: entry.status,
               isChecked: entry.isChecked,
             });
       } catch {

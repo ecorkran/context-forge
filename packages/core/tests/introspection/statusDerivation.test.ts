@@ -39,6 +39,18 @@ describe('deriveEntryStatus', () => {
     ).toBe(STATUS.Deprecated);
   });
 
+  it('deferred planLineStatus wins over task state and the checkbox default', () => {
+    expect(
+      deriveEntryStatus({ planLineStatus: STATUS.Deferred, taskInferredStatus: STATUS.InProgress, isChecked: false }),
+    ).toBe(STATUS.Deferred);
+  });
+
+  it('a complete or not-started planLineStatus does not override other signals', () => {
+    expect(
+      deriveEntryStatus({ planLineStatus: STATUS.Complete, taskInferredStatus: STATUS.InProgress, isChecked: true }),
+    ).toBe(STATUS.InProgress);
+  });
+
   it('deprecated planLineStatus wins over a contradictory complete frontmatterStatus', () => {
     expect(
       deriveEntryStatus({

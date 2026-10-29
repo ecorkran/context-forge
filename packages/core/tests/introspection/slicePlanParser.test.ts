@@ -335,4 +335,36 @@ describe('parseSlicePlan retroactive marker (slice 263 D1/D2)', () => {
     expect(entry.retroactive).toBe(true);
     expect(entry.description).toBeUndefined();
   });
+
+  describe('Status: on the plan line (#140)', () => {
+    let dir: string;
+    afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+    async function parseLines(lines: string[]) {
+      dir = await mkdtemp(join(tmpdir(), 'plan-status-'));
+      const file = join(dir, 'plan.md');
+      await writeFile(file, lines.join('\n'));
+      return parseSlicePlan(file);
+    }
+
+    it('reads Status: deprecated and deferred from an unchecked initiative line', async () => {
+      const result = await parseLines([
+        '9. [ ] **(240) Flat File Import** — Load files. Status: deprecated — PM 2026-10-15: not doing it.',
+        '10. [ ] **(200) Event Infrastructure** — Status: deferred — later.',
+        '11. [ ] **(250) Plain** — Status: not_started.',
+        '12. [ ] **(260) Unknown** — Status: bogus.',
+      ]);
+      const byIndex = Object.fromEntries(result.entries.map((e) => [e.index, e]));
+      expect(byIndex[240].status).toBe('deprecated');
+      expect(byIndex[240].isChecked).toBe(false);
+      expect(byIndex[200].status).toBe('deferred');
+      expect(byIndex[250].status).toBe('not_started');
+      expect(byIndex[260].status).toBe('not_started');
+    });
+
+    it('does not change a checked line that mentions a status', async () => {
+      const result = await parseLines(['1. [x] **(101) Done** — Status: deferred follow-ups only.']);
+      expect(result.entries[0].status).toBe('complete');
+    });
+  });
 });

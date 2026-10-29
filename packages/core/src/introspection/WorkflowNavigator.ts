@@ -967,7 +967,7 @@ export class WorkflowNavigator {
     return deriveEntryStatus({
       frontmatterStatus,
       taskInferredStatus,
-      planLineStatus: entry.status === STATUS.Deprecated ? STATUS.Deprecated : undefined,
+      planLineStatus: entry.status,
       isChecked: entry.isChecked,
     });
   }

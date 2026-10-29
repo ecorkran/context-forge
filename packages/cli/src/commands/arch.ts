@@ -9,7 +9,7 @@ import {
 } from '@context-forge/core/node';
 import { extractSliceIndex } from '@context-forge/core/node';
 import { resolveProjectWorktree } from '../utils/project.js';
-import { resolveProject, deriveEntryStatus, normalizeStatus, STATUS } from '@context-forge/core';
+import { resolveProject, deriveEntryStatus, normalizeStatus } from '@context-forge/core';
 import {
   resolveOperationPath,
   resolveAllOperationPaths,
@@ -94,7 +94,7 @@ async function archListFromPlan(
   const entries = await Promise.all(
     filteredEntries.map(async (entry) => {
       let archFile: string | null = null;
-      let status: DisplayStatus = entry.isChecked ? STATUS.Complete : STATUS.NotStarted;
+      let status: DisplayStatus = deriveEntryStatus({ planLineStatus: entry.status, isChecked: entry.isChecked });
       try {
         const archDir = join(operationPath, 'project-documents/user/architecture');
         const files = await readdir(archDir);
@@ -107,9 +107,9 @@ async function archListFromPlan(
             const normalized = normalizeStatus(fm.data.status);
             status = normalized === undefined
               ? 'degraded'
-              : deriveEntryStatus({ frontmatterStatus: normalized, isChecked: entry.isChecked });
+              : deriveEntryStatus({ frontmatterStatus: normalized, planLineStatus: entry.status, isChecked: entry.isChecked });
           } else {
-            status = deriveEntryStatus({ isChecked: entry.isChecked });
+            status = deriveEntryStatus({ planLineStatus: entry.status, isChecked: entry.isChecked });
           }
         }
       } catch {

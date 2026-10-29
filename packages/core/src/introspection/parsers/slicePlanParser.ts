@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { STATUS } from '../types.js';
+import { normalizeStatus } from './statusNormalizer.js';
 import type { NormalizedStatus, SlicePlanEntry, SlicePlanResult } from '../types.js';
 
 /** Checkbox character marking a plan-line entry as deprecated/descoped (GitHub #61). */
@@ -21,6 +22,20 @@ const PLAN_UNINDEXED_RE = new RegExp(`^(\\d+)\\.\\s+\\[([ xX${DEPRECATED_MARKER}
  * are required, so a description that merely starts with the word does not match.
  */
 const RETROACTIVE_MARKER_RE = /^\s*`\s*retroactive\s*`\s*/i;
+
+/** `Status: <value>` declared in the text after an entry title (#140); the value is one word. */
+const LINE_STATUS_RE = /\bStatus:\s*([A-Za-z_-]+)/i;
+
+/**
+ * An unchecked entry may declare `Status: deprecated` or `Status: deferred` in its text; the
+ * checkbox cannot express either. Only these two override — progress states stay derived.
+ */
+function applyLineStatus(base: { status: NormalizedStatus; isChecked: boolean }, text: string) {
+  if (base.status !== STATUS.NotStarted) return base;
+  const declared = normalizeStatus(LINE_STATUS_RE.exec(text)?.[1]);
+  const isDeclaration = declared === STATUS.Deprecated || declared === STATUS.Deferred;
+  return isDeclaration ? { ...base, status: declared } : base;
+}
 
 /** Maps a plan-line checkbox character to its resulting entry status/isChecked pair. */
 function parseCheckboxStatus(checkboxChar: string): { status: NormalizedStatus; isChecked: boolean } {
@@ -76,7 +91,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       // Try indexed format first (preferred)
       const indexed = PLAN_INDEXED_RE.exec(stripped);
       if (indexed) {
-        const { status, isChecked } = parseCheckboxStatus(indexed[2]);
+        const { status, isChecked } = applyLineStatus(parseCheckboxStatus(indexed[2]), indexed[5]);
         const retroactive = RETROACTIVE_MARKER_RE.test(indexed[5]);
         const description = parseDescription(indexed[5].replace(RETROACTIVE_MARKER_RE, ''));
         entries.push({
@@ -96,7 +111,7 @@ export async function parseSlicePlan(filePath: string): Promise<SlicePlanResult>
       const unindexed = PLAN_UNINDEXED_RE.exec(stripped);
       if (unindexed) {
         unindexedCounter++;
-        const { status, isChecked } = parseCheckboxStatus(unindexed[2]);
+        const { status, isChecked } = applyLineStatus(parseCheckboxStatus(unindexed[2]), unindexed[4]);
         const description = parseDescription(unindexed[4]);
         entries.push({
           index: unindexedCounter,
