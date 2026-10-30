@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { FileProjectStore, createContextPipeline, embedReferencedFiles } from '@context-forge/core/node';
+import { ConfigManager, FileProjectStore, createContextPipeline, embedReferencedFiles } from '@context-forge/core/node';
 import type { ProjectData } from '@context-forge/core';
 import { resolvePhaseValue } from '@context-forge/core';
 import { resolveProject } from '@context-forge/core';
@@ -92,7 +92,13 @@ export function registerBuildCommand(program: Command): void {
         }
 
         if (opts.embed) {
-          contextString = await embedReferencedFiles(workingCopy, workingCopy.projectPath!, contextString);
+          const maxChars = (await new ConfigManager(workingCopy.projectPath).get('embed.comprehension_max_chars')).value;
+          if (typeof maxChars !== 'number') {
+            throw new UserError(`embed.comprehension_max_chars must be a number, got ${JSON.stringify(maxChars)}`);
+          }
+          contextString = await embedReferencedFiles(workingCopy, workingCopy.projectPath!, contextString, {
+            comprehensionMaxChars: maxChars,
+          });
         }
 
         if (opts.json) {

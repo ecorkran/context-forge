@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { embedReferencedFiles } from '../../src/services/ContextEmbedder.js';
+import { docsMapPath } from '../../src/docs-map/index.js';
 import type { ProjectData } from '../../src/types/project.js';
+
+const EMBED_OPTIONS = { comprehensionMaxChars: 1000 };
 
 function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
   return {
@@ -32,7 +35,7 @@ describe('embedReferencedFiles', () => {
   it('adds no artifact blocks or warnings when no artifact fields are set', async () => {
     await writeFile(join(tmpDir, 'CLAUDE.md'), '# Guidelines');
     const project = makeProject({ projectPath: tmpDir });
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
     expect(result).toContain('base context');
     expect(result).toContain('## Embedded: CLAUDE.md');
     expect(result).not.toContain('Warning: referenced file not found');
@@ -46,7 +49,7 @@ describe('embedReferencedFiles', () => {
     );
     const project = makeProject({ projectPath: tmpDir, fileArch: '100-arch.test' });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('base context');
     expect(result).toContain('## Embedded: project-documents/user/architecture/100-arch.test.md');
@@ -57,7 +60,7 @@ describe('embedReferencedFiles', () => {
   it('emits a warning for a referenced file that does not exist', async () => {
     const project = makeProject({ projectPath: tmpDir, fileArch: '999-arch.missing' });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('> Warning: referenced file not found and could not be embedded:');
     expect(result).toContain('999-arch.missing');
@@ -80,7 +83,7 @@ describe('embedReferencedFiles', () => {
       fileSlicePlan: '100-slices.test',
     });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base');
+    const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
 
     const archPos = result.indexOf('100-arch.test.md');
     const planPos = result.indexOf('100-slices.test.md');
@@ -94,7 +97,7 @@ describe('embedReferencedFiles', () => {
     await writeFile(join(tmpDir, 'CLAUDE.md'), '# Project Guidelines\nDo things well.');
     const project = makeProject({ projectPath: tmpDir });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('## Embedded: CLAUDE.md');
     expect(result).toContain('# Project Guidelines');
@@ -104,7 +107,7 @@ describe('embedReferencedFiles', () => {
     await writeFile(join(tmpDir, 'AGENTS.md'), '# Agent Guidelines\nFollow these rules.');
     const project = makeProject({ projectPath: tmpDir });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('## Embedded: AGENTS.md');
     expect(result).toContain('# Agent Guidelines');
@@ -118,7 +121,7 @@ describe('embedReferencedFiles', () => {
     );
     const project = makeProject({ projectPath: tmpDir });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('## Embedded: .github/copilot-instructions.md');
     expect(result).toContain('# Copilot Guidelines');
@@ -131,7 +134,7 @@ describe('embedReferencedFiles', () => {
     await writeFile(join(tmpDir, '.github/copilot-instructions.md'), '# Copilot Guidelines');
     const project = makeProject({ projectPath: tmpDir });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     const conventionsHeaders = (result.match(/## Embedded: [^\n]+/g) ?? []).filter(
       (h) => h.includes('CLAUDE.md') || h.includes('AGENTS.md') || h.includes('copilot-instructions.md'),
@@ -142,7 +145,7 @@ describe('embedReferencedFiles', () => {
   it('warns with the full CONVENTIONS_FILES list and embeds no conventions block when none is present', async () => {
     const project = makeProject({ projectPath: tmpDir });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain(
       'Warning: no conventions file found (looked for: CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) — the embedded context has no project conventions',
@@ -159,7 +162,7 @@ describe('embedReferencedFiles', () => {
     );
     const project = makeProject({ projectPath: tmpDir, fileArch: '100-arch.test' });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('## Embedded: project-documents/user/architecture/100-arch.test.md');
     expect(result).toContain('no conventions file found');
@@ -168,7 +171,7 @@ describe('embedReferencedFiles', () => {
   it('skips empty or whitespace-only artifact field values', async () => {
     await writeFile(join(tmpDir, 'CLAUDE.md'), '# Guidelines');
     const project = makeProject({ projectPath: tmpDir, fileArch: '   ', fileSlicePlan: '' });
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
     expect(result).not.toContain('Warning: referenced file not found');
     expect(result).toContain('## Embedded: CLAUDE.md');
   });
@@ -180,7 +183,7 @@ describe('embedReferencedFiles', () => {
     );
     const project = makeProject({ projectPath: tmpDir, fileArch: '100-arch.test' });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('# Referenced Files');
     expect(result).toContain('---');
@@ -197,10 +200,64 @@ describe('embedReferencedFiles', () => {
       fileSlicePlan: '999-slices.missing',
     });
 
-    const result = await embedReferencedFiles(project, tmpDir, 'base context');
+    const result = await embedReferencedFiles(project, tmpDir, 'base context', EMBED_OPTIONS);
 
     expect(result).toContain('## Embedded: project-documents/user/architecture/100-arch.test.md');
     expect(result).toContain('> Warning:');
     expect(result).toContain('999-slices.missing');
+  });
+
+  describe('codebase reference', () => {
+    async function writeComprehension(content: string): Promise<void> {
+      await writeFile(join(tmpDir, 'comprehension.md'), content);
+    }
+
+    it('inlines the comprehension doc when it is within the cap', async () => {
+      await writeComprehension('# Codebase\nSmall doc.');
+      const project = makeProject({ projectPath: tmpDir, fileComprehension: 'comprehension.md' });
+
+      const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
+
+      expect(result).toContain('## Embedded: comprehension.md');
+      expect(result).toContain('Small doc.');
+    });
+
+    it('omits an oversize comprehension doc and names its path and the config key', async () => {
+      await writeComprehension('x'.repeat(EMBED_OPTIONS.comprehensionMaxChars + 1));
+      const project = makeProject({ projectPath: tmpDir, fileComprehension: 'comprehension.md' });
+
+      const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
+
+      expect(result).not.toContain('## Embedded: comprehension.md');
+      expect(result).toContain('comprehension.md');
+      expect(result).toContain('embed.comprehension_max_chars');
+    });
+
+    it('warns when the recorded comprehension path is missing', async () => {
+      const project = makeProject({ projectPath: tmpDir, fileComprehension: 'gone.md' });
+
+      const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
+
+      expect(result).toContain('> Warning: referenced file not found and could not be embedded: gone.md');
+    });
+
+    it('always inlines the docs map, even past the comprehension cap', async () => {
+      const mapPath = docsMapPath(tmpDir, 'test-project');
+      await mkdir(dirname(mapPath), { recursive: true });
+      await writeFile(mapPath, 'm'.repeat(EMBED_OPTIONS.comprehensionMaxChars * 3));
+      const project = makeProject({ projectPath: tmpDir });
+
+      const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
+
+      expect(result).toContain(`## Embedded: ${relative(tmpDir, mapPath).split(sep).join('/')}`);
+    });
+
+    it('adds nothing for a project with no docs map and no comprehension doc', async () => {
+      const project = makeProject({ projectPath: tmpDir });
+
+      const result = await embedReferencedFiles(project, tmpDir, 'base', EMBED_OPTIONS);
+
+      expect(result).not.toMatch(/docs-map|comprehension/i);
+    });
   });
 });

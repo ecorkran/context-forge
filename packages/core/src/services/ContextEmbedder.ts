@@ -1,5 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { toRootRelative } from '../adoption/adoptionInputs.js';
+import { isEnoent } from '../detection/pathPresent.js';
+import { DocsMapError, docsMapPath } from '../docs-map/index.js';
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import type { ProjectData } from '../types/project.js';
 
@@ -57,6 +60,59 @@ function fencedBlock(relPath: string, content: string): string {
   return `## Embedded: ${relPath}\n\`\`\`markdown\n${content.trimEnd()}\n\`\`\``;
 }
 
+export interface EmbedOptions {
+  /**
+   * A comprehension doc longer than this is named, not inlined. It is generated and can be
+   * large; the docs map is bounded by the repo's doc count, so it is always inlined.
+   */
+  comprehensionMaxChars: number;
+}
+
+/** Reads a file under the project root; undefined when it does not exist. Other errors propagate. */
+async function readIfPresent(projectPath: string, relPath: string): Promise<string | undefined> {
+  try {
+    return await readFile(join(projectPath, ...relPath.split('/')), 'utf-8');
+  } catch (error) {
+    // A recorded path or an optional file that is absent is a reportable fact, not a failure.
+    if (isEnoent(error)) return undefined;
+    throw error;
+  }
+}
+
+/** The comprehension doc (capped) and the docs map (always) for the build's codebase reference. */
+async function embedCodebaseReference(
+  project: ProjectData,
+  projectPath: string,
+  options: EmbedOptions,
+  blocks: string[],
+  warnings: string[],
+): Promise<void> {
+  const comprehensionPath = project.fileComprehension;
+  if (comprehensionPath) {
+    const content = await readIfPresent(projectPath, comprehensionPath);
+    if (content === undefined) {
+      warnings.push(`Warning: referenced file not found and could not be embedded: ${comprehensionPath}`);
+    } else if (content.length > options.comprehensionMaxChars) {
+      warnings.push(
+        `Note: comprehension doc not embedded (${content.length} chars exceeds embed.comprehension_max_chars=${options.comprehensionMaxChars}); it lives at ${comprehensionPath}`,
+      );
+    } else {
+      blocks.push(fencedBlock(comprehensionPath, content));
+    }
+  }
+
+  let mapPath: string;
+  try {
+    mapPath = toRootRelative(projectPath, docsMapPath(projectPath, project.name));
+  } catch (error) {
+    if (!(error instanceof DocsMapError)) throw error;
+    warnings.push(`Warning: docs map not embedded: ${error.reason}`);
+    return;
+  }
+  const mapContent = await readIfPresent(projectPath, mapPath);
+  if (mapContent !== undefined) blocks.push(fencedBlock(mapPath, mapContent));
+}
+
 /**
  * Embed referenced artifact files and CLAUDE.md into the context string.
  *
@@ -67,12 +123,14 @@ function fencedBlock(relPath: string, content: string): string {
  * @param project  ProjectData with artifact field stems (fileArch, fileSlice, etc.)
  * @param projectPath  Absolute path to the project root
  * @param contextString  The base context string produced by cf build
+ * @param options  Embed limits, read from cf config by the caller
  * @returns The context string with embedded file contents appended
  */
 export async function embedReferencedFiles(
   project: ProjectData,
   projectPath: string,
   contextString: string,
+  options: EmbedOptions,
 ): Promise<string> {
   const blocks: string[] = [];
   const warnings: string[] = [];
@@ -88,6 +146,8 @@ export async function embedReferencedFiles(
       blocks.push(fencedBlock(result.relPath, result.content));
     }
   }
+
+  await embedCodebaseReference(project, projectPath, options, blocks, warnings);
 
   // Embed the project's conventions file — first match in CONVENTIONS_FILES wins
   let conventionsFound = false;

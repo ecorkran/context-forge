@@ -212,6 +212,19 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       return null;
     },
   },
+  'embed.comprehension_max_chars': {
+    type: 'number',
+    default: 20000,
+    description:
+      '`cf build --embed` inlines the codebase comprehension doc only when it is at most this many characters; a longer one is replaced by a one-line note naming its path. 0 never inlines it. The docs map is always inlined.',
+    scope: ConfigScope.Shared,
+    validate: (value) => {
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+        return 'must be a non-negative integer';
+      }
+      return null;
+    },
+  },
   'rules.exclude': {
     type: 'string',
     default: '',
