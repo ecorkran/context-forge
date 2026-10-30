@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.23] - 20261029
+
+### Added
+
+- `cf build --embed` now inlines the project's docs map, and the registered comprehension doc when it is at most `embed.comprehension_max_chars` characters (default 20000, `0` never inlines it). A longer doc is replaced by a one-line note naming its path (#139).
+
+### Fixed
+
+- `cf prompt get <full-key>` now resolves a full prompt key instead of failing (#136).
+- `cf list arch` shows deprecated and deferred initiatives as such; `Status: deprecated` and `Status: deferred` are read from the plan line (#140).
+- A slice plan that cannot be read (permissions, etc.) now raises an error instead of being treated as empty; a missing file still means no plan (#131).
+
 ## [0.19.22] - 20261029
 
 ### Added
