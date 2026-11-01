@@ -140,6 +140,18 @@ describe('workflow_check — worktree-aware fix routing (slice 213)', () => {
     expectRoutedToOwner(parse(result));
   });
 
+  it('fix: true with noCommit: true writes the owner\'s copy and commits nothing', async () => {
+    const before = git(wtb, 'rev-parse', 'HEAD');
+    const result = parse(await callCheck({ fix: true, noCommit: true }));
+
+    expect(entryState(wtb)).toBe('[x]');
+    expect(result.fixed).toBe(1);
+    expect(result.fixLog[0].worktree?.name).toBe('beta');
+    expect(result.commits).toEqual([]);
+    expect(git(wtb, 'rev-parse', 'HEAD')).toBe(before);
+    expect(porcelain(wtb)).toContain(PLAN_REL);
+  });
+
   it('server cwd in an unregistered checkout with fix: true → tool error, nothing written', async () => {
     const stray = join(fx.root, 'wt-stray');
     git(fx.primary, 'worktree', 'add', '-q', '-b', 'stray', stray);

@@ -255,11 +255,23 @@ async function commitViewWrites(
   }
 }
 
+/** Apply-time options for a routed fix plan. */
+export interface ApplyFixOptions {
+  /**
+   * Commit writes made in non-invoking checkouts (default true). False leaves
+   * every written file uncommitted for the caller; readiness gating still runs,
+   * so a fix never overwrites a dirty target.
+   */
+  commit?: boolean;
+  dateStamp?: string;
+}
+
 /** Apply one plan entry: re-check readiness, write, then commit if non-invoking. */
 async function applyPlanEntry(
   checker: ConsistencyChecker,
   entry: FixPlanEntry,
   dateStamp: string,
+  commitWrites: boolean,
 ): Promise<ConsistencyFixResult> {
   const deferred: DeferredFix[] = [];
   let findings = entry.result.findings;
@@ -277,7 +289,7 @@ async function applyPlanEntry(
   const fixErrors = [...applied.fixErrors];
   const commits: CheckoutCommit[] = [];
 
-  if (entry.commit && fixLog.length > 0) {
+  if (entry.commit && commitWrites && fixLog.length > 0) {
     const outcome = await commitViewWrites(entry.view, findings, fixLog);
     if (outcome.commit) commits.push(outcome.commit);
     if (outcome.restored) {
@@ -293,18 +305,20 @@ async function applyPlanEntry(
 
 /**
  * Apply a routed fix plan (slice 213 Data Flow): write each view's kept
- * fixes with one shared date stamp, commit writes in non-invoking checkouts,
+ * fixes with one shared date stamp, commit writes in non-invoking checkouts
+ * (unless `options.commit` is false),
  * and merge everything into one result whose `deferred` covers both plan-time
  * and apply-time deferrals. The invoking checkout's writes stay uncommitted.
  */
 export async function applyFixPlan(
   checker: ConsistencyChecker,
   plan: FixPlan,
-  dateStamp: string = formatDateProject(),
+  options: ApplyFixOptions = {},
 ): Promise<ConsistencyFixResult> {
+  const { commit = true, dateStamp = formatDateProject() } = options;
   const perView: ConsistencyFixResult[] = [];
   for (const entry of plan.entries) {
-    perView.push(await applyPlanEntry(checker, entry, dateStamp));
+    perView.push(await applyPlanEntry(checker, entry, dateStamp, commit));
   }
   const merged = mergeFixResults(perView, plan.invokingPath);
   return { ...merged, deferred: [...plan.deferred, ...merged.deferred] };

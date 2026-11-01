@@ -35,6 +35,8 @@ interface CheckOpts {
   json?: boolean;
   project?: string;
   fix?: boolean;
+  /** Commander sets this to false for --no-commit; undefined when the flag is absent. */
+  commit?: boolean;
   slice?: string;
   yes?: boolean;
   setReviewNone?: string;
@@ -107,6 +109,7 @@ export function registerCheckCommand(program: Command): void {
   withJsonOption(checkCmd);
   withProjectOption(checkCmd);
   withFixOption(checkCmd);
+  checkCmd.option('--no-commit', 'With --fix, write fixes in every checkout but commit nothing; the written files stay uncommitted for you to commit');
   checkCmd.option('--slice <index>', 'Check only a specific slice by index');
   checkCmd.option('--set-review-none <index>', 'Declare a slice review-exempt (writes review: none to its slice design)');
   withYesOption(checkCmd);
@@ -184,6 +187,7 @@ export function registerCheckCommand(program: Command): void {
             confirm: singleSlice === null && explicitFix && !opts.yes,
             allSlices: singleSlice === null,
             showWorktree,
+            commit: opts.commit !== false,
           });
           if (!fixResult) return;
           result = fixResult;
@@ -213,6 +217,8 @@ interface RoutedFixArgs {
   confirm: boolean;
   allSlices: boolean;
   showWorktree: boolean;
+  /** Commit fixes written into non-invoking checkouts. */
+  commit: boolean;
 }
 
 /**
@@ -246,7 +252,7 @@ async function runRoutedFix(args: RoutedFixArgs): Promise<ConsistencyFixResult |
     if (args.confirm) {
       printCheckOutput(dryRun, project.name, false, showWorktree);
       if (multi) {
-        printFixPlan(plan);
+        printFixPlan(plan, args.commit);
         if (plannedFixCount(plan) === 0) {
           console.log(dim('Every fix is left alone — nothing to apply.'));
           return null;
@@ -262,5 +268,5 @@ async function runRoutedFix(args: RoutedFixArgs): Promise<ConsistencyFixResult |
     }
   }
 
-  return applyFixPlan(checker, plan);
+  return applyFixPlan(checker, plan, { commit: args.commit });
 }

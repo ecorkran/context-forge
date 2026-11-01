@@ -226,7 +226,9 @@ export function registerWorkflowTools(server: McpServer): void {
         'Defaults to all-slices mode; provide sliceIndex to narrow to one slice. ' +
         'With fix=true, applies non-destructive corrections to fixable findings. With worktrees, ' +
         'each fix is written only in the checkout that owns it; writes into other checkouts are ' +
-        'committed there, and fixes left unwritten are listed in deferred with a reason. ' +
+        'committed there (unless noCommit=true, which commits nothing and leaves every written ' +
+        'file uncommitted; fixLog lists each file written with its worktree), and fixes left ' +
+        'unwritten are listed in deferred with a reason. ' +
         'Response shape: { projectPath, findings[], totalFindings, errors, warnings, infos, summary, ' +
         'fixed?, fixLog?, fixErrors?, deferred?, commits? }.',
       inputSchema: {
@@ -242,6 +244,10 @@ export function registerWorkflowTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe('Apply non-destructive corrections to fixable findings. Default: false (or workflow.auto_fix config).'),
+        noCommit: z
+          .boolean()
+          .optional()
+          .describe('With fix, write fixes but commit nothing in any checkout, leaving the files uncommitted for the caller. Default: false.'),
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
@@ -298,7 +304,7 @@ export function registerWorkflowTools(server: McpServer): void {
             return errorResult(`Error: ${msg}`);
           }
           const { plan } = await planFixRun(project, scope, invokingPath);
-          result = await applyFixPlan(checker, plan);
+          result = await applyFixPlan(checker, plan, { commit: !args.noCommit });
         } else {
           const checkResults = await runAttributed(scope.views, scope.runCheck);
           result = mergeCheckResults(checkResults, project.projectPath);

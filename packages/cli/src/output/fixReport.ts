@@ -93,13 +93,13 @@ export function plannedFixCount(plan: FixPlan): number {
 }
 
 /** Multi-checkout confirmation preview: fixes per checkout, then deferrals. */
-export function printFixPlan(plan: FixPlan): void {
+export function printFixPlan(plan: FixPlan, commit: boolean): void {
   const withFixes = plan.entries.filter((e) => e.result.findings.length > 0);
   console.log(label(`Fix plan: ${plannedFixCount(plan)} fix(es)`));
   const width = tagWidth(withFixes.map((e) => e.view.worktree));
   for (const entry of withFixes) {
     const root = entry.view.view.projectPath;
-    const note = entry.commit ? `will commit in ${root}` : INVOKING_NOTE;
+    const note = !entry.commit ? INVOKING_NOTE : commit ? `will commit in ${root}` : `will write in ${root}, uncommitted`;
     console.log(`  ${tag(entry.view.worktree, width)}${dim(note)}`);
     for (const f of entry.result.findings) {
       console.log(dim(`    → ${f.description} — ${displayPath(f.fixAction?.filePath ?? f.location, root)}`));

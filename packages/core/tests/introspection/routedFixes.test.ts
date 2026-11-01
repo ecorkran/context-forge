@@ -349,6 +349,20 @@ describe('applyFixPlan (slice 213)', () => {
     expect(porcelain(setup.fx.primary)).toContain(designPath(120, 'alpha'));
   });
 
+  it('3b. commit: false writes into the non-invoking worktree and commits nothing', async () => {
+    completeBeta(setup.wtb, true);
+    const before = commitCount(setup.wtb);
+    const result = await applyFixPlan(setup.checker, await planFromPrimary(), { commit: false });
+
+    expect(result.fixed).toBe(3);
+    expect(result.commits).toEqual([]);
+    expect(result.deferred).toEqual([]);
+    expect(commitCount(setup.wtb)).toBe(before);
+    const dirty = porcelain(setup.wtb);
+    for (const file of betaFiles) expect(dirty).toContain(file);
+    expect(result.fixLog.every((e) => e.worktree?.id === 'b')).toBe(true);
+  });
+
   it('4. target dirtied between plan and apply → FILE_DIRTY, not written', async () => {
     completeBeta(setup.wtb, true);
     const plan = await planFromPrimary();

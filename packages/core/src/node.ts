@@ -92,6 +92,7 @@ export {
   applyFixPlan,
   resolveInvokingCheckout,
   FIX_COMMIT_MESSAGE,
+  type ApplyFixOptions,
   type AttributedCheckResult,
   type FixPlan,
   type FixPlanEntry,

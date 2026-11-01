@@ -192,6 +192,18 @@ describe('cf check --fix — worktree-aware routing (slice 213)', () => {
     expectRoutedToOwner(json());
   });
 
+  it('--fix --no-commit writes the owner\'s copy and commits nothing', async () => {
+    const before = git(wtb, 'rev-parse', 'HEAD');
+    await run('--slice', String(SLICE_INDEX), '--fix', '--no-commit', '--json');
+    const result = json();
+
+    expect(entryState(wtb)).toBe('[x]');
+    expect(result.fixed).toBe(1);
+    expect(result.commits).toEqual([]);
+    expect(git(wtb, 'rev-parse', 'HEAD')).toBe(before);
+    expect(porcelain(wtb)).toContain(PLAN_REL);
+  });
+
   it('all-slices --fix --yes routes the same way and shows one deduped finding', async () => {
     await run('--fix', '--yes', '--json');
     const result = json();

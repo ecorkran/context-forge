@@ -302,6 +302,13 @@ belong to the main project checkout.
 - Running `--fix` from a checkout that isn't a registered worktree is an error.
   Run `cf worktree init` there, or run from a registered checkout.
 
+**`--no-commit`** (MCP `workflow_check`: `noCommit: true`) writes the fixes in
+every checkout and commits nothing, so you can fold them into your own commit.
+The files written are listed per checkout (`fixLog` in `--json` output; with
+worktrees each entry names its worktree). Fixes that would overwrite a file with
+uncommitted edits are still left alone. Run the commit yourself in each
+checkout listed.
+
 `cf config set workflow.auto_fix true` makes every `cf check` a fixing run, with
 no confirmation. With worktrees, that means a plain `cf check` can commit into
 other checkouts.
@@ -370,7 +377,7 @@ Three interfaces — use whichever fits your workflow:
 | `cf set <field> <value>` | Set a project field |
 | `cf unset <field>` | Clear an optional project field (distinct from setting it empty) |
 | `cf get` | Show all project fields |
-| `cf check` | Run consistency checks (`--fix`, `--slice`, `--set-review-none <index>` to exempt a slice from review) |
+| `cf check` | Run consistency checks (`--fix`, `--no-commit`, `--slice`, `--set-review-none <index>` to exempt a slice from review) |
 | `cf validate` | Validate project artifacts against their machine-readable schemas |
 | **Listing** | **Browse project artifacts** |
 | `cf list projects` | All registered projects |
