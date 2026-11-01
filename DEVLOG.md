@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-11-01
+
+### Release 0.19.24
+
+- **Contents:** `cf check --fix --no-commit` and `workflow_check` `noCommit` (fixes written in every checkout, none committed in other worktrees)
+
+Tags: @context-forge/core@0.19.24, @context-forge/cli@0.19.24, @context-forge/mcp@0.19.24, @context-forge/context-forge@0.19.24
+
 ## 2026-10-29
 
 ### Release 0.19.23

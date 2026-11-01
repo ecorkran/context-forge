@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.24] - 20261101
+
 ### Added
 
 - `cf check --fix --no-commit` (MCP `workflow_check` with `noCommit: true`) writes fixes in every checkout without committing them in other worktrees, leaving the written files for the caller to commit. Plain `--fix` and `workflow.auto_fix` behave as before.
