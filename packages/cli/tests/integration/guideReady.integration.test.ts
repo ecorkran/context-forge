@@ -3,7 +3,8 @@ import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { ensureGuideReady } from '../../src/utils/guideReady.js';
+import { GuideDetector } from '@context-forge/core/node';
+import { ensureGuideReady, requireGuideDir } from '../../src/utils/guideReady.js';
 
 /**
  * Exercises the CLI auto-init helper against real git repositories.
@@ -145,5 +146,18 @@ maybe('ensureGuideReady against real repositories', () => {
 
     expect(result.action).toBe('none');
     expect(stderr).not.toHaveBeenCalled();
+  });
+});
+
+maybe('requireGuideDir against real repositories', () => {
+  it('returns the guide directory without querying the remote for its latest version', async () => {
+    const { hostPath, guidePath } = makeUninitializedClone();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const remoteDetect = vi.spyOn(GuideDetector.prototype, 'detect');
+
+    const guideDir = await requireGuideDir(hostPath);
+
+    expect(guideDir).toBe(guidePath);
+    expect(remoteDetect).not.toHaveBeenCalled();
   });
 });

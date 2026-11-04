@@ -104,14 +104,21 @@ describe('GuideManager', () => {
     usingBundledPrompt: false,
   };
 
+  // Canned detection results go on mockDetect; remoteDetect and localDetect
+  // both answer from it, so a test can tell which one GuideManager called.
   let mockDetect: ReturnType<typeof vi.fn>;
+  let remoteDetect: ReturnType<typeof vi.fn>;
+  let localDetect: ReturnType<typeof vi.fn>;
   let mockConfigManager: { get: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockDetect = vi.fn();
+    remoteDetect = vi.fn((...args: unknown[]) => mockDetect(...args));
+    localDetect = vi.fn((...args: unknown[]) => mockDetect(...args));
     (GuideDetector as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
-      detect: mockDetect,
+      detect: remoteDetect,
+      detectLocal: localDetect,
     }));
     mockConfigManager = {
       get: vi.fn().mockImplementation(async (key: string) => {
@@ -134,7 +141,7 @@ describe('GuideManager', () => {
 
       const result = await manager.status();
 
-      expect(mockDetect).toHaveBeenCalledWith(projectPath, DEFAULT_SOURCE_GIT, undefined);
+      expect(remoteDetect).toHaveBeenCalledWith(projectPath, DEFAULT_SOURCE_GIT, undefined);
       expect(result).toEqual({ ...installedInfo, excludeApplied: [], excludeConfigured: [] });
     });
 
@@ -169,6 +176,8 @@ describe('GuideManager', () => {
 
       expect(mockInstall).toHaveBeenCalled();
       expect(result.success).toBe(true);
+      // The strategy resolves the tag itself; install needs no latest-version lookup.
+      expect(remoteDetect).not.toHaveBeenCalled();
     });
 
     it('strategy/source overrides take precedence over config', async () => {
@@ -235,6 +244,8 @@ describe('GuideManager', () => {
 
       expect(mockUpdate).toHaveBeenCalled();
       expect(result.previousVersion).toBe('v0.12.0');
+      // The strategy resolves the tag itself; a second ls-remote here doubles the wait.
+      expect(remoteDetect).not.toHaveBeenCalled();
     });
 
     it('errors when guide not installed', async () => {
@@ -719,6 +730,7 @@ describe('GuideManager', () => {
       const result = await manager.uninstall();
 
       expect(result).toEqual({ success: true, method: 'submodule', version: 'v0.12.0' });
+      expect(remoteDetect).not.toHaveBeenCalled();
       // Should call submodule deinit on projectPath
       expect(mockGitExec).toHaveBeenCalledWith(
         ['submodule', 'deinit', '-f', GUIDE_RELATIVE_PATH],
@@ -873,6 +885,7 @@ describe('GuideManager', () => {
         { worktreePath: '/wt2', success: true },
       ]);
       expect(mockSync).toHaveBeenCalledTimes(2);
+      expect(remoteDetect).not.toHaveBeenCalled();
     });
 
     it('returns success: false with error for failing paths without stopping', async () => {

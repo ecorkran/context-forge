@@ -47,7 +47,7 @@ vi.mock('@context-forge/core/node', async (importOriginal) => {
       getById: mockGetById,
     })),
     GuideDetector: vi.fn().mockImplementation(() => ({
-      detect: mockDetect,
+      detectLocal: mockDetect,
     })),
     // setup-ide calls ensureGuideReady() before detecting, so the helper's
     // GuideManager must exist on the mock. Default: nothing to do.

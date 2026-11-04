@@ -48,7 +48,7 @@ export async function ensureGuideReady(
  */
 export async function requireGuideDir(projectPath: string): Promise<string> {
   await ensureGuideReady(projectPath);
-  const guideInfo = await new GuideDetector().detect(projectPath);
+  const guideInfo = await new GuideDetector().detectLocal(projectPath);
   if (!guideInfo.installed) {
     throw new UserError(
       "Guides are not installed. Run 'cf guides install' first.\n" +

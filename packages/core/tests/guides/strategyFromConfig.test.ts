@@ -23,7 +23,7 @@ vi.mock('../../src/guides/strategies/SubmoduleStrategy.js', () => ({
 
 vi.mock('../../src/guides/GuideDetector.js', () => ({
   GuideDetector: vi.fn().mockImplementation(() => ({
-    detect: vi.fn().mockResolvedValue({ installed: false, method: null }),
+    detectLocal: vi.fn().mockResolvedValue({ installed: false, method: null }),
   })),
 }));
 

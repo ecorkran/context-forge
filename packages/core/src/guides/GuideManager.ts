@@ -126,11 +126,11 @@ export class GuideManager {
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
     const sourceRoot = options.sourceRoot ?? this.projectPath;
 
-    // Before the detector's network call, so nothing is fetched for a rejected option.
+    // Before any network call, so nothing is fetched for a rejected option.
     assertTarballOnlyOptions({ method, version: options.version, sourceOverride, sourceRoot });
 
     // Check if already installed
-    const info = await this.detector.detect(this.projectPath, source);
+    const info = await this.detector.detectLocal(this.projectPath, source);
     if (info.installed) {
       throw new GuideAlreadyInstalledError();
     }
@@ -261,7 +261,7 @@ export class GuideManager {
     const source = opts.source || (await this.resolveSource());
     const targetDir = join(this.projectPath, GUIDE_RELATIVE_PATH);
 
-    const info = await this.detector.detect(this.projectPath, source);
+    const info = await this.detector.detectLocal(this.projectPath, source);
     if (!info.installed || !info.method) {
       throw new Error(
         'Guide is not installed. Use guide_install (or cf guides install) to install it first.'
@@ -306,7 +306,7 @@ export class GuideManager {
   /** Uninstall the guide from the project */
   async uninstall(): Promise<UninstallResult> {
     const source = await this.resolveSource();
-    const info = await this.detector.detect(this.projectPath, source);
+    const info = await this.detector.detectLocal(this.projectPath, source);
 
     if (!info.installed || !info.method) {
       throw new Error('Guide is not installed. Nothing to uninstall.');
@@ -386,7 +386,7 @@ export class GuideManager {
   /** Sync guide submodule checkout in multiple worktrees */
   async syncWorktrees(worktreePaths: string[]): Promise<SyncResult[]> {
     const source = await this.resolveSource();
-    const info = await this.detector.detect(this.projectPath, source);
+    const info = await this.detector.detectLocal(this.projectPath, source);
     if (info.method !== 'submodule') return [];
 
     const strategy = new SubmoduleStrategy();
