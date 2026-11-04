@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Forge Quick Reference</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172b2b;
+      --muted: #526565;
+      --line: #cbd8d5;
+      --paper: #fff;
+      --wash: #edf5f2;
+      --teal: #006b62;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e8efed;
+      color: var(--ink);
+      font: 12px/1.34 "Avenir Next", Avenir, "Segoe UI", sans-serif;
+    }
+
+    .sheet {
+      position: relative;
+      width: min(100%, 8.5in);
+      min-height: 11in;
+      margin: 24px auto;
+      padding: 0.48in 0.52in 0.42in;
+      background: var(--paper);
+      box-shadow: 0 8px 32px #183c3820;
+    }
+
+
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 0 11px;
+      border-bottom: 3px solid var(--teal);
+    }
+
+    .eyebrow { margin: 0 0 4px; color: var(--teal); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 28px; line-height: 1; font-weight: 760; }
+    .subtitle { max-width: 245px; margin: 0; color: var(--muted); text-align: right; font-size: 11px; }
+
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    section { margin: 0 0 12px; }
+
+    h2 {
+      margin: 0 0 5px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    h3 { margin: 8px 0 3px; color: var(--teal); font-size: 10px; text-transform: uppercase; }
+    p { margin: 3px 0 6px; }
+    ul, ol { margin: 3px 0 6px; padding-left: 17px; }
+    li { margin: 2px 0; }
+
+    pre {
+      margin: 5px 0 7px;
+      padding: 7px 8px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      background: #f2f6f5;
+      border-left: 3px solid var(--teal);
+      font: 10px/1.3 "SFMono-Regular", Consolas, monospace;
+    }
+
+    code { font: 0.96em "SFMono-Regular", Consolas, monospace; }
+    .muted { color: var(--muted); }
+
+
+
+    .command-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 4px 0 7px; padding: 0; list-style: none; }
+    .command-notes li { margin: 0; font-size: 10px; line-height: 1.25; }
+    .command-notes code { color: var(--teal); font-size: 9px; font-weight: 700; }
+
+
+    footer {
+      position: absolute;
+      right: 0.52in;
+      bottom: 0.25in;
+      left: 0.52in;
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      padding-top: 6px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 8px;
+    }
+
+    footer a { color: var(--teal); }
+    .print { position: fixed; z-index: 2; top: 14px; right: 14px; padding: 9px 13px; border: 0; border-radius: 4px; background: var(--teal); color: white; font: inherit; font-weight: 700; cursor: pointer; }
+
+    @media (max-width: 700px) {
+      .sheet { margin: 0; padding: 32px 24px 48px; }
+      main { grid-template-columns: 1fr; gap: 4px; }
+      .subtitle { max-width: 155px; }
+      footer { right: 24px; bottom: 12px; left: 24px; }
+      .print { position: absolute; }
+    }
+
+    @page { size: letter portrait; margin: 0; }
+
+    @media print {
+      body { background: white; font-size: 10px; line-height: 1.25; }
+      .sheet { width: 8.5in; height: 11in; min-height: 0; margin: 0; padding: 0.3in 0.48in 0.48in; box-shadow: none; }
+      .print { display: none; }
+      header { padding-top: 2px; }
+      h1 { font-size: 26px; }
+      h2 { font-size: 13px; margin-bottom: 3px; }
+      h3 { margin-top: 5px; }
+      section { margin-bottom: 6px; }
+      pre { font-size: 9px; line-height: 1.22; padding: 5px 7px; margin: 4px 0 5px; }
+      p { margin-bottom: 4px; }
+      li { margin: 1px 0; }
+      .command-notes { gap: 2px 7px; margin: 3px 0 5px; }
+      .command-notes li { font-size: 9px; }
+      .command-notes code { font-size: 8px; }
+      footer { bottom: 0.2in; }
+    }
+  </style>
+</head>
+<body>
+  <button class="print" type="button" onclick="window.print()">Print</button>
+
+  <article class="sheet">
+    <header>
+      <div>
+        <p class="eyebrow">Project state · navigation · session context</p>
+        <h1>Context Forge / cf</h1>
+      </div>
+      <p class="subtitle">Use CF directly to understand or update a project’s workflow state.</p>
+    </header>
+
+    <main>
+      <div>
+        <section>
+          <h2>Set up a project</h2>
+          <pre>cd /path/to/project
+cf init
+cf status</pre>
+          <p><code>cf init</code> registers the current directory and sets up project guides and IDE integration. For VS Code Copilot, use <code>cf init --ide copilot</code>. <code>sq setup</code> can install CF if needed.</p>
+        </section>
+
+        <section>
+          <h2>Daily orientation and browsing</h2>
+          <pre>cf status
+cf next
+cf list initiatives
+cf list plans
+cf list slices
+cf list tasks
+cf list items
+cf project get</pre>
+          <ul class="command-notes">
+            <li><code>status</code> shows current workflow position.</li>
+            <li><code>next</code> recommends the next action.</li>
+            <li><code>list initiatives</code> shows architecture initiatives.</li>
+            <li><code>list plans</code> finds slice plans and progress.</li>
+            <li><code>list slices</code> shows slices in the active plan.</li>
+            <li><code>list tasks</code> shows task files and completion.</li>
+            <li><code>list items</code> shows individual tasks.</li>
+            <li><code>project get</code> shows all project fields.</li>
+          </ul>
+          <p>Discover options with <code>cf --help</code> or <code>cf &lt;command&gt; --help</code>.</p>
+        </section>
+
+        <section>
+          <h2>Build working context</h2>
+          <pre>cf build
+cf build --phase P4
+cf build --phase P5 --slice 175</pre>
+          <ul class="command-notes">
+            <li><code>cf build</code> uses the current project phase and selection.</li>
+            <li><code>--phase P4</code> builds context for slice design.</li>
+            <li><code>--slice 175</code> focuses context on that slice.</li>
+          </ul>
+          <p>Use the resulting context with your usual coding assistant instead of launching a full SQ pipeline.</p>
+          <p class="muted">P1 Concept · P2 Architecture · P3 Slice Planning · P4 Slice Design · P5 Task Breakdown · P6 Implementation · P7 Integration.</p>
+        </section>
+      </div>
+
+      <div>
+        <section>
+          <h2>Update project state</h2>
+          <pre>cf get
+cf set phase 4
+cf set slice 175
+cf config get
+cf config set default_project my-project</pre>
+          <ul class="command-notes">
+            <li><code>get</code> shows project fields.</li>
+            <li><code>set phase</code> changes phase and matching instruction.</li>
+            <li><code>set slice</code> selects a slice and can resolve its files.</li>
+            <li><code>config get</code> lists configuration values.</li>
+            <li><code>config set</code> saves a configuration preference.</li>
+          </ul>
+          <p>Check <code>cf status</code> and <code>cf get</code> first when unsure what is selected.</p>
+        </section>
+
+        <section>
+          <h2>Check consistency carefully</h2>
+          <pre>cf check
+cf check --slice 175
+cf check --fix</pre>
+          <ul class="command-notes">
+            <li><code>check</code> reports inconsistencies across project documents.</li>
+            <li><code>--slice 175</code> narrows checks to one slice.</li>
+            <li><code>--fix</code> writes corrections; it is not read-only.</li>
+          </ul>
+          <p>In registered worktrees, fixes for documents owned by another checkout may be committed there. Inspect findings and worktree scope before allowing fixes.</p>
+        </section>
+
+        <section>
+          <h2>Choose the right tool</h2>
+          <ul>
+            <li><strong>CF:</strong> inspect or update project state; browse artifacts; assemble context.</li>
+            <li><strong>SQ review:</strong> get a structured second opinion on a design, tasks, or code.</li>
+            <li><strong>SQ pipeline:</strong> run a repeatable chain of AI work and review steps.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Working with Squadron</h2>
+          <p>Squadron (<code>sq</code>) runs reviews and multi-step AI pipelines on top of CF. Give it a slice number and it finds the slice’s design, tasks, and phase through CF.</p>
+          <pre>sq review slice 175 -v
+sq run P4 175 --dry-run</pre>
+          <p>See the <a href="https://github.com/ecorkran/squadron">Squadron README</a> to install it and for its own quick reference.</p>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span><a href="../packages/cli/README.md">CLI reference</a> · <a href="../README.md">Context Forge overview</a> · <a href="https://github.com/ecorkran/squadron">Squadron</a></span>
+      <span>Letter portrait · print at 97%</span>
+    </footer>
+  </article>
+</body>
+</html>
