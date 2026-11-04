@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.25] - 20261103
+
+### Fixed
+
+- `cf setup-ide` no longer waits on GitHub: it read the guide's latest tag over the network on every run, which was nearly all of its runtime. `cf guides install/update/uninstall` and worktree sync skip that lookup too; `cf guides update` now lists remote tags once instead of twice. `cf guides info` still shows the latest version.
+
 ## [0.19.24] - 20261101
 
 ### Added

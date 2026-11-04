@@ -7,6 +7,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 2026-11-03
+
+### Release 0.19.25
+
+- **Contents:** fix: skip the remote guide tag lookup outside `cf guides info` (`cf setup-ide` no longer makes a network call; `cf guides update` makes one tag lookup instead of two)
+
+Tags: @context-forge/core@0.19.25, @context-forge/cli@0.19.25, @context-forge/mcp@0.19.25, @context-forge/context-forge@0.19.25
+
 ## 2026-11-01
 
 ### Release 0.19.24
