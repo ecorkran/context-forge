@@ -174,10 +174,10 @@ There is no commit between Tasks 6 and 8: the finding is marked fixable in Task 
 
 **Commit**: `feat(core): add devlog-size rule and archive-devlog fix`
 
-- [ ] **Task 9: README** (effort: 1)
-  - [ ] Document `cf devlog archive [--dry-run]`, both config keys with defaults, and the archive location in the README's command and config sections.
-  - [ ] State that `workflow.auto_fix` can archive and commit DEVLOG.md without a prompt.
-  - [ ] Success: the README names the command, `devlog.max_bytes`, `devlog.target_bytes`, and the auto_fix behavior.
+- [x] **Task 9: README** (effort: 1)
+  - [x] Document `cf devlog archive [--dry-run]`, both config keys with defaults, and the archive location in the README's command and config sections.
+  - [x] State that `workflow.auto_fix` can archive and commit DEVLOG.md without a prompt.
+  - [x] Success: the README names the command, `devlog.max_bytes`, `devlog.target_bytes`, and the auto_fix behavior.
 
 **Commit**: `docs: document cf devlog archive and devlog config keys`
 
