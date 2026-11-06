@@ -60,6 +60,16 @@ export function fixRelPath(view: AttributedView, finding: ConsistencyFinding): s
   return relative(viewRoot(view), finding.fixAction!.filePath);
 }
 
+/**
+ * Every path a finding's fix writes, relative to its view's checkout root:
+ * `[filePath, ...additionalPaths]`, exactly `[filePath]` when there are none.
+ */
+export function fixRelPaths(view: AttributedView, finding: ConsistencyFinding): string[] {
+  const root = viewRoot(view);
+  const { filePath, additionalPaths = [] } = finding.fixAction!;
+  return [filePath, ...additionalPaths].map((p) => relative(root, p));
+}
+
 function realpathOrNull(path: string): string | null {
   if (!existsSync(path)) return null;
   return realpathSync(path);
@@ -111,7 +121,7 @@ export async function gateByReadiness(
   findings: ConsistencyFinding[],
 ): Promise<{ kept: ConsistencyFinding[]; deferred: DeferredFix[] }> {
   if (findings.length === 0) return { kept: [], deferred: [] };
-  const relPaths = [...new Set(findings.map((f) => fixRelPath(view, f)))];
+  const relPaths = [...new Set(findings.flatMap((f) => fixRelPaths(view, f)))];
   let readiness;
   try {
     readiness = await checkoutReadiness(viewRoot(view), relPaths, { timeoutMs: FIX_GIT_TIMEOUT_MS });
@@ -128,7 +138,7 @@ export async function gateByReadiness(
   const kept: ConsistencyFinding[] = [];
   const deferred: DeferredFix[] = [];
   for (const finding of findings) {
-    if (dirty.has(fixRelPath(view, finding))) {
+    if (fixRelPaths(view, finding).some((p) => dirty.has(p))) {
       deferred.push({ finding, reason: DeferReason.FILE_DIRTY });
     } else {
       kept.push(finding);
@@ -229,7 +239,7 @@ async function commitViewWrites(
   fixLog: FixLogEntry[],
 ): Promise<CommitOutcome> {
   const root = viewRoot(view);
-  const written = [...new Set(fixLog.map((e) => relative(root, e.filePath)))];
+  const written = [...new Set(fixLog.flatMap((e) => [e.filePath, ...(e.additionalPaths ?? [])].map((p) => relative(root, p))))];
   const opts = { timeoutMs: FIX_GIT_TIMEOUT_MS };
   try {
     const sha = await commitPathsIfChanged(root, written, FIX_COMMIT_MESSAGE, opts);
@@ -249,7 +259,7 @@ async function commitViewWrites(
     }
     const writtenSet = new Set(written);
     const deferred = findings
-      .filter((f) => writtenSet.has(fixRelPath(view, f)))
+      .filter((f) => fixRelPaths(view, f).some((p) => writtenSet.has(p)))
       .map((finding) => ({ finding, reason: DeferReason.COMMIT_FAILED, detail }));
     return { restored: true, deferred, fixErrors: [] };
   }

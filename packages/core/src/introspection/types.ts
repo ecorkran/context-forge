@@ -263,8 +263,13 @@ export interface ConsistencyFinding {
   suggestedFix: string;
   fixable: boolean;
   fixAction?: {
-    type: 'update-checkbox' | 'update-frontmatter';
+    type: 'update-checkbox' | 'update-frontmatter' | 'archive-devlog';
     filePath: string;
+    /**
+     * Further files the fix writes besides `filePath` (absolute paths). Absent
+     * for single-file fixes, which behave exactly as before (slice 936 D9).
+     */
+    additionalPaths?: string[];
     detail: Record<string, unknown>;
     /**
      * Index of the document or plan entry this fix is about — the fix's
@@ -292,8 +297,10 @@ export interface ConsistencyCheckResult {
 /** Log entry for a single applied fix */
 export interface FixLogEntry {
   rule: string;
-  action: 'update-checkbox' | 'update-frontmatter';
+  action: 'update-checkbox' | 'update-frontmatter' | 'archive-devlog';
   filePath: string;
+  /** Further files the fix wrote (absolute paths); absent for single-file fixes. */
+  additionalPaths?: string[];
   field?: string;
   before: string;
   after: string;

@@ -1,4 +1,4 @@
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import type { ProjectData } from '../types/project.js';
@@ -12,6 +12,7 @@ import type {
   ConsistencyFinding,
   ConsistencyCheckResult,
   ConsistencyFixResult,
+  FixLogEntry,
   SlicePlanEntry,
   SlicePlanResult,
   TaskFileResult,
@@ -20,6 +21,9 @@ import type {
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { formatDateProject } from '../project-defaults.js';
+import { DEVLOG_FILE, archiveDevlog } from '../devlog/archiveDevlog.js';
+import { readDevlogLimits, readRawDevlogLimits } from '../devlog/devlogLimits.js';
+import { ARCHIVE_DEVLOG_ACTION, buildDevlogSizeFinding, devlogSizeErrorFinding } from './devlogSizeFinding.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
@@ -207,6 +211,11 @@ export class ConsistencyChecker {
       ...await this.rulePersonalConfigInSharedFile(projectPath),
     );
 
+    // Rule 16: DEVLOG.md over devlog.max_bytes (slice 936)
+    allFindings.push(
+      ...await this.ruleDevlogSize(projectPath, project.name),
+    );
+
     return this.buildResult(projectPath, allFindings);
   }
 
@@ -242,6 +251,12 @@ export class ConsistencyChecker {
           entry.rule = finding.rule;
           fixLog.push(entry);
           fixed++;
+        } else if (finding.fixAction.type === ARCHIVE_DEVLOG_ACTION) {
+          const entry = await this.applyArchiveDevlog(finding, dateStamp);
+          if (entry) {
+            fixLog.push(entry);
+            fixed++;
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -250,6 +265,31 @@ export class ConsistencyChecker {
     }
 
     return { ...checkResult, fixed, fixLog, fixErrors, deferred: [], commits: [] };
+  }
+
+  /**
+   * Run the archive-devlog fix (slice 936 D9). Returns null when the file no
+   * longer needs archiving; writer failures throw into `fixErrors`.
+   */
+  private async applyArchiveDevlog(
+    finding: ConsistencyFinding,
+    today: string,
+  ): Promise<FixLogEntry | null> {
+    if (!this.config) throw new Error('archive-devlog needs a ConfigManager to read devlog.max_bytes');
+    const { filePath } = finding.fixAction!;
+    const { targetBytes, projectName } = finding.fixAction!.detail as { targetBytes: number; projectName: string };
+    const checkoutPath = dirname(filePath);
+    const { maxBytes } = await readDevlogLimits(this.config);
+    const result = await archiveDevlog({ checkoutPath, maxBytes, targetBytes, projectName, today, dryRun: false });
+    if (result.status !== 'archived') return null;
+    return {
+      rule: finding.rule,
+      action: ARCHIVE_DEVLOG_ACTION,
+      filePath,
+      additionalPaths: result.archives.map((a) => join(checkoutPath, a.relPath)),
+      before: `${result.beforeBytes} bytes`,
+      after: `${result.afterBytes} bytes`,
+    };
   }
 
   // --- Per-slice check logic ---
@@ -1236,6 +1276,22 @@ export class ConsistencyChecker {
     }
 
     return findings;
+  }
+
+  /**
+   * Rule 16: DEVLOG.md larger than devlog.max_bytes. A thin caller of the
+   * finding builder; like Rule 15 it needs a ConfigManager for the limits.
+   */
+  private async ruleDevlogSize(projectPath: string, projectName: string): Promise<ConsistencyFinding[]> {
+    if (!this.config) return [];
+    let limits;
+    try {
+      limits = await readRawDevlogLimits(this.config);
+    } catch (err) {
+      return [devlogSizeErrorFinding(join(projectPath, DEVLOG_FILE), err instanceof Error ? err.message : String(err))];
+    }
+    const finding = await buildDevlogSizeFinding({ checkoutPath: projectPath, projectName, ...limits });
+    return finding ? [finding] : [];
   }
 
   // --- Document-wide rules ---

@@ -1,4 +1,5 @@
 /** The devlog size limits and the one place their pair rule is enforced (slice 936, D1). */
+import { CONFIG_KEYS } from '../config/ConfigKeys.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 
 export const DEVLOG_MAX_BYTES_KEY = 'devlog.max_bytes';
@@ -18,11 +19,20 @@ export function assertDevlogLimits(maxBytes: number, targetBytes: number): void 
   }
 }
 
+/** Read both keys without the pair rule; each value is checked against its key's own validator. */
+export async function readRawDevlogLimits(config: ConfigManager): Promise<DevlogLimits> {
+  const read = async (key: string): Promise<number> => {
+    const { value } = await config.get(key);
+    const problem = CONFIG_KEYS[key].validate?.(value);
+    if (problem) throw new Error(`Config key "${key}" validation failed: ${problem}`);
+    return Number(value);
+  };
+  return { maxBytes: await read(DEVLOG_MAX_BYTES_KEY), targetBytes: await read(DEVLOG_TARGET_BYTES_KEY) };
+}
+
 /** Read both keys and enforce the pair rule. */
 export async function readDevlogLimits(config: ConfigManager): Promise<DevlogLimits> {
-  const max = await config.get(DEVLOG_MAX_BYTES_KEY);
-  const target = await config.get(DEVLOG_TARGET_BYTES_KEY);
-  const limits = { maxBytes: Number(max.value), targetBytes: Number(target.value) };
+  const limits = await readRawDevlogLimits(config);
   assertDevlogLimits(limits.maxBytes, limits.targetBytes);
   return limits;
 }

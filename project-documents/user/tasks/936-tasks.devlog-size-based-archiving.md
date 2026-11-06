@@ -125,50 +125,50 @@ Before committing, run format, lint, typecheck and the CLI tests.
 
 **Commit**: `feat(cli): add cf devlog archive command`
 
-- [ ] **Task 6: `devlog-size` finding builder** (effort: 3)
-  - [ ] `types.ts` (D9): add `'archive-devlog'` to the `fixAction.type` union and to `FixLogEntry.action`; add optional `additionalPaths: string[]` to `fixAction` and `FixLogEntry`. This comes first because the finding below uses them.
-  - [ ] Create `core/src/introspection/devlogSizeFinding.ts` exporting a function that takes a view's checkout path and config values and returns zero or one `ConsistencyFinding`. It reuses `DEVLOG_FILE`, the parser and the planner.
-  - [ ] Behavior per the API Contracts finding table: `stat` first; missing DEVLOG.md or at/under limit returns nothing; over the limit parses and plans. `rule: 'devlog-size'`, absolute `location`, description `DEVLOG.md is {size} bytes, over devlog.max_bytes ({max})`.
-  - [ ] Plan moves sections: `warning`, `fixable`, suggestedFix names `cf check --fix` or `cf devlog archive`, with `fixAction` of type `archive-devlog`, `filePath` DEVLOG.md, `subjectIndex: null` (D8), detail `{ targetBytes, projectName }`, and `additionalPaths` listing each archive file the plan would write.
-  - [ ] Nothing movable: non-fixable `warning` whose suggestedFix is the D3 or D5 reason (D5 text says the newest section alone exceeds the limit and must be edited by hand).
-  - [ ] Catch the `assertDevlogLimits` error from Task 3 (do not re-compare the values) and report it as a non-fixable `error` finding. Likewise a non-ENOENT `stat` or read error, or an unreadable or non-UTF-8 existing archive: non-fixable `error` finding naming the path and cause.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 6: `devlog-size` finding builder** (effort: 3)
+  - [x] `types.ts` (D9): add `'archive-devlog'` to the `fixAction.type` union and to `FixLogEntry.action`; add optional `additionalPaths: string[]` to `fixAction` and `FixLogEntry`. This comes first because the finding below uses them.
+  - [x] Create `core/src/introspection/devlogSizeFinding.ts` exporting a function that takes a view's checkout path and config values and returns zero or one `ConsistencyFinding`. It reuses `DEVLOG_FILE`, the parser and the planner.
+  - [x] Behavior per the API Contracts finding table: `stat` first; missing DEVLOG.md or at/under limit returns nothing; over the limit parses and plans. `rule: 'devlog-size'`, absolute `location`, description `DEVLOG.md is {size} bytes, over devlog.max_bytes ({max})`.
+  - [x] Plan moves sections: `warning`, `fixable`, suggestedFix names `cf check --fix` or `cf devlog archive`, with `fixAction` of type `archive-devlog`, `filePath` DEVLOG.md, `subjectIndex: null` (D8), detail `{ targetBytes, projectName }`, and `additionalPaths` listing each archive file the plan would write.
+  - [x] Nothing movable: non-fixable `warning` whose suggestedFix is the D3 or D5 reason (D5 text says the newest section alone exceeds the limit and must be edited by hand).
+  - [x] Catch the `assertDevlogLimits` error from Task 3 (do not re-compare the values) and report it as a non-fixable `error` finding. Likewise a non-ENOENT `stat` or read error, or an unreadable or non-UTF-8 existing archive: non-fixable `error` finding naming the path and cause.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 6T: Finding builder tests** (effort: 3)
-  - [ ] Create `core/tests/introspection/devlogSizeFinding.test.ts`.
-  - [ ] Cover: no file, at limit and under limit give no finding; over limit with movable sections gives a fixable warning with the exact description and `additionalPaths`; single huge section and no-dated-headings give the non-fixable warnings with the D5 and D3 reasons; invalid key pair gives an `error`; a non-ENOENT `stat` error (for example DEVLOG.md replaced by a directory path component that is a file) gives an `error` finding; non-UTF-8 archive gives an `error` naming it.
-  - [ ] Success: all pass.
+- [x] **Task 6T: Finding builder tests** (effort: 3)
+  - [x] Create `core/tests/introspection/devlogSizeFinding.test.ts`.
+  - [x] Cover: no file, at limit and under limit give no finding; over limit with movable sections gives a fixable warning with the exact description and `additionalPaths`; single huge section and no-dated-headings give the non-fixable warnings with the D5 and D3 reasons; invalid key pair gives an `error`; a non-ENOENT `stat` error (for example DEVLOG.md replaced by a directory path component that is a file) gives an `error` finding; non-UTF-8 archive gives an `error` naming it.
+  - [x] Success: all pass.
 
-- [ ] **Task 7: Wire the rule into `ConsistencyChecker`** (effort: 2)
-  - [ ] Add the aggregate rule beside Rules 12 and 15 in `checkAll`, as a thin call to the Task 6 function, once per view. Like Rule 15, it returns nothing when the checker has no `ConfigManager`. `--slice N` does not run it.
-  - [ ] Add `devlog-size` to the rule-name list or enum wherever Rules 12 and 15 are registered, defining the string once.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 7: Wire the rule into `ConsistencyChecker`** (effort: 2)
+  - [x] Add the aggregate rule beside Rules 12 and 15 in `checkAll`, as a thin call to the Task 6 function, once per view. Like Rule 15, it returns nothing when the checker has no `ConfigManager`. `--slice N` does not run it.
+  - [x] Add `devlog-size` to the rule-name list or enum wherever Rules 12 and 15 are registered, defining the string once.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 7T: Rule integration tests** (effort: 3)
-  - [ ] Extend the `ConsistencyChecker` tests: over-limit project yields one `devlog-size` finding; at/under limit is silent; no `ConfigManager` yields none; `checkAll` for a slice-scoped run does not include it.
-  - [ ] Add `mcp-server/tests/workflowCheckDevlog.test.ts`, modeled on `workflowCheckRouting.test.ts`: an over-limit project run through the `workflow_check` tool returns the `devlog-size` finding with `fixable` true and the `archive-devlog` fixAction (Success Criterion 7).
-  - [ ] Merge test in `mergeCheckResults.test.ts` additions only: two over-limit views at the same size collapse to one displayed finding, at different sizes show one each, and the routing plan is identical in both cases (D8).
-  - [ ] Success: all pass; the pre-existing tests in these files are unmodified.
+- [x] **Task 7T: Rule integration tests** (effort: 3)
+  - [x] Extend the `ConsistencyChecker` tests: over-limit project yields one `devlog-size` finding; at/under limit is silent; no `ConfigManager` yields none; `checkAll` for a slice-scoped run does not include it.
+  - [x] Add `mcp-server/tests/workflowCheckDevlog.test.ts`, modeled on `workflowCheckRouting.test.ts`: an over-limit project run through the `workflow_check` tool returns the `devlog-size` finding with `fixable` true and the `archive-devlog` fixAction (Success Criterion 7).
+  - [x] Merge test in `mergeCheckResults.test.ts` additions only: two over-limit views at the same size collapse to one displayed finding, at different sizes show one each, and the routing plan is identical in both cases (D8). (routing-plan identity covered by routedFixes.multiPath.test.ts, not the merge test)
+  - [x] Success: all pass; the pre-existing tests in these files are unmodified.
 
-- [ ] **Task 8: Multi-path fix support in routed fixes** (effort: 4)
-  - [ ] The `types.ts` additions for `archive-devlog` and `additionalPaths` already landed in Task 6.
-  - [ ] `routedFixes.ts`: add a companion to `fixRelPath` returning all of a finding's relative paths (`[filePath, ...additionalPaths]`; exactly `[filePath]` when `additionalPaths` is absent). `fixRelPath` itself stays.
-  - [ ] `gateByReadiness`: probe all paths, and defer the fix as `file-dirty` if any is dirty.
-  - [ ] `commitViewWrites`: commit every path in the log entry, and make the `COMMIT_FAILED` filter match a finding if any of its paths was written. Leave `restorePathsToHead`, owner resolution and the commit message unchanged (D9 scope boundary).
-  - [ ] `ConsistencyChecker.applyFixes`: handle `archive-devlog` by calling `archiveDevlog` with the finding's detail (`targetBytes`, `projectName`), `maxBytes` from `readDevlogLimits` on the checker's `ConfigManager` (Task 3), and today's date from the date source `applyFixes` already uses for its other fixes (passed in, no new clock), and record the log entry with `additionalPaths`. Errors flow into the existing `fixErrors`.
-  - [ ] Check `fixOwnership.ts` needs no change (`subjectIndex: null` resolves to the primary checkout via rule 3); change only if a type switch requires it.
-  - [ ] Success: `pnpm -r build` passes, and `routedFixes.test.ts`, `fixOwnership.test.ts`, `mergeCheckResults.test.ts` pass unmodified.
+- [x] **Task 8: Multi-path fix support in routed fixes** (effort: 4)
+  - [x] The `types.ts` additions for `archive-devlog` and `additionalPaths` already landed in Task 6.
+  - [x] `routedFixes.ts`: add a companion to `fixRelPath` returning all of a finding's relative paths (`[filePath, ...additionalPaths]`; exactly `[filePath]` when `additionalPaths` is absent). `fixRelPath` itself stays.
+  - [x] `gateByReadiness`: probe all paths, and defer the fix as `file-dirty` if any is dirty.
+  - [x] `commitViewWrites`: commit every path in the log entry, and make the `COMMIT_FAILED` filter match a finding if any of its paths was written. Leave `restorePathsToHead`, owner resolution and the commit message unchanged (D9 scope boundary).
+  - [x] `ConsistencyChecker.applyFixes`: handle `archive-devlog` by calling `archiveDevlog` with the finding's detail (`targetBytes`, `projectName`), `maxBytes` from `readDevlogLimits` on the checker's `ConfigManager` (Task 3), and today's date from the date source `applyFixes` already uses for its other fixes (passed in, no new clock), and record the log entry with `additionalPaths`. Errors flow into the existing `fixErrors`.
+  - [x] Check `fixOwnership.ts` needs no change (`subjectIndex: null` resolves to the primary checkout via rule 3); change only if a type switch requires it.
+  - [x] Success: `pnpm -r build` passes, and `routedFixes.test.ts`, `fixOwnership.test.ts`, `mergeCheckResults.test.ts` pass unmodified.
 
-- [ ] **Task 8T: Routed-fix tests** (effort: 4)
-  - [ ] Add tests in new files (for example `routedFixes.multiPath.test.ts`, `ConsistencyChecker.devlogFix.test.ts`) so the existing files stay unmodified.
-  - [ ] Multi-path readiness: a dirty existing archive file defers the fix as `file-dirty` and nothing is written; a clean tree proceeds.
-  - [ ] Single-path regression: a fix with no `additionalPaths` yields exactly `[filePath]` from the companion helper.
-  - [ ] Commit in a non-invoking primary checkout: DEVLOG.md and every archive land in one commit.
-  - [ ] A commit that fails through a pre-commit hook: the new archive files are removed and DEVLOG.md restored, reported as `commit-failed`.
-  - [ ] Two or more checkouts: `--fix` archives only in the primary; a worktree's finding is deferred `not-owner` and its suggestedFix names `cf devlog archive`.
-  - [ ] `workflow.auto_fix` path: with it on, a plain `cf check` archives above the limit without a prompt, and commits when the owning checkout is non-invoking.
-  - [ ] `applyFixes` surfaces a writer failure (for example a concurrent edit) through `fixErrors`.
-  - [ ] Success: all pass.
+- [x] **Task 8T: Routed-fix tests** (effort: 4)
+  - [x] Add tests in new files (for example `routedFixes.multiPath.test.ts`, `ConsistencyChecker.devlogFix.test.ts`) so the existing files stay unmodified.
+  - [x] Multi-path readiness: a dirty existing archive file defers the fix as `file-dirty` and nothing is written; a clean tree proceeds.
+  - [x] Single-path regression: a fix with no `additionalPaths` yields exactly `[filePath]` from the companion helper.
+  - [x] Commit in a non-invoking primary checkout: DEVLOG.md and every archive land in one commit.
+  - [x] A commit that fails through a pre-commit hook: the new archive files are removed and DEVLOG.md restored, reported as `commit-failed`.
+  - [x] Two or more checkouts: `--fix` archives only in the primary; a worktree's finding is deferred `not-owner` and its suggestedFix names `cf devlog archive`.
+  - [x] `workflow.auto_fix` path: with it on, a plain `cf check` archives above the limit without a prompt, and commits when the owning checkout is non-invoking. (covered by mcp-server/tests/workflowCheckDevlog.test.ts)
+  - [x] `applyFixes` surfaces a writer failure (for example a concurrent edit) through `fixErrors`.
+  - [x] Success: all pass.
 
 There is no commit between Tasks 6 and 8: the finding is marked fixable in Task 6, so it is committed only together with the fix that resolves it. Before committing, run format, lint, typecheck and the core, CLI and `mcp-server` tests.
 

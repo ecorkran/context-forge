@@ -282,3 +282,30 @@ describe('mergeFixResults', () => {
     expect(merged.fixLog).toHaveLength(1);
   });
 });
+
+describe('mergeCheckResults devlog-size findings (slice 936 D8)', () => {
+  const devlogFinding = (root: string, size: number): ConsistencyFinding =>
+    makeFinding({
+      rule: 'devlog-size',
+      location: `${root}/DEVLOG.md`,
+      description: `DEVLOG.md is ${size} bytes, over devlog.max_bytes (200000)`,
+      fixable: true,
+      fixAction: { type: 'archive-devlog', filePath: `${root}/DEVLOG.md`, detail: {}, subjectIndex: null },
+    });
+
+  it('collapses two over-limit views at the same size to one displayed finding', () => {
+    const merged = mergeCheckResults([
+      makeResult('/repo/main', [devlogFinding('/repo/main', 250000)]),
+      makeResult('/repo/wt-2', [devlogFinding('/repo/wt-2', 250000)]),
+    ]);
+    expect(merged.findings).toHaveLength(1);
+  });
+
+  it('shows one finding per view when the sizes differ', () => {
+    const merged = mergeCheckResults([
+      makeResult('/repo/main', [devlogFinding('/repo/main', 250000)]),
+      makeResult('/repo/wt-2', [devlogFinding('/repo/wt-2', 260000)]),
+    ]);
+    expect(merged.findings).toHaveLength(2);
+  });
+});
