@@ -21,7 +21,7 @@ export interface ParsedDevlog {
 const FULL_COMPACT = /^##[ \t]+(\d{4})(\d{2})(\d{2})(?!\d)/;
 const FULL_DASHED = /^##[ \t]+(\d{4})-(\d{2})-(\d{2})(?!\d)/;
 const YEAR_MONTH = /^##[ \t]+(\d{4})-(\d{2})(?![\d-])/;
-const FENCE = /^[ \t]*(```|~~~)/;
+const FENCE = /^[ \t]*(`{3,}|~{3,})/;
 const MONTHS_PER_QUARTER = 3;
 const MAX_MONTH = 12;
 const MAX_DAY = 31;
@@ -70,7 +70,8 @@ export function parseDevlog(text: string): ParsedDevlog {
     quarter: DevlogQuarter;
     text: string;
   } | null = null;
-  let inFence = false;
+  /** The opening fence marker while inside a code fence; a closing fence uses the same character, at least as long. */
+  let openFence: string | null = null;
 
   const flush = (): void => {
     if (current)
@@ -82,8 +83,12 @@ export function parseDevlog(text: string): ParsedDevlog {
   };
 
   for (const line of splitKeepingTerminators(text)) {
-    if (FENCE.test(line)) inFence = !inFence;
-    const quarter = inFence ? null : headingQuarter(line);
+    const marker = FENCE.exec(line)?.[1] ?? null;
+    if (marker) {
+      if (openFence === null) openFence = marker;
+      else if (marker[0] === openFence[0] && marker.length >= openFence.length) openFence = null;
+    }
+    const quarter = openFence === null ? headingQuarter(line) : null;
     if (quarter) {
       flush();
       current = { heading: line.replace(/\r?\n$/, ''), quarter, text: line };

@@ -1,6 +1,7 @@
 /** Read, plan and write the DEVLOG rollover into quarterly archives (slice 936, D6/D11). */
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { causeText, errorCode } from './errorText.js';
 import { buildArchiveText } from './archiveText.js';
 import { assertDevlogLimits } from './devlogLimits.js';
 import { parseDevlog } from './devlogSections.js';
@@ -17,7 +18,11 @@ export interface ArchiveDevlogOptions {
   /** Date written into new archive frontmatter (YYYYMMDD); passed in, never read from a clock. */
   today: string;
   dryRun: boolean;
-  /** Test seam: awaited after the archive writes and before the final re-read. Production never sets it. */
+}
+
+/** Test-only seam, passed as `archiveDevlog`'s second argument; production callers omit it. */
+export interface ArchiveDevlogTestHooks {
+  /** Awaited after the archive writes and before the DEVLOG.md re-read. */
   beforeFinalWrite?: () => Promise<void>;
 }
 
@@ -44,12 +49,14 @@ export function archiveRelPath(quarterKey: string): string {
   return `${DEVLOG_ARCHIVE_DIR}/DEVLOG-${quarterKey}.md`;
 }
 
-function errorCode(error: unknown): string | undefined {
-  return (error as NodeJS.ErrnoException).code;
-}
-
-function causeText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/** DEVLOG.md size in bytes, or null when it does not exist. Any other stat failure throws. */
+export async function statDevlogSize(devlogPath: string): Promise<number | null> {
+  try {
+    return (await stat(devlogPath)).size;
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null;
+    throw new Error(`Cannot stat ${devlogPath}: ${causeText(error)}`, { cause: error });
+  }
 }
 
 /** Strict UTF-8 read: a lenient decode would corrupt the file when written back. Null when absent. */
@@ -93,22 +100,26 @@ function failureWithWritten(cause: string, written: string[]): Error {
   );
 }
 
-async function writeAll(
-  checkoutPath: string,
-  devlogPath: string,
-  original: string,
-  keptText: string,
-  writes: Map<string, string>,
-  beforeFinalWrite: (() => Promise<void>) | undefined,
-): Promise<void> {
+interface WriteAllInput {
+  checkoutPath: string;
+  devlogPath: string;
+  /** DEVLOG.md text the plan was made from. */
+  original: string;
+  keptText: string;
+  archiveWrites: Map<string, string>;
+  hooks: ArchiveDevlogTestHooks;
+}
+
+async function writeAll(input: WriteAllInput): Promise<void> {
+  const { checkoutPath, devlogPath, original, keptText, archiveWrites, hooks } = input;
   const written: string[] = [];
   try {
     await mkdir(join(checkoutPath, DEVLOG_ARCHIVE_DIR), { recursive: true });
-    for (const [relPath, text] of writes) {
+    for (const [relPath, text] of archiveWrites) {
       await writeFile(join(checkoutPath, relPath), text, 'utf8');
       written.push(relPath);
     }
-    if (beforeFinalWrite) await beforeFinalWrite();
+    await hooks.beforeFinalWrite?.();
     // D11: an agent may have edited DEVLOG.md during the run; never overwrite its change.
     if ((await readUtf8Strict(devlogPath)) !== original) {
       throw new Error(`${DEVLOG_FILE} changed during the run; it was not modified`);
@@ -119,18 +130,16 @@ async function writeAll(
   }
 }
 
-export async function archiveDevlog(options: ArchiveDevlogOptions): Promise<ArchiveDevlogResult> {
+export async function archiveDevlog(
+  options: ArchiveDevlogOptions,
+  hooks: ArchiveDevlogTestHooks = {},
+): Promise<ArchiveDevlogResult> {
   const { checkoutPath, maxBytes, targetBytes, projectName, today, dryRun } = options;
   assertDevlogLimits(maxBytes, targetBytes);
   const devlogPath = join(checkoutPath, DEVLOG_FILE);
 
-  let sizeBytes: number;
-  try {
-    sizeBytes = (await stat(devlogPath)).size;
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') throw new Error(`${DEVLOG_FILE} not found at ${devlogPath}`, { cause: error });
-    throw new Error(`Cannot stat ${devlogPath}: ${causeText(error)}`, { cause: error });
-  }
+  const sizeBytes = await statDevlogSize(devlogPath);
+  if (sizeBytes === null) throw new Error(`${DEVLOG_FILE} not found at ${devlogPath}`);
   if (sizeBytes <= maxBytes) return { status: 'within-limit', sizeBytes };
 
   const original = await readUtf8Strict(devlogPath);
@@ -153,6 +162,6 @@ export async function archiveDevlog(options: ArchiveDevlogOptions): Promise<Arch
   };
   if (dryRun) return { status: 'dry-run', ...report };
 
-  await writeAll(checkoutPath, devlogPath, original, plan.keptText, writes, options.beforeFinalWrite);
+  await writeAll({ checkoutPath, devlogPath, original, keptText: plan.keptText, archiveWrites: writes, hooks });
   return { status: 'archived', ...report };
 }

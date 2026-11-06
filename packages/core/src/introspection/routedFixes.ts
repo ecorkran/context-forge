@@ -239,11 +239,15 @@ async function commitViewWrites(
   fixLog: FixLogEntry[],
 ): Promise<CommitOutcome> {
   const root = viewRoot(view);
-  const written = [...new Set(fixLog.flatMap((e) => [e.filePath, ...(e.additionalPaths ?? [])].map((p) => relative(root, p))))];
+  const written = [
+    ...new Set(fixLog.flatMap((e) => [e.filePath, ...(e.additionalPaths ?? [])].map((p) => relative(root, p)))),
+  ];
   const opts = { timeoutMs: FIX_GIT_TIMEOUT_MS };
   try {
     const sha = await commitPathsIfChanged(root, written, FIX_COMMIT_MESSAGE, opts);
-    const commit = sha ? { ...(view.worktree && { worktree: view.worktree }), checkoutPath: root, sha, files: written } : undefined;
+    const commit = sha
+      ? { ...(view.worktree && { worktree: view.worktree }), checkoutPath: root, sha, files: written }
+      : undefined;
     return { commit, restored: false, deferred: [], fixErrors: [] };
   } catch (commitErr) {
     console.error(`cf check --fix: commit failed in ${root}:`, commitErr);

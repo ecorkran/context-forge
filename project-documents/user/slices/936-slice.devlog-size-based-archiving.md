@@ -9,7 +9,7 @@ dependencies:
 interfaces: []
 dateCreated: 20261105
 dateUpdated: 20261106
-status: not_started
+status: complete
 turns: 23
 promptTokens: 1649441
 cachedTokens: 1507276
@@ -365,41 +365,43 @@ The `--json` output and `workflow_check` shape change only by the additive enum 
    cf config set devlog.target_bytes 75000
    cf check            # expect a devlog-size warning, fixable
    cf devlog archive --dry-run
-   git status --short  # expect no DEVLOG.md change or archive files
+   git status --short  # expect only ` M .context-forge.toml` (the two keys); no DEVLOG.md change, no archive files
    ```
+   Verified output: `cf check` lists `⚠ DEVLOG.md is 185733 bytes, over devlog.max_bytes (150000)` with `→ Run cf check --fix, or cf devlog archive`. The dry run prints `DEVLOG.md: 185733 → 72367 bytes (limit 150000, target 75000)` and `Would move 42 sections:` with six archive lines (2026-Q3 1, 2026-Q2 4, 2026-Q1 32, 2025-Q1 1, 2025-Q4 3, 2025-Q3 1). Section counts depend on the DEVLOG at the time.
 2. **Archive.**
    ```bash
    cf devlog archive
-   wc -c DEVLOG.md     # expect at or under 75000
+   wc -c DEVLOG.md     # expect at or under 75000 (verified: 72367)
    ls project-documents/user/archive/devlog/
    ```
-   Expect a `DEVLOG-2025-Q1.md` holding `## 2025-01-16`, a `DEVLOG-2025-Q3.md` holding `## 2025-09 (summary)`, and a `DEVLOG-2025-Q4.md` with `## 2025-11-18 (reconstructed from git)` above `## 2025-10 (summary)`.
+   Expect a `DEVLOG-2025-Q1.md` holding `## 2025-01-16`, a `DEVLOG-2025-Q3.md` holding `## 2025-09 (summary)`, and a `DEVLOG-2025-Q4.md` with `## 2025-11-18 (reconstructed from git)` above `## 2025-11-17 (reconstructed from git)` and `## 2025-10 (summary)`. Verified: six files, 2025-Q1, 2025-Q3, 2025-Q4, 2026-Q1, 2026-Q2, 2026-Q3.
 3. **Nothing lost.**
    ```bash
    git diff --stat -- DEVLOG.md
    cat project-documents/user/archive/devlog/*.md DEVLOG.md | grep -c '^## [0-9]'
    git show HEAD:DEVLOG.md | grep -c '^## [0-9]'
    ```
-   The two counts match.
+   The two counts match (verified: 80 and 80).
 4. **Clean after archiving.**
    ```bash
    cf validate frontmatter project-documents/user/archive/devlog/*.md   # exit 0
    cf check            # no devlog-size finding
-   cf devlog archive   # "Nothing to archive", exit 0
+   cf devlog archive   # "DEVLOG.md: 72367 bytes, within devlog.max_bytes (150000). Nothing to archive.", exit 0
    ```
+   Verified: `cf validate frontmatter` reports `No inconsistencies found (6 files checked)`; `cf check` prints no `devlog-size` line.
 5. **Restore, then repeat through `--fix`.**
    ```bash
    git restore DEVLOG.md && rm -r project-documents/user/archive/devlog
-   cf check --fix      # preview lists the archive-devlog fix; confirm
-   wc -c DEVLOG.md
+   cf check --fix --yes   # --yes skips the prompt
+   wc -c DEVLOG.md        # expect 72367
    ```
-6. **Squadron's layout, on a scratch copy.** Copy squadron's `DEVLOG.md` and `project-documents/user/archive/devlog/` into a scratch project registered with `cf init`. Lower the limit below its size and run `cf devlog archive`. Moved sections sit directly above the existing newest section in the existing quarter file, and the preamble is unchanged.
+   Verified: the output shows `→ Fixed: 185733 bytes → 72367 bytes in .../DEVLOG.md` and six archive files exist. `--fix` also applies any unrelated fixable findings in this repo (slice status, plan status); revert those with `git restore` if you don't want them.
+6. **Squadron's layout, on a scratch copy.** Copy squadron's `DEVLOG.md` and `project-documents/user/archive/devlog/` into a scratch project registered with `cf init`. Lower the limit below its size and run `cf devlog archive`. Moved sections sit directly above the existing newest section in the existing quarter file, and the preamble is unchanged. Caveat: no squadron checkout was available when this was verified, so this property is covered by the squadron-format fixture in `packages/core/tests/devlog/archiveDevlog.test.ts` ("prepends into a squadron-format archive"). Run it on a real squadron copy when one is at hand.
 7. **Clean up.**
    ```bash
-   git restore DEVLOG.md && rm -r project-documents/user/archive/devlog
-   cf config unset devlog.max_bytes
-   cf config unset devlog.target_bytes
+   git restore DEVLOG.md .context-forge.toml && rm -r project-documents/user/archive/devlog
    git status --short  # expect no changes from this walkthrough
+   # (or `cf config unset devlog.max_bytes` / `devlog.target_bytes` instead of restoring .context-forge.toml)
    ```
 
 ## Implementation Notes

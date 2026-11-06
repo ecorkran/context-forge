@@ -1,8 +1,9 @@
 /** Builds the `devlog-size` consistency finding for one checkout (slice 936, D3/D5/D8/D9). */
-import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { DEVLOG_FILE, archiveRelPath, readUtf8Strict } from '../devlog/archiveDevlog.js';
-import { assertDevlogLimits } from '../devlog/devlogLimits.js';
+import { DEVLOG_FILE, archiveRelPath, readUtf8Strict, statDevlogSize } from '../devlog/archiveDevlog.js';
+import { causeText } from '../devlog/errorText.js';
+import { assertDevlogLimits, readRawDevlogLimits, type DevlogLimits } from '../devlog/devlogLimits.js';
+import type { ConfigManager } from '../config/ConfigManager.js';
 import { parseDevlog } from '../devlog/devlogSections.js';
 import { NO_MOVE_REASON, NO_MOVE_REASON_TEXT, planDevlogArchive } from '../devlog/planDevlogArchive.js';
 import type { ConsistencyFinding } from './types.js';
@@ -29,8 +30,19 @@ export function devlogSizeErrorFinding(location: string, message: string): Consi
   };
 }
 
-function causeText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/** `fixAction.detail` of an archive-devlog fix. */
+export interface ArchiveDevlogDetail {
+  targetBytes: number;
+  projectName: string;
+}
+
+/** Narrow an untyped fixAction detail; throws when it is not an archive-devlog detail. */
+export function parseArchiveDevlogDetail(detail: Record<string, unknown>): ArchiveDevlogDetail {
+  const { targetBytes, projectName } = detail;
+  if (typeof targetBytes !== 'number' || typeof projectName !== 'string') {
+    throw new Error('archive-devlog fix has no valid targetBytes and projectName in its detail');
+  }
+  return { targetBytes, projectName };
 }
 
 /** Zero or one finding: DEVLOG.md is over `devlog.max_bytes`. Stats first; reads only when over. */
@@ -38,13 +50,13 @@ export async function buildDevlogSizeFinding(input: DevlogSizeInput): Promise<Co
   const { checkoutPath, projectName, maxBytes, targetBytes } = input;
   const location = join(checkoutPath, DEVLOG_FILE);
 
-  let size: number;
+  let size: number | null;
   try {
-    size = (await stat(location)).size;
+    size = await statDevlogSize(location);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    return devlogSizeErrorFinding(location, `Cannot stat ${location}: ${causeText(error)}`);
+    return devlogSizeErrorFinding(location, causeText(error));
   }
+  if (size === null) return null;
   if (size <= maxBytes) return null;
 
   try {
@@ -83,11 +95,27 @@ export async function buildDevlogSizeFinding(input: DevlogSizeInput): Promise<Co
         type: ARCHIVE_DEVLOG_ACTION,
         filePath: location,
         additionalPaths,
-        detail: { targetBytes, projectName },
+        detail: { targetBytes, projectName } satisfies ArchiveDevlogDetail,
         subjectIndex: null,
       },
     };
   } catch (error) {
     return devlogSizeErrorFinding(location, causeText(error));
   }
+}
+
+/** The rule's entry point: read the limits (a bad value becomes an error finding), then build the finding. */
+export async function devlogSizeFindings(
+  config: ConfigManager,
+  checkoutPath: string,
+  projectName: string,
+): Promise<ConsistencyFinding[]> {
+  let limits: DevlogLimits;
+  try {
+    limits = await readRawDevlogLimits(config);
+  } catch (error) {
+    return [devlogSizeErrorFinding(join(checkoutPath, DEVLOG_FILE), causeText(error))];
+  }
+  const finding = await buildDevlogSizeFinding({ checkoutPath, projectName, ...limits });
+  return finding ? [finding] : [];
 }

@@ -10,8 +10,8 @@ projectState: main at 0.19.25. DEVLOG.md has no size control; routed fixes (slic
   213) assume one written file per fix. Design reviewed (CONCERNS, resolved in the
   design).
 dateCreated: 20261105
-dateUpdated: 20261105
-status: in_progress
+dateUpdated: 20261106
+status: complete
 turns: 30
 promptTokens: 1064082
 cachedTokens: 992799
@@ -181,8 +181,8 @@ There is no commit between Tasks 6 and 8: the finding is marked fixable in Task 
 
 **Commit**: `docs: document cf devlog archive and devlog config keys`
 
-- [ ] **Task 10: Verification walkthrough** (effort: 3)
-  - [ ] Run `pnpm -r build`, then the design's Verification Walkthrough steps 1–7 with the local build (`node packages/cli/dist/index.js`) against cf's real DEVLOG, restoring it afterward. Step 6 uses a scratch copy of squadron's DEVLOG and archives if a squadron checkout is present in the environment; otherwise use the squadron-format fixture from Task 1T and say so in the note.
-  - [ ] Confirm the conservation counts in step 3 match, new archives pass `cf validate frontmatter`, and `git status --short` is clean of walkthrough changes at the end.
-  - [ ] Run the full format, lint, typecheck and all package test suites once.
-  - [ ] Success: every walkthrough expectation holds, and all suites pass. This task is the final gate and changes nothing, so it has no commit marker.
+- [x] **Task 10: Verification walkthrough** (effort: 3)
+  - [x] Run `pnpm -r build`, then the design's Verification Walkthrough steps 1–7 with the local build (`node packages/cli/dist/index.js`) against cf's real DEVLOG, restoring it afterward. Step 6 uses a scratch copy of squadron's DEVLOG and archives if a squadron checkout is present in the environment; otherwise use the squadron-format fixture from Task 1T and say so in the note. Note: no squadron checkout exists in this environment, so step 6 used the squadron-format fixture from Task 1T.
+  - [x] Confirm the conservation counts in step 3 match, new archives pass `cf validate frontmatter`, and `git status --short` is clean of walkthrough changes at the end.
+  - [x] Run the full format, lint, typecheck and all package test suites once.
+  - [x] Success: every walkthrough expectation holds, and all suites pass. This task is the final gate and changes nothing, so it has no commit marker.

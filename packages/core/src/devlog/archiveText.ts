@@ -14,8 +14,10 @@ export interface ArchiveTextInput {
 /** Archive text after the add, or null when every moved section is already in it. */
 export function buildArchiveText(input: ArchiveTextInput): string | null {
   const { existing, quarterLabel, projectName, today } = input;
-  // D11: a section whose exact text is already archived is not written again.
-  const moved = input.moved.filter((section) => existing === null || !existing.includes(section));
+  // D11: a section whose exact text is already archived is not written again. Compare whole
+  // parsed sections (ignoring trailing whitespace), never substrings of the file.
+  const archived = new Set(existing === null ? [] : parseDevlog(existing).sections.map((s) => s.text.trimEnd()));
+  const moved = input.moved.filter((section) => !archived.has(section.trimEnd()));
   if (moved.length === 0) return null;
   const added = moved.join('');
 

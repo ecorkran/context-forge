@@ -9,7 +9,7 @@ import {
   archiveRelPath,
   type ArchiveDevlogOptions,
 } from '../../src/devlog/archiveDevlog.js';
-import { SQUADRON_ARCHIVE_EXCERPT } from './devlogFixtures.js';
+import { SQUADRON_ARCHIVE_EXCERPT } from '../fixtures/devlog.js';
 
 const PREAMBLE = '# Development Log\n\nNewest entries first.\n\n---\n\n';
 const section = (date: string, body: string): string => `## ${date}\n\n${body}\n\n`;
@@ -132,7 +132,7 @@ describe('archiveDevlog', () => {
     await writeFile(devlogPath(), THREE_SECTIONS);
     const edited = section('20260302', 'late entry') + THREE_SECTIONS.slice(PREAMBLE.length);
     const concurrent = PREAMBLE + edited;
-    const failing = archiveDevlog(options({ beforeFinalWrite: () => writeFile(devlogPath(), concurrent) }));
+    const failing = archiveDevlog(options(), { beforeFinalWrite: () => writeFile(devlogPath(), concurrent) });
     await expect(failing).rejects.toThrow(/changed during the run.*DEVLOG-2025-Q4\.md/s);
     expect(await readFile(devlogPath(), 'utf8')).toBe(concurrent);
 
@@ -146,7 +146,8 @@ describe('archiveDevlog', () => {
     expect(q3.split('## 20250701').length - 1).toBe(1);
   });
 
-  it('names the path, cause and files already written when a write fails', async () => {
+  // File modes do not stop root, so the EACCES this test relies on never happens there.
+  it.skipIf(process.getuid?.() === 0)('names the path, cause and files already written when a write fails', async () => {
     await mkdir(archiveDir(), { recursive: true });
     const lockedPath = join(dir, archiveRelPath('2025-Q3'));
     await writeFile(lockedPath, '# Locked\n');

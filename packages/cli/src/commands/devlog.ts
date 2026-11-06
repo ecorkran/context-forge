@@ -6,6 +6,8 @@ import { Command } from 'commander';
 import { formatDateProject, resolveProject } from '@context-forge/core';
 import {
   ConfigManager,
+  DEVLOG_FILE,
+  DEVLOG_MAX_BYTES_KEY,
   FileProjectStore,
   NO_MOVE_REASON_TEXT,
   archiveDevlog,
@@ -16,21 +18,19 @@ import { handleError, UserError } from '../utils/errors.js';
 import { withProjectOption } from '../options.js';
 import { resolveProjectWorktree } from '../utils/project.js';
 
-const DEVLOG_NAME = 'DEVLOG.md';
-
 function report(result: ArchiveDevlogResult, maxBytes: number, targetBytes: number): void {
   if (result.status === 'within-limit') {
-    console.log(`${DEVLOG_NAME}: ${result.sizeBytes} bytes, within devlog.max_bytes (${maxBytes}). Nothing to archive.`);
+    console.log(`${DEVLOG_FILE}: ${result.sizeBytes} bytes, within ${DEVLOG_MAX_BYTES_KEY} (${maxBytes}). Nothing to archive.`);
     return;
   }
   if (result.status === 'nothing-movable') {
-    console.log(`${DEVLOG_NAME}: ${result.sizeBytes} bytes, over devlog.max_bytes (${maxBytes}).`);
+    console.log(`${DEVLOG_FILE}: ${result.sizeBytes} bytes, over ${DEVLOG_MAX_BYTES_KEY} (${maxBytes}).`);
     console.log(NO_MOVE_REASON_TEXT[result.reason]);
     return;
   }
   const verb = result.status === 'dry-run' ? 'Would move' : 'Moved';
   console.log(
-    `${DEVLOG_NAME}: ${result.beforeBytes} → ${result.afterBytes} bytes (limit ${maxBytes}, target ${targetBytes})`
+    `${DEVLOG_FILE}: ${result.beforeBytes} → ${result.afterBytes} bytes (limit ${maxBytes}, target ${targetBytes})`
   );
   console.log(`${verb} ${result.movedCount} sections:`);
   for (const archive of result.archives) console.log(`  ${archive.relPath}  ${archive.sectionCount}`);
@@ -41,7 +41,7 @@ export function registerDevlogCommand(program: Command): void {
 
   const archiveCmd = devlogCmd
     .command('archive')
-    .description('Move older DEVLOG.md day sections into quarterly archives when it passes devlog.max_bytes')
+    .description(`Move older ${DEVLOG_FILE} day sections into quarterly archives when it passes ${DEVLOG_MAX_BYTES_KEY}`)
     .option('--dry-run', 'Print the plan without writing any file');
   withProjectOption(archiveCmd);
   archiveCmd.action(async (opts: { project?: string; dryRun?: boolean }) => {

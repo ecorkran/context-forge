@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { headingQuarter, parseDevlog, quarterKey } from '../../src/devlog/devlogSections.js';
-import { CF_DEVLOG_EXCERPT, SQUADRON_ARCHIVE_EXCERPT } from './devlogFixtures.js';
+import { CF_DEVLOG_EXCERPT, SQUADRON_ARCHIVE_EXCERPT } from '../fixtures/devlog.js';
 
 describe('parseDevlog', () => {
   it('parses every real heading form in order, with quarters', () => {
@@ -76,5 +76,14 @@ describe('parseDevlog', () => {
   it('parses a file without a trailing newline', () => {
     const { sections } = parseDevlog('## 20260101\n\nlast line');
     expect(sections[0].text).toBe('## 20260101\n\nlast line');
+  });
+});
+
+describe('code fence types', () => {
+  it('a shorter or different fence inside a fence does not close it', () => {
+    const text = '## 20260101\n\n````\n```\n## 20250101\n```\n````\n\n## 20241201\n\nx\n';
+    expect(parseDevlog(text).sections.map((s) => s.heading)).toEqual(['## 20260101', '## 20241201']);
+    const tilde = '## 20260101\n\n~~~\n```\n## 20250101\n~~~\n';
+    expect(parseDevlog(tilde).sections).toHaveLength(1);
   });
 });

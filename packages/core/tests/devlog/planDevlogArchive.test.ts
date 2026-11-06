@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDevlog } from '../../src/devlog/devlogSections.js';
 import { NO_MOVE_REASON, planDevlogArchive } from '../../src/devlog/planDevlogArchive.js';
-import { CF_DEVLOG_EXCERPT } from './devlogFixtures.js';
+import { CF_DEVLOG_EXCERPT } from '../fixtures/devlog.js';
 
 const section = (date: string, body: string): string => `## ${date}\n\n${body}\n\n`;
 const bytes = (s: string): number => Buffer.byteLength(s, 'utf8');
