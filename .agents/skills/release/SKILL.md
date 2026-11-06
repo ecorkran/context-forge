@@ -1,0 +1,91 @@
+---
+name: release
+description: Cut a context-forge release — confirm npm login, verify cf state, merge the slice, build, bump all four packages in lockstep, update CHANGELOG/DEVLOG, tag, push, publish to npm, and confirm the new version is live. Use when the user says "release", "cut a release", "ship it", or "bump and tag".
+---
+
+# Release context-forge
+
+Run from the repo root. Stop and report on any failed command; don't work around it.
+
+## 0. PM prerequisite: npm login
+
+Run `npm whoami`. If it fails (401 / not logged in), stop and ask the PM to run `npm login`. Do not continue until `npm whoami` succeeds.
+
+## 1. Check cf state
+
+Run `cf next`. If it reports something unfinished for the current slice (open review gate, unchecked tasks, failing check), stop and show it. Otherwise continue.
+
+## 2. Merge
+
+Read the target with `cf config get git.integration_branch` (empty means `main`). If the current branch is a slice branch not yet merged into the target, follow the merge steps in AGENTS.md (Git Rules). If already on the target with the work merged, skip this.
+
+Working tree must be clean before continuing.
+
+## 3. Build
+
+Run `pnpm -r build`. A failure stops the release.
+
+## 4. Pick the version
+
+The four publishable packages release in lockstep at one version: `packages/core`, `packages/cli`, `packages/mcp-server`, `packages/context-forge`. Current version is `version` in `packages/core/package.json`. The repo-root `package.json` is private at `0.0.0` — never touch it.
+
+Read `## [Unreleased]` in CHANGELOG.md. If it is empty, draft entries from `git log vPREV..HEAD --oneline` (user-facing `feat`/`fix` commits, with issue numbers) and add them before continuing.
+
+- **Patch is the default.** It covers fixes, refinements, and new flags, options, parameters, config keys and checks. An `### Added` section or a non-empty changelog does not by itself mean minor.
+- **Minor** only for a new user-facing feature or a significant new AI capability. Propose it in one line with the reason, and wait for the PM to confirm before changing any files.
+- **Major** only when the PM explicitly asks for it.
+
+For a patch, state the chosen version in one line and proceed.
+
+## 5. Bump and document
+
+1. Set `version` to X.Y.Z in all four package.json files listed above. Internal deps are `workspace:*` and need no edit.
+2. CHANGELOG.md: insert `## [X.Y.Z] - YYYYMMDD` directly under `## [Unreleased]`, so the unreleased entries now sit under the new version and `[Unreleased]` is empty. Entries stay short and user-facing.
+3. DEVLOG.md: under today's `## YYYY-MM-DD` heading (create it at the top, below the `---`, if missing), add at the top:
+   ```
+   ### Release X.Y.Z
+
+   - **Contents:** <slices and fixes included, with issue numbers>
+
+   Tags: @context-forge/core@X.Y.Z, @context-forge/cli@X.Y.Z, @context-forge/mcp@X.Y.Z, @context-forge/context-forge@X.Y.Z
+   ```
+4. Run `pnpm -r typecheck` and `pnpm -r test`. Any failure stops the release.
+5. Commit: `chore: release X.Y.Z`.
+
+## 6. Tag and push
+
+```
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push
+git push --tags
+```
+
+The tag must point at HEAD, or pnpm's git checks block the publish. If a fix lands after tagging, move it with `git tag -f -a vX.Y.Z -m "vX.Y.Z"` and `git push -f origin vX.Y.Z`.
+
+## 7. Publish
+
+1. Run `pnpm -r build` again. `dist/` is gitignored and packed straight from disk, so this must run right before publish — a stale dist has shipped before.
+2. Run `pnpm publish -r --access public`. The PM approves each package's publish as npm asks (2FA). If it fails with `EOTP`, nothing was published: ask the PM for an OTP and re-run with `--otp=<code>`, or hand the command to the PM to run.
+
+## 8. Confirm on npm
+
+Packages publish one at a time, each gated by its own PM approval, so a full run can take several minutes. Don't check until the PM says the publish finished.
+
+Query the registry directly — `npm view` goes through a cache that lags behind a fresh publish:
+
+```
+for p in core cli mcp context-forge; do
+  echo "$p: $(curl -s "https://registry.npmjs.org/@context-forge%2F$p?t=$(date +%s)" \
+    | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["dist-tags"]["latest"], d["time"].get("X.Y.Z","MISSING"))')"
+done
+```
+
+Each package must show `X.Y.Z` as latest with a publish timestamp. If any is missing, re-check every 30 seconds for up to 5 minutes before calling it a failure. Only a package still missing after that is a real partial publish: re-run `pnpm publish -r --access public` (it skips versions already published).
+
+Never check `context-forge` unscoped — that is an unrelated third-party package.
+
+Report "X.Y.Z live on npm" when all four match.
+
+## 9. Summary
+
+Invoke `/sq:summary` (Skill tool, skill `sq:summary`) as the last action of the release. Call it even when the release is paused at step 7 waiting for the PM to run `pnpm publish -r --access public` (or supply an OTP): hand over the command, call `/sq:summary` right then, and don't wait for the publish to finish. Step 8 happens after the PM reports back, in the same session or a restored one.
