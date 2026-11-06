@@ -78,33 +78,33 @@ Before committing, run format, lint, typecheck and the core devlog tests.
 
 **Commit**: `feat(core): add DEVLOG section parser and archive planner`
 
-- [ ] **Task 3: Config keys** (effort: 2)
-  - [ ] In `core/src/config/ConfigKeys.ts` add `devlog.max_bytes` (default `200000`) and `devlog.target_bytes` (default `100000`), both `ConfigScope.Shared`, each with a `validate` that requires a positive integer, following the shape of `workflow.auto_fix`.
-  - [ ] Add the single owner of the pair rule (D1): `readDevlogLimits(config)` reads both values and calls a pure `assertDevlogLimits(max, target)`, which throws an error naming both keys when `target_bytes >= max_bytes`. No other task re-implements this comparison: `archiveDevlog` (Task 4) calls `assertDevlogLimits`, the CLI (Task 5) lets its error print, and the finding builder (Task 6) catches it and turns it into an `error` finding.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 3: Config keys** (effort: 2)
+  - [x] In `core/src/config/ConfigKeys.ts` add `devlog.max_bytes` (default `200000`) and `devlog.target_bytes` (default `100000`), both `ConfigScope.Shared`, each with a `validate` that requires a positive integer, following the shape of `workflow.auto_fix`.
+  - [x] Add the single owner of the pair rule (D1): `readDevlogLimits(config)` reads both values and calls a pure `assertDevlogLimits(max, target)`, which throws an error naming both keys when `target_bytes >= max_bytes`. No other task re-implements this comparison: `archiveDevlog` (Task 4) calls `assertDevlogLimits`, the CLI (Task 5) lets its error print, and the finding builder (Task 6) catches it and turns it into an `error` finding.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 3T: Config tests** (effort: 2)
-  - [ ] Add tests in `core/tests/config/` (extend the existing keys test file if one exists): defaults resolve; `0`, negative, fractional and non-numeric values are rejected; both keys are shared scope; the pair helper throws for `target >= max` and names both keys; equal values throw.
-  - [ ] Success: all pass, existing config tests unchanged.
+- [x] **Task 3T: Config tests** (effort: 2)
+  - [x] Add tests in `core/tests/config/` (extend the existing keys test file if one exists): defaults resolve; `0`, negative, fractional and non-numeric values are rejected; both keys are shared scope; the pair helper throws for `target >= max` and names both keys; equal values throw.
+  - [x] Success: all pass, existing config tests unchanged.
 
-- [ ] **Task 4: Archive writer** (effort: 4)
-  - [ ] Create `core/src/devlog/archiveDevlog.ts` exporting `DEVLOG_FILE`, `DEVLOG_ARCHIVE_DIR` (`project-documents/user/archive/devlog`) and `archiveDevlog(options)`; export from `core/src/node.ts`. Options: checkout path, max and target bytes, project name, today's date (passed in, no inline clock), dry-run flag. Returns before/after sizes and per-archive section counts, or a no-op/reason result.
-  - [ ] Replace the hard-coded `'DEVLOG.md'` at `ProjectModelBuilder.ts:314` with `DEVLOG_FILE`.
-  - [ ] Order per D11: `stat` first; at or under the limit returns without reading. Then read DEVLOG.md and every existing target archive as strict UTF-8 (a decode or read failure stops before any write). Compute the whole plan in memory.
-  - [ ] New archive format per D6 (frontmatter `docType: devlog`, `project`, `dateCreated`, `dateUpdated`; title `# Development Log Archive: {YYYY} Q{n}`; the "Newest entries first" line). Existing archives get moved sections inserted before their first dated heading via the same parser (appended when it has none); their frontmatter and preamble are untouched.
-  - [ ] Idempotence per D11: a section whose exact text is already in its target archive is not written again, but is still cut from DEVLOG.md.
-  - [ ] Call `assertDevlogLimits` (Task 3) before anything else.
-  - [ ] Write archives first (create the directory as needed), then DEVLOG.md last. Missing DEVLOG.md names the expected path. Dry-run writes nothing.
-  - [ ] Concurrent-edit guard (D11): after the archive writes and immediately before the DEVLOG.md write, re-read DEVLOG.md and compare it with the text the plan was made from. If it changed, fail without writing it. Test seam: `archiveDevlog` options take an optional `beforeFinalWrite` callback, awaited after the archive writes and before the re-read; production code never sets it.
-  - [ ] Any failure after the first write (including a changed DEVLOG.md or a failed directory creation) throws an error naming the cause and every file already written, and saying to review them with `git diff`. No rollback.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 4: Archive writer** (effort: 4)
+  - [x] Create `core/src/devlog/archiveDevlog.ts` exporting `DEVLOG_FILE`, `DEVLOG_ARCHIVE_DIR` (`project-documents/user/archive/devlog`) and `archiveDevlog(options)`; export from `core/src/node.ts`. Options: checkout path, max and target bytes, project name, today's date (passed in, no inline clock), dry-run flag. Returns before/after sizes and per-archive section counts, or a no-op/reason result.
+  - [x] Replace the hard-coded `'DEVLOG.md'` at `ProjectModelBuilder.ts:314` with `DEVLOG_FILE`.
+  - [x] Order per D11: `stat` first; at or under the limit returns without reading. Then read DEVLOG.md and every existing target archive as strict UTF-8 (a decode or read failure stops before any write). Compute the whole plan in memory.
+  - [x] New archive format per D6 (frontmatter `docType: devlog`, `project`, `dateCreated`, `dateUpdated`; title `# Development Log Archive: {YYYY} Q{n}`; the "Newest entries first" line). Existing archives get moved sections inserted before their first dated heading via the same parser (appended when it has none); their frontmatter and preamble are untouched.
+  - [x] Idempotence per D11: a section whose exact text is already in its target archive is not written again, but is still cut from DEVLOG.md.
+  - [x] Call `assertDevlogLimits` (Task 3) before anything else.
+  - [x] Write archives first (create the directory as needed), then DEVLOG.md last. Missing DEVLOG.md names the expected path. Dry-run writes nothing.
+  - [x] Concurrent-edit guard (D11): after the archive writes and immediately before the DEVLOG.md write, re-read DEVLOG.md and compare it with the text the plan was made from. If it changed, fail without writing it. Test seam: `archiveDevlog` options take an optional `beforeFinalWrite` callback, awaited after the archive writes and before the re-read; production code never sets it.
+  - [x] Any failure after the first write (including a changed DEVLOG.md or a failed directory creation) throws an error naming the cause and every file already written, and saying to review them with `git diff`. No rollback.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 4T: Writer tests** (effort: 4)
-  - [ ] Create `core/tests/devlog/archiveDevlog.test.ts` using temp directories.
-  - [ ] Cover: at or under limit changes nothing and reads nothing; over limit creates new archives with valid frontmatter and moves sections, and DEVLOG.md ends at or under target; prepend into an existing squadron-format archive leaves its preamble and existing sections unchanged with moved sections directly above the old newest; archive with no dated heading gets an append; dry-run writes nothing; missing DEVLOG.md error; `target >= max` error; non-UTF-8 archive fails before any write with the path named and no files changed.
-  - [ ] Concurrent edit: change DEVLOG.md between the archive writes and the final write (edit the file from the `beforeFinalWrite` callback); assert the failure names the archives written and the new entry is intact. Then re-run and assert no section is duplicated and DEVLOG.md is at or under target.
-  - [ ] A write failure (for example a read-only archive directory) names the path, the cause and the files already written.
-  - [ ] Success: all pass.
+- [x] **Task 4T: Writer tests** (effort: 4)
+  - [x] Create `core/tests/devlog/archiveDevlog.test.ts` using temp directories.
+  - [x] Cover: at or under limit changes nothing and reads nothing; over limit creates new archives with valid frontmatter and moves sections, and DEVLOG.md ends at or under target; prepend into an existing squadron-format archive leaves its preamble and existing sections unchanged with moved sections directly above the old newest; archive with no dated heading gets an append; dry-run writes nothing; missing DEVLOG.md error; `target >= max` error; non-UTF-8 archive fails before any write with the path named and no files changed.
+  - [x] Concurrent edit: change DEVLOG.md between the archive writes and the final write (edit the file from the `beforeFinalWrite` callback); assert the failure names the archives written and the new entry is intact. Then re-run and assert no section is duplicated and DEVLOG.md is at or under target.
+  - [x] A write failure (for example a read-only archive directory) names the path, the cause and the files already written.
+  - [x] Success: all pass.
 
 Before committing, run format, lint, typecheck and the core tests.
 

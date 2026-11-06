@@ -21,6 +21,7 @@ import type {
   NormalizedStatus,
 } from './types.js';
 import { STATUS } from './types.js';
+import { DEVLOG_FILE } from '../devlog/archiveDevlog.js';
 
 /** Deduplicate DocSummary-like arrays by name field (first wins). */
 function dedupeByName<T extends { name: string }>(items: T[]): T[] {
@@ -311,7 +312,7 @@ export async function buildModel(
   };
 
   // Check DEVLOG.md at project root
-  model.devlog = await fileExists(join(projectPath, 'DEVLOG.md'));
+  model.devlog = await fileExists(join(projectPath, DEVLOG_FILE));
 
   // --- Foundation band (000-009) ---
   const foundationTypes = new Set(['concept', 'spec', 'hld', 'slices']);
