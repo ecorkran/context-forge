@@ -1,3 +1,10 @@
+---
+docType: devlog
+project: context-forge
+dateCreated: 20260131
+dateUpdated: 20261106
+---
+
 # Development Log
 
 A lightweight, append-only record of development activity. Newest entries first.
