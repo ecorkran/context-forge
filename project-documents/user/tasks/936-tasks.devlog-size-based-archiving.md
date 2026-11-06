@@ -10,8 +10,8 @@ projectState: main at 0.19.25. DEVLOG.md has no size control; routed fixes (slic
   213) assume one written file per fix. Design reviewed (CONCERNS, resolved in the
   design).
 dateCreated: 20261105
-dateUpdated: 20261106
-status: not_started
+dateUpdated: 20261105
+status: in_progress
 turns: 30
 promptTokens: 1064082
 cachedTokens: 992799
@@ -43,36 +43,36 @@ revision_number: 2
 
 ## Tasks
 
-- [ ] **Task 0: Slice branch** (effort: 1)
-  - [ ] Read `cf config get git.integration_branch`; call its value (or `main` if empty) the target.
-  - [ ] Create `936-slice.devlog-size-based-archiving` from the target and switch to it.
-  - [ ] Success: `git branch --show-current` prints the slice branch.
+- [x] **Task 0: Slice branch** (effort: 1)
+  - [x] Read `cf config get git.integration_branch`; call its value (or `main` if empty) the target.
+  - [x] Create `936-slice.devlog-size-based-archiving` from the target and switch to it.
+  - [x] Success: `git branch --show-current` prints the slice branch.
 
-- [ ] **Task 1: Heading parser and quarter mapping** (effort: 3)
-  - [ ] Create `core/src/devlog/devlogSections.ts`. Export `parseDevlog(text)` returning the preamble and an ordered list of dated sections, each holding its exact source text, its date heading, and its `{year, quarter}`.
-  - [ ] Heading rules per D2: level-2 heading outside a code fence; `YYYYMMDD` or `YYYY-MM-DD` (first date in the heading wins; end of line or non-digit after it; trailing text ignored); or `YYYY-MM`. Month outside 1–12 or day outside 1–31 makes the heading undated. Quarter is ⌈month ÷ 3⌉.
-  - [ ] Section boundaries per D3: preamble is everything above the first dated heading; a section runs to the next dated heading; undated `##` headings below the first dated heading stay inside the section above. Section text is kept byte-for-byte, including CRLF.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 1: Heading parser and quarter mapping** (effort: 3)
+  - [x] Create `core/src/devlog/devlogSections.ts`. Export `parseDevlog(text)` returning the preamble and an ordered list of dated sections, each holding its exact source text, its date heading, and its `{year, quarter}`.
+  - [x] Heading rules per D2: level-2 heading outside a code fence; `YYYYMMDD` or `YYYY-MM-DD` (first date in the heading wins; end of line or non-digit after it; trailing text ignored); or `YYYY-MM`. Month outside 1–12 or day outside 1–31 makes the heading undated. Quarter is ⌈month ÷ 3⌉.
+  - [x] Section boundaries per D3: preamble is everything above the first dated heading; a section runs to the next dated heading; undated `##` headings below the first dated heading stay inside the section above. Section text is kept byte-for-byte, including CRLF.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 1T: Parser tests** (effort: 3)
-  - [ ] Create `core/tests/devlog/devlogSections.test.ts` with a fixture of excerpts from cf's real `DEVLOG.md` covering every D2 form: `## 20260331`, `## 2026-11-03`, `## 2025-11-18 (reconstructed from git)`, `## 2026-07-05 – 2026-07-06`, `## 2025-10 (summary)`, the out-of-order `## 2026-07-18` under `## 2026-07-17`, and separator lines.
-  - [ ] Add a squadron-format archive excerpt (preamble citing #141, newest-first sections).
-  - [ ] Cover: `## 2025-09 (summary)` maps to 2025 Q3; invalid month/day is undated; a `##` line inside a code fence is not a heading; a literal `## YYYYMMDD` template heading in the preamble stays preamble; an undated `##` below a dated one stays in the section above; no dated headings gives an empty section list; CRLF text is preserved; the file without a trailing newline parses.
-  - [ ] Success: all pass.
+- [x] **Task 1T: Parser tests** (effort: 3)
+  - [x] Create `core/tests/devlog/devlogSections.test.ts` with a fixture of excerpts from cf's real `DEVLOG.md` covering every D2 form: `## 20260331`, `## 2026-11-03`, `## 2025-11-18 (reconstructed from git)`, `## 2026-07-05 – 2026-07-06`, `## 2025-10 (summary)`, the out-of-order `## 2026-07-18` under `## 2026-07-17`, and separator lines.
+  - [x] Add a squadron-format archive excerpt (preamble citing #141, newest-first sections).
+  - [x] Cover: `## 2025-09 (summary)` maps to 2025 Q3; invalid month/day is undated; a `##` line inside a code fence is not a heading; a literal `## YYYYMMDD` template heading in the preamble stays preamble; an undated `##` below a dated one stays in the section above; no dated headings gives an empty section list; CRLF text is preserved; the file without a trailing newline parses.
+  - [x] Success: all pass.
 
-- [ ] **Task 2: Archive planner** (effort: 3)
-  - [ ] Create `core/src/devlog/planDevlogArchive.ts` exporting a pure `planDevlogArchive(parsed, targetBytes)` returning kept text, moved sections grouped by quarter key (`YYYY-Qn`), and a `reason` field for the no-move cases.
-  - [ ] Positional cut per D4: walk from the top, keep sections while preamble plus kept bytes stay at or under `targetBytes`; the first section that would exceed it and everything below moves, even if a smaller later one would fit. Each moved section is grouped by its own heading's quarter; relative order within a quarter is preserved.
-  - [ ] Size is measured in bytes (UTF-8), not characters.
-  - [ ] The newest (first) section is always kept (D5). When nothing moves, return the reason: no dated headings (D3) or newest section alone exceeds the target (D5).
-  - [ ] Moved sections are written ending in a blank line (D6); other section text is unchanged.
-  - [ ] Success: `pnpm -r build` passes.
+- [x] **Task 2: Archive planner** (effort: 3)
+  - [x] Create `core/src/devlog/planDevlogArchive.ts` exporting a pure `planDevlogArchive(parsed, targetBytes)` returning kept text, moved sections grouped by quarter key (`YYYY-Qn`), and a `reason` field for the no-move cases.
+  - [x] Positional cut per D4: walk from the top, keep sections while preamble plus kept bytes stay at or under `targetBytes`; the first section that would exceed it and everything below moves, even if a smaller later one would fit. Each moved section is grouped by its own heading's quarter; relative order within a quarter is preserved.
+  - [x] Size is measured in bytes (UTF-8), not characters.
+  - [x] The newest (first) section is always kept (D5). When nothing moves, return the reason: no dated headings (D3) or newest section alone exceeds the target (D5).
+  - [x] Moved sections are written ending in a blank line (D6); other section text is unchanged.
+  - [x] Success: `pnpm -r build` passes.
 
-- [ ] **Task 2T: Planner tests** (effort: 3)
-  - [ ] Create `core/tests/devlog/planDevlogArchive.test.ts`.
-  - [ ] Conservation test: for several generated and real-fixture inputs, every section's text appears exactly once across kept output and archives, apart from the D6 trailing whitespace.
-  - [ ] Cover: positional cut with a small section below a too-big one still moving; out-of-order heading filed by its own quarter; multibyte text counted in bytes; one huge section kept whole with the D5 reason; no dated headings with the D3 reason; CRLF file; no trailing newline not joining the next heading; kept size at or under target except under D5.
-  - [ ] Success: all pass.
+- [x] **Task 2T: Planner tests** (effort: 3)
+  - [x] Create `core/tests/devlog/planDevlogArchive.test.ts`.
+  - [x] Conservation test: for several generated and real-fixture inputs, every section's text appears exactly once across kept output and archives, apart from the D6 trailing whitespace.
+  - [x] Cover: positional cut with a small section below a too-big one still moving; out-of-order heading filed by its own quarter; multibyte text counted in bytes; one huge section kept whole with the D5 reason; no dated headings with the D3 reason; CRLF file; no trailing newline not joining the next heading; kept size at or under target except under D5.
+  - [x] Success: all pass.
 
 Before committing, run format, lint, typecheck and the core devlog tests.
 
