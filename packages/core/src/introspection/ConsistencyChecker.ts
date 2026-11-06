@@ -20,6 +20,8 @@ import type {
 import { resolveArtifactPath } from '../schema/resolveFileByIndex.js';
 import { updateCheckbox, updateFrontmatterField } from './writers/markdownWriter.js';
 import { formatDateProject } from '../project-defaults.js';
+import { applyArchiveDevlogFix } from './archiveDevlogFix.js';
+import { ARCHIVE_DEVLOG_ACTION, devlogSizeFindings } from './devlogSizeFinding.js';
 import { resolveInitiativePlanPath } from './ArtifactIntrospector.js';
 import type { ConfigManager } from '../config/ConfigManager.js';
 import { isDecisionGateEnabled, readPendingDecisions } from '../schema/decisionGate.js';
@@ -207,6 +209,11 @@ export class ConsistencyChecker {
       ...await this.rulePersonalConfigInSharedFile(projectPath),
     );
 
+    // Rule 16: DEVLOG.md over devlog.max_bytes (slice 936)
+    allFindings.push(
+      ...await this.ruleDevlogSize(projectPath, project.name),
+    );
+
     return this.buildResult(projectPath, allFindings);
   }
 
@@ -242,6 +249,12 @@ export class ConsistencyChecker {
           entry.rule = finding.rule;
           fixLog.push(entry);
           fixed++;
+        } else if (finding.fixAction.type === ARCHIVE_DEVLOG_ACTION) {
+          const entry = await applyArchiveDevlogFix(this.config, finding, dateStamp);
+          if (entry) {
+            fixLog.push(entry);
+            fixed++;
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -1236,6 +1249,14 @@ export class ConsistencyChecker {
     }
 
     return findings;
+  }
+
+  /**
+   * Rule 16: DEVLOG.md larger than devlog.max_bytes. A thin caller of the
+   * finding builder; like Rule 15 it needs a ConfigManager for the limits.
+   */
+  private async ruleDevlogSize(projectPath: string, projectName: string): Promise<ConsistencyFinding[]> {
+    return this.config ? devlogSizeFindings(this.config, projectPath, projectName) : [];
   }
 
   // --- Document-wide rules ---

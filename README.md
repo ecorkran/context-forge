@@ -311,7 +311,24 @@ checkout listed.
 
 `cf config set workflow.auto_fix true` makes every `cf check` a fixing run, with
 no confirmation. With worktrees, that means a plain `cf check` can commit into
-other checkouts.
+other checkouts. That includes the DEVLOG archiving below: with `workflow.auto_fix`
+on, a plain `cf check` can archive and commit `DEVLOG.md` without a prompt.
+
+### Keeping `DEVLOG.md` small
+
+`DEVLOG.md` grows without bound, and a very large one can overflow an agent's
+tool-result buffer. When it passes `devlog.max_bytes`, `cf check` warns
+(`devlog-size`), and `cf devlog archive [--dry-run]` or `cf check --fix` moves the
+older day sections, cut from the bottom, into quarterly archives at
+`project-documents/user/archive/devlog/DEVLOG-YYYY-Qn.md`. The newest sections
+stay, up to `devlog.target_bytes`; a day section is never split. `--dry-run`
+prints the plan and writes nothing, and `cf devlog archive` never commits. With
+several checkouts, `--fix` archives only in the main checkout.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `devlog.max_bytes` | `200000` | Size above which `cf check` warns and archiving runs |
+| `devlog.target_bytes` | `100000` | Size archiving keeps `DEVLOG.md` at or under; must be below `devlog.max_bytes` |
 
 ## Review Gating
 

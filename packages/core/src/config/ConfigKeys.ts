@@ -36,6 +36,13 @@ export const LEGACY_ADOPTION_STATES = ['in_progress', 'complete'] as const;
 
 export type LegacyAdoptionState = (typeof LEGACY_ADOPTION_STATES)[number];
 
+function validatePositiveInteger(value: string | boolean | number): string | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return 'must be a positive integer';
+  }
+  return null;
+}
+
 export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
   'guide.auto_update': {
     type: 'boolean',
@@ -211,6 +218,22 @@ export const CONFIG_KEYS: Record<string, ConfigKeyDefinition> = {
       if (value.endsWith('/') || value.endsWith('\\')) return 'must not have a trailing slash';
       return null;
     },
+  },
+  'devlog.max_bytes': {
+    type: 'number',
+    default: 200000,
+    description:
+      'DEVLOG.md size in bytes above which `cf check` warns and `cf devlog archive` moves older day sections into quarterly archives. Must exceed devlog.target_bytes.',
+    scope: ConfigScope.Shared,
+    validate: validatePositiveInteger,
+  },
+  'devlog.target_bytes': {
+    type: 'number',
+    default: 100000,
+    description:
+      'Size in bytes that archiving keeps DEVLOG.md at or under (the newest day sections stay). Must be below devlog.max_bytes.',
+    scope: ConfigScope.Shared,
+    validate: validatePositiveInteger,
   },
   'embed.comprehension_max_chars': {
     type: 'number',
