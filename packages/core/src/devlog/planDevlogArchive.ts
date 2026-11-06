@@ -12,6 +12,15 @@ export const NO_MOVE_REASON = {
 
 export type NoMoveReason = (typeof NO_MOVE_REASON)[keyof typeof NO_MOVE_REASON];
 
+/** User-facing text for each no-move case (CLI output and the devlog-size finding). */
+export const NO_MOVE_REASON_TEXT: Record<NoMoveReason, string> = {
+  [NO_MOVE_REASON.NoDatedHeadings]:
+    'DEVLOG.md has no dated `##` headings (## YYYYMMDD), so there is nothing to archive; add dated headings to enable archiving.',
+  [NO_MOVE_REASON.NewestExceedsTarget]:
+    'The newest day section alone exceeds the limit and sections are never split; edit it by hand.',
+  [NO_MOVE_REASON.WithinTarget]: 'Every section already fits within the target size.',
+};
+
 export interface ArchivePlan {
   /** New DEVLOG.md text: preamble plus the kept sections. */
   keptText: string;

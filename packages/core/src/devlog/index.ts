@@ -10,4 +10,4 @@ export {
 } from './archiveDevlog.js';
 export { assertDevlogLimits, readDevlogLimits, type DevlogLimits } from './devlogLimits.js';
 export { parseDevlog, quarterKey, type ParsedDevlog, type DevlogSection } from './devlogSections.js';
-export { planDevlogArchive, NO_MOVE_REASON, type ArchivePlan, type NoMoveReason } from './planDevlogArchive.js';
+export { planDevlogArchive, NO_MOVE_REASON, NO_MOVE_REASON_TEXT, type ArchivePlan, type NoMoveReason } from './planDevlogArchive.js';

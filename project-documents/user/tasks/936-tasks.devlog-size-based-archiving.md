@@ -110,16 +110,16 @@ Before committing, run format, lint, typecheck and the core tests.
 
 **Commit**: `feat(core): add devlog archive writer and config keys`
 
-- [ ] **Task 5: `cf devlog archive` command** (effort: 3)
-  - [ ] Create `cli/src/commands/devlog.ts` exporting `registerDevlogCommand`, and register it in `cli/src/index.ts`. Wiring and output only; all logic stays in core.
-  - [ ] Resolve project and checkout path as `cf docs map` does (`resolveProjectWorktree` / `resolveProject`), accept `--project <id>` and `--dry-run`, read both config keys, and call `archiveDevlog`.
-  - [ ] Output per the API Contracts table: the before/after report with per-file section counts (`Would move` under `--dry-run`); the `Nothing to archive` line; the D3/D5 reasons. Errors exit 1 with the messages in the table. The command never commits.
-  - [ ] Success: `pnpm -r build` passes and `node packages/cli/dist/index.js devlog archive --help` lists both flags.
+- [x] **Task 5: `cf devlog archive` command** (effort: 3)
+  - [x] Create `cli/src/commands/devlog.ts` exporting `registerDevlogCommand`, and register it in `cli/src/index.ts`. Wiring and output only; all logic stays in core.
+  - [x] Resolve project and checkout path as `cf docs map` does (`resolveProjectWorktree` / `resolveProject`), accept `--project <id>` and `--dry-run`, read both config keys, and call `archiveDevlog`.
+  - [x] Output per the API Contracts table: the before/after report with per-file section counts (`Would move` under `--dry-run`); the `Nothing to archive` line; the D3/D5 reasons. Errors exit 1 with the messages in the table. The command never commits.
+  - [x] Success: `pnpm -r build` passes and `node packages/cli/dist/index.js devlog archive --help` lists both flags.
 
-- [ ] **Task 5T: Command tests** (effort: 3)
-  - [ ] Add CLI tests following the pattern of an existing command test (for example the docs command tests), against a temp project.
-  - [ ] Cover output and exit-code mapping only, since core behavior and error causes are tested in Task 4T: moved report, dry-run wording with no writes, within-limit message with exit 0, nothing-movable reason with exit 0, and one representative failure (missing DEVLOG.md) exiting 1 with the error text printed.
-  - [ ] Success: all pass.
+- [x] **Task 5T: Command tests** (effort: 3)
+  - [x] Add CLI tests following the pattern of an existing command test (for example the docs command tests), against a temp project.
+  - [x] Cover output and exit-code mapping only, since core behavior and error causes are tested in Task 4T: moved report, dry-run wording with no writes, within-limit message with exit 0, nothing-movable reason with exit 0, and one representative failure (missing DEVLOG.md) exiting 1 with the error text printed.
+  - [x] Success: all pass.
 
 Before committing, run format, lint, typecheck and the CLI tests.
 
