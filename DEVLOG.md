@@ -2,7 +2,7 @@
 docType: devlog
 project: context-forge
 dateCreated: 20260131
-dateUpdated: 20261106
+dateUpdated: 20261107
 ---
 
 # Development Log
@@ -13,6 +13,14 @@ Format: `## YYYY-MM-DD` followed by brief notes (1-3 lines per session).
 Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
+
+## 20261107
+
+### Release 0.19.26
+
+- **Contents:** slice 936 DEVLOG size-based archiving (`cf devlog archive`, `devlog-size` check warning and fix; #141)
+
+Tags: @context-forge/core@0.19.26, @context-forge/cli@0.19.26, @context-forge/mcp@0.19.26, @context-forge/context-forge@0.19.26
 
 ## 20261106
 

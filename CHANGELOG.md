@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.26] - 20261107
+
 ### Added
 - `cf devlog archive [--dry-run]` moves older `DEVLOG.md` day sections into quarterly archives at `project-documents/user/archive/devlog/DEVLOG-YYYY-Qn.md` once the file passes `devlog.max_bytes`, keeping the newest sections up to `devlog.target_bytes` (defaults 200000 and 100000). Fixes #141.
 - `cf check` and `workflow_check` warn when `DEVLOG.md` is over the limit (`devlog-size`); `--fix` archives it in the main checkout and commits when that checkout is not the one you run from.
