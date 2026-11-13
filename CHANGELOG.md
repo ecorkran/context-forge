@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.27] - 20261112
+
+### Fixed
+- `cf set` / `cf unset` accept singular or plural field names (`cf unset slices`, `cf set task 936`). Fixes #143.
+- Singular/plural subcommands both work: `cf list slice|task|plan|project|initiative|item`, `cf guide`, `cf worktrees`; `cf config list` is an alias for `cf config get`.
+
 ## [0.19.26] - 20261107
 
 ### Added

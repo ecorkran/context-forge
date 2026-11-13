@@ -14,6 +14,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 20261112
+
+### Release 0.19.27
+
+- **Contents:** singular/plural tolerance for `cf set`/`cf unset` field names and CLI subcommand aliases (#143); low-priority CLI inconsistencies filed as #144
+
+Tags: @context-forge/core@0.19.27, @context-forge/cli@0.19.27, @context-forge/mcp@0.19.27, @context-forge/context-forge@0.19.27
+
 ## 20261107
 
 ### Release 0.19.26
