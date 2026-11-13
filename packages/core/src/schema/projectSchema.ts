@@ -154,11 +154,15 @@ phaseLookup['phase 1: concept'] = 'Phase 0: Concept';
 
 /**
  * Resolve a user-provided field name to its canonical ProjectData field name.
- * Supports aliases and case-insensitive matching.
+ * Supports aliases, case-insensitive matching, and singular/plural tolerance
+ * (`slices` → `slice`, `task` → `tasks`): an exact match always wins, otherwise a
+ * trailing "s" is toggled.
  * Returns undefined if the input doesn't match any known field.
  */
 export function resolveFieldName(input: string): string | undefined {
-  return fieldLookup[input.toLowerCase()];
+  const key = input.toLowerCase();
+  if (key === '') return undefined;
+  return fieldLookup[key] ?? fieldLookup[key.endsWith('s') ? key.slice(0, -1) : `${key}s`];
 }
 
 /** True when the canonical field holds a root-relative file path (see `FieldDefinition.pathValued`). */

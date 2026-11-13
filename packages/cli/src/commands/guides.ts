@@ -289,6 +289,7 @@ const VERSION_OPTION_HELP = 'Install this release tag instead of the newest (tar
 export function registerGuidesCommand(program: Command): void {
   const cmd = program
     .command('guides')
+    .alias('guide')
     .description('Manage AI project guide installation and updates');
 
   // cf guides info (also the default for bare `cf guides`)

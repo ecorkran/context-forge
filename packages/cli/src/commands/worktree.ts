@@ -51,6 +51,7 @@ function parseRange(rangeStr: string): [number, number] {
 export function registerWorktreeCommand(program: Command): void {
   const worktree = program
     .command('worktree')
+    .alias('worktrees')
     .description('Manage worktree contexts for a project');
 
   // ── cf worktree init ────────────────────────────────────────────────────────

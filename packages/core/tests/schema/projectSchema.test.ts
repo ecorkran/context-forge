@@ -42,6 +42,14 @@ describe('projectSchema', () => {
       expect(resolveFieldName('projectpath')).toBe('projectPath');
     });
 
+    it('accepts singular or plural of any field name or alias', () => {
+      expect(resolveFieldName('slices')).toBe('fileSlice');
+      expect(resolveFieldName('task')).toBe('fileTasks');
+      expect(resolveFieldName('plans')).toBe('fileSlicePlan');
+      expect(resolveFieldName('Specs')).toBe('fileSpec');
+      expect(resolveFieldName('note')).toBe('customData.additionalNotes');
+    });
+
     it('returns undefined for unknown fields', () => {
       expect(resolveFieldName('foobar')).toBeUndefined();
       expect(resolveFieldName('')).toBeUndefined();

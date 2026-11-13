@@ -73,7 +73,7 @@ export function registerConfigCommand(program: Command): void {
     .command('config')
     .description('Manage Context Forge configuration (get, set, unset)');
 
-  const getCmd = cmd.command('get [key]').description('Get a configuration key, or show all keys if none specified');
+  const getCmd = cmd.command('get [key]').alias('list').description('Get a configuration key, or show all keys if none specified');
   withJsonOption(getCmd);
   getCmd.option('-p, --project [id]', 'Project ID or name (overrides default); bare flag resolves from CWD');
   getCmd.option(

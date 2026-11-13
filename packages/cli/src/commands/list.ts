@@ -12,7 +12,7 @@ export function registerListCommand(program: Command): void {
     .command('list')
     .description('List project artifacts');
 
-  const projectsCmd = cmd.command('projects').description('List all projects');
+  const projectsCmd = cmd.command('projects').alias('project').description('List all projects');
   withJsonOption(projectsCmd);
   projectsCmd.action(async (opts: { json?: boolean }) => {
     try {
@@ -22,7 +22,7 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const initiativesCmd = cmd.command('initiatives').description('List architecture initiatives');
+  const initiativesCmd = cmd.command('initiatives').alias('initiative').description('List architecture initiatives');
   withJsonOption(initiativesCmd);
   withAllOption(initiativesCmd);
   withProjectOption(initiativesCmd);
@@ -46,7 +46,7 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const plansCmd = cmd.command('plans').description('List slice plan files');
+  const plansCmd = cmd.command('plans').alias('plan').description('List slice plan files');
   withJsonOption(plansCmd);
   withAllOption(plansCmd);
   withProjectOption(plansCmd);
@@ -58,7 +58,7 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const slicesCmd = cmd.command('slices')
+  const slicesCmd = cmd.command('slices').alias('slice')
     .description('List slices from active plan')
     .argument('[archIndex]', 'Architecture index to target a non-active slice plan (no state mutation)');
   withJsonOption(slicesCmd);
@@ -71,7 +71,7 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const tasksCmd = cmd.command('tasks')
+  const tasksCmd = cmd.command('tasks').alias('task')
     .description('List task files from plan')
     .argument('[archIndex]', 'Architecture index to target a non-active slice plan (no state mutation)');
   withJsonOption(tasksCmd);
@@ -85,7 +85,7 @@ export function registerListCommand(program: Command): void {
     }
   });
 
-  const itemsCmd = cmd.command('items').description('Show items from active task file');
+  const itemsCmd = cmd.command('items').alias('item').description('Show items from active task file');
   withJsonOption(itemsCmd);
   withProjectOption(itemsCmd);
   itemsCmd.action(async (opts: { json?: boolean; project?: string }) => {
