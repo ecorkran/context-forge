@@ -109,6 +109,10 @@ describe('Server Lifecycle', () => {
     const serverInfo = result.serverInfo as Record<string, unknown>;
     expect(serverInfo.name).toBe('context-forge-mcp');
 
+    // Cross-tool guidance for the model; must not be empty
+    expect(typeof result.instructions).toBe('string');
+    expect((result.instructions as string).trim().length).toBeGreaterThan(0);
+
     // Step 2: Send initialized notification
     sendMessage(child, INITIALIZED_NOTIFICATION);
 

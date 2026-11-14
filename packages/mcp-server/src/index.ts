@@ -17,6 +17,7 @@ import { registerVersionTool } from './tools/versionTool.js';
 import { registerGuideTools } from './tools/guideTools.js';
 import { registerAgentOnboardTool } from './tools/agentOnboardTool.js';
 import { registerAgentQuickstartTool } from './tools/agentQuickstartTool.js';
+import { SERVER_INSTRUCTIONS } from './serverInstructions.js';
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require('../package.json') as { version: string };
@@ -27,10 +28,10 @@ function log(message: string): void {
 }
 
 async function main(): Promise<void> {
-  const server = new McpServer({
-    name: SERVER_NAME,
-    version: SERVER_VERSION,
-  });
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { instructions: SERVER_INSTRUCTIONS },
+  );
 
   // Registration order matters — some MCP clients truncate tool lists.
   // High-priority tools first to maximize usability on limited clients.
