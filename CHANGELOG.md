@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.28] - 20261114
+
+### Added
+- The MCP server now returns `instructions` (cross-tool guidance: project resolution, tool ordering, recovery), which MCP clients such as Claude Code place in the model's system prompt. Fixes #146.
+
+### Changed
+- Guide updated to v0.22.19: new always-on rule `agent-facing-surfaces` (MCP servers ship `instructions`, public websites ship `llms.txt`).
+
 ## [0.19.27] - 20261112
 
 ### Fixed

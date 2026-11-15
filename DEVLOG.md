@@ -14,6 +14,14 @@ Tags noted as `Tags: @scope/pkg@version` when versions are bumped.
 
 ---
 
+## 20261114
+
+### Release 0.19.28
+
+- **Contents:** MCP server `instructions` (#146); ai-project-guide v0.22.19 with the agent-facing-surfaces rule (guide #50)
+
+Tags: @context-forge/core@0.19.28, @context-forge/cli@0.19.28, @context-forge/mcp@0.19.28, @context-forge/context-forge@0.19.28
+
 ## 20261112
 
 ### Release 0.19.27
